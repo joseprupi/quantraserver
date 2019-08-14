@@ -2,18 +2,15 @@ cmake_minimum_required(VERSION 3.3)
 project(quantraserver)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-SET (BOOST_ROOT "/usr/local/Cellar/boost/1.63.0")
 
-INCLUDE_DIRECTORIES(/home/joseprupi/josep/crow/include ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson ${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(/usr/local/include/crow ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson ${CMAKE_CURRENT_SOURCE_DIR})
 
-link_directories(/opt/local/lib/)
 find_library(QL QuantLib)
 
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
-    INCLUDE_DIRECTORIES(/opt/local/include/ /Users/joseprubio/Documents/dev/QuantLib-1.10)
     add_executable(quantraserver main.cpp
             common/enums.h
             common/enums.cpp
