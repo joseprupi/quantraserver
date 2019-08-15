@@ -3,7 +3,7 @@ project(quantraserver)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-INCLUDE_DIRECTORIES(/usr/local/include/crow ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson ${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/crow/include ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_library(QL QuantLib)
 

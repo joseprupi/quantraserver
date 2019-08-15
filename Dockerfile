@@ -4,9 +4,10 @@ RUN yum install -qy boost-devel cmake make git QuantLib-devel g++
 
 WORKDIR /opt/
 
-RUN git clone https://github.com/thulio/crow.git && \
-    git clone https://github.com/thulio/quantraserver.git && \
-    ln -sf /opt/crow/include /usr/local/include/crow
+RUN git clone https://github.com/thulio/quantraserver.git && \
+    pushd quantraserver && \
+    git submodule init && \
+    git submodule update
 
 WORKDIR /opt/quantraserver
 
