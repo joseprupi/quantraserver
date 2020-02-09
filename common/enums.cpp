@@ -301,7 +301,7 @@ DayCounter dayCounterToQL(string dayCounter){
             case Actual365FixedString:
                 return Actual365Fixed();
             case Actual365NoLeapString:
-                return Actual365NoLeap();
+                return Actual365Fixed();
             case ActualActualString:
                 return ActualActual();
             case ActualActualISMAString:
