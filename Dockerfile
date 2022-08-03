@@ -1,18 +1,25 @@
 FROM debian:buster AS builder
 
 RUN     apt-get update && \
-        apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common && \
-        curl -sL 'https://getenvoy.io/gpg' | apt-key add - && \
-        apt-key fingerprint 6FF974DB | grep "5270 CEAC" && \
-        add-apt-repository "deb [arch=amd64] https://dl.bintray.com/tetrate/getenvoy-deb $(lsb_release -cs) stable" && \
+        apt-get install -y curl
+
+RUN     curl -1sLf 'https://deb.dl.getenvoy.io/public/setup.deb.sh' | bash && \
         apt-get update && \
-        apt-get install -y \
-        git python3-pip build-essential autoconf libtool pkg-config cmake libssl-dev libboost-all-dev tar wget getenvoy-envoy && \
-        pip3 install PyYAML requests
+        apt-get install getenvoy-envoy
+
+RUN     apt-get install -y git wget apt-transport-https ca-certificates curl gnupg2 software-properties-common python3-pip build-essential autoconf libtool pkg-config libssl-dev libboost-all-dev tar  && \
+        pip3 install PyYAML requests && \
+        cd /root && \
+        mkdir tmp && \
+        cd tmp && \
+        wget https://github.com/Kitware/CMake/releases/download/v3.24.0-rc5/cmake-3.24.0-rc5-linux-x86_64.sh && \
+        chmod +x cmake-3.24.0-rc5-linux-x86_64.sh && \
+        bash cmake-3.24.0-rc5-linux-x86_64.sh --skip-license && \
+        ln -s  /root/tmp/bin/* /usr/local/bin
 
 # gRPC
-RUN     cd root && \
-        git clone -b v1.37.0 https://github.com/grpc/grpc && \
+RUN     cd /root && \
+        git clone -b v1.39.0 https://github.com/grpc/grpc && \
         cd grpc && \
         git submodule update --init && \
         mkdir -p "third_party/abseil-cpp/cmake/build" && \
@@ -37,7 +44,7 @@ RUN     cd root && \
 
 # Flatbuffers
 RUN     cd /root && \
-        git clone -b 2.0.0 https://github.com/google/flatbuffers && \
+        git clone -b v2.0.0 https://github.com/google/flatbuffers && \
         export GRPC_INSTALL_PATH=/root/grpc/install && \
         export PROTOBUF_DOWNLOAD_PATH=/root/grpc/third_party/protobuf && \
         cd flatbuffers && \
@@ -50,8 +57,9 @@ RUN     cd /root && \
 # Test flatbuffers
 RUN     ln -s ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.6 ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.1 && \
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${GRPC_INSTALL_PATH}/lib && \
-        cd /root/flatbuffers/build && \
-        make test ARGS=-V
+        cd /root/flatbuffers/ && \
+        /root/flatbuffers/build/flattests && \
+        /root/flatbuffers/build/grpctest
 
 # Quantlib
 RUN     cd /root && \
@@ -65,10 +73,10 @@ RUN     cd /root && \
 
 # Quantra
 RUN     cd /root && \
-        git clone https://github.com/joseprupi/quantraserver && \
+        git clone https://github.com/joseprupi/quantragrpc && \
         cd quantragrpc && \
         . ./scripts/config_vars.sh && \
         mkdir build && \
         cd build && \
-        cmake ../ && \ 
+        cmake ../ && \
         make -j
