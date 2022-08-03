@@ -196,32 +196,3 @@ Once installed execute **start.sh** providing the number of processes you want f
 Flatbuffers is the format used by Quantra to communicate with the server and using it provides some extra advantages as the project supports  translating to and from JSON and binary formats.
 
 Flabuffers provides and API and also commmand line tools to do so. This should probably be added to the Quantra client libraries but for now take a look to [Flatbuffers documentation](https://google.github.io/flatbuffers/flatbuffers_guide_tutorial.html) and the example at https://github.com/joseprupi/quantragrpc/blob/master/examples/bond_request_to_json.cpp to generate a json file from a request to price a bond. 
-
-## Current and possible future situation
-
-### Currently
-
-Currently Quantra just supports pricing fixed rate bonds. Although this is not much, it is pretty straight forward to add new functionalities to it.
-
-For me working in other things such as adding a cache or a Python client it is more useful/interesting.
-
-### Must
-
-* Create documentation 
-* Add tests to assert the results are equal to QuantLib
-
-### Nice to have
-
-#### Architecture
-
-* A Python client for quantra. This is pending from Flatbuffers project to support gRPC for Python, [see this](https://github.com/google/flatbuffers/issues/4109). Also considering to use the Flatbuffers Python implementation to serialize/deserialize and SWIG or some other low level interfaces like the [Python C API](https://docs.python.org/3/c-api/) and use the C++ client for the comunication with the server.
-* Having a shared cache for interprocess communications to avoid repeated calculations such as curve bootstrapping (currently working on this)
-
-![Arqchitecture](docs/architecture2.jpg?raw=true "Arqchitecture")
-
-#### Data
-
-An implementation to translate from QuantLib native objects to Quantra structs, this would make easy adapting to Quantra already existing developments in QuantLib. Also it would be possible to store QuantLib objects in Flatbuffers and JSON format (just the client library would be needed).
-
-![Data](docs/data3.jpg?raw=true "Data")
-
