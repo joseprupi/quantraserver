@@ -37,7 +37,7 @@ RUN     cd root && \
 
 # Flatbuffers
 RUN     cd /root && \
-        git clone https://github.com/google/flatbuffers && \
+        git clone -b 2.0.0 https://github.com/google/flatbuffers && \
         export GRPC_INSTALL_PATH=/root/grpc/install && \
         export PROTOBUF_DOWNLOAD_PATH=/root/grpc/third_party/protobuf && \
         cd flatbuffers && \
@@ -62,10 +62,10 @@ RUN     cd /root && \
         make -j && \
         make install && \
         ldconfig
- 
+
 # Quantra
 RUN     cd /root && \
-        git clone https://github.com/joseprupi/quantragrpc && \
+        git clone https://github.com/joseprupi/quantraserver && \
         cd quantragrpc && \
         . ./scripts/config_vars.sh && \
         mkdir build && \
