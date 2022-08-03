@@ -19,8 +19,18 @@ int main(int argc, char **argv)
     connection = argv[1];
 
     int port = atoi(argv[2]);
+    int secured = atoi(argv[3]);
 
-    QuantraClient base_client(connection, false);
+    QuantraClient *base_client;
+
+    if (secured == 1)
+    {
+        base_client = new QuantraClient(connection, true);
+    }
+    else
+    {
+        base_client = new QuantraClient(connection, false);
+    }
 
     CROW_ROUTE(app, "/")
         .name("hello")([]
@@ -31,7 +41,7 @@ int main(int argc, char **argv)
                                 {
                                     try
                                     {
-                                        auto client = std::make_shared<QuantraClient>(base_client.ReturnStub());
+                                        auto client = std::make_shared<QuantraClient>(base_client->ReturnStub());
                                         auto response = client->PriceFixedRateBondJSON(req.body);
                                         if (response->ok)
                                         {
@@ -56,7 +66,7 @@ int main(int argc, char **argv)
                                 {
                                     try
                                     {
-                                        auto client = std::make_shared<QuantraClient>(base_client.ReturnStub());
+                                        auto client = std::make_shared<QuantraClient>(base_client->ReturnStub());
                                         auto response = client->PriceFloatingRateBondJSON(req.body);
                                         if (response->ok)
                                         {
