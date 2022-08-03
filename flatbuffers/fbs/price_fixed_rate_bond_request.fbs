@@ -1,0 +1,19 @@
+include "common.fbs";
+include "fixed_rate_bond.fbs";
+include "floating_rate_bond.fbs";
+include "term_structure.fbs";
+
+namespace quantra;
+
+table PriceFixedRateBond{
+    fixed_rate_bond:FixedRateBond;
+    discounting_curve:string;
+    yield:Yield;
+}
+
+table PriceFixedRateBondRequest{
+    pricing:Pricing;
+    bonds:[PriceFixedRateBond];
+}
+
+root_type PriceFixedRateBondRequest;

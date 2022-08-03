@@ -1,0 +1,78 @@
+include "term_structure.fbs";
+include "coupon_pricer.fbs";
+include "enums.fbs";
+
+namespace quantra;
+
+table Yield{
+    day_counter:enums.DayCounter;
+    compounding:enums.Compounding;
+    frequency:enums.Frequency;
+}
+
+table Pricing{
+    as_of_date: string;
+    settlement_date: string;
+    curves:[TermStructure];
+    bond_pricing_details:bool = false;
+    bond_pricing_flows:bool = false;
+    coupon_pricers:[CouponPricer];
+}
+
+table Error{
+    error_message: string;
+}
+
+table FlowInterest{
+    amount:double;
+    fixing_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    discount:float;
+    rate:float;
+    price:float;
+}
+
+table FlowInterestFloat{
+    amount:double;
+    fixing_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    discount:float;
+    rate:float;
+    price:float;
+}
+
+table FlowPastInterestFloat{
+    amount:double;
+    fixing_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    rate:float;
+}
+
+table FlowPastInterest{
+    amount:double;
+    fixing_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    rate:float;
+}
+
+table FlowNotional{
+    date:string;
+    amount:double;
+    discount:float;
+    price:float;
+}
+
+union Flow { FlowInterest, FlowPastInterest, FlowNotional }
+//union FlowFloat { FlowInterestFloat, FlowPastInterestFloat, FlowNotional }
+
+table FlowsWrapper{
+    flow:Flow;
+}
+
+//table FlowsFloatWrapper{
+//    flow:FlowFloat;
+//}

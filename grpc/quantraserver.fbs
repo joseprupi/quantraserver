@@ -1,0 +1,11 @@
+include "/fbs/price_fixed_rate_bond_request.fbs";
+include "/fbs/price_floating_rate_bond_request.fbs";
+include "/fbs/fixed_rate_bond_response.fbs";
+include "/fbs/floating_rate_bond_response.fbs";
+
+namespace quantra;
+
+rpc_service QuantraServer {
+  PriceFixedRateBond(PriceFixedRateBondRequest):PriceFixedRateBondResponse;
+  PriceFloatingRateBond(PriceFloatingRateBondRequest):PriceFloatingRateBondResponse;
+}

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "properties" : {
+        "flow_wrapper_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow_wrapper" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FixedRateBondResponse" : {
+      "type" : "object",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "clean_price" : {
+                "type" : "number"
+              },
+        "dirty_price" : {
+                "type" : "number"
+              },
+        "accrued_amount" : {
+                "type" : "number"
+              },
+        "yield" : {
+                "type" : "number"
+              },
+        "accrued_days" : {
+                "type" : "number"
+              },
+        "macaulay_duration" : {
+                "type" : "number"
+              },
+        "modified_duration" : {
+                "type" : "number"
+              },
+        "convexity" : {
+                "type" : "number"
+              },
+        "bps" : {
+                "type" : "number"
+              },
+        "flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FlowsWrapper"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceFixedRateBondResponse" : {
+      "type" : "object",
+      "properties" : {
+        "bonds" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FixedRateBondResponse"}
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceFixedRateBondResponse"
+}

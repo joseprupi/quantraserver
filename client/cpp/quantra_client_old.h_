@@ -1,0 +1,59 @@
+#include <iostream>
+#include <memory>
+#include <string>
+#include <sstream>
+#include <chrono>
+
+#include <grpcpp/grpcpp.h>
+#include <grpc/support/log.h>
+#include <thread>
+
+#include "quantra_to_fbs.h"
+#include "json_to_fbs.h"
+#include "fbs_to_quantra.h"
+#include "quantraserver.grpc.fb.h"
+
+// struct json_response
+// {
+//     bool ok;
+//     std::shared_ptr<std::string> response_value;
+// };
+
+class QuantraClient
+{
+public:
+    explicit QuantraClient(){};
+    explicit QuantraClient(std::string addr, bool secured);
+    explicit QuantraClient(std::shared_ptr<quantra::QuantraServer::Stub> stub_);
+
+    std::shared_ptr<std::string> PriceFloatingRateBondJSON(std::string json);
+    void PriceFloatingRateBondRequestCall(std::shared_ptr<structs::PriceFixedRateBondRequest> request, int request_tag);
+    void PriceFloatingRateBond(std::vector<std::shared_ptr<structs::PriceFixedRateBondRequest>> request);
+
+    std::shared_ptr<json_response> PriceFixedRateBondJSON(std::string json);
+    void PriceFixedRateBondRequestCall(std::shared_ptr<structs::PriceFixedRateBondRequest> request, int request_tag);
+    void PriceFixedRateBond(std::vector<std::shared_ptr<structs::PriceFixedRateBondRequest>> request);
+
+    void AsyncCompleteRpc(int request_size);
+    std::vector<std::shared_ptr<std::vector<std::shared_ptr<structs::PriceFixedRateBondValues>>>> responses;
+    std::vector<std::shared_ptr<json_response>> json_responses;
+
+    std::shared_ptr<quantra::QuantraServer::Stub> ReturnStub() { return this->stub_; }
+
+private:
+    struct AsyncClientCall
+    {
+
+        flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> reply;
+        flatbuffers::grpc::Message<quantra::Error> error_details;
+        grpc::ClientContext context;
+        grpc::Status status;
+        int request_pos;
+        std::unique_ptr<grpc::ClientAsyncResponseReader<flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse>>> response_reader;
+        bool json = false;
+    };
+
+    std::shared_ptr<JSONParser> json_parser = std::make_shared<JSONParser>();
+    std::shared_ptr<quantra::QuantraServer::Stub> stub_;
+    grpc::CompletionQueue cq_;
+};

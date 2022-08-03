@@ -1,0 +1,171 @@
+namespace quantra.enums;
+
+enum DayCounter : byte { 
+    Actual360,
+    Actual365Fixed,
+    Actual365NoLeap,
+    ActualActual,
+    ActualActualISMA,
+    ActualActualBond,
+    ActualActualISDA,
+    ActualActualHistorical,
+    ActualActual365,
+    ActualActualAFB,
+    ActualActualEuro,
+    Business252,
+    One,
+    Simple,
+    Thirty360,
+}
+
+enum Interpolator : byte { 
+    BackwardFlat,
+    ForwardFlat,
+    Linear,
+    LogCubic,
+    LogLinear,
+}
+
+enum BootstrapTrait : byte { 
+    Discount,
+    FwdRate,
+    InterpolatedDiscount,
+    InterpolatedFwd,
+    InterpolatedZero,
+    ZeroRate 
+}
+
+enum TimeUnit : byte { 
+    Days,
+    Hours,
+    Microseconds,
+    Milliseconds,
+    Minutes,
+    Months,
+    Seconds,
+    Weeks,
+    Years,
+}
+
+enum Calendar : byte { 
+    Argentina,
+    Australia,
+    BespokeCalendar,
+    Brazil,
+    Canada,
+    China,
+    CzechRepublic,
+    Denmark,
+    Finland,
+    Germany,
+    HongKong,
+    Hungary,
+    Iceland,
+    India,
+    Indonesia,
+    Israel,
+    Italy,
+    Japan,
+    Mexico,
+    NewZealand,
+    Norway,
+    NullCalendar,
+    Poland,
+    Romania,
+    Russia,
+    SaudiArabia,
+    Singapore,
+    Slovakia,
+    SouthAfrica,
+    SouthKorea,
+    Sweden,
+    Switzerland,
+    TARGET,
+    Taiwan,
+    Turkey,
+    Ukraine,
+    UnitedKingdom,
+    UnitedStates,
+    UnitedStatesGovernmentBond,
+    UnitedStatesNERC,
+    UnitedStatesNYSE,
+    UnitedStatesSettlement,
+    WeekendsOnly,
+}
+
+enum BusinessDayConvention : byte {
+    Following,
+    HalfMonthModifiedFollowing,
+    ModifiedFollowing,
+    ModifiedPreceding,
+    Nearest,
+    Preceding,
+    Unadjusted,
+} 
+
+enum Frequency : byte {
+    Annual,
+    Bimonthly,
+    Biweekly,
+    Daily,
+    EveryFourthMonth,
+    EveryFourthWeek,
+    Monthly,
+    NoFrequency,
+    Once,
+    OtherFrequency,
+    Quarterly,
+    Semiannual,
+    Weekly
+}
+
+enum Ibor : byte {
+    Euribor10M,
+    Euribor11M,
+    Euribor1M,
+    Euribor1Y,
+    Euribor2M,
+    Euribor2W,
+    Euribor365_10M,
+    Euribor365_11M,
+    Euribor365_1M,
+    Euribor365_1Y,
+    Euribor365_2M,
+    Euribor365_2W,
+    Euribor365_3M,
+    Euribor365_3W,
+    Euribor365_4M,
+    Euribor365_5M,
+    Euribor365_6M,
+    Euribor365_7M,
+    Euribor365_8M,
+    Euribor365_9M,
+    Euribor365_SW,
+    Euribor3M,
+    Euribor3W,
+    Euribor4M,
+    Euribor5M,
+    Euribor6M,
+    Euribor7M,
+    Euribor8M,
+    Euribor9M,
+    EuriborSW
+}
+
+enum DateGenerationRule : byte {
+    Backward,
+    CDS,
+    Forward,
+    OldCDS,
+    ThirdWednesday,
+    Twentieth,
+    TwentiethIMM,
+    Zero
+}
+
+enum Compounding : byte {
+    Compounded,
+    Continuous,
+    Simple,
+    SimpleThenCompounded
+}
