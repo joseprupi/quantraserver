@@ -73,7 +73,7 @@ RUN     ln -s ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.6 ${GRPC_INSTALL_PA
 
 # Quantra
 RUN     cd /root && \
-        git clone https://github.com/joseprupi/quantraserver \
+        git clone https://github.com/joseprupi/quantraserver && \
         cd quantraserver && \
         . ./scripts/config_vars.sh && \
         mkdir build && \
