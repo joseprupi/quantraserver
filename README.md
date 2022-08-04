@@ -23,13 +23,13 @@ These requests are being processed by an Envoy proxy that forwards them to each 
 
 The main format of quantra is Flatbuffers which is used to communicate with the server. As the serialization to Flatbuffers can be tedious part of the client implementation translates from quantra defined C++ structs to Flatbuffers. 
 
-https://github.com/joseprupi/quantragrpc/blob/master/examples/data/fixed_rate_bond_request_quantra.h contains a complete example on how to build a request to price a fixed rate bond using the client structs. 
+https://github.com/joseprupi/quantraserver/blob/master/examples/data/fixed_rate_bond_request_quantra.h contains a complete example on how to build a request to price a fixed rate bond using the client structs. 
 
 Once the data has been serialized it can be stored in binary or JSON format, this is part of Flatbuffers core functionalities.
 
 ![Data](docs/data.jpg?raw=true "Data")
 
-See https://github.com/joseprupi/quantragrpc/tree/master/examples/data folder that contains examples with the different supported formats, the snippets below show how to create a deposit pillar for a curve in C++ and JSON formats.
+See https://github.com/joseprupi/quantraserver/tree/master/examples/data folder that contains examples with the different supported formats, the snippets below show how to create a deposit pillar for a curve in C++ and JSON formats.
 
 ```c++
 auto deposit_zc3m = std::make_shared<structs::DepositHelper>();
@@ -98,7 +98,7 @@ int main()
 
 These tests have been run executing all processes (client, proxy and background gRPC services) using a single machine with AMD Ryzen 9 3900X 12-Core CPU.
 
-The test measures the time it takes to price n bonds. The code for the test can be found here https://github.com/joseprupi/quantragrpc/blob/master/tests/test.cpp.
+The test measures the time it takes to price n bonds. The code for the test can be found here https://github.com/joseprupi/quantraserver/blob/master/tests/test.cpp.
 
 The test accepts three parameters:
 * Number of bonds per request
@@ -168,8 +168,8 @@ This has just been tested with:
 After cloning the repository set the variables inside **config_vars.sh**.
 
 ```console
-git clone https://github.com/joseprupi/quantragrpc
-cd quantragrpc
+git clone https://github.com/joseprupi/quantraserver
+cd quantraserver
 . ./scripts/config_vars.sh
 mkdir build
 cd build
@@ -195,7 +195,7 @@ Once installed execute **start.sh** providing the number of processes you want f
 
 Flatbuffers is the format used by Quantra to communicate with the server and using it provides some extra advantages as the project supports  translating to and from JSON and binary formats.
 
-Flabuffers provides and API and also commmand line tools to do so. This should probably be added to the Quantra client libraries but for now take a look to [Flatbuffers documentation](https://google.github.io/flatbuffers/flatbuffers_guide_tutorial.html) and the example at https://github.com/joseprupi/quantragrpc/blob/master/examples/bond_request_to_json.cpp to generate a json file from a request to price a bond. 
+Flabuffers provides and API and also commmand line tools to do so. This should probably be added to the Quantra client libraries but for now take a look to [Flatbuffers documentation](https://google.github.io/flatbuffers/flatbuffers_guide_tutorial.html) and the example at https://github.com/joseprupi/quantraserver/blob/master/examples/bond_request_to_json.cpp to generate a json file from a request to price a bond. 
 
 ## Current and possible future situation
 

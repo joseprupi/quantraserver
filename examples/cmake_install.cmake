@@ -1,4 +1,4 @@
-# Install script for directory: /root/quantragrpc/examples
+# Install script for directory: /root/quantraserver/examples
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

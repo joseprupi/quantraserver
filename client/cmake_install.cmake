@@ -1,4 +1,4 @@
-# Install script for directory: /root/quantragrpc/client
+# Install script for directory: /root/quantraserver/client
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
