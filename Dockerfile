@@ -17,6 +17,16 @@ RUN     apt-get install -y git wget apt-transport-https ca-certificates curl gnu
         bash cmake-3.24.0-rc5-linux-x86_64.sh --skip-license && \
         ln -s  /root/tmp/bin/* /usr/local/bin
 
+# Quantlib
+RUN     cd /root && \
+        wget https://github.com/lballabio/QuantLib/releases/download/QuantLib-v1.22/QuantLib-1.22.tar.gz && \
+        tar -zxvf QuantLib-1.22.tar.gz && \
+        cd QuantLib-1.22 && \
+        ./configure --enable-std-pointers && \
+        make -j && \
+        make install && \
+        ldconfig
+
 # gRPC
 RUN     cd /root && \
         git clone -b v1.39.0 https://github.com/grpc/grpc && \
@@ -61,19 +71,9 @@ RUN     ln -s ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.6 ${GRPC_INSTALL_PA
         /root/flatbuffers/build/flattests && \
         /root/flatbuffers/build/grpctest
 
-# Quantlib
-RUN     cd /root && \
-        wget https://github.com/lballabio/QuantLib/releases/download/QuantLib-v1.22/QuantLib-1.22.tar.gz && \
-        tar -zxvf QuantLib-1.22.tar.gz && \
-        cd QuantLib-1.22 && \
-        ./configure --enable-std-pointers && \
-        make -j && \
-        make install && \
-        ldconfig
-
 # Quantra
 RUN     cd /root && \
-        RUN if [ "$ENV" = "dev" ] ; then git clone -b dev https://github.com/joseprupi/quantraserver ; else git clone https://github.com/joseprupi/quantraserver ; fi && \
+        git clone https://github.com/joseprupi/quantraserver \
         cd quantraserver && \
         . ./scripts/config_vars.sh && \
         mkdir build && \
