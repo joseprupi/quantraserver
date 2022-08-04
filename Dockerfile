@@ -73,8 +73,8 @@ RUN     cd /root && \
 
 # Quantra
 RUN     cd /root && \
-        git clone https://github.com/joseprupi/quantraserver && \
-        cd quantragrpc && \
+        RUN if [ "$ENV" = "dev" ] ; then git clone -b dev https://github.com/joseprupi/quantraserver ; else git clone https://github.com/joseprupi/quantraserver ; fi && \
+        cd quantraserver && \
         . ./scripts/config_vars.sh && \
         mkdir build && \
         cd build && \
