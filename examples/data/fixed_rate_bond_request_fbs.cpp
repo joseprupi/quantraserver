@@ -156,8 +156,10 @@ flatbuffers::grpc::Message<quantra::PriceFixedRateBondRequest> bond_request_fbs(
     auto term_structures = builder->CreateVector(term_structures_vector);
 
     auto as_of_date = builder->CreateString("2008/09/16");
+    auto settlement_date_pricing = builder->CreateString("2008/09/18");
     auto pricing_builder = quantra::PricingBuilder(*builder);
     pricing_builder.add_as_of_date(as_of_date);
+    pricing_builder.add_settlement_date(settlement_date_pricing);
     pricing_builder.add_curves(term_structures);
     auto pricing = pricing_builder.Finish();
 

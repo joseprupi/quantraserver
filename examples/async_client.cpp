@@ -53,11 +53,25 @@ public:
 
             GPR_ASSERT(ok);
 
+            // if (call->status.ok())
+            // {
+            //     const quantra::PriceFixedRateBondResponse *response = call->reply.GetRoot();
+            //     auto bonds = response->bonds();
+            //     if (bonds && bonds->size() > 0)
+            //     {
+            //         auto npv = bonds->Get(0)->npv();
+            //         std::cout << "NPV: " << npv << std::endl;
+            //     }
+            // }
             if (call->status.ok())
             {
                 const quantra::PriceFixedRateBondResponse *response = call->reply.GetRoot();
-                //auto npv = response->npv();
-                //std::cout << "NPV: " << npv << std::endl;
+                auto bonds = response->bonds();
+                if (bonds && bonds->size() > 0)
+                {
+                    auto npv = bonds->Get(0)->npv();
+                    std::cout << "NPV: " << npv << std::endl;
+                }
             }
             else
                 std::cout << "RPC failed" << call->status.error_code() << std::endl;

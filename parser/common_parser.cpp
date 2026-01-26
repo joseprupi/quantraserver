@@ -31,9 +31,14 @@ std::shared_ptr<YieldStruct> YieldParser::parse(const quantra::Yield *yield)
 
 std::shared_ptr<PricingStruct> PricingParser::parse(const quantra::Pricing *pricing)
 {
-
     if (pricing == NULL)
         QUANTRA_ERROR("Pricing not found");
+    
+    if (!pricing->as_of_date())
+        QUANTRA_ERROR("as_of_date is required");
+    
+    if (!pricing->settlement_date())
+        QUANTRA_ERROR("settlement_date is required");
 
     return std::make_shared<PricingStruct>(
         PricingStruct{

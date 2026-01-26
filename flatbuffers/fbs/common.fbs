@@ -11,9 +11,9 @@ table Yield{
 }
 
 table Pricing{
-    as_of_date: string;
-    settlement_date: string;
-    curves:[TermStructure];
+    as_of_date: string (required);
+    settlement_date: string (required);
+    curves:[TermStructure] (required);
     bond_pricing_details:bool = false;
     bond_pricing_flows:bool = false;
     coupon_pricers:[CouponPricer];

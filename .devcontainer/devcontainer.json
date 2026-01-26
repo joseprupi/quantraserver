@@ -1,0 +1,27 @@
+{
+    "name": "Quantraserver Dev",
+    "image": "quantraserver-dev",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake"
+            ],
+            "settings": {
+                "cmake.configureSettings": {
+                    "CMAKE_PREFIX_PATH": "/opt/quantra-deps"
+                },
+                "C_Cpp.default.includePath": [
+                    "/opt/quantra-deps/include",
+                    "${workspaceFolder}/flatbuffers/cpp",
+                    "${workspaceFolder}/grpc"
+                ]
+            }
+        }
+    },
+    "forwardPorts": [50051],
+    "postCreateCommand": "echo 'Dev container ready! Use build.sh to compile.'"
+}

@@ -1,11 +1,5 @@
-add_custom_command(
-    OUTPUT fbs/fbs.stamp
-    DEPENDS /root/quantragrpc/flatbuffers/fbs/*.fbs
-    COMMAND flatc --cpp --gen-object-api -o /root/quantragrpc/flatbuffers/cpp  /root/quantragrpc/flatbuffers/fbs/*.fbs
-    COMMAND flatc --python -o /root/quantragrpc/flatbuffers/python  /root/quantragrpc/flatbuffers/fbs/*.fbs
-    )
+# Flatbuffers CMakeLists.txt
+# Code generation is handled in Dockerfile during build
+# This file just needs to exist for add_subdirectory()
 
-add_custom_target(
-        fatbuffers ALL
-        DEPENDS fbs/fbs.stamp
-    )
+message(STATUS "Flatbuffers: using pre-generated code")
