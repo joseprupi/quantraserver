@@ -18,6 +18,7 @@ namespace quantra {
 static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceFixedRateBond",
   "/quantra.QuantraServer/PriceFloatingRateBond",
+  "/quantra.QuantraServer/PriceVanillaSwap",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -28,6 +29,7 @@ std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_p
 QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
   : channel_(channel)  , rpcmethod_PriceFixedRateBond_(QuantraServer_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceFloatingRateBond_(QuantraServer_method_names[1], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceVanillaSwap_(QuantraServer_method_names[2], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -54,6 +56,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>::Create(channel_.get(), cq, rpcmethod_PriceFloatingRateBond_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceVanillaSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* QuantraServer::Stub::AsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceVanillaSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceVanillaSwap_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -65,6 +79,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFloatingRateBondRequest>, flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceFloatingRateBond), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[2],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceVanillaSwapRequest>, flatbuffers::grpc::Message<PriceVanillaSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceVanillaSwap), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -75,6 +94,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceFloatingRateBond(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>* /*request*/, flatbuffers::grpc::Message<PriceFloatingRateBondResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

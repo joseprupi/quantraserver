@@ -17,5 +17,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "floating_rate_bond_response_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_floating_rate_bond_request_generated.h"
+#include "price_vanilla_swap_request_generated.h"
+#include "vanilla_swap_response_generated.h"
 
 #endif  // FLATBUFFERS_GENERATED_QUANTRASERVER_QUANTRA_H_

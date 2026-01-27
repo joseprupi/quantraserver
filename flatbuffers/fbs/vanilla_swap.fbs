@@ -1,0 +1,42 @@
+include "enums.fbs";
+include "schedule.fbs";
+include "index.fbs";
+
+namespace quantra;
+
+// Swap type: Payer pays fixed, receives floating
+//            Receiver receives fixed, pays floating
+enum SwapType : byte {
+    Payer,
+    Receiver
+}
+
+// Fixed leg of the swap
+table SwapFixedLeg {
+    schedule:Schedule;
+    notional:double;
+    rate:double;
+    day_counter:enums.DayCounter;
+    payment_convention:enums.BusinessDayConvention;
+}
+
+// Floating leg of the swap
+table SwapFloatingLeg {
+    schedule:Schedule;
+    notional:double;
+    index:Index;
+    spread:double = 0.0;
+    day_counter:enums.DayCounter;
+    payment_convention:enums.BusinessDayConvention;
+    fixing_days:int = 2;
+    in_arrears:bool = false;
+}
+
+// Vanilla Interest Rate Swap
+table VanillaSwap {
+    swap_type:SwapType;
+    fixed_leg:SwapFixedLeg;
+    floating_leg:SwapFloatingLeg;
+}
+
+root_type VanillaSwap;
