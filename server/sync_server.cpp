@@ -7,6 +7,7 @@
 #include "fixed_rate_bond_handler.h"
 #include "floating_rate_bond_handler.h"
 #include "vanilla_swap_handler.h"
+#include "fra_handler.h" 
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>

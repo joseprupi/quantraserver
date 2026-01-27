@@ -19,6 +19,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceFixedRateBond",
   "/quantra.QuantraServer/PriceFloatingRateBond",
   "/quantra.QuantraServer/PriceVanillaSwap",
+  "/quantra.QuantraServer/PriceFRA",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -30,6 +31,7 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   : channel_(channel)  , rpcmethod_PriceFixedRateBond_(QuantraServer_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceFloatingRateBond_(QuantraServer_method_names[1], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceVanillaSwap_(QuantraServer_method_names[2], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceFRA_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -68,6 +70,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceVanillaSwap_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, flatbuffers::grpc::Message<PriceFRAResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceFRA_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>* QuantraServer::Stub::AsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceFRAResponse>>::Create(channel_.get(), cq, rpcmethod_PriceFRA_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>* QuantraServer::Stub::PrepareAsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceFRAResponse>>::Create(channel_.get(), cq, rpcmethod_PriceFRA_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -84,6 +98,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceVanillaSwapRequest>, flatbuffers::grpc::Message<PriceVanillaSwapResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceVanillaSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[3],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFRARequest>, flatbuffers::grpc::Message<PriceFRAResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceFRA), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -98,6 +117,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceFRA(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFRARequest>* /*request*/, flatbuffers::grpc::Message<PriceFRAResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
