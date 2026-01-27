@@ -128,7 +128,7 @@ RUN echo '#!/bin/bash' > /usr/local/bin/regen-flatbuffers.sh && \
     echo '    echo "Processing $fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
     echo '    flatc --cpp -o flatbuffers/cpp/ "$fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
     echo 'done' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'flatc --grpc --cpp -o grpc/ grpc/quantraserver.fbs' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'flatc --grpc --cpp -I flatbuffers -o grpc/ grpc/quantraserver.fbs' >> /usr/local/bin/regen-flatbuffers.sh && \
     echo 'echo "Done!"' >> /usr/local/bin/regen-flatbuffers.sh && \
     chmod +x /usr/local/bin/regen-flatbuffers.sh
 
