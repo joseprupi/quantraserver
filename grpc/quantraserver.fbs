@@ -6,6 +6,10 @@ include "../flatbuffers/fbs/price_vanilla_swap_request.fbs";
 include "../flatbuffers/fbs/vanilla_swap_response.fbs";
 include "../flatbuffers/fbs/price_fra_request.fbs";
 include "../flatbuffers/fbs/fra_response.fbs";
+include "../flatbuffers/fbs/price_cap_floor_request.fbs";
+include "../flatbuffers/fbs/cap_floor_response.fbs";
+include "../flatbuffers/fbs/price_swaption_request.fbs";
+include "../flatbuffers/fbs/swaption_response.fbs";
 
 namespace quantra;
 
@@ -14,4 +18,6 @@ rpc_service QuantraServer {
   PriceFloatingRateBond(PriceFloatingRateBondRequest):PriceFloatingRateBondResponse;
   PriceVanillaSwap(PriceVanillaSwapRequest):PriceVanillaSwapResponse;
   PriceFRA(PriceFRARequest):PriceFRAResponse;
+  PriceCapFloor(PriceCapFloorRequest):PriceCapFloorResponse;
+  PriceSwaption(PriceSwaptionRequest):PriceSwaptionResponse;
 }

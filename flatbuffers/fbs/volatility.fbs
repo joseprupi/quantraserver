@@ -1,0 +1,40 @@
+include "enums.fbs";
+
+namespace quantra;
+
+// Volatility types
+enum VolatilityType : byte {
+    ShiftedLognormal,  // Black volatility (most common for caps/floors)
+    Normal             // Bachelier/Normal volatility
+}
+
+// Constant volatility (simplest case)
+table ConstantVolatility {
+    value:double;                    // e.g., 0.20 for 20% vol
+    volatility_type:VolatilityType;
+    day_counter:enums.DayCounter;
+}
+
+// Volatility quote at a specific tenor/strike
+table VolatilityQuote {
+    tenor_number:int;
+    tenor_time_unit:enums.TimeUnit;
+    strike:double;                   // Optional: for smile (0 = ATM)
+    volatility:double;
+}
+
+// Volatility term structure (flat or term structure)
+table VolatilityTermStructure {
+    id:string;
+    reference_date:string;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+    volatility_type:VolatilityType;
+    
+    // Either constant or term structure
+    constant_vol:double;             // Use this for flat vol
+    quotes:[VolatilityQuote];        // Use this for term structure
+}
+
+root_type VolatilityTermStructure;

@@ -1,6 +1,6 @@
-#include "fra_request_fbs.h"
+#include "cap_floor_request_fbs.h"
 
-flatbuffers::grpc::Message<quantra::PriceFRARequest> fra_request_fbs(
+flatbuffers::grpc::Message<quantra::PriceCapFloorRequest> cap_floor_request_fbs(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder)
 {
     // =========================================================================
@@ -105,6 +105,25 @@ flatbuffers::grpc::Message<quantra::PriceFRARequest> fra_request_fbs(
         points_vector.push_back(wrapper_builder.Finish());
     }
 
+    // Swap 5Y
+    {
+        auto swap_builder = quantra::SwapHelperBuilder(*builder);
+        swap_builder.add_rate(0.040);
+        swap_builder.add_tenor_number(5);
+        swap_builder.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
+        swap_builder.add_calendar(calendar);
+        swap_builder.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
+        swap_builder.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        swap_builder.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
+        swap_builder.add_sw_floating_leg_index(quantra::enums::Ibor_Euribor6M);
+        auto swap = swap_builder.Finish();
+
+        auto wrapper_builder = quantra::PointsWrapperBuilder(*builder);
+        wrapper_builder.add_point_type(quantra::Point_SwapHelper);
+        wrapper_builder.add_point(swap.Union());
+        points_vector.push_back(wrapper_builder.Finish());
+    }
+
     auto points = builder->CreateVector(points_vector);
 
     // Create the term structure
@@ -137,9 +156,23 @@ flatbuffers::grpc::Message<quantra::PriceFRARequest> fra_request_fbs(
     auto pricing = pricing_builder.Finish();
 
     // =========================================================================
-    // Create the FRA (3x6 FRA - starts in 3 months, ends in 6 months)
-    // Strike at 3.5%, Long position (benefit if rates rise)
+    // Create the Cap (3Y Cap on 3M Euribor with 4% strike)
     // =========================================================================
+
+    // Schedule for quarterly payments over 3 years
+    auto effective_date = builder->CreateString("2025/01/29");
+    auto termination_date = builder->CreateString("2028/01/29");
+    
+    auto schedule_builder = quantra::ScheduleBuilder(*builder);
+    schedule_builder.add_calendar(calendar);
+    schedule_builder.add_effective_date(effective_date);
+    schedule_builder.add_termination_date(termination_date);
+    schedule_builder.add_frequency(quantra::enums::Frequency_Quarterly);
+    schedule_builder.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    schedule_builder.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    schedule_builder.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    schedule_builder.add_end_of_month(false);
+    auto schedule = schedule_builder.Finish();
 
     // Index (3M Euribor)
     auto index_builder = quantra::IndexBuilder(*builder);
@@ -152,44 +185,57 @@ flatbuffers::grpc::Message<quantra::PriceFRARequest> fra_request_fbs(
     index_builder.add_day_counter(quantra::enums::DayCounter_Actual360);
     auto index = index_builder.Finish();
 
-    // FRA
-    auto start_date = builder->CreateString("2025/04/29");   // 3 months from now
-    auto maturity_date = builder->CreateString("2025/07/29"); // 6 months from now
-    
-    auto fra_builder = quantra::FRABuilder(*builder);
-    fra_builder.add_fra_type(quantra::FRAType_Long);
-    fra_builder.add_notional(10000000.0);  // 10 million EUR
-    fra_builder.add_start_date(start_date);
-    fra_builder.add_maturity_date(maturity_date);
-    fra_builder.add_strike(0.035);         // 3.5% strike
-    fra_builder.add_index(index);
-    fra_builder.add_day_counter(quantra::enums::DayCounter_Actual360);
-    fra_builder.add_calendar(calendar);
-    fra_builder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fra = fra_builder.Finish();
+    // Cap
+    auto cap_floor_builder = quantra::CapFloorBuilder(*builder);
+    cap_floor_builder.add_cap_floor_type(quantra::CapFloorType_Cap);
+    cap_floor_builder.add_notional(10000000.0);  // 10 million EUR
+    cap_floor_builder.add_strike(0.04);          // 4% strike
+    cap_floor_builder.add_schedule(schedule);
+    cap_floor_builder.add_index(index);
+    cap_floor_builder.add_day_counter(quantra::enums::DayCounter_Actual360);
+    cap_floor_builder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto cap_floor = cap_floor_builder.Finish();
 
     // =========================================================================
-    // Create PriceFRA
+    // Create Volatility (20% flat Black vol)
+    // =========================================================================
+    auto vol_id = builder->CreateString("flat_vol");
+    auto vol_ref_date = builder->CreateString("2025/01/29");
+    
+    auto vol_builder = quantra::VolatilityTermStructureBuilder(*builder);
+    vol_builder.add_id(vol_id);
+    vol_builder.add_reference_date(vol_ref_date);
+    vol_builder.add_calendar(calendar);
+    vol_builder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    vol_builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    vol_builder.add_volatility_type(quantra::VolatilityType_ShiftedLognormal);
+    vol_builder.add_constant_vol(0.20);  // 20% volatility
+    auto volatility = vol_builder.Finish();
+
+    // =========================================================================
+    // Create PriceCapFloor
     // =========================================================================
     auto disc_curve_ref = builder->CreateString("eur_curve");
     auto fwd_curve_ref = builder->CreateString("eur_curve");
     
-    auto price_fra_builder = quantra::PriceFRABuilder(*builder);
-    price_fra_builder.add_fra(fra);
-    price_fra_builder.add_discounting_curve(disc_curve_ref);
-    price_fra_builder.add_forwarding_curve(fwd_curve_ref);
-    auto price_fra = price_fra_builder.Finish();
+    auto price_cap_floor_builder = quantra::PriceCapFloorBuilder(*builder);
+    price_cap_floor_builder.add_cap_floor(cap_floor);
+    price_cap_floor_builder.add_discounting_curve(disc_curve_ref);
+    price_cap_floor_builder.add_forwarding_curve(fwd_curve_ref);
+    price_cap_floor_builder.add_volatility(volatility);
+    price_cap_floor_builder.add_include_details(true);
+    auto price_cap_floor = price_cap_floor_builder.Finish();
 
-    std::vector<flatbuffers::Offset<quantra::PriceFRA>> fras_vector;
-    fras_vector.push_back(price_fra);
-    auto fras = builder->CreateVector(fras_vector);
+    std::vector<flatbuffers::Offset<quantra::PriceCapFloor>> cap_floors_vector;
+    cap_floors_vector.push_back(price_cap_floor);
+    auto cap_floors = builder->CreateVector(cap_floors_vector);
 
     // =========================================================================
     // Create the final request
     // =========================================================================
-    auto request_builder = quantra::PriceFRARequestBuilder(*builder);
+    auto request_builder = quantra::PriceCapFloorRequestBuilder(*builder);
     request_builder.add_pricing(pricing);
-    request_builder.add_fras(fras);
+    request_builder.add_cap_floors(cap_floors);
     auto request = request_builder.Finish();
     
     builder->Finish(request);
@@ -198,7 +244,7 @@ flatbuffers::grpc::Message<quantra::PriceFRARequest> fra_request_fbs(
     auto size = builder->GetSize();
 
     ::grpc::Slice slice((char *)p, size);
-    flatbuffers::grpc::Message<quantra::PriceFRARequest> msg(slice);
+    flatbuffers::grpc::Message<quantra::PriceCapFloorRequest> msg(slice);
     std::cout << "Verify:" << msg.Verify() << std::endl;
 
     return msg;

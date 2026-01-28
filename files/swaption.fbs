@@ -1,0 +1,27 @@
+include "enums.fbs";
+include "vanilla_swap.fbs";
+
+namespace quantra;
+
+// Swaption settlement type
+enum SettlementType : byte {
+    Physical,       // Deliver the swap
+    Cash            // Cash settle the value
+}
+
+// Swaption exercise type
+enum ExerciseType : byte {
+    European,       // Exercise only at expiry
+    Bermudan,       // Exercise on specific dates (future)
+    American        // Exercise any time (future)
+}
+
+// Swaption instrument
+table Swaption {
+    exercise_type:ExerciseType;
+    settlement_type:SettlementType;
+    exercise_date:string;           // When option can be exercised
+    underlying_swap:VanillaSwap;    // The swap you have option to enter
+}
+
+root_type Swaption;

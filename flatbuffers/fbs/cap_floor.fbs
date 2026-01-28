@@ -1,0 +1,25 @@
+include "enums.fbs";
+include "index.fbs";
+include "schedule.fbs";
+
+namespace quantra;
+
+// Cap/Floor type
+enum CapFloorType : byte {
+    Cap,
+    Floor,
+    Collar    // Long cap + short floor (for later)
+}
+
+// Cap or Floor instrument
+table CapFloor {
+    cap_floor_type:CapFloorType;
+    notional:double;
+    strike:double;                           // Strike rate (e.g., 0.04 for 4%)
+    schedule:Schedule;                       // Payment schedule
+    index:Index;                             // Reference index (e.g., 3M Euribor)
+    day_counter:enums.DayCounter;
+    business_day_convention:enums.BusinessDayConvention;
+}
+
+root_type CapFloor;

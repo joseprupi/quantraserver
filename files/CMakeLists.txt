@@ -31,7 +31,6 @@ file(GLOB BOND_REQUEST_SORUCES
     ./messages.cpp
     ./bond_request_example.cpp)
 
-# Swap client sources
 file(GLOB SWAP_CLIENT_SOURCES
     ${CMAKE_SOURCE_DIR}/parser/*.cpp
     ${CMAKE_SOURCE_DIR}/common/*.cpp
@@ -40,7 +39,6 @@ file(GLOB SWAP_CLIENT_SOURCES
     data/vanilla_swap_request_fbs.cpp
     ./swap_client.cpp)
 
-# FRA client sources
 file(GLOB FRA_CLIENT_SOURCES
     ${CMAKE_SOURCE_DIR}/parser/*.cpp
     ${CMAKE_SOURCE_DIR}/common/*.cpp
@@ -49,10 +47,25 @@ file(GLOB FRA_CLIENT_SOURCES
     data/fra_request_fbs.cpp
     ./fra_client.cpp)
 
+file(GLOB CAP_FLOOR_CLIENT_SOURCES
+    ${CMAKE_SOURCE_DIR}/parser/*.cpp
+    ${CMAKE_SOURCE_DIR}/common/*.cpp
+    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ./messages.cpp
+    data/cap_floor_request_fbs.cpp
+    ./cap_floor_client.cpp)
+
+file(GLOB SWAPTION_CLIENT_SOURCES
+    ${CMAKE_SOURCE_DIR}/parser/*.cpp
+    ${CMAKE_SOURCE_DIR}/common/*.cpp
+    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ./messages.cpp
+    data/swaption_request_fbs.cpp
+    ./swaption_client.cpp)
+
 find_package(Threads REQUIRED)
 link_directories(/root/grpc/install/lib/ /opt/quantra-deps/lib/)
 
-# Abseil libraries needed for gRPC 1.60+
 set(ABSL_LIBS
     absl_synchronization
     absl_base
@@ -73,9 +86,13 @@ add_executable(async_client ${ASYNC_SOURCES})
 add_executable(bond_request_to_json ${JSON_SOURCES})
 add_executable(swap_client ${SWAP_CLIENT_SOURCES})
 add_executable(fra_client ${FRA_CLIENT_SOURCES})
+add_executable(cap_floor_client ${CAP_FLOOR_CLIENT_SOURCES})
+add_executable(swaption_client ${SWAPTION_CLIENT_SOURCES})
 
 target_link_libraries(bond_request gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads cpp_client ${ABSL_LIBS})
 target_link_libraries(async_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(bond_request_to_json gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(swap_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(fra_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
+target_link_libraries(cap_floor_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
+target_link_libraries(swaption_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
