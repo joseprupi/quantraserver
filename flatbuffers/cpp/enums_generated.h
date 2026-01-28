@@ -676,6 +676,36 @@ inline const char *EnumNameCompounding(Compounding e) {
   return EnumNamesCompounding()[index];
 }
 
+enum ProtectionSide : int8_t {
+  ProtectionSide_Buyer = 0,
+  ProtectionSide_Seller = 1,
+  ProtectionSide_MIN = ProtectionSide_Buyer,
+  ProtectionSide_MAX = ProtectionSide_Seller
+};
+
+inline const ProtectionSide (&EnumValuesProtectionSide())[2] {
+  static const ProtectionSide values[] = {
+    ProtectionSide_Buyer,
+    ProtectionSide_Seller
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesProtectionSide() {
+  static const char * const names[3] = {
+    "Buyer",
+    "Seller",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameProtectionSide(ProtectionSide e) {
+  if (::flatbuffers::IsOutRange(e, ProtectionSide_Buyer, ProtectionSide_Seller)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesProtectionSide()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

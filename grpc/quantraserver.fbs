@@ -10,6 +10,8 @@ include "../flatbuffers/fbs/price_cap_floor_request.fbs";
 include "../flatbuffers/fbs/cap_floor_response.fbs";
 include "../flatbuffers/fbs/price_swaption_request.fbs";
 include "../flatbuffers/fbs/swaption_response.fbs";
+include "../flatbuffers/fbs/price_cds_request.fbs";
+include "../flatbuffers/fbs/cds_response.fbs";
 
 namespace quantra;
 
@@ -20,4 +22,5 @@ rpc_service QuantraServer {
   PriceFRA(PriceFRARequest):PriceFRAResponse;
   PriceCapFloor(PriceCapFloorRequest):PriceCapFloorResponse;
   PriceSwaption(PriceSwaptionRequest):PriceSwaptionResponse;
+  PriceCDS(PriceCDSRequest):PriceCDSResponse;  // <-- THIS IS MISSING
 }

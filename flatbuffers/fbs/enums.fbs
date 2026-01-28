@@ -169,3 +169,8 @@ enum Compounding : byte {
     Simple,
     SimpleThenCompounded
 }
+
+enum ProtectionSide : byte {
+    Buyer,
+    Seller
+}

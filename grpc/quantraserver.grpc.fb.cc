@@ -22,6 +22,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceFRA",
   "/quantra.QuantraServer/PriceCapFloor",
   "/quantra.QuantraServer/PriceSwaption",
+  "/quantra.QuantraServer/PriceCDS",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -36,6 +37,7 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_PriceFRA_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceCapFloor_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceSwaption_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCDS_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -110,6 +112,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceSwaptionResponse>>::Create(channel_.get(), cq, rpcmethod_PriceSwaption_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, flatbuffers::grpc::Message<PriceCDSResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceCDS_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* QuantraServer::Stub::AsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCDSResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCDS_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* QuantraServer::Stub::PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCDSResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCDS_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -141,6 +155,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceSwaptionRequest>, flatbuffers::grpc::Message<PriceSwaptionResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceSwaption), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[6],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCDSRequest>, flatbuffers::grpc::Message<PriceCDSResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceCDS), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -167,6 +186,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceSwaption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceSwaptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceSwaptionResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

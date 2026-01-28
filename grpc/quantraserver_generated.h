@@ -14,10 +14,12 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "cap_floor_response_generated.h"
+#include "cds_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "fra_response_generated.h"
 #include "price_cap_floor_request_generated.h"
+#include "price_cds_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_floating_rate_bond_request_generated.h"
 #include "price_fra_request_generated.h"

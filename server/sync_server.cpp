@@ -8,8 +8,9 @@
 #include "floating_rate_bond_handler.h"
 #include "vanilla_swap_handler.h"
 #include "fra_handler.h"
-#include "cap_floor_handler.h" 
+#include "cap_floor_handler.h"
 #include "swaption_handler.h"
+#include "cds_handler.h"
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>
@@ -20,7 +21,7 @@ using quantra::QuantraServer;
 
 /**
  * ServerImpl - Async gRPC server.
- * 
+ *
  * This file should NEVER need modification when adding new products.
  * Just create a new handler file with REGISTER_PRODUCT and #include it above.
  */
@@ -44,13 +45,14 @@ public:
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
-        
+
         std::cout << "Server listening on " << server_address << std::endl;
-        
+
         // Log registered products
-        const auto& products = quantra::ProductRegistry::instance().getNames();
+        const auto &products = quantra::ProductRegistry::instance().getNames();
         std::cout << "Registered products (" << products.size() << "):" << std::endl;
-        for (const auto& name : products) {
+        for (const auto &name : products)
+        {
             std::cout << "  - " << name << std::endl;
         }
 
@@ -83,7 +85,7 @@ private:
 int main(int argc, char **argv)
 {
     std::string port = (argc > 1) ? argv[1] : "50051";
-    
+
     ServerImpl server;
     server.Run(port);
 
