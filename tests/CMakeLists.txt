@@ -1,26 +1,58 @@
 # Tests CMakeLists.txt
+# Quantra Test Suite
+
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+# Include directories
 include_directories(
-   ${CMAKE_SOURCE_DIR}/grpc
-   ${CMAKE_SOURCE_DIR}/parser 
-   ${CMAKE_SOURCE_DIR}/flatbuffers/fbs 
-   ${CMAKE_SOURCE_DIR}/request 
-   ${CMAKE_SOURCE_DIR}/common
-   ${CMAKE_SOURCE_DIR}/client/cpp
-   ${CMAKE_SOURCE_DIR}/examples)
+    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+    ${CMAKE_SOURCE_DIR}/parser
+    ${CMAKE_SOURCE_DIR}/request
+    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/tests
+)
 
-file(GLOB TEST  
-    ./test.cpp)
+# Quantra sources (for unit tests)
+file(GLOB PARSER_SOURCES ${CMAKE_SOURCE_DIR}/parser/*.cpp)
+file(GLOB COMMON_SOURCES ${CMAKE_SOURCE_DIR}/common/*.cpp)
+file(GLOB REQUEST_SOURCES ${CMAKE_SOURCE_DIR}/request/*.cpp)
 
-file(GLOB TEST_QUANTRA
-    ./test_quantra.cpp)
+# ================================
+# Unit Tests: Quantra vs QuantLib
+# ================================
+add_executable(test_quantra_vs_quantlib
+    test_quantra_vs_quantlib.cpp
+    ${PARSER_SOURCES}
+    ${COMMON_SOURCES}
+    ${REQUEST_SOURCES}
+)
+target_link_libraries(test_quantra_vs_quantlib
+    GTest::gtest_main
+    quantra_grpc
+    QuantLib
+    ${GRPC_ALL_LIBS}
+)
+add_test(NAME QuantraVsQuantLib COMMAND test_quantra_vs_quantlib)
 
-file(GLOB TEST_QUANTLIB  
-    ./test_quantlib.cpp)
-
-add_executable(test ${TEST})
-add_executable(test_quantra ${TEST_QUANTRA})
-add_executable(test_quantlib ${TEST_QUANTLIB})
-
-target_link_libraries(test ${GRPC_ALL_LIBS} flatbuffers quantra_grpc QuantLib cpp_client)
-target_link_libraries(test_quantra ${GRPC_ALL_LIBS} flatbuffers quantra_grpc QuantLib cpp_client)
-target_link_libraries(test_quantlib ${GRPC_ALL_LIBS} flatbuffers quantra_grpc QuantLib cpp_client)
+# ================================
+# Integration Tests: Server-Client
+# ================================
+add_executable(test_server_client
+    test_server_client.cpp
+)
+target_link_libraries(test_server_client
+    GTest::gtest_main
+    quantra_grpc
+    QuantLib
+    ${GRPC_ALL_LIBS}
+)
+add_test(NAME ServerClient COMMAND test_server_client)

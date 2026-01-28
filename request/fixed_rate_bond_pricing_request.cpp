@@ -141,7 +141,6 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
             FixedRateBondResponseBuilder response_builder(*builder);
 
             response_builder.add_flows(flows);
-            std::cout << bond->NPV();
             response_builder.add_npv(bond->NPV());
 
             if (pricing->bond_pricing_details)
