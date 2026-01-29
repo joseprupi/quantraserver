@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+"""
+Quantra Process Manager (Simple Mode)
+
+A minimal process manager for running multiple Quantra workers.
+This version doesn't use Envoy - useful for testing or when you want
+to handle load balancing at a higher level (K8s, external LB, etc.)
+
+Usage:
+    quantra-simple start [--workers N] [--base-port PORT]
+    quantra-simple stop
+    quantra-simple status
+"""
+
+import argparse
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "workers": 4,
+    "base_port": 50051,
+}
+
+QUANTRA_HOME = os.environ.get("QUANTRA_HOME", os.getcwd())
+CONFIG_DIR = Path(QUANTRA_HOME) / ".quantra"
+PID_FILE = CONFIG_DIR / "quantra-simple.pid"
+LOG_DIR = CONFIG_DIR / "logs"
+
+
+def ensure_config_dir():
+    """Create config directory if it doesn't exist."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def find_quantra_binary() -> Optional[Path]:
+    """Find the sync_server binary."""
+    candidates = [
+        Path(QUANTRA_HOME) / "build" / "server" / "sync_server",
+        Path("/workspace/build/server/sync_server"),
+        Path("./build/server/sync_server"),
+    ]
+    
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    
+    result = subprocess.run(["which", "sync_server"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    
+    return None
+
+
+def save_pids(pids: Dict[str, Any]):
+    """Save process PIDs to file."""
+    ensure_config_dir()
+    with open(PID_FILE, 'w') as f:
+        json.dump(pids, f, indent=2)
+
+
+def load_pids() -> Optional[Dict[str, Any]]:
+    """Load process PIDs from file."""
+    if not PID_FILE.exists():
+        return None
+    with open(PID_FILE, 'r') as f:
+        return json.load(f)
+
+
+def is_process_running(pid: int) -> bool:
+    """Check if a process is running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def check_port_available(port: int) -> bool:
+    """Check if a port is available."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(('127.0.0.1', port))
+            return True
+        except OSError:
+            return False
+
+
+def cmd_start(args):
+    """Start Quantra workers."""
+    ensure_config_dir()
+    
+    # Check if already running
+    pids = load_pids()
+    if pids:
+        running = any(is_process_running(w["pid"]) for w in pids.get("workers", []))
+        if running:
+            print("Quantra is already running. Use 'quantra-simple stop' first.")
+            sys.exit(1)
+    
+    # Find binary
+    binary = find_quantra_binary()
+    if not binary:
+        print("Error: sync_server binary not found.", file=sys.stderr)
+        print("Set QUANTRA_HOME or ensure build/server/sync_server exists.", file=sys.stderr)
+        sys.exit(1)
+    
+    workers = args.workers
+    base_port = args.base_port
+    
+    print(f"Starting {workers} Quantra workers...")
+    print(f"  Binary: {binary}")
+    print(f"  Ports: {base_port}-{base_port + workers - 1}")
+    print()
+    
+    worker_info = []
+    for i in range(workers):
+        port = base_port + i
+        
+        # Check port availability
+        if not check_port_available(port):
+            print(f"  Warning: Port {port} is in use, skipping...")
+            continue
+        
+        log_file = LOG_DIR / f"worker_{port}.log"
+        
+        with open(log_file, 'w') as log:
+            proc = subprocess.Popen(
+                [str(binary), str(port)],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True
+            )
+            worker_info.append({"port": port, "pid": proc.pid})
+            print(f"  Started worker on port {port} (PID: {proc.pid})")
+    
+    # Save PIDs
+    save_pids({
+        "workers": worker_info,
+        "config": {
+            "workers": workers,
+            "base_port": base_port,
+        }
+    })
+    
+    # Wait and check
+    time.sleep(1)
+    
+    # Verify workers started
+    running = sum(1 for w in worker_info if is_process_running(w["pid"]))
+    print(f"\n✓ Started {running}/{workers} workers")
+    
+    if workers > 1:
+        print(f"\nNote: Without Envoy, connect to individual ports:")
+        for w in worker_info:
+            print(f"  grpc://localhost:{w['port']}")
+        print("\nFor load balancing, use 'quantra start' with Envoy installed.")
+
+
+def cmd_stop(args):
+    """Stop Quantra workers."""
+    pids = load_pids()
+    if not pids:
+        print("Quantra is not running.")
+        return
+    
+    print("Stopping Quantra workers...")
+    
+    for worker in pids.get("workers", []):
+        pid = worker["pid"]
+        port = worker["port"]
+        if is_process_running(pid):
+            print(f"  Stopping worker on port {port} (PID: {pid})...")
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    
+    if PID_FILE.exists():
+        PID_FILE.unlink()
+    
+    print("✓ All workers stopped")
+
+
+def cmd_status(args):
+    """Show status of Quantra workers."""
+    pids = load_pids()
+    if not pids:
+        print("Quantra is not running.")
+        return
+    
+    config = pids.get("config", {})
+    print("Quantra Workers Status")
+    print("=" * 40)
+    
+    running = 0
+    for worker in pids.get("workers", []):
+        pid = worker["pid"]
+        port = worker["port"]
+        if is_process_running(pid):
+            status = "✓ Running"
+            running += 1
+        else:
+            status = "✗ Stopped"
+        print(f"  Port {port}: {status} (PID: {pid})")
+    
+    total = len(pids.get("workers", []))
+    print(f"\n{running}/{total} workers running")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Quantra Process Manager (Simple Mode)",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+    
+    # start
+    start_parser = subparsers.add_parser("start", help="Start workers")
+    start_parser.add_argument("-w", "--workers", type=int, default=DEFAULT_CONFIG["workers"],
+                             help=f"Number of workers (default: {DEFAULT_CONFIG['workers']})")
+    start_parser.add_argument("-p", "--base-port", type=int, default=DEFAULT_CONFIG["base_port"],
+                             help=f"First port (default: {DEFAULT_CONFIG['base_port']})")
+    
+    # stop
+    subparsers.add_parser("stop", help="Stop all workers")
+    
+    # status
+    subparsers.add_parser("status", help="Show status")
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    commands = {
+        "start": cmd_start,
+        "stop": cmd_stop,
+        "status": cmd_status,
+    }
+    
+    commands[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

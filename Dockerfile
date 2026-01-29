@@ -5,10 +5,9 @@
 #   - gRPC: v1.60.0 
 #   - Flatbuffers: v24.12.23
 #   - QuantLib: 1.22
+#   - Envoy: 1.28.0
 # =============================================================================
-
 FROM debian:bookworm AS base
-
 RUN apt-get update && \
     apt-get install -y \
     git \
@@ -28,18 +27,30 @@ RUN apt-get update && \
     valgrind \
     vim \
     bc \
+    python3 \
+    python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
 # Stage: deps - Build all dependencies
 # =============================================================================
 FROM base AS deps
-
 ARG GRPC_VERSION=v1.60.0
 ARG FLATBUFFERS_VERSION=v24.12.23
 ARG QUANTLIB_VERSION=1.22
+ARG ENVOY_VERSION=1.28.0
 
 ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
+
+# -----------------------------------------------------------------------------
+# Envoy (download pre-built binary)
+# -----------------------------------------------------------------------------
+RUN echo "=== Installing Envoy ${ENVOY_VERSION} ===" && \
+    curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
+        -o /usr/local/bin/envoy && \
+    chmod +x /usr/local/bin/envoy && \
+    envoy --version
 
 # -----------------------------------------------------------------------------
 # gRPC
@@ -102,6 +113,7 @@ RUN echo "=== Building QuantLib ${QUANTLIB_VERSION} ===" && \
 
 # Verify installations
 RUN echo "=== Verifying installations ===" && \
+    echo "Envoy:" && envoy --version && \
     echo "Flatbuffers:" && ${DEPS_INSTALL_PREFIX}/bin/flatc --version && \
     echo "gRPC libs:" && ls ${DEPS_INSTALL_PREFIX}/lib/libgrpc++.so* | head -2 && \
     echo "QuantLib:" && ls ${DEPS_INSTALL_PREFIX}/lib/libQuantLib.so* | head -2
@@ -115,8 +127,17 @@ ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
 ENV PATH="${DEPS_INSTALL_PREFIX}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${DEPS_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 ENV CMAKE_PREFIX_PATH="${DEPS_INSTALL_PREFIX}"
+ENV QUANTRA_HOME=/workspace
 
 WORKDIR /workspace
+
+# -----------------------------------------------------------------------------
+# Install quantra process manager
+# -----------------------------------------------------------------------------
+COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
+COPY tools/quantra-manager/quantra /usr/local/bin/quantra
+RUN chmod +x /usr/local/bin/quantra
 
 # Create helper scripts
 RUN echo '#!/bin/bash' > /usr/local/bin/regen-flatbuffers.sh && \
@@ -208,15 +229,25 @@ RUN mkdir -p build && \
     make -j$(nproc)
 
 # =============================================================================
-# Stage: production - Minimal runtime image
+# Stage: production - Minimal runtime image with multi-process support
 # =============================================================================
 FROM debian:bookworm-slim AS production
+
+ARG ENVOY_VERSION=1.28.0
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libssl3 \
     libboost-all-dev \
+    python3 \
+    python3-pip \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Envoy
+RUN curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
+        -o /usr/local/bin/envoy && \
+    chmod +x /usr/local/bin/envoy
 
 COPY --from=builder /opt/quantra-deps/lib /opt/quantra-deps/lib
 COPY --from=builder /etc/ld.so.conf.d/quantra-deps.conf /etc/ld.so.conf.d/
@@ -225,9 +256,17 @@ RUN ldconfig
 COPY --from=builder /src/build/server/sync_server /app/sync_server
 COPY --from=builder /src/build/examples /app/examples
 
+# Install quantra process manager with dependencies
+COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
+COPY tools/quantra-manager/quantra /usr/local/bin/quantra
+RUN chmod +x /usr/local/bin/quantra
+
 WORKDIR /app
 ENV LD_LIBRARY_PATH=/opt/quantra-deps/lib
+ENV QUANTRA_HOME=/app
 
 EXPOSE 50051
 
-CMD ["./sync_server", "50051"]
+# Default: start 4 workers with Envoy load balancing
+CMD ["quantra", "start", "--workers", "4"]

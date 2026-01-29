@@ -7,3 +7,4 @@ flatbuffers/latex/*
 flatbuffers/build/*
 .vscode/*
 core
+.quantra/*
