@@ -28,36 +28,6 @@ struct SwapFloatingLegBuilder;
 struct VanillaSwap;
 struct VanillaSwapBuilder;
 
-enum SwapType : int8_t {
-  SwapType_Payer = 0,
-  SwapType_Receiver = 1,
-  SwapType_MIN = SwapType_Payer,
-  SwapType_MAX = SwapType_Receiver
-};
-
-inline const SwapType (&EnumValuesSwapType())[2] {
-  static const SwapType values[] = {
-    SwapType_Payer,
-    SwapType_Receiver
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesSwapType() {
-  static const char * const names[3] = {
-    "Payer",
-    "Receiver",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameSwapType(SwapType e) {
-  if (::flatbuffers::IsOutRange(e, SwapType_Payer, SwapType_Receiver)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesSwapType()[index];
-}
-
 struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapFixedLegBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -260,8 +230,8 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FIXED_LEG = 6,
     VT_FLOATING_LEG = 8
   };
-  quantra::SwapType swap_type() const {
-    return static_cast<quantra::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
+  quantra::enums::SwapType swap_type() const {
+    return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
   }
   const quantra::SwapFixedLeg *fixed_leg() const {
     return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
@@ -284,7 +254,7 @@ struct VanillaSwapBuilder {
   typedef VanillaSwap Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_swap_type(quantra::SwapType swap_type) {
+  void add_swap_type(quantra::enums::SwapType swap_type) {
     fbb_.AddElement<int8_t>(VanillaSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type), 0);
   }
   void add_fixed_leg(::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg) {
@@ -306,7 +276,7 @@ struct VanillaSwapBuilder {
 
 inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::SwapType swap_type = quantra::SwapType_Payer,
+    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
     ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
     ::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg = 0) {
   VanillaSwapBuilder builder_(_fbb);

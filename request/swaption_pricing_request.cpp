@@ -18,7 +18,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
     QuantLib::Date as_of_date = DateToQL(pricing->as_of_date);
     QuantLib::Settings::instance().evaluationDate() = as_of_date;
 
-    // Build term structures map
+    // Build term structures map (curves bootstrapped once)
     auto curves = pricing->curves;
     std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> term_structures;
 
@@ -28,6 +28,39 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         std::shared_ptr<YieldTermStructure> term_structure = term_structure_parser.parse(*it);
         term_structure_handle->linkTo(term_structure);
         term_structures.insert(std::make_pair(it->id()->str(), term_structure_handle));
+    }
+
+    // Build swaption volatility surfaces map (built once)
+    // Store both the QuantLib structure and the constant vol value for response
+    struct VolData {
+        std::shared_ptr<QuantLib::SwaptionVolatilityStructure> surface;
+        double constantVol;
+    };
+    std::map<std::string, VolData> swaption_vol_surfaces;
+
+    if (pricing->volatilities)
+    {
+        for (auto it = pricing->volatilities->begin(); it != pricing->volatilities->end(); it++)
+        {
+            double constantVol = it->constant_vol();
+            QuantLib::VolatilityType volType = (it->volatility_type() == quantra::enums::VolatilityType_Normal) 
+                ? QuantLib::Normal 
+                : QuantLib::ShiftedLognormal;
+
+            auto swaptionVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
+                as_of_date,
+                CalendarToQL(it->calendar()),
+                ConventionToQL(it->business_day_convention()),
+                constantVol,
+                DayCounterToQL(it->day_counter()),
+                volType
+            );
+            
+            VolData volData;
+            volData.surface = swaptionVol;
+            volData.constantVol = constantVol;
+            swaption_vol_surfaces.insert(std::make_pair(it->id()->str(), volData));
+        }
     }
 
     // Process each Swaption
@@ -50,25 +83,13 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
         }
 
-        // Parse volatility - create swaption vol structure from constant vol
-        auto volInput = it->volatility();
-        if (volInput == NULL)
-            QUANTRA_ERROR("Volatility not found for swaption");
-
-        double constantVol = volInput->constant_vol();
-        QuantLib::VolatilityType volType = (volInput->volatility_type() == quantra::VolatilityType_Normal) 
-            ? QuantLib::Normal 
-            : QuantLib::ShiftedLognormal;
-
-        auto swaptionVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-            as_of_date,
-            CalendarToQL(volInput->calendar()),
-            ConventionToQL(volInput->business_day_convention()),
-            constantVol,
-            DayCounterToQL(volInput->day_counter()),
-            volType
-        );
-        QuantLib::Handle<QuantLib::SwaptionVolatilityStructure> volHandle(swaptionVol);
+        // Get volatility surface by ID
+        auto volatility_it = swaption_vol_surfaces.find(it->volatility()->str());
+        if (volatility_it == swaption_vol_surfaces.end())
+        {
+            QUANTRA_ERROR("Volatility surface not found: " + it->volatility()->str());
+        }
+        QuantLib::Handle<QuantLib::SwaptionVolatilityStructure> volHandle(volatility_it->second.surface);
 
         // Link forwarding curve and parse Swaption
         swaption_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
@@ -89,11 +110,11 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         // Build Swaption response
         SwaptionResponseBuilder response_builder(*builder);
         response_builder.add_npv(npv);
-        response_builder.add_implied_volatility(constantVol);  // We used this vol to price
-        response_builder.add_atm_forward(0.0);  // Would need underlying swap rate
-        response_builder.add_annuity(0.0);      // Would need swap annuity calculation
-        response_builder.add_delta(0.0);        // Would need bump and reprice
-        response_builder.add_vega(0.0);         // Would need bump and reprice
+        response_builder.add_implied_volatility(volatility_it->second.constantVol);  // Use stored constant vol
+        response_builder.add_atm_forward(0.0);
+        response_builder.add_annuity(0.0);
+        response_builder.add_delta(0.0);
+        response_builder.add_vega(0.0);
 
         swaptions_vector.push_back(response_builder.Finish());
     }

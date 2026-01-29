@@ -1,5 +1,8 @@
 /**
  * Quantra vs QuantLib Comparison Tests
+ * 
+ * Tests that Quantra FlatBuffers serialization produces identical results to raw QuantLib.
+ * Uses identical bootstrapped curves for exact matching.
  */
 
 #include <gtest/gtest.h>
@@ -69,12 +72,13 @@ protected:
         forwardHandle_ = discountHandle_;
     }
 
+    // Build yield curve for Quantra
     flatbuffers::Offset<quantra::TermStructure> buildCurve(
         flatbuffers::grpc::MessageBuilder& b, const std::string& id) {
         
         std::vector<flatbuffers::Offset<quantra::PointsWrapper>> points_vector;
         
-        // 3M deposit - finish each builder completely before starting wrapper
+        // 3M deposit
         quantra::DepositHelperBuilder dep3m(b);
         dep3m.add_rate(flatRate_);
         dep3m.add_tenor_number(3);
@@ -201,9 +205,10 @@ protected:
         return yb.Finish();
     }
     
+    // Build VolatilityTermStructure - now created in Pricing.volatilities
     flatbuffers::Offset<quantra::VolatilityTermStructure> buildVolatility(
-        flatbuffers::grpc::MessageBuilder& b, double vol) {
-        auto vol_id = b.CreateString("vol");
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol) {
+        auto vol_id = b.CreateString(id);
         auto ref_date = b.CreateString("2025-01-15");
         quantra::VolatilityTermStructureBuilder vb(b);
         vb.add_id(vol_id);
@@ -211,7 +216,7 @@ protected:
         vb.add_calendar(quantra::enums::Calendar_TARGET);
         vb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         vb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
-        vb.add_volatility_type(quantra::VolatilityType_ShiftedLognormal);
+        vb.add_volatility_type(quantra::enums::VolatilityType_ShiftedLognormal);
         vb.add_constant_vol(vol);
         return vb.Finish();
     }
@@ -237,7 +242,6 @@ TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
 
     flatbuffers::grpc::MessageBuilder b;
     
-    // Build all child objects first, before any table builders
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto asof = b.CreateString("2025-01-15");
@@ -329,7 +333,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     pb.add_curves(curves);
     auto pricing = pb.Finish();
     
-    // Fixed leg schedule
+    // Fixed leg
     auto feff = b.CreateString("2025-01-17");
     auto fterm = b.CreateString("2030-01-17");
     quantra::ScheduleBuilder fsb(b);
@@ -350,7 +354,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto fixedLeg = flb.Finish();
     
-    // Float leg schedule
+    // Float leg
     auto fleff = b.CreateString("2025-01-17");
     auto flterm = b.CreateString("2030-01-17");
     quantra::ScheduleBuilder flsb(b);
@@ -374,7 +378,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     auto floatLeg = flgb.Finish();
     
     quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::SwapType_Payer);
+    vsb.add_swap_type(quantra::enums::SwapType_Payer);
     vsb.add_fixed_leg(fixedLeg);
     vsb.add_floating_leg(floatLeg);
     auto swap = vsb.Finish();
@@ -439,7 +443,7 @@ TEST_F(QuantraComparisonTest, FRA_NPVMatches) {
     quantra::FRABuilder fb(b);
     fb.add_start_date(vd);
     fb.add_maturity_date(md);
-    fb.add_fra_type(quantra::FRAType_Long);
+    fb.add_fra_type(quantra::enums::FRAType_Long);
     fb.add_strike(strike);
     fb.add_notional(notional);
     fb.add_index(idx3m);
@@ -496,14 +500,18 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
 
     flatbuffers::grpc::MessageBuilder b;
     
+    // Build everything BEFORE Pricing
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto volSurface = buildVolatility(b, "vol_20pct", vol);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolatilityTermStructure>>{volSurface});
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
     pb.add_curves(curves);
+    pb.add_volatilities(vols);
     auto pricing = pb.Finish();
     
     auto eff = b.CreateString("2025-01-17");
@@ -520,7 +528,7 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     
     auto idx3m = buildIndex3M(b);
     quantra::CapFloorBuilder cb(b);
-    cb.add_cap_floor_type(quantra::CapFloorType_Cap);
+    cb.add_cap_floor_type(quantra::enums::CapFloorType_Cap);
     cb.add_notional(notional);
     cb.add_schedule(schedule);
     cb.add_strike(strike);
@@ -529,14 +537,14 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     cb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto cap = cb.Finish();
     
-    auto volTS = buildVolatility(b, vol);
     auto dc = b.CreateString("discount");
+    auto vol_id = b.CreateString("vol_20pct");
     
     quantra::PriceCapFloorBuilder pcb(b);
     pcb.add_cap_floor(cap);
     pcb.add_discounting_curve(dc);
     pcb.add_forwarding_curve(dc);
-    pcb.add_volatility(volTS);
+    pcb.add_volatility(vol_id);
     auto pcbOff = pcb.Finish();
     
     auto caps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceCapFloor>>{pcbOff});
@@ -580,17 +588,26 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
 
     flatbuffers::grpc::MessageBuilder b;
     
+    // IMPORTANT: Build ALL strings and nested objects BEFORE parents that use them
+    // Build curve
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    
+    // Build volatility
+    auto volSurface = buildVolatility(b, "swaption_vol", vol);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolatilityTermStructure>>{volSurface});
+    
     auto asof = b.CreateString("2025-01-15");
     
+    // Build Pricing with curves and volatilities
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
     pb.add_curves(curves);
+    pb.add_volatilities(vols);
     auto pricing = pb.Finish();
     
-    // Fixed leg
+    // Fixed leg schedule
     auto feff = b.CreateString("2026-01-17");
     auto fterm = b.CreateString("2031-01-17");
     quantra::ScheduleBuilder fsb(b);
@@ -611,7 +628,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto fixedLeg = flb.Finish();
     
-    // Float leg
+    // Float leg schedule
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
     quantra::ScheduleBuilder flsb(b);
@@ -635,7 +652,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     auto floatLeg = flgb.Finish();
     
     quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::SwapType_Payer);
+    vsb.add_swap_type(quantra::enums::SwapType_Payer);
     vsb.add_fixed_leg(fixedLeg);
     vsb.add_floating_leg(floatLeg);
     auto uswap = vsb.Finish();
@@ -644,18 +661,19 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     quantra::SwaptionBuilder swb(b);
     swb.add_underlying_swap(uswap);
     swb.add_exercise_date(exd);
-    swb.add_exercise_type(quantra::ExerciseType_European);
-    swb.add_settlement_type(quantra::SettlementType_Physical);
+    swb.add_exercise_type(quantra::enums::ExerciseType_European);
+    swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
     
-    auto volTS = buildVolatility(b, vol);
+    // Create string references for PriceSwaption
     auto dc = b.CreateString("discount");
+    auto vol_id = b.CreateString("swaption_vol");
     
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve(dc);
-    psb.add_volatility(volTS);
+    psb.add_volatility(vol_id);
     auto psbOff = psb.Finish();
     
     auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});

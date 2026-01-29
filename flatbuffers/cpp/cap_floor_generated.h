@@ -22,39 +22,6 @@ namespace quantra {
 struct CapFloor;
 struct CapFloorBuilder;
 
-enum CapFloorType : int8_t {
-  CapFloorType_Cap = 0,
-  CapFloorType_Floor = 1,
-  CapFloorType_Collar = 2,
-  CapFloorType_MIN = CapFloorType_Cap,
-  CapFloorType_MAX = CapFloorType_Collar
-};
-
-inline const CapFloorType (&EnumValuesCapFloorType())[3] {
-  static const CapFloorType values[] = {
-    CapFloorType_Cap,
-    CapFloorType_Floor,
-    CapFloorType_Collar
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesCapFloorType() {
-  static const char * const names[4] = {
-    "Cap",
-    "Floor",
-    "Collar",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameCapFloorType(CapFloorType e) {
-  if (::flatbuffers::IsOutRange(e, CapFloorType_Cap, CapFloorType_Collar)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesCapFloorType()[index];
-}
-
 struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -66,8 +33,8 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DAY_COUNTER = 14,
     VT_BUSINESS_DAY_CONVENTION = 16
   };
-  quantra::CapFloorType cap_floor_type() const {
-    return static_cast<quantra::CapFloorType>(GetField<int8_t>(VT_CAP_FLOOR_TYPE, 0));
+  quantra::enums::CapFloorType cap_floor_type() const {
+    return static_cast<quantra::enums::CapFloorType>(GetField<int8_t>(VT_CAP_FLOOR_TYPE, 0));
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -106,7 +73,7 @@ struct CapFloorBuilder {
   typedef CapFloor Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_cap_floor_type(quantra::CapFloorType cap_floor_type) {
+  void add_cap_floor_type(quantra::enums::CapFloorType cap_floor_type) {
     fbb_.AddElement<int8_t>(CapFloor::VT_CAP_FLOOR_TYPE, static_cast<int8_t>(cap_floor_type), 0);
   }
   void add_notional(double notional) {
@@ -140,7 +107,7 @@ struct CapFloorBuilder {
 
 inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::CapFloorType cap_floor_type = quantra::CapFloorType_Cap,
+    quantra::enums::CapFloorType cap_floor_type = quantra::enums::CapFloorType_Cap,
     double notional = 0.0,
     double strike = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,

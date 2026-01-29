@@ -1,0 +1,75 @@
+include "enums.fbs";
+include "schedule.fbs";
+
+namespace quantra;
+
+table DepositHelper {
+    rate:double;
+    tenor_time_unit:enums.TimeUnit;
+    tenor_number: int;
+    fixing_days: int;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+}
+
+table FRAHelper {
+    rate:double;
+    months_to_start:int; 
+    months_to_end:int; 
+    fixing_days:int;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+}
+
+table FutureHelper {
+    rate: double;
+    future_start_date: string;
+    future_months: int;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+}
+
+table SwapHelper {
+    rate:double;
+    tenor_time_unit:enums.TimeUnit;
+    tenor_number: int;
+    calendar:enums.Calendar;
+    sw_fixed_leg_frequency:enums.Frequency;
+    sw_fixed_leg_convention:enums.BusinessDayConvention;
+    sw_fixed_leg_day_counter:enums.DayCounter;
+    sw_floating_leg_index:enums.Ibor;
+    spread:double;
+    fwd_start_days:int; 
+}
+
+table BondHelper {
+    rate:double;
+    settlement_days:int;
+    face_amount:double;
+    schedule:Schedule;
+    coupon_rate:double;
+    day_counter:enums.DayCounter;
+    business_day_convention:enums.BusinessDayConvention;
+    redemption:double;
+    issue_date:string; 
+}
+
+union Point { DepositHelper, FRAHelper, FutureHelper, SwapHelper, BondHelper }
+
+table PointsWrapper{
+    point:Point;
+}
+
+table TermStructure {
+    id:string;
+    day_counter:enums.DayCounter;
+    interpolator:enums.Interpolator;
+    bootstrap_trait:enums.BootstrapTrait;
+    points:[PointsWrapper];
+    reference_date:string;
+}
+
+root_type TermStructure;

@@ -1,0 +1,23 @@
+include "common.fbs";
+
+namespace quantra;
+
+table FloatingRateBondResponse{
+    npv:double;
+    clean_price:double;
+    dirty_price:double;
+    accrued_amount:double;
+    yield:double;
+    accrued_days:double;
+    macaulay_duration:double;
+    modified_duration:double;
+    convexity:double;
+    bps:double;
+    flows:[FlowsWrapper];
+}
+
+table PriceFloatingRateBondResponse{
+    bonds:[FloatingRateBondResponse];
+}
+
+root_type PriceFloatingRateBondResponse;

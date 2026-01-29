@@ -15,7 +15,6 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "common_generated.h"
 #include "swaption_generated.h"
-#include "volatility_generated.h"
 
 namespace quantra {
 
@@ -42,8 +41,8 @@ struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
-  const quantra::VolatilityTermStructure *volatility() const {
-    return GetPointer<const quantra::VolatilityTermStructure *>(VT_VOLATILITY);
+  const ::flatbuffers::String *volatility() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_VOLATILITY);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -54,7 +53,7 @@ struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
            verifier.VerifyString(forwarding_curve()) &&
            VerifyOffset(verifier, VT_VOLATILITY) &&
-           verifier.VerifyTable(volatility()) &&
+           verifier.VerifyString(volatility()) &&
            verifier.EndTable();
   }
 };
@@ -72,7 +71,7 @@ struct PriceSwaptionBuilder {
   void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
     fbb_.AddOffset(PriceSwaption::VT_FORWARDING_CURVE, forwarding_curve);
   }
-  void add_volatility(::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility) {
+  void add_volatility(::flatbuffers::Offset<::flatbuffers::String> volatility) {
     fbb_.AddOffset(PriceSwaption::VT_VOLATILITY, volatility);
   }
   explicit PriceSwaptionBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -91,7 +90,7 @@ inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaption(
     ::flatbuffers::Offset<quantra::Swaption> swaption = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0,
-    ::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> volatility = 0) {
   PriceSwaptionBuilder builder_(_fbb);
   builder_.add_volatility(volatility);
   builder_.add_forwarding_curve(forwarding_curve);
@@ -105,15 +104,16 @@ inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaptionDirect(
     ::flatbuffers::Offset<quantra::Swaption> swaption = 0,
     const char *discounting_curve = nullptr,
     const char *forwarding_curve = nullptr,
-    ::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility = 0) {
+    const char *volatility = nullptr) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
   auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
+  auto volatility__ = volatility ? _fbb.CreateString(volatility) : 0;
   return quantra::CreatePriceSwaption(
       _fbb,
       swaption,
       discounting_curve__,
       forwarding_curve__,
-      volatility);
+      volatility__);
 }
 
 struct PriceSwaptionRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {

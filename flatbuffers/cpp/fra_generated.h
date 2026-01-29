@@ -21,36 +21,6 @@ namespace quantra {
 struct FRA;
 struct FRABuilder;
 
-enum FRAType : int8_t {
-  FRAType_Long = 0,
-  FRAType_Short = 1,
-  FRAType_MIN = FRAType_Long,
-  FRAType_MAX = FRAType_Short
-};
-
-inline const FRAType (&EnumValuesFRAType())[2] {
-  static const FRAType values[] = {
-    FRAType_Long,
-    FRAType_Short
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesFRAType() {
-  static const char * const names[3] = {
-    "Long",
-    "Short",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameFRAType(FRAType e) {
-  if (::flatbuffers::IsOutRange(e, FRAType_Long, FRAType_Short)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesFRAType()[index];
-}
-
 struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FRABuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -64,8 +34,8 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CALENDAR = 18,
     VT_BUSINESS_DAY_CONVENTION = 20
   };
-  quantra::FRAType fra_type() const {
-    return static_cast<quantra::FRAType>(GetField<int8_t>(VT_FRA_TYPE, 0));
+  quantra::enums::FRAType fra_type() const {
+    return static_cast<quantra::enums::FRAType>(GetField<int8_t>(VT_FRA_TYPE, 0));
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -113,7 +83,7 @@ struct FRABuilder {
   typedef FRA Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_fra_type(quantra::FRAType fra_type) {
+  void add_fra_type(quantra::enums::FRAType fra_type) {
     fbb_.AddElement<int8_t>(FRA::VT_FRA_TYPE, static_cast<int8_t>(fra_type), 0);
   }
   void add_notional(double notional) {
@@ -153,7 +123,7 @@ struct FRABuilder {
 
 inline ::flatbuffers::Offset<FRA> CreateFRA(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::FRAType fra_type = quantra::FRAType_Long,
+    quantra::enums::FRAType fra_type = quantra::enums::FRAType_Long,
     double notional = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
@@ -177,7 +147,7 @@ inline ::flatbuffers::Offset<FRA> CreateFRA(
 
 inline ::flatbuffers::Offset<FRA> CreateFRADirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::FRAType fra_type = quantra::FRAType_Long,
+    quantra::enums::FRAType fra_type = quantra::enums::FRAType_Long,
     double notional = 0.0,
     const char *start_date = nullptr,
     const char *maturity_date = nullptr,

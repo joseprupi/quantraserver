@@ -15,7 +15,6 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "cap_floor_generated.h"
 #include "common_generated.h"
-#include "volatility_generated.h"
 
 namespace quantra {
 
@@ -43,8 +42,8 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
-  const quantra::VolatilityTermStructure *volatility() const {
-    return GetPointer<const quantra::VolatilityTermStructure *>(VT_VOLATILITY);
+  const ::flatbuffers::String *volatility() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_VOLATILITY);
   }
   bool include_details() const {
     return GetField<uint8_t>(VT_INCLUDE_DETAILS, 0) != 0;
@@ -58,7 +57,7 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
            verifier.VerifyString(forwarding_curve()) &&
            VerifyOffset(verifier, VT_VOLATILITY) &&
-           verifier.VerifyTable(volatility()) &&
+           verifier.VerifyString(volatility()) &&
            VerifyField<uint8_t>(verifier, VT_INCLUDE_DETAILS, 1) &&
            verifier.EndTable();
   }
@@ -77,7 +76,7 @@ struct PriceCapFloorBuilder {
   void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
     fbb_.AddOffset(PriceCapFloor::VT_FORWARDING_CURVE, forwarding_curve);
   }
-  void add_volatility(::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility) {
+  void add_volatility(::flatbuffers::Offset<::flatbuffers::String> volatility) {
     fbb_.AddOffset(PriceCapFloor::VT_VOLATILITY, volatility);
   }
   void add_include_details(bool include_details) {
@@ -99,7 +98,7 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloor(
     ::flatbuffers::Offset<quantra::CapFloor> cap_floor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0,
-    ::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> volatility = 0,
     bool include_details = false) {
   PriceCapFloorBuilder builder_(_fbb);
   builder_.add_volatility(volatility);
@@ -115,16 +114,17 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloorDirect(
     ::flatbuffers::Offset<quantra::CapFloor> cap_floor = 0,
     const char *discounting_curve = nullptr,
     const char *forwarding_curve = nullptr,
-    ::flatbuffers::Offset<quantra::VolatilityTermStructure> volatility = 0,
+    const char *volatility = nullptr,
     bool include_details = false) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
   auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
+  auto volatility__ = volatility ? _fbb.CreateString(volatility) : 0;
   return quantra::CreatePriceCapFloor(
       _fbb,
       cap_floor,
       discounting_curve__,
       forwarding_curve__,
-      volatility,
+      volatility__,
       include_details);
 }
 

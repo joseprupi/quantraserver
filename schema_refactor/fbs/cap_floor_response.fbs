@@ -1,0 +1,28 @@
+namespace quantra;
+
+// Individual caplet/floorlet details
+table CapFloorLet {
+    payment_date:string;
+    accrual_start_date:string;
+    accrual_end_date:string;
+    fixing_date:string;
+    strike:double;
+    forward_rate:double;
+    discount:double;
+    price:double;              // Individual caplet/floorlet price
+}
+
+// Cap/Floor pricing response
+table CapFloorResponse {
+    npv:double;
+    atm_rate:double;           // At-the-money rate
+    implied_volatility:double; // If priced from market price
+    cap_floor_lets:[CapFloorLet];
+}
+
+// Response wrapper for multiple caps/floors
+table PriceCapFloorResponse {
+    cap_floors:[CapFloorResponse];
+}
+
+root_type PriceCapFloorResponse;

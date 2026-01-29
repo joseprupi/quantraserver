@@ -1,0 +1,20 @@
+include "common.fbs";
+
+namespace quantra;
+
+// CDS pricing results
+table CDSValues {
+    npv:double;
+    fair_spread:double;         // Par spread in decimal
+    fair_upfront:double;        // Upfront for par spread
+    default_leg_npv:double;     // NPV of protection leg
+    premium_leg_npv:double;     // NPV of premium leg
+    error:Error;
+}
+
+// Batch CDS pricing response
+table PriceCDSResponse {
+    cds_list:[CDSValues];
+}
+
+root_type PriceCDSResponse;

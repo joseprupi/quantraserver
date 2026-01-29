@@ -16,6 +16,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "coupon_pricer_generated.h"
 #include "enums_generated.h"
 #include "term_structure_generated.h"
+#include "volatility_generated.h"
 
 namespace quantra {
 
@@ -168,9 +169,10 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_AS_OF_DATE = 4,
     VT_SETTLEMENT_DATE = 6,
     VT_CURVES = 8,
-    VT_BOND_PRICING_DETAILS = 10,
-    VT_BOND_PRICING_FLOWS = 12,
-    VT_COUPON_PRICERS = 14
+    VT_VOLATILITIES = 10,
+    VT_BOND_PRICING_DETAILS = 12,
+    VT_BOND_PRICING_FLOWS = 14,
+    VT_COUPON_PRICERS = 16
   };
   const ::flatbuffers::String *as_of_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
@@ -180,6 +182,9 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *>(VT_CURVES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>> *volatilities() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>> *>(VT_VOLATILITIES);
   }
   bool bond_pricing_details() const {
     return GetField<uint8_t>(VT_BOND_PRICING_DETAILS, 0) != 0;
@@ -199,6 +204,9 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffsetRequired(verifier, VT_CURVES) &&
            verifier.VerifyVector(curves()) &&
            verifier.VerifyVectorOfTables(curves()) &&
+           VerifyOffset(verifier, VT_VOLATILITIES) &&
+           verifier.VerifyVector(volatilities()) &&
+           verifier.VerifyVectorOfTables(volatilities()) &&
            VerifyField<uint8_t>(verifier, VT_BOND_PRICING_DETAILS, 1) &&
            VerifyField<uint8_t>(verifier, VT_BOND_PRICING_FLOWS, 1) &&
            VerifyOffset(verifier, VT_COUPON_PRICERS) &&
@@ -220,6 +228,9 @@ struct PricingBuilder {
   }
   void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
     fbb_.AddOffset(Pricing::VT_CURVES, curves);
+  }
+  void add_volatilities(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>>> volatilities) {
+    fbb_.AddOffset(Pricing::VT_VOLATILITIES, volatilities);
   }
   void add_bond_pricing_details(bool bond_pricing_details) {
     fbb_.AddElement<uint8_t>(Pricing::VT_BOND_PRICING_DETAILS, static_cast<uint8_t>(bond_pricing_details), 0);
@@ -249,11 +260,13 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
     ::flatbuffers::Offset<::flatbuffers::String> as_of_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> settlement_date = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>>> volatilities = 0,
     bool bond_pricing_details = false,
     bool bond_pricing_flows = false,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers = 0) {
   PricingBuilder builder_(_fbb);
   builder_.add_coupon_pricers(coupon_pricers);
+  builder_.add_volatilities(volatilities);
   builder_.add_curves(curves);
   builder_.add_settlement_date(settlement_date);
   builder_.add_as_of_date(as_of_date);
@@ -267,18 +280,21 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     const char *as_of_date = nullptr,
     const char *settlement_date = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::TermStructure>> *curves = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>> *volatilities = nullptr,
     bool bond_pricing_details = false,
     bool bond_pricing_flows = false,
     const std::vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers = nullptr) {
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
   auto settlement_date__ = settlement_date ? _fbb.CreateString(settlement_date) : 0;
   auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>>(*curves) : 0;
+  auto volatilities__ = volatilities ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolatilityTermStructure>>(*volatilities) : 0;
   auto coupon_pricers__ = coupon_pricers ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CouponPricer>>(*coupon_pricers) : 0;
   return quantra::CreatePricing(
       _fbb,
       as_of_date__,
       settlement_date__,
       curves__,
+      volatilities__,
       bond_pricing_details,
       bond_pricing_flows,
       coupon_pricers__);

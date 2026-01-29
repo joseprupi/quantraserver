@@ -1,0 +1,19 @@
+include "common.fbs";
+include "fra.fbs";
+
+namespace quantra;
+
+// Single FRA pricing request
+table PriceFRA {
+    fra:FRA;
+    discounting_curve:string;   // Reference to curve in Pricing.curves
+    forwarding_curve:string;    // Reference to curve for forward rates
+}
+
+// Request to price one or more FRAs
+table PriceFRARequest {
+    pricing:Pricing;
+    fras:[PriceFRA];
+}
+
+root_type PriceFRARequest;

@@ -1,0 +1,28 @@
+include "enums.fbs";
+
+namespace quantra;
+
+// =============================================================================
+// CREDIT CURVE
+// =============================================================================
+// Default probability curve for CDS pricing.
+
+table CreditSpreadQuote {
+    tenor_number:int;
+    tenor_time_unit:enums.TimeUnit;
+    spread:double;  // In decimal (0.01 = 100bps)
+}
+
+table CreditCurve {
+    id:string;
+    reference_date:string;
+    calendar:enums.Calendar;
+    day_counter:enums.DayCounter;
+    recovery_rate:double = 0.4;
+    
+    // Build from CDS spread quotes
+    quotes:[CreditSpreadQuote];
+    
+    // OR: use flat hazard rate
+    flat_hazard_rate:double;
+}

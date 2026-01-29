@@ -17,105 +17,11 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
-struct ConstantVolatility;
-struct ConstantVolatilityBuilder;
-
 struct VolatilityQuote;
 struct VolatilityQuoteBuilder;
 
 struct VolatilityTermStructure;
 struct VolatilityTermStructureBuilder;
-
-enum VolatilityType : int8_t {
-  VolatilityType_ShiftedLognormal = 0,
-  VolatilityType_Normal = 1,
-  VolatilityType_MIN = VolatilityType_ShiftedLognormal,
-  VolatilityType_MAX = VolatilityType_Normal
-};
-
-inline const VolatilityType (&EnumValuesVolatilityType())[2] {
-  static const VolatilityType values[] = {
-    VolatilityType_ShiftedLognormal,
-    VolatilityType_Normal
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesVolatilityType() {
-  static const char * const names[3] = {
-    "ShiftedLognormal",
-    "Normal",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameVolatilityType(VolatilityType e) {
-  if (::flatbuffers::IsOutRange(e, VolatilityType_ShiftedLognormal, VolatilityType_Normal)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesVolatilityType()[index];
-}
-
-struct ConstantVolatility FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef ConstantVolatilityBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_VALUE = 4,
-    VT_VOLATILITY_TYPE = 6,
-    VT_DAY_COUNTER = 8
-  };
-  double value() const {
-    return GetField<double>(VT_VALUE, 0.0);
-  }
-  quantra::VolatilityType volatility_type() const {
-    return static_cast<quantra::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
-  }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_VALUE, 8) &&
-           VerifyField<int8_t>(verifier, VT_VOLATILITY_TYPE, 1) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           verifier.EndTable();
-  }
-};
-
-struct ConstantVolatilityBuilder {
-  typedef ConstantVolatility Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_value(double value) {
-    fbb_.AddElement<double>(ConstantVolatility::VT_VALUE, value, 0.0);
-  }
-  void add_volatility_type(quantra::VolatilityType volatility_type) {
-    fbb_.AddElement<int8_t>(ConstantVolatility::VT_VOLATILITY_TYPE, static_cast<int8_t>(volatility_type), 0);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(ConstantVolatility::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
-  }
-  explicit ConstantVolatilityBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<ConstantVolatility> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<ConstantVolatility>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<ConstantVolatility> CreateConstantVolatility(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double value = 0.0,
-    quantra::VolatilityType volatility_type = quantra::VolatilityType_ShiftedLognormal,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
-  ConstantVolatilityBuilder builder_(_fbb);
-  builder_.add_value(value);
-  builder_.add_day_counter(day_counter);
-  builder_.add_volatility_type(volatility_type);
-  return builder_.Finish();
-}
 
 struct VolatilityQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VolatilityQuoteBuilder Builder;
@@ -215,8 +121,8 @@ struct VolatilityTermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  quantra::VolatilityType volatility_type() const {
-    return static_cast<quantra::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
+  quantra::enums::VolatilityType volatility_type() const {
+    return static_cast<quantra::enums::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
   }
   double constant_vol() const {
     return GetField<double>(VT_CONSTANT_VOL, 0.0);
@@ -226,7 +132,7 @@ struct VolatilityTermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_ID) &&
+           VerifyOffsetRequired(verifier, VT_ID) &&
            verifier.VerifyString(id()) &&
            VerifyOffset(verifier, VT_REFERENCE_DATE) &&
            verifier.VerifyString(reference_date()) &&
@@ -261,7 +167,7 @@ struct VolatilityTermStructureBuilder {
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
   }
-  void add_volatility_type(quantra::VolatilityType volatility_type) {
+  void add_volatility_type(quantra::enums::VolatilityType volatility_type) {
     fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_VOLATILITY_TYPE, static_cast<int8_t>(volatility_type), 0);
   }
   void add_constant_vol(double constant_vol) {
@@ -277,6 +183,7 @@ struct VolatilityTermStructureBuilder {
   ::flatbuffers::Offset<VolatilityTermStructure> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<VolatilityTermStructure>(end);
+    fbb_.Required(o, VolatilityTermStructure::VT_ID);
     return o;
   }
 };
@@ -288,7 +195,7 @@ inline ::flatbuffers::Offset<VolatilityTermStructure> CreateVolatilityTermStruct
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::VolatilityType volatility_type = quantra::VolatilityType_ShiftedLognormal,
+    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_ShiftedLognormal,
     double constant_vol = 0.0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityQuote>>> quotes = 0) {
   VolatilityTermStructureBuilder builder_(_fbb);
@@ -310,7 +217,7 @@ inline ::flatbuffers::Offset<VolatilityTermStructure> CreateVolatilityTermStruct
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::VolatilityType volatility_type = quantra::VolatilityType_ShiftedLognormal,
+    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_ShiftedLognormal,
     double constant_vol = 0.0,
     const std::vector<::flatbuffers::Offset<quantra::VolatilityQuote>> *quotes = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
