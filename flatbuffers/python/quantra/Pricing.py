@@ -45,7 +45,6 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.TermStructure import TermStructure
             obj = TermStructure()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -64,27 +63,50 @@ class Pricing(object):
         return o == 0
 
     # Pricing
-    def BondPricingDetails(self):
+    def Volatilities(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            obj = VolatilityTermStructure()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Pricing
-    def BondPricingFlows(self):
+    def VolatilitiesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Pricing
+    def VolatilitiesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        return o == 0
+
+    # Pricing
+    def BondPricingDetails(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
     # Pricing
-    def CouponPricers(self, j):
+    def BondPricingFlows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # Pricing
+    def CouponPricers(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.CouponPricer import CouponPricer
             obj = CouponPricer()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -92,53 +114,197 @@ class Pricing(object):
 
     # Pricing
     def CouponPricersLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def CouponPricersIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         return o == 0
 
-def Start(builder): builder.StartObject(6)
 def PricingStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddAsOfDate(builder, asOfDate): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(asOfDate), 0)
+    builder.StartObject(7)
+
+def Start(builder):
+    PricingStart(builder)
+
 def PricingAddAsOfDate(builder, asOfDate):
-    """This method is deprecated. Please switch to AddAsOfDate."""
-    return AddAsOfDate(builder, asOfDate)
-def AddSettlementDate(builder, settlementDate): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(settlementDate), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(asOfDate), 0)
+
+def AddAsOfDate(builder, asOfDate):
+    PricingAddAsOfDate(builder, asOfDate)
+
 def PricingAddSettlementDate(builder, settlementDate):
-    """This method is deprecated. Please switch to AddSettlementDate."""
-    return AddSettlementDate(builder, settlementDate)
-def AddCurves(builder, curves): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(curves), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(settlementDate), 0)
+
+def AddSettlementDate(builder, settlementDate):
+    PricingAddSettlementDate(builder, settlementDate)
+
 def PricingAddCurves(builder, curves):
-    """This method is deprecated. Please switch to AddCurves."""
-    return AddCurves(builder, curves)
-def StartCurvesVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(curves), 0)
+
+def AddCurves(builder, curves):
+    PricingAddCurves(builder, curves)
+
 def PricingStartCurvesVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartCurvesVector(builder, numElems)
-def AddBondPricingDetails(builder, bondPricingDetails): builder.PrependBoolSlot(3, bondPricingDetails, 0)
+    return builder.StartVector(4, numElems, 4)
+
+def StartCurvesVector(builder, numElems):
+    return PricingStartCurvesVector(builder, numElems)
+
+def PricingAddVolatilities(builder, volatilities):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(volatilities), 0)
+
+def AddVolatilities(builder, volatilities):
+    PricingAddVolatilities(builder, volatilities)
+
+def PricingStartVolatilitiesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartVolatilitiesVector(builder, numElems):
+    return PricingStartVolatilitiesVector(builder, numElems)
+
 def PricingAddBondPricingDetails(builder, bondPricingDetails):
-    """This method is deprecated. Please switch to AddBondPricingDetails."""
-    return AddBondPricingDetails(builder, bondPricingDetails)
-def AddBondPricingFlows(builder, bondPricingFlows): builder.PrependBoolSlot(4, bondPricingFlows, 0)
+    builder.PrependBoolSlot(4, bondPricingDetails, 0)
+
+def AddBondPricingDetails(builder, bondPricingDetails):
+    PricingAddBondPricingDetails(builder, bondPricingDetails)
+
 def PricingAddBondPricingFlows(builder, bondPricingFlows):
-    """This method is deprecated. Please switch to AddBondPricingFlows."""
-    return AddBondPricingFlows(builder, bondPricingFlows)
-def AddCouponPricers(builder, couponPricers): builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
+    builder.PrependBoolSlot(5, bondPricingFlows, 0)
+
+def AddBondPricingFlows(builder, bondPricingFlows):
+    PricingAddBondPricingFlows(builder, bondPricingFlows)
+
 def PricingAddCouponPricers(builder, couponPricers):
-    """This method is deprecated. Please switch to AddCouponPricers."""
-    return AddCouponPricers(builder, couponPricers)
-def StartCouponPricersVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
+
+def AddCouponPricers(builder, couponPricers):
+    PricingAddCouponPricers(builder, couponPricers)
+
 def PricingStartCouponPricersVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartCouponPricersVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartCouponPricersVector(builder, numElems):
+    return PricingStartCouponPricersVector(builder, numElems)
+
 def PricingEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PricingEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class PricingT(object):
+
+    # PricingT
+    def __init__(self):
+        self.asOfDate = None  # type: str
+        self.settlementDate = None  # type: str
+        self.curves = None  # type: List[TermStructureT]
+        self.volatilities = None  # type: List[VolatilityTermStructureT]
+        self.bondPricingDetails = False  # type: bool
+        self.bondPricingFlows = False  # type: bool
+        self.couponPricers = None  # type: List[CouponPricerT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        pricing = Pricing()
+        pricing.Init(buf, pos)
+        return cls.InitFromObj(pricing)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, pricing):
+        x = PricingT()
+        x._UnPack(pricing)
+        return x
+
+    # PricingT
+    def _UnPack(self, pricing):
+        if pricing is None:
+            return
+        self.asOfDate = pricing.AsOfDate()
+        self.settlementDate = pricing.SettlementDate()
+        if not pricing.CurvesIsNone():
+            self.curves = []
+            for i in range(pricing.CurvesLength()):
+                if pricing.Curves(i) is None:
+                    self.curves.append(None)
+                else:
+                    termStructure_ = TermStructureT.InitFromObj(pricing.Curves(i))
+                    self.curves.append(termStructure_)
+        if not pricing.VolatilitiesIsNone():
+            self.volatilities = []
+            for i in range(pricing.VolatilitiesLength()):
+                if pricing.Volatilities(i) is None:
+                    self.volatilities.append(None)
+                else:
+                    volatilityTermStructure_ = VolatilityTermStructureT.InitFromObj(pricing.Volatilities(i))
+                    self.volatilities.append(volatilityTermStructure_)
+        self.bondPricingDetails = pricing.BondPricingDetails()
+        self.bondPricingFlows = pricing.BondPricingFlows()
+        if not pricing.CouponPricersIsNone():
+            self.couponPricers = []
+            for i in range(pricing.CouponPricersLength()):
+                if pricing.CouponPricers(i) is None:
+                    self.couponPricers.append(None)
+                else:
+                    couponPricer_ = CouponPricerT.InitFromObj(pricing.CouponPricers(i))
+                    self.couponPricers.append(couponPricer_)
+
+    # PricingT
+    def Pack(self, builder):
+        if self.asOfDate is not None:
+            asOfDate = builder.CreateString(self.asOfDate)
+        if self.settlementDate is not None:
+            settlementDate = builder.CreateString(self.settlementDate)
+        if self.curves is not None:
+            curveslist = []
+            for i in range(len(self.curves)):
+                curveslist.append(self.curves[i].Pack(builder))
+            PricingStartCurvesVector(builder, len(self.curves))
+            for i in reversed(range(len(self.curves))):
+                builder.PrependUOffsetTRelative(curveslist[i])
+            curves = builder.EndVector()
+        if self.volatilities is not None:
+            volatilitieslist = []
+            for i in range(len(self.volatilities)):
+                volatilitieslist.append(self.volatilities[i].Pack(builder))
+            PricingStartVolatilitiesVector(builder, len(self.volatilities))
+            for i in reversed(range(len(self.volatilities))):
+                builder.PrependUOffsetTRelative(volatilitieslist[i])
+            volatilities = builder.EndVector()
+        if self.couponPricers is not None:
+            couponPricerslist = []
+            for i in range(len(self.couponPricers)):
+                couponPricerslist.append(self.couponPricers[i].Pack(builder))
+            PricingStartCouponPricersVector(builder, len(self.couponPricers))
+            for i in reversed(range(len(self.couponPricers))):
+                builder.PrependUOffsetTRelative(couponPricerslist[i])
+            couponPricers = builder.EndVector()
+        PricingStart(builder)
+        if self.asOfDate is not None:
+            PricingAddAsOfDate(builder, asOfDate)
+        if self.settlementDate is not None:
+            PricingAddSettlementDate(builder, settlementDate)
+        if self.curves is not None:
+            PricingAddCurves(builder, curves)
+        if self.volatilities is not None:
+            PricingAddVolatilities(builder, volatilities)
+        PricingAddBondPricingDetails(builder, self.bondPricingDetails)
+        PricingAddBondPricingFlows(builder, self.bondPricingFlows)
+        if self.couponPricers is not None:
+            PricingAddCouponPricers(builder, couponPricers)
+        pricing = PricingEnd(builder)
+        return pricing

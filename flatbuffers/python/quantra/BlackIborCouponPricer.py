@@ -41,19 +41,73 @@ class BlackIborCouponPricer(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(2)
 def BlackIborCouponPricerStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType): builder.PrependUint8Slot(0, optionletVolatilityStructureType, 0)
+    builder.StartObject(2)
+
+def Start(builder):
+    BlackIborCouponPricerStart(builder)
+
 def BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType):
-    """This method is deprecated. Please switch to AddOptionletVolatilityStructureType."""
-    return AddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType)
-def AddOptionletVolatilityStructure(builder, optionletVolatilityStructure): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(optionletVolatilityStructure), 0)
+    builder.PrependUint8Slot(0, optionletVolatilityStructureType, 0)
+
+def AddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType):
+    BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType)
+
 def BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure):
-    """This method is deprecated. Please switch to AddOptionletVolatilityStructure."""
-    return AddOptionletVolatilityStructure(builder, optionletVolatilityStructure)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(optionletVolatilityStructure), 0)
+
+def AddOptionletVolatilityStructure(builder, optionletVolatilityStructure):
+    BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure)
+
 def BlackIborCouponPricerEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return BlackIborCouponPricerEnd(builder)
+
+try:
+    from typing import Union
+except:
+    pass
+
+class BlackIborCouponPricerT(object):
+
+    # BlackIborCouponPricerT
+    def __init__(self):
+        self.optionletVolatilityStructureType = 0  # type: int
+        self.optionletVolatilityStructure = None  # type: Union[None, ConstantOptionletVolatilityT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        blackIborCouponPricer = BlackIborCouponPricer()
+        blackIborCouponPricer.Init(buf, pos)
+        return cls.InitFromObj(blackIborCouponPricer)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, blackIborCouponPricer):
+        x = BlackIborCouponPricerT()
+        x._UnPack(blackIborCouponPricer)
+        return x
+
+    # BlackIborCouponPricerT
+    def _UnPack(self, blackIborCouponPricer):
+        if blackIborCouponPricer is None:
+            return
+        self.optionletVolatilityStructureType = blackIborCouponPricer.OptionletVolatilityStructureType()
+        self.optionletVolatilityStructure = OptionletVolatilityStructureCreator(self.optionletVolatilityStructureType, blackIborCouponPricer.OptionletVolatilityStructure())
+
+    # BlackIborCouponPricerT
+    def Pack(self, builder):
+        if self.optionletVolatilityStructure is not None:
+            optionletVolatilityStructure = self.optionletVolatilityStructure.Pack(builder)
+        BlackIborCouponPricerStart(builder)
+        BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, self.optionletVolatilityStructureType)
+        if self.optionletVolatilityStructure is not None:
+            BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure)
+        blackIborCouponPricer = BlackIborCouponPricerEnd(builder)
+        return blackIborCouponPricer

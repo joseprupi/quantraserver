@@ -265,8 +265,9 @@ RUN chmod +x /usr/local/bin/quantra
 WORKDIR /app
 ENV LD_LIBRARY_PATH=/opt/quantra-deps/lib
 ENV QUANTRA_HOME=/app
+ENV QUANTRA_STATE_DIR=/app/.quantra
 
 EXPOSE 50051
 
-# Default: start 4 workers with Envoy load balancing
-CMD ["quantra", "start", "--workers", "4"]
+# Default: start 4 workers with Envoy load balancing in foreground mode
+CMD ["quantra", "start", "--workers", "4", "--foreground"]

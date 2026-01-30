@@ -1,0 +1,7 @@
+flatbuffers>=23.0.0
+grpcio-tools>=1.50.0
+grpcio>=1.50.0
+
+[dev]
+pytest-asyncio>=0.20.0
+pytest>=7.0.0

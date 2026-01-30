@@ -41,19 +41,73 @@ class FlowsWrapper(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(2)
 def FlowsWrapperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddFlowType(builder, flowType): builder.PrependUint8Slot(0, flowType, 0)
+    builder.StartObject(2)
+
+def Start(builder):
+    FlowsWrapperStart(builder)
+
 def FlowsWrapperAddFlowType(builder, flowType):
-    """This method is deprecated. Please switch to AddFlowType."""
-    return AddFlowType(builder, flowType)
-def AddFlow(builder, flow): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(flow), 0)
+    builder.PrependUint8Slot(0, flowType, 0)
+
+def AddFlowType(builder, flowType):
+    FlowsWrapperAddFlowType(builder, flowType)
+
 def FlowsWrapperAddFlow(builder, flow):
-    """This method is deprecated. Please switch to AddFlow."""
-    return AddFlow(builder, flow)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(flow), 0)
+
+def AddFlow(builder, flow):
+    FlowsWrapperAddFlow(builder, flow)
+
 def FlowsWrapperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FlowsWrapperEnd(builder)
+
+try:
+    from typing import Union
+except:
+    pass
+
+class FlowsWrapperT(object):
+
+    # FlowsWrapperT
+    def __init__(self):
+        self.flowType = 0  # type: int
+        self.flow = None  # type: Union[None, FlowInterestT, FlowPastInterestT, FlowNotionalT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        flowsWrapper = FlowsWrapper()
+        flowsWrapper.Init(buf, pos)
+        return cls.InitFromObj(flowsWrapper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, flowsWrapper):
+        x = FlowsWrapperT()
+        x._UnPack(flowsWrapper)
+        return x
+
+    # FlowsWrapperT
+    def _UnPack(self, flowsWrapper):
+        if flowsWrapper is None:
+            return
+        self.flowType = flowsWrapper.FlowType()
+        self.flow = FlowCreator(self.flowType, flowsWrapper.Flow())
+
+    # FlowsWrapperT
+    def Pack(self, builder):
+        if self.flow is not None:
+            flow = self.flow.Pack(builder)
+        FlowsWrapperStart(builder)
+        FlowsWrapperAddFlowType(builder, self.flowType)
+        if self.flow is not None:
+            FlowsWrapperAddFlow(builder, flow)
+        flowsWrapper = FlowsWrapperEnd(builder)
+        return flowsWrapper

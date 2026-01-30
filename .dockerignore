@@ -24,3 +24,9 @@ docs/
 # Ignore any local test outputs
 *.log
 *.tmp
+
+# Pyhton specific ignores
+*.pyc
+*.pyo
+*.pyd
+quantra-python/quantra.egg-info/*

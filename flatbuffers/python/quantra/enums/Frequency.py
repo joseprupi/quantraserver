@@ -16,4 +16,3 @@ class Frequency(object):
     Quarterly = 10
     Semiannual = 11
     Weekly = 12
-

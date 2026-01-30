@@ -66,35 +66,105 @@ class FutureHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(6)
 def FutureHelperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.StartObject(6)
+
+def Start(builder):
+    FutureHelperStart(builder)
+
 def FutureHelperAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddFutureStartDate(builder, futureStartDate): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(futureStartDate), 0)
+    builder.PrependFloat64Slot(0, rate, 0.0)
+
+def AddRate(builder, rate):
+    FutureHelperAddRate(builder, rate)
+
 def FutureHelperAddFutureStartDate(builder, futureStartDate):
-    """This method is deprecated. Please switch to AddFutureStartDate."""
-    return AddFutureStartDate(builder, futureStartDate)
-def AddFutureMonths(builder, futureMonths): builder.PrependInt32Slot(2, futureMonths, 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(futureStartDate), 0)
+
+def AddFutureStartDate(builder, futureStartDate):
+    FutureHelperAddFutureStartDate(builder, futureStartDate)
+
 def FutureHelperAddFutureMonths(builder, futureMonths):
-    """This method is deprecated. Please switch to AddFutureMonths."""
-    return AddFutureMonths(builder, futureMonths)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt32Slot(2, futureMonths, 0)
+
+def AddFutureMonths(builder, futureMonths):
+    FutureHelperAddFutureMonths(builder, futureMonths)
+
 def FutureHelperAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(4, businessDayConvention, 0)
+    builder.PrependInt8Slot(3, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    FutureHelperAddCalendar(builder, calendar)
+
 def FutureHelperAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(4, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    FutureHelperAddBusinessDayConvention(builder, businessDayConvention)
+
 def FutureHelperAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def End(builder): return builder.EndObject()
+    builder.PrependInt8Slot(5, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    FutureHelperAddDayCounter(builder, dayCounter)
+
 def FutureHelperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FutureHelperEnd(builder)
+
+
+class FutureHelperT(object):
+
+    # FutureHelperT
+    def __init__(self):
+        self.rate = 0.0  # type: float
+        self.futureStartDate = None  # type: str
+        self.futureMonths = 0  # type: int
+        self.calendar = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.dayCounter = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        futureHelper = FutureHelper()
+        futureHelper.Init(buf, pos)
+        return cls.InitFromObj(futureHelper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, futureHelper):
+        x = FutureHelperT()
+        x._UnPack(futureHelper)
+        return x
+
+    # FutureHelperT
+    def _UnPack(self, futureHelper):
+        if futureHelper is None:
+            return
+        self.rate = futureHelper.Rate()
+        self.futureStartDate = futureHelper.FutureStartDate()
+        self.futureMonths = futureHelper.FutureMonths()
+        self.calendar = futureHelper.Calendar()
+        self.businessDayConvention = futureHelper.BusinessDayConvention()
+        self.dayCounter = futureHelper.DayCounter()
+
+    # FutureHelperT
+    def Pack(self, builder):
+        if self.futureStartDate is not None:
+            futureStartDate = builder.CreateString(self.futureStartDate)
+        FutureHelperStart(builder)
+        FutureHelperAddRate(builder, self.rate)
+        if self.futureStartDate is not None:
+            FutureHelperAddFutureStartDate(builder, futureStartDate)
+        FutureHelperAddFutureMonths(builder, self.futureMonths)
+        FutureHelperAddCalendar(builder, self.calendar)
+        FutureHelperAddBusinessDayConvention(builder, self.businessDayConvention)
+        FutureHelperAddDayCounter(builder, self.dayCounter)
+        futureHelper = FutureHelperEnd(builder)
+        return futureHelper

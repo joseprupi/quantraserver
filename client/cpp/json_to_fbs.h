@@ -8,11 +8,11 @@
 #include "flatbuffers/util.h"
 #include "flatbuffers/grpc.h"
 
-#define FBS_INCLUDE_DIRECTORY "/root/quantragrpc/flatbuffers/fbs"
-#define FIXED_RATE_BOND_REQUEST_PATH "/root/quantragrpc/flatbuffers/fbs/price_fixed_rate_bond_request.fbs"
-#define FIXED_RATE_BOND_RESPONSE_PATH "/root/quantragrpc/flatbuffers/fbs/fixed_rate_bond_response.fbs"
-#define FLOATING_RATE_BOND_REQUEST_PATH "/root/quantragrpc/flatbuffers/fbs/price_floating_rate_bond_request.fbs"
-#define FLOATING_RATE_BOND_RESPONSE_PATH "/root/quantragrpc/flatbuffers/fbs/floating_rate_bond_response.fbs"
+#define FBS_INCLUDE_DIRECTORY "/workspace/flatbuffers/fbs"
+#define FIXED_RATE_BOND_REQUEST_PATH "/workspace/flatbuffers/fbs/price_fixed_rate_bond_request.fbs"
+#define FIXED_RATE_BOND_RESPONSE_PATH "/workspace/flatbuffers/fbs/fixed_rate_bond_response.fbs"
+#define FLOATING_RATE_BOND_REQUEST_PATH "/workspace/flatbuffers/fbs/price_floating_rate_bond_request.fbs"
+#define FLOATING_RATE_BOND_RESPONSE_PATH "/workspace/flatbuffers/fbs/floating_rate_bond_response.fbs"
 
 struct json_response
 {

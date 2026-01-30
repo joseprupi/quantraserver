@@ -45,23 +45,75 @@ class Yield(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(3)
 def YieldStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(0, dayCounter, 0)
+    builder.StartObject(3)
+
+def Start(builder):
+    YieldStart(builder)
+
 def YieldAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def AddCompounding(builder, compounding): builder.PrependInt8Slot(1, compounding, 0)
+    builder.PrependInt8Slot(0, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    YieldAddDayCounter(builder, dayCounter)
+
 def YieldAddCompounding(builder, compounding):
-    """This method is deprecated. Please switch to AddCompounding."""
-    return AddCompounding(builder, compounding)
-def AddFrequency(builder, frequency): builder.PrependInt8Slot(2, frequency, 0)
+    builder.PrependInt8Slot(1, compounding, 0)
+
+def AddCompounding(builder, compounding):
+    YieldAddCompounding(builder, compounding)
+
 def YieldAddFrequency(builder, frequency):
-    """This method is deprecated. Please switch to AddFrequency."""
-    return AddFrequency(builder, frequency)
-def End(builder): return builder.EndObject()
+    builder.PrependInt8Slot(2, frequency, 0)
+
+def AddFrequency(builder, frequency):
+    YieldAddFrequency(builder, frequency)
+
 def YieldEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return YieldEnd(builder)
+
+
+class YieldT(object):
+
+    # YieldT
+    def __init__(self):
+        self.dayCounter = 0  # type: int
+        self.compounding = 0  # type: int
+        self.frequency = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        yield_ = Yield()
+        yield_.Init(buf, pos)
+        return cls.InitFromObj(yield_)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, yield_):
+        x = YieldT()
+        x._UnPack(yield_)
+        return x
+
+    # YieldT
+    def _UnPack(self, yield_):
+        if yield_ is None:
+            return
+        self.dayCounter = yield_.DayCounter()
+        self.compounding = yield_.Compounding()
+        self.frequency = yield_.Frequency()
+
+    # YieldT
+    def Pack(self, builder):
+        YieldStart(builder)
+        YieldAddDayCounter(builder, self.dayCounter)
+        YieldAddCompounding(builder, self.compounding)
+        YieldAddFrequency(builder, self.frequency)
+        yield_ = YieldEnd(builder)
+        return yield_

@@ -10,4 +10,3 @@ class BusinessDayConvention(object):
     Nearest = 4
     Preceding = 5
     Unadjusted = 6
-

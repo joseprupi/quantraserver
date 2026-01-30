@@ -2,15 +2,30 @@
 """
 Quantra Process Manager
 
-A CLI tool to manage multiple Quantra server processes with Envoy load balancing.
+Manages multiple Quantra `sync_server` worker processes behind an Envoy gRPC load balancer.
+
+Key fixes vs earlier versions:
+- **Stable state directory** (PID/logs/envoy.yaml) independent of where the script lives.
+  Uses QUANTRA_STATE_DIR (default: /workspace/.quantra).
+- Container-friendly **foreground supervisor** mode (recommended): keeps the launcher alive
+  so the container/PTY lifecycle doesn't kill Envoy.
+- Optional detach mode with stronger detach (ignore SIGHUP, stdin=DEVNULL).
+- Better `stop` behavior (TERM, wait, optional KILL) and stale pidfile handling.
 
 Usage:
-    quantra start [--workers N] [--port PORT] [--base-port PORT]
-    quantra stop
+    quantra start [--workers N] [--port PORT] [--base-port PORT] [--admin-port PORT]
+                 [--foreground | --detach]
+    quantra stop [--force]
     quantra status
-    quantra restart [--workers N]
+    quantra restart [--workers N] [--port PORT] [--base-port PORT] [--admin-port PORT]
+                   [--foreground | --detach]
     quantra logs [--follow]
     quantra health
+
+Environment:
+    QUANTRA_HOME       Where to look for the `sync_server` binary/build (default: /workspace)
+    QUANTRA_STATE_DIR  Where to store runtime state: pid/logs/envoy.yaml (default: /workspace/.quantra)
+    QUANTRA_FOREGROUND If set to 1/true/yes, `start` defaults to foreground when no mode is given.
 """
 
 import argparse
@@ -25,7 +40,9 @@ from typing import Optional, List, Dict, Any
 
 import yaml
 
+# ----------------------------
 # Default configuration
+# ----------------------------
 DEFAULT_CONFIG = {
     "workers": 4,
     "port": 50051,           # Envoy listening port (client-facing)
@@ -35,38 +52,49 @@ DEFAULT_CONFIG = {
     "connect_timeout": 0.25,
 }
 
-QUANTRA_HOME = os.environ.get("QUANTRA_HOME", os.path.dirname(os.path.abspath(__file__)))
-CONFIG_DIR = Path(QUANTRA_HOME) / ".quantra"
-PID_FILE = CONFIG_DIR / "quantra.pid"
-CONFIG_FILE = CONFIG_DIR / "config.json"
-ENVOY_CONFIG = CONFIG_DIR / "envoy.yaml"
-LOG_DIR = CONFIG_DIR / "logs"
+# ----------------------------
+# Stable paths (IMPORTANT)
+# ----------------------------
+# QUANTRA_HOME: used only for finding binaries (not for state)
+QUANTRA_HOME = os.environ.get("QUANTRA_HOME", "/workspace")
+
+# QUANTRA_STATE_DIR: stable runtime state directory
+STATE_DIR = Path(os.environ.get("QUANTRA_STATE_DIR", "/workspace/.quantra"))
+
+PID_FILE = STATE_DIR / "quantra.pid"
+ENVOY_CONFIG = STATE_DIR / "envoy.yaml"
+LOG_DIR = STATE_DIR / "logs"
 
 
-def ensure_config_dir():
-    """Create config directory if it doesn't exist."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+# ----------------------------
+# Helpers: filesystem
+# ----------------------------
+def ensure_state_dir():
+    """Create state/log directories if they don't exist."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# ----------------------------
+# Helpers: binaries
+# ----------------------------
 def find_quantra_binary() -> Optional[Path]:
     """Find the sync_server binary."""
-    # Check common locations
     candidates = [
         Path(QUANTRA_HOME) / "build" / "server" / "sync_server",
         Path("/workspace/build/server/sync_server"),
         Path("./build/server/sync_server"),
     ]
-    
+
     for candidate in candidates:
         if candidate.exists() and candidate.is_file():
             return candidate
-    
-    # Try to find it
+
+    # Try PATH
     result = subprocess.run(["which", "sync_server"], capture_output=True, text=True)
     if result.returncode == 0:
         return Path(result.stdout.strip())
-    
+
     return None
 
 
@@ -78,10 +106,52 @@ def find_envoy_binary() -> Optional[Path]:
     return None
 
 
+# ----------------------------
+# Helpers: ports
+# ----------------------------
+def _port_in_use(port: int) -> bool:
+    """
+    Check if a TCP port is in use (best-effort).
+    Prefers `ss`, falls back to bind test.
+    """
+    # Try ss
+    try:
+        r = subprocess.run(["ss", "-lnt"], capture_output=True, text=True)
+        if r.returncode == 0:
+            return f":{port} " in r.stdout or f":{port}\n" in r.stdout
+    except Exception:
+        pass
+
+    # Fallback: bind test
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("0.0.0.0", port))
+        return False
+    except OSError:
+        return True
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+def preflight_ports(port: int, base_port: int, workers: int, admin_port: int):
+    needed = [port, admin_port] + list(range(base_port, base_port + workers))
+    conflicts = [p for p in needed if _port_in_use(p)]
+    if conflicts:
+        print("Error: Some required ports are already in use:", file=sys.stderr)
+        for p in conflicts:
+            print(f"  - {p}", file=sys.stderr)
+        print("\nTip: run `quantra stop --force` or change ports.", file=sys.stderr)
+        sys.exit(1)
+
+
+# ----------------------------
+# Envoy config generation
+# ----------------------------
 def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: int) -> dict:
-    """Generate Envoy configuration for load balancing across workers."""
-    
-    # Build endpoints list
     endpoints = []
     for i in range(workers):
         endpoints.append({
@@ -94,8 +164,8 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                 }
             }
         })
-    
-    config = {
+
+    return {
         "admin": {
             "address": {
                 "socket_address": {
@@ -108,10 +178,7 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
             "listeners": [{
                 "name": "quantra_listener",
                 "address": {
-                    "socket_address": {
-                        "address": "0.0.0.0",
-                        "port_value": port
-                    }
+                    "socket_address": {"address": "0.0.0.0", "port_value": port}
                 },
                 "filter_chains": [{
                     "filters": [{
@@ -130,24 +197,20 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                                         "route": {
                                             "cluster": "quantra_workers",
                                             "timeout": "0s",
-                                            "max_stream_duration": {
-                                                "grpc_timeout_header_max": "0s"
-                                            }
-                                        }
-                                    }]
-                                }]
+                                            "max_stream_duration": {"grpc_timeout_header_max": "0s"},
+                                        },
+                                    }],
+                                }],
                             },
-                            "http_filters": [
-                                {
-                                    "name": "envoy.filters.http.router",
-                                    "typed_config": {
-                                        "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
-                                    }
-                                }
-                            ]
-                        }
-                    }]
-                }]
+                            "http_filters": [{
+                                "name": "envoy.filters.http.router",
+                                "typed_config": {
+                                    "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+                                },
+                            }],
+                        },
+                    }],
+                }],
             }],
             "clusters": [{
                 "name": "quantra_workers",
@@ -157,9 +220,7 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                 "typed_extension_protocol_options": {
                     "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
                         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
-                        "explicit_http_config": {
-                            "http2_protocol_options": {}
-                        }
+                        "explicit_http_config": {"http2_protocol_options": {}},
                     }
                 },
                 "circuit_breakers": {
@@ -167,7 +228,7 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                         "priority": "DEFAULT",
                         "max_connections": 10000,
                         "max_requests": 10000,
-                        "max_pending_requests": 10000
+                        "max_pending_requests": 10000,
                     }]
                 },
                 "health_checks": [{
@@ -175,38 +236,34 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                     "interval": "1s",
                     "unhealthy_threshold": 2,
                     "healthy_threshold": 1,
-                    "tcp_health_check": {}
+                    "tcp_health_check": {},
                 }],
                 "load_assignment": {
                     "cluster_name": "quantra_workers",
-                    "endpoints": [{
-                        "lb_endpoints": endpoints
-                    }]
-                }
-            }]
-        }
+                    "endpoints": [{"lb_endpoints": endpoints}],
+                },
+            }],
+        },
     }
-    
-    return config
 
 
+# ----------------------------
+# PID file handling
+# ----------------------------
 def save_pids(pids: Dict[str, Any]):
-    """Save process PIDs to file."""
-    ensure_config_dir()
-    with open(PID_FILE, 'w') as f:
+    ensure_state_dir()
+    with open(PID_FILE, "w") as f:
         json.dump(pids, f, indent=2)
 
 
 def load_pids() -> Optional[Dict[str, Any]]:
-    """Load process PIDs from file."""
     if not PID_FILE.exists():
         return None
-    with open(PID_FILE, 'r') as f:
+    with open(PID_FILE, "r") as f:
         return json.load(f)
 
 
 def is_process_running(pid: int) -> bool:
-    """Check if a process is running."""
     try:
         os.kill(pid, 0)
         return True
@@ -214,98 +271,168 @@ def is_process_running(pid: int) -> bool:
         return False
 
 
-def start_workers(binary: Path, base_port: int, workers: int) -> List[subprocess.Popen]:
-    """Start worker processes."""
-    processes = []
-    
+# ----------------------------
+# Process helpers
+# ----------------------------
+def _preexec_detach_ignore_hup():
+    # Ignore SIGHUP in child (docker exec / PTY lifecycle can send it)
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
+
+def _open_log(path: Path):
+    ensure_state_dir()
+    # append, line-buffered
+    return open(path, "a", buffering=1)
+
+
+def start_workers(binary: Path, base_port: int, workers: int, detach: bool) -> List[Dict[str, Any]]:
+    processes: List[Dict[str, Any]] = []
+
     for i in range(workers):
         port = base_port + i
-        log_file = LOG_DIR / f"worker_{port}.log"
-        
-        with open(log_file, 'w') as log:
-            proc = subprocess.Popen(
-                [str(binary), str(port)],
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                start_new_session=True
-            )
-            processes.append({"port": port, "pid": proc.pid})
-            print(f"  Started worker on port {port} (PID: {proc.pid})")
-    
+        log = _open_log(LOG_DIR / f"worker_{port}.log")
+
+        popen_kwargs: Dict[str, Any] = dict(
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
+        if detach:
+            popen_kwargs.update(start_new_session=True, preexec_fn=_preexec_detach_ignore_hup)
+
+        proc = subprocess.Popen([str(binary), str(port)], **popen_kwargs)
+        processes.append({"port": port, "pid": proc.pid})
+        print(f"  Started worker on port {port} (PID: {proc.pid})")
+
     return processes
 
 
-def start_envoy(config_path: Path) -> subprocess.Popen:
-    """Start Envoy proxy."""
+def start_envoy(config_path: Path, detach: bool) -> subprocess.Popen:
     envoy_binary = find_envoy_binary()
     if not envoy_binary:
         print("Error: envoy not found in PATH", file=sys.stderr)
         sys.exit(1)
-    
-    log_file = LOG_DIR / "envoy.log"
-    
-    with open(log_file, 'w') as log:
-        proc = subprocess.Popen(
-            [str(envoy_binary), "-c", str(config_path), "--log-level", "warn"],
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True
-        )
-    
-    return proc
+
+    log = _open_log(LOG_DIR / "envoy.log")
+
+    popen_kwargs: Dict[str, Any] = dict(
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    if detach:
+        popen_kwargs.update(start_new_session=True, preexec_fn=_preexec_detach_ignore_hup)
+
+    return subprocess.Popen([str(envoy_binary), "-c", str(config_path), "--log-level", "warn"], **popen_kwargs)
 
 
+def _terminate_pid(pid: int, name: str, force: bool, timeout_s: float = 3.0):
+    if not pid or not is_process_running(pid):
+        return
+
+    try:
+        print(f"  Stopping {name} (PID: {pid})...")
+        os.kill(pid, signal.SIGTERM)
+    except OSError:
+        return
+
+    t0 = time.time()
+    while time.time() - t0 < timeout_s:
+        if not is_process_running(pid):
+            return
+        time.sleep(0.1)
+
+    if force and is_process_running(pid):
+        try:
+            print(f"  {name} did not stop; sending SIGKILL (PID: {pid})...")
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
+# ----------------------------
+# Commands
+# ----------------------------
 def cmd_start(args):
-    """Start Quantra cluster."""
-    ensure_config_dir()
-    
-    # Check if already running
+    ensure_state_dir()
+
+    # Decide mode
+    foreground = bool(args.foreground)
+    detach = bool(args.detach)
+    if foreground and detach:
+        print("Error: choose only one of --foreground or --detach", file=sys.stderr)
+        sys.exit(1)
+
+    # Default to foreground if QUANTRA_FOREGROUND is set
+    if not foreground and not detach:
+        if os.environ.get("QUANTRA_FOREGROUND", "").lower() in ("1", "true", "yes"):
+            foreground = True
+
+    # If pidfile exists but nothing is running, treat it as stale
     pids = load_pids()
     if pids:
-        running = any(is_process_running(w["pid"]) for w in pids.get("workers", []))
-        if running:
-            print("Quantra is already running. Use 'quantra stop' first or 'quantra restart'.")
+        running_workers = any(is_process_running(w.get("pid", 0)) for w in pids.get("workers", []))
+        running_envoy = is_process_running(pids.get("envoy", {}).get("pid", 0))
+        if running_workers or running_envoy:
+            print("Quantra appears to already be running. Use 'quantra stop' or 'quantra restart'.")
             sys.exit(1)
-    
-    # Find binary
+        else:
+            try:
+                PID_FILE.unlink()
+            except Exception:
+                pass
+
     binary = find_quantra_binary()
     if not binary:
         print("Error: sync_server binary not found.", file=sys.stderr)
-        print("Set QUANTRA_HOME or ensure build/server/sync_server exists.", file=sys.stderr)
+        print(f"Tried QUANTRA_HOME={QUANTRA_HOME} and common locations.", file=sys.stderr)
         sys.exit(1)
-    
-    print(f"Using binary: {binary}")
-    
+
     workers = args.workers
     port = args.port
     base_port = args.base_port
     admin_port = args.admin_port
-    
-    print(f"\nStarting Quantra cluster:")
+
+    preflight_ports(port, base_port, workers, admin_port)
+
+    print(f"Using binary: {binary}\n")
+    print("Starting Quantra cluster:")
     print(f"  Workers: {workers}")
     print(f"  Client port: {port}")
     print(f"  Worker ports: {base_port}-{base_port + workers - 1}")
     print(f"  Admin port: {admin_port}")
+    print(f"  State dir: {STATE_DIR}")
+    print(f"  Mode: {'foreground' if foreground else ('detached' if detach else 'attached')}")
     print()
-    
-    # Generate Envoy config
+
+    # Envoy config
     envoy_config = generate_envoy_config(port, base_port, workers, admin_port)
-    with open(ENVOY_CONFIG, 'w') as f:
+    with open(ENVOY_CONFIG, "w") as f:
         yaml.dump(envoy_config, f, default_flow_style=False)
     print(f"Generated Envoy config: {ENVOY_CONFIG}")
-    
+
     # Start workers
     print("\nStarting workers...")
-    worker_info = start_workers(binary, base_port, workers)
-    
-    # Give workers time to start
+    worker_info = start_workers(binary, base_port, workers, detach=detach)
+
     time.sleep(0.5)
-    
+
     # Start Envoy
     print("\nStarting Envoy load balancer...")
-    envoy_proc = start_envoy(ENVOY_CONFIG)
+    envoy_proc = start_envoy(ENVOY_CONFIG, detach=detach)
     print(f"  Started Envoy (PID: {envoy_proc.pid})")
-    
+
+    # Fail fast if envoy exited immediately
+    time.sleep(0.2)
+    if envoy_proc.poll() is not None:
+        rc = envoy_proc.returncode
+        print(f"Error: Envoy exited immediately (code {rc}). Check {LOG_DIR/'envoy.log'}", file=sys.stderr)
+        save_pids({"workers": worker_info, "envoy": {"pid": envoy_proc.pid}, "config": {}})
+        cmd_stop(argparse.Namespace(force=True))
+        sys.exit(1)
+
     # Save PIDs
     save_pids({
         "workers": worker_info,
@@ -314,241 +441,262 @@ def cmd_start(args):
             "workers": workers,
             "port": port,
             "base_port": base_port,
-            "admin_port": admin_port
-        }
+            "admin_port": admin_port,
+            "mode": ("foreground" if foreground else ("detach" if detach else "attached")),
+        },
+        "started_at": time.time(),
     })
-    
-    # Wait for health checks
+
+    # Health
     print("\nWaiting for health checks...")
     time.sleep(2)
-    
-    # Check health
     cmd_health(args, quiet=False)
-    
+
     print(f"\n✓ Quantra cluster started on port {port}")
     print(f"  Connect with: grpc://localhost:{port}")
 
+    # Foreground supervise loop (recommended in containers)
+    if foreground:
+        def _shutdown(signum, _frame):
+            print(f"\nReceived signal {signum}; stopping cluster...")
+            cmd_stop(argparse.Namespace(force=True))
+            sys.exit(0)
+
+        signal.signal(signal.SIGTERM, _shutdown)
+        signal.signal(signal.SIGINT, _shutdown)
+
+        print("\nForeground mode: supervisor running. Press Ctrl+C to stop.\n")
+        while True:
+            rc = envoy_proc.poll()
+            if rc is not None:
+                print(f"Envoy exited (code {rc}); stopping workers...")
+                cmd_stop(argparse.Namespace(force=True))
+                sys.exit(rc)
+            time.sleep(0.5)
+
 
 def cmd_stop(args):
-    """Stop Quantra cluster."""
     pids = load_pids()
     if not pids:
         print("Quantra is not running.")
         return
-    
+
+    force = bool(getattr(args, "force", False))
+
     print("Stopping Quantra cluster...")
-    
-    # Stop Envoy first
+
     envoy_pid = pids.get("envoy", {}).get("pid")
+    if envoy_pid:
+        _terminate_pid(envoy_pid, "Envoy", force=force)
+
+    for w in pids.get("workers", []):
+        pid = w.get("pid")
+        port = w.get("port")
+        if pid:
+            _terminate_pid(pid, f"worker:{port}", force=force)
+
+    # Check if anything still running
+    still_running = False
     if envoy_pid and is_process_running(envoy_pid):
-        print(f"  Stopping Envoy (PID: {envoy_pid})...")
-        try:
-            os.kill(envoy_pid, signal.SIGTERM)
-        except OSError:
-            pass
-    
-    # Stop workers
-    for worker in pids.get("workers", []):
-        pid = worker["pid"]
-        port = worker["port"]
-        if is_process_running(pid):
-            print(f"  Stopping worker on port {port} (PID: {pid})...")
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except OSError:
-                pass
-    
-    # Clean up PID file
-    if PID_FILE.exists():
-        PID_FILE.unlink()
-    
+        still_running = True
+    for w in pids.get("workers", []):
+        pid = w.get("pid")
+        if pid and is_process_running(pid):
+            still_running = True
+
+    if still_running and not force:
+        print("Warning: some processes are still running. Re-run with `quantra stop --force`.", file=sys.stderr)
+        return
+
+    try:
+        if PID_FILE.exists():
+            PID_FILE.unlink()
+    except Exception:
+        pass
+
     print("✓ Quantra cluster stopped")
 
 
-def cmd_status(args):
-    """Show Quantra cluster status."""
+def cmd_status(_args):
     pids = load_pids()
     if not pids:
         print("Quantra is not running.")
         return
-    
+
     config = pids.get("config", {})
     print("Quantra Cluster Status")
     print("=" * 50)
+    print(f"State dir:    {STATE_DIR}")
     print(f"Client port:  {config.get('port', 'N/A')}")
     print(f"Admin port:   {config.get('admin_port', 'N/A')}")
     print(f"Workers:      {config.get('workers', 'N/A')}")
+    print(f"Mode:         {config.get('mode', 'N/A')}")
     print()
-    
-    # Check Envoy
+
     envoy_pid = pids.get("envoy", {}).get("pid")
     envoy_status = "Running" if envoy_pid and is_process_running(envoy_pid) else "Stopped"
     print(f"Envoy:        {envoy_status} (PID: {envoy_pid})")
-    
-    # Check workers
+
     print("\nWorkers:")
-    for worker in pids.get("workers", []):
-        pid = worker["pid"]
-        port = worker["port"]
-        status = "Running" if is_process_running(pid) else "Stopped"
+    for w in pids.get("workers", []):
+        pid = w.get("pid")
+        port = w.get("port")
+        status = "Running" if pid and is_process_running(pid) else "Stopped"
         print(f"  Port {port}: {status} (PID: {pid})")
 
 
 def cmd_restart(args):
-    """Restart Quantra cluster."""
     pids = load_pids()
     if pids:
-        # Preserve config if not overridden
-        config = pids.get("config", {})
+        cfg = pids.get("config", {})
         if args.workers is None:
-            args.workers = config.get("workers", DEFAULT_CONFIG["workers"])
+            args.workers = cfg.get("workers", DEFAULT_CONFIG["workers"])
         if args.port == DEFAULT_CONFIG["port"]:
-            args.port = config.get("port", DEFAULT_CONFIG["port"])
+            args.port = cfg.get("port", DEFAULT_CONFIG["port"])
         if args.base_port == DEFAULT_CONFIG["base_port"]:
-            args.base_port = config.get("base_port", DEFAULT_CONFIG["base_port"])
-    
-    cmd_stop(args)
+            args.base_port = cfg.get("base_port", DEFAULT_CONFIG["base_port"])
+        if args.admin_port == DEFAULT_CONFIG["admin_port"]:
+            args.admin_port = cfg.get("admin_port", DEFAULT_CONFIG["admin_port"])
+
+    cmd_stop(argparse.Namespace(force=True))
     time.sleep(1)
     cmd_start(args)
 
 
-def cmd_health(args, quiet=True):
-    """Check health of all workers via Envoy admin API."""
+def cmd_health(_args, quiet=True):
     pids = load_pids()
     if not pids:
         print("Quantra is not running.")
         return
-    
+
     admin_port = pids.get("config", {}).get("admin_port", DEFAULT_CONFIG["admin_port"])
-    
+
     try:
         import urllib.request
         url = f"http://localhost:{admin_port}/clusters?format=json"
-        with urllib.request.urlopen(url, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            
-            if not quiet:
-                print("\nWorker Health:")
-            
-            all_healthy = True
-            for cluster in data.get("cluster_statuses", []):
-                if cluster.get("name") == "quantra_workers":
-                    for host in cluster.get("host_statuses", []):
-                        addr = host.get("address", {}).get("socket_address", {})
-                        port = addr.get("port_value", "?")
-                        health = host.get("health_status", {})
-                        
-                        if "failed_active_health_check" in health:
-                            status = "✗ UNHEALTHY"
-                            all_healthy = False
-                        else:
-                            status = "✓ healthy"
-                        
-                        if not quiet:
-                            print(f"  Port {port}: {status}")
-            
-            if not quiet and all_healthy:
-                print("\n✓ All workers healthy")
-            elif not quiet:
-                print("\n✗ Some workers unhealthy")
-                
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+
+        if not quiet:
+            print("\nWorker Health:")
+
+        all_healthy = True
+        for cluster in data.get("cluster_statuses", []):
+            if cluster.get("name") != "quantra_workers":
+                continue
+            for host in cluster.get("host_statuses", []):
+                addr = host.get("address", {}).get("socket_address", {})
+                port = addr.get("port_value", "?")
+                health = host.get("health_status", {})
+                unhealthy = False
+                if isinstance(health, dict) and any(k.startswith("failed") for k in health.keys()):
+                    unhealthy = True
+
+                status = "✓ healthy" if not unhealthy else "✗ UNHEALTHY"
+                if unhealthy:
+                    all_healthy = False
+
+                if not quiet:
+                    print(f"  Port {port}: {status}")
+
+        if not quiet:
+            print("\n✓ All workers healthy" if all_healthy else "\n✗ Some workers unhealthy")
+
     except Exception as e:
         print(f"Could not check health: {e}")
         print("(Envoy admin API may not be ready yet)")
 
 
 def cmd_logs(args):
-    """Show logs from workers and envoy."""
-    pids = load_pids()
-    if not pids:
+    if not load_pids():
         print("Quantra is not running.")
         return
-    
+
     if args.follow:
-        # Tail all logs
-        log_files = list(LOG_DIR.glob("*.log"))
-        if not log_files:
+        files = sorted(LOG_DIR.glob("*.log"))
+        if not files:
             print("No log files found.")
             return
-        
-        print(f"Following logs from {LOG_DIR}...")
-        print("Press Ctrl+C to stop.\n")
-        
+        print(f"Following logs from {LOG_DIR}... (Ctrl+C to stop)\n")
+        subprocess.run(["tail", "-f"] + [str(f) for f in files])
+        return
+
+    for fpath in sorted(LOG_DIR.glob("*.log")):
+        print(f"\n=== {fpath.name} ===")
         try:
-            subprocess.run(["tail", "-f"] + [str(f) for f in log_files])
-        except KeyboardInterrupt:
-            pass
-    else:
-        # Show recent logs
-        for log_file in sorted(LOG_DIR.glob("*.log")):
-            print(f"\n=== {log_file.name} ===")
-            with open(log_file) as f:
+            with open(fpath) as f:
                 lines = f.readlines()
-                for line in lines[-20:]:  # Last 20 lines
-                    print(line, end="")
+            for line in lines[-40:]:
+                print(line, end="")
+        except FileNotFoundError:
+            pass
 
 
+# ----------------------------
+# Main
+# ----------------------------
 def main():
     parser = argparse.ArgumentParser(
         description="Quantra Process Manager - Manage distributed QuantLib pricing servers",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
+State directory:
+  QUANTRA_STATE_DIR (default: /workspace/.quantra)
+  Current: {STATE_DIR}
+
 Examples:
-  quantra start --workers 8          Start with 8 worker processes
-  quantra start --workers 4 --port 9000   Start on custom port
-  quantra status                     Show cluster status
-  quantra health                     Check worker health
-  quantra logs --follow              Tail all logs
-  quantra restart --workers 16       Restart with more workers
-  quantra stop                       Stop all processes
-        """
+  quantra start --workers 10 --foreground
+  quantra status
+  quantra logs --follow
+  quantra stop --force
+
+Defaults:
+  QUANTRA_HOME={QUANTRA_HOME}
+"""
     )
-    
+
     subparsers = parser.add_subparsers(dest="command", help="Commands")
-    
+
     # start
-    start_parser = subparsers.add_parser("start", help="Start Quantra cluster")
-    start_parser.add_argument("-w", "--workers", type=int, default=DEFAULT_CONFIG["workers"],
-                             help=f"Number of worker processes (default: {DEFAULT_CONFIG['workers']})")
-    start_parser.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"],
-                             help=f"Client-facing port (default: {DEFAULT_CONFIG['port']})")
-    start_parser.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"],
-                             help=f"First worker port (default: {DEFAULT_CONFIG['base_port']})")
-    start_parser.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"],
-                             help=f"Envoy admin port (default: {DEFAULT_CONFIG['admin_port']})")
-    
+    sp = subparsers.add_parser("start", help="Start Quantra cluster")
+    sp.add_argument("-w", "--workers", type=int, default=DEFAULT_CONFIG["workers"])
+    sp.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
+    sp.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
+    sp.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    mode = sp.add_mutually_exclusive_group()
+    mode.add_argument("--foreground", action="store_true", help="Run supervisor in foreground (recommended in containers)")
+    mode.add_argument("--detach", action="store_true", help="Detach processes and return prompt")
+
     # stop
-    subparsers.add_parser("stop", help="Stop Quantra cluster")
-    
+    sp = subparsers.add_parser("stop", help="Stop Quantra cluster")
+    sp.add_argument("--force", action="store_true", help="Force kill lingering processes (SIGKILL)")
+
     # status
     subparsers.add_parser("status", help="Show cluster status")
-    
+
     # restart
-    restart_parser = subparsers.add_parser("restart", help="Restart Quantra cluster")
-    restart_parser.add_argument("-w", "--workers", type=int, default=None,
-                               help="Number of worker processes")
-    restart_parser.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"],
-                               help="Client-facing port")
-    restart_parser.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"],
-                               help="First worker port")
-    restart_parser.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"],
-                               help="Envoy admin port")
-    
+    sp = subparsers.add_parser("restart", help="Restart Quantra cluster")
+    sp.add_argument("-w", "--workers", type=int, default=None)
+    sp.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
+    sp.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
+    sp.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    mode = sp.add_mutually_exclusive_group()
+    mode.add_argument("--foreground", action="store_true")
+    mode.add_argument("--detach", action="store_true")
+
     # health
     subparsers.add_parser("health", help="Check worker health")
-    
+
     # logs
-    logs_parser = subparsers.add_parser("logs", help="Show logs")
-    logs_parser.add_argument("-f", "--follow", action="store_true",
-                            help="Follow log output")
-    
+    sp = subparsers.add_parser("logs", help="Show logs")
+    sp.add_argument("-f", "--follow", action="store_true", help="Follow log output")
+
     args = parser.parse_args()
-    
     if not args.command:
         parser.print_help()
         sys.exit(1)
-    
-    commands = {
+
+    cmds = {
         "start": cmd_start,
         "stop": cmd_stop,
         "status": cmd_status,
@@ -556,8 +704,7 @@ Examples:
         "health": cmd_health,
         "logs": cmd_logs,
     }
-    
-    commands[args.command](args)
+    cmds[args.command](args)
 
 
 if __name__ == "__main__":

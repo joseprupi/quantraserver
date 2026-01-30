@@ -14,7 +14,6 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "common_generated.h"
-#include "fixed_rate_bond_generated.h"
 #include "floating_rate_bond_generated.h"
 #include "term_structure_generated.h"
 

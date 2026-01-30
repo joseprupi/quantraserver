@@ -11,4 +11,3 @@ class DateGenerationRule(object):
     Twentieth = 5
     TwentiethIMM = 6
     Zero = 7
-

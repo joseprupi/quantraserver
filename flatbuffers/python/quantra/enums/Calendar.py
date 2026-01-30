@@ -46,4 +46,3 @@ class Calendar(object):
     UnitedStatesNYSE = 40
     UnitedStatesSettlement = 41
     WeekendsOnly = 42
-

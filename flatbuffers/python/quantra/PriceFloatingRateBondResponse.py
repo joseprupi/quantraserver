@@ -31,7 +31,6 @@ class PriceFloatingRateBondResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.FloatingRateBondResponse import FloatingRateBondResponse
             obj = FloatingRateBondResponse()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -49,19 +48,83 @@ class PriceFloatingRateBondResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
-def Start(builder): builder.StartObject(1)
 def PriceFloatingRateBondResponseStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddBonds(builder, bonds): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+    builder.StartObject(1)
+
+def Start(builder):
+    PriceFloatingRateBondResponseStart(builder)
+
 def PriceFloatingRateBondResponseAddBonds(builder, bonds):
-    """This method is deprecated. Please switch to AddBonds."""
-    return AddBonds(builder, bonds)
-def StartBondsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+
+def AddBonds(builder, bonds):
+    PriceFloatingRateBondResponseAddBonds(builder, bonds)
+
 def PriceFloatingRateBondResponseStartBondsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartBondsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartBondsVector(builder, numElems):
+    return PriceFloatingRateBondResponseStartBondsVector(builder, numElems)
+
 def PriceFloatingRateBondResponseEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PriceFloatingRateBondResponseEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class PriceFloatingRateBondResponseT(object):
+
+    # PriceFloatingRateBondResponseT
+    def __init__(self):
+        self.bonds = None  # type: List[FloatingRateBondResponseT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        priceFloatingRateBondResponse = PriceFloatingRateBondResponse()
+        priceFloatingRateBondResponse.Init(buf, pos)
+        return cls.InitFromObj(priceFloatingRateBondResponse)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, priceFloatingRateBondResponse):
+        x = PriceFloatingRateBondResponseT()
+        x._UnPack(priceFloatingRateBondResponse)
+        return x
+
+    # PriceFloatingRateBondResponseT
+    def _UnPack(self, priceFloatingRateBondResponse):
+        if priceFloatingRateBondResponse is None:
+            return
+        if not priceFloatingRateBondResponse.BondsIsNone():
+            self.bonds = []
+            for i in range(priceFloatingRateBondResponse.BondsLength()):
+                if priceFloatingRateBondResponse.Bonds(i) is None:
+                    self.bonds.append(None)
+                else:
+                    floatingRateBondResponse_ = FloatingRateBondResponseT.InitFromObj(priceFloatingRateBondResponse.Bonds(i))
+                    self.bonds.append(floatingRateBondResponse_)
+
+    # PriceFloatingRateBondResponseT
+    def Pack(self, builder):
+        if self.bonds is not None:
+            bondslist = []
+            for i in range(len(self.bonds)):
+                bondslist.append(self.bonds[i].Pack(builder))
+            PriceFloatingRateBondResponseStartBondsVector(builder, len(self.bonds))
+            for i in reversed(range(len(self.bonds))):
+                builder.PrependUOffsetTRelative(bondslist[i])
+            bonds = builder.EndVector()
+        PriceFloatingRateBondResponseStart(builder)
+        if self.bonds is not None:
+            PriceFloatingRateBondResponseAddBonds(builder, bonds)
+        priceFloatingRateBondResponse = PriceFloatingRateBondResponseEnd(builder)
+        return priceFloatingRateBondResponse

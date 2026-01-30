@@ -59,7 +59,6 @@ class TermStructure(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PointsWrapper import PointsWrapper
             obj = PointsWrapper()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -84,39 +83,134 @@ class TermStructure(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def Start(builder): builder.StartObject(6)
 def TermStructureStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddId(builder, id): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(id), 0)
+    builder.StartObject(6)
+
+def Start(builder):
+    TermStructureStart(builder)
+
 def TermStructureAddId(builder, id):
-    """This method is deprecated. Please switch to AddId."""
-    return AddId(builder, id)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(1, dayCounter, 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(id), 0)
+
+def AddId(builder, id):
+    TermStructureAddId(builder, id)
+
 def TermStructureAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def AddInterpolator(builder, interpolator): builder.PrependInt8Slot(2, interpolator, 0)
+    builder.PrependInt8Slot(1, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    TermStructureAddDayCounter(builder, dayCounter)
+
 def TermStructureAddInterpolator(builder, interpolator):
-    """This method is deprecated. Please switch to AddInterpolator."""
-    return AddInterpolator(builder, interpolator)
-def AddBootstrapTrait(builder, bootstrapTrait): builder.PrependInt8Slot(3, bootstrapTrait, 0)
+    builder.PrependInt8Slot(2, interpolator, 0)
+
+def AddInterpolator(builder, interpolator):
+    TermStructureAddInterpolator(builder, interpolator)
+
 def TermStructureAddBootstrapTrait(builder, bootstrapTrait):
-    """This method is deprecated. Please switch to AddBootstrapTrait."""
-    return AddBootstrapTrait(builder, bootstrapTrait)
-def AddPoints(builder, points): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(points), 0)
+    builder.PrependInt8Slot(3, bootstrapTrait, 0)
+
+def AddBootstrapTrait(builder, bootstrapTrait):
+    TermStructureAddBootstrapTrait(builder, bootstrapTrait)
+
 def TermStructureAddPoints(builder, points):
-    """This method is deprecated. Please switch to AddPoints."""
-    return AddPoints(builder, points)
-def StartPointsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(points), 0)
+
+def AddPoints(builder, points):
+    TermStructureAddPoints(builder, points)
+
 def TermStructureStartPointsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartPointsVector(builder, numElems)
-def AddReferenceDate(builder, referenceDate): builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(referenceDate), 0)
+    return builder.StartVector(4, numElems, 4)
+
+def StartPointsVector(builder, numElems):
+    return TermStructureStartPointsVector(builder, numElems)
+
 def TermStructureAddReferenceDate(builder, referenceDate):
-    """This method is deprecated. Please switch to AddReferenceDate."""
-    return AddReferenceDate(builder, referenceDate)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(referenceDate), 0)
+
+def AddReferenceDate(builder, referenceDate):
+    TermStructureAddReferenceDate(builder, referenceDate)
+
 def TermStructureEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return TermStructureEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class TermStructureT(object):
+
+    # TermStructureT
+    def __init__(self):
+        self.id = None  # type: str
+        self.dayCounter = 0  # type: int
+        self.interpolator = 0  # type: int
+        self.bootstrapTrait = 0  # type: int
+        self.points = None  # type: List[PointsWrapperT]
+        self.referenceDate = None  # type: str
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        termStructure = TermStructure()
+        termStructure.Init(buf, pos)
+        return cls.InitFromObj(termStructure)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, termStructure):
+        x = TermStructureT()
+        x._UnPack(termStructure)
+        return x
+
+    # TermStructureT
+    def _UnPack(self, termStructure):
+        if termStructure is None:
+            return
+        self.id = termStructure.Id()
+        self.dayCounter = termStructure.DayCounter()
+        self.interpolator = termStructure.Interpolator()
+        self.bootstrapTrait = termStructure.BootstrapTrait()
+        if not termStructure.PointsIsNone():
+            self.points = []
+            for i in range(termStructure.PointsLength()):
+                if termStructure.Points(i) is None:
+                    self.points.append(None)
+                else:
+                    pointsWrapper_ = PointsWrapperT.InitFromObj(termStructure.Points(i))
+                    self.points.append(pointsWrapper_)
+        self.referenceDate = termStructure.ReferenceDate()
+
+    # TermStructureT
+    def Pack(self, builder):
+        if self.id is not None:
+            id = builder.CreateString(self.id)
+        if self.points is not None:
+            pointslist = []
+            for i in range(len(self.points)):
+                pointslist.append(self.points[i].Pack(builder))
+            TermStructureStartPointsVector(builder, len(self.points))
+            for i in reversed(range(len(self.points))):
+                builder.PrependUOffsetTRelative(pointslist[i])
+            points = builder.EndVector()
+        if self.referenceDate is not None:
+            referenceDate = builder.CreateString(self.referenceDate)
+        TermStructureStart(builder)
+        if self.id is not None:
+            TermStructureAddId(builder, id)
+        TermStructureAddDayCounter(builder, self.dayCounter)
+        TermStructureAddInterpolator(builder, self.interpolator)
+        TermStructureAddBootstrapTrait(builder, self.bootstrapTrait)
+        if self.points is not None:
+            TermStructureAddPoints(builder, points)
+        if self.referenceDate is not None:
+            TermStructureAddReferenceDate(builder, referenceDate)
+        termStructure = TermStructureEnd(builder)
+        return termStructure

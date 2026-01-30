@@ -6,3 +6,10 @@ class Pricer(object):
     NONE = 0
     BlackIborCouponPricer = 1
 
+def PricerCreator(unionType, table):
+    from flatbuffers.table import Table
+    if not isinstance(table, Table):
+        return None
+    if unionType == Pricer.BlackIborCouponPricer:
+        return BlackIborCouponPricerT.InitFromBuf(table.Bytes, table.Pos)
+    return None

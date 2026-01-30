@@ -80,43 +80,126 @@ class Schedule(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-def Start(builder): builder.StartObject(8)
 def ScheduleStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(0, calendar, 0)
+    builder.StartObject(8)
+
+def Start(builder):
+    ScheduleStart(builder)
+
 def ScheduleAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddEffectiveDate(builder, effectiveDate): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(effectiveDate), 0)
+    builder.PrependInt8Slot(0, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    ScheduleAddCalendar(builder, calendar)
+
 def ScheduleAddEffectiveDate(builder, effectiveDate):
-    """This method is deprecated. Please switch to AddEffectiveDate."""
-    return AddEffectiveDate(builder, effectiveDate)
-def AddTerminationDate(builder, terminationDate): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(terminationDate), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(effectiveDate), 0)
+
+def AddEffectiveDate(builder, effectiveDate):
+    ScheduleAddEffectiveDate(builder, effectiveDate)
+
 def ScheduleAddTerminationDate(builder, terminationDate):
-    """This method is deprecated. Please switch to AddTerminationDate."""
-    return AddTerminationDate(builder, terminationDate)
-def AddFrequency(builder, frequency): builder.PrependInt8Slot(3, frequency, 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(terminationDate), 0)
+
+def AddTerminationDate(builder, terminationDate):
+    ScheduleAddTerminationDate(builder, terminationDate)
+
 def ScheduleAddFrequency(builder, frequency):
-    """This method is deprecated. Please switch to AddFrequency."""
-    return AddFrequency(builder, frequency)
-def AddConvention(builder, convention): builder.PrependInt8Slot(4, convention, 0)
+    builder.PrependInt8Slot(3, frequency, 0)
+
+def AddFrequency(builder, frequency):
+    ScheduleAddFrequency(builder, frequency)
+
 def ScheduleAddConvention(builder, convention):
-    """This method is deprecated. Please switch to AddConvention."""
-    return AddConvention(builder, convention)
-def AddTerminationDateConvention(builder, terminationDateConvention): builder.PrependInt8Slot(5, terminationDateConvention, 0)
+    builder.PrependInt8Slot(4, convention, 0)
+
+def AddConvention(builder, convention):
+    ScheduleAddConvention(builder, convention)
+
 def ScheduleAddTerminationDateConvention(builder, terminationDateConvention):
-    """This method is deprecated. Please switch to AddTerminationDateConvention."""
-    return AddTerminationDateConvention(builder, terminationDateConvention)
-def AddDateGenerationRule(builder, dateGenerationRule): builder.PrependInt8Slot(6, dateGenerationRule, 0)
+    builder.PrependInt8Slot(5, terminationDateConvention, 0)
+
+def AddTerminationDateConvention(builder, terminationDateConvention):
+    ScheduleAddTerminationDateConvention(builder, terminationDateConvention)
+
 def ScheduleAddDateGenerationRule(builder, dateGenerationRule):
-    """This method is deprecated. Please switch to AddDateGenerationRule."""
-    return AddDateGenerationRule(builder, dateGenerationRule)
-def AddEndOfMonth(builder, endOfMonth): builder.PrependBoolSlot(7, endOfMonth, 0)
+    builder.PrependInt8Slot(6, dateGenerationRule, 0)
+
+def AddDateGenerationRule(builder, dateGenerationRule):
+    ScheduleAddDateGenerationRule(builder, dateGenerationRule)
+
 def ScheduleAddEndOfMonth(builder, endOfMonth):
-    """This method is deprecated. Please switch to AddEndOfMonth."""
-    return AddEndOfMonth(builder, endOfMonth)
-def End(builder): return builder.EndObject()
+    builder.PrependBoolSlot(7, endOfMonth, 0)
+
+def AddEndOfMonth(builder, endOfMonth):
+    ScheduleAddEndOfMonth(builder, endOfMonth)
+
 def ScheduleEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return ScheduleEnd(builder)
+
+
+class ScheduleT(object):
+
+    # ScheduleT
+    def __init__(self):
+        self.calendar = 0  # type: int
+        self.effectiveDate = None  # type: str
+        self.terminationDate = None  # type: str
+        self.frequency = 0  # type: int
+        self.convention = 0  # type: int
+        self.terminationDateConvention = 0  # type: int
+        self.dateGenerationRule = 0  # type: int
+        self.endOfMonth = False  # type: bool
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        schedule = Schedule()
+        schedule.Init(buf, pos)
+        return cls.InitFromObj(schedule)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, schedule):
+        x = ScheduleT()
+        x._UnPack(schedule)
+        return x
+
+    # ScheduleT
+    def _UnPack(self, schedule):
+        if schedule is None:
+            return
+        self.calendar = schedule.Calendar()
+        self.effectiveDate = schedule.EffectiveDate()
+        self.terminationDate = schedule.TerminationDate()
+        self.frequency = schedule.Frequency()
+        self.convention = schedule.Convention()
+        self.terminationDateConvention = schedule.TerminationDateConvention()
+        self.dateGenerationRule = schedule.DateGenerationRule()
+        self.endOfMonth = schedule.EndOfMonth()
+
+    # ScheduleT
+    def Pack(self, builder):
+        if self.effectiveDate is not None:
+            effectiveDate = builder.CreateString(self.effectiveDate)
+        if self.terminationDate is not None:
+            terminationDate = builder.CreateString(self.terminationDate)
+        ScheduleStart(builder)
+        ScheduleAddCalendar(builder, self.calendar)
+        if self.effectiveDate is not None:
+            ScheduleAddEffectiveDate(builder, effectiveDate)
+        if self.terminationDate is not None:
+            ScheduleAddTerminationDate(builder, terminationDate)
+        ScheduleAddFrequency(builder, self.frequency)
+        ScheduleAddConvention(builder, self.convention)
+        ScheduleAddTerminationDateConvention(builder, self.terminationDateConvention)
+        ScheduleAddDateGenerationRule(builder, self.dateGenerationRule)
+        ScheduleAddEndOfMonth(builder, self.endOfMonth)
+        schedule = ScheduleEnd(builder)
+        return schedule

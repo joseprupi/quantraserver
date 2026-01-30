@@ -1,0 +1,11 @@
+setup.py
+quantra_client/__init__.py
+quantra_client/client.py
+quantra_client/enums.py
+quantra_client/models.py
+quantra_client/serializers.py
+quantra_client.egg-info/PKG-INFO
+quantra_client.egg-info/SOURCES.txt
+quantra_client.egg-info/dependency_links.txt
+quantra_client.egg-info/requires.txt
+quantra_client.egg-info/top_level.txt

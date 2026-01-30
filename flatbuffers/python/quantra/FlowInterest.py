@@ -73,39 +73,120 @@ class FlowInterest(object):
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
         return 0.0
 
-def Start(builder): builder.StartObject(7)
 def FlowInterestStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddAmount(builder, amount): builder.PrependFloat64Slot(0, amount, 0.0)
+    builder.StartObject(7)
+
+def Start(builder):
+    FlowInterestStart(builder)
+
 def FlowInterestAddAmount(builder, amount):
-    """This method is deprecated. Please switch to AddAmount."""
-    return AddAmount(builder, amount)
-def AddFixingDate(builder, fixingDate): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(fixingDate), 0)
+    builder.PrependFloat64Slot(0, amount, 0.0)
+
+def AddAmount(builder, amount):
+    FlowInterestAddAmount(builder, amount)
+
 def FlowInterestAddFixingDate(builder, fixingDate):
-    """This method is deprecated. Please switch to AddFixingDate."""
-    return AddFixingDate(builder, fixingDate)
-def AddAccrualStartDate(builder, accrualStartDate): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(accrualStartDate), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(fixingDate), 0)
+
+def AddFixingDate(builder, fixingDate):
+    FlowInterestAddFixingDate(builder, fixingDate)
+
 def FlowInterestAddAccrualStartDate(builder, accrualStartDate):
-    """This method is deprecated. Please switch to AddAccrualStartDate."""
-    return AddAccrualStartDate(builder, accrualStartDate)
-def AddAccrualEndDate(builder, accrualEndDate): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(accrualEndDate), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(accrualStartDate), 0)
+
+def AddAccrualStartDate(builder, accrualStartDate):
+    FlowInterestAddAccrualStartDate(builder, accrualStartDate)
+
 def FlowInterestAddAccrualEndDate(builder, accrualEndDate):
-    """This method is deprecated. Please switch to AddAccrualEndDate."""
-    return AddAccrualEndDate(builder, accrualEndDate)
-def AddDiscount(builder, discount): builder.PrependFloat32Slot(4, discount, 0.0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(accrualEndDate), 0)
+
+def AddAccrualEndDate(builder, accrualEndDate):
+    FlowInterestAddAccrualEndDate(builder, accrualEndDate)
+
 def FlowInterestAddDiscount(builder, discount):
-    """This method is deprecated. Please switch to AddDiscount."""
-    return AddDiscount(builder, discount)
-def AddRate(builder, rate): builder.PrependFloat32Slot(5, rate, 0.0)
+    builder.PrependFloat32Slot(4, discount, 0.0)
+
+def AddDiscount(builder, discount):
+    FlowInterestAddDiscount(builder, discount)
+
 def FlowInterestAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddPrice(builder, price): builder.PrependFloat32Slot(6, price, 0.0)
+    builder.PrependFloat32Slot(5, rate, 0.0)
+
+def AddRate(builder, rate):
+    FlowInterestAddRate(builder, rate)
+
 def FlowInterestAddPrice(builder, price):
-    """This method is deprecated. Please switch to AddPrice."""
-    return AddPrice(builder, price)
-def End(builder): return builder.EndObject()
+    builder.PrependFloat32Slot(6, price, 0.0)
+
+def AddPrice(builder, price):
+    FlowInterestAddPrice(builder, price)
+
 def FlowInterestEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FlowInterestEnd(builder)
+
+
+class FlowInterestT(object):
+
+    # FlowInterestT
+    def __init__(self):
+        self.amount = 0.0  # type: float
+        self.fixingDate = None  # type: str
+        self.accrualStartDate = None  # type: str
+        self.accrualEndDate = None  # type: str
+        self.discount = 0.0  # type: float
+        self.rate = 0.0  # type: float
+        self.price = 0.0  # type: float
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        flowInterest = FlowInterest()
+        flowInterest.Init(buf, pos)
+        return cls.InitFromObj(flowInterest)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, flowInterest):
+        x = FlowInterestT()
+        x._UnPack(flowInterest)
+        return x
+
+    # FlowInterestT
+    def _UnPack(self, flowInterest):
+        if flowInterest is None:
+            return
+        self.amount = flowInterest.Amount()
+        self.fixingDate = flowInterest.FixingDate()
+        self.accrualStartDate = flowInterest.AccrualStartDate()
+        self.accrualEndDate = flowInterest.AccrualEndDate()
+        self.discount = flowInterest.Discount()
+        self.rate = flowInterest.Rate()
+        self.price = flowInterest.Price()
+
+    # FlowInterestT
+    def Pack(self, builder):
+        if self.fixingDate is not None:
+            fixingDate = builder.CreateString(self.fixingDate)
+        if self.accrualStartDate is not None:
+            accrualStartDate = builder.CreateString(self.accrualStartDate)
+        if self.accrualEndDate is not None:
+            accrualEndDate = builder.CreateString(self.accrualEndDate)
+        FlowInterestStart(builder)
+        FlowInterestAddAmount(builder, self.amount)
+        if self.fixingDate is not None:
+            FlowInterestAddFixingDate(builder, fixingDate)
+        if self.accrualStartDate is not None:
+            FlowInterestAddAccrualStartDate(builder, accrualStartDate)
+        if self.accrualEndDate is not None:
+            FlowInterestAddAccrualEndDate(builder, accrualEndDate)
+        FlowInterestAddDiscount(builder, self.discount)
+        FlowInterestAddRate(builder, self.rate)
+        FlowInterestAddPrice(builder, self.price)
+        flowInterest = FlowInterestEnd(builder)
+        return flowInterest

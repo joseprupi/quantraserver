@@ -94,51 +94,138 @@ class SwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(10)
 def SwapHelperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.StartObject(10)
+
+def Start(builder):
+    SwapHelperStart(builder)
+
 def SwapHelperAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddTenorTimeUnit(builder, tenorTimeUnit): builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+    builder.PrependFloat64Slot(0, rate, 0.0)
+
+def AddRate(builder, rate):
+    SwapHelperAddRate(builder, rate)
+
 def SwapHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    """This method is deprecated. Please switch to AddTenorTimeUnit."""
-    return AddTenorTimeUnit(builder, tenorTimeUnit)
-def AddTenorNumber(builder, tenorNumber): builder.PrependInt32Slot(2, tenorNumber, 0)
+    builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+
+def AddTenorTimeUnit(builder, tenorTimeUnit):
+    SwapHelperAddTenorTimeUnit(builder, tenorTimeUnit)
+
 def SwapHelperAddTenorNumber(builder, tenorNumber):
-    """This method is deprecated. Please switch to AddTenorNumber."""
-    return AddTenorNumber(builder, tenorNumber)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt32Slot(2, tenorNumber, 0)
+
+def AddTenorNumber(builder, tenorNumber):
+    SwapHelperAddTenorNumber(builder, tenorNumber)
+
 def SwapHelperAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddSwFixedLegFrequency(builder, swFixedLegFrequency): builder.PrependInt8Slot(4, swFixedLegFrequency, 0)
+    builder.PrependInt8Slot(3, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    SwapHelperAddCalendar(builder, calendar)
+
 def SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency):
-    """This method is deprecated. Please switch to AddSwFixedLegFrequency."""
-    return AddSwFixedLegFrequency(builder, swFixedLegFrequency)
-def AddSwFixedLegConvention(builder, swFixedLegConvention): builder.PrependInt8Slot(5, swFixedLegConvention, 0)
+    builder.PrependInt8Slot(4, swFixedLegFrequency, 0)
+
+def AddSwFixedLegFrequency(builder, swFixedLegFrequency):
+    SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency)
+
 def SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention):
-    """This method is deprecated. Please switch to AddSwFixedLegConvention."""
-    return AddSwFixedLegConvention(builder, swFixedLegConvention)
-def AddSwFixedLegDayCounter(builder, swFixedLegDayCounter): builder.PrependInt8Slot(6, swFixedLegDayCounter, 0)
+    builder.PrependInt8Slot(5, swFixedLegConvention, 0)
+
+def AddSwFixedLegConvention(builder, swFixedLegConvention):
+    SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention)
+
 def SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
-    """This method is deprecated. Please switch to AddSwFixedLegDayCounter."""
-    return AddSwFixedLegDayCounter(builder, swFixedLegDayCounter)
-def AddSwFloatingLegIndex(builder, swFloatingLegIndex): builder.PrependInt8Slot(7, swFloatingLegIndex, 0)
+    builder.PrependInt8Slot(6, swFixedLegDayCounter, 0)
+
+def AddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
+    SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter)
+
 def SwapHelperAddSwFloatingLegIndex(builder, swFloatingLegIndex):
-    """This method is deprecated. Please switch to AddSwFloatingLegIndex."""
-    return AddSwFloatingLegIndex(builder, swFloatingLegIndex)
-def AddSpread(builder, spread): builder.PrependFloat64Slot(8, spread, 0.0)
+    builder.PrependInt8Slot(7, swFloatingLegIndex, 0)
+
+def AddSwFloatingLegIndex(builder, swFloatingLegIndex):
+    SwapHelperAddSwFloatingLegIndex(builder, swFloatingLegIndex)
+
 def SwapHelperAddSpread(builder, spread):
-    """This method is deprecated. Please switch to AddSpread."""
-    return AddSpread(builder, spread)
-def AddFwdStartDays(builder, fwdStartDays): builder.PrependInt32Slot(9, fwdStartDays, 0)
+    builder.PrependFloat64Slot(8, spread, 0.0)
+
+def AddSpread(builder, spread):
+    SwapHelperAddSpread(builder, spread)
+
 def SwapHelperAddFwdStartDays(builder, fwdStartDays):
-    """This method is deprecated. Please switch to AddFwdStartDays."""
-    return AddFwdStartDays(builder, fwdStartDays)
-def End(builder): return builder.EndObject()
+    builder.PrependInt32Slot(9, fwdStartDays, 0)
+
+def AddFwdStartDays(builder, fwdStartDays):
+    SwapHelperAddFwdStartDays(builder, fwdStartDays)
+
 def SwapHelperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return SwapHelperEnd(builder)
+
+
+class SwapHelperT(object):
+
+    # SwapHelperT
+    def __init__(self):
+        self.rate = 0.0  # type: float
+        self.tenorTimeUnit = 0  # type: int
+        self.tenorNumber = 0  # type: int
+        self.calendar = 0  # type: int
+        self.swFixedLegFrequency = 0  # type: int
+        self.swFixedLegConvention = 0  # type: int
+        self.swFixedLegDayCounter = 0  # type: int
+        self.swFloatingLegIndex = 0  # type: int
+        self.spread = 0.0  # type: float
+        self.fwdStartDays = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        swapHelper = SwapHelper()
+        swapHelper.Init(buf, pos)
+        return cls.InitFromObj(swapHelper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, swapHelper):
+        x = SwapHelperT()
+        x._UnPack(swapHelper)
+        return x
+
+    # SwapHelperT
+    def _UnPack(self, swapHelper):
+        if swapHelper is None:
+            return
+        self.rate = swapHelper.Rate()
+        self.tenorTimeUnit = swapHelper.TenorTimeUnit()
+        self.tenorNumber = swapHelper.TenorNumber()
+        self.calendar = swapHelper.Calendar()
+        self.swFixedLegFrequency = swapHelper.SwFixedLegFrequency()
+        self.swFixedLegConvention = swapHelper.SwFixedLegConvention()
+        self.swFixedLegDayCounter = swapHelper.SwFixedLegDayCounter()
+        self.swFloatingLegIndex = swapHelper.SwFloatingLegIndex()
+        self.spread = swapHelper.Spread()
+        self.fwdStartDays = swapHelper.FwdStartDays()
+
+    # SwapHelperT
+    def Pack(self, builder):
+        SwapHelperStart(builder)
+        SwapHelperAddRate(builder, self.rate)
+        SwapHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        SwapHelperAddTenorNumber(builder, self.tenorNumber)
+        SwapHelperAddCalendar(builder, self.calendar)
+        SwapHelperAddSwFixedLegFrequency(builder, self.swFixedLegFrequency)
+        SwapHelperAddSwFixedLegConvention(builder, self.swFixedLegConvention)
+        SwapHelperAddSwFixedLegDayCounter(builder, self.swFixedLegDayCounter)
+        SwapHelperAddSwFloatingLegIndex(builder, self.swFloatingLegIndex)
+        SwapHelperAddSpread(builder, self.spread)
+        SwapHelperAddFwdStartDays(builder, self.fwdStartDays)
+        swapHelper = SwapHelperEnd(builder)
+        return swapHelper

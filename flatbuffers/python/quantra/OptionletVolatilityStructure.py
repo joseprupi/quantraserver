@@ -6,3 +6,10 @@ class OptionletVolatilityStructure(object):
     NONE = 0
     ConstantOptionletVolatility = 1
 
+def OptionletVolatilityStructureCreator(unionType, table):
+    from flatbuffers.table import Table
+    if not isinstance(table, Table):
+        return None
+    if unionType == OptionletVolatilityStructure.ConstantOptionletVolatility:
+        return ConstantOptionletVolatilityT.InitFromBuf(table.Bytes, table.Pos)
+    return None
