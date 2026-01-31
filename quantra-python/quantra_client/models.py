@@ -8,12 +8,12 @@ from .enums import *
 
 @dataclass
 class BlackIborCouponPricer:
-    """Generated from quantra_client.BlackIborCouponPricer"""
+    """Generated from quantra.BlackIborCouponPricer"""
     optionlet_volatility_structure: Optional[OptionletVolatilityStructure] = None
 
 @dataclass
 class BondHelper:
-    """Generated from quantra_client.BondHelper"""
+    """Generated from quantra.BondHelper"""
     rate: Optional[float] = None
     settlement_days: Optional[int] = None
     face_amount: Optional[float] = None
@@ -26,7 +26,7 @@ class BondHelper:
 
 @dataclass
 class CDS:
-    """Generated from quantra_client.CDS"""
+    """Generated from quantra.CDS"""
     side: Optional[ProtectionSide] = None
     notional: Optional[float] = None
     spread: Optional[float] = None
@@ -37,7 +37,7 @@ class CDS:
 
 @dataclass
 class CDSValues:
-    """Generated from quantra_client.CDSValues"""
+    """Generated from quantra.CDSValues"""
     npv: Optional[float] = None
     fair_spread: Optional[float] = None
     fair_upfront: Optional[float] = None
@@ -47,7 +47,7 @@ class CDSValues:
 
 @dataclass
 class CapFloor:
-    """Generated from quantra_client.CapFloor"""
+    """Generated from quantra.CapFloor"""
     cap_floor_type: Optional[CapFloorType] = None
     notional: Optional[float] = None
     strike: Optional[float] = None
@@ -58,7 +58,7 @@ class CapFloor:
 
 @dataclass
 class CapFloorLet:
-    """Generated from quantra_client.CapFloorLet"""
+    """Generated from quantra.CapFloorLet"""
     payment_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
     accrual_end_date: Optional[str] = None
@@ -70,7 +70,7 @@ class CapFloorLet:
 
 @dataclass
 class CapFloorResponse:
-    """Generated from quantra_client.CapFloorResponse"""
+    """Generated from quantra.CapFloorResponse"""
     npv: Optional[float] = None
     atm_rate: Optional[float] = None
     implied_volatility: Optional[float] = None
@@ -78,7 +78,7 @@ class CapFloorResponse:
 
 @dataclass
 class ConstantOptionletVolatility:
-    """Generated from quantra_client.ConstantOptionletVolatility"""
+    """Generated from quantra.ConstantOptionletVolatility"""
     settlement_days: Optional[int] = None
     calendar: Optional[Calendar] = None
     business_day_convention: Optional[BusinessDayConvention] = None
@@ -87,27 +87,27 @@ class ConstantOptionletVolatility:
 
 @dataclass
 class CouponPricer:
-    """Generated from quantra_client.CouponPricer"""
+    """Generated from quantra.CouponPricer"""
     id: Optional[str] = None
     pricer: Optional[Pricer] = None
 
 @dataclass
 class CreditCurve:
-    """Generated from quantra_client.CreditCurve"""
+    """Generated from quantra.CreditCurve"""
     recovery_rate: Optional[float] = 0.4
     quotes: List[CreditSpreadQuote] = field(default_factory=list)
     flat_hazard_rate: Optional[float] = None
 
 @dataclass
 class CreditSpreadQuote:
-    """Generated from quantra_client.CreditSpreadQuote"""
+    """Generated from quantra.CreditSpreadQuote"""
     tenor_number: Optional[int] = None
     tenor_time_unit: Optional[TimeUnit] = None
     spread: Optional[float] = None
 
 @dataclass
 class DepositHelper:
-    """Generated from quantra_client.DepositHelper"""
+    """Generated from quantra.DepositHelper"""
     rate: Optional[float] = None
     tenor_time_unit: Optional[TimeUnit] = None
     tenor_number: Optional[int] = None
@@ -118,12 +118,12 @@ class DepositHelper:
 
 @dataclass
 class Error:
-    """Generated from quantra_client.Error"""
+    """Generated from quantra.Error"""
     error_message: Optional[str] = None
 
 @dataclass
 class FRA:
-    """Generated from quantra_client.FRA"""
+    """Generated from quantra.FRA"""
     fra_type: Optional[FRAType] = None
     notional: Optional[float] = None
     start_date: Optional[str] = None
@@ -136,7 +136,7 @@ class FRA:
 
 @dataclass
 class FRAHelper:
-    """Generated from quantra_client.FRAHelper"""
+    """Generated from quantra.FRAHelper"""
     rate: Optional[float] = None
     months_to_start: Optional[int] = None
     months_to_end: Optional[int] = None
@@ -147,7 +147,7 @@ class FRAHelper:
 
 @dataclass
 class FRAResponse:
-    """Generated from quantra_client.FRAResponse"""
+    """Generated from quantra.FRAResponse"""
     npv: Optional[float] = None
     forward_rate: Optional[float] = None
     spot_value: Optional[float] = None
@@ -155,7 +155,7 @@ class FRAResponse:
 
 @dataclass
 class FixedRateBond:
-    """Generated from quantra_client.FixedRateBond"""
+    """Generated from quantra.FixedRateBond"""
     settlement_days: Optional[int] = None
     face_amount: Optional[float] = None
     rate: Optional[float] = None
@@ -167,12 +167,12 @@ class FixedRateBond:
 
 @dataclass
 class FixedRateBondResponse:
-    """Generated from quantra_client.FixedRateBondResponse"""
+    """Generated from quantra.FixedRateBondResponse"""
     npv: Optional[float] = None
     clean_price: Optional[float] = None
     dirty_price: Optional[float] = None
     accrued_amount: Optional[float] = None
-    yield_: Optional[float] = None
+    yield: Optional[float] = None
     accrued_days: Optional[float] = None
     macaulay_duration: Optional[float] = None
     modified_duration: Optional[float] = None
@@ -182,13 +182,13 @@ class FixedRateBondResponse:
 
 @dataclass
 class Fixing:
-    """Generated from quantra_client.Fixing"""
+    """Generated from quantra.Fixing"""
     date: Optional[str] = None
     rate: Optional[float] = None
 
 @dataclass
 class FloatingRateBond:
-    """Generated from quantra_client.FloatingRateBond"""
+    """Generated from quantra.FloatingRateBond"""
     settlement_days: Optional[int] = None
     face_amount: Optional[float] = None
     schedule: Optional[Schedule] = None
@@ -203,12 +203,12 @@ class FloatingRateBond:
 
 @dataclass
 class FloatingRateBondResponse:
-    """Generated from quantra_client.FloatingRateBondResponse"""
+    """Generated from quantra.FloatingRateBondResponse"""
     npv: Optional[float] = None
     clean_price: Optional[float] = None
     dirty_price: Optional[float] = None
     accrued_amount: Optional[float] = None
-    yield_: Optional[float] = None
+    yield: Optional[float] = None
     accrued_days: Optional[float] = None
     macaulay_duration: Optional[float] = None
     modified_duration: Optional[float] = None
@@ -218,7 +218,7 @@ class FloatingRateBondResponse:
 
 @dataclass
 class FlowInterest:
-    """Generated from quantra_client.FlowInterest"""
+    """Generated from quantra.FlowInterest"""
     amount: Optional[float] = None
     fixing_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
@@ -229,7 +229,7 @@ class FlowInterest:
 
 @dataclass
 class FlowInterestFloat:
-    """Generated from quantra_client.FlowInterestFloat"""
+    """Generated from quantra.FlowInterestFloat"""
     amount: Optional[float] = None
     fixing_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
@@ -240,7 +240,7 @@ class FlowInterestFloat:
 
 @dataclass
 class FlowNotional:
-    """Generated from quantra_client.FlowNotional"""
+    """Generated from quantra.FlowNotional"""
     date: Optional[str] = None
     amount: Optional[float] = None
     discount: Optional[float] = None
@@ -248,7 +248,7 @@ class FlowNotional:
 
 @dataclass
 class FlowPastInterest:
-    """Generated from quantra_client.FlowPastInterest"""
+    """Generated from quantra.FlowPastInterest"""
     amount: Optional[float] = None
     fixing_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
@@ -257,7 +257,7 @@ class FlowPastInterest:
 
 @dataclass
 class FlowPastInterestFloat:
-    """Generated from quantra_client.FlowPastInterestFloat"""
+    """Generated from quantra.FlowPastInterestFloat"""
     amount: Optional[float] = None
     fixing_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
@@ -266,12 +266,12 @@ class FlowPastInterestFloat:
 
 @dataclass
 class FlowsWrapper:
-    """Generated from quantra_client.FlowsWrapper"""
+    """Generated from quantra.FlowsWrapper"""
     flow: Optional[Flow] = None
 
 @dataclass
 class FutureHelper:
-    """Generated from quantra_client.FutureHelper"""
+    """Generated from quantra.FutureHelper"""
     rate: Optional[float] = None
     future_start_date: Optional[str] = None
     future_months: Optional[int] = None
@@ -281,7 +281,7 @@ class FutureHelper:
 
 @dataclass
 class Index:
-    """Generated from quantra_client.Index"""
+    """Generated from quantra.Index"""
     period_number: Optional[int] = None
     period_time_unit: Optional[TimeUnit] = None
     settlement_days: Optional[int] = None
@@ -293,106 +293,106 @@ class Index:
 
 @dataclass
 class PointsWrapper:
-    """Generated from quantra_client.PointsWrapper"""
+    """Generated from quantra.PointsWrapper"""
     point: Optional[Point] = None
 
 @dataclass
 class PriceCDS:
-    """Generated from quantra_client.PriceCDS"""
+    """Generated from quantra.PriceCDS"""
     cds: Optional[CDS] = None
     discounting_curve: Optional[str] = None
     credit_curve: Optional[CreditCurve] = None
 
 @dataclass
 class PriceCDSRequest:
-    """Generated from quantra_client.PriceCDSRequest"""
+    """Generated from quantra.PriceCDSRequest"""
     pricing: Optional[Pricing] = None
     cds_list: List[PriceCDS] = field(default_factory=list)
 
 @dataclass
 class PriceCDSResponse:
-    """Generated from quantra_client.PriceCDSResponse"""
+    """Generated from quantra.PriceCDSResponse"""
     cds_list: List[CDSValues] = field(default_factory=list)
 
 @dataclass
 class PriceCapFloor:
-    """Generated from quantra_client.PriceCapFloor"""
+    """Generated from quantra.PriceCapFloor"""
     cap_floor: Optional[CapFloor] = None
     discounting_curve: Optional[str] = None
     forwarding_curve: Optional[str] = None
     volatility: Optional[str] = None
-    include_details: Optional[bool] = False
+    include_details: Optional[bool] = false
 
 @dataclass
 class PriceCapFloorRequest:
-    """Generated from quantra_client.PriceCapFloorRequest"""
+    """Generated from quantra.PriceCapFloorRequest"""
     pricing: Optional[Pricing] = None
     cap_floors: List[PriceCapFloor] = field(default_factory=list)
 
 @dataclass
 class PriceCapFloorResponse:
-    """Generated from quantra_client.PriceCapFloorResponse"""
+    """Generated from quantra.PriceCapFloorResponse"""
     cap_floors: List[CapFloorResponse] = field(default_factory=list)
 
 @dataclass
 class PriceFRA:
-    """Generated from quantra_client.PriceFRA"""
+    """Generated from quantra.PriceFRA"""
     fra: Optional[FRA] = None
     discounting_curve: Optional[str] = None
     forwarding_curve: Optional[str] = None
 
 @dataclass
 class PriceFRARequest:
-    """Generated from quantra_client.PriceFRARequest"""
+    """Generated from quantra.PriceFRARequest"""
     pricing: Optional[Pricing] = None
     fras: List[PriceFRA] = field(default_factory=list)
 
 @dataclass
 class PriceFRAResponse:
-    """Generated from quantra_client.PriceFRAResponse"""
+    """Generated from quantra.PriceFRAResponse"""
     fras: List[FRAResponse] = field(default_factory=list)
 
 @dataclass
 class PriceFixedRateBond:
-    """Generated from quantra_client.PriceFixedRateBond"""
+    """Generated from quantra.PriceFixedRateBond"""
     fixed_rate_bond: Optional[FixedRateBond] = None
     discounting_curve: Optional[str] = None
-    yield_: Optional[Yield] = None
+    yield: Optional[Yield] = None
 
 @dataclass
 class PriceFixedRateBondRequest:
-    """Generated from quantra_client.PriceFixedRateBondRequest"""
+    """Generated from quantra.PriceFixedRateBondRequest"""
     pricing: Optional[Pricing] = None
     bonds: List[PriceFixedRateBond] = field(default_factory=list)
 
 @dataclass
 class PriceFixedRateBondResponse:
-    """Generated from quantra_client.PriceFixedRateBondResponse"""
+    """Generated from quantra.PriceFixedRateBondResponse"""
     bonds: List[FixedRateBondResponse] = field(default_factory=list)
 
 @dataclass
 class PriceFloatingRateBond:
-    """Generated from quantra_client.PriceFloatingRateBond"""
+    """Generated from quantra.PriceFloatingRateBond"""
     floating_rate_bond: Optional[FloatingRateBond] = None
     discounting_curve: Optional[str] = None
     forecasting_curve: Optional[str] = None
     coupon_pricer: Optional[str] = None
-    yield_: Optional[Yield] = None
+    yield: Optional[Yield] = None
 
 @dataclass
 class PriceFloatingRateBondRequest:
-    """Generated from quantra_client.PriceFloatingRateBondRequest"""
+    """Generated from quantra.PriceFloatingRateBondRequest"""
     pricing: Optional[Pricing] = None
     bonds: List[PriceFloatingRateBond] = field(default_factory=list)
 
 @dataclass
 class PriceFloatingRateBondResponse:
-    """Generated from quantra_client.PriceFloatingRateBondResponse"""
+    """Generated from quantra.PriceFloatingRateBondResponse"""
     bonds: List[FloatingRateBondResponse] = field(default_factory=list)
 
 @dataclass
 class PriceSwaption:
-    """Generated from quantra_client.PriceSwaption"""
+    """Generated from quantra.PriceSwaption"""
     swaption: Optional[Swaption] = None
     discounting_curve: Optional[str] = None
     forwarding_curve: Optional[str] = None
@@ -400,48 +400,48 @@ class PriceSwaption:
 
 @dataclass
 class PriceSwaptionRequest:
-    """Generated from quantra_client.PriceSwaptionRequest"""
+    """Generated from quantra.PriceSwaptionRequest"""
     pricing: Optional[Pricing] = None
     swaptions: List[PriceSwaption] = field(default_factory=list)
 
 @dataclass
 class PriceSwaptionResponse:
-    """Generated from quantra_client.PriceSwaptionResponse"""
+    """Generated from quantra.PriceSwaptionResponse"""
     swaptions: List[SwaptionResponse] = field(default_factory=list)
 
 @dataclass
 class PriceVanillaSwap:
-    """Generated from quantra_client.PriceVanillaSwap"""
+    """Generated from quantra.PriceVanillaSwap"""
     vanilla_swap: Optional[VanillaSwap] = None
     discounting_curve: Optional[str] = None
     forwarding_curve: Optional[str] = None
 
 @dataclass
 class PriceVanillaSwapRequest:
-    """Generated from quantra_client.PriceVanillaSwapRequest"""
+    """Generated from quantra.PriceVanillaSwapRequest"""
     pricing: Optional[Pricing] = None
     swaps: List[PriceVanillaSwap] = field(default_factory=list)
-    include_flows: Optional[bool] = False
+    include_flows: Optional[bool] = false
 
 @dataclass
 class PriceVanillaSwapResponse:
-    """Generated from quantra_client.PriceVanillaSwapResponse"""
+    """Generated from quantra.PriceVanillaSwapResponse"""
     swaps: List[VanillaSwapResponse] = field(default_factory=list)
 
 @dataclass
 class Pricing:
-    """Generated from quantra_client.Pricing"""
+    """Generated from quantra.Pricing"""
     as_of_date: str
     settlement_date: str
     curves: List[TermStructure]
     volatilities: List[VolatilityTermStructure] = field(default_factory=list)
-    bond_pricing_details: Optional[bool] = False
-    bond_pricing_flows: Optional[bool] = False
+    bond_pricing_details: Optional[bool] = false
+    bond_pricing_flows: Optional[bool] = false
     coupon_pricers: List[CouponPricer] = field(default_factory=list)
 
 @dataclass
 class Schedule:
-    """Generated from quantra_client.Schedule"""
+    """Generated from quantra.Schedule"""
     calendar: Optional[Calendar] = None
     effective_date: Optional[str] = None
     termination_date: Optional[str] = None
@@ -453,7 +453,7 @@ class Schedule:
 
 @dataclass
 class SwapFixedLeg:
-    """Generated from quantra_client.SwapFixedLeg"""
+    """Generated from quantra.SwapFixedLeg"""
     schedule: Optional[Schedule] = None
     notional: Optional[float] = None
     rate: Optional[float] = None
@@ -462,7 +462,7 @@ class SwapFixedLeg:
 
 @dataclass
 class SwapFloatingLeg:
-    """Generated from quantra_client.SwapFloatingLeg"""
+    """Generated from quantra.SwapFloatingLeg"""
     schedule: Optional[Schedule] = None
     notional: Optional[float] = None
     index: Optional[Index] = None
@@ -470,11 +470,11 @@ class SwapFloatingLeg:
     day_counter: Optional[DayCounter] = None
     payment_convention: Optional[BusinessDayConvention] = None
     fixing_days: Optional[int] = 2
-    in_arrears: Optional[bool] = False
+    in_arrears: Optional[bool] = false
 
 @dataclass
 class SwapHelper:
-    """Generated from quantra_client.SwapHelper"""
+    """Generated from quantra.SwapHelper"""
     rate: Optional[float] = None
     tenor_time_unit: Optional[TimeUnit] = None
     tenor_number: Optional[int] = None
@@ -488,7 +488,7 @@ class SwapHelper:
 
 @dataclass
 class SwapLegFlow:
-    """Generated from quantra_client.SwapLegFlow"""
+    """Generated from quantra.SwapLegFlow"""
     payment_date: Optional[str] = None
     accrual_start_date: Optional[str] = None
     accrual_end_date: Optional[str] = None
@@ -502,14 +502,14 @@ class SwapLegFlow:
 
 @dataclass
 class SwapLegResponse:
-    """Generated from quantra_client.SwapLegResponse"""
+    """Generated from quantra.SwapLegResponse"""
     npv: Optional[float] = None
     bps: Optional[float] = None
     flows: List[SwapLegFlow] = field(default_factory=list)
 
 @dataclass
 class Swaption:
-    """Generated from quantra_client.Swaption"""
+    """Generated from quantra.Swaption"""
     exercise_type: Optional[ExerciseType] = None
     settlement_type: Optional[SettlementType] = None
     exercise_date: Optional[str] = None
@@ -517,7 +517,7 @@ class Swaption:
 
 @dataclass
 class SwaptionResponse:
-    """Generated from quantra_client.SwaptionResponse"""
+    """Generated from quantra.SwaptionResponse"""
     npv: Optional[float] = None
     implied_volatility: Optional[float] = None
     atm_forward: Optional[float] = None
@@ -527,7 +527,7 @@ class SwaptionResponse:
 
 @dataclass
 class TermStructure:
-    """Generated from quantra_client.TermStructure"""
+    """Generated from quantra.TermStructure"""
     id: Optional[str] = None
     day_counter: Optional[DayCounter] = None
     interpolator: Optional[Interpolator] = None
@@ -537,14 +537,14 @@ class TermStructure:
 
 @dataclass
 class VanillaSwap:
-    """Generated from quantra_client.VanillaSwap"""
+    """Generated from quantra.VanillaSwap"""
     swap_type: Optional[SwapType] = None
     fixed_leg: Optional[SwapFixedLeg] = None
     floating_leg: Optional[SwapFloatingLeg] = None
 
 @dataclass
 class VanillaSwapResponse:
-    """Generated from quantra_client.VanillaSwapResponse"""
+    """Generated from quantra.VanillaSwapResponse"""
     npv: Optional[float] = None
     fair_rate: Optional[float] = None
     fair_spread: Optional[float] = None
@@ -557,7 +557,7 @@ class VanillaSwapResponse:
 
 @dataclass
 class VolatilityQuote:
-    """Generated from quantra_client.VolatilityQuote"""
+    """Generated from quantra.VolatilityQuote"""
     tenor_number: Optional[int] = None
     tenor_time_unit: Optional[TimeUnit] = None
     strike: Optional[float] = None
@@ -565,7 +565,7 @@ class VolatilityQuote:
 
 @dataclass
 class VolatilityTermStructure:
-    """Generated from quantra_client.VolatilityTermStructure"""
+    """Generated from quantra.VolatilityTermStructure"""
     id: str
     reference_date: Optional[str] = None
     calendar: Optional[Calendar] = None
@@ -577,7 +577,7 @@ class VolatilityTermStructure:
 
 @dataclass
 class Yield:
-    """Generated from quantra_client.Yield"""
+    """Generated from quantra.Yield"""
     day_counter: Optional[DayCounter] = None
     compounding: Optional[Compounding] = None
     frequency: Optional[Frequency] = None

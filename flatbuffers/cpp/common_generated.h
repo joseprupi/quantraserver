@@ -13,12 +13,46 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "coupon_pricer_generated.h"
-#include "enums_generated.h"
-#include "term_structure_generated.h"
-#include "volatility_generated.h"
-
 namespace quantra {
+
+struct Schedule;
+struct ScheduleBuilder;
+
+struct DepositHelper;
+struct DepositHelperBuilder;
+
+struct FRAHelper;
+struct FRAHelperBuilder;
+
+struct FutureHelper;
+struct FutureHelperBuilder;
+
+struct SwapHelper;
+struct SwapHelperBuilder;
+
+struct BondHelper;
+struct BondHelperBuilder;
+
+struct PointsWrapper;
+struct PointsWrapperBuilder;
+
+struct TermStructure;
+struct TermStructureBuilder;
+
+struct VolatilityQuote;
+struct VolatilityQuoteBuilder;
+
+struct VolatilityTermStructure;
+struct VolatilityTermStructureBuilder;
+
+struct ConstantOptionletVolatility;
+struct ConstantOptionletVolatilityBuilder;
+
+struct BlackIborCouponPricer;
+struct BlackIborCouponPricerBuilder;
+
+struct CouponPricer;
+struct CouponPricerBuilder;
 
 struct Yield;
 struct YieldBuilder;
@@ -46,6 +80,1037 @@ struct FlowNotionalBuilder;
 
 struct FlowsWrapper;
 struct FlowsWrapperBuilder;
+
+namespace enums {
+
+enum DayCounter : int8_t {
+  DayCounter_Actual360 = 0,
+  DayCounter_Actual365Fixed = 1,
+  DayCounter_Actual365NoLeap = 2,
+  DayCounter_ActualActual = 3,
+  DayCounter_ActualActualISMA = 4,
+  DayCounter_ActualActualBond = 5,
+  DayCounter_ActualActualISDA = 6,
+  DayCounter_ActualActualHistorical = 7,
+  DayCounter_ActualActual365 = 8,
+  DayCounter_ActualActualAFB = 9,
+  DayCounter_ActualActualEuro = 10,
+  DayCounter_Business252 = 11,
+  DayCounter_One = 12,
+  DayCounter_Simple = 13,
+  DayCounter_Thirty360 = 14,
+  DayCounter_MIN = DayCounter_Actual360,
+  DayCounter_MAX = DayCounter_Thirty360
+};
+
+inline const DayCounter (&EnumValuesDayCounter())[15] {
+  static const DayCounter values[] = {
+    DayCounter_Actual360,
+    DayCounter_Actual365Fixed,
+    DayCounter_Actual365NoLeap,
+    DayCounter_ActualActual,
+    DayCounter_ActualActualISMA,
+    DayCounter_ActualActualBond,
+    DayCounter_ActualActualISDA,
+    DayCounter_ActualActualHistorical,
+    DayCounter_ActualActual365,
+    DayCounter_ActualActualAFB,
+    DayCounter_ActualActualEuro,
+    DayCounter_Business252,
+    DayCounter_One,
+    DayCounter_Simple,
+    DayCounter_Thirty360
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesDayCounter() {
+  static const char * const names[16] = {
+    "Actual360",
+    "Actual365Fixed",
+    "Actual365NoLeap",
+    "ActualActual",
+    "ActualActualISMA",
+    "ActualActualBond",
+    "ActualActualISDA",
+    "ActualActualHistorical",
+    "ActualActual365",
+    "ActualActualAFB",
+    "ActualActualEuro",
+    "Business252",
+    "One",
+    "Simple",
+    "Thirty360",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameDayCounter(DayCounter e) {
+  if (::flatbuffers::IsOutRange(e, DayCounter_Actual360, DayCounter_Thirty360)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesDayCounter()[index];
+}
+
+enum Interpolator : int8_t {
+  Interpolator_BackwardFlat = 0,
+  Interpolator_ForwardFlat = 1,
+  Interpolator_Linear = 2,
+  Interpolator_LogCubic = 3,
+  Interpolator_LogLinear = 4,
+  Interpolator_MIN = Interpolator_BackwardFlat,
+  Interpolator_MAX = Interpolator_LogLinear
+};
+
+inline const Interpolator (&EnumValuesInterpolator())[5] {
+  static const Interpolator values[] = {
+    Interpolator_BackwardFlat,
+    Interpolator_ForwardFlat,
+    Interpolator_Linear,
+    Interpolator_LogCubic,
+    Interpolator_LogLinear
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesInterpolator() {
+  static const char * const names[6] = {
+    "BackwardFlat",
+    "ForwardFlat",
+    "Linear",
+    "LogCubic",
+    "LogLinear",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameInterpolator(Interpolator e) {
+  if (::flatbuffers::IsOutRange(e, Interpolator_BackwardFlat, Interpolator_LogLinear)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesInterpolator()[index];
+}
+
+enum BootstrapTrait : int8_t {
+  BootstrapTrait_Discount = 0,
+  BootstrapTrait_FwdRate = 1,
+  BootstrapTrait_InterpolatedDiscount = 2,
+  BootstrapTrait_InterpolatedFwd = 3,
+  BootstrapTrait_InterpolatedZero = 4,
+  BootstrapTrait_ZeroRate = 5,
+  BootstrapTrait_MIN = BootstrapTrait_Discount,
+  BootstrapTrait_MAX = BootstrapTrait_ZeroRate
+};
+
+inline const BootstrapTrait (&EnumValuesBootstrapTrait())[6] {
+  static const BootstrapTrait values[] = {
+    BootstrapTrait_Discount,
+    BootstrapTrait_FwdRate,
+    BootstrapTrait_InterpolatedDiscount,
+    BootstrapTrait_InterpolatedFwd,
+    BootstrapTrait_InterpolatedZero,
+    BootstrapTrait_ZeroRate
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesBootstrapTrait() {
+  static const char * const names[7] = {
+    "Discount",
+    "FwdRate",
+    "InterpolatedDiscount",
+    "InterpolatedFwd",
+    "InterpolatedZero",
+    "ZeroRate",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameBootstrapTrait(BootstrapTrait e) {
+  if (::flatbuffers::IsOutRange(e, BootstrapTrait_Discount, BootstrapTrait_ZeroRate)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesBootstrapTrait()[index];
+}
+
+enum TimeUnit : int8_t {
+  TimeUnit_Days = 0,
+  TimeUnit_Hours = 1,
+  TimeUnit_Microseconds = 2,
+  TimeUnit_Milliseconds = 3,
+  TimeUnit_Minutes = 4,
+  TimeUnit_Months = 5,
+  TimeUnit_Seconds = 6,
+  TimeUnit_Weeks = 7,
+  TimeUnit_Years = 8,
+  TimeUnit_MIN = TimeUnit_Days,
+  TimeUnit_MAX = TimeUnit_Years
+};
+
+inline const TimeUnit (&EnumValuesTimeUnit())[9] {
+  static const TimeUnit values[] = {
+    TimeUnit_Days,
+    TimeUnit_Hours,
+    TimeUnit_Microseconds,
+    TimeUnit_Milliseconds,
+    TimeUnit_Minutes,
+    TimeUnit_Months,
+    TimeUnit_Seconds,
+    TimeUnit_Weeks,
+    TimeUnit_Years
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesTimeUnit() {
+  static const char * const names[10] = {
+    "Days",
+    "Hours",
+    "Microseconds",
+    "Milliseconds",
+    "Minutes",
+    "Months",
+    "Seconds",
+    "Weeks",
+    "Years",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameTimeUnit(TimeUnit e) {
+  if (::flatbuffers::IsOutRange(e, TimeUnit_Days, TimeUnit_Years)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesTimeUnit()[index];
+}
+
+enum Calendar : int8_t {
+  Calendar_Argentina = 0,
+  Calendar_Australia = 1,
+  Calendar_BespokeCalendar = 2,
+  Calendar_Brazil = 3,
+  Calendar_Canada = 4,
+  Calendar_China = 5,
+  Calendar_CzechRepublic = 6,
+  Calendar_Denmark = 7,
+  Calendar_Finland = 8,
+  Calendar_Germany = 9,
+  Calendar_HongKong = 10,
+  Calendar_Hungary = 11,
+  Calendar_Iceland = 12,
+  Calendar_India = 13,
+  Calendar_Indonesia = 14,
+  Calendar_Israel = 15,
+  Calendar_Italy = 16,
+  Calendar_Japan = 17,
+  Calendar_Mexico = 18,
+  Calendar_NewZealand = 19,
+  Calendar_Norway = 20,
+  Calendar_NullCalendar = 21,
+  Calendar_Poland = 22,
+  Calendar_Romania = 23,
+  Calendar_Russia = 24,
+  Calendar_SaudiArabia = 25,
+  Calendar_Singapore = 26,
+  Calendar_Slovakia = 27,
+  Calendar_SouthAfrica = 28,
+  Calendar_SouthKorea = 29,
+  Calendar_Sweden = 30,
+  Calendar_Switzerland = 31,
+  Calendar_TARGET = 32,
+  Calendar_Taiwan = 33,
+  Calendar_Turkey = 34,
+  Calendar_Ukraine = 35,
+  Calendar_UnitedKingdom = 36,
+  Calendar_UnitedStates = 37,
+  Calendar_UnitedStatesGovernmentBond = 38,
+  Calendar_UnitedStatesNERC = 39,
+  Calendar_UnitedStatesNYSE = 40,
+  Calendar_UnitedStatesSettlement = 41,
+  Calendar_WeekendsOnly = 42,
+  Calendar_MIN = Calendar_Argentina,
+  Calendar_MAX = Calendar_WeekendsOnly
+};
+
+inline const Calendar (&EnumValuesCalendar())[43] {
+  static const Calendar values[] = {
+    Calendar_Argentina,
+    Calendar_Australia,
+    Calendar_BespokeCalendar,
+    Calendar_Brazil,
+    Calendar_Canada,
+    Calendar_China,
+    Calendar_CzechRepublic,
+    Calendar_Denmark,
+    Calendar_Finland,
+    Calendar_Germany,
+    Calendar_HongKong,
+    Calendar_Hungary,
+    Calendar_Iceland,
+    Calendar_India,
+    Calendar_Indonesia,
+    Calendar_Israel,
+    Calendar_Italy,
+    Calendar_Japan,
+    Calendar_Mexico,
+    Calendar_NewZealand,
+    Calendar_Norway,
+    Calendar_NullCalendar,
+    Calendar_Poland,
+    Calendar_Romania,
+    Calendar_Russia,
+    Calendar_SaudiArabia,
+    Calendar_Singapore,
+    Calendar_Slovakia,
+    Calendar_SouthAfrica,
+    Calendar_SouthKorea,
+    Calendar_Sweden,
+    Calendar_Switzerland,
+    Calendar_TARGET,
+    Calendar_Taiwan,
+    Calendar_Turkey,
+    Calendar_Ukraine,
+    Calendar_UnitedKingdom,
+    Calendar_UnitedStates,
+    Calendar_UnitedStatesGovernmentBond,
+    Calendar_UnitedStatesNERC,
+    Calendar_UnitedStatesNYSE,
+    Calendar_UnitedStatesSettlement,
+    Calendar_WeekendsOnly
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCalendar() {
+  static const char * const names[44] = {
+    "Argentina",
+    "Australia",
+    "BespokeCalendar",
+    "Brazil",
+    "Canada",
+    "China",
+    "CzechRepublic",
+    "Denmark",
+    "Finland",
+    "Germany",
+    "HongKong",
+    "Hungary",
+    "Iceland",
+    "India",
+    "Indonesia",
+    "Israel",
+    "Italy",
+    "Japan",
+    "Mexico",
+    "NewZealand",
+    "Norway",
+    "NullCalendar",
+    "Poland",
+    "Romania",
+    "Russia",
+    "SaudiArabia",
+    "Singapore",
+    "Slovakia",
+    "SouthAfrica",
+    "SouthKorea",
+    "Sweden",
+    "Switzerland",
+    "TARGET",
+    "Taiwan",
+    "Turkey",
+    "Ukraine",
+    "UnitedKingdom",
+    "UnitedStates",
+    "UnitedStatesGovernmentBond",
+    "UnitedStatesNERC",
+    "UnitedStatesNYSE",
+    "UnitedStatesSettlement",
+    "WeekendsOnly",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCalendar(Calendar e) {
+  if (::flatbuffers::IsOutRange(e, Calendar_Argentina, Calendar_WeekendsOnly)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCalendar()[index];
+}
+
+enum BusinessDayConvention : int8_t {
+  BusinessDayConvention_Following = 0,
+  BusinessDayConvention_HalfMonthModifiedFollowing = 1,
+  BusinessDayConvention_ModifiedFollowing = 2,
+  BusinessDayConvention_ModifiedPreceding = 3,
+  BusinessDayConvention_Nearest = 4,
+  BusinessDayConvention_Preceding = 5,
+  BusinessDayConvention_Unadjusted = 6,
+  BusinessDayConvention_MIN = BusinessDayConvention_Following,
+  BusinessDayConvention_MAX = BusinessDayConvention_Unadjusted
+};
+
+inline const BusinessDayConvention (&EnumValuesBusinessDayConvention())[7] {
+  static const BusinessDayConvention values[] = {
+    BusinessDayConvention_Following,
+    BusinessDayConvention_HalfMonthModifiedFollowing,
+    BusinessDayConvention_ModifiedFollowing,
+    BusinessDayConvention_ModifiedPreceding,
+    BusinessDayConvention_Nearest,
+    BusinessDayConvention_Preceding,
+    BusinessDayConvention_Unadjusted
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesBusinessDayConvention() {
+  static const char * const names[8] = {
+    "Following",
+    "HalfMonthModifiedFollowing",
+    "ModifiedFollowing",
+    "ModifiedPreceding",
+    "Nearest",
+    "Preceding",
+    "Unadjusted",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameBusinessDayConvention(BusinessDayConvention e) {
+  if (::flatbuffers::IsOutRange(e, BusinessDayConvention_Following, BusinessDayConvention_Unadjusted)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesBusinessDayConvention()[index];
+}
+
+enum Frequency : int8_t {
+  Frequency_Annual = 0,
+  Frequency_Bimonthly = 1,
+  Frequency_Biweekly = 2,
+  Frequency_Daily = 3,
+  Frequency_EveryFourthMonth = 4,
+  Frequency_EveryFourthWeek = 5,
+  Frequency_Monthly = 6,
+  Frequency_NoFrequency = 7,
+  Frequency_Once = 8,
+  Frequency_OtherFrequency = 9,
+  Frequency_Quarterly = 10,
+  Frequency_Semiannual = 11,
+  Frequency_Weekly = 12,
+  Frequency_MIN = Frequency_Annual,
+  Frequency_MAX = Frequency_Weekly
+};
+
+inline const Frequency (&EnumValuesFrequency())[13] {
+  static const Frequency values[] = {
+    Frequency_Annual,
+    Frequency_Bimonthly,
+    Frequency_Biweekly,
+    Frequency_Daily,
+    Frequency_EveryFourthMonth,
+    Frequency_EveryFourthWeek,
+    Frequency_Monthly,
+    Frequency_NoFrequency,
+    Frequency_Once,
+    Frequency_OtherFrequency,
+    Frequency_Quarterly,
+    Frequency_Semiannual,
+    Frequency_Weekly
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesFrequency() {
+  static const char * const names[14] = {
+    "Annual",
+    "Bimonthly",
+    "Biweekly",
+    "Daily",
+    "EveryFourthMonth",
+    "EveryFourthWeek",
+    "Monthly",
+    "NoFrequency",
+    "Once",
+    "OtherFrequency",
+    "Quarterly",
+    "Semiannual",
+    "Weekly",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameFrequency(Frequency e) {
+  if (::flatbuffers::IsOutRange(e, Frequency_Annual, Frequency_Weekly)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesFrequency()[index];
+}
+
+enum DateGenerationRule : int8_t {
+  DateGenerationRule_Backward = 0,
+  DateGenerationRule_CDS = 1,
+  DateGenerationRule_Forward = 2,
+  DateGenerationRule_OldCDS = 3,
+  DateGenerationRule_ThirdWednesday = 4,
+  DateGenerationRule_Twentieth = 5,
+  DateGenerationRule_TwentiethIMM = 6,
+  DateGenerationRule_Zero = 7,
+  DateGenerationRule_MIN = DateGenerationRule_Backward,
+  DateGenerationRule_MAX = DateGenerationRule_Zero
+};
+
+inline const DateGenerationRule (&EnumValuesDateGenerationRule())[8] {
+  static const DateGenerationRule values[] = {
+    DateGenerationRule_Backward,
+    DateGenerationRule_CDS,
+    DateGenerationRule_Forward,
+    DateGenerationRule_OldCDS,
+    DateGenerationRule_ThirdWednesday,
+    DateGenerationRule_Twentieth,
+    DateGenerationRule_TwentiethIMM,
+    DateGenerationRule_Zero
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesDateGenerationRule() {
+  static const char * const names[9] = {
+    "Backward",
+    "CDS",
+    "Forward",
+    "OldCDS",
+    "ThirdWednesday",
+    "Twentieth",
+    "TwentiethIMM",
+    "Zero",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameDateGenerationRule(DateGenerationRule e) {
+  if (::flatbuffers::IsOutRange(e, DateGenerationRule_Backward, DateGenerationRule_Zero)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesDateGenerationRule()[index];
+}
+
+enum Ibor : int8_t {
+  Ibor_Euribor10M = 0,
+  Ibor_Euribor11M = 1,
+  Ibor_Euribor1M = 2,
+  Ibor_Euribor1Y = 3,
+  Ibor_Euribor2M = 4,
+  Ibor_Euribor2W = 5,
+  Ibor_Euribor365_10M = 6,
+  Ibor_Euribor365_11M = 7,
+  Ibor_Euribor365_1M = 8,
+  Ibor_Euribor365_1Y = 9,
+  Ibor_Euribor365_2M = 10,
+  Ibor_Euribor365_2W = 11,
+  Ibor_Euribor365_3M = 12,
+  Ibor_Euribor365_3W = 13,
+  Ibor_Euribor365_4M = 14,
+  Ibor_Euribor365_5M = 15,
+  Ibor_Euribor365_6M = 16,
+  Ibor_Euribor365_7M = 17,
+  Ibor_Euribor365_8M = 18,
+  Ibor_Euribor365_9M = 19,
+  Ibor_Euribor365_SW = 20,
+  Ibor_Euribor3M = 21,
+  Ibor_Euribor3W = 22,
+  Ibor_Euribor4M = 23,
+  Ibor_Euribor5M = 24,
+  Ibor_Euribor6M = 25,
+  Ibor_Euribor7M = 26,
+  Ibor_Euribor8M = 27,
+  Ibor_Euribor9M = 28,
+  Ibor_EuriborSW = 29,
+  Ibor_MIN = Ibor_Euribor10M,
+  Ibor_MAX = Ibor_EuriborSW
+};
+
+inline const Ibor (&EnumValuesIbor())[30] {
+  static const Ibor values[] = {
+    Ibor_Euribor10M,
+    Ibor_Euribor11M,
+    Ibor_Euribor1M,
+    Ibor_Euribor1Y,
+    Ibor_Euribor2M,
+    Ibor_Euribor2W,
+    Ibor_Euribor365_10M,
+    Ibor_Euribor365_11M,
+    Ibor_Euribor365_1M,
+    Ibor_Euribor365_1Y,
+    Ibor_Euribor365_2M,
+    Ibor_Euribor365_2W,
+    Ibor_Euribor365_3M,
+    Ibor_Euribor365_3W,
+    Ibor_Euribor365_4M,
+    Ibor_Euribor365_5M,
+    Ibor_Euribor365_6M,
+    Ibor_Euribor365_7M,
+    Ibor_Euribor365_8M,
+    Ibor_Euribor365_9M,
+    Ibor_Euribor365_SW,
+    Ibor_Euribor3M,
+    Ibor_Euribor3W,
+    Ibor_Euribor4M,
+    Ibor_Euribor5M,
+    Ibor_Euribor6M,
+    Ibor_Euribor7M,
+    Ibor_Euribor8M,
+    Ibor_Euribor9M,
+    Ibor_EuriborSW
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesIbor() {
+  static const char * const names[31] = {
+    "Euribor10M",
+    "Euribor11M",
+    "Euribor1M",
+    "Euribor1Y",
+    "Euribor2M",
+    "Euribor2W",
+    "Euribor365_10M",
+    "Euribor365_11M",
+    "Euribor365_1M",
+    "Euribor365_1Y",
+    "Euribor365_2M",
+    "Euribor365_2W",
+    "Euribor365_3M",
+    "Euribor365_3W",
+    "Euribor365_4M",
+    "Euribor365_5M",
+    "Euribor365_6M",
+    "Euribor365_7M",
+    "Euribor365_8M",
+    "Euribor365_9M",
+    "Euribor365_SW",
+    "Euribor3M",
+    "Euribor3W",
+    "Euribor4M",
+    "Euribor5M",
+    "Euribor6M",
+    "Euribor7M",
+    "Euribor8M",
+    "Euribor9M",
+    "EuriborSW",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameIbor(Ibor e) {
+  if (::flatbuffers::IsOutRange(e, Ibor_Euribor10M, Ibor_EuriborSW)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesIbor()[index];
+}
+
+enum Compounding : int8_t {
+  Compounding_Compounded = 0,
+  Compounding_Continuous = 1,
+  Compounding_Simple = 2,
+  Compounding_SimpleThenCompounded = 3,
+  Compounding_MIN = Compounding_Compounded,
+  Compounding_MAX = Compounding_SimpleThenCompounded
+};
+
+inline const Compounding (&EnumValuesCompounding())[4] {
+  static const Compounding values[] = {
+    Compounding_Compounded,
+    Compounding_Continuous,
+    Compounding_Simple,
+    Compounding_SimpleThenCompounded
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCompounding() {
+  static const char * const names[5] = {
+    "Compounded",
+    "Continuous",
+    "Simple",
+    "SimpleThenCompounded",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCompounding(Compounding e) {
+  if (::flatbuffers::IsOutRange(e, Compounding_Compounded, Compounding_SimpleThenCompounded)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCompounding()[index];
+}
+
+enum SwapType : int8_t {
+  SwapType_Payer = 0,
+  SwapType_Receiver = 1,
+  SwapType_MIN = SwapType_Payer,
+  SwapType_MAX = SwapType_Receiver
+};
+
+inline const SwapType (&EnumValuesSwapType())[2] {
+  static const SwapType values[] = {
+    SwapType_Payer,
+    SwapType_Receiver
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwapType() {
+  static const char * const names[3] = {
+    "Payer",
+    "Receiver",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwapType(SwapType e) {
+  if (::flatbuffers::IsOutRange(e, SwapType_Payer, SwapType_Receiver)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwapType()[index];
+}
+
+enum FRAType : int8_t {
+  FRAType_Long = 0,
+  FRAType_Short = 1,
+  FRAType_MIN = FRAType_Long,
+  FRAType_MAX = FRAType_Short
+};
+
+inline const FRAType (&EnumValuesFRAType())[2] {
+  static const FRAType values[] = {
+    FRAType_Long,
+    FRAType_Short
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesFRAType() {
+  static const char * const names[3] = {
+    "Long",
+    "Short",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameFRAType(FRAType e) {
+  if (::flatbuffers::IsOutRange(e, FRAType_Long, FRAType_Short)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesFRAType()[index];
+}
+
+enum CapFloorType : int8_t {
+  CapFloorType_Cap = 0,
+  CapFloorType_Floor = 1,
+  CapFloorType_Collar = 2,
+  CapFloorType_MIN = CapFloorType_Cap,
+  CapFloorType_MAX = CapFloorType_Collar
+};
+
+inline const CapFloorType (&EnumValuesCapFloorType())[3] {
+  static const CapFloorType values[] = {
+    CapFloorType_Cap,
+    CapFloorType_Floor,
+    CapFloorType_Collar
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCapFloorType() {
+  static const char * const names[4] = {
+    "Cap",
+    "Floor",
+    "Collar",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCapFloorType(CapFloorType e) {
+  if (::flatbuffers::IsOutRange(e, CapFloorType_Cap, CapFloorType_Collar)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCapFloorType()[index];
+}
+
+enum ExerciseType : int8_t {
+  ExerciseType_European = 0,
+  ExerciseType_Bermudan = 1,
+  ExerciseType_American = 2,
+  ExerciseType_MIN = ExerciseType_European,
+  ExerciseType_MAX = ExerciseType_American
+};
+
+inline const ExerciseType (&EnumValuesExerciseType())[3] {
+  static const ExerciseType values[] = {
+    ExerciseType_European,
+    ExerciseType_Bermudan,
+    ExerciseType_American
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesExerciseType() {
+  static const char * const names[4] = {
+    "European",
+    "Bermudan",
+    "American",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameExerciseType(ExerciseType e) {
+  if (::flatbuffers::IsOutRange(e, ExerciseType_European, ExerciseType_American)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesExerciseType()[index];
+}
+
+enum SettlementType : int8_t {
+  SettlementType_Physical = 0,
+  SettlementType_Cash = 1,
+  SettlementType_MIN = SettlementType_Physical,
+  SettlementType_MAX = SettlementType_Cash
+};
+
+inline const SettlementType (&EnumValuesSettlementType())[2] {
+  static const SettlementType values[] = {
+    SettlementType_Physical,
+    SettlementType_Cash
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSettlementType() {
+  static const char * const names[3] = {
+    "Physical",
+    "Cash",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSettlementType(SettlementType e) {
+  if (::flatbuffers::IsOutRange(e, SettlementType_Physical, SettlementType_Cash)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSettlementType()[index];
+}
+
+enum ProtectionSide : int8_t {
+  ProtectionSide_Buyer = 0,
+  ProtectionSide_Seller = 1,
+  ProtectionSide_MIN = ProtectionSide_Buyer,
+  ProtectionSide_MAX = ProtectionSide_Seller
+};
+
+inline const ProtectionSide (&EnumValuesProtectionSide())[2] {
+  static const ProtectionSide values[] = {
+    ProtectionSide_Buyer,
+    ProtectionSide_Seller
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesProtectionSide() {
+  static const char * const names[3] = {
+    "Buyer",
+    "Seller",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameProtectionSide(ProtectionSide e) {
+  if (::flatbuffers::IsOutRange(e, ProtectionSide_Buyer, ProtectionSide_Seller)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesProtectionSide()[index];
+}
+
+enum VolatilityType : int8_t {
+  VolatilityType_ShiftedLognormal = 0,
+  VolatilityType_Normal = 1,
+  VolatilityType_MIN = VolatilityType_ShiftedLognormal,
+  VolatilityType_MAX = VolatilityType_Normal
+};
+
+inline const VolatilityType (&EnumValuesVolatilityType())[2] {
+  static const VolatilityType values[] = {
+    VolatilityType_ShiftedLognormal,
+    VolatilityType_Normal
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesVolatilityType() {
+  static const char * const names[3] = {
+    "ShiftedLognormal",
+    "Normal",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameVolatilityType(VolatilityType e) {
+  if (::flatbuffers::IsOutRange(e, VolatilityType_ShiftedLognormal, VolatilityType_Normal)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesVolatilityType()[index];
+}
+
+}  // namespace enums
+
+enum Point : uint8_t {
+  Point_NONE = 0,
+  Point_DepositHelper = 1,
+  Point_FRAHelper = 2,
+  Point_FutureHelper = 3,
+  Point_SwapHelper = 4,
+  Point_BondHelper = 5,
+  Point_MIN = Point_NONE,
+  Point_MAX = Point_BondHelper
+};
+
+inline const Point (&EnumValuesPoint())[6] {
+  static const Point values[] = {
+    Point_NONE,
+    Point_DepositHelper,
+    Point_FRAHelper,
+    Point_FutureHelper,
+    Point_SwapHelper,
+    Point_BondHelper
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPoint() {
+  static const char * const names[7] = {
+    "NONE",
+    "DepositHelper",
+    "FRAHelper",
+    "FutureHelper",
+    "SwapHelper",
+    "BondHelper",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePoint(Point e) {
+  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_BondHelper)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPoint()[index];
+}
+
+template<typename T> struct PointTraits {
+  static const Point enum_value = Point_NONE;
+};
+
+template<> struct PointTraits<quantra::DepositHelper> {
+  static const Point enum_value = Point_DepositHelper;
+};
+
+template<> struct PointTraits<quantra::FRAHelper> {
+  static const Point enum_value = Point_FRAHelper;
+};
+
+template<> struct PointTraits<quantra::FutureHelper> {
+  static const Point enum_value = Point_FutureHelper;
+};
+
+template<> struct PointTraits<quantra::SwapHelper> {
+  static const Point enum_value = Point_SwapHelper;
+};
+
+template<> struct PointTraits<quantra::BondHelper> {
+  static const Point enum_value = Point_BondHelper;
+};
+
+bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type);
+bool VerifyPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
+
+enum OptionletVolatilityStructure : uint8_t {
+  OptionletVolatilityStructure_NONE = 0,
+  OptionletVolatilityStructure_ConstantOptionletVolatility = 1,
+  OptionletVolatilityStructure_MIN = OptionletVolatilityStructure_NONE,
+  OptionletVolatilityStructure_MAX = OptionletVolatilityStructure_ConstantOptionletVolatility
+};
+
+inline const OptionletVolatilityStructure (&EnumValuesOptionletVolatilityStructure())[2] {
+  static const OptionletVolatilityStructure values[] = {
+    OptionletVolatilityStructure_NONE,
+    OptionletVolatilityStructure_ConstantOptionletVolatility
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesOptionletVolatilityStructure() {
+  static const char * const names[3] = {
+    "NONE",
+    "ConstantOptionletVolatility",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameOptionletVolatilityStructure(OptionletVolatilityStructure e) {
+  if (::flatbuffers::IsOutRange(e, OptionletVolatilityStructure_NONE, OptionletVolatilityStructure_ConstantOptionletVolatility)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesOptionletVolatilityStructure()[index];
+}
+
+template<typename T> struct OptionletVolatilityStructureTraits {
+  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_NONE;
+};
+
+template<> struct OptionletVolatilityStructureTraits<quantra::ConstantOptionletVolatility> {
+  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_ConstantOptionletVolatility;
+};
+
+bool VerifyOptionletVolatilityStructure(::flatbuffers::Verifier &verifier, const void *obj, OptionletVolatilityStructure type);
+bool VerifyOptionletVolatilityStructureVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
+
+enum Pricer : uint8_t {
+  Pricer_NONE = 0,
+  Pricer_BlackIborCouponPricer = 1,
+  Pricer_MIN = Pricer_NONE,
+  Pricer_MAX = Pricer_BlackIborCouponPricer
+};
+
+inline const Pricer (&EnumValuesPricer())[2] {
+  static const Pricer values[] = {
+    Pricer_NONE,
+    Pricer_BlackIborCouponPricer
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPricer() {
+  static const char * const names[3] = {
+    "NONE",
+    "BlackIborCouponPricer",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePricer(Pricer e) {
+  if (::flatbuffers::IsOutRange(e, Pricer_NONE, Pricer_BlackIborCouponPricer)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPricer()[index];
+}
+
+template<typename T> struct PricerTraits {
+  static const Pricer enum_value = Pricer_NONE;
+};
+
+template<> struct PricerTraits<quantra::BlackIborCouponPricer> {
+  static const Pricer enum_value = Pricer_BlackIborCouponPricer;
+};
+
+bool VerifyPricer(::flatbuffers::Verifier &verifier, const void *obj, Pricer type);
+bool VerifyPricerVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
 enum Flow : uint8_t {
   Flow_NONE = 0,
@@ -101,6 +1166,1376 @@ template<> struct FlowTraits<quantra::FlowNotional> {
 
 bool VerifyFlow(::flatbuffers::Verifier &verifier, const void *obj, Flow type);
 bool VerifyFlowVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
+
+struct Schedule FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ScheduleBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CALENDAR = 4,
+    VT_EFFECTIVE_DATE = 6,
+    VT_TERMINATION_DATE = 8,
+    VT_FREQUENCY = 10,
+    VT_CONVENTION = 12,
+    VT_TERMINATION_DATE_CONVENTION = 14,
+    VT_DATE_GENERATION_RULE = 16,
+    VT_END_OF_MONTH = 18
+  };
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  const ::flatbuffers::String *effective_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_EFFECTIVE_DATE);
+  }
+  const ::flatbuffers::String *termination_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_TERMINATION_DATE);
+  }
+  quantra::enums::Frequency frequency() const {
+    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
+  }
+  quantra::enums::BusinessDayConvention convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_CONVENTION, 0));
+  }
+  quantra::enums::BusinessDayConvention termination_date_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_TERMINATION_DATE_CONVENTION, 0));
+  }
+  quantra::enums::DateGenerationRule date_generation_rule() const {
+    return static_cast<quantra::enums::DateGenerationRule>(GetField<int8_t>(VT_DATE_GENERATION_RULE, 0));
+  }
+  bool end_of_month() const {
+    return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyOffset(verifier, VT_EFFECTIVE_DATE) &&
+           verifier.VerifyString(effective_date()) &&
+           VerifyOffset(verifier, VT_TERMINATION_DATE) &&
+           verifier.VerifyString(termination_date()) &&
+           VerifyField<int8_t>(verifier, VT_FREQUENCY, 1) &&
+           VerifyField<int8_t>(verifier, VT_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_TERMINATION_DATE_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DATE_GENERATION_RULE, 1) &&
+           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct ScheduleBuilder {
+  typedef Schedule Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(Schedule::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_effective_date(::flatbuffers::Offset<::flatbuffers::String> effective_date) {
+    fbb_.AddOffset(Schedule::VT_EFFECTIVE_DATE, effective_date);
+  }
+  void add_termination_date(::flatbuffers::Offset<::flatbuffers::String> termination_date) {
+    fbb_.AddOffset(Schedule::VT_TERMINATION_DATE, termination_date);
+  }
+  void add_frequency(quantra::enums::Frequency frequency) {
+    fbb_.AddElement<int8_t>(Schedule::VT_FREQUENCY, static_cast<int8_t>(frequency), 0);
+  }
+  void add_convention(quantra::enums::BusinessDayConvention convention) {
+    fbb_.AddElement<int8_t>(Schedule::VT_CONVENTION, static_cast<int8_t>(convention), 0);
+  }
+  void add_termination_date_convention(quantra::enums::BusinessDayConvention termination_date_convention) {
+    fbb_.AddElement<int8_t>(Schedule::VT_TERMINATION_DATE_CONVENTION, static_cast<int8_t>(termination_date_convention), 0);
+  }
+  void add_date_generation_rule(quantra::enums::DateGenerationRule date_generation_rule) {
+    fbb_.AddElement<int8_t>(Schedule::VT_DATE_GENERATION_RULE, static_cast<int8_t>(date_generation_rule), 0);
+  }
+  void add_end_of_month(bool end_of_month) {
+    fbb_.AddElement<uint8_t>(Schedule::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 0);
+  }
+  explicit ScheduleBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Schedule> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Schedule>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Schedule> CreateSchedule(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    ::flatbuffers::Offset<::flatbuffers::String> effective_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> termination_date = 0,
+    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual,
+    quantra::enums::BusinessDayConvention convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::BusinessDayConvention termination_date_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_Backward,
+    bool end_of_month = false) {
+  ScheduleBuilder builder_(_fbb);
+  builder_.add_termination_date(termination_date);
+  builder_.add_effective_date(effective_date);
+  builder_.add_end_of_month(end_of_month);
+  builder_.add_date_generation_rule(date_generation_rule);
+  builder_.add_termination_date_convention(termination_date_convention);
+  builder_.add_convention(convention);
+  builder_.add_frequency(frequency);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Schedule> CreateScheduleDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    const char *effective_date = nullptr,
+    const char *termination_date = nullptr,
+    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual,
+    quantra::enums::BusinessDayConvention convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::BusinessDayConvention termination_date_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_Backward,
+    bool end_of_month = false) {
+  auto effective_date__ = effective_date ? _fbb.CreateString(effective_date) : 0;
+  auto termination_date__ = termination_date ? _fbb.CreateString(termination_date) : 0;
+  return quantra::CreateSchedule(
+      _fbb,
+      calendar,
+      effective_date__,
+      termination_date__,
+      frequency,
+      convention,
+      termination_date_convention,
+      date_generation_rule,
+      end_of_month);
+}
+
+struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef DepositHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RATE = 4,
+    VT_TENOR_TIME_UNIT = 6,
+    VT_TENOR_NUMBER = 8,
+    VT_FIXING_DAYS = 10,
+    VT_CALENDAR = 12,
+    VT_BUSINESS_DAY_CONVENTION = 14,
+    VT_DAY_COUNTER = 16
+  };
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  }
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  }
+  int32_t fixing_days() const {
+    return GetField<int32_t>(VT_FIXING_DAYS, 0);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct DepositHelperBuilder {
+  typedef DepositHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(DepositHelper::VT_RATE, rate, 0.0);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(DepositHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  }
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(DepositHelper::VT_TENOR_NUMBER, tenor_number, 0);
+  }
+  void add_fixing_days(int32_t fixing_days) {
+    fbb_.AddElement<int32_t>(DepositHelper::VT_FIXING_DAYS, fixing_days, 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(DepositHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(DepositHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(DepositHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  explicit DepositHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<DepositHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<DepositHelper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    int32_t tenor_number = 0,
+    int32_t fixing_days = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+  DepositHelperBuilder builder_(_fbb);
+  builder_.add_rate(rate);
+  builder_.add_fixing_days(fixing_days);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  return builder_.Finish();
+}
+
+struct FRAHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef FRAHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RATE = 4,
+    VT_MONTHS_TO_START = 6,
+    VT_MONTHS_TO_END = 8,
+    VT_FIXING_DAYS = 10,
+    VT_CALENDAR = 12,
+    VT_BUSINESS_DAY_CONVENTION = 14,
+    VT_DAY_COUNTER = 16
+  };
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
+  }
+  int32_t months_to_start() const {
+    return GetField<int32_t>(VT_MONTHS_TO_START, 0);
+  }
+  int32_t months_to_end() const {
+    return GetField<int32_t>(VT_MONTHS_TO_END, 0);
+  }
+  int32_t fixing_days() const {
+    return GetField<int32_t>(VT_FIXING_DAYS, 0);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int32_t>(verifier, VT_MONTHS_TO_START, 4) &&
+           VerifyField<int32_t>(verifier, VT_MONTHS_TO_END, 4) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct FRAHelperBuilder {
+  typedef FRAHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(FRAHelper::VT_RATE, rate, 0.0);
+  }
+  void add_months_to_start(int32_t months_to_start) {
+    fbb_.AddElement<int32_t>(FRAHelper::VT_MONTHS_TO_START, months_to_start, 0);
+  }
+  void add_months_to_end(int32_t months_to_end) {
+    fbb_.AddElement<int32_t>(FRAHelper::VT_MONTHS_TO_END, months_to_end, 0);
+  }
+  void add_fixing_days(int32_t fixing_days) {
+    fbb_.AddElement<int32_t>(FRAHelper::VT_FIXING_DAYS, fixing_days, 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(FRAHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(FRAHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(FRAHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  explicit FRAHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<FRAHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<FRAHelper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    int32_t months_to_start = 0,
+    int32_t months_to_end = 0,
+    int32_t fixing_days = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+  FRAHelperBuilder builder_(_fbb);
+  builder_.add_rate(rate);
+  builder_.add_fixing_days(fixing_days);
+  builder_.add_months_to_end(months_to_end);
+  builder_.add_months_to_start(months_to_start);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef FutureHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RATE = 4,
+    VT_FUTURE_START_DATE = 6,
+    VT_FUTURE_MONTHS = 8,
+    VT_CALENDAR = 10,
+    VT_BUSINESS_DAY_CONVENTION = 12,
+    VT_DAY_COUNTER = 14
+  };
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
+  }
+  const ::flatbuffers::String *future_start_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FUTURE_START_DATE);
+  }
+  int32_t future_months() const {
+    return GetField<int32_t>(VT_FUTURE_MONTHS, 0);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyOffset(verifier, VT_FUTURE_START_DATE) &&
+           verifier.VerifyString(future_start_date()) &&
+           VerifyField<int32_t>(verifier, VT_FUTURE_MONTHS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct FutureHelperBuilder {
+  typedef FutureHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(FutureHelper::VT_RATE, rate, 0.0);
+  }
+  void add_future_start_date(::flatbuffers::Offset<::flatbuffers::String> future_start_date) {
+    fbb_.AddOffset(FutureHelper::VT_FUTURE_START_DATE, future_start_date);
+  }
+  void add_future_months(int32_t future_months) {
+    fbb_.AddElement<int32_t>(FutureHelper::VT_FUTURE_MONTHS, future_months, 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(FutureHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(FutureHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(FutureHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  explicit FutureHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<FutureHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<FutureHelper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> future_start_date = 0,
+    int32_t future_months = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+  FutureHelperBuilder builder_(_fbb);
+  builder_.add_rate(rate);
+  builder_.add_future_months(future_months);
+  builder_.add_future_start_date(future_start_date);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    const char *future_start_date = nullptr,
+    int32_t future_months = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+  auto future_start_date__ = future_start_date ? _fbb.CreateString(future_start_date) : 0;
+  return quantra::CreateFutureHelper(
+      _fbb,
+      rate,
+      future_start_date__,
+      future_months,
+      calendar,
+      business_day_convention,
+      day_counter);
+}
+
+struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwapHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RATE = 4,
+    VT_TENOR_TIME_UNIT = 6,
+    VT_TENOR_NUMBER = 8,
+    VT_CALENDAR = 10,
+    VT_SW_FIXED_LEG_FREQUENCY = 12,
+    VT_SW_FIXED_LEG_CONVENTION = 14,
+    VT_SW_FIXED_LEG_DAY_COUNTER = 16,
+    VT_SW_FLOATING_LEG_INDEX = 18,
+    VT_SPREAD = 20,
+    VT_FWD_START_DAYS = 22
+  };
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  }
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::Frequency sw_fixed_leg_frequency() const {
+    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_SW_FIXED_LEG_FREQUENCY, 0));
+  }
+  quantra::enums::BusinessDayConvention sw_fixed_leg_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_SW_FIXED_LEG_CONVENTION, 0));
+  }
+  quantra::enums::DayCounter sw_fixed_leg_day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_SW_FIXED_LEG_DAY_COUNTER, 0));
+  }
+  quantra::enums::Ibor sw_floating_leg_index() const {
+    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_SW_FLOATING_LEG_INDEX, 0));
+  }
+  double spread() const {
+    return GetField<double>(VT_SPREAD, 0.0);
+  }
+  int32_t fwd_start_days() const {
+    return GetField<int32_t>(VT_FWD_START_DAYS, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_FREQUENCY, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FLOATING_LEG_INDEX, 1) &&
+           VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyField<int32_t>(verifier, VT_FWD_START_DAYS, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct SwapHelperBuilder {
+  typedef SwapHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(SwapHelper::VT_RATE, rate, 0.0);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  }
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(SwapHelper::VT_TENOR_NUMBER, tenor_number, 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_sw_fixed_leg_frequency(quantra::enums::Frequency sw_fixed_leg_frequency) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FIXED_LEG_FREQUENCY, static_cast<int8_t>(sw_fixed_leg_frequency), 0);
+  }
+  void add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention sw_fixed_leg_convention) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FIXED_LEG_CONVENTION, static_cast<int8_t>(sw_fixed_leg_convention), 0);
+  }
+  void add_sw_fixed_leg_day_counter(quantra::enums::DayCounter sw_fixed_leg_day_counter) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(sw_fixed_leg_day_counter), 0);
+  }
+  void add_sw_floating_leg_index(quantra::enums::Ibor sw_floating_leg_index) {
+    fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FLOATING_LEG_INDEX, static_cast<int8_t>(sw_floating_leg_index), 0);
+  }
+  void add_spread(double spread) {
+    fbb_.AddElement<double>(SwapHelper::VT_SPREAD, spread, 0.0);
+  }
+  void add_fwd_start_days(int32_t fwd_start_days) {
+    fbb_.AddElement<int32_t>(SwapHelper::VT_FWD_START_DAYS, fwd_start_days, 0);
+  }
+  explicit SwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwapHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwapHelper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    int32_t tenor_number = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
+    quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter sw_fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::Ibor sw_floating_leg_index = quantra::enums::Ibor_Euribor10M,
+    double spread = 0.0,
+    int32_t fwd_start_days = 0) {
+  SwapHelperBuilder builder_(_fbb);
+  builder_.add_spread(spread);
+  builder_.add_rate(rate);
+  builder_.add_fwd_start_days(fwd_start_days);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_sw_floating_leg_index(sw_floating_leg_index);
+  builder_.add_sw_fixed_leg_day_counter(sw_fixed_leg_day_counter);
+  builder_.add_sw_fixed_leg_convention(sw_fixed_leg_convention);
+  builder_.add_sw_fixed_leg_frequency(sw_fixed_leg_frequency);
+  builder_.add_calendar(calendar);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  return builder_.Finish();
+}
+
+struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef BondHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RATE = 4,
+    VT_SETTLEMENT_DAYS = 6,
+    VT_FACE_AMOUNT = 8,
+    VT_SCHEDULE = 10,
+    VT_COUPON_RATE = 12,
+    VT_DAY_COUNTER = 14,
+    VT_BUSINESS_DAY_CONVENTION = 16,
+    VT_REDEMPTION = 18,
+    VT_ISSUE_DATE = 20
+  };
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
+  }
+  int32_t settlement_days() const {
+    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
+  }
+  double face_amount() const {
+    return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  }
+  const quantra::Schedule *schedule() const {
+    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
+  }
+  double coupon_rate() const {
+    return GetField<double>(VT_COUPON_RATE, 0.0);
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  double redemption() const {
+    return GetField<double>(VT_REDEMPTION, 0.0);
+  }
+  const ::flatbuffers::String *issue_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ISSUE_DATE);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
+           VerifyField<double>(verifier, VT_FACE_AMOUNT, 8) &&
+           VerifyOffset(verifier, VT_SCHEDULE) &&
+           verifier.VerifyTable(schedule()) &&
+           VerifyField<double>(verifier, VT_COUPON_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_REDEMPTION, 8) &&
+           VerifyOffset(verifier, VT_ISSUE_DATE) &&
+           verifier.VerifyString(issue_date()) &&
+           verifier.EndTable();
+  }
+};
+
+struct BondHelperBuilder {
+  typedef BondHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(BondHelper::VT_RATE, rate, 0.0);
+  }
+  void add_settlement_days(int32_t settlement_days) {
+    fbb_.AddElement<int32_t>(BondHelper::VT_SETTLEMENT_DAYS, settlement_days, 0);
+  }
+  void add_face_amount(double face_amount) {
+    fbb_.AddElement<double>(BondHelper::VT_FACE_AMOUNT, face_amount, 0.0);
+  }
+  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
+    fbb_.AddOffset(BondHelper::VT_SCHEDULE, schedule);
+  }
+  void add_coupon_rate(double coupon_rate) {
+    fbb_.AddElement<double>(BondHelper::VT_COUPON_RATE, coupon_rate, 0.0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(BondHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(BondHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_redemption(double redemption) {
+    fbb_.AddElement<double>(BondHelper::VT_REDEMPTION, redemption, 0.0);
+  }
+  void add_issue_date(::flatbuffers::Offset<::flatbuffers::String> issue_date) {
+    fbb_.AddOffset(BondHelper::VT_ISSUE_DATE, issue_date);
+  }
+  explicit BondHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<BondHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<BondHelper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    int32_t settlement_days = 0,
+    double face_amount = 0.0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    double coupon_rate = 0.0,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    double redemption = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> issue_date = 0) {
+  BondHelperBuilder builder_(_fbb);
+  builder_.add_redemption(redemption);
+  builder_.add_coupon_rate(coupon_rate);
+  builder_.add_face_amount(face_amount);
+  builder_.add_rate(rate);
+  builder_.add_issue_date(issue_date);
+  builder_.add_schedule(schedule);
+  builder_.add_settlement_days(settlement_days);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_day_counter(day_counter);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double rate = 0.0,
+    int32_t settlement_days = 0,
+    double face_amount = 0.0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    double coupon_rate = 0.0,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    double redemption = 0.0,
+    const char *issue_date = nullptr) {
+  auto issue_date__ = issue_date ? _fbb.CreateString(issue_date) : 0;
+  return quantra::CreateBondHelper(
+      _fbb,
+      rate,
+      settlement_days,
+      face_amount,
+      schedule,
+      coupon_rate,
+      day_counter,
+      business_day_convention,
+      redemption,
+      issue_date__);
+}
+
+struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PointsWrapperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_POINT_TYPE = 4,
+    VT_POINT = 6
+  };
+  quantra::Point point_type() const {
+    return static_cast<quantra::Point>(GetField<uint8_t>(VT_POINT_TYPE, 0));
+  }
+  const void *point() const {
+    return GetPointer<const void *>(VT_POINT);
+  }
+  template<typename T> const T *point_as() const;
+  const quantra::DepositHelper *point_as_DepositHelper() const {
+    return point_type() == quantra::Point_DepositHelper ? static_cast<const quantra::DepositHelper *>(point()) : nullptr;
+  }
+  const quantra::FRAHelper *point_as_FRAHelper() const {
+    return point_type() == quantra::Point_FRAHelper ? static_cast<const quantra::FRAHelper *>(point()) : nullptr;
+  }
+  const quantra::FutureHelper *point_as_FutureHelper() const {
+    return point_type() == quantra::Point_FutureHelper ? static_cast<const quantra::FutureHelper *>(point()) : nullptr;
+  }
+  const quantra::SwapHelper *point_as_SwapHelper() const {
+    return point_type() == quantra::Point_SwapHelper ? static_cast<const quantra::SwapHelper *>(point()) : nullptr;
+  }
+  const quantra::BondHelper *point_as_BondHelper() const {
+    return point_type() == quantra::Point_BondHelper ? static_cast<const quantra::BondHelper *>(point()) : nullptr;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_POINT_TYPE, 1) &&
+           VerifyOffset(verifier, VT_POINT) &&
+           VerifyPoint(verifier, point(), point_type()) &&
+           verifier.EndTable();
+  }
+};
+
+template<> inline const quantra::DepositHelper *PointsWrapper::point_as<quantra::DepositHelper>() const {
+  return point_as_DepositHelper();
+}
+
+template<> inline const quantra::FRAHelper *PointsWrapper::point_as<quantra::FRAHelper>() const {
+  return point_as_FRAHelper();
+}
+
+template<> inline const quantra::FutureHelper *PointsWrapper::point_as<quantra::FutureHelper>() const {
+  return point_as_FutureHelper();
+}
+
+template<> inline const quantra::SwapHelper *PointsWrapper::point_as<quantra::SwapHelper>() const {
+  return point_as_SwapHelper();
+}
+
+template<> inline const quantra::BondHelper *PointsWrapper::point_as<quantra::BondHelper>() const {
+  return point_as_BondHelper();
+}
+
+struct PointsWrapperBuilder {
+  typedef PointsWrapper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_point_type(quantra::Point point_type) {
+    fbb_.AddElement<uint8_t>(PointsWrapper::VT_POINT_TYPE, static_cast<uint8_t>(point_type), 0);
+  }
+  void add_point(::flatbuffers::Offset<void> point) {
+    fbb_.AddOffset(PointsWrapper::VT_POINT, point);
+  }
+  explicit PointsWrapperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<PointsWrapper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<PointsWrapper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::Point point_type = quantra::Point_NONE,
+    ::flatbuffers::Offset<void> point = 0) {
+  PointsWrapperBuilder builder_(_fbb);
+  builder_.add_point(point);
+  builder_.add_point_type(point_type);
+  return builder_.Finish();
+}
+
+struct TermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef TermStructureBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_DAY_COUNTER = 6,
+    VT_INTERPOLATOR = 8,
+    VT_BOOTSTRAP_TRAIT = 10,
+    VT_POINTS = 12,
+    VT_REFERENCE_DATE = 14
+  };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  quantra::enums::Interpolator interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_INTERPOLATOR, 0));
+  }
+  quantra::enums::BootstrapTrait bootstrap_trait() const {
+    return static_cast<quantra::enums::BootstrapTrait>(GetField<int8_t>(VT_BOOTSTRAP_TRAIT, 0));
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *>(VT_POINTS);
+  }
+  const ::flatbuffers::String *reference_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BOOTSTRAP_TRAIT, 1) &&
+           VerifyOffset(verifier, VT_POINTS) &&
+           verifier.VerifyVector(points()) &&
+           verifier.VerifyVectorOfTables(points()) &&
+           VerifyOffset(verifier, VT_REFERENCE_DATE) &&
+           verifier.VerifyString(reference_date()) &&
+           verifier.EndTable();
+  }
+};
+
+struct TermStructureBuilder {
+  typedef TermStructure Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(TermStructure::VT_ID, id);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(TermStructure::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  void add_interpolator(quantra::enums::Interpolator interpolator) {
+    fbb_.AddElement<int8_t>(TermStructure::VT_INTERPOLATOR, static_cast<int8_t>(interpolator), 0);
+  }
+  void add_bootstrap_trait(quantra::enums::BootstrapTrait bootstrap_trait) {
+    fbb_.AddElement<int8_t>(TermStructure::VT_BOOTSTRAP_TRAIT, static_cast<int8_t>(bootstrap_trait), 0);
+  }
+  void add_points(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points) {
+    fbb_.AddOffset(TermStructure::VT_POINTS, points);
+  }
+  void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
+    fbb_.AddOffset(TermStructure::VT_REFERENCE_DATE, reference_date);
+  }
+  explicit TermStructureBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<TermStructure> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<TermStructure>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<TermStructure> CreateTermStructure(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_BackwardFlat,
+    quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0) {
+  TermStructureBuilder builder_(_fbb);
+  builder_.add_reference_date(reference_date);
+  builder_.add_points(points);
+  builder_.add_id(id);
+  builder_.add_bootstrap_trait(bootstrap_trait);
+  builder_.add_interpolator(interpolator);
+  builder_.add_day_counter(day_counter);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_BackwardFlat,
+    quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
+    const std::vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points = nullptr,
+    const char *reference_date = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto points__ = points ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PointsWrapper>>(*points) : 0;
+  auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
+  return quantra::CreateTermStructure(
+      _fbb,
+      id__,
+      day_counter,
+      interpolator,
+      bootstrap_trait,
+      points__,
+      reference_date__);
+}
+
+struct VolatilityQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef VolatilityQuoteBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TENOR_NUMBER = 4,
+    VT_TENOR_TIME_UNIT = 6,
+    VT_STRIKE = 8,
+    VT_VOLATILITY = 10
+  };
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  }
+  double strike() const {
+    return GetField<double>(VT_STRIKE, 0.0);
+  }
+  double volatility() const {
+    return GetField<double>(VT_VOLATILITY, 0.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<double>(verifier, VT_STRIKE, 8) &&
+           VerifyField<double>(verifier, VT_VOLATILITY, 8) &&
+           verifier.EndTable();
+  }
+};
+
+struct VolatilityQuoteBuilder {
+  typedef VolatilityQuote Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(VolatilityQuote::VT_TENOR_NUMBER, tenor_number, 0);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(VolatilityQuote::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  }
+  void add_strike(double strike) {
+    fbb_.AddElement<double>(VolatilityQuote::VT_STRIKE, strike, 0.0);
+  }
+  void add_volatility(double volatility) {
+    fbb_.AddElement<double>(VolatilityQuote::VT_VOLATILITY, volatility, 0.0);
+  }
+  explicit VolatilityQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<VolatilityQuote> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<VolatilityQuote>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<VolatilityQuote> CreateVolatilityQuote(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t tenor_number = 0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    double strike = 0.0,
+    double volatility = 0.0) {
+  VolatilityQuoteBuilder builder_(_fbb);
+  builder_.add_volatility(volatility);
+  builder_.add_strike(strike);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  return builder_.Finish();
+}
+
+struct VolatilityTermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef VolatilityTermStructureBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_REFERENCE_DATE = 6,
+    VT_CALENDAR = 8,
+    VT_BUSINESS_DAY_CONVENTION = 10,
+    VT_DAY_COUNTER = 12,
+    VT_VOLATILITY_TYPE = 14,
+    VT_CONSTANT_VOL = 16,
+    VT_QUOTES = 18
+  };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  const ::flatbuffers::String *reference_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  quantra::enums::VolatilityType volatility_type() const {
+    return static_cast<quantra::enums::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
+  }
+  double constant_vol() const {
+    return GetField<double>(VT_CONSTANT_VOL, 0.0);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityQuote>> *quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityQuote>> *>(VT_QUOTES);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyOffset(verifier, VT_REFERENCE_DATE) &&
+           verifier.VerifyString(reference_date()) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_VOLATILITY_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_CONSTANT_VOL, 8) &&
+           VerifyOffset(verifier, VT_QUOTES) &&
+           verifier.VerifyVector(quotes()) &&
+           verifier.VerifyVectorOfTables(quotes()) &&
+           verifier.EndTable();
+  }
+};
+
+struct VolatilityTermStructureBuilder {
+  typedef VolatilityTermStructure Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(VolatilityTermStructure::VT_ID, id);
+  }
+  void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
+    fbb_.AddOffset(VolatilityTermStructure::VT_REFERENCE_DATE, reference_date);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  void add_volatility_type(quantra::enums::VolatilityType volatility_type) {
+    fbb_.AddElement<int8_t>(VolatilityTermStructure::VT_VOLATILITY_TYPE, static_cast<int8_t>(volatility_type), 0);
+  }
+  void add_constant_vol(double constant_vol) {
+    fbb_.AddElement<double>(VolatilityTermStructure::VT_CONSTANT_VOL, constant_vol, 0.0);
+  }
+  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityQuote>>> quotes) {
+    fbb_.AddOffset(VolatilityTermStructure::VT_QUOTES, quotes);
+  }
+  explicit VolatilityTermStructureBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<VolatilityTermStructure> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<VolatilityTermStructure>(end);
+    fbb_.Required(o, VolatilityTermStructure::VT_ID);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<VolatilityTermStructure> CreateVolatilityTermStructure(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_ShiftedLognormal,
+    double constant_vol = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityQuote>>> quotes = 0) {
+  VolatilityTermStructureBuilder builder_(_fbb);
+  builder_.add_constant_vol(constant_vol);
+  builder_.add_quotes(quotes);
+  builder_.add_reference_date(reference_date);
+  builder_.add_id(id);
+  builder_.add_volatility_type(volatility_type);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<VolatilityTermStructure> CreateVolatilityTermStructureDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    const char *reference_date = nullptr,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_ShiftedLognormal,
+    double constant_vol = 0.0,
+    const std::vector<::flatbuffers::Offset<quantra::VolatilityQuote>> *quotes = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
+  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolatilityQuote>>(*quotes) : 0;
+  return quantra::CreateVolatilityTermStructure(
+      _fbb,
+      id__,
+      reference_date__,
+      calendar,
+      business_day_convention,
+      day_counter,
+      volatility_type,
+      constant_vol,
+      quotes__);
+}
+
+struct ConstantOptionletVolatility FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ConstantOptionletVolatilityBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SETTLEMENT_DAYS = 4,
+    VT_CALENDAR = 6,
+    VT_BUSINESS_DAY_CONVENTION = 8,
+    VT_VOLATILITY = 10,
+    VT_DAY_COUNTER = 12
+  };
+  int32_t settlement_days() const {
+    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  double volatility() const {
+    return GetField<double>(VT_VOLATILITY, 0.0);
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_VOLATILITY, 8) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct ConstantOptionletVolatilityBuilder {
+  typedef ConstantOptionletVolatility Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_settlement_days(int32_t settlement_days) {
+    fbb_.AddElement<int32_t>(ConstantOptionletVolatility::VT_SETTLEMENT_DAYS, settlement_days, 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_volatility(double volatility) {
+    fbb_.AddElement<double>(ConstantOptionletVolatility::VT_VOLATILITY, volatility, 0.0);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  explicit ConstantOptionletVolatilityBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ConstantOptionletVolatility> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ConstantOptionletVolatility>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ConstantOptionletVolatility> CreateConstantOptionletVolatility(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t settlement_days = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    double volatility = 0.0,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+  ConstantOptionletVolatilityBuilder builder_(_fbb);
+  builder_.add_volatility(volatility);
+  builder_.add_settlement_days(settlement_days);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+struct BlackIborCouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef BlackIborCouponPricerBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE = 4,
+    VT_OPTIONLET_VOLATILITY_STRUCTURE = 6
+  };
+  quantra::OptionletVolatilityStructure optionlet_volatility_structure_type() const {
+    return static_cast<quantra::OptionletVolatilityStructure>(GetField<uint8_t>(VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, 0));
+  }
+  const void *optionlet_volatility_structure() const {
+    return GetPointer<const void *>(VT_OPTIONLET_VOLATILITY_STRUCTURE);
+  }
+  template<typename T> const T *optionlet_volatility_structure_as() const;
+  const quantra::ConstantOptionletVolatility *optionlet_volatility_structure_as_ConstantOptionletVolatility() const {
+    return optionlet_volatility_structure_type() == quantra::OptionletVolatilityStructure_ConstantOptionletVolatility ? static_cast<const quantra::ConstantOptionletVolatility *>(optionlet_volatility_structure()) : nullptr;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, 1) &&
+           VerifyOffset(verifier, VT_OPTIONLET_VOLATILITY_STRUCTURE) &&
+           VerifyOptionletVolatilityStructure(verifier, optionlet_volatility_structure(), optionlet_volatility_structure_type()) &&
+           verifier.EndTable();
+  }
+};
+
+template<> inline const quantra::ConstantOptionletVolatility *BlackIborCouponPricer::optionlet_volatility_structure_as<quantra::ConstantOptionletVolatility>() const {
+  return optionlet_volatility_structure_as_ConstantOptionletVolatility();
+}
+
+struct BlackIborCouponPricerBuilder {
+  typedef BlackIborCouponPricer Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_optionlet_volatility_structure_type(quantra::OptionletVolatilityStructure optionlet_volatility_structure_type) {
+    fbb_.AddElement<uint8_t>(BlackIborCouponPricer::VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, static_cast<uint8_t>(optionlet_volatility_structure_type), 0);
+  }
+  void add_optionlet_volatility_structure(::flatbuffers::Offset<void> optionlet_volatility_structure) {
+    fbb_.AddOffset(BlackIborCouponPricer::VT_OPTIONLET_VOLATILITY_STRUCTURE, optionlet_volatility_structure);
+  }
+  explicit BlackIborCouponPricerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<BlackIborCouponPricer> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<BlackIborCouponPricer>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<BlackIborCouponPricer> CreateBlackIborCouponPricer(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::OptionletVolatilityStructure optionlet_volatility_structure_type = quantra::OptionletVolatilityStructure_NONE,
+    ::flatbuffers::Offset<void> optionlet_volatility_structure = 0) {
+  BlackIborCouponPricerBuilder builder_(_fbb);
+  builder_.add_optionlet_volatility_structure(optionlet_volatility_structure);
+  builder_.add_optionlet_volatility_structure_type(optionlet_volatility_structure_type);
+  return builder_.Finish();
+}
+
+struct CouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CouponPricerBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_PRICER_TYPE = 6,
+    VT_PRICER = 8
+  };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  quantra::Pricer pricer_type() const {
+    return static_cast<quantra::Pricer>(GetField<uint8_t>(VT_PRICER_TYPE, 0));
+  }
+  const void *pricer() const {
+    return GetPointer<const void *>(VT_PRICER);
+  }
+  template<typename T> const T *pricer_as() const;
+  const quantra::BlackIborCouponPricer *pricer_as_BlackIborCouponPricer() const {
+    return pricer_type() == quantra::Pricer_BlackIborCouponPricer ? static_cast<const quantra::BlackIborCouponPricer *>(pricer()) : nullptr;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyField<uint8_t>(verifier, VT_PRICER_TYPE, 1) &&
+           VerifyOffset(verifier, VT_PRICER) &&
+           VerifyPricer(verifier, pricer(), pricer_type()) &&
+           verifier.EndTable();
+  }
+};
+
+template<> inline const quantra::BlackIborCouponPricer *CouponPricer::pricer_as<quantra::BlackIborCouponPricer>() const {
+  return pricer_as_BlackIborCouponPricer();
+}
+
+struct CouponPricerBuilder {
+  typedef CouponPricer Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(CouponPricer::VT_ID, id);
+  }
+  void add_pricer_type(quantra::Pricer pricer_type) {
+    fbb_.AddElement<uint8_t>(CouponPricer::VT_PRICER_TYPE, static_cast<uint8_t>(pricer_type), 0);
+  }
+  void add_pricer(::flatbuffers::Offset<void> pricer) {
+    fbb_.AddOffset(CouponPricer::VT_PRICER, pricer);
+  }
+  explicit CouponPricerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CouponPricer> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CouponPricer>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CouponPricer> CreateCouponPricer(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    quantra::Pricer pricer_type = quantra::Pricer_NONE,
+    ::flatbuffers::Offset<void> pricer = 0) {
+  CouponPricerBuilder builder_(_fbb);
+  builder_.add_pricer(pricer);
+  builder_.add_id(id);
+  builder_.add_pricer_type(pricer_type);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CouponPricer> CreateCouponPricerDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    quantra::Pricer pricer_type = quantra::Pricer_NONE,
+    ::flatbuffers::Offset<void> pricer = 0) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  return quantra::CreateCouponPricer(
+      _fbb,
+      id__,
+      pricer_type,
+      pricer);
+}
 
 struct Yield FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef YieldBuilder Builder;
@@ -970,6 +3405,97 @@ inline ::flatbuffers::Offset<FlowsWrapper> CreateFlowsWrapper(
   builder_.add_flow(flow);
   builder_.add_flow_type(flow_type);
   return builder_.Finish();
+}
+
+inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type) {
+  switch (type) {
+    case Point_NONE: {
+      return true;
+    }
+    case Point_DepositHelper: {
+      auto ptr = reinterpret_cast<const quantra::DepositHelper *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case Point_FRAHelper: {
+      auto ptr = reinterpret_cast<const quantra::FRAHelper *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case Point_FutureHelper: {
+      auto ptr = reinterpret_cast<const quantra::FutureHelper *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case Point_SwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::SwapHelper *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case Point_BondHelper: {
+      auto ptr = reinterpret_cast<const quantra::BondHelper *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return true;
+  }
+}
+
+inline bool VerifyPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyPoint(
+        verifier,  values->Get(i), types->GetEnum<Point>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline bool VerifyOptionletVolatilityStructure(::flatbuffers::Verifier &verifier, const void *obj, OptionletVolatilityStructure type) {
+  switch (type) {
+    case OptionletVolatilityStructure_NONE: {
+      return true;
+    }
+    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
+      auto ptr = reinterpret_cast<const quantra::ConstantOptionletVolatility *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return true;
+  }
+}
+
+inline bool VerifyOptionletVolatilityStructureVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyOptionletVolatilityStructure(
+        verifier,  values->Get(i), types->GetEnum<OptionletVolatilityStructure>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline bool VerifyPricer(::flatbuffers::Verifier &verifier, const void *obj, Pricer type) {
+  switch (type) {
+    case Pricer_NONE: {
+      return true;
+    }
+    case Pricer_BlackIborCouponPricer: {
+      auto ptr = reinterpret_cast<const quantra::BlackIborCouponPricer *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return true;
+  }
+}
+
+inline bool VerifyPricerVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyPricer(
+        verifier,  values->Get(i), types->GetEnum<Pricer>(i))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 inline bool VerifyFlow(::flatbuffers::Verifier &verifier, const void *obj, Flow type) {

@@ -10,7 +10,7 @@ class Client:
     def price_fixed_rate_bonds(self, request_object: PriceFixedRateBondRequestT):
         """
         Takes a high-level python object (PriceFixedRateBondRequestT),
-        serializes it, sends it to server, and returns the response object.
+        serializes it, sends it to server, and returns the response READER.
         """
         return self._call(
             method="/quantra.QuantraServer/PriceFixedRateBond",
@@ -19,9 +19,6 @@ class Client:
         )
 
     def _call(self, method, request_obj, response_class):
-        """
-        Generic helper to handle serialization/deserialization logic.
-        """
         # 1. Serialize: Create a builder and Pack the object
         builder = flatbuffers.Builder(1024)
         offset = request_obj.Pack(builder)
@@ -29,11 +26,10 @@ class Client:
         request_bytes = bytes(builder.Output())
 
         # 2. Transmit: Send raw bytes over gRPC
-        # We use unary_unary generic call to avoid needing generated gRPC stubs
         unary_call = self.channel.unary_unary(
             method,
-            request_serializer=lambda x: x, # Pass through bytes
-            response_deserializer=lambda x: x, # Pass through bytes
+            request_serializer=lambda x: x,
+            response_deserializer=lambda x: x,
         )
         
         try:
@@ -42,7 +38,6 @@ class Client:
             print(f"RPC Error: {e.details()}")
             raise
 
-        # 3. Deserialize: Unpack bytes back into a Python Object
-        # GetRootAs... creates the reader, .Unpack() creates the Python Object
-        response_reader = response_class.GetRootAs(response_bytes, 0)
-        return response_reader.Unpack()
+        # 3. Deserialize: Get the Reader (Do not Unpack)
+        # This returns the raw Table accessor which is always available
+        return response_class.GetRootAs(response_bytes, 0)

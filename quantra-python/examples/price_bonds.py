@@ -1,197 +1,137 @@
-#!/usr/bin/env python3
-"""
-Benchmark the Quantra Python client.
-"""
-
-import asyncio
-import time
 import sys
-sys.path.insert(0, '/workspace/quantra-python')
+import os
 
-from quantra_client import (
-    Client,
-    FixedRateBond,
-    Schedule,
-    TermStructure,
-    DepositHelper,
-    BondHelper,
-    DayCounter,
-    Calendar,
-    BusinessDayConvention,
-    Frequency,
-    TimeUnit,
-    DateGenerationRule,
-    Interpolator,
-    BootstrapTrait,
-)
+# --- Import our new Client Wrapper ---
+from client_wrapper import Client
 
+# --- Import Generated Data Structures ---
+from quantra.Pricing import PricingT
+from quantra.TermStructure import TermStructureT
+from quantra.Point import Point
+from quantra.PointsWrapper import PointsWrapperT
+from quantra.DepositHelper import DepositHelperT
+from quantra.FixedRateBond import FixedRateBondT
+from quantra.Schedule import ScheduleT
+from quantra.PriceFixedRateBond import PriceFixedRateBondT
+from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
 
-def create_term_structure() -> TermStructure:
-    """Create a sample term structure for discounting."""
-    
-    deposit_3m = DepositHelper(
-        rate=0.0096,
-        tenor_number=3,
-        tenor_time_unit=TimeUnit.Months,
-        fixing_days=3,
-        calendar=Calendar.TARGET,
-        business_day_convention=BusinessDayConvention.ModifiedFollowing,
-        day_counter=DayCounter.Actual365Fixed,
-    )
-    
-    deposit_6m = DepositHelper(
-        rate=0.0145,
-        tenor_number=6,
-        tenor_time_unit=TimeUnit.Months,
-        fixing_days=3,
-        calendar=Calendar.TARGET,
-        business_day_convention=BusinessDayConvention.ModifiedFollowing,
-        day_counter=DayCounter.Actual365Fixed,
-    )
-    
-    deposit_1y = DepositHelper(
-        rate=0.0194,
-        tenor_number=1,
-        tenor_time_unit=TimeUnit.Years,
-        fixing_days=3,
-        calendar=Calendar.TARGET,
-        business_day_convention=BusinessDayConvention.ModifiedFollowing,
-        day_counter=DayCounter.Actual365Fixed,
-    )
-    
-    bond_helpers = []
-    issue_dates = ["2005/03/15", "2005/06/15", "2006/06/30", "2002/11/15", "1987/05/15"]
-    maturities = ["2010/08/31", "2011/08/31", "2013/08/31", "2018/08/15", "2038/05/15"]
-    coupon_rates = [0.02375, 0.04625, 0.03125, 0.04000, 0.04500]
-    market_quotes = [100.390625, 106.21875, 100.59375, 101.6875, 102.140625]
-    
-    for i in range(5):
-        schedule = Schedule(
-            calendar=Calendar.UnitedStatesGovernmentBond,
-            effective_date=issue_dates[i],
-            termination_date=maturities[i],
-            frequency=Frequency.Semiannual,
-            convention=BusinessDayConvention.Unadjusted,
-            termination_date_convention=BusinessDayConvention.Unadjusted,
-            date_generation_rule=DateGenerationRule.Backward,
-            end_of_month=False,
-        )
+# Enums
+from quantra.enums.TimeUnit import TimeUnit
+from quantra.enums.Calendar import Calendar
+from quantra.enums.BusinessDayConvention import BusinessDayConvention
+from quantra.enums.DayCounter import DayCounter
+from quantra.enums.Frequency import Frequency
+from quantra.enums.DateGenerationRule import DateGenerationRule
+from quantra.enums.Interpolator import Interpolator
+from quantra.enums.BootstrapTrait import BootstrapTrait
+
+def run():
+    print("Initializing Client...")
+    client = Client(target="localhost:50051")
+
+    # --- 1. Create Curve Data ---
+    # Short term rate (6 Months)
+    deposit_short = DepositHelperT()
+    deposit_short.rate = 0.03
+    deposit_short.tenorNumber = 6
+    deposit_short.tenorTimeUnit = TimeUnit.Months
+    deposit_short.fixingDays = 2
+    deposit_short.calendar = Calendar.TARGET
+    deposit_short.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    deposit_short.dayCounter = DayCounter.Actual360
+
+    wrapper_short = PointsWrapperT()
+    wrapper_short.point = deposit_short
+    wrapper_short.pointType = Point.DepositHelper
+
+    # Long term rate (30 Years) - Required for 2017 bond
+    deposit_long = DepositHelperT()
+    deposit_long.rate = 0.05
+    deposit_long.tenorNumber = 30
+    deposit_long.tenorTimeUnit = TimeUnit.Years
+    deposit_long.fixingDays = 2
+    deposit_long.calendar = Calendar.TARGET
+    deposit_long.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    deposit_long.dayCounter = DayCounter.Actual360
+
+    wrapper_long = PointsWrapperT()
+    wrapper_long.point = deposit_long
+    wrapper_long.pointType = Point.DepositHelper
+
+    curve = TermStructureT()
+    curve.id = "depos"
+    curve.referenceDate = "2008/09/18"
+    curve.dayCounter = DayCounter.Actual360
+    curve.interpolator = Interpolator.Linear
+    curve.bootstrapTrait = BootstrapTrait.Discount
+    curve.points = [wrapper_short, wrapper_long]
+
+    # --- 2. Create Bond Data (Matures 2017) ---
+    schedule = ScheduleT()
+    schedule.effectiveDate = "2007/05/15"
+    schedule.terminationDate = "2017/05/15"
+    schedule.frequency = Frequency.Semiannual
+    schedule.calendar = Calendar.UnitedStatesGovernmentBond
+    schedule.convention = BusinessDayConvention.Unadjusted
+    schedule.terminationDateConvention = BusinessDayConvention.Unadjusted
+    schedule.dateGenerationRule = DateGenerationRule.Backward
+    schedule.endOfMonth = False
+
+    bond = FixedRateBondT()
+    bond.issueDate = "2007/05/15"
+    bond.faceAmount = 100.0
+    bond.rate = 0.045
+    bond.accrualDayCounter = DayCounter.ActualActualBond
+    bond.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    bond.redemption = 100.0
+    bond.settlementDays = 3
+    bond.schedule = schedule
+
+    # --- 3. Build Request ---
+    pricing_config = PricingT()
+    pricing_config.asOfDate = "2008/09/18"
+    pricing_config.settlementDate = "2008/09/18"
+    pricing_config.curves = [curve]
+
+    price_request_item = PriceFixedRateBondT()
+    price_request_item.fixedRateBond = bond
+    price_request_item.discountingCurve = "depos"
+
+    full_request = PriceFixedRateBondRequestT()
+    full_request.pricing = pricing_config
+    full_request.bonds = [price_request_item]
+
+    # --- 4. Call Server and Read Response ---
+    print("Sending Request...")
+    try:
+        # response here is the Raw Reader (because of our change in client_wrapper)
+        response = client.price_fixed_rate_bonds(full_request)
         
-        bond = BondHelper(
-            rate=market_quotes[i],
-            settlement_days=3,
-            face_amount=100.0,
-            schedule=schedule,
-            coupon_rate=coupon_rates[i],
-            day_counter=DayCounter.ActualActualBond,
-            business_day_convention=BusinessDayConvention.Unadjusted,
-            redemption=100.0,
-            issue_date=issue_dates[i],
-        )
-        bond_helpers.append(bond)
-    
-    points = [deposit_3m, deposit_6m, deposit_1y] + bond_helpers
-    
-    return TermStructure(
-        id="depos",
-        day_counter=DayCounter.ActualActual365,
-        interpolator=Interpolator.LogLinear,
-        bootstrap_trait=BootstrapTrait.Discount,
-        reference_date="2008/09/18",
-        points=points,
-    )
+        # Use Reader API (Capitalized Methods)
+        num_bonds = response.BondsLength()
+        print(f"Received {num_bonds} results.")
 
+        for i in range(num_bonds):
+            bond_res = response.Bonds(i)
+            
+            # Access fields via methods
+            npv = bond_res.Npv()
+            clean_price = bond_res.CleanPrice()
+            dirty_price = bond_res.DirtyPrice()
+            yld = bond_res.Yield() # Safe method name
+            accrued = bond_res.AccruedAmount()
 
-def create_fixed_rate_bond() -> FixedRateBond:
-    """Create a sample fixed rate bond."""
-    
-    schedule = Schedule(
-        calendar=Calendar.UnitedStatesGovernmentBond,
-        effective_date="2007/05/15",
-        termination_date="2017/05/15",
-        frequency=Frequency.Semiannual,
-        convention=BusinessDayConvention.Unadjusted,
-        termination_date_convention=BusinessDayConvention.Unadjusted,
-        date_generation_rule=DateGenerationRule.Backward,
-        end_of_month=False,
-    )
-    
-    return FixedRateBond(
-        settlement_days=3,
-        face_amount=100.0,
-        rate=0.045,
-        accrual_day_counter=DayCounter.ActualActualBond,
-        payment_convention=BusinessDayConvention.ModifiedFollowing,
-        redemption=100.0,
-        issue_date="2007/05/15",
-        schedule=schedule,
-    )
-
-
-async def benchmark(num_bonds: int, num_requests: int):
-    """Run benchmark."""
-    
-    curve = create_term_structure()
-    bonds = [create_fixed_rate_bond() for _ in range(num_bonds)]
-    
-    async with Client('localhost:50051') as client:
-        start = time.perf_counter()
-        
-        results = await client.price_fixed_rate_bonds(
-            bonds=bonds,
-            curves=[curve],
-            as_of_date='2008/09/18',
-            settlement_date='2008/09/18',
-            num_requests=num_requests,
-            discount_curve='depos',
-        )
-        
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        
-        # Calculate total NPV
-        total_npv = sum(r.get('npv', 0) or 0 for r in results)
-        errors = sum(1 for r in results if 'error' in r)
-        
-        return {
-            'bonds': num_bonds,
-            'requests': num_requests,
-            'elapsed_ms': elapsed_ms,
-            'throughput': num_bonds / elapsed_ms * 1000,
-            'total_npv': total_npv,
-            'errors': errors,
-        }
-
-
-async def main():
-    print("=" * 70)
-    print("Quantra Python Client Benchmark")
-    print("=" * 70)
-    
-    # Test configurations
-    configs = [
-        (100, 10),
-        (1000, 10),
-        (1000, 1),   # Single request for comparison
-        #(100000, 10),
-    ]
-    
-    for num_bonds, num_requests in configs:
-        result = await benchmark(num_bonds, num_requests)
-        
-        print(f"\nBonds: {result['bonds']:5d} | "
-              f"Requests: {result['requests']:2d} | "
-              f"Time: {result['elapsed_ms']:7.1f}ms | "
-              f"Throughput: {result['throughput']:7.0f} bonds/sec | "
-              f"NPV: {result['total_npv']:.2f}")
-        
-        if result['errors']:
-            print(f"  WARNING: {result['errors']} errors")
-    
-    print("\n" + "=" * 70)
-    print("Compare with C++ benchmark:")
-    print("  cd /workspace/build && ./tests/benchmark 100 10 0")
-    print("=" * 70)
-
+            print(f"\n✅ Bond {i+1} Pricing Successful:")
+            print(f"   NPV:          {npv:.4f}")
+            print(f"   Clean Price:  {clean_price:.4f}")
+            print(f"   Dirty Price:  {dirty_price:.4f}")
+            print(f"   Yield:        {yld:.4%}")
+            print(f"   Accrued Amt:  {accrued:.4f}")
+            
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run()
