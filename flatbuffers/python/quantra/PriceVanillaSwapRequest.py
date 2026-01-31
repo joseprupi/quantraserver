@@ -29,6 +29,7 @@ class PriceVanillaSwapRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Pricing import Pricing
             obj = Pricing()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -41,6 +42,7 @@ class PriceVanillaSwapRequest(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.PriceVanillaSwap import PriceVanillaSwap
             obj = PriceVanillaSwap()
             obj.Init(self._tab.Bytes, x)
             return obj

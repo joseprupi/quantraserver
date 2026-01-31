@@ -45,6 +45,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.TermStructure import TermStructure
             obj = TermStructure()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -69,6 +70,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.VolatilityTermStructure import VolatilityTermStructure
             obj = VolatilityTermStructure()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -107,6 +109,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.CouponPricer import CouponPricer
             obj = CouponPricer()
             obj.Init(self._tab.Bytes, x)
             return obj
