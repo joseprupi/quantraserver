@@ -17,11 +17,24 @@ namespace quantra {
 
 struct SwaptionResponse;
 struct SwaptionResponseBuilder;
+struct SwaptionResponseT;
 
 struct PriceSwaptionResponse;
 struct PriceSwaptionResponseBuilder;
+struct PriceSwaptionResponseT;
+
+struct SwaptionResponseT : public ::flatbuffers::NativeTable {
+  typedef SwaptionResponse TableType;
+  double npv = 0.0;
+  double implied_volatility = 0.0;
+  double atm_forward = 0.0;
+  double annuity = 0.0;
+  double delta = 0.0;
+  double vega = 0.0;
+};
 
 struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionResponseT NativeTableType;
   typedef SwaptionResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NPV = 4,
@@ -59,6 +72,9 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_VEGA, 8) &&
            verifier.EndTable();
   }
+  SwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionResponseT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionResponse> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct SwaptionResponseBuilder {
@@ -112,7 +128,19 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   return builder_.Finish();
 }
 
+::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PriceSwaptionResponseT : public ::flatbuffers::NativeTable {
+  typedef PriceSwaptionResponse TableType;
+  std::vector<std::unique_ptr<quantra::SwaptionResponseT>> swaptions{};
+  PriceSwaptionResponseT() = default;
+  PriceSwaptionResponseT(const PriceSwaptionResponseT &o);
+  PriceSwaptionResponseT(PriceSwaptionResponseT&&) FLATBUFFERS_NOEXCEPT = default;
+  PriceSwaptionResponseT &operator=(PriceSwaptionResponseT o) FLATBUFFERS_NOEXCEPT;
+};
+
 struct PriceSwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PriceSwaptionResponseT NativeTableType;
   typedef PriceSwaptionResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SWAPTIONS = 4
@@ -127,6 +155,9 @@ struct PriceSwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
            verifier.VerifyVectorOfTables(swaptions()) &&
            verifier.EndTable();
   }
+  PriceSwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PriceSwaptionResponseT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<PriceSwaptionResponse> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct PriceSwaptionResponseBuilder {
@@ -164,6 +195,85 @@ inline ::flatbuffers::Offset<PriceSwaptionResponse> CreatePriceSwaptionResponseD
       swaptions__);
 }
 
+::flatbuffers::Offset<PriceSwaptionResponse> CreatePriceSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline SwaptionResponseT *SwaptionResponse::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionResponseT>(new SwaptionResponseT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionResponse::UnPackTo(SwaptionResponseT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = npv(); _o->npv = _e; }
+  { auto _e = implied_volatility(); _o->implied_volatility = _e; }
+  { auto _e = atm_forward(); _o->atm_forward = _e; }
+  { auto _e = annuity(); _o->annuity = _e; }
+  { auto _e = delta(); _o->delta = _e; }
+  { auto _e = vega(); _o->vega = _e; }
+}
+
+inline ::flatbuffers::Offset<SwaptionResponse> SwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionResponse(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _npv = _o->npv;
+  auto _implied_volatility = _o->implied_volatility;
+  auto _atm_forward = _o->atm_forward;
+  auto _annuity = _o->annuity;
+  auto _delta = _o->delta;
+  auto _vega = _o->vega;
+  return quantra::CreateSwaptionResponse(
+      _fbb,
+      _npv,
+      _implied_volatility,
+      _atm_forward,
+      _annuity,
+      _delta,
+      _vega);
+}
+
+inline PriceSwaptionResponseT::PriceSwaptionResponseT(const PriceSwaptionResponseT &o) {
+  swaptions.reserve(o.swaptions.size());
+  for (const auto &swaptions_ : o.swaptions) { swaptions.emplace_back((swaptions_) ? new quantra::SwaptionResponseT(*swaptions_) : nullptr); }
+}
+
+inline PriceSwaptionResponseT &PriceSwaptionResponseT::operator=(PriceSwaptionResponseT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(swaptions, o.swaptions);
+  return *this;
+}
+
+inline PriceSwaptionResponseT *PriceSwaptionResponse::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<PriceSwaptionResponseT>(new PriceSwaptionResponseT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void PriceSwaptionResponse::UnPackTo(PriceSwaptionResponseT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = swaptions(); if (_e) { _o->swaptions.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaptions[_i]) { _e->Get(_i)->UnPackTo(_o->swaptions[_i].get(), _resolver); } else { _o->swaptions[_i] = std::unique_ptr<quantra::SwaptionResponseT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaptions.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<PriceSwaptionResponse> PriceSwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePriceSwaptionResponse(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<PriceSwaptionResponse> CreatePriceSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceSwaptionResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _swaptions = _o->swaptions.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwaptionResponse>> (_o->swaptions.size(), [](size_t i, _VectorArgs *__va) { return CreateSwaptionResponse(*__va->__fbb, __va->__o->swaptions[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreatePriceSwaptionResponse(
+      _fbb,
+      _swaptions);
+}
+
 inline const quantra::PriceSwaptionResponse *GetPriceSwaptionResponse(const void *buf) {
   return ::flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(buf);
 }
@@ -192,6 +302,18 @@ inline void FinishSizePrefixedPriceSwaptionResponseBuffer(
     ::flatbuffers::FlatBufferBuilder &fbb,
     ::flatbuffers::Offset<quantra::PriceSwaptionResponse> root) {
   fbb.FinishSizePrefixed(root);
+}
+
+inline std::unique_ptr<quantra::PriceSwaptionResponseT> UnPackPriceSwaptionResponse(
+    const void *buf,
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<quantra::PriceSwaptionResponseT>(GetPriceSwaptionResponse(buf)->UnPack(res));
+}
+
+inline std::unique_ptr<quantra::PriceSwaptionResponseT> UnPackSizePrefixedPriceSwaptionResponse(
+    const void *buf,
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<quantra::PriceSwaptionResponseT>(GetSizePrefixedPriceSwaptionResponse(buf)->UnPack(res));
 }
 
 }  // namespace quantra

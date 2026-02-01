@@ -29,7 +29,6 @@ class PriceFixedRateBondRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Pricing import Pricing
             obj = Pricing()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -42,7 +41,6 @@ class PriceFixedRateBondRequest(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PriceFixedRateBond import PriceFixedRateBond
             obj = PriceFixedRateBond()
             obj.Init(self._tab.Bytes, x)
             return obj

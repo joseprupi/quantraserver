@@ -11,8 +11,15 @@ Usage:
 """
 
 import sys
-sys.path.insert(0, '/workspace/flatbuffers/python')
-sys.path.insert(0, '/workspace/quantra-python')
+import os
+
+# Get the project root directory (parent of tests/)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
+# Add paths for imports
+sys.path.insert(0, os.path.join(PROJECT_ROOT, 'flatbuffers/python'))
+sys.path.insert(0, os.path.join(PROJECT_ROOT, 'quantra-python'))
 
 import QuantLib as ql
 from quantra_client.client import (

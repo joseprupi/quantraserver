@@ -24,13 +24,6 @@ file(GLOB JSON_SOURCES
     data/fixed_rate_bond_request_fbs.cpp
     ./bond_request_to_json.cpp)
 
-file(GLOB BOND_REQUEST_SORUCES
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp
-    ${CMAKE_SOURCE_DIR}/common/*.cpp
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
-    ./messages.cpp
-    ./bond_request_example.cpp)
-
 file(GLOB SWAP_CLIENT_SOURCES
     ${CMAKE_SOURCE_DIR}/parser/*.cpp
     ${CMAKE_SOURCE_DIR}/common/*.cpp
@@ -81,7 +74,6 @@ set(ABSL_LIBS
     absl_throw_delegate
 )
 
-add_executable(bond_request ${BOND_REQUEST_SORUCES})
 add_executable(async_client ${ASYNC_SOURCES})
 add_executable(bond_request_to_json ${JSON_SOURCES})
 add_executable(swap_client ${SWAP_CLIENT_SOURCES})
@@ -89,7 +81,6 @@ add_executable(fra_client ${FRA_CLIENT_SOURCES})
 add_executable(cap_floor_client ${CAP_FLOOR_CLIENT_SOURCES})
 add_executable(swaption_client ${SWAPTION_CLIENT_SOURCES})
 
-target_link_libraries(bond_request gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads cpp_client ${ABSL_LIBS})
 target_link_libraries(async_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(bond_request_to_json gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})
 target_link_libraries(swap_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads ${ABSL_LIBS})

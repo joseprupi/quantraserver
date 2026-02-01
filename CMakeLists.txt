@@ -121,9 +121,9 @@ set(GRPC_ALL_LIBS
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/grpc)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/client)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
-# Skip jsonserver - Crow/Boost.Asio compatibility issue
-message(STATUS "Skipping jsonserver (Crow/Boost.Asio compatibility issue)")
+# JSON Server - HTTP/JSON API gateway
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/jsonserver)

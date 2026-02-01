@@ -93,7 +93,7 @@ fi
 # ================================
 # Integration Tests: Server-Client
 # ================================
-print_header "Integration Tests: Server-Client"
+print_header "Integration Tests: Server-Client (C++)"
 
 SERVER_BIN="${BUILD_DIR}/server/sync_server"
 CLIENT_TEST="${BUILD_DIR}/tests/test_server_client"
@@ -150,24 +150,60 @@ else
 fi
 
 # ================================
+# Python Client Tests
+# ================================
+print_header "Python Client Tests: Quantra vs QuantLib Python"
+
+PYTHON_TEST="${SCRIPT_DIR}/test_python_client.py"
+WORKSPACE_ROOT="${SCRIPT_DIR}/.."
+PYTHON_RESULT=0
+
+if [ -f "$PYTHON_TEST" ]; then
+    # Check if QuantLib Python is available
+    if python3 -c "import QuantLib" 2>/dev/null; then
+        echo "Running Python client comparison tests..."
+        if PYTHONPATH="${WORKSPACE_ROOT}/quantra-python:${WORKSPACE_ROOT}/flatbuffers/python" python3 "$PYTHON_TEST"; then
+            print_success "Python client tests passed"
+            PYTHON_RESULT=0
+        else
+            print_error "Python client tests failed"
+            PYTHON_RESULT=1
+        fi
+    else
+        print_warning "QuantLib Python not installed - skipping Python tests"
+        print_warning "Install with: pip3 install QuantLib --break-system-packages"
+        PYTHON_RESULT=0  # Don't fail if QuantLib not installed
+    fi
+else
+    print_warning "Python test file not found: $PYTHON_TEST"
+    PYTHON_RESULT=0
+fi
+
+# ================================
 # Summary
 # ================================
 print_header "Test Summary"
 
-if [ $INTEGRATION_RESULT -eq 0 ]; then
+ALL_PASSED=true
+if [ $INTEGRATION_RESULT -ne 0 ]; then ALL_PASSED=false; fi
+if [ $PYTHON_RESULT -ne 0 ]; then ALL_PASSED=false; fi
+
+if $ALL_PASSED; then
     print_success "All tests passed!"
     echo ""
     echo "Test Results:"
-    echo "  - Unit Tests (Quantra vs QuantLib): PASSED"
-    echo "  - Integration Tests (Server-Client): PASSED"
+    echo "  - Unit Tests (Quantra vs QuantLib C++): PASSED"
+    echo "  - Integration Tests (Server-Client):    PASSED"
+    echo "  - Python Client Tests:                  PASSED"
     echo ""
     exit 0
 else
     print_error "Some tests failed"
     echo ""
     echo "Test Results:"
-    echo "  - Unit Tests (Quantra vs QuantLib): PASSED"
-    echo "  - Integration Tests (Server-Client): FAILED"
+    echo "  - Unit Tests (Quantra vs QuantLib C++): PASSED"
+    echo "  - Integration Tests (Server-Client):    $([ $INTEGRATION_RESULT -eq 0 ] && echo 'PASSED' || echo 'FAILED')"
+    echo "  - Python Client Tests:                  $([ $PYTHON_RESULT -eq 0 ] && echo 'PASSED' || echo 'FAILED')"
     echo ""
     exit 1
 fi

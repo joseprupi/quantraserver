@@ -29,7 +29,6 @@ class PriceFloatingRateBond(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.FloatingRateBond import FloatingRateBond
             obj = FloatingRateBond()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -61,7 +60,6 @@ class PriceFloatingRateBond(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Yield import Yield
             obj = Yield()
             obj.Init(self._tab.Bytes, x)
             return obj

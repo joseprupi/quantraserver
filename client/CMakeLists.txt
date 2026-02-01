@@ -1,14 +1,28 @@
 # Client CMakeLists.txt
+# 
+# The Quantra client is now header-only (quantra_client.h)
+# This CMakeLists sets up an INTERFACE library for consumers
+
 include_directories(
     ${CMAKE_SOURCE_DIR}/grpc
-    ${CMAKE_SOURCE_DIR}/parser
     ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
-    ${CMAKE_SOURCE_DIR}/request
-    ${CMAKE_SOURCE_DIR}/common
-    cpp)
+    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+    ${CMAKE_SOURCE_DIR}/client/cpp
+)
 
-file(GLOB CPP_CLIENT_SOURCES cpp/*.cpp)
+# Create an INTERFACE library (header-only)
+add_library(quantra_client INTERFACE)
 
-add_library(cpp_client STATIC ${CPP_CLIENT_SOURCES})
+target_include_directories(quantra_client INTERFACE
+    ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
+    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+    ${CMAKE_SOURCE_DIR}/client/cpp
+)
 
-target_link_libraries(cpp_client ${GRPC_ALL_LIBS} flatbuffers quantra_grpc QuantLib)
+# Link dependencies that consumers will need
+target_link_libraries(quantra_client INTERFACE
+    ${GRPC_ALL_LIBS}
+    flatbuffers
+    quantra_grpc
+)

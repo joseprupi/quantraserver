@@ -29,7 +29,6 @@ class SwapFloatingLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Schedule import Schedule
             obj = Schedule()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -47,7 +46,6 @@ class SwapFloatingLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Index import Index
             obj = Index()
             obj.Init(self._tab.Bytes, x)
             return obj

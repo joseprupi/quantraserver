@@ -1,0 +1,78 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "curves": [
+      {
+        "id": "discount",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 3,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 6,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 1,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fras": [
+    {
+      "fra": {
+        "fra_type": "Long",
+        "notional": 1000000.0,
+        "start_date": "2025-04-15",
+        "maturity_date": "2025-07-15",
+        "strike": 0.032,
+        "index": {
+          "period_number": 3,
+          "period_time_unit": "Months",
+          "settlement_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": false,
+          "day_counter": "Actual360"
+        },
+        "day_counter": "Actual360",
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing"
+      },
+      "discounting_curve": "discount",
+      "forwarding_curve": "discount"
+    }
+  ]
+}
