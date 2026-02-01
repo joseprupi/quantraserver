@@ -1,0 +1,763 @@
+#!/usr/bin/env python3
+"""
+Quantra JSON API vs QuantLib Comparison
+
+Loads JSON requests from examples/data folder, calls the JSON API,
+then builds equivalent QuantLib objects and compares the NPVs.
+
+Usage:
+    python3 tests/test_json_files_vs_quantlib.py --url http://localhost:8080 --data-dir examples/data
+"""
+
+import json
+import argparse
+import requests
+from pathlib import Path
+from typing import Tuple, Optional, Dict, Any
+
+try:
+    import QuantLib as ql
+except ImportError:
+    print("ERROR: QuantLib not found. Install with: pip install QuantLib")
+    exit(1)
+
+
+# =============================================================================
+# API Client
+# =============================================================================
+
+class ApiClient:
+    ENDPOINTS = {
+        "fixed_rate_bond": "price-fixed-rate-bond",
+        "floating_rate_bond": "price-floating-rate-bond",
+        "vanilla_swap": "price-vanilla-swap",
+        "fra": "price-fra",
+        "cap_floor": "price-cap-floor",
+        "swaption": "price-swaption",
+        "cds": "price-cds",
+    }
+    
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip('/')
+        self.session = requests.Session()
+        self.session.headers.update({'Content-Type': 'application/json'})
+    
+    def health(self) -> bool:
+        try:
+            return self.session.get(f"{self.base_url}/health").status_code == 200
+        except:
+            return False
+    
+    def price(self, product: str, request: dict) -> dict:
+        endpoint = self.ENDPOINTS[product]
+        r = self.session.post(f"{self.base_url}/{endpoint}", json=request)
+        if r.status_code != 200:
+            raise Exception(f"API error ({r.status_code}): {r.text[:200]}")
+        return r.json()
+
+
+# =============================================================================
+# JSON Helpers
+# =============================================================================
+
+def load_json(filepath: Path) -> dict:
+    with open(filepath) as f:
+        return json.load(f)
+
+
+def parse_date(date_str: str) -> ql.Date:
+    """Parse date string like '2025-01-15' or '2025/01/15' to QuantLib Date."""
+    date_str = date_str.replace('/', '-')
+    parts = date_str.split('-')
+    return ql.Date(int(parts[2]), int(parts[1]), int(parts[0]))
+
+
+def get_day_counter(name: str) -> ql.DayCounter:
+    mapping = {
+        "Actual360": ql.Actual360(),
+        "Actual365Fixed": ql.Actual365Fixed(),
+        "ActualActualISDA": ql.ActualActual(ql.ActualActual.ISDA),
+        "ActualActualBond": ql.ActualActual(ql.ActualActual.Bond),
+        "Thirty360": ql.Thirty360(ql.Thirty360.BondBasis),
+    }
+    return mapping.get(name, ql.Actual365Fixed())
+
+
+def get_frequency(name: str):
+    mapping = {
+        "Annual": ql.Annual,
+        "Semiannual": ql.Semiannual,
+        "Quarterly": ql.Quarterly,
+        "Monthly": ql.Monthly,
+    }
+    return mapping.get(name, ql.Annual)
+
+
+def get_convention(name: str):
+    mapping = {
+        "ModifiedFollowing": ql.ModifiedFollowing,
+        "Following": ql.Following,
+        "Preceding": ql.Preceding,
+        "Unadjusted": ql.Unadjusted,
+    }
+    return mapping.get(name, ql.ModifiedFollowing)
+
+
+def get_calendar(name: str):
+    mapping = {
+        "TARGET": ql.TARGET(),
+        "UnitedStates": ql.UnitedStates(ql.UnitedStates.NYSE),
+        "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
+        "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
+    }
+    return mapping.get(name, ql.TARGET())
+
+
+def get_date_generation(name: str):
+    mapping = {
+        "Forward": ql.DateGeneration.Forward,
+        "Backward": ql.DateGeneration.Backward,
+        "TwentiethIMM": ql.DateGeneration.TwentiethIMM,
+    }
+    return mapping.get(name, ql.DateGeneration.Forward)
+
+
+# =============================================================================
+# Curve Building
+# =============================================================================
+
+def build_curve_from_json(curve_json: dict, eval_date: ql.Date) -> ql.YieldTermStructureHandle:
+    """Build QuantLib curve from JSON curve definition."""
+    helpers = []
+    seen_pillars = set()  # Track pillar dates to avoid duplicates
+    
+    for point_wrapper in curve_json.get("points", []):
+        point_type = point_wrapper["point_type"]
+        point = point_wrapper["point"]
+        
+        if point_type == "DepositHelper":
+            tenor_num = point["tenor_number"]
+            tenor_str = point["tenor_time_unit"]
+            if tenor_str == "Weeks":
+                tenor_unit = ql.Weeks
+            elif tenor_str == "Months":
+                tenor_unit = ql.Months
+            else:
+                tenor_unit = ql.Years
+            
+            helper = ql.DepositRateHelper(
+                point["rate"],
+                ql.Period(tenor_num, tenor_unit),
+                point.get("fixing_days", 2),
+                get_calendar(point.get("calendar", "TARGET")),
+                get_convention(point.get("business_day_convention", "ModifiedFollowing")),
+                True,
+                get_day_counter(point.get("day_counter", "Actual365Fixed"))
+            )
+            
+            # Check for duplicate pillar
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+        
+        elif point_type == "SwapHelper":
+            tenor_num = point["tenor_number"]
+            tenor_unit = ql.Years if point["tenor_time_unit"] == "Years" else ql.Months
+            index = ql.Euribor6M()  # Default, could be configured
+            
+            helper = ql.SwapRateHelper(
+                point["rate"],
+                ql.Period(tenor_num, tenor_unit),
+                get_calendar(point.get("calendar", "TARGET")),
+                get_frequency(point.get("sw_fixed_leg_frequency", "Annual")),
+                get_convention(point.get("sw_fixed_leg_convention", "ModifiedFollowing")),
+                get_day_counter(point.get("sw_fixed_leg_day_counter", "Thirty360")),
+                index
+            )
+            
+            # Check for duplicate pillar
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+        
+        elif point_type == "BondHelper":
+            # Build bond schedule
+            sch = point["schedule"]
+            schedule = ql.Schedule(
+                parse_date(sch["effective_date"]),
+                parse_date(sch["termination_date"]),
+                ql.Period(get_frequency(sch["frequency"])),
+                get_calendar(sch.get("calendar", "TARGET")),
+                get_convention(sch.get("convention", "Unadjusted")),
+                get_convention(sch.get("termination_date_convention", "Unadjusted")),
+                get_date_generation(sch.get("date_generation_rule", "Backward")),
+                False
+            )
+            
+            # Create fixed rate bond helper
+            helper = ql.FixedRateBondHelper(
+                ql.QuoteHandle(ql.SimpleQuote(point["rate"])),  # Clean price
+                point.get("settlement_days", 3),
+                point.get("face_amount", 100.0),
+                schedule,
+                [point["coupon_rate"]],
+                get_day_counter(point.get("day_counter", "ActualActualBond")),
+                get_convention(point.get("business_day_convention", "Unadjusted")),
+                point.get("redemption", 100.0),
+                parse_date(point.get("issue_date", sch["effective_date"]))
+            )
+            
+            # Check for duplicate pillar
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+    
+    if not helpers:
+        # Fallback to flat curve
+        return ql.YieldTermStructureHandle(
+            ql.FlatForward(eval_date, 0.03, ql.Actual365Fixed())
+        )
+    
+    curve = ql.PiecewiseLogLinearDiscount(eval_date, helpers, get_day_counter(curve_json.get("day_counter", "Actual365Fixed")))
+    curve.enableExtrapolation()
+    return ql.YieldTermStructureHandle(curve)
+
+
+# =============================================================================
+# QuantLib Pricing Functions
+# =============================================================================
+
+def price_fixed_rate_bond_ql(request: dict) -> float:
+    """Price fixed rate bond using QuantLib."""
+    pricing = request["pricing"]
+    bond_data = request["bonds"][0]
+    bond = bond_data["fixed_rate_bond"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build curve
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Build schedule
+    sch = bond["schedule"]
+    schedule = ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    # Build bond
+    ql_bond = ql.FixedRateBond(
+        bond.get("settlement_days", 2),
+        bond.get("face_amount", 100.0),
+        schedule,
+        [bond["rate"]],
+        get_day_counter(bond.get("accrual_day_counter", "Thirty360"))
+    )
+    ql_bond.setPricingEngine(ql.DiscountingBondEngine(curve))
+    
+    return ql_bond.NPV()
+
+
+def price_floating_rate_bond_ql(request: dict) -> float:
+    """Price floating rate bond using QuantLib."""
+    pricing = request["pricing"]
+    bond_data = request["bonds"][0]
+    bond = bond_data["floating_rate_bond"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build discount curve
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    discount_curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Build forecasting curve (may be different)
+    forecast_id = bond_data.get("forecasting_curve", curve_id)
+    forecast_json = next((c for c in pricing["curves"] if c["id"] == forecast_id), curve_json)
+    forecast_curve = build_curve_from_json(forecast_json, eval_date)
+    
+    # Build schedule
+    sch = bond["schedule"]
+    schedule = ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    # Get index info
+    idx = bond.get("index", {})
+    period_months = idx.get("period_number", 6)
+    
+    # Create index with forecasting curve
+    if period_months == 3:
+        index = ql.Euribor3M(forecast_curve)
+    elif period_months == 6:
+        index = ql.Euribor6M(forecast_curve)
+    else:
+        index = ql.Euribor6M(forecast_curve)
+    
+    # Add any fixings from the JSON
+    for fixing in idx.get("fixings", []):
+        fixing_date = parse_date(fixing["date"])
+        index.addFixing(fixing_date, fixing["rate"])
+    
+    # Build floating rate bond
+    ql_bond = ql.FloatingRateBond(
+        bond.get("settlement_days", 2),
+        bond.get("face_amount", 100.0),
+        schedule,
+        index,
+        get_day_counter(bond.get("accrual_day_counter", "Actual360")),
+        get_convention(bond.get("payment_convention", "ModifiedFollowing")),
+        bond.get("fixing_days", 2),
+        [1.0],  # gearings
+        [bond.get("spread", 0.0)],  # spreads
+        [],  # caps
+        [],  # floors
+        bond.get("in_arrears", False),
+        bond.get("redemption", 100.0),
+        parse_date(bond.get("issue_date", sch["effective_date"]))
+    )
+    
+    # Set up coupon pricer for floating rate coupons
+    pricer = ql.BlackIborCouponPricer()
+    volatility = ql.ConstantOptionletVolatility(
+        bond.get("settlement_days", 2),
+        get_calendar(idx.get("calendar", "TARGET")),
+        get_convention(idx.get("business_day_convention", "ModifiedFollowing")),
+        0.0,  # zero volatility for simple pricing
+        ql.Actual365Fixed()
+    )
+    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(volatility))
+    ql.setCouponPricer(ql_bond.cashflows(), pricer)
+    
+    ql_bond.setPricingEngine(ql.DiscountingBondEngine(discount_curve))
+    
+    return ql_bond.NPV()
+
+
+def price_vanilla_swap_ql(request: dict) -> float:
+    """Price vanilla swap using QuantLib."""
+    pricing = request["pricing"]
+    swap_data = request["swaps"][0]
+    swap = swap_data["vanilla_swap"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build curve
+    curve_id = swap_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Fixed leg
+    fixed_leg = swap["fixed_leg"]
+    fixed_sch = fixed_leg["schedule"]
+    fixed_schedule = ql.Schedule(
+        parse_date(fixed_sch["effective_date"]),
+        parse_date(fixed_sch["termination_date"]),
+        ql.Period(get_frequency(fixed_sch["frequency"])),
+        get_calendar(fixed_sch.get("calendar", "TARGET")),
+        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
+        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    # Float leg
+    float_leg = swap["floating_leg"]
+    float_sch = float_leg["schedule"]
+    float_schedule = ql.Schedule(
+        parse_date(float_sch["effective_date"]),
+        parse_date(float_sch["termination_date"]),
+        ql.Period(get_frequency(float_sch["frequency"])),
+        get_calendar(float_sch.get("calendar", "TARGET")),
+        get_convention(float_sch.get("convention", "ModifiedFollowing")),
+        get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(float_sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    index = ql.Euribor6M(curve)
+    swap_type = ql.VanillaSwap.Payer if swap["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
+    
+    ql_swap = ql.VanillaSwap(
+        swap_type,
+        fixed_leg["notional"],
+        fixed_schedule,
+        fixed_leg["rate"],
+        get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
+        float_schedule,
+        index,
+        float_leg.get("spread", 0.0),
+        get_day_counter(float_leg.get("day_counter", "Actual360"))
+    )
+    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
+    
+    return ql_swap.NPV()
+
+
+def price_fra_ql(request: dict) -> float:
+    """Price FRA using QuantLib."""
+    pricing = request["pricing"]
+    fra_data = request["fras"][0]
+    fra = fra_data["fra"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build curve
+    curve_id = fra_data.get("forwarding_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Get index period from JSON
+    idx = fra.get("index", {})
+    period_months = idx.get("period_number", 3)
+    
+    if period_months == 3:
+        index = ql.Euribor3M(curve)
+    else:
+        index = ql.Euribor6M(curve)
+    
+    start_date = parse_date(fra["start_date"])
+    position = ql.Position.Long if fra["fra_type"] == "Long" else ql.Position.Short
+    
+    ql_fra = ql.ForwardRateAgreement(
+        index, start_date, position, fra["strike"], fra["notional"], curve
+    )
+    
+    return ql_fra.NPV()
+
+
+def price_cap_floor_ql(request: dict) -> float:
+    """Price cap/floor using QuantLib."""
+    pricing = request["pricing"]
+    cf_data = request["cap_floors"][0]
+    cf = cf_data["cap_floor"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build curve
+    curve_id = cf_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Build schedule
+    sch = cf["schedule"]
+    schedule = ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    # Get index
+    idx = cf.get("index", {})
+    period_months = idx.get("period_number", 3)
+    index = ql.Euribor3M(curve) if period_months == 3 else ql.Euribor6M(curve)
+    
+    # Build cap or floor
+    if cf["cap_floor_type"] == "Cap":
+        ql_cf = ql.Cap(ql.IborLeg([cf["notional"]], schedule, index), [cf["strike"]])
+    else:
+        ql_cf = ql.Floor(ql.IborLeg([cf["notional"]], schedule, index), [cf["strike"]])
+    
+    # Get volatility
+    vol = 0.20  # Default
+    for v in pricing.get("volatilities", []):
+        if v["id"] == cf_data.get("volatility"):
+            vol = v.get("constant_vol", 0.20)
+            break
+    
+    vol_handle = ql.OptionletVolatilityStructureHandle(
+        ql.ConstantOptionletVolatility(eval_date, ql.TARGET(), ql.ModifiedFollowing, vol, ql.Actual365Fixed())
+    )
+    ql_cf.setPricingEngine(ql.BlackCapFloorEngine(curve, vol_handle))
+    
+    return ql_cf.NPV()
+
+
+def price_swaption_ql(request: dict) -> float:
+    """Price swaption using QuantLib."""
+    pricing = request["pricing"]
+    sw_data = request["swaptions"][0]
+    sw = sw_data["swaption"]
+    underlying = sw["underlying_swap"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build curve
+    curve_id = sw_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Fixed leg schedule
+    fixed_leg = underlying["fixed_leg"]
+    fixed_sch = fixed_leg["schedule"]
+    fixed_schedule = ql.Schedule(
+        parse_date(fixed_sch["effective_date"]),
+        parse_date(fixed_sch["termination_date"]),
+        ql.Period(get_frequency(fixed_sch["frequency"])),
+        get_calendar(fixed_sch.get("calendar", "TARGET")),
+        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
+        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    # Float leg schedule
+    float_leg = underlying["floating_leg"]
+    float_sch = float_leg["schedule"]
+    float_schedule = ql.Schedule(
+        parse_date(float_sch["effective_date"]),
+        parse_date(float_sch["termination_date"]),
+        ql.Period(get_frequency(float_sch["frequency"])),
+        get_calendar(float_sch.get("calendar", "TARGET")),
+        get_convention(float_sch.get("convention", "ModifiedFollowing")),
+        get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(float_sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    index = ql.Euribor6M(curve)
+    swap_type = ql.VanillaSwap.Payer if underlying["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
+    
+    swap = ql.VanillaSwap(
+        swap_type,
+        fixed_leg["notional"],
+        fixed_schedule,
+        fixed_leg["rate"],
+        get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
+        float_schedule,
+        index,
+        float_leg.get("spread", 0.0),
+        get_day_counter(float_leg.get("day_counter", "Actual360"))
+    )
+    
+    exercise = ql.EuropeanExercise(parse_date(sw["exercise_date"]))
+    swaption = ql.Swaption(swap, exercise)
+    
+    # Get volatility
+    vol = 0.20
+    for v in pricing.get("volatilities", []):
+        if v["id"] == sw_data.get("volatility"):
+            vol = v.get("constant_vol", 0.20)
+            break
+    
+    vol_handle = ql.SwaptionVolatilityStructureHandle(
+        ql.ConstantSwaptionVolatility(eval_date, ql.TARGET(), ql.ModifiedFollowing, vol, ql.Actual365Fixed())
+    )
+    swaption.setPricingEngine(ql.BlackSwaptionEngine(curve, vol_handle))
+    
+    return swaption.NPV()
+
+
+def price_cds_ql(request: dict) -> float:
+    """Price CDS using QuantLib."""
+    pricing = request["pricing"]
+    cds_data = request["cds_list"][0]
+    cds = cds_data["cds"]
+    
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+    
+    # Build discount curve
+    curve_id = cds_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date)
+    
+    # Build schedule
+    sch = cds["schedule"]
+    schedule = ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "Following")),
+        get_convention(sch.get("termination_date_convention", "Unadjusted")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        False
+    )
+    
+    protection = ql.Protection.Buyer if cds["side"] == "Buyer" else ql.Protection.Seller
+    
+    ql_cds = ql.CreditDefaultSwap(
+        protection,
+        cds["notional"],
+        cds["spread"],
+        schedule,
+        get_convention(cds.get("business_day_convention", "Following")),
+        get_day_counter(cds.get("day_counter", "Actual360"))
+    )
+    
+    # Credit curve
+    credit = cds_data["credit_curve"]
+    recovery = credit["recovery_rate"]
+    hazard = credit["flat_hazard_rate"]
+    
+    default_curve = ql.FlatHazardRate(eval_date, ql.QuoteHandle(ql.SimpleQuote(hazard)), ql.Actual365Fixed())
+    ql_cds.setPricingEngine(
+        ql.MidPointCdsEngine(ql.DefaultProbabilityTermStructureHandle(default_curve), recovery, curve)
+    )
+    
+    return ql_cds.NPV()
+
+
+# =============================================================================
+# Main Test Runner
+# =============================================================================
+
+def test_product(client: ApiClient, product: str, json_file: Path, ql_pricer) -> dict:
+    """Test a single product: call API and compare with QuantLib."""
+    result = {
+        "product": product,
+        "file": str(json_file),
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None
+    }
+    
+    try:
+        request = load_json(json_file)
+        
+        # Call Quantra API
+        response = client.price(product, request)
+        
+        # Extract NPV from response
+        if product == "fixed_rate_bond":
+            result["quantra_npv"] = response["bonds"][0]["npv"]
+        elif product == "floating_rate_bond":
+            result["quantra_npv"] = response["bonds"][0]["npv"]
+        elif product == "vanilla_swap":
+            result["quantra_npv"] = response["swaps"][0]["npv"]
+        elif product == "fra":
+            result["quantra_npv"] = response["fras"][0]["npv"]
+        elif product == "cap_floor":
+            result["quantra_npv"] = response["cap_floors"][0]["npv"]
+        elif product == "swaption":
+            result["quantra_npv"] = response["swaptions"][0]["npv"]
+        elif product == "cds":
+            result["quantra_npv"] = response["cds_list"][0]["npv"]
+        
+        # Price with QuantLib
+        result["quantlib_npv"] = ql_pricer(request)
+        
+        # Compare
+        result["diff"] = abs(result["quantra_npv"] - result["quantlib_npv"])
+        tolerance = 100 if product in ["cap_floor", "swaption"] else 1.0
+        result["passed"] = result["diff"] < tolerance
+        
+    except Exception as e:
+        import traceback
+        result["error"] = f"{str(e)}\n{traceback.format_exc()}"
+    
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Compare JSON API vs QuantLib using example files')
+    parser.add_argument('--url', default='http://localhost:8080', help='API URL')
+    parser.add_argument('--data-dir', default='examples/data', help='Directory with JSON files')
+    args = parser.parse_args()
+    
+    data_dir = Path(args.data_dir)
+    
+    print("=" * 70)
+    print("QUANTRA JSON API vs QUANTLIB - Using Example JSON Files")
+    print("=" * 70)
+    print(f"API URL:   {args.url}")
+    print(f"Data Dir:  {data_dir}")
+    
+    client = ApiClient(args.url)
+    if not client.health():
+        print("\n❌ Cannot connect to API server")
+        return False
+    print("✓ API server healthy\n")
+    
+    # Products and their QuantLib pricers
+    products = [
+        ("fixed_rate_bond", "fixed_rate_bond_request.json", price_fixed_rate_bond_ql),
+        ("floating_rate_bond", "floating_rate_bond_request.json", price_floating_rate_bond_ql),
+        ("vanilla_swap", "vanilla_swap_request.json", price_vanilla_swap_ql),
+        ("fra", "fra_request.json", price_fra_ql),
+        ("cap_floor", "cap_floor_request.json", price_cap_floor_ql),
+        ("swaption", "swaption_request.json", price_swaption_ql),
+        ("cds", "cds_request.json", price_cds_ql),
+    ]
+    
+    results = []
+    for product, filename, ql_pricer in products:
+        filepath = data_dir / filename
+        if not filepath.exists():
+            print(f"⚠ Skipping {product}: {filepath} not found")
+            continue
+        
+        result = test_product(client, product, filepath, ql_pricer)
+        results.append(result)
+        
+        # Print result
+        print(f"\n{'='*70}")
+        print(f"{product.upper().replace('_', ' ')}")
+        print(f"{'='*70}")
+        print(f"  File: {result['file']}")
+        
+        if result["error"]:
+            print(f"  ❌ Error: {result['error']}")
+        else:
+            status = "✓ PASS" if result["passed"] else "✗ FAIL"
+            print(f"  Quantra NPV:  {result['quantra_npv']:>15.6f}")
+            print(f"  QuantLib NPV: {result['quantlib_npv']:>15.6f}")
+            print(f"  Difference:   {result['diff']:>15.6f}")
+            print(f"  Status:       {status}")
+    
+    # Summary
+    print("\n" + "=" * 70)
+    print("SUMMARY")
+    print("=" * 70)
+    print(f"{'Product':<20} {'Quantra':>15} {'QuantLib':>15} {'Diff':>12} {'Status'}")
+    print("-" * 70)
+    
+    for r in results:
+        if r["error"]:
+            print(f"{r['product']:<20} {'ERROR':>15} {'':<15} {'':<12} ✗ FAIL")
+        else:
+            status = "✓ PASS" if r["passed"] else "✗ FAIL"
+            print(f"{r['product']:<20} {r['quantra_npv']:>15.2f} {r['quantlib_npv']:>15.2f} {r['diff']:>12.4f} {status}")
+    
+    passed = sum(1 for r in results if r["passed"])
+    print("-" * 70)
+    print(f"TOTAL: {passed}/{len(results)} tests passed")
+    
+    return passed == len(results)
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if main() else 1)
