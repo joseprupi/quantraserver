@@ -54,12 +54,6 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Swaption | `/price-swaption` | Price swaptions |
 | CDS | `/price-cds` | Price credit default swaps |
 
-### Architecture
-
-```
-Client (JSON) → JSON Server (HTTP:8080) → gRPC Server (:50051) → QuantLib
-```
-
 ### Quick Start
 
 ```bash
@@ -353,7 +347,6 @@ def generate_openapi() -> Dict[str, Any]:
         "openapi": "3.0.3",
         "info": API_INFO,
         "servers": [
-            {"url": "https://api.quantra.io", "description": "Production"},
             {"url": "http://localhost:8080", "description": "Local development"}
         ],
         "tags": [
