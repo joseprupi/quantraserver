@@ -75,11 +75,8 @@ curl -X POST http://localhost:8080/price-fixed-rate-bond \\
     "version": "1.0.0",
     "contact": {
         "name": "Quantra API Support",
-        "url": "https://github.com/jmelo11/quantra"
-    },
-    "license": {
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT"
+        "url": "https://github.com/joseprupi/quantraserver"
+
     }
 }
 
@@ -356,7 +353,8 @@ def generate_openapi() -> Dict[str, Any]:
         "openapi": "3.0.3",
         "info": API_INFO,
         "servers": [
-            {"url": "http://localhost:8080", "description": "Local development server"}
+            {"url": "https://api.quantra.io", "description": "Production"},
+            {"url": "http://localhost:8080", "description": "Local development"}
         ],
         "tags": [
             {"name": "Bonds", "description": "Fixed and floating rate bond pricing"},

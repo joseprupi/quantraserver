@@ -6,17 +6,17 @@
     "version": "1.0.0",
     "contact": {
       "name": "Quantra API Support",
-      "url": "https://github.com/jmelo11/quantra"
-    },
-    "license": {
-      "name": "MIT",
-      "url": "https://opensource.org/licenses/MIT"
+      "url": "https://github.com/joseprupi/quantraserver"
     }
   },
   "servers": [
     {
+      "url": "https://api.quantra.io",
+      "description": "Production"
+    },
+    {
       "url": "http://localhost:8080",
-      "description": "Local development server"
+      "description": "Local development"
     }
   ],
   "tags": [
