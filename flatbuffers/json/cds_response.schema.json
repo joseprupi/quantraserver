@@ -414,25 +414,32 @@
       "type" : "object",
       "properties" : {
         "as_of_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL"
               },
         "settlement_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Used by: ALL"
               },
         "curves" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
+                "description" : "Yield curves for discounting/forwarding. Used by: ALL"
               },
         "volatilities" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityTermStructure"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityTermStructure"},
+                "description" : "Volatility surfaces. Used by: CapFloor, Swaption"
               },
         "bond_pricing_details" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond"
               },
         "bond_pricing_flows" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Include cash flow details. Used by: FixedRateBond, FloatingRateBond"
               },
         "coupon_pricers" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
+                "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap"
               }
       },
       "required" : ["as_of_date", "settlement_date", "curves"],

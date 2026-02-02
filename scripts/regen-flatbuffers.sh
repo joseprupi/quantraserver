@@ -29,9 +29,19 @@ echo "[3/5] Generating Python code..."
 flatc --python --gen-object-api --gen-all -o "$GEN_PYTHON_DIR" "$FBS_DIR"/*.fbs
 touch "$GEN_PYTHON_DIR/quantra/__init__.py"
 
-# 4. Generate JSON Schemas
+# # 4. Generate JSON Schemas
+# echo "[4/5] Generating JSON schemas..."
+# flatc --jsonschema -o "$GEN_JSON_DIR" "$FBS_DIR"/*.fbs
+
 echo "[4/5] Generating JSON schemas..."
-flatc --jsonschema -o "$GEN_JSON_DIR" "$FBS_DIR"/*.fbs
+
+ROOT_FILES=$(grep -lE '^\s*root_type\s+' "$FBS_DIR"/*.fbs || true)
+
+if [ -z "$ROOT_FILES" ]; then
+  echo "  No root_type declarations found; skipping JSON schema generation."
+else
+  flatc --jsonschema -I "$FBS_DIR" -o "$GEN_JSON_DIR" $ROOT_FILES
+fi
 
 # 5. Smart Patching
 echo "[5/5] Running Smart Import Fixer..."

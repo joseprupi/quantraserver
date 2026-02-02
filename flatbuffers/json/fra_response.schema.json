@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_FRAResponse" : {
+      "type" : "object",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "forward_rate" : {
+                "type" : "number"
+              },
+        "spot_value" : {
+                "type" : "number"
+              },
+        "settlement_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceFRAResponse" : {
+      "type" : "object",
+      "properties" : {
+        "fras" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FRAResponse"}
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceFRAResponse"
+}

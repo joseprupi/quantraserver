@@ -284,24 +284,31 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_BOND_PRICING_FLOWS = 14,
     VT_COUPON_PRICERS = 16
   };
+  /// Valuation date (YYYY-MM-DD). Used by: ALL
   const ::flatbuffers::String *as_of_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
   }
+  /// Settlement date (YYYY-MM-DD). Used by: ALL
   const ::flatbuffers::String *settlement_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
   }
+  /// Yield curves for discounting/forwarding. Used by: ALL
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *>(VT_CURVES);
   }
+  /// Volatility surfaces. Used by: CapFloor, Swaption
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>> *volatilities() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolatilityTermStructure>> *>(VT_VOLATILITIES);
   }
+  /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
   bool bond_pricing_details() const {
     return GetField<uint8_t>(VT_BOND_PRICING_DETAILS, 0) != 0;
   }
+  /// Include cash flow details. Used by: FixedRateBond, FloatingRateBond
   bool bond_pricing_flows() const {
     return GetField<uint8_t>(VT_BOND_PRICING_FLOWS, 0) != 0;
   }
+  /// Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *>(VT_COUPON_PRICERS);
   }

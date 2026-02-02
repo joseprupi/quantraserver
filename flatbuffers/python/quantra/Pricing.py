@@ -24,6 +24,7 @@ class Pricing(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Valuation date (YYYY-MM-DD). Used by: ALL
     # Pricing
     def AsOfDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -31,6 +32,7 @@ class Pricing(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Settlement date (YYYY-MM-DD). Used by: ALL
     # Pricing
     def SettlementDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +40,7 @@ class Pricing(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Yield curves for discounting/forwarding. Used by: ALL
     # Pricing
     def Curves(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +48,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.TermStructure import TermStructure
             obj = TermStructure()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -62,6 +66,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
+    # Volatility surfaces. Used by: CapFloor, Swaption
     # Pricing
     def Volatilities(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -69,6 +74,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.VolatilityTermStructure import VolatilityTermStructure
             obj = VolatilityTermStructure()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -86,6 +92,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
+    # Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
     # Pricing
     def BondPricingDetails(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -93,6 +100,7 @@ class Pricing(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Include cash flow details. Used by: FixedRateBond, FloatingRateBond
     # Pricing
     def BondPricingFlows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -100,6 +108,7 @@ class Pricing(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
     # Pricing
     def CouponPricers(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -107,6 +116,7 @@ class Pricing(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.CouponPricer import CouponPricer
             obj = CouponPricer()
             obj.Init(self._tab.Bytes, x)
             return obj

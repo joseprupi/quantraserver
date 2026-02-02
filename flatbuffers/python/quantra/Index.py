@@ -80,6 +80,7 @@ class Index(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
+            from quantra.Fixing import Fixing
             obj = Fixing()
             obj.Init(self._tab.Bytes, x)
             return obj

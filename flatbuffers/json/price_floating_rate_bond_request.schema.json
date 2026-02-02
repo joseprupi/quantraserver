@@ -29,21 +29,57 @@
       "type" : "string",
       "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
     },
-    "quantra_enums_Ibor" : {
-      "type" : "string",
-      "enum": ["Euribor10M", "Euribor11M", "Euribor1M", "Euribor1Y", "Euribor2M", "Euribor2W", "Euribor365_10M", "Euribor365_11M", "Euribor365_1M", "Euribor365_1Y", "Euribor365_2M", "Euribor365_2W", "Euribor365_3M", "Euribor365_3W", "Euribor365_4M", "Euribor365_5M", "Euribor365_6M", "Euribor365_7M", "Euribor365_8M", "Euribor365_9M", "Euribor365_SW", "Euribor3M", "Euribor3W", "Euribor4M", "Euribor5M", "Euribor6M", "Euribor7M", "Euribor8M", "Euribor9M", "EuriborSW"]
-    },
     "quantra_enums_DateGenerationRule" : {
       "type" : "string",
       "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_Ibor" : {
+      "type" : "string",
+      "enum": ["Euribor10M", "Euribor11M", "Euribor1M", "Euribor1Y", "Euribor2M", "Euribor2W", "Euribor365_10M", "Euribor365_11M", "Euribor365_1M", "Euribor365_1Y", "Euribor365_2M", "Euribor365_2W", "Euribor365_3M", "Euribor365_3W", "Euribor365_4M", "Euribor365_5M", "Euribor365_6M", "Euribor365_7M", "Euribor365_8M", "Euribor365_9M", "Euribor365_SW", "Euribor3M", "Euribor3W", "Euribor4M", "Euribor5M", "Euribor6M", "Euribor7M", "Euribor8M", "Euribor9M", "EuriborSW"]
     },
     "quantra_enums_Compounding" : {
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
     },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["ShiftedLognormal", "Normal"]
+    },
     "quantra_Point" : {
       "type" : "string",
       "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper"]
+    },
+    "quantra_OptionletVolatilityStructure" : {
+      "type" : "string",
+      "enum": ["NONE", "ConstantOptionletVolatility"]
+    },
+    "quantra_Pricer" : {
+      "type" : "string",
+      "enum": ["NONE", "BlackIborCouponPricer"]
     },
     "quantra_Flow" : {
       "type" : "string",
@@ -262,6 +298,103 @@
       },
       "additionalProperties" : false
     },
+    "quantra_VolatilityQuote" : {
+      "type" : "object",
+      "properties" : {
+        "tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "strike" : {
+                "type" : "number"
+              },
+        "volatility" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolatilityTermStructure" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "volatility_type" : {
+                "$ref" : "#/definitions/quantra_enums_VolatilityType"
+              },
+        "constant_vol" : {
+                "type" : "number"
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityQuote"}
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_ConstantOptionletVolatility" : {
+      "type" : "object",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "volatility" : {
+                "type" : "number"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackIborCouponPricer" : {
+      "type" : "object",
+      "properties" : {
+        "optionlet_volatility_structure_type" : {
+                "$ref" : "#/definitions/quantra_OptionletVolatilityStructure"
+              },
+        "optionlet_volatility_structure" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_ConstantOptionletVolatility" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CouponPricer" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "pricer_type" : {
+                "$ref" : "#/definitions/quantra_Pricer"
+              },
+        "pricer" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_BlackIborCouponPricer" }]
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_Yield" : {
       "type" : "object",
       "properties" : {
@@ -281,21 +414,35 @@
       "type" : "object",
       "properties" : {
         "as_of_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL"
               },
         "settlement_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Used by: ALL"
               },
         "curves" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
+                "description" : "Yield curves for discounting/forwarding. Used by: ALL"
+              },
+        "volatilities" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityTermStructure"},
+                "description" : "Volatility surfaces. Used by: CapFloor, Swaption"
               },
         "bond_pricing_details" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond"
               },
         "bond_pricing_flows" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Include cash flow details. Used by: FixedRateBond, FloatingRateBond"
+              },
+        "coupon_pricers" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
+                "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap"
               }
       },
+      "required" : ["as_of_date", "settlement_date", "curves"],
       "additionalProperties" : false
     },
     "quantra_Error" : {
@@ -433,36 +580,6 @@
       },
       "additionalProperties" : false
     },
-    "quantra_FixedRateBond" : {
-      "type" : "object",
-      "properties" : {
-        "settlement_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "face_amount" : {
-                "type" : "number"
-              },
-        "rate" : {
-                "type" : "number"
-              },
-        "accrual_day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
-              },
-        "payment_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
-              },
-        "redemption" : {
-                "type" : "number"
-              },
-        "issue_date" : {
-                "type" : "string"
-              },
-        "schedule" : {
-                "$ref" : "#/definitions/quantra_Schedule"
-              }
-      },
-      "additionalProperties" : false
-    },
     "quantra_Fixing" : {
       "type" : "object",
       "properties" : {
@@ -554,6 +671,9 @@
                 "type" : "string"
               },
         "forecasting_curve" : {
+                "type" : "string"
+              },
+        "coupon_pricer" : {
                 "type" : "string"
               },
         "yield" : {

@@ -1,209 +1,129 @@
 #!/bin/bash
-# Quantra Test Suite Runner
-# Runs all unit and integration tests
-
-set -e
+# Quantra Test Suite
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/../build"
-SERVER_PID=""
+WORKSPACE="$(cd "${SCRIPT_DIR}/.." && pwd)"
+BUILD="${WORKSPACE}/build"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-print_header() {
+PASSED=0
+FAILED=0
+
+run_test() {
+    local name="$1"
+    local cmd="$2"
     echo ""
-    echo -e "${BLUE}============================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}============================================${NC}"
-    echo ""
-}
-
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
-}
-
-cleanup() {
-    if [ -n "$SERVER_PID" ]; then
-        echo ""
-        echo "Stopping server (PID: $SERVER_PID)..."
-        kill $SERVER_PID 2>/dev/null || true
-        wait $SERVER_PID 2>/dev/null || true
-        print_success "Server stopped"
-    fi
-}
-
-trap cleanup EXIT
-
-# Function to check if server is ready
-check_server_ready() {
-    # Try multiple methods to check if port is open
-    if command -v nc &> /dev/null; then
-        nc -z 127.0.0.1 50051 2>/dev/null && return 0
-    fi
-    if command -v timeout &> /dev/null; then
-        timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/50051" 2>/dev/null && return 0
-    fi
-    # Fallback: try to connect with bash
-    (echo > /dev/tcp/127.0.0.1/50051) 2>/dev/null && return 0
-    return 1
-}
-
-# Check if build directory exists
-if [ ! -d "$BUILD_DIR" ]; then
-    print_error "Build directory not found at $BUILD_DIR"
-    echo "Please run: cd /workspace && mkdir -p build && cd build && cmake .. && make -j\$(nproc)"
-    exit 1
-fi
-
-print_header "Quantra Test Suite"
-echo "Build directory: $BUILD_DIR"
-echo ""
-
-# ================================
-# Unit Tests: Quantra vs QuantLib
-# ================================
-print_header "Unit Tests: Quantra vs QuantLib Comparison"
-
-UNIT_TEST="${BUILD_DIR}/tests/test_quantra_vs_quantlib"
-if [ -f "$UNIT_TEST" ]; then
-    if $UNIT_TEST; then
-        print_success "Unit tests passed"
+    echo "════════════════════════════════════════════"
+    echo "  $name"
+    echo "════════════════════════════════════════════"
+    if eval "$cmd"; then
+        echo -e "${GREEN}✓ PASSED${NC}"
+        ((PASSED++))
     else
-        print_error "Unit tests failed"
-        exit 1
+        echo -e "${RED}✗ FAILED${NC}"
+        ((FAILED++))
+    fi
+}
+
+skip_test() {
+    local name="$1"
+    local reason="$2"
+    echo ""
+    echo "════════════════════════════════════════════"
+    echo "  $name"
+    echo "════════════════════════════════════════════"
+    echo -e "${YELLOW}⚠ SKIPPED: ${reason}${NC}"
+}
+
+echo ""
+echo "╔════════════════════════════════════════════╗"
+echo "║         QUANTRA TEST SUITE                 ║"
+echo "╚════════════════════════════════════════════╝"
+echo ""
+echo "Workspace: ${WORKSPACE}"
+echo "Build:     ${BUILD}"
+
+# Start servers if not running
+if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+    echo ""
+    echo "Starting servers..."
+    if [ -f "${BUILD}/server/sync_server" ]; then
+        ${BUILD}/server/sync_server 50051 > /tmp/grpc.log 2>&1 &
+        sleep 2
+    fi
+    if [ -f "${BUILD}/jsonserver/json_server" ]; then
+        ${BUILD}/jsonserver/json_server localhost:50051 8080 > /tmp/json.log 2>&1 &
+        sleep 2
+    fi
+fi
+
+# Test 1: C++ Unit Tests
+if [ -f "${BUILD}/tests/test_quantra_vs_quantlib" ]; then
+    run_test "1. C++ Unit Tests (Quantra vs QuantLib)" \
+        "${BUILD}/tests/test_quantra_vs_quantlib"
+else
+    skip_test "1. C++ Unit Tests" "Binary not found"
+    ((FAILED++))
+fi
+
+# Test 2: C++ gRPC Integration
+if [ -f "${BUILD}/tests/test_server_client" ]; then
+    run_test "2. C++ gRPC Integration Tests" \
+        "${BUILD}/tests/test_server_client"
+else
+    skip_test "2. C++ gRPC Integration Tests" "Binary not found"
+    ((FAILED++))
+fi
+
+# Test 3: JSON API Tests
+JSON_TEST=""
+for f in test_json_api_vs_quantlib.py test_json_files_vs_quantlib.py; do
+    [ -f "${SCRIPT_DIR}/${f}" ] && JSON_TEST="${SCRIPT_DIR}/${f}" && break
+done
+
+if [ -n "$JSON_TEST" ]; then
+    if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        run_test "3. JSON HTTP API Tests" \
+            "python3 ${JSON_TEST} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data"
+    else
+        skip_test "3. JSON HTTP API Tests" "JSON server not running"
+        ((FAILED++))
     fi
 else
-    print_error "Unit test binary not found: $UNIT_TEST"
-    exit 1
+    skip_test "3. JSON HTTP API Tests" "Test file not found"
+    ((FAILED++))
 fi
 
-# ================================
-# Integration Tests: Server-Client
-# ================================
-print_header "Integration Tests: Server-Client (C++)"
-
-SERVER_BIN="${BUILD_DIR}/server/sync_server"
-CLIENT_TEST="${BUILD_DIR}/tests/test_server_client"
-
-if [ ! -f "$SERVER_BIN" ]; then
-    print_error "Server binary not found: $SERVER_BIN"
-    exit 1
-fi
-
-if [ ! -f "$CLIENT_TEST" ]; then
-    print_error "Client test binary not found: $CLIENT_TEST"
-    exit 1
-fi
-
-# Check if server is already running
-if check_server_ready; then
-    print_warning "Server already running on port 50051"
-else
-    echo "Starting server..."
-    # Start server in background, redirect output to avoid blocking
-    $SERVER_BIN > /tmp/quantra_server.log 2>&1 &
-    SERVER_PID=$!
-    echo "Server started (PID: $SERVER_PID)"
-    
-    # Wait for server to be ready
-    echo "Waiting for server to be ready..."
-    for i in {1..30}; do
-        sleep 0.5
-        if check_server_ready; then
-            print_success "Server is ready (took ~$((i/2)) seconds)"
-            break
-        fi
-        if [ $i -eq 30 ]; then
-            print_error "Server failed to start within 15 seconds"
-            echo "Server log:"
-            cat /tmp/quantra_server.log 2>/dev/null || echo "(no log available)"
-            exit 1
-        fi
-    done
-fi
-
-# Give server a moment to fully initialize
-sleep 1
-
-# Run integration tests
-echo ""
-echo "Running integration tests..."
-if $CLIENT_TEST; then
-    print_success "Integration tests passed"
-    INTEGRATION_RESULT=0
-else
-    print_error "Integration tests failed"
-    INTEGRATION_RESULT=1
-fi
-
-# ================================
-# Python Client Tests
-# ================================
-print_header "Python Client Tests: Quantra vs QuantLib Python"
-
+# Test 4: Python gRPC Client
 PYTHON_TEST="${SCRIPT_DIR}/test_python_client.py"
-WORKSPACE_ROOT="${SCRIPT_DIR}/.."
-PYTHON_RESULT=0
-
 if [ -f "$PYTHON_TEST" ]; then
-    # Check if QuantLib Python is available
-    if python3 -c "import QuantLib" 2>/dev/null; then
-        echo "Running Python client comparison tests..."
-        if PYTHONPATH="${WORKSPACE_ROOT}/quantra-python:${WORKSPACE_ROOT}/flatbuffers/python" python3 "$PYTHON_TEST"; then
-            print_success "Python client tests passed"
-            PYTHON_RESULT=0
-        else
-            print_error "Python client tests failed"
-            PYTHON_RESULT=1
-        fi
-    else
-        print_warning "QuantLib Python not installed - skipping Python tests"
-        print_warning "Install with: pip3 install QuantLib --break-system-packages"
-        PYTHON_RESULT=0  # Don't fail if QuantLib not installed
-    fi
+    run_test "4. Python gRPC Client Tests" \
+        "cd /tmp && PYTHONPATH=${WORKSPACE}/quantra-python:${WORKSPACE}/flatbuffers/python python3 ${PYTHON_TEST}"
 else
-    print_warning "Python test file not found: $PYTHON_TEST"
-    PYTHON_RESULT=0
+    skip_test "4. Python gRPC Client Tests" "Test file not found"
+    ((FAILED++))
 fi
 
-# ================================
 # Summary
-# ================================
-print_header "Test Summary"
+TOTAL=$((PASSED + FAILED))
+echo ""
+echo "╔════════════════════════════════════════════╗"
+echo "║              TEST SUMMARY                  ║"
+echo "╠════════════════════════════════════════════╣"
+printf "║  Passed: %-33s║\n" "${PASSED}"
+printf "║  Failed: %-33s║\n" "${FAILED}"
+printf "║  Total:  %-33s║\n" "${TOTAL}"
+echo "╚════════════════════════════════════════════╝"
+echo ""
 
-ALL_PASSED=true
-if [ $INTEGRATION_RESULT -ne 0 ]; then ALL_PASSED=false; fi
-if [ $PYTHON_RESULT -ne 0 ]; then ALL_PASSED=false; fi
-
-if $ALL_PASSED; then
-    print_success "All tests passed!"
-    echo ""
-    echo "Test Results:"
-    echo "  - Unit Tests (Quantra vs QuantLib C++): PASSED"
-    echo "  - Integration Tests (Server-Client):    PASSED"
-    echo "  - Python Client Tests:                  PASSED"
-    echo ""
+if [ "$FAILED" -eq 0 ]; then
+    echo -e "${GREEN}✓ ALL TESTS PASSED!${NC}"
     exit 0
 else
-    print_error "Some tests failed"
-    echo ""
-    echo "Test Results:"
-    echo "  - Unit Tests (Quantra vs QuantLib C++): PASSED"
-    echo "  - Integration Tests (Server-Client):    $([ $INTEGRATION_RESULT -eq 0 ] && echo 'PASSED' || echo 'FAILED')"
-    echo "  - Python Client Tests:                  $([ $PYTHON_RESULT -eq 0 ] && echo 'PASSED' || echo 'FAILED')"
-    echo ""
+    echo -e "${RED}✗ SOME TESTS FAILED${NC}"
     exit 1
 fi
