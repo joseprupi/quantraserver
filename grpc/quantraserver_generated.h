@@ -6,16 +6,26 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-#include "enums_generated.h"
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
+              FLATBUFFERS_VERSION_MINOR == 12 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
+#include "cap_floor_response_generated.h"
+#include "cds_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
-#include "schedule_generated.h"
 #include "floating_rate_bond_response_generated.h"
-#include "index_generated.h"
-#include "floating_rate_bond_generated.h"
-#include "common_generated.h"
+#include "fra_response_generated.h"
+#include "price_cap_floor_request_generated.h"
+#include "price_cds_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
-#include "fixed_rate_bond_generated.h"
-#include "term_structure_generated.h"
 #include "price_floating_rate_bond_request_generated.h"
+#include "price_fra_request_generated.h"
+#include "price_swaption_request_generated.h"
+#include "price_vanilla_swap_request_generated.h"
+#include "swaption_response_generated.h"
+#include "vanilla_swap_response_generated.h"
 
 #endif  // FLATBUFFERS_GENERATED_QUANTRASERVER_QUANTRA_H_

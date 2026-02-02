@@ -18,4 +18,3 @@ class DayCounter(object):
     One = 12
     Simple = 13
     Thirty360 = 14
-

@@ -7,4 +7,3 @@ class Compounding(object):
     Continuous = 1
     Simple = 2
     SimpleThenCompounded = 3
-

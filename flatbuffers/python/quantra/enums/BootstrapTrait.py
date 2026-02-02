@@ -9,4 +9,3 @@ class BootstrapTrait(object):
     InterpolatedFwd = 3
     InterpolatedZero = 4
     ZeroRate = 5
-

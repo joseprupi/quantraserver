@@ -8,4 +8,3 @@ class Interpolator(object):
     Linear = 2
     LogCubic = 3
     LogLinear = 4
-

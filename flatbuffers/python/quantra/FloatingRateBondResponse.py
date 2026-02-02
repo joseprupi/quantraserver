@@ -53,7 +53,7 @@ class FloatingRateBondResponse(object):
         return 0.0
 
     # FloatingRateBondResponse
-    def Yield_(self):
+    def Yield(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
@@ -119,59 +119,173 @@ class FloatingRateBondResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         return o == 0
 
-def Start(builder): builder.StartObject(11)
 def FloatingRateBondResponseStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddNpv(builder, npv): builder.PrependFloat64Slot(0, npv, 0.0)
+    builder.StartObject(11)
+
+def Start(builder):
+    FloatingRateBondResponseStart(builder)
+
 def FloatingRateBondResponseAddNpv(builder, npv):
-    """This method is deprecated. Please switch to AddNpv."""
-    return AddNpv(builder, npv)
-def AddCleanPrice(builder, cleanPrice): builder.PrependFloat64Slot(1, cleanPrice, 0.0)
+    builder.PrependFloat64Slot(0, npv, 0.0)
+
+def AddNpv(builder, npv):
+    FloatingRateBondResponseAddNpv(builder, npv)
+
 def FloatingRateBondResponseAddCleanPrice(builder, cleanPrice):
-    """This method is deprecated. Please switch to AddCleanPrice."""
-    return AddCleanPrice(builder, cleanPrice)
-def AddDirtyPrice(builder, dirtyPrice): builder.PrependFloat64Slot(2, dirtyPrice, 0.0)
+    builder.PrependFloat64Slot(1, cleanPrice, 0.0)
+
+def AddCleanPrice(builder, cleanPrice):
+    FloatingRateBondResponseAddCleanPrice(builder, cleanPrice)
+
 def FloatingRateBondResponseAddDirtyPrice(builder, dirtyPrice):
-    """This method is deprecated. Please switch to AddDirtyPrice."""
-    return AddDirtyPrice(builder, dirtyPrice)
-def AddAccruedAmount(builder, accruedAmount): builder.PrependFloat64Slot(3, accruedAmount, 0.0)
+    builder.PrependFloat64Slot(2, dirtyPrice, 0.0)
+
+def AddDirtyPrice(builder, dirtyPrice):
+    FloatingRateBondResponseAddDirtyPrice(builder, dirtyPrice)
+
 def FloatingRateBondResponseAddAccruedAmount(builder, accruedAmount):
-    """This method is deprecated. Please switch to AddAccruedAmount."""
-    return AddAccruedAmount(builder, accruedAmount)
-def AddYield_(builder, yield_): builder.PrependFloat64Slot(4, yield_, 0.0)
-def FloatingRateBondResponseAddYield_(builder, yield_):
-    """This method is deprecated. Please switch to AddYield_."""
-    return AddYield_(builder, yield_)
-def AddAccruedDays(builder, accruedDays): builder.PrependFloat64Slot(5, accruedDays, 0.0)
+    builder.PrependFloat64Slot(3, accruedAmount, 0.0)
+
+def AddAccruedAmount(builder, accruedAmount):
+    FloatingRateBondResponseAddAccruedAmount(builder, accruedAmount)
+
+def FloatingRateBondResponseAddYield(builder, yield_):
+    builder.PrependFloat64Slot(4, yield_, 0.0)
+
+def AddYield(builder, yield_):
+    FloatingRateBondResponseAddYield(builder, yield_)
+
 def FloatingRateBondResponseAddAccruedDays(builder, accruedDays):
-    """This method is deprecated. Please switch to AddAccruedDays."""
-    return AddAccruedDays(builder, accruedDays)
-def AddMacaulayDuration(builder, macaulayDuration): builder.PrependFloat64Slot(6, macaulayDuration, 0.0)
+    builder.PrependFloat64Slot(5, accruedDays, 0.0)
+
+def AddAccruedDays(builder, accruedDays):
+    FloatingRateBondResponseAddAccruedDays(builder, accruedDays)
+
 def FloatingRateBondResponseAddMacaulayDuration(builder, macaulayDuration):
-    """This method is deprecated. Please switch to AddMacaulayDuration."""
-    return AddMacaulayDuration(builder, macaulayDuration)
-def AddModifiedDuration(builder, modifiedDuration): builder.PrependFloat64Slot(7, modifiedDuration, 0.0)
+    builder.PrependFloat64Slot(6, macaulayDuration, 0.0)
+
+def AddMacaulayDuration(builder, macaulayDuration):
+    FloatingRateBondResponseAddMacaulayDuration(builder, macaulayDuration)
+
 def FloatingRateBondResponseAddModifiedDuration(builder, modifiedDuration):
-    """This method is deprecated. Please switch to AddModifiedDuration."""
-    return AddModifiedDuration(builder, modifiedDuration)
-def AddConvexity(builder, convexity): builder.PrependFloat64Slot(8, convexity, 0.0)
+    builder.PrependFloat64Slot(7, modifiedDuration, 0.0)
+
+def AddModifiedDuration(builder, modifiedDuration):
+    FloatingRateBondResponseAddModifiedDuration(builder, modifiedDuration)
+
 def FloatingRateBondResponseAddConvexity(builder, convexity):
-    """This method is deprecated. Please switch to AddConvexity."""
-    return AddConvexity(builder, convexity)
-def AddBps(builder, bps): builder.PrependFloat64Slot(9, bps, 0.0)
+    builder.PrependFloat64Slot(8, convexity, 0.0)
+
+def AddConvexity(builder, convexity):
+    FloatingRateBondResponseAddConvexity(builder, convexity)
+
 def FloatingRateBondResponseAddBps(builder, bps):
-    """This method is deprecated. Please switch to AddBps."""
-    return AddBps(builder, bps)
-def AddFlows(builder, flows): builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(flows), 0)
+    builder.PrependFloat64Slot(9, bps, 0.0)
+
+def AddBps(builder, bps):
+    FloatingRateBondResponseAddBps(builder, bps)
+
 def FloatingRateBondResponseAddFlows(builder, flows):
-    """This method is deprecated. Please switch to AddFlows."""
-    return AddFlows(builder, flows)
-def StartFlowsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(flows), 0)
+
+def AddFlows(builder, flows):
+    FloatingRateBondResponseAddFlows(builder, flows)
+
 def FloatingRateBondResponseStartFlowsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartFlowsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartFlowsVector(builder, numElems):
+    return FloatingRateBondResponseStartFlowsVector(builder, numElems)
+
 def FloatingRateBondResponseEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FloatingRateBondResponseEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class FloatingRateBondResponseT(object):
+
+    # FloatingRateBondResponseT
+    def __init__(self):
+        self.npv = 0.0  # type: float
+        self.cleanPrice = 0.0  # type: float
+        self.dirtyPrice = 0.0  # type: float
+        self.accruedAmount = 0.0  # type: float
+        self.yield_ = 0.0  # type: float
+        self.accruedDays = 0.0  # type: float
+        self.macaulayDuration = 0.0  # type: float
+        self.modifiedDuration = 0.0  # type: float
+        self.convexity = 0.0  # type: float
+        self.bps = 0.0  # type: float
+        self.flows = None  # type: List[FlowsWrapperT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        floatingRateBondResponse = FloatingRateBondResponse()
+        floatingRateBondResponse.Init(buf, pos)
+        return cls.InitFromObj(floatingRateBondResponse)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, floatingRateBondResponse):
+        x = FloatingRateBondResponseT()
+        x._UnPack(floatingRateBondResponse)
+        return x
+
+    # FloatingRateBondResponseT
+    def _UnPack(self, floatingRateBondResponse):
+        if floatingRateBondResponse is None:
+            return
+        self.npv = floatingRateBondResponse.Npv()
+        self.cleanPrice = floatingRateBondResponse.CleanPrice()
+        self.dirtyPrice = floatingRateBondResponse.DirtyPrice()
+        self.accruedAmount = floatingRateBondResponse.AccruedAmount()
+        self.yield_ = floatingRateBondResponse.Yield()
+        self.accruedDays = floatingRateBondResponse.AccruedDays()
+        self.macaulayDuration = floatingRateBondResponse.MacaulayDuration()
+        self.modifiedDuration = floatingRateBondResponse.ModifiedDuration()
+        self.convexity = floatingRateBondResponse.Convexity()
+        self.bps = floatingRateBondResponse.Bps()
+        if not floatingRateBondResponse.FlowsIsNone():
+            self.flows = []
+            for i in range(floatingRateBondResponse.FlowsLength()):
+                if floatingRateBondResponse.Flows(i) is None:
+                    self.flows.append(None)
+                else:
+                    flowsWrapper_ = FlowsWrapperT.InitFromObj(floatingRateBondResponse.Flows(i))
+                    self.flows.append(flowsWrapper_)
+
+    # FloatingRateBondResponseT
+    def Pack(self, builder):
+        if self.flows is not None:
+            flowslist = []
+            for i in range(len(self.flows)):
+                flowslist.append(self.flows[i].Pack(builder))
+            FloatingRateBondResponseStartFlowsVector(builder, len(self.flows))
+            for i in reversed(range(len(self.flows))):
+                builder.PrependUOffsetTRelative(flowslist[i])
+            flows = builder.EndVector()
+        FloatingRateBondResponseStart(builder)
+        FloatingRateBondResponseAddNpv(builder, self.npv)
+        FloatingRateBondResponseAddCleanPrice(builder, self.cleanPrice)
+        FloatingRateBondResponseAddDirtyPrice(builder, self.dirtyPrice)
+        FloatingRateBondResponseAddAccruedAmount(builder, self.accruedAmount)
+        FloatingRateBondResponseAddYield(builder, self.yield_)
+        FloatingRateBondResponseAddAccruedDays(builder, self.accruedDays)
+        FloatingRateBondResponseAddMacaulayDuration(builder, self.macaulayDuration)
+        FloatingRateBondResponseAddModifiedDuration(builder, self.modifiedDuration)
+        FloatingRateBondResponseAddConvexity(builder, self.convexity)
+        FloatingRateBondResponseAddBps(builder, self.bps)
+        if self.flows is not None:
+            FloatingRateBondResponseAddFlows(builder, flows)
+        floatingRateBondResponse = FloatingRateBondResponseEnd(builder)
+        return floatingRateBondResponse

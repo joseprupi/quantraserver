@@ -38,19 +38,69 @@ class Fixing(object):
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
         return 0.0
 
-def Start(builder): builder.StartObject(2)
 def FixingStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddDate(builder, date): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+    builder.StartObject(2)
+
+def Start(builder):
+    FixingStart(builder)
+
 def FixingAddDate(builder, date):
-    """This method is deprecated. Please switch to AddDate."""
-    return AddDate(builder, date)
-def AddRate(builder, rate): builder.PrependFloat32Slot(1, rate, 0.0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+
+def AddDate(builder, date):
+    FixingAddDate(builder, date)
+
 def FixingAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def End(builder): return builder.EndObject()
+    builder.PrependFloat32Slot(1, rate, 0.0)
+
+def AddRate(builder, rate):
+    FixingAddRate(builder, rate)
+
 def FixingEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FixingEnd(builder)
+
+
+class FixingT(object):
+
+    # FixingT
+    def __init__(self):
+        self.date = None  # type: str
+        self.rate = 0.0  # type: float
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        fixing = Fixing()
+        fixing.Init(buf, pos)
+        return cls.InitFromObj(fixing)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, fixing):
+        x = FixingT()
+        x._UnPack(fixing)
+        return x
+
+    # FixingT
+    def _UnPack(self, fixing):
+        if fixing is None:
+            return
+        self.date = fixing.Date()
+        self.rate = fixing.Rate()
+
+    # FixingT
+    def Pack(self, builder):
+        if self.date is not None:
+            date = builder.CreateString(self.date)
+        FixingStart(builder)
+        if self.date is not None:
+            FixingAddDate(builder, date)
+        FixingAddRate(builder, self.rate)
+        fixing = FixingEnd(builder)
+        return fixing

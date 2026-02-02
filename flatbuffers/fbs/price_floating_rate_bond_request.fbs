@@ -1,5 +1,4 @@
 include "common.fbs";
-include "fixed_rate_bond.fbs";
 include "floating_rate_bond.fbs";
 include "term_structure.fbs";
 

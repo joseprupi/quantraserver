@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_SwaptionResponse" : {
+      "type" : "object",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "implied_volatility" : {
+                "type" : "number"
+              },
+        "atm_forward" : {
+                "type" : "number"
+              },
+        "annuity" : {
+                "type" : "number"
+              },
+        "delta" : {
+                "type" : "number"
+              },
+        "vega" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceSwaptionResponse" : {
+      "type" : "object",
+      "properties" : {
+        "swaptions" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwaptionResponse"}
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceSwaptionResponse"
+}

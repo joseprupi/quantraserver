@@ -49,19 +49,83 @@ class PriceFixedRateBondResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
-def Start(builder): builder.StartObject(1)
 def PriceFixedRateBondResponseStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddBonds(builder, bonds): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+    builder.StartObject(1)
+
+def Start(builder):
+    PriceFixedRateBondResponseStart(builder)
+
 def PriceFixedRateBondResponseAddBonds(builder, bonds):
-    """This method is deprecated. Please switch to AddBonds."""
-    return AddBonds(builder, bonds)
-def StartBondsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+
+def AddBonds(builder, bonds):
+    PriceFixedRateBondResponseAddBonds(builder, bonds)
+
 def PriceFixedRateBondResponseStartBondsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartBondsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartBondsVector(builder, numElems):
+    return PriceFixedRateBondResponseStartBondsVector(builder, numElems)
+
 def PriceFixedRateBondResponseEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PriceFixedRateBondResponseEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class PriceFixedRateBondResponseT(object):
+
+    # PriceFixedRateBondResponseT
+    def __init__(self):
+        self.bonds = None  # type: List[FixedRateBondResponseT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        priceFixedRateBondResponse = PriceFixedRateBondResponse()
+        priceFixedRateBondResponse.Init(buf, pos)
+        return cls.InitFromObj(priceFixedRateBondResponse)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, priceFixedRateBondResponse):
+        x = PriceFixedRateBondResponseT()
+        x._UnPack(priceFixedRateBondResponse)
+        return x
+
+    # PriceFixedRateBondResponseT
+    def _UnPack(self, priceFixedRateBondResponse):
+        if priceFixedRateBondResponse is None:
+            return
+        if not priceFixedRateBondResponse.BondsIsNone():
+            self.bonds = []
+            for i in range(priceFixedRateBondResponse.BondsLength()):
+                if priceFixedRateBondResponse.Bonds(i) is None:
+                    self.bonds.append(None)
+                else:
+                    fixedRateBondResponse_ = FixedRateBondResponseT.InitFromObj(priceFixedRateBondResponse.Bonds(i))
+                    self.bonds.append(fixedRateBondResponse_)
+
+    # PriceFixedRateBondResponseT
+    def Pack(self, builder):
+        if self.bonds is not None:
+            bondslist = []
+            for i in range(len(self.bonds)):
+                bondslist.append(self.bonds[i].Pack(builder))
+            PriceFixedRateBondResponseStartBondsVector(builder, len(self.bonds))
+            for i in reversed(range(len(self.bonds))):
+                builder.PrependUOffsetTRelative(bondslist[i])
+            bonds = builder.EndVector()
+        PriceFixedRateBondResponseStart(builder)
+        if self.bonds is not None:
+            PriceFixedRateBondResponseAddBonds(builder, bonds)
+        priceFixedRateBondResponse = PriceFixedRateBondResponseEnd(builder)
+        return priceFixedRateBondResponse

@@ -1,74 +1,273 @@
-FROM debian:buster AS builder
+# =============================================================================
+# Quantraserver - Unified Build Environment
+# 
+# Versions:
+#   - gRPC: v1.60.0 
+#   - Flatbuffers: v24.12.23
+#   - QuantLib: 1.22
+#   - Envoy: 1.28.0
+# =============================================================================
+FROM debian:bookworm AS base
+RUN apt-get update && \
+    apt-get install -y \
+    git \
+    build-essential \
+    autoconf \
+    libtool \
+    pkg-config \
+    cmake \
+    libssl-dev \
+    libboost-all-dev \
+    tar \
+    wget \
+    curl \
+    ninja-build \
+    ca-certificates \
+    gdb \
+    valgrind \
+    vim \
+    bc \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN     apt-get update && \
-        apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common && \
-        curl -sL 'https://getenvoy.io/gpg' | apt-key add - && \
-        apt-key fingerprint 6FF974DB | grep "5270 CEAC" && \
-        add-apt-repository "deb [arch=amd64] https://dl.bintray.com/tetrate/getenvoy-deb $(lsb_release -cs) stable" && \
-        apt-get update && \
-        apt-get install -y \
-        git python3-pip build-essential autoconf libtool pkg-config cmake libssl-dev libboost-all-dev tar wget getenvoy-envoy && \
-        pip3 install PyYAML requests
+# =============================================================================
+# Stage: deps - Build all dependencies
+# =============================================================================
+FROM base AS deps
+ARG GRPC_VERSION=v1.60.0
+ARG FLATBUFFERS_VERSION=v24.12.23
+ARG QUANTLIB_VERSION=1.22
+ARG ENVOY_VERSION=1.28.0
 
+ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
+
+# -----------------------------------------------------------------------------
+# Envoy (download pre-built binary)
+# -----------------------------------------------------------------------------
+RUN echo "=== Installing Envoy ${ENVOY_VERSION} ===" && \
+    curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
+        -o /usr/local/bin/envoy && \
+    chmod +x /usr/local/bin/envoy && \
+    envoy --version
+
+# -----------------------------------------------------------------------------
 # gRPC
-RUN     cd root && \
-        git clone -b v1.37.0 https://github.com/grpc/grpc && \
-        cd grpc && \
-        git submodule update --init && \
-        mkdir -p "third_party/abseil-cpp/cmake/build" && \
-        cd ./third_party/abseil-cpp/cmake/build && \
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ../.. && \
-        make -j install && \
-        cd /root/grpc && \
-        mkdir install && \
-        mkdir -p cmake/build && \
-        cd cmake/build && \
-        cmake \
+# -----------------------------------------------------------------------------
+RUN echo "=== Building gRPC ${GRPC_VERSION} ===" && \
+    cd /tmp && \
+    git clone -b ${GRPC_VERSION} --depth 1 --recurse-submodules --shallow-submodules https://github.com/grpc/grpc && \
+    cd grpc && \
+    mkdir -p cmake/build && \
+    cd cmake/build && \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DgRPC_INSTALL=ON \
         -DgRPC_BUILD_TESTS=OFF \
-        -DgRPC_ABSL_PROVIDER=package \
-        -DgRPC_SSL_PROVIDER=package \
         -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_INSTALL_PREFIX=/root/grpc/install \
+        -DCMAKE_INSTALL_PREFIX=${DEPS_INSTALL_PREFIX} \
+        -GNinja \
         ../.. && \
-        make -j && \
-        make install
+    ninja -j$(nproc) && \
+    ninja install && \
+    cd /tmp && rm -rf grpc && \
+    ldconfig
 
-# Flatbuffers
-RUN     cd /root && \
-        git clone https://github.com/google/flatbuffers && \
-        export GRPC_INSTALL_PATH=/root/grpc/install && \
-        export PROTOBUF_DOWNLOAD_PATH=/root/grpc/third_party/protobuf && \
-        cd flatbuffers && \
-        mkdir build && \
-        cd build && \
-        cmake -DFLATBUFFERS_BUILD_GRPCTEST=ON -DGRPC_INSTALL_PATH=${GRPC_INSTALL_PATH} -DPROTOBUF_DOWNLOAD_PATH=${PROTOBUF_DOWNLOAD_PATH} .. && \
-        make -j && \
-        make install
+# -----------------------------------------------------------------------------
+# Flatbuffers (just flatc with gRPC codegen, no tests)
+# -----------------------------------------------------------------------------
+RUN echo "=== Building Flatbuffers ${FLATBUFFERS_VERSION} ===" && \
+    cd /tmp && \
+    git clone -b ${FLATBUFFERS_VERSION} --depth 1 https://github.com/google/flatbuffers && \
+    cd flatbuffers && \
+    mkdir build && \
+    cd build && \
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DFLATBUFFERS_BUILD_TESTS=OFF \
+        -DFLATBUFFERS_BUILD_GRPCTEST=OFF \
+        -DCMAKE_INSTALL_PREFIX=${DEPS_INSTALL_PREFIX} \
+        -GNinja \
+        .. && \
+    ninja -j$(nproc) && \
+    ninja install && \
+    cd /tmp && rm -rf flatbuffers
 
-# Test flatbuffers
-RUN     ln -s ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.6 ${GRPC_INSTALL_PATH}/lib/libgrpc++_unsecure.so.1 && \
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${GRPC_INSTALL_PATH}/lib && \
-        cd /root/flatbuffers/build && \
-        make test ARGS=-V
+# Update ldconfig
+RUN echo "${DEPS_INSTALL_PREFIX}/lib" > /etc/ld.so.conf.d/quantra-deps.conf && ldconfig
 
-# Quantlib
-RUN     cd /root && \
-        wget https://github.com/lballabio/QuantLib/releases/download/QuantLib-v1.22/QuantLib-1.22.tar.gz && \
-        tar -zxvf QuantLib-1.22.tar.gz && \
-        cd QuantLib-1.22 && \
-        ./configure --enable-std-pointers && \
-        make -j && \
-        make install && \
-        ldconfig
- 
-# Quantra
-RUN     cd /root && \
-        git clone https://github.com/joseprupi/quantragrpc && \
-        cd quantragrpc && \
-        . ./scripts/config_vars.sh && \
-        mkdir build && \
-        cd build && \
-        cmake ../ && \ 
-        make -j
+# -----------------------------------------------------------------------------
+# QuantLib
+# -----------------------------------------------------------------------------
+RUN echo "=== Building QuantLib ${QUANTLIB_VERSION} ===" && \
+    cd /tmp && \
+    wget -q https://github.com/lballabio/QuantLib/releases/download/QuantLib-v${QUANTLIB_VERSION}/QuantLib-${QUANTLIB_VERSION}.tar.gz && \
+    tar -zxf QuantLib-${QUANTLIB_VERSION}.tar.gz && \
+    cd QuantLib-${QUANTLIB_VERSION} && \
+    ./configure --enable-std-pointers --prefix=${DEPS_INSTALL_PREFIX} --quiet && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf QuantLib-${QUANTLIB_VERSION} QuantLib-${QUANTLIB_VERSION}.tar.gz && \
+    ldconfig
+
+# Verify installations
+RUN echo "=== Verifying installations ===" && \
+    echo "Envoy:" && envoy --version && \
+    echo "Flatbuffers:" && ${DEPS_INSTALL_PREFIX}/bin/flatc --version && \
+    echo "gRPC libs:" && ls ${DEPS_INSTALL_PREFIX}/lib/libgrpc++.so* | head -2 && \
+    echo "QuantLib:" && ls ${DEPS_INSTALL_PREFIX}/lib/libQuantLib.so* | head -2
+
+# =============================================================================
+# Stage: dev - Development environment
+# =============================================================================
+FROM deps AS dev
+
+ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
+ENV PATH="${DEPS_INSTALL_PREFIX}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${DEPS_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+ENV CMAKE_PREFIX_PATH="${DEPS_INSTALL_PREFIX}"
+ENV QUANTRA_HOME=/workspace
+
+WORKDIR /workspace
+
+# -----------------------------------------------------------------------------
+# Install quantra process manager
+# -----------------------------------------------------------------------------
+COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
+COPY tools/quantra-manager/quantra /usr/local/bin/quantra
+RUN chmod +x /usr/local/bin/quantra
+
+# Create helper scripts
+RUN echo '#!/bin/bash' > /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'set -e' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'cd /workspace' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'echo "Regenerating Flatbuffers code..."' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'echo "Using flatc version: $(flatc --version)"' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'for fbs in flatbuffers/fbs/*.fbs; do' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo '    echo "Processing $fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo '    flatc --cpp -o flatbuffers/cpp/ "$fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'done' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'flatc --grpc --cpp -I flatbuffers -o grpc/ grpc/quantraserver.fbs' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'echo "Done!"' >> /usr/local/bin/regen-flatbuffers.sh && \
+    chmod +x /usr/local/bin/regen-flatbuffers.sh
+
+RUN echo '#!/bin/bash' > /usr/local/bin/build.sh && \
+    echo 'set -e' >> /usr/local/bin/build.sh && \
+    echo 'cd /workspace' >> /usr/local/bin/build.sh && \
+    echo 'mkdir -p build' >> /usr/local/bin/build.sh && \
+    echo 'cd build' >> /usr/local/bin/build.sh && \
+    echo 'cmake -DCMAKE_PREFIX_PATH=${DEPS_INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${1:-Debug} ..' >> /usr/local/bin/build.sh && \
+    echo 'make -j$(nproc)' >> /usr/local/bin/build.sh && \
+    echo 'echo "Build complete!"' >> /usr/local/bin/build.sh && \
+    chmod +x /usr/local/bin/build.sh
+
+RUN echo '#!/bin/bash' > /usr/local/bin/run-tests.sh && \
+    echo 'set -e' >> /usr/local/bin/run-tests.sh && \
+    echo 'cd /workspace/build' >> /usr/local/bin/run-tests.sh && \
+    echo 'echo "=== Starting server ==="' >> /usr/local/bin/run-tests.sh && \
+    echo './server/sync_server 50051 &' >> /usr/local/bin/run-tests.sh && \
+    echo 'SERVER_PID=$!' >> /usr/local/bin/run-tests.sh && \
+    echo 'sleep 2' >> /usr/local/bin/run-tests.sh && \
+    echo 'echo "=== Running bond request test ==="' >> /usr/local/bin/run-tests.sh && \
+    echo './examples/bond_request 10' >> /usr/local/bin/run-tests.sh && \
+    echo 'kill $SERVER_PID 2>/dev/null || true' >> /usr/local/bin/run-tests.sh && \
+    echo 'echo "=== Tests passed! ==="' >> /usr/local/bin/run-tests.sh && \
+    chmod +x /usr/local/bin/run-tests.sh
+
+CMD ["/bin/bash"]
+
+# =============================================================================
+# Stage: builder - Build the application
+# =============================================================================
+FROM deps AS builder
+
+ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
+ENV PATH="${DEPS_INSTALL_PREFIX}/bin:${PATH}"
+
+# Create symlinks so original CMakeLists.txt paths work
+# Original uses: /root/grpc/install/include and /root/grpc/install/lib
+RUN mkdir -p /root/grpc && \
+    ln -s ${DEPS_INSTALL_PREFIX} /root/grpc/install && \
+    # Also add QuantLib headers to the same include path (for <ql/quantlib.hpp>)
+    ln -s ${DEPS_INSTALL_PREFIX}/include/ql /root/grpc/install/include/ql
+
+COPY . /src
+WORKDIR /src
+
+# Regenerate Flatbuffers code for new versions
+# Note: quantraserver.fbs uses includes like "/fbs/..." so we use -I to set include path
+RUN echo "=== Regenerating Flatbuffers code ===" && \
+    echo "Using flatc version: $(${DEPS_INSTALL_PREFIX}/bin/flatc --version)" && \
+    for fbs in flatbuffers/fbs/*.fbs; do \
+        echo "Processing $fbs"; \
+        ${DEPS_INSTALL_PREFIX}/bin/flatc --cpp -o flatbuffers/cpp/ "$fbs"; \
+    done && \
+    ${DEPS_INSTALL_PREFIX}/bin/flatc --grpc --cpp \
+        -I flatbuffers \
+        -o grpc/ \
+        grpc/quantraserver.fbs
+
+# Set environment for pkg-config and library paths
+ENV PKG_CONFIG_PATH="${DEPS_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+ENV LD_LIBRARY_PATH="${DEPS_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+
+# Debug: List available abseil libraries
+RUN echo "=== Available abseil libraries ===" && \
+    ls -la ${DEPS_INSTALL_PREFIX}/lib/libabsl*.so* | head -20 && \
+    echo "=== pkg-config grpc++ ===" && \
+    pkg-config --libs grpc++ || echo "pkg-config for grpc++ failed"
+
+# Build
+RUN mkdir -p build && \
+    cd build && \
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH=${DEPS_INSTALL_PREFIX} \
+        .. && \
+    make -j$(nproc)
+
+# =============================================================================
+# Stage: production - Minimal runtime image with multi-process support
+# =============================================================================
+FROM debian:bookworm-slim AS production
+
+ARG ENVOY_VERSION=1.28.0
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libssl3 \
+    libboost-all-dev \
+    python3 \
+    python3-pip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Envoy
+RUN curl -L https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64 \
+        -o /usr/local/bin/envoy && \
+    chmod +x /usr/local/bin/envoy
+
+COPY --from=builder /opt/quantra-deps/lib /opt/quantra-deps/lib
+COPY --from=builder /etc/ld.so.conf.d/quantra-deps.conf /etc/ld.so.conf.d/
+RUN ldconfig
+
+COPY --from=builder /src/build/server/sync_server /app/sync_server
+COPY --from=builder /src/build/examples /app/examples
+
+# Install quantra process manager with dependencies
+COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
+COPY tools/quantra-manager/quantra /usr/local/bin/quantra
+RUN chmod +x /usr/local/bin/quantra
+
+WORKDIR /app
+ENV LD_LIBRARY_PATH=/opt/quantra-deps/lib
+ENV QUANTRA_HOME=/app
+ENV QUANTRA_STATE_DIR=/app/.quantra
+
+EXPOSE 50051
+
+# Default: start 4 workers with Envoy load balancing in foreground mode
+CMD ["quantra", "start", "--workers", "4", "--foreground"]

@@ -1,0 +1,28 @@
+include "enums.fbs";
+
+namespace quantra;
+
+// Volatility quote at a specific tenor/strike
+table VolatilityQuote {
+    tenor_number:int;
+    tenor_time_unit:enums.TimeUnit;
+    strike:double;                   // Optional: for smile (0 = ATM)
+    volatility:double;
+}
+
+// Volatility term structure (flat or term structure)
+// Created once in Pricing.volatilities, referenced by id
+table VolatilityTermStructure {
+    id:string (required);            // Unique identifier for referencing
+    reference_date:string;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+    volatility_type:enums.VolatilityType;
+    
+    // Either constant or term structure (use one)
+    constant_vol:double;             // Use this for flat vol
+    quotes:[VolatilityQuote];        // Use this for term structure
+}
+
+root_type VolatilityTermStructure;

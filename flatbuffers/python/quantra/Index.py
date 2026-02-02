@@ -98,47 +98,146 @@ class Index(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
-def Start(builder): builder.StartObject(8)
 def IndexStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddPeriodNumber(builder, periodNumber): builder.PrependInt32Slot(0, periodNumber, 0)
+    builder.StartObject(8)
+
+def Start(builder):
+    IndexStart(builder)
+
 def IndexAddPeriodNumber(builder, periodNumber):
-    """This method is deprecated. Please switch to AddPeriodNumber."""
-    return AddPeriodNumber(builder, periodNumber)
-def AddPeriodTimeUnit(builder, periodTimeUnit): builder.PrependInt8Slot(1, periodTimeUnit, 0)
+    builder.PrependInt32Slot(0, periodNumber, 0)
+
+def AddPeriodNumber(builder, periodNumber):
+    IndexAddPeriodNumber(builder, periodNumber)
+
 def IndexAddPeriodTimeUnit(builder, periodTimeUnit):
-    """This method is deprecated. Please switch to AddPeriodTimeUnit."""
-    return AddPeriodTimeUnit(builder, periodTimeUnit)
-def AddSettlementDays(builder, settlementDays): builder.PrependInt32Slot(2, settlementDays, 0)
+    builder.PrependInt8Slot(1, periodTimeUnit, 0)
+
+def AddPeriodTimeUnit(builder, periodTimeUnit):
+    IndexAddPeriodTimeUnit(builder, periodTimeUnit)
+
 def IndexAddSettlementDays(builder, settlementDays):
-    """This method is deprecated. Please switch to AddSettlementDays."""
-    return AddSettlementDays(builder, settlementDays)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt32Slot(2, settlementDays, 0)
+
+def AddSettlementDays(builder, settlementDays):
+    IndexAddSettlementDays(builder, settlementDays)
+
 def IndexAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(4, businessDayConvention, 0)
+    builder.PrependInt8Slot(3, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    IndexAddCalendar(builder, calendar)
+
 def IndexAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddEndOfMonth(builder, endOfMonth): builder.PrependBoolSlot(5, endOfMonth, 0)
+    builder.PrependInt8Slot(4, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    IndexAddBusinessDayConvention(builder, businessDayConvention)
+
 def IndexAddEndOfMonth(builder, endOfMonth):
-    """This method is deprecated. Please switch to AddEndOfMonth."""
-    return AddEndOfMonth(builder, endOfMonth)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependBoolSlot(5, endOfMonth, 0)
+
+def AddEndOfMonth(builder, endOfMonth):
+    IndexAddEndOfMonth(builder, endOfMonth)
+
 def IndexAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def AddFixings(builder, fixings): builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(fixings), 0)
+    builder.PrependInt8Slot(6, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    IndexAddDayCounter(builder, dayCounter)
+
 def IndexAddFixings(builder, fixings):
-    """This method is deprecated. Please switch to AddFixings."""
-    return AddFixings(builder, fixings)
-def StartFixingsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(fixings), 0)
+
+def AddFixings(builder, fixings):
+    IndexAddFixings(builder, fixings)
+
 def IndexStartFixingsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartFixingsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartFixingsVector(builder, numElems):
+    return IndexStartFixingsVector(builder, numElems)
+
 def IndexEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return IndexEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class IndexT(object):
+
+    # IndexT
+    def __init__(self):
+        self.periodNumber = 0  # type: int
+        self.periodTimeUnit = 0  # type: int
+        self.settlementDays = 0  # type: int
+        self.calendar = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.endOfMonth = False  # type: bool
+        self.dayCounter = 0  # type: int
+        self.fixings = None  # type: List[FixingT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        index = Index()
+        index.Init(buf, pos)
+        return cls.InitFromObj(index)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, index):
+        x = IndexT()
+        x._UnPack(index)
+        return x
+
+    # IndexT
+    def _UnPack(self, index):
+        if index is None:
+            return
+        self.periodNumber = index.PeriodNumber()
+        self.periodTimeUnit = index.PeriodTimeUnit()
+        self.settlementDays = index.SettlementDays()
+        self.calendar = index.Calendar()
+        self.businessDayConvention = index.BusinessDayConvention()
+        self.endOfMonth = index.EndOfMonth()
+        self.dayCounter = index.DayCounter()
+        if not index.FixingsIsNone():
+            self.fixings = []
+            for i in range(index.FixingsLength()):
+                if index.Fixings(i) is None:
+                    self.fixings.append(None)
+                else:
+                    fixing_ = FixingT.InitFromObj(index.Fixings(i))
+                    self.fixings.append(fixing_)
+
+    # IndexT
+    def Pack(self, builder):
+        if self.fixings is not None:
+            fixingslist = []
+            for i in range(len(self.fixings)):
+                fixingslist.append(self.fixings[i].Pack(builder))
+            IndexStartFixingsVector(builder, len(self.fixings))
+            for i in reversed(range(len(self.fixings))):
+                builder.PrependUOffsetTRelative(fixingslist[i])
+            fixings = builder.EndVector()
+        IndexStart(builder)
+        IndexAddPeriodNumber(builder, self.periodNumber)
+        IndexAddPeriodTimeUnit(builder, self.periodTimeUnit)
+        IndexAddSettlementDays(builder, self.settlementDays)
+        IndexAddCalendar(builder, self.calendar)
+        IndexAddBusinessDayConvention(builder, self.businessDayConvention)
+        IndexAddEndOfMonth(builder, self.endOfMonth)
+        IndexAddDayCounter(builder, self.dayCounter)
+        if self.fixings is not None:
+            IndexAddFixings(builder, fixings)
+        index = IndexEnd(builder)
+        return index

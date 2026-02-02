@@ -1,0 +1,15 @@
+include "enums.fbs";
+include "vanilla_swap.fbs";
+
+namespace quantra;
+
+// Swaption instrument
+// ExerciseType and SettlementType enums now in enums.fbs
+table Swaption {
+    exercise_type:enums.ExerciseType;
+    settlement_type:enums.SettlementType;
+    exercise_date:string;           // When option can be exercised
+    underlying_swap:VanillaSwap;    // The swap you have option to enter
+}
+
+root_type Swaption;

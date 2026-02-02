@@ -6,4 +6,3 @@ flatbuffers/html/*
 flatbuffers/latex/*
 flatbuffers/build/*
 .vscode/*
-.quantra/*

@@ -48,23 +48,85 @@ class CouponPricer(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(3)
 def CouponPricerStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddId(builder, id): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(id), 0)
+    builder.StartObject(3)
+
+def Start(builder):
+    CouponPricerStart(builder)
+
 def CouponPricerAddId(builder, id):
-    """This method is deprecated. Please switch to AddId."""
-    return AddId(builder, id)
-def AddPricerType(builder, pricerType): builder.PrependUint8Slot(1, pricerType, 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(id), 0)
+
+def AddId(builder, id):
+    CouponPricerAddId(builder, id)
+
 def CouponPricerAddPricerType(builder, pricerType):
-    """This method is deprecated. Please switch to AddPricerType."""
-    return AddPricerType(builder, pricerType)
-def AddPricer(builder, pricer): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(pricer), 0)
+    builder.PrependUint8Slot(1, pricerType, 0)
+
+def AddPricerType(builder, pricerType):
+    CouponPricerAddPricerType(builder, pricerType)
+
 def CouponPricerAddPricer(builder, pricer):
-    """This method is deprecated. Please switch to AddPricer."""
-    return AddPricer(builder, pricer)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(pricer), 0)
+
+def AddPricer(builder, pricer):
+    CouponPricerAddPricer(builder, pricer)
+
 def CouponPricerEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return CouponPricerEnd(builder)
+
+try:
+    from typing import Union
+except:
+    pass
+
+class CouponPricerT(object):
+
+    # CouponPricerT
+    def __init__(self):
+        self.id = None  # type: str
+        self.pricerType = 0  # type: int
+        self.pricer = None  # type: Union[None, BlackIborCouponPricerT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        couponPricer = CouponPricer()
+        couponPricer.Init(buf, pos)
+        return cls.InitFromObj(couponPricer)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, couponPricer):
+        x = CouponPricerT()
+        x._UnPack(couponPricer)
+        return x
+
+    # CouponPricerT
+    def _UnPack(self, couponPricer):
+        if couponPricer is None:
+            return
+        self.id = couponPricer.Id()
+        self.pricerType = couponPricer.PricerType()
+        self.pricer = PricerCreator(self.pricerType, couponPricer.Pricer())
+
+    # CouponPricerT
+    def Pack(self, builder):
+        if self.id is not None:
+            id = builder.CreateString(self.id)
+        if self.pricer is not None:
+            pricer = self.pricer.Pack(builder)
+        CouponPricerStart(builder)
+        if self.id is not None:
+            CouponPricerAddId(builder, id)
+        CouponPricerAddPricerType(builder, self.pricerType)
+        if self.pricer is not None:
+            CouponPricerAddPricer(builder, pricer)
+        couponPricer = CouponPricerEnd(builder)
+        return couponPricer

@@ -37,6 +37,7 @@ struct PricingStruct
     std::string as_of_date;
     std::string settlement_date;
     const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>> *curves;
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::VolatilityTermStructure>> *volatilities;  // NEW
     bool bond_pricing_details;
     bool bond_pricing_flows;
     const flatbuffers::Vector<flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers;

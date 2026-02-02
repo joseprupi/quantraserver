@@ -10,3 +10,18 @@ class Point(object):
     SwapHelper = 4
     BondHelper = 5
 
+def PointCreator(unionType, table):
+    from flatbuffers.table import Table
+    if not isinstance(table, Table):
+        return None
+    if unionType == Point.DepositHelper:
+        return DepositHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.FRAHelper:
+        return FRAHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.FutureHelper:
+        return FutureHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.SwapHelper:
+        return SwapHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.BondHelper:
+        return BondHelperT.InitFromBuf(table.Bytes, table.Pos)
+    return None

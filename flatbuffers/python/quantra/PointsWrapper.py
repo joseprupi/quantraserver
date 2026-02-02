@@ -41,19 +41,73 @@ class PointsWrapper(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(2)
 def PointsWrapperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddPointType(builder, pointType): builder.PrependUint8Slot(0, pointType, 0)
+    builder.StartObject(2)
+
+def Start(builder):
+    PointsWrapperStart(builder)
+
 def PointsWrapperAddPointType(builder, pointType):
-    """This method is deprecated. Please switch to AddPointType."""
-    return AddPointType(builder, pointType)
-def AddPoint(builder, point): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(point), 0)
+    builder.PrependUint8Slot(0, pointType, 0)
+
+def AddPointType(builder, pointType):
+    PointsWrapperAddPointType(builder, pointType)
+
 def PointsWrapperAddPoint(builder, point):
-    """This method is deprecated. Please switch to AddPoint."""
-    return AddPoint(builder, point)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(point), 0)
+
+def AddPoint(builder, point):
+    PointsWrapperAddPoint(builder, point)
+
 def PointsWrapperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PointsWrapperEnd(builder)
+
+try:
+    from typing import Union
+except:
+    pass
+
+class PointsWrapperT(object):
+
+    # PointsWrapperT
+    def __init__(self):
+        self.pointType = 0  # type: int
+        self.point = None  # type: Union[None, DepositHelperT, FRAHelperT, FutureHelperT, SwapHelperT, BondHelperT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        pointsWrapper = PointsWrapper()
+        pointsWrapper.Init(buf, pos)
+        return cls.InitFromObj(pointsWrapper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, pointsWrapper):
+        x = PointsWrapperT()
+        x._UnPack(pointsWrapper)
+        return x
+
+    # PointsWrapperT
+    def _UnPack(self, pointsWrapper):
+        if pointsWrapper is None:
+            return
+        self.pointType = pointsWrapper.PointType()
+        self.point = PointCreator(self.pointType, pointsWrapper.Point())
+
+    # PointsWrapperT
+    def Pack(self, builder):
+        if self.point is not None:
+            point = self.point.Pack(builder)
+        PointsWrapperStart(builder)
+        PointsWrapperAddPointType(builder, self.pointType)
+        if self.point is not None:
+            PointsWrapperAddPoint(builder, point)
+        pointsWrapper = PointsWrapperEnd(builder)
+        return pointsWrapper

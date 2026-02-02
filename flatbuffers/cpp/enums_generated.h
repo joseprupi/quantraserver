@@ -6,6 +6,13 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
+              FLATBUFFERS_VERSION_MINOR == 12 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 namespace quantra {
 namespace enums {
 
@@ -73,7 +80,7 @@ inline const char * const *EnumNamesDayCounter() {
 }
 
 inline const char *EnumNameDayCounter(DayCounter e) {
-  if (flatbuffers::IsOutRange(e, DayCounter_Actual360, DayCounter_Thirty360)) return "";
+  if (::flatbuffers::IsOutRange(e, DayCounter_Actual360, DayCounter_Thirty360)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesDayCounter()[index];
 }
@@ -112,7 +119,7 @@ inline const char * const *EnumNamesInterpolator() {
 }
 
 inline const char *EnumNameInterpolator(Interpolator e) {
-  if (flatbuffers::IsOutRange(e, Interpolator_BackwardFlat, Interpolator_LogLinear)) return "";
+  if (::flatbuffers::IsOutRange(e, Interpolator_BackwardFlat, Interpolator_LogLinear)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesInterpolator()[index];
 }
@@ -154,7 +161,7 @@ inline const char * const *EnumNamesBootstrapTrait() {
 }
 
 inline const char *EnumNameBootstrapTrait(BootstrapTrait e) {
-  if (flatbuffers::IsOutRange(e, BootstrapTrait_Discount, BootstrapTrait_ZeroRate)) return "";
+  if (::flatbuffers::IsOutRange(e, BootstrapTrait_Discount, BootstrapTrait_ZeroRate)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesBootstrapTrait()[index];
 }
@@ -205,7 +212,7 @@ inline const char * const *EnumNamesTimeUnit() {
 }
 
 inline const char *EnumNameTimeUnit(TimeUnit e) {
-  if (flatbuffers::IsOutRange(e, TimeUnit_Days, TimeUnit_Years)) return "";
+  if (::flatbuffers::IsOutRange(e, TimeUnit_Days, TimeUnit_Years)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesTimeUnit()[index];
 }
@@ -358,7 +365,7 @@ inline const char * const *EnumNamesCalendar() {
 }
 
 inline const char *EnumNameCalendar(Calendar e) {
-  if (flatbuffers::IsOutRange(e, Calendar_Argentina, Calendar_WeekendsOnly)) return "";
+  if (::flatbuffers::IsOutRange(e, Calendar_Argentina, Calendar_WeekendsOnly)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesCalendar()[index];
 }
@@ -403,7 +410,7 @@ inline const char * const *EnumNamesBusinessDayConvention() {
 }
 
 inline const char *EnumNameBusinessDayConvention(BusinessDayConvention e) {
-  if (flatbuffers::IsOutRange(e, BusinessDayConvention_Following, BusinessDayConvention_Unadjusted)) return "";
+  if (::flatbuffers::IsOutRange(e, BusinessDayConvention_Following, BusinessDayConvention_Unadjusted)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesBusinessDayConvention()[index];
 }
@@ -466,9 +473,57 @@ inline const char * const *EnumNamesFrequency() {
 }
 
 inline const char *EnumNameFrequency(Frequency e) {
-  if (flatbuffers::IsOutRange(e, Frequency_Annual, Frequency_Weekly)) return "";
+  if (::flatbuffers::IsOutRange(e, Frequency_Annual, Frequency_Weekly)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesFrequency()[index];
+}
+
+enum DateGenerationRule : int8_t {
+  DateGenerationRule_Backward = 0,
+  DateGenerationRule_CDS = 1,
+  DateGenerationRule_Forward = 2,
+  DateGenerationRule_OldCDS = 3,
+  DateGenerationRule_ThirdWednesday = 4,
+  DateGenerationRule_Twentieth = 5,
+  DateGenerationRule_TwentiethIMM = 6,
+  DateGenerationRule_Zero = 7,
+  DateGenerationRule_MIN = DateGenerationRule_Backward,
+  DateGenerationRule_MAX = DateGenerationRule_Zero
+};
+
+inline const DateGenerationRule (&EnumValuesDateGenerationRule())[8] {
+  static const DateGenerationRule values[] = {
+    DateGenerationRule_Backward,
+    DateGenerationRule_CDS,
+    DateGenerationRule_Forward,
+    DateGenerationRule_OldCDS,
+    DateGenerationRule_ThirdWednesday,
+    DateGenerationRule_Twentieth,
+    DateGenerationRule_TwentiethIMM,
+    DateGenerationRule_Zero
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesDateGenerationRule() {
+  static const char * const names[9] = {
+    "Backward",
+    "CDS",
+    "Forward",
+    "OldCDS",
+    "ThirdWednesday",
+    "Twentieth",
+    "TwentiethIMM",
+    "Zero",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameDateGenerationRule(DateGenerationRule e) {
+  if (::flatbuffers::IsOutRange(e, DateGenerationRule_Backward, DateGenerationRule_Zero)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesDateGenerationRule()[index];
 }
 
 enum Ibor : int8_t {
@@ -580,57 +635,9 @@ inline const char * const *EnumNamesIbor() {
 }
 
 inline const char *EnumNameIbor(Ibor e) {
-  if (flatbuffers::IsOutRange(e, Ibor_Euribor10M, Ibor_EuriborSW)) return "";
+  if (::flatbuffers::IsOutRange(e, Ibor_Euribor10M, Ibor_EuriborSW)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesIbor()[index];
-}
-
-enum DateGenerationRule : int8_t {
-  DateGenerationRule_Backward = 0,
-  DateGenerationRule_CDS = 1,
-  DateGenerationRule_Forward = 2,
-  DateGenerationRule_OldCDS = 3,
-  DateGenerationRule_ThirdWednesday = 4,
-  DateGenerationRule_Twentieth = 5,
-  DateGenerationRule_TwentiethIMM = 6,
-  DateGenerationRule_Zero = 7,
-  DateGenerationRule_MIN = DateGenerationRule_Backward,
-  DateGenerationRule_MAX = DateGenerationRule_Zero
-};
-
-inline const DateGenerationRule (&EnumValuesDateGenerationRule())[8] {
-  static const DateGenerationRule values[] = {
-    DateGenerationRule_Backward,
-    DateGenerationRule_CDS,
-    DateGenerationRule_Forward,
-    DateGenerationRule_OldCDS,
-    DateGenerationRule_ThirdWednesday,
-    DateGenerationRule_Twentieth,
-    DateGenerationRule_TwentiethIMM,
-    DateGenerationRule_Zero
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesDateGenerationRule() {
-  static const char * const names[9] = {
-    "Backward",
-    "CDS",
-    "Forward",
-    "OldCDS",
-    "ThirdWednesday",
-    "Twentieth",
-    "TwentiethIMM",
-    "Zero",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameDateGenerationRule(DateGenerationRule e) {
-  if (flatbuffers::IsOutRange(e, DateGenerationRule_Backward, DateGenerationRule_Zero)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesDateGenerationRule()[index];
 }
 
 enum Compounding : int8_t {
@@ -664,9 +671,225 @@ inline const char * const *EnumNamesCompounding() {
 }
 
 inline const char *EnumNameCompounding(Compounding e) {
-  if (flatbuffers::IsOutRange(e, Compounding_Compounded, Compounding_SimpleThenCompounded)) return "";
+  if (::flatbuffers::IsOutRange(e, Compounding_Compounded, Compounding_SimpleThenCompounded)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesCompounding()[index];
+}
+
+enum SwapType : int8_t {
+  SwapType_Payer = 0,
+  SwapType_Receiver = 1,
+  SwapType_MIN = SwapType_Payer,
+  SwapType_MAX = SwapType_Receiver
+};
+
+inline const SwapType (&EnumValuesSwapType())[2] {
+  static const SwapType values[] = {
+    SwapType_Payer,
+    SwapType_Receiver
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwapType() {
+  static const char * const names[3] = {
+    "Payer",
+    "Receiver",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwapType(SwapType e) {
+  if (::flatbuffers::IsOutRange(e, SwapType_Payer, SwapType_Receiver)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwapType()[index];
+}
+
+enum FRAType : int8_t {
+  FRAType_Long = 0,
+  FRAType_Short = 1,
+  FRAType_MIN = FRAType_Long,
+  FRAType_MAX = FRAType_Short
+};
+
+inline const FRAType (&EnumValuesFRAType())[2] {
+  static const FRAType values[] = {
+    FRAType_Long,
+    FRAType_Short
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesFRAType() {
+  static const char * const names[3] = {
+    "Long",
+    "Short",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameFRAType(FRAType e) {
+  if (::flatbuffers::IsOutRange(e, FRAType_Long, FRAType_Short)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesFRAType()[index];
+}
+
+enum CapFloorType : int8_t {
+  CapFloorType_Cap = 0,
+  CapFloorType_Floor = 1,
+  CapFloorType_Collar = 2,
+  CapFloorType_MIN = CapFloorType_Cap,
+  CapFloorType_MAX = CapFloorType_Collar
+};
+
+inline const CapFloorType (&EnumValuesCapFloorType())[3] {
+  static const CapFloorType values[] = {
+    CapFloorType_Cap,
+    CapFloorType_Floor,
+    CapFloorType_Collar
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCapFloorType() {
+  static const char * const names[4] = {
+    "Cap",
+    "Floor",
+    "Collar",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCapFloorType(CapFloorType e) {
+  if (::flatbuffers::IsOutRange(e, CapFloorType_Cap, CapFloorType_Collar)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCapFloorType()[index];
+}
+
+enum ExerciseType : int8_t {
+  ExerciseType_European = 0,
+  ExerciseType_Bermudan = 1,
+  ExerciseType_American = 2,
+  ExerciseType_MIN = ExerciseType_European,
+  ExerciseType_MAX = ExerciseType_American
+};
+
+inline const ExerciseType (&EnumValuesExerciseType())[3] {
+  static const ExerciseType values[] = {
+    ExerciseType_European,
+    ExerciseType_Bermudan,
+    ExerciseType_American
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesExerciseType() {
+  static const char * const names[4] = {
+    "European",
+    "Bermudan",
+    "American",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameExerciseType(ExerciseType e) {
+  if (::flatbuffers::IsOutRange(e, ExerciseType_European, ExerciseType_American)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesExerciseType()[index];
+}
+
+enum SettlementType : int8_t {
+  SettlementType_Physical = 0,
+  SettlementType_Cash = 1,
+  SettlementType_MIN = SettlementType_Physical,
+  SettlementType_MAX = SettlementType_Cash
+};
+
+inline const SettlementType (&EnumValuesSettlementType())[2] {
+  static const SettlementType values[] = {
+    SettlementType_Physical,
+    SettlementType_Cash
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSettlementType() {
+  static const char * const names[3] = {
+    "Physical",
+    "Cash",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSettlementType(SettlementType e) {
+  if (::flatbuffers::IsOutRange(e, SettlementType_Physical, SettlementType_Cash)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSettlementType()[index];
+}
+
+enum ProtectionSide : int8_t {
+  ProtectionSide_Buyer = 0,
+  ProtectionSide_Seller = 1,
+  ProtectionSide_MIN = ProtectionSide_Buyer,
+  ProtectionSide_MAX = ProtectionSide_Seller
+};
+
+inline const ProtectionSide (&EnumValuesProtectionSide())[2] {
+  static const ProtectionSide values[] = {
+    ProtectionSide_Buyer,
+    ProtectionSide_Seller
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesProtectionSide() {
+  static const char * const names[3] = {
+    "Buyer",
+    "Seller",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameProtectionSide(ProtectionSide e) {
+  if (::flatbuffers::IsOutRange(e, ProtectionSide_Buyer, ProtectionSide_Seller)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesProtectionSide()[index];
+}
+
+enum VolatilityType : int8_t {
+  VolatilityType_ShiftedLognormal = 0,
+  VolatilityType_Normal = 1,
+  VolatilityType_MIN = VolatilityType_ShiftedLognormal,
+  VolatilityType_MAX = VolatilityType_Normal
+};
+
+inline const VolatilityType (&EnumValuesVolatilityType())[2] {
+  static const VolatilityType values[] = {
+    VolatilityType_ShiftedLognormal,
+    VolatilityType_Normal
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesVolatilityType() {
+  static const char * const names[3] = {
+    "ShiftedLognormal",
+    "Normal",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameVolatilityType(VolatilityType e) {
+  if (::flatbuffers::IsOutRange(e, VolatilityType_ShiftedLognormal, VolatilityType_Normal)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesVolatilityType()[index];
 }
 
 }  // namespace enums

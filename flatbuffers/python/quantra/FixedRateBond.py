@@ -84,43 +84,131 @@ class FixedRateBond(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(8)
 def FixedRateBondStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddSettlementDays(builder, settlementDays): builder.PrependInt32Slot(0, settlementDays, 0)
+    builder.StartObject(8)
+
+def Start(builder):
+    FixedRateBondStart(builder)
+
 def FixedRateBondAddSettlementDays(builder, settlementDays):
-    """This method is deprecated. Please switch to AddSettlementDays."""
-    return AddSettlementDays(builder, settlementDays)
-def AddFaceAmount(builder, faceAmount): builder.PrependFloat64Slot(1, faceAmount, 0.0)
+    builder.PrependInt32Slot(0, settlementDays, 0)
+
+def AddSettlementDays(builder, settlementDays):
+    FixedRateBondAddSettlementDays(builder, settlementDays)
+
 def FixedRateBondAddFaceAmount(builder, faceAmount):
-    """This method is deprecated. Please switch to AddFaceAmount."""
-    return AddFaceAmount(builder, faceAmount)
-def AddRate(builder, rate): builder.PrependFloat64Slot(2, rate, 0.0)
+    builder.PrependFloat64Slot(1, faceAmount, 0.0)
+
+def AddFaceAmount(builder, faceAmount):
+    FixedRateBondAddFaceAmount(builder, faceAmount)
+
 def FixedRateBondAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddAccrualDayCounter(builder, accrualDayCounter): builder.PrependInt8Slot(3, accrualDayCounter, 0)
+    builder.PrependFloat64Slot(2, rate, 0.0)
+
+def AddRate(builder, rate):
+    FixedRateBondAddRate(builder, rate)
+
 def FixedRateBondAddAccrualDayCounter(builder, accrualDayCounter):
-    """This method is deprecated. Please switch to AddAccrualDayCounter."""
-    return AddAccrualDayCounter(builder, accrualDayCounter)
-def AddPaymentConvention(builder, paymentConvention): builder.PrependInt8Slot(4, paymentConvention, 0)
+    builder.PrependInt8Slot(3, accrualDayCounter, 0)
+
+def AddAccrualDayCounter(builder, accrualDayCounter):
+    FixedRateBondAddAccrualDayCounter(builder, accrualDayCounter)
+
 def FixedRateBondAddPaymentConvention(builder, paymentConvention):
-    """This method is deprecated. Please switch to AddPaymentConvention."""
-    return AddPaymentConvention(builder, paymentConvention)
-def AddRedemption(builder, redemption): builder.PrependFloat64Slot(5, redemption, 0.0)
+    builder.PrependInt8Slot(4, paymentConvention, 0)
+
+def AddPaymentConvention(builder, paymentConvention):
+    FixedRateBondAddPaymentConvention(builder, paymentConvention)
+
 def FixedRateBondAddRedemption(builder, redemption):
-    """This method is deprecated. Please switch to AddRedemption."""
-    return AddRedemption(builder, redemption)
-def AddIssueDate(builder, issueDate): builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+    builder.PrependFloat64Slot(5, redemption, 0.0)
+
+def AddRedemption(builder, redemption):
+    FixedRateBondAddRedemption(builder, redemption)
+
 def FixedRateBondAddIssueDate(builder, issueDate):
-    """This method is deprecated. Please switch to AddIssueDate."""
-    return AddIssueDate(builder, issueDate)
-def AddSchedule(builder, schedule): builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+
+def AddIssueDate(builder, issueDate):
+    FixedRateBondAddIssueDate(builder, issueDate)
+
 def FixedRateBondAddSchedule(builder, schedule):
-    """This method is deprecated. Please switch to AddSchedule."""
-    return AddSchedule(builder, schedule)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+
+def AddSchedule(builder, schedule):
+    FixedRateBondAddSchedule(builder, schedule)
+
 def FixedRateBondEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FixedRateBondEnd(builder)
+
+try:
+    from typing import Optional
+except:
+    pass
+
+class FixedRateBondT(object):
+
+    # FixedRateBondT
+    def __init__(self):
+        self.settlementDays = 0  # type: int
+        self.faceAmount = 0.0  # type: float
+        self.rate = 0.0  # type: float
+        self.accrualDayCounter = 0  # type: int
+        self.paymentConvention = 0  # type: int
+        self.redemption = 0.0  # type: float
+        self.issueDate = None  # type: str
+        self.schedule = None  # type: Optional[ScheduleT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        fixedRateBond = FixedRateBond()
+        fixedRateBond.Init(buf, pos)
+        return cls.InitFromObj(fixedRateBond)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, fixedRateBond):
+        x = FixedRateBondT()
+        x._UnPack(fixedRateBond)
+        return x
+
+    # FixedRateBondT
+    def _UnPack(self, fixedRateBond):
+        if fixedRateBond is None:
+            return
+        self.settlementDays = fixedRateBond.SettlementDays()
+        self.faceAmount = fixedRateBond.FaceAmount()
+        self.rate = fixedRateBond.Rate()
+        self.accrualDayCounter = fixedRateBond.AccrualDayCounter()
+        self.paymentConvention = fixedRateBond.PaymentConvention()
+        self.redemption = fixedRateBond.Redemption()
+        self.issueDate = fixedRateBond.IssueDate()
+        if fixedRateBond.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(fixedRateBond.Schedule())
+
+    # FixedRateBondT
+    def Pack(self, builder):
+        if self.issueDate is not None:
+            issueDate = builder.CreateString(self.issueDate)
+        if self.schedule is not None:
+            schedule = self.schedule.Pack(builder)
+        FixedRateBondStart(builder)
+        FixedRateBondAddSettlementDays(builder, self.settlementDays)
+        FixedRateBondAddFaceAmount(builder, self.faceAmount)
+        FixedRateBondAddRate(builder, self.rate)
+        FixedRateBondAddAccrualDayCounter(builder, self.accrualDayCounter)
+        FixedRateBondAddPaymentConvention(builder, self.paymentConvention)
+        FixedRateBondAddRedemption(builder, self.redemption)
+        if self.issueDate is not None:
+            FixedRateBondAddIssueDate(builder, issueDate)
+        if self.schedule is not None:
+            FixedRateBondAddSchedule(builder, schedule)
+        fixedRateBond = FixedRateBondEnd(builder)
+        return fixedRateBond

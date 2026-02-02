@@ -33,4 +33,3 @@ class Ibor(object):
     Euribor8M = 27
     Euribor9M = 28
     EuriborSW = 29
-

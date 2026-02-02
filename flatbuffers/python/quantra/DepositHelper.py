@@ -73,39 +73,111 @@ class DepositHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(7)
 def DepositHelperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.StartObject(7)
+
+def Start(builder):
+    DepositHelperStart(builder)
+
 def DepositHelperAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddTenorTimeUnit(builder, tenorTimeUnit): builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+    builder.PrependFloat64Slot(0, rate, 0.0)
+
+def AddRate(builder, rate):
+    DepositHelperAddRate(builder, rate)
+
 def DepositHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    """This method is deprecated. Please switch to AddTenorTimeUnit."""
-    return AddTenorTimeUnit(builder, tenorTimeUnit)
-def AddTenorNumber(builder, tenorNumber): builder.PrependInt32Slot(2, tenorNumber, 0)
+    builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+
+def AddTenorTimeUnit(builder, tenorTimeUnit):
+    DepositHelperAddTenorTimeUnit(builder, tenorTimeUnit)
+
 def DepositHelperAddTenorNumber(builder, tenorNumber):
-    """This method is deprecated. Please switch to AddTenorNumber."""
-    return AddTenorNumber(builder, tenorNumber)
-def AddFixingDays(builder, fixingDays): builder.PrependInt32Slot(3, fixingDays, 0)
+    builder.PrependInt32Slot(2, tenorNumber, 0)
+
+def AddTenorNumber(builder, tenorNumber):
+    DepositHelperAddTenorNumber(builder, tenorNumber)
+
 def DepositHelperAddFixingDays(builder, fixingDays):
-    """This method is deprecated. Please switch to AddFixingDays."""
-    return AddFixingDays(builder, fixingDays)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt32Slot(3, fixingDays, 0)
+
+def AddFixingDays(builder, fixingDays):
+    DepositHelperAddFixingDays(builder, fixingDays)
+
 def DepositHelperAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(5, businessDayConvention, 0)
+    builder.PrependInt8Slot(4, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    DepositHelperAddCalendar(builder, calendar)
+
 def DepositHelperAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(5, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    DepositHelperAddBusinessDayConvention(builder, businessDayConvention)
+
 def DepositHelperAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def End(builder): return builder.EndObject()
+    builder.PrependInt8Slot(6, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    DepositHelperAddDayCounter(builder, dayCounter)
+
 def DepositHelperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return DepositHelperEnd(builder)
+
+
+class DepositHelperT(object):
+
+    # DepositHelperT
+    def __init__(self):
+        self.rate = 0.0  # type: float
+        self.tenorTimeUnit = 0  # type: int
+        self.tenorNumber = 0  # type: int
+        self.fixingDays = 0  # type: int
+        self.calendar = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.dayCounter = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        depositHelper = DepositHelper()
+        depositHelper.Init(buf, pos)
+        return cls.InitFromObj(depositHelper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, depositHelper):
+        x = DepositHelperT()
+        x._UnPack(depositHelper)
+        return x
+
+    # DepositHelperT
+    def _UnPack(self, depositHelper):
+        if depositHelper is None:
+            return
+        self.rate = depositHelper.Rate()
+        self.tenorTimeUnit = depositHelper.TenorTimeUnit()
+        self.tenorNumber = depositHelper.TenorNumber()
+        self.fixingDays = depositHelper.FixingDays()
+        self.calendar = depositHelper.Calendar()
+        self.businessDayConvention = depositHelper.BusinessDayConvention()
+        self.dayCounter = depositHelper.DayCounter()
+
+    # DepositHelperT
+    def Pack(self, builder):
+        DepositHelperStart(builder)
+        DepositHelperAddRate(builder, self.rate)
+        DepositHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        DepositHelperAddTenorNumber(builder, self.tenorNumber)
+        DepositHelperAddFixingDays(builder, self.fixingDays)
+        DepositHelperAddCalendar(builder, self.calendar)
+        DepositHelperAddBusinessDayConvention(builder, self.businessDayConvention)
+        DepositHelperAddDayCounter(builder, self.dayCounter)
+        depositHelper = DepositHelperEnd(builder)
+        return depositHelper

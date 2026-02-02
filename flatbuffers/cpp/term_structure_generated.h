@@ -6,6 +6,13 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
+              FLATBUFFERS_VERSION_MINOR == 12 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 #include "enums_generated.h"
 #include "schedule_generated.h"
 
@@ -76,7 +83,7 @@ inline const char * const *EnumNamesPoint() {
 }
 
 inline const char *EnumNamePoint(Point e) {
-  if (flatbuffers::IsOutRange(e, Point_NONE, Point_BondHelper)) return "";
+  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_BondHelper)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesPoint()[index];
 }
@@ -105,6 +112,30 @@ template<> struct PointTraits<quantra::BondHelper> {
   static const Point enum_value = Point_BondHelper;
 };
 
+template<typename T> struct PointUnionTraits {
+  static const Point enum_value = Point_NONE;
+};
+
+template<> struct PointUnionTraits<quantra::DepositHelperT> {
+  static const Point enum_value = Point_DepositHelper;
+};
+
+template<> struct PointUnionTraits<quantra::FRAHelperT> {
+  static const Point enum_value = Point_FRAHelper;
+};
+
+template<> struct PointUnionTraits<quantra::FutureHelperT> {
+  static const Point enum_value = Point_FutureHelper;
+};
+
+template<> struct PointUnionTraits<quantra::SwapHelperT> {
+  static const Point enum_value = Point_SwapHelper;
+};
+
+template<> struct PointUnionTraits<quantra::BondHelperT> {
+  static const Point enum_value = Point_BondHelper;
+};
+
 struct PointUnion {
   Point type;
   void *value;
@@ -122,20 +153,18 @@ struct PointUnion {
 
   void Reset();
 
-#ifndef FLATBUFFERS_CPP98_STL
   template <typename T>
   void Set(T&& val) {
-    using RT = typename std::remove_reference<T>::type;
+    typedef typename std::remove_reference<T>::type RT;
     Reset();
-    type = PointTraits<typename RT::TableType>::enum_value;
+    type = PointUnionTraits<RT>::enum_value;
     if (type != Point_NONE) {
       value = new RT(std::forward<T>(val));
     }
   }
-#endif  // FLATBUFFERS_CPP98_STL
 
-  static void *UnPack(const void *obj, Point type, const flatbuffers::resolver_function_t *resolver);
-  flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
+  static void *UnPack(const void *obj, Point type, const ::flatbuffers::resolver_function_t *resolver);
+  ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
   quantra::DepositHelperT *AsDepositHelper() {
     return type == Point_DepositHelper ?
@@ -179,10 +208,10 @@ struct PointUnion {
   }
 };
 
-bool VerifyPoint(flatbuffers::Verifier &verifier, const void *obj, Point type);
-bool VerifyPointVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
+bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type);
+bool VerifyPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
-struct DepositHelperT : public flatbuffers::NativeTable {
+struct DepositHelperT : public ::flatbuffers::NativeTable {
   typedef DepositHelper TableType;
   double rate = 0.0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
@@ -193,7 +222,7 @@ struct DepositHelperT : public flatbuffers::NativeTable {
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
 };
 
-struct DepositHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef DepositHelperT NativeTableType;
   typedef DepositHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -226,26 +255,26 @@ struct DepositHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RATE) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR) &&
-           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            verifier.EndTable();
   }
-  DepositHelperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(DepositHelperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<DepositHelper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  DepositHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(DepositHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<DepositHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct DepositHelperBuilder {
   typedef DepositHelper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
     fbb_.AddElement<double>(DepositHelper::VT_RATE, rate, 0.0);
   }
@@ -267,19 +296,19 @@ struct DepositHelperBuilder {
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(DepositHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
   }
-  explicit DepositHelperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit DepositHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<DepositHelper> Finish() {
+  ::flatbuffers::Offset<DepositHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<DepositHelper>(end);
+    auto o = ::flatbuffers::Offset<DepositHelper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<DepositHelper> CreateDepositHelper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
     int32_t tenor_number = 0,
@@ -298,9 +327,9 @@ inline flatbuffers::Offset<DepositHelper> CreateDepositHelper(
   return builder_.Finish();
 }
 
-flatbuffers::Offset<DepositHelper> CreateDepositHelper(flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<DepositHelper> CreateDepositHelper(::flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct FRAHelperT : public flatbuffers::NativeTable {
+struct FRAHelperT : public ::flatbuffers::NativeTable {
   typedef FRAHelper TableType;
   double rate = 0.0;
   int32_t months_to_start = 0;
@@ -311,7 +340,7 @@ struct FRAHelperT : public flatbuffers::NativeTable {
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
 };
 
-struct FRAHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct FRAHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FRAHelperT NativeTableType;
   typedef FRAHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -344,26 +373,26 @@ struct FRAHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RATE) &&
-           VerifyField<int32_t>(verifier, VT_MONTHS_TO_START) &&
-           VerifyField<int32_t>(verifier, VT_MONTHS_TO_END) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR) &&
-           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int32_t>(verifier, VT_MONTHS_TO_START, 4) &&
+           VerifyField<int32_t>(verifier, VT_MONTHS_TO_END, 4) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            verifier.EndTable();
   }
-  FRAHelperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FRAHelperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<FRAHelper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  FRAHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(FRAHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<FRAHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct FRAHelperBuilder {
   typedef FRAHelper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
     fbb_.AddElement<double>(FRAHelper::VT_RATE, rate, 0.0);
   }
@@ -385,19 +414,19 @@ struct FRAHelperBuilder {
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(FRAHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
   }
-  explicit FRAHelperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit FRAHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<FRAHelper> Finish() {
+  ::flatbuffers::Offset<FRAHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<FRAHelper>(end);
+    auto o = ::flatbuffers::Offset<FRAHelper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<FRAHelper> CreateFRAHelper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     int32_t months_to_start = 0,
     int32_t months_to_end = 0,
@@ -416,9 +445,9 @@ inline flatbuffers::Offset<FRAHelper> CreateFRAHelper(
   return builder_.Finish();
 }
 
-flatbuffers::Offset<FRAHelper> CreateFRAHelper(flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<FRAHelper> CreateFRAHelper(::flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct FutureHelperT : public flatbuffers::NativeTable {
+struct FutureHelperT : public ::flatbuffers::NativeTable {
   typedef FutureHelper TableType;
   double rate = 0.0;
   std::string future_start_date{};
@@ -428,7 +457,7 @@ struct FutureHelperT : public flatbuffers::NativeTable {
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
 };
 
-struct FutureHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FutureHelperT NativeTableType;
   typedef FutureHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -442,8 +471,8 @@ struct FutureHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  const flatbuffers::String *future_start_date() const {
-    return GetPointer<const flatbuffers::String *>(VT_FUTURE_START_DATE);
+  const ::flatbuffers::String *future_start_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FUTURE_START_DATE);
   }
   int32_t future_months() const {
     return GetField<int32_t>(VT_FUTURE_MONTHS, 0);
@@ -457,30 +486,30 @@ struct FutureHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RATE) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
            VerifyOffset(verifier, VT_FUTURE_START_DATE) &&
            verifier.VerifyString(future_start_date()) &&
-           VerifyField<int32_t>(verifier, VT_FUTURE_MONTHS) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR) &&
-           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER) &&
+           VerifyField<int32_t>(verifier, VT_FUTURE_MONTHS, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            verifier.EndTable();
   }
-  FutureHelperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FutureHelperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<FutureHelper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  FutureHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(FutureHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<FutureHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct FutureHelperBuilder {
   typedef FutureHelper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
     fbb_.AddElement<double>(FutureHelper::VT_RATE, rate, 0.0);
   }
-  void add_future_start_date(flatbuffers::Offset<flatbuffers::String> future_start_date) {
+  void add_future_start_date(::flatbuffers::Offset<::flatbuffers::String> future_start_date) {
     fbb_.AddOffset(FutureHelper::VT_FUTURE_START_DATE, future_start_date);
   }
   void add_future_months(int32_t future_months) {
@@ -495,21 +524,21 @@ struct FutureHelperBuilder {
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(FutureHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
   }
-  explicit FutureHelperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit FutureHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<FutureHelper> Finish() {
+  ::flatbuffers::Offset<FutureHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<FutureHelper>(end);
+    auto o = ::flatbuffers::Offset<FutureHelper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<FutureHelper> CreateFutureHelper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    flatbuffers::Offset<flatbuffers::String> future_start_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> future_start_date = 0,
     int32_t future_months = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
@@ -524,8 +553,8 @@ inline flatbuffers::Offset<FutureHelper> CreateFutureHelper(
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     const char *future_start_date = nullptr,
     int32_t future_months = 0,
@@ -543,9 +572,9 @@ inline flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
       day_counter);
 }
 
-flatbuffers::Offset<FutureHelper> CreateFutureHelper(flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<FutureHelper> CreateFutureHelper(::flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct SwapHelperT : public flatbuffers::NativeTable {
+struct SwapHelperT : public ::flatbuffers::NativeTable {
   typedef SwapHelper TableType;
   double rate = 0.0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
@@ -559,7 +588,7 @@ struct SwapHelperT : public flatbuffers::NativeTable {
   int32_t fwd_start_days = 0;
 };
 
-struct SwapHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapHelperT NativeTableType;
   typedef SwapHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -604,29 +633,29 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int32_t fwd_start_days() const {
     return GetField<int32_t>(VT_FWD_START_DAYS, 0);
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RATE) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR) &&
-           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_FREQUENCY) &&
-           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_CONVENTION) &&
-           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_DAY_COUNTER) &&
-           VerifyField<int8_t>(verifier, VT_SW_FLOATING_LEG_INDEX) &&
-           VerifyField<double>(verifier, VT_SPREAD) &&
-           VerifyField<int32_t>(verifier, VT_FWD_START_DAYS) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_FREQUENCY, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_SW_FLOATING_LEG_INDEX, 1) &&
+           VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyField<int32_t>(verifier, VT_FWD_START_DAYS, 4) &&
            verifier.EndTable();
   }
-  SwapHelperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SwapHelperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<SwapHelper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  SwapHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwapHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct SwapHelperBuilder {
   typedef SwapHelper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
     fbb_.AddElement<double>(SwapHelper::VT_RATE, rate, 0.0);
   }
@@ -657,19 +686,19 @@ struct SwapHelperBuilder {
   void add_fwd_start_days(int32_t fwd_start_days) {
     fbb_.AddElement<int32_t>(SwapHelper::VT_FWD_START_DAYS, fwd_start_days, 0);
   }
-  explicit SwapHelperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit SwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<SwapHelper> Finish() {
+  ::flatbuffers::Offset<SwapHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<SwapHelper>(end);
+    auto o = ::flatbuffers::Offset<SwapHelper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<SwapHelper> CreateSwapHelper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
     int32_t tenor_number = 0,
@@ -694,9 +723,9 @@ inline flatbuffers::Offset<SwapHelper> CreateSwapHelper(
   return builder_.Finish();
 }
 
-flatbuffers::Offset<SwapHelper> CreateSwapHelper(flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct BondHelperT : public flatbuffers::NativeTable {
+struct BondHelperT : public ::flatbuffers::NativeTable {
   typedef BondHelper TableType;
   double rate = 0.0;
   int32_t settlement_days = 0;
@@ -707,9 +736,13 @@ struct BondHelperT : public flatbuffers::NativeTable {
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   double redemption = 0.0;
   std::string issue_date{};
+  BondHelperT() = default;
+  BondHelperT(const BondHelperT &o);
+  BondHelperT(BondHelperT&&) FLATBUFFERS_NOEXCEPT = default;
+  BondHelperT &operator=(BondHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
-struct BondHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BondHelperT NativeTableType;
   typedef BondHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -747,33 +780,33 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   double redemption() const {
     return GetField<double>(VT_REDEMPTION, 0.0);
   }
-  const flatbuffers::String *issue_date() const {
-    return GetPointer<const flatbuffers::String *>(VT_ISSUE_DATE);
+  const ::flatbuffers::String *issue_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ISSUE_DATE);
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RATE) &&
-           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS) &&
-           VerifyField<double>(verifier, VT_FACE_AMOUNT) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
+           VerifyField<double>(verifier, VT_FACE_AMOUNT, 8) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
-           VerifyField<double>(verifier, VT_COUPON_RATE) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER) &&
-           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION) &&
-           VerifyField<double>(verifier, VT_REDEMPTION) &&
+           VerifyField<double>(verifier, VT_COUPON_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_REDEMPTION, 8) &&
            VerifyOffset(verifier, VT_ISSUE_DATE) &&
            verifier.VerifyString(issue_date()) &&
            verifier.EndTable();
   }
-  BondHelperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(BondHelperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<BondHelper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  BondHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(BondHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<BondHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct BondHelperBuilder {
   typedef BondHelper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
     fbb_.AddElement<double>(BondHelper::VT_RATE, rate, 0.0);
   }
@@ -783,7 +816,7 @@ struct BondHelperBuilder {
   void add_face_amount(double face_amount) {
     fbb_.AddElement<double>(BondHelper::VT_FACE_AMOUNT, face_amount, 0.0);
   }
-  void add_schedule(flatbuffers::Offset<quantra::Schedule> schedule) {
+  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(BondHelper::VT_SCHEDULE, schedule);
   }
   void add_coupon_rate(double coupon_rate) {
@@ -798,31 +831,31 @@ struct BondHelperBuilder {
   void add_redemption(double redemption) {
     fbb_.AddElement<double>(BondHelper::VT_REDEMPTION, redemption, 0.0);
   }
-  void add_issue_date(flatbuffers::Offset<flatbuffers::String> issue_date) {
+  void add_issue_date(::flatbuffers::Offset<::flatbuffers::String> issue_date) {
     fbb_.AddOffset(BondHelper::VT_ISSUE_DATE, issue_date);
   }
-  explicit BondHelperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit BondHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<BondHelper> Finish() {
+  ::flatbuffers::Offset<BondHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<BondHelper>(end);
+    auto o = ::flatbuffers::Offset<BondHelper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<BondHelper> CreateBondHelper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
-    flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     double coupon_rate = 0.0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     double redemption = 0.0,
-    flatbuffers::Offset<flatbuffers::String> issue_date = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> issue_date = 0) {
   BondHelperBuilder builder_(_fbb);
   builder_.add_redemption(redemption);
   builder_.add_coupon_rate(coupon_rate);
@@ -836,12 +869,12 @@ inline flatbuffers::Offset<BondHelper> CreateBondHelper(
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
-    flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     double coupon_rate = 0.0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
@@ -861,14 +894,14 @@ inline flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
       issue_date__);
 }
 
-flatbuffers::Offset<BondHelper> CreateBondHelper(flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<BondHelper> CreateBondHelper(::flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct PointsWrapperT : public flatbuffers::NativeTable {
+struct PointsWrapperT : public ::flatbuffers::NativeTable {
   typedef PointsWrapper TableType;
   quantra::PointUnion point{};
 };
 
-struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PointsWrapperT NativeTableType;
   typedef PointsWrapperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -897,16 +930,16 @@ struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const quantra::BondHelper *point_as_BondHelper() const {
     return point_type() == quantra::Point_BondHelper ? static_cast<const quantra::BondHelper *>(point()) : nullptr;
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_POINT_TYPE) &&
+           VerifyField<uint8_t>(verifier, VT_POINT_TYPE, 1) &&
            VerifyOffset(verifier, VT_POINT) &&
            VerifyPoint(verifier, point(), point_type()) &&
            verifier.EndTable();
   }
-  PointsWrapperT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PointsWrapperT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PointsWrapper> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  PointsWrapperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PointsWrapperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<PointsWrapper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 template<> inline const quantra::DepositHelper *PointsWrapper::point_as<quantra::DepositHelper>() const {
@@ -931,38 +964,38 @@ template<> inline const quantra::BondHelper *PointsWrapper::point_as<quantra::Bo
 
 struct PointsWrapperBuilder {
   typedef PointsWrapper Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
   void add_point_type(quantra::Point point_type) {
     fbb_.AddElement<uint8_t>(PointsWrapper::VT_POINT_TYPE, static_cast<uint8_t>(point_type), 0);
   }
-  void add_point(flatbuffers::Offset<void> point) {
+  void add_point(::flatbuffers::Offset<void> point) {
     fbb_.AddOffset(PointsWrapper::VT_POINT, point);
   }
-  explicit PointsWrapperBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit PointsWrapperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<PointsWrapper> Finish() {
+  ::flatbuffers::Offset<PointsWrapper> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PointsWrapper>(end);
+    auto o = ::flatbuffers::Offset<PointsWrapper>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::Point point_type = quantra::Point_NONE,
-    flatbuffers::Offset<void> point = 0) {
+    ::flatbuffers::Offset<void> point = 0) {
   PointsWrapperBuilder builder_(_fbb);
   builder_.add_point(point);
   builder_.add_point_type(point_type);
   return builder_.Finish();
 }
 
-flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(::flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct TermStructureT : public flatbuffers::NativeTable {
+struct TermStructureT : public ::flatbuffers::NativeTable {
   typedef TermStructure TableType;
   std::string id{};
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
@@ -970,9 +1003,13 @@ struct TermStructureT : public flatbuffers::NativeTable {
   quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount;
   std::vector<std::unique_ptr<quantra::PointsWrapperT>> points{};
   std::string reference_date{};
+  TermStructureT() = default;
+  TermStructureT(const TermStructureT &o);
+  TermStructureT(TermStructureT&&) FLATBUFFERS_NOEXCEPT = default;
+  TermStructureT &operator=(TermStructureT o) FLATBUFFERS_NOEXCEPT;
 };
 
-struct TermStructure FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct TermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef TermStructureT NativeTableType;
   typedef TermStructureBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -983,8 +1020,8 @@ struct TermStructure FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_POINTS = 12,
     VT_REFERENCE_DATE = 14
   };
-  const flatbuffers::String *id() const {
-    return GetPointer<const flatbuffers::String *>(VT_ID);
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
   }
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
@@ -995,19 +1032,19 @@ struct TermStructure FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   quantra::enums::BootstrapTrait bootstrap_trait() const {
     return static_cast<quantra::enums::BootstrapTrait>(GetField<int8_t>(VT_BOOTSTRAP_TRAIT, 0));
   }
-  const flatbuffers::Vector<flatbuffers::Offset<quantra::PointsWrapper>> *points() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<quantra::PointsWrapper>> *>(VT_POINTS);
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *>(VT_POINTS);
   }
-  const flatbuffers::String *reference_date() const {
-    return GetPointer<const flatbuffers::String *>(VT_REFERENCE_DATE);
+  const ::flatbuffers::String *reference_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  bool Verify(flatbuffers::Verifier &verifier) const {
+  bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_ID) &&
            verifier.VerifyString(id()) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER) &&
-           VerifyField<int8_t>(verifier, VT_INTERPOLATOR) &&
-           VerifyField<int8_t>(verifier, VT_BOOTSTRAP_TRAIT) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BOOTSTRAP_TRAIT, 1) &&
            VerifyOffset(verifier, VT_POINTS) &&
            verifier.VerifyVector(points()) &&
            verifier.VerifyVectorOfTables(points()) &&
@@ -1015,16 +1052,16 @@ struct TermStructure FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(reference_date()) &&
            verifier.EndTable();
   }
-  TermStructureT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(TermStructureT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<TermStructure> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  TermStructureT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TermStructureT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<TermStructure> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct TermStructureBuilder {
   typedef TermStructure Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_id(flatbuffers::Offset<flatbuffers::String> id) {
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
     fbb_.AddOffset(TermStructure::VT_ID, id);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
@@ -1036,31 +1073,31 @@ struct TermStructureBuilder {
   void add_bootstrap_trait(quantra::enums::BootstrapTrait bootstrap_trait) {
     fbb_.AddElement<int8_t>(TermStructure::VT_BOOTSTRAP_TRAIT, static_cast<int8_t>(bootstrap_trait), 0);
   }
-  void add_points(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::PointsWrapper>>> points) {
+  void add_points(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points) {
     fbb_.AddOffset(TermStructure::VT_POINTS, points);
   }
-  void add_reference_date(flatbuffers::Offset<flatbuffers::String> reference_date) {
+  void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
     fbb_.AddOffset(TermStructure::VT_REFERENCE_DATE, reference_date);
   }
-  explicit TermStructureBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit TermStructureBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<TermStructure> Finish() {
+  ::flatbuffers::Offset<TermStructure> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<TermStructure>(end);
+    auto o = ::flatbuffers::Offset<TermStructure>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<TermStructure> CreateTermStructure(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::String> id = 0,
+inline ::flatbuffers::Offset<TermStructure> CreateTermStructure(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_BackwardFlat,
     quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::PointsWrapper>>> points = 0,
-    flatbuffers::Offset<flatbuffers::String> reference_date = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0) {
   TermStructureBuilder builder_(_fbb);
   builder_.add_reference_date(reference_date);
   builder_.add_points(points);
@@ -1071,16 +1108,16 @@ inline flatbuffers::Offset<TermStructure> CreateTermStructure(
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
+inline ::flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_BackwardFlat,
     quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
-    const std::vector<flatbuffers::Offset<quantra::PointsWrapper>> *points = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points = nullptr,
     const char *reference_date = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
-  auto points__ = points ? _fbb.CreateVector<flatbuffers::Offset<quantra::PointsWrapper>>(*points) : 0;
+  auto points__ = points ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PointsWrapper>>(*points) : 0;
   auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
   return quantra::CreateTermStructure(
       _fbb,
@@ -1092,15 +1129,15 @@ inline flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
       reference_date__);
 }
 
-flatbuffers::Offset<TermStructure> CreateTermStructure(flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<TermStructure> CreateTermStructure(::flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline DepositHelperT *DepositHelper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline DepositHelperT *DepositHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<DepositHelperT>(new DepositHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void DepositHelper::UnPackTo(DepositHelperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void DepositHelper::UnPackTo(DepositHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
@@ -1112,14 +1149,14 @@ inline void DepositHelper::UnPackTo(DepositHelperT *_o, const flatbuffers::resol
   { auto _e = day_counter(); _o->day_counter = _e; }
 }
 
-inline flatbuffers::Offset<DepositHelper> DepositHelper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<DepositHelper> DepositHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateDepositHelper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<DepositHelper> CreateDepositHelper(flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(::flatbuffers::FlatBufferBuilder &_fbb, const DepositHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DepositHelperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const DepositHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
   auto _tenor_time_unit = _o->tenor_time_unit;
   auto _tenor_number = _o->tenor_number;
@@ -1138,13 +1175,13 @@ inline flatbuffers::Offset<DepositHelper> CreateDepositHelper(flatbuffers::FlatB
       _day_counter);
 }
 
-inline FRAHelperT *FRAHelper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline FRAHelperT *FRAHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<FRAHelperT>(new FRAHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void FRAHelper::UnPackTo(FRAHelperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void FRAHelper::UnPackTo(FRAHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
@@ -1156,14 +1193,14 @@ inline void FRAHelper::UnPackTo(FRAHelperT *_o, const flatbuffers::resolver_func
   { auto _e = day_counter(); _o->day_counter = _e; }
 }
 
-inline flatbuffers::Offset<FRAHelper> FRAHelper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<FRAHelper> FRAHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateFRAHelper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<FRAHelper> CreateFRAHelper(flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(::flatbuffers::FlatBufferBuilder &_fbb, const FRAHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const FRAHelperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FRAHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
   auto _months_to_start = _o->months_to_start;
   auto _months_to_end = _o->months_to_end;
@@ -1182,13 +1219,13 @@ inline flatbuffers::Offset<FRAHelper> CreateFRAHelper(flatbuffers::FlatBufferBui
       _day_counter);
 }
 
-inline FutureHelperT *FutureHelper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline FutureHelperT *FutureHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<FutureHelperT>(new FutureHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void FutureHelper::UnPackTo(FutureHelperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void FutureHelper::UnPackTo(FutureHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
@@ -1199,14 +1236,14 @@ inline void FutureHelper::UnPackTo(FutureHelperT *_o, const flatbuffers::resolve
   { auto _e = day_counter(); _o->day_counter = _e; }
 }
 
-inline flatbuffers::Offset<FutureHelper> FutureHelper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<FutureHelper> FutureHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateFutureHelper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<FutureHelper> CreateFutureHelper(flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(::flatbuffers::FlatBufferBuilder &_fbb, const FutureHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const FutureHelperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FutureHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
   auto _future_start_date = _o->future_start_date.empty() ? 0 : _fbb.CreateString(_o->future_start_date);
   auto _future_months = _o->future_months;
@@ -1223,13 +1260,13 @@ inline flatbuffers::Offset<FutureHelper> CreateFutureHelper(flatbuffers::FlatBuf
       _day_counter);
 }
 
-inline SwapHelperT *SwapHelper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline SwapHelperT *SwapHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SwapHelperT>(new SwapHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void SwapHelper::UnPackTo(SwapHelperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void SwapHelper::UnPackTo(SwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
@@ -1244,14 +1281,14 @@ inline void SwapHelper::UnPackTo(SwapHelperT *_o, const flatbuffers::resolver_fu
   { auto _e = fwd_start_days(); _o->fwd_start_days = _e; }
 }
 
-inline flatbuffers::Offset<SwapHelper> SwapHelper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<SwapHelper> SwapHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateSwapHelper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<SwapHelper> CreateSwapHelper(flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const SwapHelperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
   auto _tenor_time_unit = _o->tenor_time_unit;
   auto _tenor_number = _o->tenor_number;
@@ -1276,19 +1313,44 @@ inline flatbuffers::Offset<SwapHelper> CreateSwapHelper(flatbuffers::FlatBufferB
       _fwd_start_days);
 }
 
-inline BondHelperT *BondHelper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline BondHelperT::BondHelperT(const BondHelperT &o)
+      : rate(o.rate),
+        settlement_days(o.settlement_days),
+        face_amount(o.face_amount),
+        schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
+        coupon_rate(o.coupon_rate),
+        day_counter(o.day_counter),
+        business_day_convention(o.business_day_convention),
+        redemption(o.redemption),
+        issue_date(o.issue_date) {
+}
+
+inline BondHelperT &BondHelperT::operator=(BondHelperT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(rate, o.rate);
+  std::swap(settlement_days, o.settlement_days);
+  std::swap(face_amount, o.face_amount);
+  std::swap(schedule, o.schedule);
+  std::swap(coupon_rate, o.coupon_rate);
+  std::swap(day_counter, o.day_counter);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(redemption, o.redemption);
+  std::swap(issue_date, o.issue_date);
+  return *this;
+}
+
+inline BondHelperT *BondHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<BondHelperT>(new BondHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void BondHelper::UnPackTo(BondHelperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void BondHelper::UnPackTo(BondHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = face_amount(); _o->face_amount = _e; }
-  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } }
+  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
   { auto _e = coupon_rate(); _o->coupon_rate = _e; }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
@@ -1296,14 +1358,14 @@ inline void BondHelper::UnPackTo(BondHelperT *_o, const flatbuffers::resolver_fu
   { auto _e = issue_date(); if (_e) _o->issue_date = _e->str(); }
 }
 
-inline flatbuffers::Offset<BondHelper> BondHelper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<BondHelper> BondHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateBondHelper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<BondHelper> CreateBondHelper(flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(::flatbuffers::FlatBufferBuilder &_fbb, const BondHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const BondHelperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BondHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
   auto _settlement_days = _o->settlement_days;
   auto _face_amount = _o->face_amount;
@@ -1326,27 +1388,27 @@ inline flatbuffers::Offset<BondHelper> CreateBondHelper(flatbuffers::FlatBufferB
       _issue_date);
 }
 
-inline PointsWrapperT *PointsWrapper::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline PointsWrapperT *PointsWrapper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<PointsWrapperT>(new PointsWrapperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void PointsWrapper::UnPackTo(PointsWrapperT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void PointsWrapper::UnPackTo(PointsWrapperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = point_type(); _o->point.type = _e; }
   { auto _e = point(); if (_e) _o->point.value = quantra::PointUnion::UnPack(_e, point_type(), _resolver); }
 }
 
-inline flatbuffers::Offset<PointsWrapper> PointsWrapper::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<PointsWrapper> PointsWrapper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreatePointsWrapper(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(::flatbuffers::FlatBufferBuilder &_fbb, const PointsWrapperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PointsWrapperT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PointsWrapperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _point_type = _o->point.type;
   auto _point = _o->point.Pack(_fbb);
   return quantra::CreatePointsWrapper(
@@ -1355,36 +1417,56 @@ inline flatbuffers::Offset<PointsWrapper> CreatePointsWrapper(flatbuffers::FlatB
       _point);
 }
 
-inline TermStructureT *TermStructure::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline TermStructureT::TermStructureT(const TermStructureT &o)
+      : id(o.id),
+        day_counter(o.day_counter),
+        interpolator(o.interpolator),
+        bootstrap_trait(o.bootstrap_trait),
+        reference_date(o.reference_date) {
+  points.reserve(o.points.size());
+  for (const auto &points_ : o.points) { points.emplace_back((points_) ? new quantra::PointsWrapperT(*points_) : nullptr); }
+}
+
+inline TermStructureT &TermStructureT::operator=(TermStructureT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(id, o.id);
+  std::swap(day_counter, o.day_counter);
+  std::swap(interpolator, o.interpolator);
+  std::swap(bootstrap_trait, o.bootstrap_trait);
+  std::swap(points, o.points);
+  std::swap(reference_date, o.reference_date);
+  return *this;
+}
+
+inline TermStructureT *TermStructure::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<TermStructureT>(new TermStructureT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void TermStructure::UnPackTo(TermStructureT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void TermStructure::UnPackTo(TermStructureT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = id(); if (_e) _o->id = _e->str(); }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = interpolator(); _o->interpolator = _e; }
   { auto _e = bootstrap_trait(); _o->bootstrap_trait = _e; }
-  { auto _e = points(); if (_e) { _o->points.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->points[_i]) { _e->Get(_i)->UnPackTo(_o->points[_i].get(), _resolver); } else { _o->points[_i] = std::unique_ptr<quantra::PointsWrapperT>(_e->Get(_i)->UnPack(_resolver)); }; } } }
+  { auto _e = points(); if (_e) { _o->points.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->points[_i]) { _e->Get(_i)->UnPackTo(_o->points[_i].get(), _resolver); } else { _o->points[_i] = std::unique_ptr<quantra::PointsWrapperT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->points.resize(0); } }
   { auto _e = reference_date(); if (_e) _o->reference_date = _e->str(); }
 }
 
-inline flatbuffers::Offset<TermStructure> TermStructure::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<TermStructure> TermStructure::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   return CreateTermStructure(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<TermStructure> CreateTermStructure(flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<TermStructure> CreateTermStructure(::flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TermStructureT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const TermStructureT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _id = _o->id.empty() ? 0 : _fbb.CreateString(_o->id);
   auto _day_counter = _o->day_counter;
   auto _interpolator = _o->interpolator;
   auto _bootstrap_trait = _o->bootstrap_trait;
-  auto _points = _o->points.size() ? _fbb.CreateVector<flatbuffers::Offset<quantra::PointsWrapper>> (_o->points.size(), [](size_t i, _VectorArgs *__va) { return CreatePointsWrapper(*__va->__fbb, __va->__o->points[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _points = _o->points.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PointsWrapper>> (_o->points.size(), [](size_t i, _VectorArgs *__va) { return CreatePointsWrapper(*__va->__fbb, __va->__o->points[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _reference_date = _o->reference_date.empty() ? 0 : _fbb.CreateString(_o->reference_date);
   return quantra::CreateTermStructure(
       _fbb,
@@ -1396,7 +1478,7 @@ inline flatbuffers::Offset<TermStructure> CreateTermStructure(flatbuffers::FlatB
       _reference_date);
 }
 
-inline bool VerifyPoint(flatbuffers::Verifier &verifier, const void *obj, Point type) {
+inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type) {
   switch (type) {
     case Point_NONE: {
       return true;
@@ -1425,10 +1507,10 @@ inline bool VerifyPoint(flatbuffers::Verifier &verifier, const void *obj, Point 
   }
 }
 
-inline bool VerifyPointVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types) {
+inline bool VerifyPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
   if (!values || !types) return !values && !types;
   if (values->size() != types->size()) return false;
-  for (flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
     if (!VerifyPoint(
         verifier,  values->Get(i), types->GetEnum<Point>(i))) {
       return false;
@@ -1437,7 +1519,8 @@ inline bool VerifyPointVector(flatbuffers::Verifier &verifier, const flatbuffers
   return true;
 }
 
-inline void *PointUnion::UnPack(const void *obj, Point type, const flatbuffers::resolver_function_t *resolver) {
+inline void *PointUnion::UnPack(const void *obj, Point type, const ::flatbuffers::resolver_function_t *resolver) {
+  (void)resolver;
   switch (type) {
     case Point_DepositHelper: {
       auto ptr = reinterpret_cast<const quantra::DepositHelper *>(obj);
@@ -1463,7 +1546,8 @@ inline void *PointUnion::UnPack(const void *obj, Point type, const flatbuffers::
   }
 }
 
-inline flatbuffers::Offset<void> PointUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
+inline ::flatbuffers::Offset<void> PointUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
+  (void)_rehasher;
   switch (type) {
     case Point_DepositHelper: {
       auto ptr = reinterpret_cast<const quantra::DepositHelperT *>(value);
@@ -1508,7 +1592,7 @@ inline PointUnion::PointUnion(const PointUnion &u) : type(u.type), value(nullptr
       break;
     }
     case Point_BondHelper: {
-      FLATBUFFERS_ASSERT(false);  // quantra::BondHelperT not copyable.
+      value = new quantra::BondHelperT(*reinterpret_cast<quantra::BondHelperT *>(u.value));
       break;
     }
     default:
@@ -1550,44 +1634,44 @@ inline void PointUnion::Reset() {
 }
 
 inline const quantra::TermStructure *GetTermStructure(const void *buf) {
-  return flatbuffers::GetRoot<quantra::TermStructure>(buf);
+  return ::flatbuffers::GetRoot<quantra::TermStructure>(buf);
 }
 
 inline const quantra::TermStructure *GetSizePrefixedTermStructure(const void *buf) {
-  return flatbuffers::GetSizePrefixedRoot<quantra::TermStructure>(buf);
+  return ::flatbuffers::GetSizePrefixedRoot<quantra::TermStructure>(buf);
 }
 
 inline bool VerifyTermStructureBuffer(
-    flatbuffers::Verifier &verifier) {
+    ::flatbuffers::Verifier &verifier) {
   return verifier.VerifyBuffer<quantra::TermStructure>(nullptr);
 }
 
 inline bool VerifySizePrefixedTermStructureBuffer(
-    flatbuffers::Verifier &verifier) {
+    ::flatbuffers::Verifier &verifier) {
   return verifier.VerifySizePrefixedBuffer<quantra::TermStructure>(nullptr);
 }
 
 inline void FinishTermStructureBuffer(
-    flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<quantra::TermStructure> root) {
+    ::flatbuffers::FlatBufferBuilder &fbb,
+    ::flatbuffers::Offset<quantra::TermStructure> root) {
   fbb.Finish(root);
 }
 
 inline void FinishSizePrefixedTermStructureBuffer(
-    flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<quantra::TermStructure> root) {
+    ::flatbuffers::FlatBufferBuilder &fbb,
+    ::flatbuffers::Offset<quantra::TermStructure> root) {
   fbb.FinishSizePrefixed(root);
 }
 
 inline std::unique_ptr<quantra::TermStructureT> UnPackTermStructure(
     const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
   return std::unique_ptr<quantra::TermStructureT>(GetTermStructure(buf)->UnPack(res));
 }
 
 inline std::unique_ptr<quantra::TermStructureT> UnPackSizePrefixedTermStructure(
     const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
+    const ::flatbuffers::resolver_function_t *res = nullptr) {
   return std::unique_ptr<quantra::TermStructureT>(GetSizePrefixedTermStructure(buf)->UnPack(res));
 }
 

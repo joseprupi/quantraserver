@@ -57,7 +57,7 @@ class PriceFloatingRateBond(object):
         return None
 
     # PriceFloatingRateBond
-    def Yield_(self):
+    def Yield(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -67,31 +67,114 @@ class PriceFloatingRateBond(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(5)
 def PriceFloatingRateBondStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddFloatingRateBond(builder, floatingRateBond): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(floatingRateBond), 0)
+    builder.StartObject(5)
+
+def Start(builder):
+    PriceFloatingRateBondStart(builder)
+
 def PriceFloatingRateBondAddFloatingRateBond(builder, floatingRateBond):
-    """This method is deprecated. Please switch to AddFloatingRateBond."""
-    return AddFloatingRateBond(builder, floatingRateBond)
-def AddDiscountingCurve(builder, discountingCurve): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(floatingRateBond), 0)
+
+def AddFloatingRateBond(builder, floatingRateBond):
+    PriceFloatingRateBondAddFloatingRateBond(builder, floatingRateBond)
+
 def PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve):
-    """This method is deprecated. Please switch to AddDiscountingCurve."""
-    return AddDiscountingCurve(builder, discountingCurve)
-def AddForecastingCurve(builder, forecastingCurve): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forecastingCurve), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
+
+def AddDiscountingCurve(builder, discountingCurve):
+    PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve)
+
 def PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve):
-    """This method is deprecated. Please switch to AddForecastingCurve."""
-    return AddForecastingCurve(builder, forecastingCurve)
-def AddCouponPricer(builder, couponPricer): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricer), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forecastingCurve), 0)
+
+def AddForecastingCurve(builder, forecastingCurve):
+    PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve)
+
 def PriceFloatingRateBondAddCouponPricer(builder, couponPricer):
-    """This method is deprecated. Please switch to AddCouponPricer."""
-    return AddCouponPricer(builder, couponPricer)
-def AddYield_(builder, yield_): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(yield_), 0)
-def PriceFloatingRateBondAddYield_(builder, yield_):
-    """This method is deprecated. Please switch to AddYield_."""
-    return AddYield_(builder, yield_)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricer), 0)
+
+def AddCouponPricer(builder, couponPricer):
+    PriceFloatingRateBondAddCouponPricer(builder, couponPricer)
+
+def PriceFloatingRateBondAddYield(builder, yield_):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(yield_), 0)
+
+def AddYield(builder, yield_):
+    PriceFloatingRateBondAddYield(builder, yield_)
+
 def PriceFloatingRateBondEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PriceFloatingRateBondEnd(builder)
+
+try:
+    from typing import Optional
+except:
+    pass
+
+class PriceFloatingRateBondT(object):
+
+    # PriceFloatingRateBondT
+    def __init__(self):
+        self.floatingRateBond = None  # type: Optional[FloatingRateBondT]
+        self.discountingCurve = None  # type: str
+        self.forecastingCurve = None  # type: str
+        self.couponPricer = None  # type: str
+        self.yield_ = None  # type: Optional[YieldT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        priceFloatingRateBond = PriceFloatingRateBond()
+        priceFloatingRateBond.Init(buf, pos)
+        return cls.InitFromObj(priceFloatingRateBond)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, priceFloatingRateBond):
+        x = PriceFloatingRateBondT()
+        x._UnPack(priceFloatingRateBond)
+        return x
+
+    # PriceFloatingRateBondT
+    def _UnPack(self, priceFloatingRateBond):
+        if priceFloatingRateBond is None:
+            return
+        if priceFloatingRateBond.FloatingRateBond() is not None:
+            self.floatingRateBond = FloatingRateBondT.InitFromObj(priceFloatingRateBond.FloatingRateBond())
+        self.discountingCurve = priceFloatingRateBond.DiscountingCurve()
+        self.forecastingCurve = priceFloatingRateBond.ForecastingCurve()
+        self.couponPricer = priceFloatingRateBond.CouponPricer()
+        if priceFloatingRateBond.Yield() is not None:
+            self.yield_ = YieldT.InitFromObj(priceFloatingRateBond.Yield())
+
+    # PriceFloatingRateBondT
+    def Pack(self, builder):
+        if self.floatingRateBond is not None:
+            floatingRateBond = self.floatingRateBond.Pack(builder)
+        if self.discountingCurve is not None:
+            discountingCurve = builder.CreateString(self.discountingCurve)
+        if self.forecastingCurve is not None:
+            forecastingCurve = builder.CreateString(self.forecastingCurve)
+        if self.couponPricer is not None:
+            couponPricer = builder.CreateString(self.couponPricer)
+        if self.yield_ is not None:
+            yield_ = self.yield_.Pack(builder)
+        PriceFloatingRateBondStart(builder)
+        if self.floatingRateBond is not None:
+            PriceFloatingRateBondAddFloatingRateBond(builder, floatingRateBond)
+        if self.discountingCurve is not None:
+            PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve)
+        if self.forecastingCurve is not None:
+            PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve)
+        if self.couponPricer is not None:
+            PriceFloatingRateBondAddCouponPricer(builder, couponPricer)
+        if self.yield_ is not None:
+            PriceFloatingRateBondAddYield(builder, yield_)
+        priceFloatingRateBond = PriceFloatingRateBondEnd(builder)
+        return priceFloatingRateBond

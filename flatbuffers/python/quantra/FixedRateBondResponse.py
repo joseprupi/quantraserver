@@ -53,7 +53,7 @@ class FixedRateBondResponse(object):
         return 0.0
 
     # FixedRateBondResponse
-    def Yield_(self):
+    def Yield(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
@@ -119,59 +119,173 @@ class FixedRateBondResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         return o == 0
 
-def Start(builder): builder.StartObject(11)
 def FixedRateBondResponseStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddNpv(builder, npv): builder.PrependFloat64Slot(0, npv, 0.0)
+    builder.StartObject(11)
+
+def Start(builder):
+    FixedRateBondResponseStart(builder)
+
 def FixedRateBondResponseAddNpv(builder, npv):
-    """This method is deprecated. Please switch to AddNpv."""
-    return AddNpv(builder, npv)
-def AddCleanPrice(builder, cleanPrice): builder.PrependFloat64Slot(1, cleanPrice, 0.0)
+    builder.PrependFloat64Slot(0, npv, 0.0)
+
+def AddNpv(builder, npv):
+    FixedRateBondResponseAddNpv(builder, npv)
+
 def FixedRateBondResponseAddCleanPrice(builder, cleanPrice):
-    """This method is deprecated. Please switch to AddCleanPrice."""
-    return AddCleanPrice(builder, cleanPrice)
-def AddDirtyPrice(builder, dirtyPrice): builder.PrependFloat64Slot(2, dirtyPrice, 0.0)
+    builder.PrependFloat64Slot(1, cleanPrice, 0.0)
+
+def AddCleanPrice(builder, cleanPrice):
+    FixedRateBondResponseAddCleanPrice(builder, cleanPrice)
+
 def FixedRateBondResponseAddDirtyPrice(builder, dirtyPrice):
-    """This method is deprecated. Please switch to AddDirtyPrice."""
-    return AddDirtyPrice(builder, dirtyPrice)
-def AddAccruedAmount(builder, accruedAmount): builder.PrependFloat64Slot(3, accruedAmount, 0.0)
+    builder.PrependFloat64Slot(2, dirtyPrice, 0.0)
+
+def AddDirtyPrice(builder, dirtyPrice):
+    FixedRateBondResponseAddDirtyPrice(builder, dirtyPrice)
+
 def FixedRateBondResponseAddAccruedAmount(builder, accruedAmount):
-    """This method is deprecated. Please switch to AddAccruedAmount."""
-    return AddAccruedAmount(builder, accruedAmount)
-def AddYield_(builder, yield_): builder.PrependFloat64Slot(4, yield_, 0.0)
-def FixedRateBondResponseAddYield_(builder, yield_):
-    """This method is deprecated. Please switch to AddYield_."""
-    return AddYield_(builder, yield_)
-def AddAccruedDays(builder, accruedDays): builder.PrependFloat64Slot(5, accruedDays, 0.0)
+    builder.PrependFloat64Slot(3, accruedAmount, 0.0)
+
+def AddAccruedAmount(builder, accruedAmount):
+    FixedRateBondResponseAddAccruedAmount(builder, accruedAmount)
+
+def FixedRateBondResponseAddYield(builder, yield_):
+    builder.PrependFloat64Slot(4, yield_, 0.0)
+
+def AddYield(builder, yield_):
+    FixedRateBondResponseAddYield(builder, yield_)
+
 def FixedRateBondResponseAddAccruedDays(builder, accruedDays):
-    """This method is deprecated. Please switch to AddAccruedDays."""
-    return AddAccruedDays(builder, accruedDays)
-def AddMacaulayDuration(builder, macaulayDuration): builder.PrependFloat64Slot(6, macaulayDuration, 0.0)
+    builder.PrependFloat64Slot(5, accruedDays, 0.0)
+
+def AddAccruedDays(builder, accruedDays):
+    FixedRateBondResponseAddAccruedDays(builder, accruedDays)
+
 def FixedRateBondResponseAddMacaulayDuration(builder, macaulayDuration):
-    """This method is deprecated. Please switch to AddMacaulayDuration."""
-    return AddMacaulayDuration(builder, macaulayDuration)
-def AddModifiedDuration(builder, modifiedDuration): builder.PrependFloat64Slot(7, modifiedDuration, 0.0)
+    builder.PrependFloat64Slot(6, macaulayDuration, 0.0)
+
+def AddMacaulayDuration(builder, macaulayDuration):
+    FixedRateBondResponseAddMacaulayDuration(builder, macaulayDuration)
+
 def FixedRateBondResponseAddModifiedDuration(builder, modifiedDuration):
-    """This method is deprecated. Please switch to AddModifiedDuration."""
-    return AddModifiedDuration(builder, modifiedDuration)
-def AddConvexity(builder, convexity): builder.PrependFloat64Slot(8, convexity, 0.0)
+    builder.PrependFloat64Slot(7, modifiedDuration, 0.0)
+
+def AddModifiedDuration(builder, modifiedDuration):
+    FixedRateBondResponseAddModifiedDuration(builder, modifiedDuration)
+
 def FixedRateBondResponseAddConvexity(builder, convexity):
-    """This method is deprecated. Please switch to AddConvexity."""
-    return AddConvexity(builder, convexity)
-def AddBps(builder, bps): builder.PrependFloat64Slot(9, bps, 0.0)
+    builder.PrependFloat64Slot(8, convexity, 0.0)
+
+def AddConvexity(builder, convexity):
+    FixedRateBondResponseAddConvexity(builder, convexity)
+
 def FixedRateBondResponseAddBps(builder, bps):
-    """This method is deprecated. Please switch to AddBps."""
-    return AddBps(builder, bps)
-def AddFlows(builder, flows): builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(flows), 0)
+    builder.PrependFloat64Slot(9, bps, 0.0)
+
+def AddBps(builder, bps):
+    FixedRateBondResponseAddBps(builder, bps)
+
 def FixedRateBondResponseAddFlows(builder, flows):
-    """This method is deprecated. Please switch to AddFlows."""
-    return AddFlows(builder, flows)
-def StartFlowsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(flows), 0)
+
+def AddFlows(builder, flows):
+    FixedRateBondResponseAddFlows(builder, flows)
+
 def FixedRateBondResponseStartFlowsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartFlowsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartFlowsVector(builder, numElems):
+    return FixedRateBondResponseStartFlowsVector(builder, numElems)
+
 def FixedRateBondResponseEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FixedRateBondResponseEnd(builder)
+
+try:
+    from typing import List
+except:
+    pass
+
+class FixedRateBondResponseT(object):
+
+    # FixedRateBondResponseT
+    def __init__(self):
+        self.npv = 0.0  # type: float
+        self.cleanPrice = 0.0  # type: float
+        self.dirtyPrice = 0.0  # type: float
+        self.accruedAmount = 0.0  # type: float
+        self.yield_ = 0.0  # type: float
+        self.accruedDays = 0.0  # type: float
+        self.macaulayDuration = 0.0  # type: float
+        self.modifiedDuration = 0.0  # type: float
+        self.convexity = 0.0  # type: float
+        self.bps = 0.0  # type: float
+        self.flows = None  # type: List[FlowsWrapperT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        fixedRateBondResponse = FixedRateBondResponse()
+        fixedRateBondResponse.Init(buf, pos)
+        return cls.InitFromObj(fixedRateBondResponse)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, fixedRateBondResponse):
+        x = FixedRateBondResponseT()
+        x._UnPack(fixedRateBondResponse)
+        return x
+
+    # FixedRateBondResponseT
+    def _UnPack(self, fixedRateBondResponse):
+        if fixedRateBondResponse is None:
+            return
+        self.npv = fixedRateBondResponse.Npv()
+        self.cleanPrice = fixedRateBondResponse.CleanPrice()
+        self.dirtyPrice = fixedRateBondResponse.DirtyPrice()
+        self.accruedAmount = fixedRateBondResponse.AccruedAmount()
+        self.yield_ = fixedRateBondResponse.Yield()
+        self.accruedDays = fixedRateBondResponse.AccruedDays()
+        self.macaulayDuration = fixedRateBondResponse.MacaulayDuration()
+        self.modifiedDuration = fixedRateBondResponse.ModifiedDuration()
+        self.convexity = fixedRateBondResponse.Convexity()
+        self.bps = fixedRateBondResponse.Bps()
+        if not fixedRateBondResponse.FlowsIsNone():
+            self.flows = []
+            for i in range(fixedRateBondResponse.FlowsLength()):
+                if fixedRateBondResponse.Flows(i) is None:
+                    self.flows.append(None)
+                else:
+                    flowsWrapper_ = FlowsWrapperT.InitFromObj(fixedRateBondResponse.Flows(i))
+                    self.flows.append(flowsWrapper_)
+
+    # FixedRateBondResponseT
+    def Pack(self, builder):
+        if self.flows is not None:
+            flowslist = []
+            for i in range(len(self.flows)):
+                flowslist.append(self.flows[i].Pack(builder))
+            FixedRateBondResponseStartFlowsVector(builder, len(self.flows))
+            for i in reversed(range(len(self.flows))):
+                builder.PrependUOffsetTRelative(flowslist[i])
+            flows = builder.EndVector()
+        FixedRateBondResponseStart(builder)
+        FixedRateBondResponseAddNpv(builder, self.npv)
+        FixedRateBondResponseAddCleanPrice(builder, self.cleanPrice)
+        FixedRateBondResponseAddDirtyPrice(builder, self.dirtyPrice)
+        FixedRateBondResponseAddAccruedAmount(builder, self.accruedAmount)
+        FixedRateBondResponseAddYield(builder, self.yield_)
+        FixedRateBondResponseAddAccruedDays(builder, self.accruedDays)
+        FixedRateBondResponseAddMacaulayDuration(builder, self.macaulayDuration)
+        FixedRateBondResponseAddModifiedDuration(builder, self.modifiedDuration)
+        FixedRateBondResponseAddConvexity(builder, self.convexity)
+        FixedRateBondResponseAddBps(builder, self.bps)
+        if self.flows is not None:
+            FixedRateBondResponseAddFlows(builder, flows)
+        fixedRateBondResponse = FixedRateBondResponseEnd(builder)
+        return fixedRateBondResponse

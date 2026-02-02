@@ -1,9 +1,6 @@
-set(grpc_src
-    quantraserver_generated.h
-    quantraserver.grpc.fb.cc
-    quantraserver.grpc.fb.h
-)
+# gRPC CMakeLists.txt
+file(GLOB GRPC_SOURCES *.cc)
 
-include_directories(/root/flatbuffers/include/)
-include_directories(/root/grpc/install/include)
-add_library(quantra_grpc ${grpc_src})
+add_library(quantra_grpc STATIC ${GRPC_SOURCES})
+
+target_include_directories(quantra_grpc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

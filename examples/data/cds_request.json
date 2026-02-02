@@ -1,0 +1,108 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "curves": [
+      {
+        "id": "discount",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 3,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 6,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 1,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 5,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "sw_floating_leg_index": "Euribor6M",
+              "spread": 0.0,
+              "fwd_start_days": 0
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 10,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "sw_floating_leg_index": "Euribor6M",
+              "spread": 0.0,
+              "fwd_start_days": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "cds_list": [
+    {
+      "cds": {
+        "side": "Buyer",
+        "notional": 10000000.0,
+        "spread": 0.01,
+        "schedule": {
+          "calendar": "TARGET",
+          "effective_date": "2025-01-15",
+          "termination_date": "2030-01-15",
+          "frequency": "Quarterly",
+          "convention": "Following",
+          "termination_date_convention": "Unadjusted",
+          "date_generation_rule": "TwentiethIMM"
+        },
+        "day_counter": "Actual360",
+        "business_day_convention": "Following"
+      },
+      "discounting_curve": "discount",
+      "credit_curve": {
+        "recovery_rate": 0.40,
+        "flat_hazard_rate": 0.02
+      }
+    }
+  ]
+}

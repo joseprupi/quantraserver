@@ -1,16 +1,36 @@
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cpp
-	/root/grpc/install/include
-    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+# =============================================================================
+# Quantra C++ Client Library
+# =============================================================================
+
+# Include directories
+include_directories(
     ${CMAKE_SOURCE_DIR}/grpc
-    ${CMAKE_SOURCE_DIR}/examples/data
-    ${CMAKE_SOURCE_DIR}/request
-    ${CMAKE_SOURCE_DIR}/common
-    ${CMAKE_SOURCE_DIR}/parser)
+    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
+    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp/include
+)
 
-file(GLOB CPP_CLIENT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.h)
+# -----------------------------------------------------------------------------
+# Library: quantra_client (STATIC)
+# -----------------------------------------------------------------------------
+add_library(quantra_client STATIC
+    cpp/src/json_parser.cpp
+    cpp/src/quantra_client.cpp
+)
 
-find_package(Threads REQUIRED)
-link_directories(/root/grpc/install/lib/)
+target_include_directories(quantra_client
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/include
+        ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
+        ${CMAKE_SOURCE_DIR}/grpc
+)
 
-add_library(cpp_client STATIC ${CPP_CLIENT_SOURCES})
-target_link_libraries(cpp_client gpr grpc grpc++ flatbuffers quantra_grpc QuantLib Threads::Threads)
+target_link_libraries(quantra_client
+    PUBLIC
+        quantra_grpc
+        flatbuffers
+        ${GRPC_ALL_LIBS}
+)
+
+# C++17 required
+target_compile_features(quantra_client PUBLIC cxx_std_17)

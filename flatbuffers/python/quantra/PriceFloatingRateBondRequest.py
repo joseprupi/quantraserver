@@ -60,23 +60,96 @@ class PriceFloatingRateBondRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
-def Start(builder): builder.StartObject(2)
 def PriceFloatingRateBondRequestStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddPricing(builder, pricing): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(pricing), 0)
+    builder.StartObject(2)
+
+def Start(builder):
+    PriceFloatingRateBondRequestStart(builder)
+
 def PriceFloatingRateBondRequestAddPricing(builder, pricing):
-    """This method is deprecated. Please switch to AddPricing."""
-    return AddPricing(builder, pricing)
-def AddBonds(builder, bonds): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(pricing), 0)
+
+def AddPricing(builder, pricing):
+    PriceFloatingRateBondRequestAddPricing(builder, pricing)
+
 def PriceFloatingRateBondRequestAddBonds(builder, bonds):
-    """This method is deprecated. Please switch to AddBonds."""
-    return AddBonds(builder, bonds)
-def StartBondsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(bonds), 0)
+
+def AddBonds(builder, bonds):
+    PriceFloatingRateBondRequestAddBonds(builder, bonds)
+
 def PriceFloatingRateBondRequestStartBondsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartBondsVector(builder, numElems)
-def End(builder): return builder.EndObject()
+    return builder.StartVector(4, numElems, 4)
+
+def StartBondsVector(builder, numElems):
+    return PriceFloatingRateBondRequestStartBondsVector(builder, numElems)
+
 def PriceFloatingRateBondRequestEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PriceFloatingRateBondRequestEnd(builder)
+
+try:
+    from typing import List, Optional
+except:
+    pass
+
+class PriceFloatingRateBondRequestT(object):
+
+    # PriceFloatingRateBondRequestT
+    def __init__(self):
+        self.pricing = None  # type: Optional[PricingT]
+        self.bonds = None  # type: List[PriceFloatingRateBondT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        priceFloatingRateBondRequest = PriceFloatingRateBondRequest()
+        priceFloatingRateBondRequest.Init(buf, pos)
+        return cls.InitFromObj(priceFloatingRateBondRequest)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, priceFloatingRateBondRequest):
+        x = PriceFloatingRateBondRequestT()
+        x._UnPack(priceFloatingRateBondRequest)
+        return x
+
+    # PriceFloatingRateBondRequestT
+    def _UnPack(self, priceFloatingRateBondRequest):
+        if priceFloatingRateBondRequest is None:
+            return
+        if priceFloatingRateBondRequest.Pricing() is not None:
+            self.pricing = PricingT.InitFromObj(priceFloatingRateBondRequest.Pricing())
+        if not priceFloatingRateBondRequest.BondsIsNone():
+            self.bonds = []
+            for i in range(priceFloatingRateBondRequest.BondsLength()):
+                if priceFloatingRateBondRequest.Bonds(i) is None:
+                    self.bonds.append(None)
+                else:
+                    priceFloatingRateBond_ = PriceFloatingRateBondT.InitFromObj(priceFloatingRateBondRequest.Bonds(i))
+                    self.bonds.append(priceFloatingRateBond_)
+
+    # PriceFloatingRateBondRequestT
+    def Pack(self, builder):
+        if self.pricing is not None:
+            pricing = self.pricing.Pack(builder)
+        if self.bonds is not None:
+            bondslist = []
+            for i in range(len(self.bonds)):
+                bondslist.append(self.bonds[i].Pack(builder))
+            PriceFloatingRateBondRequestStartBondsVector(builder, len(self.bonds))
+            for i in reversed(range(len(self.bonds))):
+                builder.PrependUOffsetTRelative(bondslist[i])
+            bonds = builder.EndVector()
+        PriceFloatingRateBondRequestStart(builder)
+        if self.pricing is not None:
+            PriceFloatingRateBondRequestAddPricing(builder, pricing)
+        if self.bonds is not None:
+            PriceFloatingRateBondRequestAddBonds(builder, bonds)
+        priceFloatingRateBondRequest = PriceFloatingRateBondRequestEnd(builder)
+        return priceFloatingRateBondRequest

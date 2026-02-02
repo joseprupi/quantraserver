@@ -73,39 +73,111 @@ class FRAHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(7)
 def FRAHelperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.StartObject(7)
+
+def Start(builder):
+    FRAHelperStart(builder)
+
 def FRAHelperAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddMonthsToStart(builder, monthsToStart): builder.PrependInt32Slot(1, monthsToStart, 0)
+    builder.PrependFloat64Slot(0, rate, 0.0)
+
+def AddRate(builder, rate):
+    FRAHelperAddRate(builder, rate)
+
 def FRAHelperAddMonthsToStart(builder, monthsToStart):
-    """This method is deprecated. Please switch to AddMonthsToStart."""
-    return AddMonthsToStart(builder, monthsToStart)
-def AddMonthsToEnd(builder, monthsToEnd): builder.PrependInt32Slot(2, monthsToEnd, 0)
+    builder.PrependInt32Slot(1, monthsToStart, 0)
+
+def AddMonthsToStart(builder, monthsToStart):
+    FRAHelperAddMonthsToStart(builder, monthsToStart)
+
 def FRAHelperAddMonthsToEnd(builder, monthsToEnd):
-    """This method is deprecated. Please switch to AddMonthsToEnd."""
-    return AddMonthsToEnd(builder, monthsToEnd)
-def AddFixingDays(builder, fixingDays): builder.PrependInt32Slot(3, fixingDays, 0)
+    builder.PrependInt32Slot(2, monthsToEnd, 0)
+
+def AddMonthsToEnd(builder, monthsToEnd):
+    FRAHelperAddMonthsToEnd(builder, monthsToEnd)
+
 def FRAHelperAddFixingDays(builder, fixingDays):
-    """This method is deprecated. Please switch to AddFixingDays."""
-    return AddFixingDays(builder, fixingDays)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt32Slot(3, fixingDays, 0)
+
+def AddFixingDays(builder, fixingDays):
+    FRAHelperAddFixingDays(builder, fixingDays)
+
 def FRAHelperAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(5, businessDayConvention, 0)
+    builder.PrependInt8Slot(4, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    FRAHelperAddCalendar(builder, calendar)
+
 def FRAHelperAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(5, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    FRAHelperAddBusinessDayConvention(builder, businessDayConvention)
+
 def FRAHelperAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def End(builder): return builder.EndObject()
+    builder.PrependInt8Slot(6, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    FRAHelperAddDayCounter(builder, dayCounter)
+
 def FRAHelperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FRAHelperEnd(builder)
+
+
+class FRAHelperT(object):
+
+    # FRAHelperT
+    def __init__(self):
+        self.rate = 0.0  # type: float
+        self.monthsToStart = 0  # type: int
+        self.monthsToEnd = 0  # type: int
+        self.fixingDays = 0  # type: int
+        self.calendar = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.dayCounter = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        frahelper = FRAHelper()
+        frahelper.Init(buf, pos)
+        return cls.InitFromObj(frahelper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, frahelper):
+        x = FRAHelperT()
+        x._UnPack(frahelper)
+        return x
+
+    # FRAHelperT
+    def _UnPack(self, frahelper):
+        if frahelper is None:
+            return
+        self.rate = frahelper.Rate()
+        self.monthsToStart = frahelper.MonthsToStart()
+        self.monthsToEnd = frahelper.MonthsToEnd()
+        self.fixingDays = frahelper.FixingDays()
+        self.calendar = frahelper.Calendar()
+        self.businessDayConvention = frahelper.BusinessDayConvention()
+        self.dayCounter = frahelper.DayCounter()
+
+    # FRAHelperT
+    def Pack(self, builder):
+        FRAHelperStart(builder)
+        FRAHelperAddRate(builder, self.rate)
+        FRAHelperAddMonthsToStart(builder, self.monthsToStart)
+        FRAHelperAddMonthsToEnd(builder, self.monthsToEnd)
+        FRAHelperAddFixingDays(builder, self.fixingDays)
+        FRAHelperAddCalendar(builder, self.calendar)
+        FRAHelperAddBusinessDayConvention(builder, self.businessDayConvention)
+        FRAHelperAddDayCounter(builder, self.dayCounter)
+        frahelper = FRAHelperEnd(builder)
+        return frahelper

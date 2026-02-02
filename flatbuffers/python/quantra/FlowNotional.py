@@ -52,27 +52,87 @@ class FlowNotional(object):
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
         return 0.0
 
-def Start(builder): builder.StartObject(4)
 def FlowNotionalStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddDate(builder, date): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+    builder.StartObject(4)
+
+def Start(builder):
+    FlowNotionalStart(builder)
+
 def FlowNotionalAddDate(builder, date):
-    """This method is deprecated. Please switch to AddDate."""
-    return AddDate(builder, date)
-def AddAmount(builder, amount): builder.PrependFloat64Slot(1, amount, 0.0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(date), 0)
+
+def AddDate(builder, date):
+    FlowNotionalAddDate(builder, date)
+
 def FlowNotionalAddAmount(builder, amount):
-    """This method is deprecated. Please switch to AddAmount."""
-    return AddAmount(builder, amount)
-def AddDiscount(builder, discount): builder.PrependFloat32Slot(2, discount, 0.0)
+    builder.PrependFloat64Slot(1, amount, 0.0)
+
+def AddAmount(builder, amount):
+    FlowNotionalAddAmount(builder, amount)
+
 def FlowNotionalAddDiscount(builder, discount):
-    """This method is deprecated. Please switch to AddDiscount."""
-    return AddDiscount(builder, discount)
-def AddPrice(builder, price): builder.PrependFloat32Slot(3, price, 0.0)
+    builder.PrependFloat32Slot(2, discount, 0.0)
+
+def AddDiscount(builder, discount):
+    FlowNotionalAddDiscount(builder, discount)
+
 def FlowNotionalAddPrice(builder, price):
-    """This method is deprecated. Please switch to AddPrice."""
-    return AddPrice(builder, price)
-def End(builder): return builder.EndObject()
+    builder.PrependFloat32Slot(3, price, 0.0)
+
+def AddPrice(builder, price):
+    FlowNotionalAddPrice(builder, price)
+
 def FlowNotionalEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FlowNotionalEnd(builder)
+
+
+class FlowNotionalT(object):
+
+    # FlowNotionalT
+    def __init__(self):
+        self.date = None  # type: str
+        self.amount = 0.0  # type: float
+        self.discount = 0.0  # type: float
+        self.price = 0.0  # type: float
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        flowNotional = FlowNotional()
+        flowNotional.Init(buf, pos)
+        return cls.InitFromObj(flowNotional)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, flowNotional):
+        x = FlowNotionalT()
+        x._UnPack(flowNotional)
+        return x
+
+    # FlowNotionalT
+    def _UnPack(self, flowNotional):
+        if flowNotional is None:
+            return
+        self.date = flowNotional.Date()
+        self.amount = flowNotional.Amount()
+        self.discount = flowNotional.Discount()
+        self.price = flowNotional.Price()
+
+    # FlowNotionalT
+    def Pack(self, builder):
+        if self.date is not None:
+            date = builder.CreateString(self.date)
+        FlowNotionalStart(builder)
+        if self.date is not None:
+            FlowNotionalAddDate(builder, date)
+        FlowNotionalAddAmount(builder, self.amount)
+        FlowNotionalAddDiscount(builder, self.discount)
+        FlowNotionalAddPrice(builder, self.price)
+        flowNotional = FlowNotionalEnd(builder)
+        return flowNotional

@@ -8,3 +8,14 @@ class Flow(object):
     FlowPastInterest = 2
     FlowNotional = 3
 
+def FlowCreator(unionType, table):
+    from flatbuffers.table import Table
+    if not isinstance(table, Table):
+        return None
+    if unionType == Flow.FlowInterest:
+        return FlowInterestT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Flow.FlowPastInterest:
+        return FlowPastInterestT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Flow.FlowNotional:
+        return FlowNotionalT.InitFromBuf(table.Bytes, table.Pos)
+    return None

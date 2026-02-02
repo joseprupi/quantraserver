@@ -31,15 +31,60 @@ class Error(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def Start(builder): builder.StartObject(1)
 def ErrorStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddErrorMessage(builder, errorMessage): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(errorMessage), 0)
+    builder.StartObject(1)
+
+def Start(builder):
+    ErrorStart(builder)
+
 def ErrorAddErrorMessage(builder, errorMessage):
-    """This method is deprecated. Please switch to AddErrorMessage."""
-    return AddErrorMessage(builder, errorMessage)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(errorMessage), 0)
+
+def AddErrorMessage(builder, errorMessage):
+    ErrorAddErrorMessage(builder, errorMessage)
+
 def ErrorEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return ErrorEnd(builder)
+
+
+class ErrorT(object):
+
+    # ErrorT
+    def __init__(self):
+        self.errorMessage = None  # type: str
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        error = Error()
+        error.Init(buf, pos)
+        return cls.InitFromObj(error)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, error):
+        x = ErrorT()
+        x._UnPack(error)
+        return x
+
+    # ErrorT
+    def _UnPack(self, error):
+        if error is None:
+            return
+        self.errorMessage = error.ErrorMessage()
+
+    # ErrorT
+    def Pack(self, builder):
+        if self.errorMessage is not None:
+            errorMessage = builder.CreateString(self.errorMessage)
+        ErrorStart(builder)
+        if self.errorMessage is not None:
+            ErrorAddErrorMessage(builder, errorMessage)
+        error = ErrorEnd(builder)
+        return error

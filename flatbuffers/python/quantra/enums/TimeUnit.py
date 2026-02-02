@@ -12,4 +12,3 @@ class TimeUnit(object):
     Seconds = 6
     Weeks = 7
     Years = 8
-

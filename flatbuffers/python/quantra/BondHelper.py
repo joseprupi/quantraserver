@@ -91,47 +91,140 @@ class BondHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def Start(builder): builder.StartObject(9)
 def BondHelperStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.StartObject(9)
+
+def Start(builder):
+    BondHelperStart(builder)
+
 def BondHelperAddRate(builder, rate):
-    """This method is deprecated. Please switch to AddRate."""
-    return AddRate(builder, rate)
-def AddSettlementDays(builder, settlementDays): builder.PrependInt32Slot(1, settlementDays, 0)
+    builder.PrependFloat64Slot(0, rate, 0.0)
+
+def AddRate(builder, rate):
+    BondHelperAddRate(builder, rate)
+
 def BondHelperAddSettlementDays(builder, settlementDays):
-    """This method is deprecated. Please switch to AddSettlementDays."""
-    return AddSettlementDays(builder, settlementDays)
-def AddFaceAmount(builder, faceAmount): builder.PrependFloat64Slot(2, faceAmount, 0.0)
+    builder.PrependInt32Slot(1, settlementDays, 0)
+
+def AddSettlementDays(builder, settlementDays):
+    BondHelperAddSettlementDays(builder, settlementDays)
+
 def BondHelperAddFaceAmount(builder, faceAmount):
-    """This method is deprecated. Please switch to AddFaceAmount."""
-    return AddFaceAmount(builder, faceAmount)
-def AddSchedule(builder, schedule): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+    builder.PrependFloat64Slot(2, faceAmount, 0.0)
+
+def AddFaceAmount(builder, faceAmount):
+    BondHelperAddFaceAmount(builder, faceAmount)
+
 def BondHelperAddSchedule(builder, schedule):
-    """This method is deprecated. Please switch to AddSchedule."""
-    return AddSchedule(builder, schedule)
-def AddCouponRate(builder, couponRate): builder.PrependFloat64Slot(4, couponRate, 0.0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+
+def AddSchedule(builder, schedule):
+    BondHelperAddSchedule(builder, schedule)
+
 def BondHelperAddCouponRate(builder, couponRate):
-    """This method is deprecated. Please switch to AddCouponRate."""
-    return AddCouponRate(builder, couponRate)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependFloat64Slot(4, couponRate, 0.0)
+
+def AddCouponRate(builder, couponRate):
+    BondHelperAddCouponRate(builder, couponRate)
+
 def BondHelperAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(6, businessDayConvention, 0)
+    builder.PrependInt8Slot(5, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    BondHelperAddDayCounter(builder, dayCounter)
+
 def BondHelperAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddRedemption(builder, redemption): builder.PrependFloat64Slot(7, redemption, 0.0)
+    builder.PrependInt8Slot(6, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    BondHelperAddBusinessDayConvention(builder, businessDayConvention)
+
 def BondHelperAddRedemption(builder, redemption):
-    """This method is deprecated. Please switch to AddRedemption."""
-    return AddRedemption(builder, redemption)
-def AddIssueDate(builder, issueDate): builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+    builder.PrependFloat64Slot(7, redemption, 0.0)
+
+def AddRedemption(builder, redemption):
+    BondHelperAddRedemption(builder, redemption)
+
 def BondHelperAddIssueDate(builder, issueDate):
-    """This method is deprecated. Please switch to AddIssueDate."""
-    return AddIssueDate(builder, issueDate)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+
+def AddIssueDate(builder, issueDate):
+    BondHelperAddIssueDate(builder, issueDate)
+
 def BondHelperEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return BondHelperEnd(builder)
+
+try:
+    from typing import Optional
+except:
+    pass
+
+class BondHelperT(object):
+
+    # BondHelperT
+    def __init__(self):
+        self.rate = 0.0  # type: float
+        self.settlementDays = 0  # type: int
+        self.faceAmount = 0.0  # type: float
+        self.schedule = None  # type: Optional[ScheduleT]
+        self.couponRate = 0.0  # type: float
+        self.dayCounter = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.redemption = 0.0  # type: float
+        self.issueDate = None  # type: str
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        bondHelper = BondHelper()
+        bondHelper.Init(buf, pos)
+        return cls.InitFromObj(bondHelper)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, bondHelper):
+        x = BondHelperT()
+        x._UnPack(bondHelper)
+        return x
+
+    # BondHelperT
+    def _UnPack(self, bondHelper):
+        if bondHelper is None:
+            return
+        self.rate = bondHelper.Rate()
+        self.settlementDays = bondHelper.SettlementDays()
+        self.faceAmount = bondHelper.FaceAmount()
+        if bondHelper.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(bondHelper.Schedule())
+        self.couponRate = bondHelper.CouponRate()
+        self.dayCounter = bondHelper.DayCounter()
+        self.businessDayConvention = bondHelper.BusinessDayConvention()
+        self.redemption = bondHelper.Redemption()
+        self.issueDate = bondHelper.IssueDate()
+
+    # BondHelperT
+    def Pack(self, builder):
+        if self.schedule is not None:
+            schedule = self.schedule.Pack(builder)
+        if self.issueDate is not None:
+            issueDate = builder.CreateString(self.issueDate)
+        BondHelperStart(builder)
+        BondHelperAddRate(builder, self.rate)
+        BondHelperAddSettlementDays(builder, self.settlementDays)
+        BondHelperAddFaceAmount(builder, self.faceAmount)
+        if self.schedule is not None:
+            BondHelperAddSchedule(builder, schedule)
+        BondHelperAddCouponRate(builder, self.couponRate)
+        BondHelperAddDayCounter(builder, self.dayCounter)
+        BondHelperAddBusinessDayConvention(builder, self.businessDayConvention)
+        BondHelperAddRedemption(builder, self.redemption)
+        if self.issueDate is not None:
+            BondHelperAddIssueDate(builder, issueDate)
+        bondHelper = BondHelperEnd(builder)
+        return bondHelper

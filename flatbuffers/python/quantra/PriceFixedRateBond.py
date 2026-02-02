@@ -43,7 +43,7 @@ class PriceFixedRateBond(object):
         return None
 
     # PriceFixedRateBond
-    def Yield_(self):
+    def Yield(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -53,23 +53,90 @@ class PriceFixedRateBond(object):
             return obj
         return None
 
-def Start(builder): builder.StartObject(3)
 def PriceFixedRateBondStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddFixedRateBond(builder, fixedRateBond): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(fixedRateBond), 0)
+    builder.StartObject(3)
+
+def Start(builder):
+    PriceFixedRateBondStart(builder)
+
 def PriceFixedRateBondAddFixedRateBond(builder, fixedRateBond):
-    """This method is deprecated. Please switch to AddFixedRateBond."""
-    return AddFixedRateBond(builder, fixedRateBond)
-def AddDiscountingCurve(builder, discountingCurve): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(fixedRateBond), 0)
+
+def AddFixedRateBond(builder, fixedRateBond):
+    PriceFixedRateBondAddFixedRateBond(builder, fixedRateBond)
+
 def PriceFixedRateBondAddDiscountingCurve(builder, discountingCurve):
-    """This method is deprecated. Please switch to AddDiscountingCurve."""
-    return AddDiscountingCurve(builder, discountingCurve)
-def AddYield_(builder, yield_): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(yield_), 0)
-def PriceFixedRateBondAddYield_(builder, yield_):
-    """This method is deprecated. Please switch to AddYield_."""
-    return AddYield_(builder, yield_)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
+
+def AddDiscountingCurve(builder, discountingCurve):
+    PriceFixedRateBondAddDiscountingCurve(builder, discountingCurve)
+
+def PriceFixedRateBondAddYield(builder, yield_):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(yield_), 0)
+
+def AddYield(builder, yield_):
+    PriceFixedRateBondAddYield(builder, yield_)
+
 def PriceFixedRateBondEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return PriceFixedRateBondEnd(builder)
+
+try:
+    from typing import Optional
+except:
+    pass
+
+class PriceFixedRateBondT(object):
+
+    # PriceFixedRateBondT
+    def __init__(self):
+        self.fixedRateBond = None  # type: Optional[FixedRateBondT]
+        self.discountingCurve = None  # type: str
+        self.yield_ = None  # type: Optional[YieldT]
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        priceFixedRateBond = PriceFixedRateBond()
+        priceFixedRateBond.Init(buf, pos)
+        return cls.InitFromObj(priceFixedRateBond)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, priceFixedRateBond):
+        x = PriceFixedRateBondT()
+        x._UnPack(priceFixedRateBond)
+        return x
+
+    # PriceFixedRateBondT
+    def _UnPack(self, priceFixedRateBond):
+        if priceFixedRateBond is None:
+            return
+        if priceFixedRateBond.FixedRateBond() is not None:
+            self.fixedRateBond = FixedRateBondT.InitFromObj(priceFixedRateBond.FixedRateBond())
+        self.discountingCurve = priceFixedRateBond.DiscountingCurve()
+        if priceFixedRateBond.Yield() is not None:
+            self.yield_ = YieldT.InitFromObj(priceFixedRateBond.Yield())
+
+    # PriceFixedRateBondT
+    def Pack(self, builder):
+        if self.fixedRateBond is not None:
+            fixedRateBond = self.fixedRateBond.Pack(builder)
+        if self.discountingCurve is not None:
+            discountingCurve = builder.CreateString(self.discountingCurve)
+        if self.yield_ is not None:
+            yield_ = self.yield_.Pack(builder)
+        PriceFixedRateBondStart(builder)
+        if self.fixedRateBond is not None:
+            PriceFixedRateBondAddFixedRateBond(builder, fixedRateBond)
+        if self.discountingCurve is not None:
+            PriceFixedRateBondAddDiscountingCurve(builder, discountingCurve)
+        if self.yield_ is not None:
+            PriceFixedRateBondAddYield(builder, yield_)
+        priceFixedRateBond = PriceFixedRateBondEnd(builder)
+        return priceFixedRateBond

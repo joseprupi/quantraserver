@@ -1,5 +1,8 @@
 namespace quantra.enums;
 
+// ============================================================================
+// Day Count Conventions
+// ============================================================================
 enum DayCounter : byte { 
     Actual360,
     Actual365Fixed,
@@ -18,6 +21,9 @@ enum DayCounter : byte {
     Thirty360,
 }
 
+// ============================================================================
+// Curve Interpolation
+// ============================================================================
 enum Interpolator : byte { 
     BackwardFlat,
     ForwardFlat,
@@ -35,6 +41,9 @@ enum BootstrapTrait : byte {
     ZeroRate 
 }
 
+// ============================================================================
+// Time & Calendar
+// ============================================================================
 enum TimeUnit : byte { 
     Days,
     Hours,
@@ -119,6 +128,20 @@ enum Frequency : byte {
     Weekly
 }
 
+enum DateGenerationRule : byte {
+    Backward,
+    CDS,
+    Forward,
+    OldCDS,
+    ThirdWednesday,
+    Twentieth,
+    TwentiethIMM,
+    Zero
+}
+
+// ============================================================================
+// Interest Rate Indices
+// ============================================================================
 enum Ibor : byte {
     Euribor10M,
     Euribor11M,
@@ -152,20 +175,62 @@ enum Ibor : byte {
     EuriborSW
 }
 
-enum DateGenerationRule : byte {
-    Backward,
-    CDS,
-    Forward,
-    OldCDS,
-    ThirdWednesday,
-    Twentieth,
-    TwentiethIMM,
-    Zero
-}
-
+// ============================================================================
+// Compounding
+// ============================================================================
 enum Compounding : byte {
     Compounded,
     Continuous,
     Simple,
     SimpleThenCompounded
+}
+
+// ============================================================================
+// Product-Specific Enums (moved from individual .fbs files)
+// ============================================================================
+
+// Swap direction
+enum SwapType : byte {
+    Payer,      // Pay fixed, receive floating
+    Receiver    // Receive fixed, pay floating
+}
+
+// FRA position
+enum FRAType : byte {
+    Long,       // Receive fixed, pay floating (benefit if rates rise)
+    Short       // Pay fixed, receive floating (benefit if rates fall)
+}
+
+// Cap/Floor type
+enum CapFloorType : byte {
+    Cap,
+    Floor,
+    Collar      // Long cap + short floor
+}
+
+// Swaption exercise style
+enum ExerciseType : byte {
+    European,   // Exercise only at expiry
+    Bermudan,   // Exercise on specific dates
+    American    // Exercise any time
+}
+
+// Swaption settlement
+enum SettlementType : byte {
+    Physical,   // Deliver the swap
+    Cash        // Cash settle the value
+}
+
+// CDS protection side
+enum ProtectionSide : byte {
+    Buyer,
+    Seller
+}
+
+// ============================================================================
+// Volatility
+// ============================================================================
+enum VolatilityType : byte {
+    ShiftedLognormal,   // Black volatility (most common)
+    Normal              // Bachelier/Normal volatility
 }

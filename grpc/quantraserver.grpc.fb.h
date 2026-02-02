@@ -48,11 +48,56 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>> PrepareAsyncPriceFloatingRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>>(PrepareAsyncPriceFloatingRateBondRaw(context, request, cq));
     }
+    virtual ::grpc::Status PriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>> AsyncPriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>>(AsyncPriceVanillaSwapRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>> PrepareAsyncPriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>>(PrepareAsyncPriceVanillaSwapRaw(context, request, cq));
+    }
+    virtual ::grpc::Status PriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, flatbuffers::grpc::Message<PriceFRAResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>> AsyncPriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>>(AsyncPriceFRARaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>> PrepareAsyncPriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>>(PrepareAsyncPriceFRARaw(context, request, cq));
+    }
+    virtual ::grpc::Status PriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, flatbuffers::grpc::Message<PriceCapFloorResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>> AsyncPriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>>(AsyncPriceCapFloorRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>> PrepareAsyncPriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>>(PrepareAsyncPriceCapFloorRaw(context, request, cq));
+    }
+    virtual ::grpc::Status PriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, flatbuffers::grpc::Message<PriceSwaptionResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>> AsyncPriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>>(AsyncPriceSwaptionRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>> PrepareAsyncPriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>>(PrepareAsyncPriceSwaptionRaw(context, request, cq));
+    }
+    virtual ::grpc::Status PriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, flatbuffers::grpc::Message<PriceCDSResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>> AsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>>(AsyncPriceCDSRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>> PrepareAsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>>(PrepareAsyncPriceCDSRaw(context, request, cq));
+    }
   private:
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* AsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* PrepareAsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>* AsyncPriceFloatingRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>* PrepareAsyncPriceFloatingRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* AsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* PrepareAsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>* AsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFRAResponse>>* PrepareAsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>* AsyncPriceCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCapFloorResponse>>* PrepareAsyncPriceCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>* AsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>* PrepareAsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>* AsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -71,6 +116,41 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>> PrepareAsyncPriceFloatingRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>>(PrepareAsyncPriceFloatingRateBondRaw(context, request, cq));
     }
+    ::grpc::Status PriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>> AsyncPriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>>(AsyncPriceVanillaSwapRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>> PrepareAsyncPriceVanillaSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>>(PrepareAsyncPriceVanillaSwapRaw(context, request, cq));
+    }
+    ::grpc::Status PriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, flatbuffers::grpc::Message<PriceFRAResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>> AsyncPriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>>(AsyncPriceFRARaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>> PrepareAsyncPriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>>(PrepareAsyncPriceFRARaw(context, request, cq));
+    }
+    ::grpc::Status PriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, flatbuffers::grpc::Message<PriceCapFloorResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>> AsyncPriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>>(AsyncPriceCapFloorRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>> PrepareAsyncPriceCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>>(PrepareAsyncPriceCapFloorRaw(context, request, cq));
+    }
+    ::grpc::Status PriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, flatbuffers::grpc::Message<PriceSwaptionResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>> AsyncPriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>>(AsyncPriceSwaptionRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>> PrepareAsyncPriceSwaption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>>(PrepareAsyncPriceSwaptionRaw(context, request, cq));
+    }
+    ::grpc::Status PriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, flatbuffers::grpc::Message<PriceCDSResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>> AsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>>(AsyncPriceCDSRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>> PrepareAsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>>(PrepareAsyncPriceCDSRaw(context, request, cq));
+    }
   
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
@@ -78,8 +158,23 @@ class QuantraServer final {
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* PrepareAsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>* AsyncPriceFloatingRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>* PrepareAsyncPriceFloatingRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* AsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* PrepareAsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>* AsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFRAResponse>>* PrepareAsyncPriceFRARaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>* AsyncPriceCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCapFloorResponse>>* PrepareAsyncPriceCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>* AsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>* PrepareAsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* AsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFixedRateBond_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFloatingRateBond_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceVanillaSwap_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceFRA_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceCapFloor_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceSwaption_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceCDS_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
   
@@ -89,6 +184,11 @@ class QuantraServer final {
     virtual ~Service();
     virtual ::grpc::Status PriceFixedRateBond(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>* request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response);
     virtual ::grpc::Status PriceFloatingRateBond(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>* request, flatbuffers::grpc::Message<PriceFloatingRateBondResponse>* response);
+    virtual ::grpc::Status PriceVanillaSwap(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* request, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* response);
+    virtual ::grpc::Status PriceFRA(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceFRARequest>* request, flatbuffers::grpc::Message<PriceFRAResponse>* response);
+    virtual ::grpc::Status PriceCapFloor(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>* request, flatbuffers::grpc::Message<PriceCapFloorResponse>* response);
+    virtual ::grpc::Status PriceSwaption(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>* request, flatbuffers::grpc::Message<PriceSwaptionResponse>* response);
+    virtual ::grpc::Status PriceCDS(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>* request, flatbuffers::grpc::Message<PriceCDSResponse>* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_PriceFixedRateBond : public BaseClass {
@@ -130,7 +230,107 @@ class QuantraServer final {
       ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  Service   >   >   AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_PriceVanillaSwap : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceVanillaSwap() {
+      ::grpc::Service::MarkMethodAsync(2);
+    }
+    ~WithAsyncMethod_PriceVanillaSwap() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceVanillaSwap(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceVanillaSwapRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_PriceFRA : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceFRA() {
+      ::grpc::Service::MarkMethodAsync(3);
+    }
+    ~WithAsyncMethod_PriceFRA() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceFRA(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFRARequest>* /*request*/, flatbuffers::grpc::Message<PriceFRAResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceFRA(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceFRARequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceFRAResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_PriceCapFloor : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceCapFloor() {
+      ::grpc::Service::MarkMethodAsync(4);
+    }
+    ~WithAsyncMethod_PriceCapFloor() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceCapFloor(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCapFloorRequest>* /*request*/, flatbuffers::grpc::Message<PriceCapFloorResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceCapFloor(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceCapFloorRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceCapFloorResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_PriceSwaption : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceSwaption() {
+      ::grpc::Service::MarkMethodAsync(5);
+    }
+    ~WithAsyncMethod_PriceSwaption() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceSwaption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceSwaptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceSwaptionResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceSwaption(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceSwaptionRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceSwaptionResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_PriceCDS : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceCDS() {
+      ::grpc::Service::MarkMethodAsync(6);
+    }
+    ~WithAsyncMethod_PriceCDS() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceCDS(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceCDSRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceCDSResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  Service   >   >   >   >   >   >   >   AsyncService;
   template <class BaseClass>
   class WithGenericMethod_PriceFixedRateBond : public BaseClass {
    private:
@@ -161,6 +361,91 @@ class QuantraServer final {
     }
     // disable synchronous version of this method
     ::grpc::Status PriceFloatingRateBond(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFloatingRateBondRequest>* /*request*/, flatbuffers::grpc::Message<PriceFloatingRateBondResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_PriceVanillaSwap : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceVanillaSwap() {
+      ::grpc::Service::MarkMethodGeneric(2);
+    }
+    ~WithGenericMethod_PriceVanillaSwap() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_PriceFRA : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceFRA() {
+      ::grpc::Service::MarkMethodGeneric(3);
+    }
+    ~WithGenericMethod_PriceFRA() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceFRA(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFRARequest>* /*request*/, flatbuffers::grpc::Message<PriceFRAResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_PriceCapFloor : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceCapFloor() {
+      ::grpc::Service::MarkMethodGeneric(4);
+    }
+    ~WithGenericMethod_PriceCapFloor() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceCapFloor(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCapFloorRequest>* /*request*/, flatbuffers::grpc::Message<PriceCapFloorResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_PriceSwaption : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceSwaption() {
+      ::grpc::Service::MarkMethodGeneric(5);
+    }
+    ~WithGenericMethod_PriceSwaption() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceSwaption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceSwaptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceSwaptionResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_PriceCDS : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceCDS() {
+      ::grpc::Service::MarkMethodGeneric(6);
+    }
+    ~WithGenericMethod_PriceCDS() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) final override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -205,9 +490,109 @@ class QuantraServer final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedPriceFloatingRateBond(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceFloatingRateBondRequest>,flatbuffers::grpc::Message<PriceFloatingRateBondResponse>>* server_unary_streamer) = 0;
   };
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  Service   >   >   StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceVanillaSwap : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceVanillaSwap() {
+      ::grpc::Service::MarkMethodStreamed(2,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceVanillaSwapRequest>, flatbuffers::grpc::Message<PriceVanillaSwapResponse>>(std::bind(&WithStreamedUnaryMethod_PriceVanillaSwap<BaseClass>::StreamedPriceVanillaSwap, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceVanillaSwap() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceVanillaSwap(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceVanillaSwapRequest>,flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceFRA : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceFRA() {
+      ::grpc::Service::MarkMethodStreamed(3,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceFRARequest>, flatbuffers::grpc::Message<PriceFRAResponse>>(std::bind(&WithStreamedUnaryMethod_PriceFRA<BaseClass>::StreamedPriceFRA, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceFRA() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceFRA(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFRARequest>* /*request*/, flatbuffers::grpc::Message<PriceFRAResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceFRA(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceFRARequest>,flatbuffers::grpc::Message<PriceFRAResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceCapFloor : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceCapFloor() {
+      ::grpc::Service::MarkMethodStreamed(4,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceCapFloorRequest>, flatbuffers::grpc::Message<PriceCapFloorResponse>>(std::bind(&WithStreamedUnaryMethod_PriceCapFloor<BaseClass>::StreamedPriceCapFloor, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceCapFloor() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceCapFloor(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCapFloorRequest>* /*request*/, flatbuffers::grpc::Message<PriceCapFloorResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceCapFloor(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceCapFloorRequest>,flatbuffers::grpc::Message<PriceCapFloorResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceSwaption : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceSwaption() {
+      ::grpc::Service::MarkMethodStreamed(5,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceSwaptionRequest>, flatbuffers::grpc::Message<PriceSwaptionResponse>>(std::bind(&WithStreamedUnaryMethod_PriceSwaption<BaseClass>::StreamedPriceSwaption, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceSwaption() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceSwaption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceSwaptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceSwaptionResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceSwaption(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceSwaptionRequest>,flatbuffers::grpc::Message<PriceSwaptionResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceCDS : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceCDS() {
+      ::grpc::Service::MarkMethodStreamed(6,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceCDSRequest>, flatbuffers::grpc::Message<PriceCDSResponse>>(std::bind(&WithStreamedUnaryMethod_PriceCDS<BaseClass>::StreamedPriceCDS, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceCDS() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceCDS(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceCDSRequest>,flatbuffers::grpc::Message<PriceCDSResponse>>* server_unary_streamer) = 0;
+  };
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  Service   >   >   >   >   >   >   >   StreamedUnaryService;
   typedef   Service   SplitStreamedService;
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  Service   >   >   StreamedService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  Service   >   >   >   >   >   >   >   StreamedService;
 };
 
 }  // namespace quantra

@@ -1,11 +1,26 @@
-include "/fbs/price_fixed_rate_bond_request.fbs";
-include "/fbs/price_floating_rate_bond_request.fbs";
-include "/fbs/fixed_rate_bond_response.fbs";
-include "/fbs/floating_rate_bond_response.fbs";
+include "../flatbuffers/fbs/price_fixed_rate_bond_request.fbs";
+include "../flatbuffers/fbs/price_floating_rate_bond_request.fbs";
+include "../flatbuffers/fbs/fixed_rate_bond_response.fbs";
+include "../flatbuffers/fbs/floating_rate_bond_response.fbs";
+include "../flatbuffers/fbs/price_vanilla_swap_request.fbs";
+include "../flatbuffers/fbs/vanilla_swap_response.fbs";
+include "../flatbuffers/fbs/price_fra_request.fbs";
+include "../flatbuffers/fbs/fra_response.fbs";
+include "../flatbuffers/fbs/price_cap_floor_request.fbs";
+include "../flatbuffers/fbs/cap_floor_response.fbs";
+include "../flatbuffers/fbs/price_swaption_request.fbs";
+include "../flatbuffers/fbs/swaption_response.fbs";
+include "../flatbuffers/fbs/price_cds_request.fbs";
+include "../flatbuffers/fbs/cds_response.fbs";
 
 namespace quantra;
 
 rpc_service QuantraServer {
   PriceFixedRateBond(PriceFixedRateBondRequest):PriceFixedRateBondResponse;
   PriceFloatingRateBond(PriceFloatingRateBondRequest):PriceFloatingRateBondResponse;
+  PriceVanillaSwap(PriceVanillaSwapRequest):PriceVanillaSwapResponse;
+  PriceFRA(PriceFRARequest):PriceFRAResponse;
+  PriceCapFloor(PriceCapFloorRequest):PriceCapFloorResponse;
+  PriceSwaption(PriceSwaptionRequest):PriceSwaptionResponse;
+  PriceCDS(PriceCDSRequest):PriceCDSResponse;  // <-- THIS IS MISSING
 }

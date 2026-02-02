@@ -59,31 +59,93 @@ class ConstantOptionletVolatility(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-def Start(builder): builder.StartObject(5)
 def ConstantOptionletVolatilityStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddSettlementDays(builder, settlementDays): builder.PrependInt32Slot(0, settlementDays, 0)
+    builder.StartObject(5)
+
+def Start(builder):
+    ConstantOptionletVolatilityStart(builder)
+
 def ConstantOptionletVolatilityAddSettlementDays(builder, settlementDays):
-    """This method is deprecated. Please switch to AddSettlementDays."""
-    return AddSettlementDays(builder, settlementDays)
-def AddCalendar(builder, calendar): builder.PrependInt8Slot(1, calendar, 0)
+    builder.PrependInt32Slot(0, settlementDays, 0)
+
+def AddSettlementDays(builder, settlementDays):
+    ConstantOptionletVolatilityAddSettlementDays(builder, settlementDays)
+
 def ConstantOptionletVolatilityAddCalendar(builder, calendar):
-    """This method is deprecated. Please switch to AddCalendar."""
-    return AddCalendar(builder, calendar)
-def AddBusinessDayConvention(builder, businessDayConvention): builder.PrependInt8Slot(2, businessDayConvention, 0)
+    builder.PrependInt8Slot(1, calendar, 0)
+
+def AddCalendar(builder, calendar):
+    ConstantOptionletVolatilityAddCalendar(builder, calendar)
+
 def ConstantOptionletVolatilityAddBusinessDayConvention(builder, businessDayConvention):
-    """This method is deprecated. Please switch to AddBusinessDayConvention."""
-    return AddBusinessDayConvention(builder, businessDayConvention)
-def AddVolatility(builder, volatility): builder.PrependFloat64Slot(3, volatility, 0.0)
+    builder.PrependInt8Slot(2, businessDayConvention, 0)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    ConstantOptionletVolatilityAddBusinessDayConvention(builder, businessDayConvention)
+
 def ConstantOptionletVolatilityAddVolatility(builder, volatility):
-    """This method is deprecated. Please switch to AddVolatility."""
-    return AddVolatility(builder, volatility)
-def AddDayCounter(builder, dayCounter): builder.PrependInt8Slot(4, dayCounter, 0)
+    builder.PrependFloat64Slot(3, volatility, 0.0)
+
+def AddVolatility(builder, volatility):
+    ConstantOptionletVolatilityAddVolatility(builder, volatility)
+
 def ConstantOptionletVolatilityAddDayCounter(builder, dayCounter):
-    """This method is deprecated. Please switch to AddDayCounter."""
-    return AddDayCounter(builder, dayCounter)
-def End(builder): return builder.EndObject()
+    builder.PrependInt8Slot(4, dayCounter, 0)
+
+def AddDayCounter(builder, dayCounter):
+    ConstantOptionletVolatilityAddDayCounter(builder, dayCounter)
+
 def ConstantOptionletVolatilityEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return ConstantOptionletVolatilityEnd(builder)
+
+
+class ConstantOptionletVolatilityT(object):
+
+    # ConstantOptionletVolatilityT
+    def __init__(self):
+        self.settlementDays = 0  # type: int
+        self.calendar = 0  # type: int
+        self.businessDayConvention = 0  # type: int
+        self.volatility = 0.0  # type: float
+        self.dayCounter = 0  # type: int
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        constantOptionletVolatility = ConstantOptionletVolatility()
+        constantOptionletVolatility.Init(buf, pos)
+        return cls.InitFromObj(constantOptionletVolatility)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, constantOptionletVolatility):
+        x = ConstantOptionletVolatilityT()
+        x._UnPack(constantOptionletVolatility)
+        return x
+
+    # ConstantOptionletVolatilityT
+    def _UnPack(self, constantOptionletVolatility):
+        if constantOptionletVolatility is None:
+            return
+        self.settlementDays = constantOptionletVolatility.SettlementDays()
+        self.calendar = constantOptionletVolatility.Calendar()
+        self.businessDayConvention = constantOptionletVolatility.BusinessDayConvention()
+        self.volatility = constantOptionletVolatility.Volatility()
+        self.dayCounter = constantOptionletVolatility.DayCounter()
+
+    # ConstantOptionletVolatilityT
+    def Pack(self, builder):
+        ConstantOptionletVolatilityStart(builder)
+        ConstantOptionletVolatilityAddSettlementDays(builder, self.settlementDays)
+        ConstantOptionletVolatilityAddCalendar(builder, self.calendar)
+        ConstantOptionletVolatilityAddBusinessDayConvention(builder, self.businessDayConvention)
+        ConstantOptionletVolatilityAddVolatility(builder, self.volatility)
+        ConstantOptionletVolatilityAddDayCounter(builder, self.dayCounter)
+        constantOptionletVolatility = ConstantOptionletVolatilityEnd(builder)
+        return constantOptionletVolatility

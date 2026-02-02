@@ -109,55 +109,162 @@ class FloatingRateBond(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def Start(builder): builder.StartObject(11)
 def FloatingRateBondStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddSettlementDays(builder, settlementDays): builder.PrependInt32Slot(0, settlementDays, 0)
+    builder.StartObject(11)
+
+def Start(builder):
+    FloatingRateBondStart(builder)
+
 def FloatingRateBondAddSettlementDays(builder, settlementDays):
-    """This method is deprecated. Please switch to AddSettlementDays."""
-    return AddSettlementDays(builder, settlementDays)
-def AddFaceAmount(builder, faceAmount): builder.PrependFloat64Slot(1, faceAmount, 0.0)
+    builder.PrependInt32Slot(0, settlementDays, 0)
+
+def AddSettlementDays(builder, settlementDays):
+    FloatingRateBondAddSettlementDays(builder, settlementDays)
+
 def FloatingRateBondAddFaceAmount(builder, faceAmount):
-    """This method is deprecated. Please switch to AddFaceAmount."""
-    return AddFaceAmount(builder, faceAmount)
-def AddSchedule(builder, schedule): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+    builder.PrependFloat64Slot(1, faceAmount, 0.0)
+
+def AddFaceAmount(builder, faceAmount):
+    FloatingRateBondAddFaceAmount(builder, faceAmount)
+
 def FloatingRateBondAddSchedule(builder, schedule):
-    """This method is deprecated. Please switch to AddSchedule."""
-    return AddSchedule(builder, schedule)
-def AddIndex(builder, index): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+
+def AddSchedule(builder, schedule):
+    FloatingRateBondAddSchedule(builder, schedule)
+
 def FloatingRateBondAddIndex(builder, index):
-    """This method is deprecated. Please switch to AddIndex."""
-    return AddIndex(builder, index)
-def AddAccrualDayCounter(builder, accrualDayCounter): builder.PrependInt8Slot(4, accrualDayCounter, 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+
+def AddIndex(builder, index):
+    FloatingRateBondAddIndex(builder, index)
+
 def FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter):
-    """This method is deprecated. Please switch to AddAccrualDayCounter."""
-    return AddAccrualDayCounter(builder, accrualDayCounter)
-def AddPaymentConvention(builder, paymentConvention): builder.PrependInt8Slot(5, paymentConvention, 0)
+    builder.PrependInt8Slot(4, accrualDayCounter, 0)
+
+def AddAccrualDayCounter(builder, accrualDayCounter):
+    FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter)
+
 def FloatingRateBondAddPaymentConvention(builder, paymentConvention):
-    """This method is deprecated. Please switch to AddPaymentConvention."""
-    return AddPaymentConvention(builder, paymentConvention)
-def AddFixingDays(builder, fixingDays): builder.PrependInt32Slot(6, fixingDays, 0)
+    builder.PrependInt8Slot(5, paymentConvention, 0)
+
+def AddPaymentConvention(builder, paymentConvention):
+    FloatingRateBondAddPaymentConvention(builder, paymentConvention)
+
 def FloatingRateBondAddFixingDays(builder, fixingDays):
-    """This method is deprecated. Please switch to AddFixingDays."""
-    return AddFixingDays(builder, fixingDays)
-def AddSpread(builder, spread): builder.PrependFloat64Slot(7, spread, 0.0)
+    builder.PrependInt32Slot(6, fixingDays, 0)
+
+def AddFixingDays(builder, fixingDays):
+    FloatingRateBondAddFixingDays(builder, fixingDays)
+
 def FloatingRateBondAddSpread(builder, spread):
-    """This method is deprecated. Please switch to AddSpread."""
-    return AddSpread(builder, spread)
-def AddInArrears(builder, inArrears): builder.PrependBoolSlot(8, inArrears, 0)
+    builder.PrependFloat64Slot(7, spread, 0.0)
+
+def AddSpread(builder, spread):
+    FloatingRateBondAddSpread(builder, spread)
+
 def FloatingRateBondAddInArrears(builder, inArrears):
-    """This method is deprecated. Please switch to AddInArrears."""
-    return AddInArrears(builder, inArrears)
-def AddRedemption(builder, redemption): builder.PrependFloat64Slot(9, redemption, 0.0)
+    builder.PrependBoolSlot(8, inArrears, 0)
+
+def AddInArrears(builder, inArrears):
+    FloatingRateBondAddInArrears(builder, inArrears)
+
 def FloatingRateBondAddRedemption(builder, redemption):
-    """This method is deprecated. Please switch to AddRedemption."""
-    return AddRedemption(builder, redemption)
-def AddIssueDate(builder, issueDate): builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+    builder.PrependFloat64Slot(9, redemption, 0.0)
+
+def AddRedemption(builder, redemption):
+    FloatingRateBondAddRedemption(builder, redemption)
+
 def FloatingRateBondAddIssueDate(builder, issueDate):
-    """This method is deprecated. Please switch to AddIssueDate."""
-    return AddIssueDate(builder, issueDate)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+
+def AddIssueDate(builder, issueDate):
+    FloatingRateBondAddIssueDate(builder, issueDate)
+
 def FloatingRateBondEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return FloatingRateBondEnd(builder)
+
+try:
+    from typing import Optional
+except:
+    pass
+
+class FloatingRateBondT(object):
+
+    # FloatingRateBondT
+    def __init__(self):
+        self.settlementDays = 0  # type: int
+        self.faceAmount = 0.0  # type: float
+        self.schedule = None  # type: Optional[ScheduleT]
+        self.index = None  # type: Optional[IndexT]
+        self.accrualDayCounter = 0  # type: int
+        self.paymentConvention = 0  # type: int
+        self.fixingDays = 0  # type: int
+        self.spread = 0.0  # type: float
+        self.inArrears = False  # type: bool
+        self.redemption = 0.0  # type: float
+        self.issueDate = None  # type: str
+
+    @classmethod
+    def InitFromBuf(cls, buf, pos):
+        floatingRateBond = FloatingRateBond()
+        floatingRateBond.Init(buf, pos)
+        return cls.InitFromObj(floatingRateBond)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
+    def InitFromObj(cls, floatingRateBond):
+        x = FloatingRateBondT()
+        x._UnPack(floatingRateBond)
+        return x
+
+    # FloatingRateBondT
+    def _UnPack(self, floatingRateBond):
+        if floatingRateBond is None:
+            return
+        self.settlementDays = floatingRateBond.SettlementDays()
+        self.faceAmount = floatingRateBond.FaceAmount()
+        if floatingRateBond.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(floatingRateBond.Schedule())
+        if floatingRateBond.Index() is not None:
+            self.index = IndexT.InitFromObj(floatingRateBond.Index())
+        self.accrualDayCounter = floatingRateBond.AccrualDayCounter()
+        self.paymentConvention = floatingRateBond.PaymentConvention()
+        self.fixingDays = floatingRateBond.FixingDays()
+        self.spread = floatingRateBond.Spread()
+        self.inArrears = floatingRateBond.InArrears()
+        self.redemption = floatingRateBond.Redemption()
+        self.issueDate = floatingRateBond.IssueDate()
+
+    # FloatingRateBondT
+    def Pack(self, builder):
+        if self.schedule is not None:
+            schedule = self.schedule.Pack(builder)
+        if self.index is not None:
+            index = self.index.Pack(builder)
+        if self.issueDate is not None:
+            issueDate = builder.CreateString(self.issueDate)
+        FloatingRateBondStart(builder)
+        FloatingRateBondAddSettlementDays(builder, self.settlementDays)
+        FloatingRateBondAddFaceAmount(builder, self.faceAmount)
+        if self.schedule is not None:
+            FloatingRateBondAddSchedule(builder, schedule)
+        if self.index is not None:
+            FloatingRateBondAddIndex(builder, index)
+        FloatingRateBondAddAccrualDayCounter(builder, self.accrualDayCounter)
+        FloatingRateBondAddPaymentConvention(builder, self.paymentConvention)
+        FloatingRateBondAddFixingDays(builder, self.fixingDays)
+        FloatingRateBondAddSpread(builder, self.spread)
+        FloatingRateBondAddInArrears(builder, self.inArrears)
+        FloatingRateBondAddRedemption(builder, self.redemption)
+        if self.issueDate is not None:
+            FloatingRateBondAddIssueDate(builder, issueDate)
+        floatingRateBond = FloatingRateBondEnd(builder)
+        return floatingRateBond

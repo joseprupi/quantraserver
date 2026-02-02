@@ -1,0 +1,32 @@
+# Ignore build directories
+build/
+cmake-build-*/
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Ignore Docker files (not needed inside container)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Ignore docs and images (not needed for build)
+docs/
+
+# Ignore any local test outputs
+*.log
+*.tmp
+
+# Pyhton specific ignores
+*.pyc
+*.pyo
+*.pyd
+quantra-python/quantra.egg-info/*

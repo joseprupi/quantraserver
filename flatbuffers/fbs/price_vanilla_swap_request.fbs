@@ -1,0 +1,20 @@
+include "common.fbs";
+include "vanilla_swap.fbs";
+
+namespace quantra;
+
+// Single swap pricing request
+table PriceVanillaSwap {
+    vanilla_swap:VanillaSwap;
+    discounting_curve:string;      // Reference to curve in Pricing.curves
+    forwarding_curve:string;       // Reference to curve for forward rates (can be same as discounting)
+}
+
+// Request to price one or more swaps
+table PriceVanillaSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceVanillaSwap];
+    include_flows:bool = false;    // Include detailed cashflows in response
+}
+
+root_type PriceVanillaSwapRequest;
