@@ -1,0 +1,330 @@
+#!/usr/bin/env python3
+"""
+Quantra Process Manager
+
+A CLI tool to manage multiple Quantra server processes with Envoy load balancing.
+
+Usage:
+    quantra start [--workers N] [--port PORT] [--foreground | --detach]
+    quantra stop [--force]
+    quantra status
+    quantra restart [--workers N] [--port PORT] [--foreground | --detach]
+    quantra logs [--follow]
+    quantra health
+
+Requires: envoy_config.py in the same directory or PYTHONPATH
+"""
+
+import argparse
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+
+import yaml
+from envoy_config import generate_envoy_config, print_health_status
+
+# ----------------------------
+# Default configuration
+# ----------------------------
+DEFAULT_CONFIG = {
+    "workers": 4,
+    "port": 50051,
+    "base_port": 50055,
+    "admin_port": 9901,
+}
+
+QUANTRA_HOME = os.environ.get("QUANTRA_HOME", "/workspace")
+CONFIG_DIR = Path(QUANTRA_HOME) / ".quantra"
+PID_FILE = CONFIG_DIR / "quantra.pid"
+ENVOY_CONFIG_FILE = CONFIG_DIR / "envoy.yaml"
+LOG_DIR = CONFIG_DIR / "logs"
+
+
+def ensure_config_dir():
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def find_quantra_binary() -> Optional[Path]:
+    candidates = [
+        Path(QUANTRA_HOME) / "build" / "server" / "sync_server",
+        Path("/workspace/build/server/sync_server"),
+        Path("./build/server/sync_server"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    result = subprocess.run(["which", "sync_server"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    return None
+
+
+def find_envoy_binary() -> Optional[Path]:
+    result = subprocess.run(["which", "envoy"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    return None
+
+
+def port_in_use(port: int) -> bool:
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("0.0.0.0", port))
+        return False
+    except OSError:
+        return True
+    finally:
+        s.close()
+
+
+def save_pids(pids: Dict[str, Any]):
+    ensure_config_dir()
+    with open(PID_FILE, "w") as f:
+        json.dump(pids, f, indent=2)
+
+
+def load_pids() -> Optional[Dict[str, Any]]:
+    if not PID_FILE.exists():
+        return None
+    with open(PID_FILE) as f:
+        return json.load(f)
+
+
+def is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def open_log(path: Path):
+    ensure_config_dir()
+    return open(path, "a", buffering=1)
+
+
+def start_workers(binary: Path, base_port: int, workers: int) -> List[Dict[str, Any]]:
+    procs = []
+    for i in range(workers):
+        port = base_port + i
+        log = open_log(LOG_DIR / f"worker_{port}.log")
+        proc = subprocess.Popen(
+            [str(binary), str(port)],
+            stdout=log, stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL, close_fds=True
+        )
+        procs.append({"port": port, "pid": proc.pid})
+        print(f"  Worker on port {port} (PID: {proc.pid})")
+    return procs
+
+
+def start_envoy(config_path: Path) -> subprocess.Popen:
+    envoy = find_envoy_binary()
+    if not envoy:
+        print("Error: envoy not found", file=sys.stderr)
+        sys.exit(1)
+    log = open_log(LOG_DIR / "envoy.log")
+    return subprocess.Popen(
+        [str(envoy), "-c", str(config_path), "--log-level", "warn"],
+        stdout=log, stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL, close_fds=True
+    )
+
+
+def stop_pid(pid: int, name: str, force: bool = False):
+    if not pid or not is_running(pid):
+        return
+    print(f"  Stopping {name} (PID: {pid})...")
+    os.kill(pid, signal.SIGTERM)
+    for _ in range(30):
+        if not is_running(pid):
+            return
+        time.sleep(0.1)
+    if force:
+        os.kill(pid, signal.SIGKILL)
+
+
+# ----------------------------
+# Commands
+# ----------------------------
+def cmd_start(args):
+    ensure_config_dir()
+    
+    pids = load_pids()
+    if pids and any(is_running(w["pid"]) for w in pids.get("workers", [])):
+        print("Already running. Use 'quantra stop' first.")
+        sys.exit(1)
+    
+    binary = find_quantra_binary()
+    if not binary:
+        print("Error: sync_server not found", file=sys.stderr)
+        sys.exit(1)
+    
+    workers = args.workers
+    port = args.port
+    base_port = args.base_port
+    admin_port = args.admin_port
+    
+    # Check ports
+    needed = [port, admin_port] + list(range(base_port, base_port + workers))
+    conflicts = [p for p in needed if port_in_use(p)]
+    if conflicts:
+        print(f"Ports in use: {conflicts}", file=sys.stderr)
+        sys.exit(1)
+    
+    print(f"Starting Quantra ({workers} workers on port {port})...")
+    
+    # Generate and write Envoy config
+    config = generate_envoy_config(port, base_port, workers, admin_port)
+    with open(ENVOY_CONFIG_FILE, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+    
+    # Start workers
+    worker_info = start_workers(binary, base_port, workers)
+    time.sleep(0.5)
+    
+    # Start Envoy
+    envoy_proc = start_envoy(ENVOY_CONFIG_FILE)
+    print(f"  Envoy (PID: {envoy_proc.pid})")
+    
+    save_pids({
+        "workers": worker_info,
+        "envoy": {"pid": envoy_proc.pid},
+        "config": {"workers": workers, "port": port, "base_port": base_port, "admin_port": admin_port},
+    })
+    
+    time.sleep(2)
+    print("\n✓ Started. Checking health...")
+    print_health_status(admin_port)
+    
+    if args.foreground:
+        def shutdown(sig, frame):
+            print("\nStopping...")
+            cmd_stop(argparse.Namespace(force=True))
+            sys.exit(0)
+        signal.signal(signal.SIGTERM, shutdown)
+        signal.signal(signal.SIGINT, shutdown)
+        print("\nForeground mode. Ctrl+C to stop.")
+        while True:
+            if envoy_proc.poll() is not None:
+                cmd_stop(argparse.Namespace(force=True))
+                sys.exit(1)
+            time.sleep(1)
+
+
+def cmd_stop(args):
+    pids = load_pids()
+    if not pids:
+        print("Not running.")
+        return
+    
+    print("Stopping...")
+    force = getattr(args, "force", False)
+    
+    envoy_pid = pids.get("envoy", {}).get("pid")
+    if envoy_pid:
+        stop_pid(envoy_pid, "Envoy", force)
+    
+    for w in pids.get("workers", []):
+        stop_pid(w["pid"], f"worker:{w['port']}", force)
+    
+    PID_FILE.unlink(missing_ok=True)
+    print("✓ Stopped")
+
+
+def cmd_status(args):
+    pids = load_pids()
+    if not pids:
+        print("Not running.")
+        return
+    
+    cfg = pids.get("config", {})
+    print(f"Port: {cfg.get('port')} | Workers: {cfg.get('workers')}")
+    
+    envoy_pid = pids.get("envoy", {}).get("pid")
+    print(f"Envoy: {'Running' if is_running(envoy_pid) else 'Stopped'} (PID: {envoy_pid})")
+    
+    for w in pids.get("workers", []):
+        status = "Running" if is_running(w["pid"]) else "Stopped"
+        print(f"  Worker {w['port']}: {status}")
+
+
+def cmd_restart(args):
+    cmd_stop(argparse.Namespace(force=True))
+    time.sleep(1)
+    cmd_start(args)
+
+
+def cmd_health(args):
+    pids = load_pids()
+    if not pids:
+        print("Not running.")
+        return
+    admin_port = pids.get("config", {}).get("admin_port", DEFAULT_CONFIG["admin_port"])
+    print_health_status(admin_port)
+
+
+def cmd_logs(args):
+    if args.follow:
+        logs = sorted(LOG_DIR.glob("*.log"))
+        if logs:
+            subprocess.run(["tail", "-f"] + [str(f) for f in logs])
+    else:
+        for f in sorted(LOG_DIR.glob("*.log")):
+            print(f"\n=== {f.name} ===")
+            print(f.read_text()[-2000:])
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Quantra Process Manager")
+    sub = parser.add_subparsers(dest="cmd")
+    
+    # start
+    p = sub.add_parser("start")
+    p.add_argument("-w", "--workers", type=int, default=DEFAULT_CONFIG["workers"])
+    p.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
+    p.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
+    p.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    p.add_argument("--foreground", action="store_true")
+    
+    # stop
+    p = sub.add_parser("stop")
+    p.add_argument("--force", action="store_true")
+    
+    # others
+    sub.add_parser("status")
+    
+    p = sub.add_parser("restart")
+    p.add_argument("-w", "--workers", type=int, default=DEFAULT_CONFIG["workers"])
+    p.add_argument("-p", "--port", type=int, default=DEFAULT_CONFIG["port"])
+    p.add_argument("--base-port", type=int, default=DEFAULT_CONFIG["base_port"])
+    p.add_argument("--admin-port", type=int, default=DEFAULT_CONFIG["admin_port"])
+    p.add_argument("--foreground", action="store_true")
+    
+    sub.add_parser("health")
+    
+    p = sub.add_parser("logs")
+    p.add_argument("-f", "--follow", action="store_true")
+    
+    args = parser.parse_args()
+    
+    cmds = {
+        "start": cmd_start, "stop": cmd_stop, "status": cmd_status,
+        "restart": cmd_restart, "health": cmd_health, "logs": cmd_logs,
+    }
+    
+    if args.cmd in cmds:
+        cmds[args.cmd](args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
