@@ -2,77 +2,56 @@
 
 ## Overview
 
-This testing framework provides:
-
-1. **Unit Tests** - Test that Quantra pricing matches raw QuantLib calculations
-2. **Integration Tests** - Test full server/client gRPC communication
-3. **Test Infrastructure** - Scripts, fixtures, and helpers
+This testing framework provides unit tests that verify Quantra pricing matches raw QuantLib calculations, integration tests for full server/client gRPC communication, and the necessary test infrastructure including scripts, fixtures, and helpers.
 
 ## Directory Structure
 
 ```
-testing/
-├── tests/
-│   ├── test_framework.h          # Base test classes and helpers
-│   ├── test_fixed_rate_bond.cpp  # Fixed rate bond tests
-│   ├── test_vanilla_swap.cpp     # Vanilla swap tests
-│   ├── test_fra.cpp              # FRA tests
-│   ├── test_cap_floor.cpp        # Cap/Floor tests
-│   ├── test_swaption.cpp         # Swaption tests
-│   ├── test_cds.cpp              # CDS tests
-│   ├── test_integration.cpp      # Server/client integration tests
-│   └── CMakeLists.txt            # Test build configuration
-├── fixtures/
-│   └── (test data files)
-├── scripts/
-│   └── run_tests.sh              # Test runner script
-└── README.md
+tests/
+├── test_quantra_vs_quantlib.cpp  # Unit tests comparing Quantra to QuantLib
+├── test_server_client.cpp        # gRPC integration tests
+├── test_json_api_vs_quantlib.py  # JSON API tests
+├── test_python_client.py         # Python client tests
+├── run_all_tests.sh              # Full test runner
+├── smoke_test.sh                 # Quick validation
+└── CMakeLists.txt                # Test build configuration
 ```
 
-## Installation
+## Building Tests
 
-1. Copy the `tests/` directory to your workspace:
-   ```bash
-   cp -r testing/tests /workspace/tests_new
-   ```
+Tests are built automatically as part of the main project:
 
-2. Update main CMakeLists.txt to include tests:
-   ```cmake
-   add_subdirectory(tests_new)
-   ```
-
-3. Build:
-   ```bash
-   cd /workspace/build
-   cmake ..
-   make -j$(nproc)
-   ```
+```bash
+cd build
+cmake ..
+make -j$(nproc)
+```
 
 ## Running Tests
 
-### Run All Tests
+Run all tests:
 ```bash
-./scripts/run_tests.sh
+./tests/run_all_tests.sh
 ```
 
-### Run Specific Product Tests
+Run specific product tests:
 ```bash
-./scripts/run_tests.sh FixedRateBond
-./scripts/run_tests.sh VanillaSwap
-./scripts/run_tests.sh FRA
-./scripts/run_tests.sh CapFloor
-./scripts/run_tests.sh Swaption
-./scripts/run_tests.sh CDS
+./tests/run_all_tests.sh FixedRateBond
+./tests/run_all_tests.sh VanillaSwap
+./tests/run_all_tests.sh FRA
+./tests/run_all_tests.sh CapFloor
+./tests/run_all_tests.sh Swaption
+./tests/run_all_tests.sh CDS
 ```
 
-### Run with Verbose Output
+Run with verbose output:
 ```bash
-./scripts/run_tests.sh --verbose
+./tests/run_all_tests.sh --verbose
 ```
 
-### Run Directly with GoogleTest
+Run directly with GoogleTest:
 ```bash
-cd /workspace/build/tests_new
+cd build/tests
 
 # All tests
 ./quantra_tests
@@ -88,21 +67,11 @@ cd /workspace/build/tests_new
 
 ### Unit Tests
 
-Each product has tests that verify:
-
-1. **Basic Pricing** - NPV calculation works and is reasonable
-2. **Payer/Receiver Parity** - Long + Short = 0
-3. **At-Market Pricing** - Instruments at fair rate have zero NPV
-4. **Sensitivity Tests** - Higher vol increases option value, etc.
+Each product has tests that verify basic pricing (NPV calculation), payer/receiver parity (Long + Short = 0), at-market pricing (instruments at fair rate have zero NPV), and sensitivity tests (e.g., higher vol increases option value).
 
 ### Integration Tests
 
-Test the full request/response cycle:
-
-1. Build FlatBuffers request
-2. Send to gRPC server
-3. Parse response
-4. Verify results match direct QuantLib calculation
+Test the full request/response cycle: build FlatBuffers request, send to gRPC server, parse response, and verify results match direct QuantLib calculation.
 
 ## Adding New Tests
 

@@ -96,17 +96,13 @@ quantra-simple stop
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `QUANTRA_HOME` | Path to quantraserver installation | Current directory |
+- `QUANTRA_HOME` - Path to quantraserver installation (default: current directory)
 
 ### Default Ports
 
-| Port | Description |
-|------|-------------|
-| 50051 | Client-facing gRPC port (Envoy) |
-| 50055+ | Worker ports (50055, 50056, ...) |
-| 9901 | Envoy admin API |
+- `50051` - Client-facing gRPC port (Envoy)
+- `50055+` - Worker ports (50055, 50056, ...)
+- `9901` - Envoy admin API
 
 ## Files
 
@@ -211,14 +207,13 @@ quantra start --workers $(nproc)
 
 ## Comparison with Original Scripts
 
-| Feature | Original (start.sh) | quantra CLI |
-|---------|---------------------|-------------|
-| Process management | Manual | Automatic PID tracking |
-| Restart | Kill all, re-run | `quantra restart` |
-| Status check | None | `quantra status` |
-| Health check | Python script | `quantra health` |
-| Logs | Scattered | `quantra logs` |
-| Configuration | Environment vars | CLI args + defaults |
+The `quantra` CLI provides several improvements over the original `start.sh`:
+
+- Automatic PID tracking (vs. manual process management)
+- Built-in `restart` command
+- `status` and `health` commands
+- Centralized log management with `logs` command
+- CLI arguments with sensible defaults (vs. environment variables)
 
 ## License
 

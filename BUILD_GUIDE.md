@@ -8,7 +8,7 @@
 # Build production image
 docker build -t quantraserver .
 
-# Run server
+# Run server (4 workers with Envoy load balancing)
 docker run -p 50051:50051 quantraserver
 
 # Or enter dev shell
@@ -26,43 +26,60 @@ docker run -it -v $(pwd):/workspace quantraserver-dev
 
 See [Local Development Setup](#local-development-setup) below.
 
----
-
 ## Docker Build Targets
 
-The Dockerfile has multiple stages:
+The Dockerfile uses a multi-stage build:
 
-| Target | Purpose | Usage |
-|--------|---------|-------|
-| `base` | Base OS with tools | Internal |
-| `deps` | All dependencies built | `--target deps` |
-| `dev` | Development environment | `--target dev` |
-| `builder` | Builds the application | Internal |
-| `production` | Minimal runtime image | Default |
-
-### Examples
-
-```bash
-# Production build (minimal image)
-docker build -t quantraserver .
-
-# Dev container (includes debug tools)
-docker build --target dev -t quantraserver-dev .
-
-# Run dev container with source mounted
-docker run -it \
-    -v $(pwd):/workspace \
-    -p 50051:50051 \
-    quantraserver-dev
-
-# Inside dev container:
-regen-flatbuffers.sh  # Regenerate FlatBuffers code
-build.sh              # Build the project
-build.sh Release      # Build in release mode
-run-tests.sh          # Run test suite
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  base         Debian + build tools                              │
+│    │                                                            │
+│    ▼                                                            │
+│  deps         + gRPC, FlatBuffers, QuantLib, Envoy              │
+│    │                                                            │
+│    ├──────────────────┬─────────────────────────────────────┐   │
+│    ▼                  ▼                                     │   │
+│  dev               builder                                  │   │
+│  (interactive)     (compile app)                            │   │
+│                       │                                     │   │
+│                       ▼                                     │   │
+│                   production                                │   │
+│                   (minimal runtime)                         │   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+**`production`** (default) - Minimal runtime image (~200MB). Runs 4 workers behind Envoy load balancer. Use for deployment.
+
+```bash
+docker build -t quantraserver .
+docker run -p 50051:50051 quantraserver
+
+# Custom worker count
+docker run -p 50051:50051 quantraserver quantra start --workers 8 --foreground
+```
+
+**`dev`** - Interactive development environment. Mount your source code and use the included helper scripts.
+
+```bash
+docker build --target dev -t quantraserver-dev .
+docker run -it -v $(pwd):/workspace -p 50051:50051 quantraserver-dev
+
+# Inside the container:
+build.sh                  # Build in Debug mode
+build.sh Release          # Build in Release mode  
+regen-flatbuffers.sh      # Regenerate code after .fbs changes
+run-tests.sh              # Quick smoke test
+quantra start --workers 4 # Start server cluster
+```
+
+**`deps`** - Dependencies only. Useful for extracting pre-built libraries for local development.
+
+```bash
+docker build --target deps -t quantra-deps .
+docker create --name temp quantra-deps
+docker cp temp:/opt/quantra-deps ./quantra-deps
+docker rm temp
+```
 
 ## Local Development Setup
 
@@ -148,8 +165,6 @@ cmake -DCMAKE_PREFIX_PATH=/path/to/quantra-deps ..
 ./build/examples/bond_request 10
 ```
 
----
-
 ## Upgrading Dependencies
 
 When upgrading gRPC or FlatBuffers versions:
@@ -171,12 +186,8 @@ make
 
 ### Version Compatibility Notes
 
-| gRPC | Flatbuffers | Status |
-|------|-------------|--------|
-| v1.37.0 | v1.11.x | Original (doesn't compile with GCC 12+) |
-| v1.60.0 | v24.12.23 | Current (tested, working) |
-
----
+- **gRPC v1.37.0 + Flatbuffers v1.11.x** - Original versions, doesn't compile with GCC 12+
+- **gRPC v1.60.0 + Flatbuffers v24.12.23** - Current tested configuration
 
 ## Troubleshooting
 
@@ -203,8 +214,6 @@ export LD_LIBRARY_PATH=/opt/quantra-deps/lib:$LD_LIBRARY_PATH
 cmake -DCMAKE_PREFIX_PATH=/opt/quantra-deps ..
 ```
 
----
-
 ## CI/CD Integration
 
 ```yaml
@@ -222,8 +231,6 @@ jobs:
         run: |
           docker run quantraserver /app/test_build.sh --quick
 ```
-
----
 
 ## File Structure
 
