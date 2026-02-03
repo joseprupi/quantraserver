@@ -67,7 +67,19 @@
     },
     "quantra_enums_VolatilityType" : {
       "type" : "string",
-      "enum": ["ShiftedLognormal", "Normal"]
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
     },
     "quantra_Point" : {
       "type" : "string",

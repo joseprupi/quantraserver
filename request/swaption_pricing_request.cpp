@@ -1,5 +1,10 @@
 #include "swaption_pricing_request.h"
 
+#include "pricing_registry.h"
+#include "vol_surface_parsers.h"
+#include "engine_factory.h"
+#include "swaption_parser.h"
+
 using namespace QuantLib;
 using namespace quantra;
 
@@ -7,61 +12,12 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const PriceSwaptionRequest *request) const
 {
-    // Parse pricing information
-    PricingParser pricing_parser;
-    TermStructureParser term_structure_parser;
+    // Build registry once (handles curves, vols, models)
+    PricingRegistryBuilder regBuilder;
+    PricingRegistry reg = regBuilder.build(request->pricing());
+
     SwaptionParser swaption_parser;
-
-    auto pricing = pricing_parser.parse(request->pricing());
-
-    // Set evaluation date
-    QuantLib::Date as_of_date = DateToQL(pricing->as_of_date);
-    QuantLib::Settings::instance().evaluationDate() = as_of_date;
-
-    // Build term structures map (curves bootstrapped once)
-    auto curves = pricing->curves;
-    std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> term_structures;
-
-    for (auto it = curves->begin(); it != curves->end(); it++)
-    {
-        auto term_structure_handle = std::make_shared<RelinkableHandle<YieldTermStructure>>();
-        std::shared_ptr<YieldTermStructure> term_structure = term_structure_parser.parse(*it);
-        term_structure_handle->linkTo(term_structure);
-        term_structures.insert(std::make_pair(it->id()->str(), term_structure_handle));
-    }
-
-    // Build swaption volatility surfaces map (built once)
-    // Store both the QuantLib structure and the constant vol value for response
-    struct VolData {
-        std::shared_ptr<QuantLib::SwaptionVolatilityStructure> surface;
-        double constantVol;
-    };
-    std::map<std::string, VolData> swaption_vol_surfaces;
-
-    if (pricing->volatilities)
-    {
-        for (auto it = pricing->volatilities->begin(); it != pricing->volatilities->end(); it++)
-        {
-            double constantVol = it->constant_vol();
-            QuantLib::VolatilityType volType = (it->volatility_type() == quantra::enums::VolatilityType_Normal) 
-                ? QuantLib::Normal 
-                : QuantLib::ShiftedLognormal;
-
-            auto swaptionVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-                as_of_date,
-                CalendarToQL(it->calendar()),
-                ConventionToQL(it->business_day_convention()),
-                constantVol,
-                DayCounterToQL(it->day_counter()),
-                volType
-            );
-            
-            VolData volData;
-            volData.surface = swaptionVol;
-            volData.constantVol = constantVol;
-            swaption_vol_surfaces.insert(std::make_pair(it->id()->str(), volData));
-        }
-    }
+    EngineFactory engineFactory;
 
     // Process each Swaption
     auto swaption_pricings = request->swaptions();
@@ -69,37 +25,33 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
     for (auto it = swaption_pricings->begin(); it != swaption_pricings->end(); it++)
     {
-        // Get discounting curve
-        auto discounting_curve_it = term_structures.find(it->discounting_curve()->str());
-        if (discounting_curve_it == term_structures.end())
-        {
+        // Lookup discounting curve
+        auto dIt = reg.curves.find(it->discounting_curve()->str());
+        if (dIt == reg.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
-        }
 
-        // Get forwarding curve
-        auto forwarding_curve_it = term_structures.find(it->forwarding_curve()->str());
-        if (forwarding_curve_it == term_structures.end())
-        {
+        // Lookup forwarding curve
+        auto fIt = reg.curves.find(it->forwarding_curve()->str());
+        if (fIt == reg.curves.end())
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
-        }
 
-        // Get volatility surface by ID
-        auto volatility_it = swaption_vol_surfaces.find(it->volatility()->str());
-        if (volatility_it == swaption_vol_surfaces.end())
-        {
-            QUANTRA_ERROR("Volatility surface not found: " + it->volatility()->str());
-        }
-        QuantLib::Handle<QuantLib::SwaptionVolatilityStructure> volHandle(volatility_it->second.surface);
+        // Lookup vol (must be swaption)
+        auto vIt = reg.swaptionVols.find(it->volatility()->str());
+        if (vIt == reg.swaptionVols.end())
+            QUANTRA_ERROR("Swaption vol not found: " + it->volatility()->str());
+
+        // Lookup model
+        auto mIt = reg.models.find(it->model()->str());
+        if (mIt == reg.models.end())
+            QUANTRA_ERROR("Model not found: " + it->model()->str());
 
         // Link forwarding curve and parse Swaption
-        swaption_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
+        swaption_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto swaption = swaption_parser.parse(it->swaption());
 
-        // Set pricing engine (Black model for European)
-        auto engine = std::make_shared<QuantLib::BlackSwaptionEngine>(
-            *discounting_curve_it->second,
-            volHandle
-        );
+        // Create engine via factory (validates model/vol compatibility)
+        Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
+        auto engine = engineFactory.makeSwaptionEngine(mIt->second, discountCurve, vIt->second);
         swaption->setPricingEngine(engine);
 
         // Calculate results
@@ -110,7 +62,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         // Build Swaption response
         SwaptionResponseBuilder response_builder(*builder);
         response_builder.add_npv(npv);
-        response_builder.add_implied_volatility(volatility_it->second.constantVol);  // Use stored constant vol
+        response_builder.add_implied_volatility(vIt->second.constantVol);
         response_builder.add_atm_forward(0.0);
         response_builder.add_annuity(0.0);
         response_builder.add_delta(0.0);

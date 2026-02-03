@@ -863,33 +863,126 @@ inline const char *EnumNameProtectionSide(ProtectionSide e) {
 }
 
 enum VolatilityType : int8_t {
-  VolatilityType_ShiftedLognormal = 0,
-  VolatilityType_Normal = 1,
-  VolatilityType_MIN = VolatilityType_ShiftedLognormal,
-  VolatilityType_MAX = VolatilityType_Normal
+  VolatilityType_Normal = 0,
+  VolatilityType_Lognormal = 1,
+  VolatilityType_ShiftedLognormal = 2,
+  VolatilityType_MIN = VolatilityType_Normal,
+  VolatilityType_MAX = VolatilityType_ShiftedLognormal
 };
 
-inline const VolatilityType (&EnumValuesVolatilityType())[2] {
+inline const VolatilityType (&EnumValuesVolatilityType())[3] {
   static const VolatilityType values[] = {
-    VolatilityType_ShiftedLognormal,
-    VolatilityType_Normal
+    VolatilityType_Normal,
+    VolatilityType_Lognormal,
+    VolatilityType_ShiftedLognormal
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolatilityType() {
-  static const char * const names[3] = {
-    "ShiftedLognormal",
+  static const char * const names[4] = {
     "Normal",
+    "Lognormal",
+    "ShiftedLognormal",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolatilityType(VolatilityType e) {
-  if (::flatbuffers::IsOutRange(e, VolatilityType_ShiftedLognormal, VolatilityType_Normal)) return "";
+  if (::flatbuffers::IsOutRange(e, VolatilityType_Normal, VolatilityType_ShiftedLognormal)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolatilityType()[index];
+}
+
+enum VolSurfaceShape : int8_t {
+  VolSurfaceShape_Constant = 0,
+  VolSurfaceShape_MIN = VolSurfaceShape_Constant,
+  VolSurfaceShape_MAX = VolSurfaceShape_Constant
+};
+
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[1] {
+  static const VolSurfaceShape values[] = {
+    VolSurfaceShape_Constant
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesVolSurfaceShape() {
+  static const char * const names[2] = {
+    "Constant",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
+  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_Constant)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesVolSurfaceShape()[index];
+}
+
+enum IrModelType : int8_t {
+  IrModelType_Black = 0,
+  IrModelType_ShiftedBlack = 1,
+  IrModelType_Bachelier = 2,
+  IrModelType_MIN = IrModelType_Black,
+  IrModelType_MAX = IrModelType_Bachelier
+};
+
+inline const IrModelType (&EnumValuesIrModelType())[3] {
+  static const IrModelType values[] = {
+    IrModelType_Black,
+    IrModelType_ShiftedBlack,
+    IrModelType_Bachelier
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesIrModelType() {
+  static const char * const names[4] = {
+    "Black",
+    "ShiftedBlack",
+    "Bachelier",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameIrModelType(IrModelType e) {
+  if (::flatbuffers::IsOutRange(e, IrModelType_Black, IrModelType_Bachelier)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesIrModelType()[index];
+}
+
+enum EquityModelType : int8_t {
+  EquityModelType_BlackScholesAnalytic = 0,
+  EquityModelType_BinomialCRR = 1,
+  EquityModelType_MIN = EquityModelType_BlackScholesAnalytic,
+  EquityModelType_MAX = EquityModelType_BinomialCRR
+};
+
+inline const EquityModelType (&EnumValuesEquityModelType())[2] {
+  static const EquityModelType values[] = {
+    EquityModelType_BlackScholesAnalytic,
+    EquityModelType_BinomialCRR
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityModelType() {
+  static const char * const names[3] = {
+    "BlackScholesAnalytic",
+    "BinomialCRR",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityModelType(EquityModelType e) {
+  if (::flatbuffers::IsOutRange(e, EquityModelType_BlackScholesAnalytic, EquityModelType_BinomialCRR)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityModelType()[index];
 }
 
 }  // namespace enums

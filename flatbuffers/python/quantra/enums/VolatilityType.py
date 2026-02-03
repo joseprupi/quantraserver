@@ -3,5 +3,6 @@
 # namespace: enums
 
 class VolatilityType(object):
-    ShiftedLognormal = 0
-    Normal = 1
+    Normal = 0
+    Lognormal = 1
+    ShiftedLognormal = 2

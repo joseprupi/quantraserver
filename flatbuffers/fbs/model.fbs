@@ -1,0 +1,28 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Cap/Floor pricing model specification
+table CapFloorModelSpec {
+    model_type:enums.IrModelType;
+}
+
+/// Swaption pricing model specification
+table SwaptionModelSpec {
+    model_type:enums.IrModelType;
+}
+
+/// Equity vanilla option pricing model specification (future)
+table EquityVanillaModelSpec {
+    model_type:enums.EquityModelType;
+    binomial_steps:int = 500;
+}
+
+/// Union of all model types
+union ModelPayload { CapFloorModelSpec, SwaptionModelSpec, EquityVanillaModelSpec }
+
+/// Model specification - references by id in trade requests
+table ModelSpec {
+    id:string (required);
+    payload:ModelPayload;
+}

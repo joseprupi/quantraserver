@@ -32,6 +32,7 @@ struct PriceCapFloorT : public ::flatbuffers::NativeTable {
   std::string discounting_curve{};
   std::string forwarding_curve{};
   std::string volatility{};
+  std::string model{};
   bool include_details = false;
   PriceCapFloorT() = default;
   PriceCapFloorT(const PriceCapFloorT &o);
@@ -47,7 +48,8 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DISCOUNTING_CURVE = 6,
     VT_FORWARDING_CURVE = 8,
     VT_VOLATILITY = 10,
-    VT_INCLUDE_DETAILS = 12
+    VT_MODEL = 12,
+    VT_INCLUDE_DETAILS = 14
   };
   const quantra::CapFloor *cap_floor() const {
     return GetPointer<const quantra::CapFloor *>(VT_CAP_FLOOR);
@@ -60,6 +62,9 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   const ::flatbuffers::String *volatility() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOLATILITY);
+  }
+  const ::flatbuffers::String *model() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }
   bool include_details() const {
     return GetField<uint8_t>(VT_INCLUDE_DETAILS, 0) != 0;
@@ -74,6 +79,8 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(forwarding_curve()) &&
            VerifyOffset(verifier, VT_VOLATILITY) &&
            verifier.VerifyString(volatility()) &&
+           VerifyOffset(verifier, VT_MODEL) &&
+           verifier.VerifyString(model()) &&
            VerifyField<uint8_t>(verifier, VT_INCLUDE_DETAILS, 1) &&
            verifier.EndTable();
   }
@@ -98,6 +105,9 @@ struct PriceCapFloorBuilder {
   void add_volatility(::flatbuffers::Offset<::flatbuffers::String> volatility) {
     fbb_.AddOffset(PriceCapFloor::VT_VOLATILITY, volatility);
   }
+  void add_model(::flatbuffers::Offset<::flatbuffers::String> model) {
+    fbb_.AddOffset(PriceCapFloor::VT_MODEL, model);
+  }
   void add_include_details(bool include_details) {
     fbb_.AddElement<uint8_t>(PriceCapFloor::VT_INCLUDE_DETAILS, static_cast<uint8_t>(include_details), 0);
   }
@@ -118,8 +128,10 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloor(
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> volatility = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> model = 0,
     bool include_details = false) {
   PriceCapFloorBuilder builder_(_fbb);
+  builder_.add_model(model);
   builder_.add_volatility(volatility);
   builder_.add_forwarding_curve(forwarding_curve);
   builder_.add_discounting_curve(discounting_curve);
@@ -134,16 +146,19 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloorDirect(
     const char *discounting_curve = nullptr,
     const char *forwarding_curve = nullptr,
     const char *volatility = nullptr,
+    const char *model = nullptr,
     bool include_details = false) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
   auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
   auto volatility__ = volatility ? _fbb.CreateString(volatility) : 0;
+  auto model__ = model ? _fbb.CreateString(model) : 0;
   return quantra::CreatePriceCapFloor(
       _fbb,
       cap_floor,
       discounting_curve__,
       forwarding_curve__,
       volatility__,
+      model__,
       include_details);
 }
 
@@ -235,6 +250,7 @@ inline PriceCapFloorT::PriceCapFloorT(const PriceCapFloorT &o)
         discounting_curve(o.discounting_curve),
         forwarding_curve(o.forwarding_curve),
         volatility(o.volatility),
+        model(o.model),
         include_details(o.include_details) {
 }
 
@@ -243,6 +259,7 @@ inline PriceCapFloorT &PriceCapFloorT::operator=(PriceCapFloorT o) FLATBUFFERS_N
   std::swap(discounting_curve, o.discounting_curve);
   std::swap(forwarding_curve, o.forwarding_curve);
   std::swap(volatility, o.volatility);
+  std::swap(model, o.model);
   std::swap(include_details, o.include_details);
   return *this;
 }
@@ -260,6 +277,7 @@ inline void PriceCapFloor::UnPackTo(PriceCapFloorT *_o, const ::flatbuffers::res
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
   { auto _e = forwarding_curve(); if (_e) _o->forwarding_curve = _e->str(); }
   { auto _e = volatility(); if (_e) _o->volatility = _e->str(); }
+  { auto _e = model(); if (_e) _o->model = _e->str(); }
   { auto _e = include_details(); _o->include_details = _e; }
 }
 
@@ -275,6 +293,7 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloor(::flatbuffers::F
   auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
   auto _forwarding_curve = _o->forwarding_curve.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve);
   auto _volatility = _o->volatility.empty() ? 0 : _fbb.CreateString(_o->volatility);
+  auto _model = _o->model.empty() ? 0 : _fbb.CreateString(_o->model);
   auto _include_details = _o->include_details;
   return quantra::CreatePriceCapFloor(
       _fbb,
@@ -282,6 +301,7 @@ inline ::flatbuffers::Offset<PriceCapFloor> CreatePriceCapFloor(::flatbuffers::F
       _discounting_curve,
       _forwarding_curve,
       _volatility,
+      _model,
       _include_details);
 }
 

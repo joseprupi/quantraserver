@@ -56,8 +56,15 @@ class PriceSwaption(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # PriceSwaption
+    def Model(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def PriceSwaptionStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     PriceSwaptionStart(builder)
@@ -86,6 +93,12 @@ def PriceSwaptionAddVolatility(builder, volatility):
 def AddVolatility(builder, volatility):
     PriceSwaptionAddVolatility(builder, volatility)
 
+def PriceSwaptionAddModel(builder, model):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(model), 0)
+
+def AddModel(builder, model):
+    PriceSwaptionAddModel(builder, model)
+
 def PriceSwaptionEnd(builder):
     return builder.EndObject()
 
@@ -105,6 +118,7 @@ class PriceSwaptionT(object):
         self.discountingCurve = None  # type: str
         self.forwardingCurve = None  # type: str
         self.volatility = None  # type: str
+        self.model = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -132,6 +146,7 @@ class PriceSwaptionT(object):
         self.discountingCurve = priceSwaption.DiscountingCurve()
         self.forwardingCurve = priceSwaption.ForwardingCurve()
         self.volatility = priceSwaption.Volatility()
+        self.model = priceSwaption.Model()
 
     # PriceSwaptionT
     def Pack(self, builder):
@@ -143,6 +158,8 @@ class PriceSwaptionT(object):
             forwardingCurve = builder.CreateString(self.forwardingCurve)
         if self.volatility is not None:
             volatility = builder.CreateString(self.volatility)
+        if self.model is not None:
+            model = builder.CreateString(self.model)
         PriceSwaptionStart(builder)
         if self.swaption is not None:
             PriceSwaptionAddSwaption(builder, swaption)
@@ -152,5 +169,7 @@ class PriceSwaptionT(object):
             PriceSwaptionAddForwardingCurve(builder, forwardingCurve)
         if self.volatility is not None:
             PriceSwaptionAddVolatility(builder, volatility)
+        if self.model is not None:
+            PriceSwaptionAddModel(builder, model)
         priceSwaption = PriceSwaptionEnd(builder)
         return priceSwaption

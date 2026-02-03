@@ -231,6 +231,26 @@ enum ProtectionSide : byte {
 // Volatility
 // ============================================================================
 enum VolatilityType : byte {
-    ShiftedLognormal,   // Black volatility (most common)
-    Normal              // Bachelier/Normal volatility
+    Normal,             // Bachelier/Normal volatility (basis points)
+    Lognormal,          // Black volatility (percentage)
+    ShiftedLognormal    // Displaced Black volatility
+}
+
+enum VolSurfaceShape : byte {
+    Constant            // Flat volatility
+    // Future: Surface, Matrix, Cube, SABR
+}
+
+// ============================================================================
+// Pricing Models
+// ============================================================================
+enum IrModelType : byte {
+    Black,              // Black-76 model (lognormal)
+    ShiftedBlack,       // Displaced Black model
+    Bachelier           // Normal/Bachelier model
+}
+
+enum EquityModelType : byte {
+    BlackScholesAnalytic,   // Closed-form Black-Scholes
+    BinomialCRR             // Cox-Ross-Rubinstein binomial tree
 }

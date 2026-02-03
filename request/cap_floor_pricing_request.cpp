@@ -1,6 +1,11 @@
 #include "cap_floor_pricing_request.h"
 #include <ql/cashflows/iborcoupon.hpp>
 
+#include "pricing_registry.h"
+#include "vol_surface_parsers.h"
+#include "engine_factory.h"
+#include "cap_floor_parser.h"
+
 using namespace QuantLib;
 using namespace quantra;
 
@@ -8,41 +13,14 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const PriceCapFloorRequest *request) const
 {
-    // Parse pricing information
-    PricingParser pricing_parser;
-    TermStructureParser term_structure_parser;
+    // Build registry once (handles curves, vols, models)
+    PricingRegistryBuilder regBuilder;
+    PricingRegistry reg = regBuilder.build(request->pricing());
+
     CapFloorParser cap_floor_parser;
-    VolatilityParser volatility_parser;
+    EngineFactory engineFactory;
 
-    auto pricing = pricing_parser.parse(request->pricing());
-
-    // Set evaluation date
-    Date as_of_date = DateToQL(pricing->as_of_date);
-    Settings::instance().evaluationDate() = as_of_date;
-
-    // Build term structures map (curves bootstrapped once)
-    auto curves = pricing->curves;
-    std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> term_structures;
-
-    for (auto it = curves->begin(); it != curves->end(); it++)
-    {
-        auto term_structure_handle = std::make_shared<RelinkableHandle<YieldTermStructure>>();
-        std::shared_ptr<YieldTermStructure> term_structure = term_structure_parser.parse(*it);
-        term_structure_handle->linkTo(term_structure);
-        term_structures.insert(std::make_pair(it->id()->str(), term_structure_handle));
-    }
-
-    // Build volatility surfaces map (volatilities built once)
-    std::map<std::string, std::shared_ptr<QuantLib::OptionletVolatilityStructure>> volatility_surfaces;
-
-    if (pricing->volatilities)
-    {
-        for (auto it = pricing->volatilities->begin(); it != pricing->volatilities->end(); it++)
-        {
-            auto vol_surface = volatility_parser.parse(*it);
-            volatility_surfaces.insert(std::make_pair(it->id()->str(), vol_surface));
-        }
-    }
+    Date as_of_date = Settings::instance().evaluationDate();
 
     // Process each Cap/Floor
     auto cap_floor_pricings = request->cap_floors();
@@ -50,42 +28,38 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
 
     for (auto it = cap_floor_pricings->begin(); it != cap_floor_pricings->end(); it++)
     {
-        // Get discounting curve
-        auto discounting_curve_it = term_structures.find(it->discounting_curve()->str());
-        if (discounting_curve_it == term_structures.end())
-        {
+        // Lookup discounting curve
+        auto dIt = reg.curves.find(it->discounting_curve()->str());
+        if (dIt == reg.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
-        }
 
-        // Get forwarding curve
-        auto forwarding_curve_it = term_structures.find(it->forwarding_curve()->str());
-        if (forwarding_curve_it == term_structures.end())
-        {
+        // Lookup forwarding curve
+        auto fIt = reg.curves.find(it->forwarding_curve()->str());
+        if (fIt == reg.curves.end())
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
-        }
 
-        // Get volatility surface by ID (no longer parsed per instrument)
-        auto volatility_it = volatility_surfaces.find(it->volatility()->str());
-        if (volatility_it == volatility_surfaces.end())
-        {
-            QUANTRA_ERROR("Volatility surface not found: " + it->volatility()->str());
-        }
-        QuantLib::Handle<QuantLib::OptionletVolatilityStructure> volHandle(volatility_it->second);
+        // Lookup vol (must be optionlet)
+        auto vIt = reg.optionletVols.find(it->volatility()->str());
+        if (vIt == reg.optionletVols.end())
+            QUANTRA_ERROR("Optionlet vol not found: " + it->volatility()->str());
+
+        // Lookup model
+        auto mIt = reg.models.find(it->model()->str());
+        if (mIt == reg.models.end())
+            QUANTRA_ERROR("Model not found: " + it->model()->str());
 
         // Link forwarding curve and parse Cap/Floor
-        cap_floor_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
+        cap_floor_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto capFloor = cap_floor_parser.parse(it->cap_floor());
 
-        // Set pricing engine (Black model)
-        auto engine = std::make_shared<BlackCapFloorEngine>(
-            *discounting_curve_it->second,
-            volHandle
-        );
+        // Create engine via factory (validates model/vol compatibility)
+        Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
+        auto engine = engineFactory.makeCapFloorEngine(mIt->second, discountCurve, vIt->second);
         capFloor->setPricingEngine(engine);
 
         // Calculate results
         double npv = capFloor->NPV();
-        double atmRate = capFloor->atmRate(*discounting_curve_it->second->currentLink());
+        double atmRate = capFloor->atmRate(*dIt->second->currentLink());
 
         std::cout << "CapFloor NPV: " << npv << ", ATM Rate: " << atmRate * 100 << "%" << std::endl;
 
@@ -95,7 +69,7 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
         if (it->include_details())
         {
             const Leg& leg = capFloor->floatingLeg();
-            auto discountCurve = discounting_curve_it->second->currentLink();
+            auto discountCurvePtr = dIt->second->currentLink();
 
             for (size_t i = 0; i < leg.size(); i++)
             {
@@ -113,7 +87,7 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
                     auto accrual_end = builder->CreateString(os_end.str());
                     auto fixing_date = builder->CreateString(os_fixing.str());
 
-                    double discount = discountCurve->discount(coupon->date());
+                    double discount = discountCurvePtr->discount(coupon->date());
                     double forwardRate = coupon->indexFixing();
 
                     double optionletPrice = 0.0; // Simplified
@@ -139,7 +113,7 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
         CapFloorResponseBuilder response_builder(*builder);
         response_builder.add_npv(npv);
         response_builder.add_atm_rate(atmRate);
-        response_builder.add_implied_volatility(0.0);
+        response_builder.add_implied_volatility(vIt->second.constantVol);
 
         if (it->include_details())
         {

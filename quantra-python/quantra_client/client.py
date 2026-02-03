@@ -112,6 +112,7 @@ class Client:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+        return False
     
     # =========================================================================
     # Pricing Methods
@@ -121,160 +122,104 @@ class Client:
         self,
         request: PriceFixedRateBondRequestT
     ) -> PriceFixedRateBondResponse:
-        """
-        Price fixed rate bonds.
-        
-        Args:
-            request: PriceFixedRateBondRequestT object
-            
-        Returns:
-            PriceFixedRateBondResponse reader for accessing results
-        """
+        """Price fixed rate bonds."""
         return self._call(
-            method=self.METHODS['fixed_rate_bond'],
-            request_obj=request,
-            response_class=PriceFixedRateBondResponse
+            'fixed_rate_bond',
+            request,
+            PriceFixedRateBondResponse
         )
     
     def price_floating_rate_bonds(
         self,
         request: PriceFloatingRateBondRequestT
     ) -> PriceFloatingRateBondResponse:
-        """
-        Price floating rate bonds.
-        
-        Args:
-            request: PriceFloatingRateBondRequestT object
-            
-        Returns:
-            PriceFloatingRateBondResponse reader for accessing results
-        """
+        """Price floating rate bonds."""
         return self._call(
-            method=self.METHODS['floating_rate_bond'],
-            request_obj=request,
-            response_class=PriceFloatingRateBondResponse
+            'floating_rate_bond',
+            request,
+            PriceFloatingRateBondResponse
         )
     
     def price_vanilla_swaps(
         self,
         request: PriceVanillaSwapRequestT
     ) -> PriceVanillaSwapResponse:
-        """
-        Price vanilla interest rate swaps.
-        
-        Args:
-            request: PriceVanillaSwapRequestT object
-            
-        Returns:
-            PriceVanillaSwapResponse reader for accessing results
-        """
+        """Price vanilla interest rate swaps."""
         return self._call(
-            method=self.METHODS['vanilla_swap'],
-            request_obj=request,
-            response_class=PriceVanillaSwapResponse
+            'vanilla_swap',
+            request,
+            PriceVanillaSwapResponse
         )
     
     def price_fras(
         self,
         request: PriceFRARequestT
     ) -> PriceFRAResponse:
-        """
-        Price Forward Rate Agreements.
-        
-        Args:
-            request: PriceFRARequestT object
-            
-        Returns:
-            PriceFRAResponse reader for accessing results
-        """
+        """Price Forward Rate Agreements."""
         return self._call(
-            method=self.METHODS['fra'],
-            request_obj=request,
-            response_class=PriceFRAResponse
+            'fra',
+            request,
+            PriceFRAResponse
         )
     
     def price_cap_floors(
         self,
         request: PriceCapFloorRequestT
     ) -> PriceCapFloorResponse:
-        """
-        Price interest rate caps and floors.
-        
-        Args:
-            request: PriceCapFloorRequestT object
-            
-        Returns:
-            PriceCapFloorResponse reader for accessing results
-        """
+        """Price interest rate caps and floors."""
         return self._call(
-            method=self.METHODS['cap_floor'],
-            request_obj=request,
-            response_class=PriceCapFloorResponse
+            'cap_floor',
+            request,
+            PriceCapFloorResponse
         )
     
     def price_swaptions(
         self,
         request: PriceSwaptionRequestT
     ) -> PriceSwaptionResponse:
-        """
-        Price swaptions.
-        
-        Args:
-            request: PriceSwaptionRequestT object
-            
-        Returns:
-            PriceSwaptionResponse reader for accessing results
-        """
+        """Price swaptions."""
         return self._call(
-            method=self.METHODS['swaption'],
-            request_obj=request,
-            response_class=PriceSwaptionResponse
+            'swaption',
+            request,
+            PriceSwaptionResponse
         )
     
     def price_cds(
         self,
         request: PriceCDSRequestT
     ) -> PriceCDSResponse:
-        """
-        Price Credit Default Swaps.
-        
-        Args:
-            request: PriceCDSRequestT object
-            
-        Returns:
-            PriceCDSResponse reader for accessing results
-        """
+        """Price Credit Default Swaps."""
         return self._call(
-            method=self.METHODS['cds'],
-            request_obj=request,
-            response_class=PriceCDSResponse
+            'cds',
+            request,
+            PriceCDSResponse
         )
     
     # =========================================================================
     # Internal Methods
     # =========================================================================
     
-    def _call(self, method: str, request_obj, response_class):
+    def _call(self, method: str, request, response_class):
         """
-        Execute a gRPC call with FlatBuffers serialization.
+        Make a gRPC call.
         
         Args:
-            method: gRPC method path
-            request_obj: Request object with .Pack() method
+            method: Method name key from METHODS dict
+            request: Request object with .Pack() method
             response_class: Response class with .GetRootAs() method
             
         Returns:
-            Response reader object
+            Deserialized response object
         """
-        # 1. Serialize: Pack the object into FlatBuffers binary
-        builder = flatbuffers.Builder(4096)
-        offset = request_obj.Pack(builder)
-        builder.Finish(offset)
+        # 1. Serialize: Pack the Object API request into FlatBuffer bytes
+        builder = flatbuffers.Builder(1024)
+        packed = request.Pack(builder)
+        builder.Finish(packed)
         request_bytes = bytes(builder.Output())
         
-        # 2. Transmit: Send raw bytes over gRPC
+        # 2. Call: Send bytes over gRPC
         unary_call = self.channel.unary_unary(
-            method,
+            self.METHODS[method],
             request_serializer=lambda x: x,
             response_deserializer=lambda x: x,
         )
@@ -310,7 +255,25 @@ from quantra.FutureHelper import FutureHelperT
 from quantra.Yield import YieldT
 from quantra.Index import IndexT
 from quantra.Fixing import FixingT
-from quantra.VolatilityTermStructure import VolatilityTermStructureT
+
+# NEW: Vol Surface types (typed by product family)
+from quantra.VolSurfaceSpec import VolSurfaceSpecT
+from quantra.OptionletVolSpec import OptionletVolSpecT
+from quantra.SwaptionVolSpec import SwaptionVolSpecT
+from quantra.BlackVolSpec import BlackVolSpecT
+from quantra.IrVolBaseSpec import IrVolBaseSpecT
+from quantra.BlackVolBaseSpec import BlackVolBaseSpecT
+from quantra.VolPayload import VolPayload
+
+# NEW: Model types
+from quantra.ModelSpec import ModelSpecT
+from quantra.CapFloorModelSpec import CapFloorModelSpecT
+from quantra.SwaptionModelSpec import SwaptionModelSpecT
+from quantra.EquityVanillaModelSpec import EquityVanillaModelSpecT
+from quantra.ModelPayload import ModelPayload
+
+# NEW: Quote types
+from quantra.QuoteSpec import QuoteSpecT
 
 # Bonds
 from quantra.FixedRateBond import FixedRateBondT
@@ -359,6 +322,8 @@ from quantra.enums.ExerciseType import ExerciseType
 from quantra.enums.SettlementType import SettlementType
 from quantra.enums.ProtectionSide import ProtectionSide
 from quantra.enums.VolatilityType import VolatilityType
+from quantra.enums.IrModelType import IrModelType
+from quantra.enums.EquityModelType import EquityModelType
 from quantra.Point import Point  # Union type discriminator
 
 
@@ -398,7 +363,25 @@ __all__ = [
     'YieldT',
     'IndexT',
     'FixingT',
-    'VolatilityTermStructureT',
+    
+    # NEW: Vol Surface types
+    'VolSurfaceSpecT',
+    'OptionletVolSpecT',
+    'SwaptionVolSpecT',
+    'BlackVolSpecT',
+    'IrVolBaseSpecT',
+    'BlackVolBaseSpecT',
+    'VolPayload',
+    
+    # NEW: Model types
+    'ModelSpecT',
+    'CapFloorModelSpecT',
+    'SwaptionModelSpecT',
+    'EquityVanillaModelSpecT',
+    'ModelPayload',
+    
+    # NEW: Quote types
+    'QuoteSpecT',
     
     # Instruments
     'FixedRateBondT',
@@ -437,5 +420,7 @@ __all__ = [
     'SettlementType',
     'ProtectionSide',
     'VolatilityType',
+    'IrModelType',
+    'EquityModelType',
     'Point',
 ]

@@ -742,8 +742,30 @@
       "quantra_enums_VolatilityType": {
         "type": "string",
         "enum": [
-          "ShiftedLognormal",
-          "Normal"
+          "Normal",
+          "Lognormal",
+          "ShiftedLognormal"
+        ]
+      },
+      "quantra_enums_VolSurfaceShape": {
+        "type": "string",
+        "enum": [
+          "Constant"
+        ]
+      },
+      "quantra_enums_IrModelType": {
+        "type": "string",
+        "enum": [
+          "Black",
+          "ShiftedBlack",
+          "Bachelier"
+        ]
+      },
+      "quantra_enums_EquityModelType": {
+        "type": "string",
+        "enum": [
+          "BlackScholesAnalytic",
+          "BinomialCRR"
         ]
       },
       "quantra_Fixing": {
@@ -953,6 +975,15 @@
           "BondHelper"
         ]
       },
+      "quantra_VolPayload": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "OptionletVolSpec",
+          "SwaptionVolSpec",
+          "BlackVolSpec"
+        ]
+      },
       "quantra_OptionletVolatilityStructure": {
         "type": "string",
         "enum": [
@@ -965,6 +996,15 @@
         "enum": [
           "NONE",
           "BlackIborCouponPricer"
+        ]
+      },
+      "quantra_ModelPayload": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "CapFloorModelSpec",
+          "SwaptionModelSpec",
+          "EquityVanillaModelSpec"
         ]
       },
       "quantra_Flow": {
@@ -1196,32 +1236,9 @@
         },
         "additionalProperties": false
       },
-      "quantra_VolatilityQuote": {
+      "quantra_IrVolBaseSpec": {
         "type": "object",
         "properties": {
-          "tenor_number": {
-            "type": "integer",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "tenor_time_unit": {
-            "$ref": "#/components/schemas/quantra_enums_TimeUnit"
-          },
-          "strike": {
-            "type": "number"
-          },
-          "volatility": {
-            "type": "number"
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_VolatilityTermStructure": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
           "reference_date": {
             "type": "string"
           },
@@ -1234,17 +1251,97 @@
           "day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
           },
+          "shape": {
+            "$ref": "#/components/schemas/quantra_enums_VolSurfaceShape"
+          },
           "volatility_type": {
             "$ref": "#/components/schemas/quantra_enums_VolatilityType"
           },
-          "constant_vol": {
+          "displacement": {
             "type": "number"
           },
-          "quotes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_VolatilityQuote"
-            }
+          "constant_vol": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_BlackVolBaseSpec": {
+        "type": "object",
+        "properties": {
+          "reference_date": {
+            "type": "string"
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "business_day_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/quantra_enums_VolSurfaceShape"
+          },
+          "constant_vol": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_OptionletVolSpec": {
+        "type": "object",
+        "description": "Optionlet volatility for Caps/Floors",
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_SwaptionVolSpec": {
+        "type": "object",
+        "description": "Swaption volatility",
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_BlackVolSpec": {
+        "type": "object",
+        "description": "Black volatility for Equity/FX/Commodity options",
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/quantra_BlackVolBaseSpec"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_VolSurfaceSpec": {
+        "type": "object",
+        "description": "Volatility surface specification - referenced by id in trade requests",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "payload_type": {
+            "$ref": "#/components/schemas/quantra_VolPayload"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/quantra_OptionletVolSpec"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_SwaptionVolSpec"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_BlackVolSpec"
+              }
+            ]
           }
         },
         "required": [
@@ -1310,6 +1407,86 @@
         },
         "additionalProperties": false
       },
+      "quantra_QuoteSpec": {
+        "type": "object",
+        "description": "Market quote (spot price, FX rate, etc.)\nUsed by: EquityOption (future)",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CapFloorModelSpec": {
+        "type": "object",
+        "description": "Cap/Floor pricing model specification",
+        "properties": {
+          "model_type": {
+            "$ref": "#/components/schemas/quantra_enums_IrModelType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_SwaptionModelSpec": {
+        "type": "object",
+        "description": "Swaption pricing model specification",
+        "properties": {
+          "model_type": {
+            "$ref": "#/components/schemas/quantra_enums_IrModelType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_EquityVanillaModelSpec": {
+        "type": "object",
+        "description": "Equity vanilla option pricing model specification (future)",
+        "properties": {
+          "model_type": {
+            "$ref": "#/components/schemas/quantra_enums_EquityModelType"
+          },
+          "binomial_steps": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_ModelSpec": {
+        "type": "object",
+        "description": "Model specification - references by id in trade requests",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "payload_type": {
+            "$ref": "#/components/schemas/quantra_ModelPayload"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/quantra_CapFloorModelSpec"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_SwaptionModelSpec"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_EquityVanillaModelSpec"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
       "quantra_Yield": {
         "type": "object",
         "properties": {
@@ -1334,7 +1511,7 @@
           },
           "settlement_date": {
             "type": "string",
-            "description": "Settlement date (YYYY-MM-DD). Used by: ALL"
+            "description": "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond"
           },
           "curves": {
             "type": "array",
@@ -1343,11 +1520,25 @@
               "$ref": "#/components/schemas/quantra_TermStructure"
             }
           },
-          "volatilities": {
+          "quotes": {
             "type": "array",
-            "description": "Volatility surfaces. Used by: CapFloor, Swaption",
+            "description": "Market quotes (spot prices, FX rates). Used by: EquityOption (future)",
             "items": {
-              "$ref": "#/components/schemas/quantra_VolatilityTermStructure"
+              "$ref": "#/components/schemas/quantra_QuoteSpec"
+            }
+          },
+          "vol_surfaces": {
+            "type": "array",
+            "description": "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption",
+            "items": {
+              "$ref": "#/components/schemas/quantra_VolSurfaceSpec"
+            }
+          },
+          "models": {
+            "type": "array",
+            "description": "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, EquityOption",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ModelSpec"
             }
           },
           "bond_pricing_details": {
@@ -1368,7 +1559,6 @@
         },
         "required": [
           "as_of_date",
-          "settlement_date",
           "curves"
         ],
         "additionalProperties": false
@@ -1815,6 +2005,9 @@
           "volatility": {
             "type": "string"
           },
+          "model": {
+            "type": "string"
+          },
           "include_details": {
             "type": "boolean"
           }
@@ -2096,6 +2289,9 @@
             "type": "string"
           },
           "volatility": {
+            "type": "string"
+          },
+          "model": {
             "type": "string"
           }
         },

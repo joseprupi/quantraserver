@@ -67,15 +67,30 @@
         ]
       }
     ],
-    "volatilities": [
+    "vol_surfaces": [
       {
         "id": "vol_20pct",
-        "reference_date": "2025-01-15",
-        "calendar": "TARGET",
-        "business_day_convention": "ModifiedFollowing",
-        "day_counter": "Actual365Fixed",
-        "volatility_type": "ShiftedLognormal",
-        "constant_vol": 0.20
+        "payload_type": "OptionletVolSpec",
+        "payload": {
+          "base": {
+            "reference_date": "2025-01-15",
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "volatility_type": "Lognormal",
+            "displacement": 0.0,
+            "constant_vol": 0.20
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "black_model",
+        "payload_type": "CapFloorModelSpec",
+        "payload": {
+          "model_type": "Black"
+        }
       }
     ]
   },
@@ -108,7 +123,8 @@
       },
       "discounting_curve": "discount",
       "forwarding_curve": "discount",
-      "volatility": "vol_20pct"
+      "volatility": "vol_20pct",
+      "model": "black_model"
     }
   ]
 }

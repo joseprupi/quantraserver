@@ -57,14 +57,21 @@ class PriceCapFloor(object):
         return None
 
     # PriceCapFloor
-    def IncludeDetails(self):
+    def Model(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # PriceCapFloor
+    def IncludeDetails(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
 def PriceCapFloorStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(6)
 
 def Start(builder):
     PriceCapFloorStart(builder)
@@ -93,8 +100,14 @@ def PriceCapFloorAddVolatility(builder, volatility):
 def AddVolatility(builder, volatility):
     PriceCapFloorAddVolatility(builder, volatility)
 
+def PriceCapFloorAddModel(builder, model):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(model), 0)
+
+def AddModel(builder, model):
+    PriceCapFloorAddModel(builder, model)
+
 def PriceCapFloorAddIncludeDetails(builder, includeDetails):
-    builder.PrependBoolSlot(4, includeDetails, 0)
+    builder.PrependBoolSlot(5, includeDetails, 0)
 
 def AddIncludeDetails(builder, includeDetails):
     PriceCapFloorAddIncludeDetails(builder, includeDetails)
@@ -118,6 +131,7 @@ class PriceCapFloorT(object):
         self.discountingCurve = None  # type: str
         self.forwardingCurve = None  # type: str
         self.volatility = None  # type: str
+        self.model = None  # type: str
         self.includeDetails = False  # type: bool
 
     @classmethod
@@ -146,6 +160,7 @@ class PriceCapFloorT(object):
         self.discountingCurve = priceCapFloor.DiscountingCurve()
         self.forwardingCurve = priceCapFloor.ForwardingCurve()
         self.volatility = priceCapFloor.Volatility()
+        self.model = priceCapFloor.Model()
         self.includeDetails = priceCapFloor.IncludeDetails()
 
     # PriceCapFloorT
@@ -158,6 +173,8 @@ class PriceCapFloorT(object):
             forwardingCurve = builder.CreateString(self.forwardingCurve)
         if self.volatility is not None:
             volatility = builder.CreateString(self.volatility)
+        if self.model is not None:
+            model = builder.CreateString(self.model)
         PriceCapFloorStart(builder)
         if self.capFloor is not None:
             PriceCapFloorAddCapFloor(builder, capFloor)
@@ -167,6 +184,8 @@ class PriceCapFloorT(object):
             PriceCapFloorAddForwardingCurve(builder, forwardingCurve)
         if self.volatility is not None:
             PriceCapFloorAddVolatility(builder, volatility)
+        if self.model is not None:
+            PriceCapFloorAddModel(builder, model)
         PriceCapFloorAddIncludeDetails(builder, self.includeDetails)
         priceCapFloor = PriceCapFloorEnd(builder)
         return priceCapFloor

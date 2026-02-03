@@ -29,6 +29,8 @@
 #include "swaption_response_generated.h"
 #include "price_cds_request_generated.h"
 #include "cds_response_generated.h"
+#include "volatility_generated.h"
+#include "model_generated.h"
 
 namespace quantra { namespace testing {
 
@@ -205,20 +207,110 @@ protected:
         return yb.Finish();
     }
     
-    // Build VolatilityTermStructure - now created in Pricing.volatilities
-    flatbuffers::Offset<quantra::VolatilityTermStructure> buildVolatility(
-        flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol) {
-        auto vol_id = b.CreateString(id);
+    // Build OptionletVolSurface for Caps/Floors (using new union-based schema)
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildOptionletVolSurface(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol,
+        quantra::enums::VolatilityType volType = quantra::enums::VolatilityType_Lognormal,
+        double displacement = 0.0) {
+        
         auto ref_date = b.CreateString("2025-01-15");
-        quantra::VolatilityTermStructureBuilder vb(b);
-        vb.add_id(vol_id);
-        vb.add_reference_date(ref_date);
-        vb.add_calendar(quantra::enums::Calendar_TARGET);
-        vb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        vb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
-        vb.add_volatility_type(quantra::enums::VolatilityType_ShiftedLognormal);
-        vb.add_constant_vol(vol);
-        return vb.Finish();
+        
+        // Build IrVolBaseSpec
+        quantra::IrVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_Constant);
+        baseBuilder.add_volatility_type(volType);
+        baseBuilder.add_displacement(displacement);
+        baseBuilder.add_constant_vol(vol);
+        auto base = baseBuilder.Finish();
+        
+        // Build OptionletVolSpec (wraps base)
+        quantra::OptionletVolSpecBuilder optBuilder(b);
+        optBuilder.add_base(base);
+        auto optPayload = optBuilder.Finish();
+        
+        // Build VolSurfaceSpec with union payload
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_OptionletVolSpec);
+        vsBuilder.add_payload(optPayload.Union());
+        return vsBuilder.Finish();
+    }
+    
+    // Build SwaptionVolSurface for Swaptions (using new union-based schema)
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildSwaptionVolSurface(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol,
+        quantra::enums::VolatilityType volType = quantra::enums::VolatilityType_Lognormal,
+        double displacement = 0.0) {
+        
+        auto ref_date = b.CreateString("2025-01-15");
+        
+        // Build IrVolBaseSpec
+        quantra::IrVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_Constant);
+        baseBuilder.add_volatility_type(volType);
+        baseBuilder.add_displacement(displacement);
+        baseBuilder.add_constant_vol(vol);
+        auto base = baseBuilder.Finish();
+        
+        // Build SwaptionVolSpec (wraps base)
+        quantra::SwaptionVolSpecBuilder swpBuilder(b);
+        swpBuilder.add_base(base);
+        auto swpPayload = swpBuilder.Finish();
+        
+        // Build VolSurfaceSpec with union payload
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_SwaptionVolSpec);
+        vsBuilder.add_payload(swpPayload.Union());
+        return vsBuilder.Finish();
+    }
+    
+    // Build CapFloorModelSpec
+    flatbuffers::Offset<quantra::ModelSpec> buildCapFloorModel(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id,
+        quantra::enums::IrModelType modelType = quantra::enums::IrModelType_Black) {
+        
+        // Build CapFloorModelSpec
+        quantra::CapFloorModelSpecBuilder cfmBuilder(b);
+        cfmBuilder.add_model_type(modelType);
+        auto cfmPayload = cfmBuilder.Finish();
+        
+        // Build ModelSpec with union payload
+        auto model_id = b.CreateString(id);
+        quantra::ModelSpecBuilder msBuilder(b);
+        msBuilder.add_id(model_id);
+        msBuilder.add_payload_type(quantra::ModelPayload_CapFloorModelSpec);
+        msBuilder.add_payload(cfmPayload.Union());
+        return msBuilder.Finish();
+    }
+    
+    // Build SwaptionModelSpec
+    flatbuffers::Offset<quantra::ModelSpec> buildSwaptionModel(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id,
+        quantra::enums::IrModelType modelType = quantra::enums::IrModelType_Black) {
+        
+        // Build SwaptionModelSpec
+        quantra::SwaptionModelSpecBuilder smBuilder(b);
+        smBuilder.add_model_type(modelType);
+        auto smPayload = smBuilder.Finish();
+        
+        // Build ModelSpec with union payload
+        auto model_id = b.CreateString(id);
+        quantra::ModelSpecBuilder msBuilder(b);
+        msBuilder.add_id(model_id);
+        msBuilder.add_payload_type(quantra::ModelPayload_SwaptionModelSpec);
+        msBuilder.add_payload(smPayload.Union());
+        return msBuilder.Finish();
     }
 
     QuantLib::Date evaluationDate_;
@@ -503,15 +595,22 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     // Build everything BEFORE Pricing
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-    auto volSurface = buildVolatility(b, "vol_20pct", vol);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolatilityTermStructure>>{volSurface});
+    
+    // Build vol surface (OptionletVolSpec for caps/floors)
+    auto volSurface = buildOptionletVolSurface(b, "vol_20pct", vol);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    
+    // Build model (CapFloorModelSpec with Black model type)
+    auto model = buildCapFloorModel(b, "black_model", quantra::enums::IrModelType_Black);
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
-    pb.add_settlement_date(asof);
     pb.add_curves(curves);
-    pb.add_volatilities(vols);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
     auto pricing = pb.Finish();
     
     auto eff = b.CreateString("2025-01-17");
@@ -539,12 +638,14 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     
     auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("vol_20pct");
+    auto model_id = b.CreateString("black_model");
     
     quantra::PriceCapFloorBuilder pcb(b);
     pcb.add_cap_floor(cap);
     pcb.add_discounting_curve(dc);
     pcb.add_forwarding_curve(dc);
     pcb.add_volatility(vol_id);
+    pcb.add_model(model_id);
     auto pcbOff = pcb.Finish();
     
     auto caps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceCapFloor>>{pcbOff});
@@ -593,18 +694,22 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     
-    // Build volatility
-    auto volSurface = buildVolatility(b, "swaption_vol", vol);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolatilityTermStructure>>{volSurface});
+    // Build volatility (SwaptionVolSpec for swaptions)
+    auto volSurface = buildSwaptionVolSurface(b, "swaption_vol", vol);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    
+    // Build model (SwaptionModelSpec with Black model type)
+    auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     
     auto asof = b.CreateString("2025-01-15");
     
-    // Build Pricing with curves and volatilities
+    // Build Pricing with curves, vol_surfaces, and models
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
-    pb.add_settlement_date(asof);
     pb.add_curves(curves);
-    pb.add_volatilities(vols);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
     auto pricing = pb.Finish();
     
     // Fixed leg schedule
@@ -668,12 +773,14 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     // Create string references for PriceSwaption
     auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol");
+    auto model_id = b.CreateString("black_swaption_model");
     
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
+    psb.add_model(model_id);
     auto psbOff = psb.Finish();
     
     auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});

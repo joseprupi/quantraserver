@@ -8,7 +8,8 @@ table PriceCapFloor {
     cap_floor:CapFloor;
     discounting_curve:string;        // Reference to curve in Pricing.curves by id
     forwarding_curve:string;         // Reference to curve for forward rates by id
-    volatility:string;               // Reference to volatility in Pricing.volatilities by id
+    volatility:string;               // Reference to volatility in Pricing.vol_surfaces by id
+    model:string;                    // Reference to model in Pricing.models by id
     include_details:bool = false;    // Include caplet/floorlet breakdown
 }
 

@@ -67,11 +67,27 @@
     },
     "quantra_enums_VolatilityType" : {
       "type" : "string",
-      "enum": ["ShiftedLognormal", "Normal"]
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
     },
     "quantra_Point" : {
       "type" : "string",
       "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper"]
+    },
+    "quantra_VolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec"]
     },
     "quantra_OptionletVolatilityStructure" : {
       "type" : "string",
@@ -80,6 +96,10 @@
     "quantra_Pricer" : {
       "type" : "string",
       "enum": ["NONE", "BlackIborCouponPricer"]
+    },
+    "quantra_ModelPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "EquityVanillaModelSpec"]
     },
     "quantra_Flow" : {
       "type" : "string",
@@ -298,30 +318,9 @@
       },
       "additionalProperties" : false
     },
-    "quantra_VolatilityQuote" : {
+    "quantra_IrVolBaseSpec" : {
       "type" : "object",
       "properties" : {
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
-              },
-        "strike" : {
-                "type" : "number"
-              },
-        "volatility" : {
-                "type" : "number"
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_VolatilityTermStructure" : {
-      "type" : "object",
-      "properties" : {
-        "id" : {
-                "type" : "string"
-              },
         "reference_date" : {
                 "type" : "string"
               },
@@ -334,14 +333,87 @@
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
         "volatility_type" : {
                 "$ref" : "#/definitions/quantra_enums_VolatilityType"
               },
-        "constant_vol" : {
+        "displacement" : {
                 "type" : "number"
               },
-        "quotes" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityQuote"}
+        "constant_vol" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolBaseSpec" : {
+      "type" : "object",
+      "properties" : {
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
+        "constant_vol" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OptionletVolSpec" : {
+      "type" : "object",
+      "description" : "Optionlet volatility for Caps/Floors",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSpec" : {
+      "type" : "object",
+      "description" : "Swaption volatility",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility for Equity/FX/Commodity options",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceSpec" : {
+      "type" : "object",
+      "description" : "Volatility surface specification - referenced by id in trade requests",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_VolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" }]
               }
       },
       "required" : ["id"],
@@ -395,6 +467,70 @@
       },
       "additionalProperties" : false
     },
+    "quantra_QuoteSpec" : {
+      "type" : "object",
+      "description" : "Market quote (spot price, FX rate, etc.)\nUsed by: EquityOption (future)",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "value" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CapFloorModelSpec" : {
+      "type" : "object",
+      "description" : "Cap/Floor pricing model specification",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionModelSpec" : {
+      "type" : "object",
+      "description" : "Swaption pricing model specification",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityVanillaModelSpec" : {
+      "type" : "object",
+      "description" : "Equity vanilla option pricing model specification (future)",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityModelType"
+              },
+        "binomial_steps" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ModelSpec" : {
+      "type" : "object",
+      "description" : "Model specification - references by id in trade requests",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_ModelPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_CapFloorModelSpec" },{ "$ref" : "#/definitions/quantra_SwaptionModelSpec" },{ "$ref" : "#/definitions/quantra_EquityVanillaModelSpec" }]
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
     "quantra_Yield" : {
       "type" : "object",
       "properties" : {
@@ -419,15 +555,23 @@
               },
         "settlement_date" : {
                 "type" : "string",
-                "description" : "Settlement date (YYYY-MM-DD). Used by: ALL"
+                "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond"
               },
         "curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
                 "description" : "Yield curves for discounting/forwarding. Used by: ALL"
               },
-        "volatilities" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolatilityTermStructure"},
-                "description" : "Volatility surfaces. Used by: CapFloor, Swaption"
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
+                "description" : "Market quotes (spot prices, FX rates). Used by: EquityOption (future)"
+              },
+        "vol_surfaces" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSpec"},
+                "description" : "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption"
+              },
+        "models" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ModelSpec"},
+                "description" : "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, EquityOption"
               },
         "bond_pricing_details" : {
                 "type" : "boolean",
@@ -442,7 +586,7 @@
                 "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap"
               }
       },
-      "required" : ["as_of_date", "settlement_date", "curves"],
+      "required" : ["as_of_date", "curves"],
       "additionalProperties" : false
     },
     "quantra_Error" : {
@@ -719,6 +863,9 @@
                 "type" : "string"
               },
         "volatility" : {
+                "type" : "string"
+              },
+        "model" : {
                 "type" : "string"
               }
       },

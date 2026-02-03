@@ -1,0 +1,10 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Market quote (spot price, FX rate, etc.)
+/// Used by: EquityOption (future)
+table QuoteSpec {
+    id:string (required);
+    value:double;
+}

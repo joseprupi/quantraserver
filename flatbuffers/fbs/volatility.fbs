@@ -2,27 +2,59 @@ include "enums.fbs";
 
 namespace quantra;
 
-// Volatility quote at a specific tenor/strike
-table VolatilityQuote {
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
-    strike:double;                   // Optional: for smile (0 = ATM)
-    volatility:double;
-}
-
-// Volatility term structure (flat or term structure)
-// Created once in Pricing.volatilities, referenced by id
-table VolatilityTermStructure {
-    id:string (required);            // Unique identifier for referencing
+// ============================================================================
+// IR Volatility Base (for Caps/Floors and Swaptions)
+// Supports Normal, Lognormal, and ShiftedLognormal
+// ============================================================================
+table IrVolBaseSpec {
     reference_date:string;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
     day_counter:enums.DayCounter;
+    shape:enums.VolSurfaceShape = Constant;
     volatility_type:enums.VolatilityType;
-    
-    // Either constant or term structure (use one)
-    constant_vol:double;             // Use this for flat vol
-    quotes:[VolatilityQuote];        // Use this for term structure
+    displacement:double = 0.0;   // Only meaningful for ShiftedLognormal
+    constant_vol:double;         // Used when shape=Constant
 }
 
-root_type VolatilityTermStructure;
+// ============================================================================
+// Equity/FX Volatility Base (always lognormal, no displacement)
+// ============================================================================
+table BlackVolBaseSpec {
+    reference_date:string;
+    calendar:enums.Calendar;
+    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter;
+    shape:enums.VolSurfaceShape = Constant;
+    constant_vol:double;
+    // NO volatility_type - always lognormal
+    // NO displacement - always 0
+}
+
+// ============================================================================
+// Product-specific volatility specs
+// ============================================================================
+
+/// Optionlet volatility for Caps/Floors
+table OptionletVolSpec { 
+    base:IrVolBaseSpec; 
+}
+
+/// Swaption volatility
+table SwaptionVolSpec { 
+    base:IrVolBaseSpec; 
+}
+
+/// Black volatility for Equity/FX/Commodity options
+table BlackVolSpec { 
+    base:BlackVolBaseSpec; 
+}
+
+/// Union of all volatility types
+union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec }
+
+/// Volatility surface specification - referenced by id in trade requests
+table VolSurfaceSpec {
+    id:string (required);
+    payload:VolPayload;
+}

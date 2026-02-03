@@ -21,7 +21,6 @@
 #include "cap_floor_response_generated.h"
 #include "common_parser.h"
 #include "cap_floor_parser.h"
-#include "volatility_parser.h"
 #include "term_structure_parser.h"
 
 class CapFloorPricingRequest : QuantraRequest<quantra::PriceCapFloorRequest,

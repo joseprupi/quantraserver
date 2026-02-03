@@ -40,7 +40,17 @@ from quantra_client.client import (
     SwapHelperT,
     YieldT,
     IndexT,
-    VolatilityTermStructureT,
+    # NEW: Vol Surface types (replacing VolatilityTermStructureT)
+    VolSurfaceSpecT,
+    OptionletVolSpecT,
+    SwaptionVolSpecT,
+    IrVolBaseSpecT,
+    VolPayload,
+    # NEW: Model types
+    ModelSpecT,
+    CapFloorModelSpecT,
+    SwaptionModelSpecT,
+    ModelPayload,
     # Instruments
     FixedRateBondT,
     PriceFixedRateBondT,
@@ -75,6 +85,7 @@ from quantra_client.client import (
     SettlementType,
     ProtectionSide,
     VolatilityType,
+    IrModelType,
     Point,
 )
 
@@ -257,29 +268,122 @@ def build_quantra_index_3m() -> IndexT:
     return idx
 
 
-def build_quantra_pricing(curves: list, volatilities: list = None) -> PricingT:
-    """Build Pricing object for Quantra."""
+def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list = None) -> PricingT:
+    """Build Pricing object for Quantra.
+    
+    Args:
+        curves: List of TermStructureT
+        vol_surfaces: List of VolSurfaceSpecT (for caps/floors/swaptions)
+        models: List of ModelSpecT (for caps/floors/swaptions)
+    """
     p = PricingT()
     p.asOfDate = EVAL_DATE_STR
     p.settlementDate = EVAL_DATE_STR
     p.curves = curves
-    p.volatilities = volatilities or []
+    p.volSurfaces = vol_surfaces or []
+    p.models = models or []
     p.bondPricingDetails = True
     p.bondPricingFlows = False
     return p
 
 
-def build_quantra_volatility(vol_id: str, vol: float) -> VolatilityTermStructureT:
-    """Build flat volatility surface for Quantra."""
-    v = VolatilityTermStructureT()
-    v.id = vol_id
-    v.referenceDate = EVAL_DATE_STR
-    v.calendar = Calendar.TARGET
-    v.businessDayConvention = BusinessDayConvention.ModifiedFollowing
-    v.dayCounter = DayCounter.Actual365Fixed
-    v.volatilityType = VolatilityType.ShiftedLognormal
-    v.constantVol = vol
-    return v
+def build_quantra_optionlet_vol(vol_id: str, vol: float, 
+                                 vol_type: int = VolatilityType.Lognormal,
+                                 displacement: float = 0.0) -> VolSurfaceSpecT:
+    """Build optionlet volatility surface for caps/floors.
+    
+    Args:
+        vol_id: Identifier for this vol surface
+        vol: Constant volatility value
+        vol_type: VolatilityType enum (ShiftedLognormal, Normal, etc.)
+        displacement: Displacement for shifted lognormal (0 for pure lognormal)
+    """
+    # Build the base spec with vol parameters
+    base = IrVolBaseSpecT()
+    base.referenceDate = EVAL_DATE_STR
+    base.calendar = Calendar.TARGET
+    base.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    base.dayCounter = DayCounter.Actual365Fixed
+    base.volatilityType = vol_type
+    base.displacement = displacement
+    base.constantVol = vol
+    
+    # Wrap in OptionletVolSpec
+    optionlet = OptionletVolSpecT()
+    optionlet.base = base
+    
+    # Wrap in VolSurfaceSpec with union type
+    spec = VolSurfaceSpecT()
+    spec.id = vol_id
+    spec.payloadType = VolPayload.OptionletVolSpec
+    spec.payload = optionlet
+    return spec
+
+
+def build_quantra_swaption_vol(vol_id: str, vol: float,
+                                vol_type: int = VolatilityType.Lognormal,
+                                displacement: float = 0.0) -> VolSurfaceSpecT:
+    """Build swaption volatility surface.
+    
+    Args:
+        vol_id: Identifier for this vol surface
+        vol: Constant volatility value
+        vol_type: VolatilityType enum
+        displacement: Displacement for shifted lognormal
+    """
+    base = IrVolBaseSpecT()
+    base.referenceDate = EVAL_DATE_STR
+    base.calendar = Calendar.TARGET
+    base.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    base.dayCounter = DayCounter.Actual365Fixed
+    base.volatilityType = vol_type
+    base.displacement = displacement
+    base.constantVol = vol
+    
+    swaption_vol = SwaptionVolSpecT()
+    swaption_vol.base = base
+    
+    spec = VolSurfaceSpecT()
+    spec.id = vol_id
+    spec.payloadType = VolPayload.SwaptionVolSpec
+    spec.payload = swaption_vol
+    return spec
+
+
+def build_quantra_cap_floor_model(model_id: str, 
+                                   model_type: int = IrModelType.Black) -> ModelSpecT:
+    """Build model spec for cap/floor pricing.
+    
+    Args:
+        model_id: Identifier for this model
+        model_type: IrModelType enum (Black, ShiftedBlack, Bachelier)
+    """
+    cap_model = CapFloorModelSpecT()
+    cap_model.modelType = model_type
+    
+    spec = ModelSpecT()
+    spec.id = model_id
+    spec.payloadType = ModelPayload.CapFloorModelSpec
+    spec.payload = cap_model
+    return spec
+
+
+def build_quantra_swaption_model(model_id: str,
+                                  model_type: int = IrModelType.Black) -> ModelSpecT:
+    """Build model spec for swaption pricing.
+    
+    Args:
+        model_id: Identifier for this model
+        model_type: IrModelType enum (Black, ShiftedBlack, Bachelier)
+    """
+    swaption_model = SwaptionModelSpecT()
+    swaption_model.modelType = model_type
+    
+    spec = ModelSpecT()
+    spec.id = model_id
+    spec.payloadType = ModelPayload.SwaptionModelSpec
+    spec.payload = swaption_model
+    return spec
 
 
 # =============================================================================
@@ -338,7 +442,7 @@ def test_fixed_rate_bond(client: Client, curve_handle: ql.YieldTermStructureHand
     price_bond.fixedRateBond = bond
     price_bond.discountingCurve = "discount"
     
-    # Add yield specification (matching the working test)
+    # Add yield specification
     yield_spec = YieldT()
     yield_spec.dayCounter = DayCounter.Actual360
     yield_spec.compounding = Compounding.Compounded
@@ -487,13 +591,10 @@ def test_fra(client: Client, curve_handle: ql.YieldTermStructureHandle):
     # --- QuantLib ---
     index = ql.Euribor3M(curve_handle)
     
-    # QuantLib Python API: (index, valueDate, maturityDate, position, strike, notional, discountCurve)
-    # or: (index, valueDate, position, strike, notional, discountCurve)
     ql_fra = ql.ForwardRateAgreement(
         index, val_date, mat_date, ql.Position.Long, strike, notional, curve_handle
     )
     ql_npv = ql_fra.NPV()
-    # forwardRate() returns an InterestRate object, need to get the rate value
     ql_fwd = ql_fra.forwardRate().rate()
     
     # --- Quantra ---
@@ -596,12 +697,14 @@ def test_cap(client: Client, curve_handle: ql.YieldTermStructureHandle):
     price_cap.capFloor = cap
     price_cap.discountingCurve = "discount"
     price_cap.forwardingCurve = "discount"
-    price_cap.volatility = "vol_20pct"
+    price_cap.volatility = "cap_vol"
+    price_cap.model = "black_model"  # NEW: model reference
     
     request = PriceCapFloorRequestT()
     request.pricing = build_quantra_pricing(
         curves=[build_quantra_curve("discount")],
-        volatilities=[build_quantra_volatility("vol_20pct", vol)]
+        vol_surfaces=[build_quantra_optionlet_vol("cap_vol", vol)],
+        models=[build_quantra_cap_floor_model("black_model", IrModelType.Black)]
     )
     request.capFloors = [price_cap]
     
@@ -716,11 +819,13 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     price_swaption.discountingCurve = "discount"
     price_swaption.forwardingCurve = "discount"
     price_swaption.volatility = "swaption_vol"
+    price_swaption.model = "black_model"  # NEW: model reference
     
     request = PriceSwaptionRequestT()
     request.pricing = build_quantra_pricing(
         curves=[build_quantra_curve("discount")],
-        volatilities=[build_quantra_volatility("swaption_vol", vol)]
+        vol_surfaces=[build_quantra_swaption_vol("swaption_vol", vol)],
+        models=[build_quantra_swaption_model("black_model", IrModelType.Black)]
     )
     request.swaptions = [price_swaption]
     
@@ -765,8 +870,6 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
         ql.Protection.Buyer, notional, spread, schedule, ql.Following, ql.Actual360()
     )
     
-    # QuantLib Python API: FlatHazardRate(settlementDays, calendar, hazardRate, dayCounter)
-    # or: FlatHazardRate(referenceDate, hazardRateQuote, dayCounter)
     hazard_quote = ql.QuoteHandle(ql.SimpleQuote(hazard))
     default_curve = ql.FlatHazardRate(EVAL_DATE, hazard_quote, ql.Actual365Fixed())
     default_handle = ql.DefaultProbabilityTermStructureHandle(default_curve)
