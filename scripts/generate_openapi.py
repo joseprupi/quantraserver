@@ -53,6 +53,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |
 | Swaption | `/price-swaption` | Price swaptions |
 | CDS | `/price-cds` | Price credit default swaps |
+| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
 
 ### Quick Start
 
@@ -125,6 +126,13 @@ ENDPOINTS = {
         "request_schema": "quantra_PriceCDSRequest",
         "response_schema": "quantra_PriceCDSResponse",
         "tags": ["Credit Derivatives"]
+    },
+    "/bootstrap-curves": {
+        "summary": "Bootstrap Yield Curves",
+        "description": "Bootstrap yield curves from market instruments and extract discount factors, zero rates, and forward rates on a specified grid of dates.",
+        "request_schema": "quantra_BootstrapCurvesRequest",
+        "response_schema": "quantra_BootstrapCurvesResponse",
+        "tags": ["Curves"]
     }
 }
 
@@ -353,6 +361,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Bonds", "description": "Fixed and floating rate bond pricing"},
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
+            {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "System", "description": "System endpoints"}
         ],
         "paths": paths,
