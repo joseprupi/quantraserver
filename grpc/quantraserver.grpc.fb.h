@@ -83,6 +83,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>> PrepareAsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>>(PrepareAsyncPriceCDSRaw(context, request, cq));
     }
+    virtual ::grpc::Status BootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> AsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(AsyncBootstrapCurvesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> PrepareAsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(PrepareAsyncBootstrapCurvesRaw(context, request, cq));
+    }
   private:
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* AsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* PrepareAsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
@@ -98,6 +105,8 @@ class QuantraServer final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceSwaptionResponse>>* PrepareAsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>* AsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* AsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -151,6 +160,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>> PrepareAsyncPriceCDS(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>>(PrepareAsyncPriceCDSRaw(context, request, cq));
     }
+    ::grpc::Status BootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> AsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(AsyncBootstrapCurvesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> PrepareAsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(PrepareAsyncBootstrapCurvesRaw(context, request, cq));
+    }
   
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
@@ -168,6 +184,8 @@ class QuantraServer final {
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceSwaptionResponse>>* PrepareAsyncPriceSwaptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* AsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* AsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFixedRateBond_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFloatingRateBond_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceVanillaSwap_;
@@ -175,6 +193,7 @@ class QuantraServer final {
     const ::grpc::internal::RpcMethod rpcmethod_PriceCapFloor_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceSwaption_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceCDS_;
+    const ::grpc::internal::RpcMethod rpcmethod_BootstrapCurves_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
   
@@ -189,6 +208,7 @@ class QuantraServer final {
     virtual ::grpc::Status PriceCapFloor(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCapFloorRequest>* request, flatbuffers::grpc::Message<PriceCapFloorResponse>* response);
     virtual ::grpc::Status PriceSwaption(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>* request, flatbuffers::grpc::Message<PriceSwaptionResponse>* response);
     virtual ::grpc::Status PriceCDS(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>* request, flatbuffers::grpc::Message<PriceCDSResponse>* response);
+    virtual ::grpc::Status BootstrapCurves(::grpc::ServerContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_PriceFixedRateBond : public BaseClass {
@@ -330,7 +350,27 @@ class QuantraServer final {
       ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  Service   >   >   >   >   >   >   >   AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_BootstrapCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_BootstrapCurves() {
+      ::grpc::Service::MarkMethodAsync(7);
+    }
+    ~WithAsyncMethod_BootstrapCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status BootstrapCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapCurvesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestBootstrapCurves(::grpc::ServerContext* context, flatbuffers::grpc::Message<BootstrapCurvesRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(7, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  Service   >   >   >   >   >   >   >   >   AsyncService;
   template <class BaseClass>
   class WithGenericMethod_PriceFixedRateBond : public BaseClass {
    private:
@@ -446,6 +486,23 @@ class QuantraServer final {
     }
     // disable synchronous version of this method
     ::grpc::Status PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_BootstrapCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_BootstrapCurves() {
+      ::grpc::Service::MarkMethodGeneric(7);
+    }
+    ~WithGenericMethod_BootstrapCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status BootstrapCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapCurvesResponse>* /*response*/) final override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -590,9 +647,29 @@ class QuantraServer final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedPriceCDS(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceCDSRequest>,flatbuffers::grpc::Message<PriceCDSResponse>>* server_unary_streamer) = 0;
   };
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  Service   >   >   >   >   >   >   >   StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_BootstrapCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_BootstrapCurves() {
+      ::grpc::Service::MarkMethodStreamed(7,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<BootstrapCurvesRequest>, flatbuffers::grpc::Message<BootstrapCurvesResponse>>(std::bind(&WithStreamedUnaryMethod_BootstrapCurves<BaseClass>::StreamedBootstrapCurves, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_BootstrapCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status BootstrapCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapCurvesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedBootstrapCurves(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<BootstrapCurvesRequest>,flatbuffers::grpc::Message<BootstrapCurvesResponse>>* server_unary_streamer) = 0;
+  };
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  Service   >   >   >   >   >   >   >   >   StreamedUnaryService;
   typedef   Service   SplitStreamedService;
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  Service   >   >   >   >   >   >   >   StreamedService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  Service   >   >   >   >   >   >   >   >   StreamedService;
 };
 
 }  // namespace quantra

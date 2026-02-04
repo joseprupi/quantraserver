@@ -1,0 +1,170 @@
+include "enums.fbs";
+include "term_structure.fbs";
+
+namespace quantra;
+
+/// What output you want sampled from the bootstrapped curve.
+enum CurveMeasure : byte {
+    /// Discount factor P(t)
+    DF = 0,
+    /// Zero rate z(t)
+    ZERO = 1,
+    /// Forward rate f(t) or F(d1,d2)
+    FWD = 2
+}
+
+/// Forward rate definition.
+enum ForwardType : byte {
+    /// Approximated instantaneous forward around d
+    Instantaneous = 0,
+    /// Forward over [d, d + tenor]
+    Period = 1
+}
+
+// ----------------------------------------------------------------------------
+// Grid specification (where to sample the curve)
+// ----------------------------------------------------------------------------
+
+/// A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
+/// Examples: {n:1, unit:Days}, {n:3, unit:Months}, {n:10, unit:Years}
+table Tenor {
+    n:int;
+    unit:enums.TimeUnit;
+}
+
+/// Tenors relative to the curve reference date (or as_of_date if no reference date).
+/// Examples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]
+/// 
+/// Calendar behavior:
+/// - If calendar is NullCalendar (default): raw date arithmetic (refDate + period)
+/// - If calendar is set: uses calendar.advance(refDate, period, bdc)
+table TenorGrid {
+    tenors:[Tenor] (required);
+
+    /// Calendar for business-day-adjusted tenor dates. 
+    /// Default NullCalendar means raw date arithmetic without business day adjustment.
+    calendar:enums.Calendar = NullCalendar;
+
+    /// Business day convention for advancing dates (used when calendar is not NullCalendar).
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+/// Sample the curve between start/end with a step.
+/// Use this for "daily curve until X".
+///
+/// Note on business_days_only: 
+/// - Requires a real calendar (not NullCalendar) to skip weekends/holidays
+/// - If business_days_only=true with NullCalendar, falls back to WeekendsOnly
+table RangeGrid {
+    /// If omitted, server defaults to as_of_date.
+    start_date:string;
+
+    /// Required end date (YYYY-MM-DD or YYYY/MM/DD).
+    end_date:string (required);
+
+    /// Step size, e.g. 1 Days for daily, 1 Weeks, 1 Months.
+    step_number:int = 1;
+    step_time_unit:enums.TimeUnit = Days;
+
+    /// If true, generate only business days using the calendar below.
+    /// Requires a non-NullCalendar to properly skip weekends/holidays.
+    business_days_only:bool = false;
+
+    /// Calendar used for business day checks and date advancement.
+    calendar:enums.Calendar = NullCalendar;
+
+    /// Business day convention used when adjusting generated dates.
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+union CurveGrid { TenorGrid, RangeGrid }
+
+table CurveGridSpec {
+    grid:CurveGrid (required);
+}
+
+// ----------------------------------------------------------------------------
+// Conventions for ZERO and FWD outputs
+// ----------------------------------------------------------------------------
+
+/// Options for zero rate output.
+table ZeroRateQuery {
+    /// If true, use TermStructure.day_counter. If false, use day_counter below.
+    use_curve_day_counter:bool = true;
+
+    /// Used only when use_curve_day_counter=false.
+    day_counter:enums.DayCounter = Actual365Fixed;
+
+    /// Default: continuously-compounded zero rate.
+    compounding:enums.Compounding = Continuous;
+
+    /// Used only for non-continuous compounding.
+    frequency:enums.Frequency = Annual;
+}
+
+/// Options for forward rate output.
+table ForwardRateQuery {
+    /// If true, use TermStructure.day_counter. If false, use day_counter below.
+    use_curve_day_counter:bool = true;
+
+    /// Used only when use_curve_day_counter=false.
+    day_counter:enums.DayCounter = Actual365Fixed;
+
+    /// Reporting convention for the returned forward rate.
+    compounding:enums.Compounding = Simple;
+    frequency:enums.Frequency = Annual;
+
+    /// Default: instantaneous forward (approximated).
+    forward_type:ForwardType = Instantaneous;
+
+    /// When forward_type=Instantaneous, compute forward over [d, d + eps].
+    /// Defaults: eps = 1 Day.
+    instantaneous_eps_number:int = 1;
+    instantaneous_eps_time_unit:enums.TimeUnit = Days;
+
+    /// Used only when forward_type=Period, compute forward over [d, d + tenor].
+    tenor_number:int = 3;
+    tenor_time_unit:enums.TimeUnit = Months;
+
+    /// If true, use calendar from grid for date advancement.
+    /// If false, use curve's instrument calendar.
+    use_grid_calendar_for_advance:bool = true;
+}
+
+/// What to sample from the curve.
+table CurveQuery {
+    /// Which measures to return.
+    measures:[CurveMeasure] (required);
+
+    /// Where to sample.
+    grid:CurveGridSpec (required);
+
+    /// Optional: if omitted, defaults are used (continuous zero, instantaneous fwd).
+    zero:ZeroRateQuery;
+    fwd:ForwardRateQuery;
+}
+
+// ----------------------------------------------------------------------------
+// Bootstrap spec (one per curve)
+// ----------------------------------------------------------------------------
+
+/// Specification for a single curve to bootstrap.
+table BootstrapCurveSpec {
+    /// Reuse your existing curve schema.
+    curve:TermStructure (required);
+
+    /// Optional: what outputs you want back.
+    /// If omitted, server returns only pillar dates (if available).
+    query:CurveQuery;
+}
+
+/// Request to bootstrap multiple yield curves.
+table BootstrapCurvesRequest {
+    /// Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate().
+    as_of_date:string (required);
+
+    /// Bootstrap many curves at once.
+    curves:[BootstrapCurveSpec] (required);
+}
+
+root_type BootstrapCurvesRequest;

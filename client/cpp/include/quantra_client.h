@@ -39,6 +39,7 @@
 #include "cap_floor_response_generated.h"
 #include "swaption_response_generated.h"
 #include "cds_response_generated.h"
+#include "bootstrap_curves_response_generated.h"
 
 namespace quantra {
 
@@ -62,7 +63,8 @@ enum class ProductType {
     FRA,
     CapFloor,
     Swaption,
-    CDS
+    CDS,
+    BootstrapCurves
 };
 
 const char* ProductTypeToString(ProductType type);
@@ -123,6 +125,7 @@ public:
     JsonResponse PriceCapFloorJSON(const std::string& json);
     JsonResponse PriceSwaptionJSON(const std::string& json);
     JsonResponse PriceCDSJSON(const std::string& json);
+    JsonResponse BootstrapCurvesJSON(const std::string& json);
     
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance
@@ -158,6 +161,10 @@ public:
     grpc::Status PriceCDS(
         const Message<PriceCDSRequest>& request,
         Message<PriceCDSResponse>* response);
+    
+    grpc::Status BootstrapCurves(
+        const Message<BootstrapCurvesRequest>& request,
+        Message<BootstrapCurvesResponse>* response);
     
     // -------------------------------------------------------------------------
     // Accessors

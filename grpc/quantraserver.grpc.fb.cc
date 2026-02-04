@@ -23,6 +23,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceCapFloor",
   "/quantra.QuantraServer/PriceSwaption",
   "/quantra.QuantraServer/PriceCDS",
+  "/quantra.QuantraServer/BootstrapCurves",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -38,6 +39,7 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_PriceCapFloor_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceSwaption_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceCDS_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_BootstrapCurves_(QuantraServer_method_names[7], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -124,6 +126,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCDSResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCDS_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::BootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_BootstrapCurves_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* QuantraServer::Stub::AsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<BootstrapCurvesResponse>>::Create(channel_.get(), cq, rpcmethod_BootstrapCurves_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* QuantraServer::Stub::PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<BootstrapCurvesResponse>>::Create(channel_.get(), cq, rpcmethod_BootstrapCurves_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -160,6 +174,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCDSRequest>, flatbuffers::grpc::Message<PriceCDSResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCDS), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[7],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<BootstrapCurvesRequest>, flatbuffers::grpc::Message<BootstrapCurvesResponse>>(
+          std::mem_fn(&QuantraServer::Service::BootstrapCurves), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -190,6 +209,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceCDS(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCDSRequest>* /*request*/, flatbuffers::grpc::Message<PriceCDSResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::BootstrapCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapCurvesResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

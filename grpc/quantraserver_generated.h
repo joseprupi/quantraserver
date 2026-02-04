@@ -13,6 +13,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "bootstrap_curves_request_generated.h"
+#include "bootstrap_curves_response_generated.h"
 #include "cap_floor_response_generated.h"
 #include "cds_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"

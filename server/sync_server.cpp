@@ -11,6 +11,7 @@
 #include "cap_floor_handler.h"
 #include "swaption_handler.h"
 #include "cds_handler.h"
+#include "bootstrap_curves_handler.h"
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>

@@ -45,7 +45,7 @@ flatc --cpp --gen-object-api -I "$FBS_DIR" -o "$GEN_CPP_DIR" "$FBS_DIR"/*.fbs
 echo "[3/7] Generating gRPC service code..."
 GEN_GRPC_DIR="$WORKSPACE/grpc"
 mkdir -p "$GEN_GRPC_DIR"
-flatc --grpc --cpp -I "$FBS_DIR" -o "$GEN_GRPC_DIR" "$FBS_DIR/quantraserver.fbs"
+flatc --grpc --cpp -I "$FBS_DIR" -o "$GEN_GRPC_DIR" "$GEN_GRPC_DIR/quantraserver.fbs"
 
 # 3. Generate Python Code
 echo "[3/6] Generating Python code..."

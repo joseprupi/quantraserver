@@ -932,6 +932,109 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
 
 
 # =============================================================================
+# Test: Bootstrap Curves
+# =============================================================================
+
+def test_bootstrap_curves(client, curve_handle):
+    """Test curve bootstrapping endpoint - compare discount factors."""
+    print("\n--- Test: Bootstrap Curves ---")
+    
+    # Build Quantra request using new schema with structured Tenor
+    from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
+    from quantra.BootstrapCurveSpec import BootstrapCurveSpecT
+    from quantra.CurveQuery import CurveQueryT
+    from quantra.CurveGridSpec import CurveGridSpecT
+    from quantra.TenorGrid import TenorGridT
+    from quantra.Tenor import TenorT
+    from quantra.CurveGrid import CurveGrid
+    from quantra.CurveMeasure import CurveMeasure
+    
+    # Build structured tenors (new format: {n, unit})
+    tenors = []
+    for n, unit in [(3, TimeUnit.Months), (6, TimeUnit.Months), (1, TimeUnit.Years), 
+                    (2, TimeUnit.Years), (5, TimeUnit.Years)]:
+        tenor = TenorT()
+        tenor.n = n
+        tenor.unit = unit
+        tenors.append(tenor)
+    
+    # Build tenor grid
+    tenor_grid = TenorGridT()
+    tenor_grid.tenors = tenors
+    
+    # Build grid spec
+    grid_spec = CurveGridSpecT()
+    grid_spec.gridType = CurveGrid.TenorGrid
+    grid_spec.grid = tenor_grid
+    
+    # Build query
+    query = CurveQueryT()
+    query.measures = [CurveMeasure.DF]
+    query.grid = grid_spec
+    
+    # Build curve spec
+    curve_spec = BootstrapCurveSpecT()
+    curve_spec.curve = build_quantra_curve("test_curve")
+    curve_spec.query = query
+    
+    # Build request
+    request = BootstrapCurvesRequestT()
+    request.asOfDate = EVAL_DATE_STR
+    request.curves = [curve_spec]
+    
+    response = client.bootstrap_curves(request)
+    
+    # Compare discount factors
+    result = response.Results(0)
+    print(f"  Curve ID: {result.Id()}")
+    print(f"  Reference Date: {result.ReferenceDate()}")
+    print(f"  Grid Points: {result.GridDatesLength()}")
+    
+    if result.Error():
+        print(f"  ERROR: {result.Error().ErrorMessage()}")
+        return False, 0, 0
+    
+    # Get DF series
+    df_series = None
+    for i in range(result.SeriesLength()):
+        series = result.Series(i)
+        if series.Measure() == CurveMeasure.DF:
+            df_series = series
+            break
+    
+    if not df_series:
+        print("  ERROR: No DF series returned")
+        return False, 0, 0
+    
+    max_diff = 0.0
+    ql_first = None
+    q_first = None
+    
+    for i in range(result.GridDatesLength()):
+        date_str = result.GridDates(i).decode() if isinstance(result.GridDates(i), bytes) else result.GridDates(i)
+        q_df = df_series.Values(i)
+        
+        # Parse date (format: YYYY-MM-DD from iso_date)
+        parts = date_str.split('-')
+        ql_date = ql.Date(int(parts[2]), int(parts[1]), int(parts[0]))
+        ql_df = curve_handle.discount(ql_date)
+        
+        if i == 0:
+            ql_first = ql_df
+            q_first = q_df
+        
+        diff = abs(ql_df - q_df)
+        max_diff = max(max_diff, diff)
+        print(f"    {date_str}: QL={ql_df:.8f}, Q={q_df:.8f}, Diff={diff:.2e}")
+    
+    passed = max_diff < 1e-6
+    print(f"  Max Difference: {max_diff:.2e}")
+    print(f"  Result:         {'✓ PASS' if passed else '✗ FAIL'}")
+    
+    return passed, ql_first or 0, q_first or 0
+
+
+# =============================================================================
 # Main
 # =============================================================================
 
@@ -955,6 +1058,7 @@ def main():
         ("Cap", lambda: test_cap(client, curve_handle)),
         ("Swaption", lambda: test_swaption(client, curve_handle)),
         ("CDS", lambda: test_cds(client, curve_handle)),
+        ("Bootstrap Curves", lambda: test_bootstrap_curves(client, curve_handle)),
     ]
     
     results = []

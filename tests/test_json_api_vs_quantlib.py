@@ -35,6 +35,7 @@ class ApiClient:
         "cap_floor": "price-cap-floor",
         "swaption": "price-swaption",
         "cds": "price-cds",
+        "bootstrap_curves": "bootstrap-curves",
     }
     
     def __init__(self, base_url: str):
@@ -120,6 +121,24 @@ def get_date_generation(name: str):
         "TwentiethIMM": ql.DateGeneration.TwentiethIMM,
     }
     return mapping.get(name, ql.DateGeneration.Forward)
+
+
+def get_time_unit(name: str):
+    mapping = {
+        "Days": ql.Days,
+        "Weeks": ql.Weeks,
+        "Months": ql.Months,
+        "Years": ql.Years,
+    }
+    return mapping.get(name, ql.Days)
+
+
+def get_ibor_index(name: str):
+    if "Euribor6M" in name:
+        return ql.Euribor6M()
+    elif "Euribor3M" in name:
+        return ql.Euribor3M()
+    return ql.Euribor6M()
 
 
 # =============================================================================
@@ -629,6 +648,122 @@ def price_cds_ql(request: dict) -> float:
 
 
 # =============================================================================
+# Bootstrap Curves Test
+# =============================================================================
+
+def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
+    """Test bootstrap-curves endpoint against QuantLib."""
+    filepath = data_dir / "bootstrap_curves_tenor_grid.json"
+    result = {
+        "product": "bootstrap_curves",
+        "file": str(filepath),
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None
+    }
+    
+    if not filepath.exists():
+        result["error"] = "File not found"
+        return result
+    
+    try:
+        request = load_json(filepath)
+        
+        # Call API
+        response = client.session.post(
+            f"{client.base_url}/bootstrap-curves", 
+            json=request
+        ).json()
+        
+        # Build QuantLib curve from request
+        as_of = parse_date(request["as_of_date"])
+        ql.Settings.instance().evaluationDate = as_of
+        
+        curve_spec = request["curves"][0]
+        ts = curve_spec["curve"]
+        
+        # Build helpers
+        helpers = []
+        for point_wrapper in ts["points"]:
+            point_type = point_wrapper["point_type"]
+            point = point_wrapper["point"]
+            
+            if point_type == "DepositHelper":
+                tenor = ql.Period(point["tenor_number"], 
+                                  get_time_unit(point["tenor_time_unit"]))
+                helpers.append(ql.DepositRateHelper(
+                    point["rate"], tenor, point.get("fixing_days", 2),
+                    get_calendar(point["calendar"]),
+                    get_convention(point["business_day_convention"]),
+                    True, get_day_counter(point["day_counter"])
+                ))
+            elif point_type == "SwapHelper":
+                tenor = ql.Period(point["tenor_number"],
+                                  get_time_unit(point["tenor_time_unit"]))
+                index = get_ibor_index(point["sw_floating_leg_index"])
+                fwd_start = ql.Period(point.get("fwd_start_days", 0), ql.Days)
+                helpers.append(ql.SwapRateHelper(
+                    point["rate"], tenor,
+                    get_calendar(point["calendar"]),
+                    get_frequency(point["sw_fixed_leg_frequency"]),
+                    get_convention(point["sw_fixed_leg_convention"]),
+                    get_day_counter(point["sw_fixed_leg_day_counter"]),
+                    index,
+                    ql.QuoteHandle(),  # spread
+                    fwd_start
+                ))
+        
+        # Bootstrap curve
+        ref_date = parse_date(ts["reference_date"])
+        ql_curve = ql.PiecewiseLogLinearDiscount(ref_date, helpers, 
+                                                  get_day_counter(ts["day_counter"]))
+        ql_curve.enableExtrapolation()
+        
+        # Compare discount factors
+        api_result = response["results"][0]
+        if "error" in api_result and api_result["error"]:
+            result["error"] = api_result["error"].get("error_message", "Unknown error")
+            return result
+        
+        # Find DF series (measure can be 0 for DF, "DF" string, or missing which defaults to DF)
+        df_values = None
+        for series in api_result.get("series", []):
+            measure = series.get("measure")
+            # If measure is missing, it defaults to 0 (DF) in FlatBuffers
+            # Handle: missing (None->DF), integer 0 (DF), or string "DF"
+            if measure is None or measure == "DF" or measure == 0:
+                df_values = series.get("values")
+                break
+        
+        if not df_values:
+            result["error"] = "No DF series in response"
+            return result
+        
+        grid_dates = api_result["grid_dates"]
+        max_diff = 0.0
+        
+        for i, date_str in enumerate(grid_dates):
+            ql_date = parse_date(date_str)
+            q_df = df_values[i]
+            ql_df = ql_curve.discount(ql_date)
+            diff = abs(ql_df - q_df)
+            max_diff = max(max_diff, diff)
+        
+        result["passed"] = max_diff < 1e-6
+        result["quantra_npv"] = df_values[0] if df_values else 0
+        result["quantlib_npv"] = ql_curve.discount(parse_date(grid_dates[0])) if grid_dates else 0
+        result["diff"] = max_diff
+        
+    except Exception as e:
+        import traceback
+        result["error"] = f"{str(e)}\n{traceback.format_exc()}"
+    
+    return result
+
+
+# =============================================================================
 # Main Test Runner
 # =============================================================================
 
@@ -736,6 +871,22 @@ def main():
             print(f"  QuantLib NPV: {result['quantlib_npv']:>15.6f}")
             print(f"  Difference:   {result['diff']:>15.6f}")
             print(f"  Status:       {status}")
+    
+    # Test Bootstrap Curves separately (different response format)
+    bc_result = test_bootstrap_curves(client, data_dir)
+    results.append(bc_result)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP CURVES")
+    print(f"{'='*70}")
+    print(f"  File: {bc_result['file']}")
+    if bc_result["error"]:
+        print(f"  ❌ Error: {bc_result['error']}")
+    else:
+        status = "✓ PASS" if bc_result["passed"] else "✗ FAIL"
+        print(f"  Quantra DF:   {bc_result['quantra_npv']:>15.8f}")
+        print(f"  QuantLib DF:  {bc_result['quantlib_npv']:>15.8f}")
+        print(f"  Max Diff:     {bc_result['diff']:>15.2e}")
+        print(f"  Status:       {status}")
     
     # Summary
     print("\n" + "=" * 70)

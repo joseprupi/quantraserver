@@ -32,6 +32,7 @@ from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
+from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
 
 # =============================================================================
 # Response Types (Reader classes - for deserializing responses)
@@ -43,6 +44,7 @@ from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
+from quantra.BootstrapCurvesResponse import BootstrapCurvesResponse
 
 
 class Client:
@@ -69,6 +71,7 @@ class Client:
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
+        'bootstrap_curves': '/quantra.QuantraServer/BootstrapCurves',
     }
     
     def __init__(
@@ -193,6 +196,17 @@ class Client:
             'cds',
             request,
             PriceCDSResponse
+        )
+    
+    def bootstrap_curves(
+        self,
+        request: BootstrapCurvesRequestT
+    ) -> BootstrapCurvesResponse:
+        """Bootstrap yield curves and return sampled measures (DF, zero rates, forward rates)."""
+        return self._call(
+            'bootstrap_curves',
+            request,
+            BootstrapCurvesResponse
         )
     
     # =========================================================================
@@ -340,6 +354,7 @@ __all__ = [
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
     'PriceCDSRequestT',
+    'BootstrapCurvesRequestT',
     
     # Response types
     'PriceFixedRateBondResponse',
@@ -349,6 +364,7 @@ __all__ = [
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
     'PriceCDSResponse',
+    'BootstrapCurvesResponse',
     
     # Building blocks
     'PricingT',

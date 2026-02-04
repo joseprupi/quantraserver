@@ -168,6 +168,12 @@ JsonResponse QuantraClient::PriceCDSJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::BootstrapCurvesJSON(const std::string& json) {
+    return impl_->CallJSON<BootstrapCurvesRequest, BootstrapCurvesResponse>(
+        ProductType::BootstrapCurves, json, &QuantraServer::Stub::BootstrapCurves
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -226,6 +232,14 @@ grpc::Status QuantraClient::PriceCDS(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->PriceCDS(&context, request, response);
+}
+
+grpc::Status QuantraClient::BootstrapCurves(
+    const Message<BootstrapCurvesRequest>& request,
+    Message<BootstrapCurvesResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->BootstrapCurves(&context, request, response);
 }
 
 } // namespace quantra

@@ -16,6 +16,7 @@
 #include "cap_floor_pricing_request.h"
 #include "swaption_pricing_request.h"
 #include "cds_pricing_request.h"
+#include "bootstrap_curves_request.h"
 
 #include "price_fixed_rate_bond_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
@@ -31,6 +32,8 @@
 #include "cds_response_generated.h"
 #include "volatility_generated.h"
 #include "model_generated.h"
+#include "bootstrap_curves_request_generated.h"
+#include "bootstrap_curves_response_generated.h"
 
 namespace quantra { namespace testing {
 
@@ -880,6 +883,263 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     std::cout << "QuantLib Fair: " << qlFair*10000 << "bps | Quantra: " << qFair*10000 << "bps" << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_NEAR(qlFair, qFair, 1e-6);
+}
+
+// =============================================================================
+// BootstrapCurves Tests
+// =============================================================================
+
+TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
+    std::cout << "\n--- Test: BootstrapCurves Discount Factors ---\n";
+    
+    flatbuffers::grpc::MessageBuilder b;
+    
+    // Build TenorGrid with 1Y, 5Y, 10Y using structured Tenor
+    std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
+    
+    quantra::TenorBuilder t1y(b);
+    t1y.add_n(1);
+    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t1y.Finish());
+    
+    quantra::TenorBuilder t5y(b);
+    t5y.add_n(5);
+    t5y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t5y.Finish());
+    
+    quantra::TenorBuilder t10y(b);
+    t10y.add_n(10);
+    t10y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t10y.Finish());
+    
+    auto tenors_vec = b.CreateVector(tenors);
+    
+    quantra::TenorGridBuilder tgb(b);
+    tgb.add_tenors(tenors_vec);
+    auto tenor_grid = tgb.Finish();
+    
+    quantra::CurveGridSpecBuilder cgsb(b);
+    cgsb.add_grid_type(quantra::CurveGrid_TenorGrid);
+    cgsb.add_grid(tenor_grid.Union());
+    auto grid_spec = cgsb.Finish();
+    
+    // Build measures - use int8_t for enum vector
+    std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_DF)};
+    auto measures = b.CreateVector(measures_vec);
+    
+    // Build query
+    quantra::CurveQueryBuilder cqb(b);
+    cqb.add_measures(measures);
+    cqb.add_grid(grid_spec);
+    auto query = cqb.Finish();
+    
+    // Build curve spec
+    auto curve = buildCurve(b, "test_curve");
+    quantra::BootstrapCurveSpecBuilder bcsb(b);
+    bcsb.add_curve(curve);
+    bcsb.add_query(query);
+    auto curve_spec = bcsb.Finish();
+    
+    std::vector<flatbuffers::Offset<quantra::BootstrapCurveSpec>> curves_vec;
+    curves_vec.push_back(curve_spec);
+    auto curves = b.CreateVector(curves_vec);
+    
+    // Build request
+    auto as_of = b.CreateString("2025-01-15");
+    quantra::BootstrapCurvesRequestBuilder reqb(b);
+    reqb.add_as_of_date(as_of);
+    reqb.add_curves(curves);
+    b.Finish(reqb.Finish());
+    
+    // Execute request
+    auto request = flatbuffers::GetRoot<quantra::BootstrapCurvesRequest>(b.GetBufferPointer());
+    BootstrapCurvesRequestHandler handler;
+    auto response_builder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto response_offset = handler.request(response_builder, request);
+    response_builder->Finish(response_offset);
+    
+    auto response = flatbuffers::GetRoot<quantra::BootstrapCurvesResponse>(response_builder->GetBufferPointer());
+    
+    // Verify response
+    ASSERT_EQ(response->results()->size(), 1u);
+    auto result = response->results()->Get(0);
+    ASSERT_EQ(result->error(), nullptr);
+    ASSERT_EQ(result->series()->size(), 1u);
+    
+    auto df_series = result->series()->Get(0);
+    ASSERT_EQ(df_series->measure(), quantra::CurveMeasure_DF);
+    ASSERT_EQ(df_series->values()->size(), 3u);
+    
+    // Compare with QuantLib
+    QuantLib::Date refDate = bootstrappedCurve_->referenceDate();
+    std::vector<QuantLib::Date> testDates = {
+        refDate + 1 * QuantLib::Years,
+        refDate + 5 * QuantLib::Years,
+        refDate + 10 * QuantLib::Years
+    };
+    
+    for (size_t i = 0; i < testDates.size(); i++) {
+        double quantra_df = df_series->values()->Get(i);
+        double ql_df = bootstrappedCurve_->discount(testDates[i]);
+        std::cout << "  " << testDates[i] << ": QL=" << std::fixed << std::setprecision(8) 
+                  << ql_df << ", Quantra=" << quantra_df 
+                  << ", Diff=" << std::scientific << std::abs(ql_df - quantra_df) << std::endl;
+        EXPECT_NEAR(quantra_df, ql_df, 1e-10);
+    }
+}
+
+TEST_F(QuantraComparisonTest, BootstrapCurves_ZeroRates) {
+    std::cout << "\n--- Test: BootstrapCurves Zero Rates ---\n";
+    
+    flatbuffers::grpc::MessageBuilder b;
+    
+    // Build TenorGrid
+    std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
+    
+    quantra::TenorBuilder t1y(b);
+    t1y.add_n(1);
+    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t1y.Finish());
+    
+    quantra::TenorBuilder t5y(b);
+    t5y.add_n(5);
+    t5y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t5y.Finish());
+    
+    auto tenors_vec = b.CreateVector(tenors);
+    
+    quantra::TenorGridBuilder tgb(b);
+    tgb.add_tenors(tenors_vec);
+    auto tenor_grid = tgb.Finish();
+    
+    quantra::CurveGridSpecBuilder cgsb(b);
+    cgsb.add_grid_type(quantra::CurveGrid_TenorGrid);
+    cgsb.add_grid(tenor_grid.Union());
+    auto grid_spec = cgsb.Finish();
+    
+    // Build measures - ZERO (use int8_t for enum vector)
+    std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_ZERO)};
+    auto measures = b.CreateVector(measures_vec);
+    
+    // Build query
+    quantra::CurveQueryBuilder cqb(b);
+    cqb.add_measures(measures);
+    cqb.add_grid(grid_spec);
+    auto query = cqb.Finish();
+    
+    // Build curve spec
+    auto curve = buildCurve(b, "test_curve");
+    quantra::BootstrapCurveSpecBuilder bcsb(b);
+    bcsb.add_curve(curve);
+    bcsb.add_query(query);
+    auto curve_spec = bcsb.Finish();
+    
+    std::vector<flatbuffers::Offset<quantra::BootstrapCurveSpec>> curves_vec;
+    curves_vec.push_back(curve_spec);
+    auto curves = b.CreateVector(curves_vec);
+    
+    auto as_of = b.CreateString("2025-01-15");
+    quantra::BootstrapCurvesRequestBuilder reqb(b);
+    reqb.add_as_of_date(as_of);
+    reqb.add_curves(curves);
+    b.Finish(reqb.Finish());
+    
+    auto request = flatbuffers::GetRoot<quantra::BootstrapCurvesRequest>(b.GetBufferPointer());
+    BootstrapCurvesRequestHandler handler;
+    auto response_builder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto response_offset = handler.request(response_builder, request);
+    response_builder->Finish(response_offset);
+    
+    auto response = flatbuffers::GetRoot<quantra::BootstrapCurvesResponse>(response_builder->GetBufferPointer());
+    
+    auto result = response->results()->Get(0);
+    ASSERT_EQ(result->error(), nullptr);
+    
+    auto zero_series = result->series()->Get(0);
+    ASSERT_EQ(zero_series->measure(), quantra::CurveMeasure_ZERO);
+    
+    // Compare with QuantLib (continuous compounding)
+    QuantLib::Date refDate = bootstrappedCurve_->referenceDate();
+    std::vector<QuantLib::Date> testDates = {
+        refDate + 1 * QuantLib::Years,
+        refDate + 5 * QuantLib::Years
+    };
+    
+    for (size_t i = 0; i < testDates.size(); i++) {
+        double quantra_zero = zero_series->values()->Get(i);
+        double ql_zero = bootstrappedCurve_->zeroRate(testDates[i], QuantLib::Actual365Fixed(), 
+                                                       QuantLib::Continuous).rate();
+        std::cout << "  " << testDates[i] << ": QL=" << std::fixed << std::setprecision(8) 
+                  << ql_zero << ", Quantra=" << quantra_zero 
+                  << ", Diff=" << std::scientific << std::abs(ql_zero - quantra_zero) << std::endl;
+        EXPECT_NEAR(quantra_zero, ql_zero, 1e-10);
+    }
+}
+
+TEST_F(QuantraComparisonTest, BootstrapCurves_PillarDates) {
+    std::cout << "\n--- Test: BootstrapCurves Pillar Dates ---\n";
+    
+    flatbuffers::grpc::MessageBuilder b;
+    
+    // Minimal tenor grid
+    std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
+    quantra::TenorBuilder t1y(b);
+    t1y.add_n(1);
+    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    tenors.push_back(t1y.Finish());
+    auto tenors_vec = b.CreateVector(tenors);
+    
+    quantra::TenorGridBuilder tgb(b);
+    tgb.add_tenors(tenors_vec);
+    auto tenor_grid = tgb.Finish();
+    
+    quantra::CurveGridSpecBuilder cgsb(b);
+    cgsb.add_grid_type(quantra::CurveGrid_TenorGrid);
+    cgsb.add_grid(tenor_grid.Union());
+    auto grid_spec = cgsb.Finish();
+    
+    // Build measures (use int8_t for enum vector)
+    std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_DF)};
+    auto measures = b.CreateVector(measures_vec);
+    
+    quantra::CurveQueryBuilder cqb(b);
+    cqb.add_measures(measures);
+    cqb.add_grid(grid_spec);
+    auto query = cqb.Finish();
+    
+    auto curve = buildCurve(b, "test_curve");
+    quantra::BootstrapCurveSpecBuilder bcsb(b);
+    bcsb.add_curve(curve);
+    bcsb.add_query(query);
+    auto curve_spec = bcsb.Finish();
+    
+    std::vector<flatbuffers::Offset<quantra::BootstrapCurveSpec>> curves_vec;
+    curves_vec.push_back(curve_spec);
+    auto curves = b.CreateVector(curves_vec);
+    
+    auto as_of = b.CreateString("2025-01-15");
+    quantra::BootstrapCurvesRequestBuilder reqb(b);
+    reqb.add_as_of_date(as_of);
+    reqb.add_curves(curves);
+    b.Finish(reqb.Finish());
+    
+    auto request = flatbuffers::GetRoot<quantra::BootstrapCurvesRequest>(b.GetBufferPointer());
+    BootstrapCurvesRequestHandler handler;
+    auto response_builder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto response_offset = handler.request(response_builder, request);
+    response_builder->Finish(response_offset);
+    
+    auto response = flatbuffers::GetRoot<quantra::BootstrapCurvesResponse>(response_builder->GetBufferPointer());
+    
+    auto result = response->results()->Get(0);
+    ASSERT_NE(result->pillar_dates(), nullptr);
+    
+    // Should have at least 6 pillar dates: ref date + 3 deposits + 2 swaps
+    std::cout << "  Pillar dates count: " << result->pillar_dates()->size() << std::endl;
+    for (size_t i = 0; i < result->pillar_dates()->size(); i++) {
+        std::cout << "    " << result->pillar_dates()->Get(i)->c_str() << std::endl;
+    }
+    EXPECT_GE(result->pillar_dates()->size(), 6u);
 }
 
 }} // namespace
