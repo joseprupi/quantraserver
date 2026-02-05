@@ -113,7 +113,7 @@ QuantLib::Calendar CalendarToQL(const quantra::enums::Calendar calendar)
     case quantra::enums::Calendar_UnitedKingdom:
         return QuantLib::UnitedKingdom();
     case quantra::enums::Calendar_UnitedStates:
-        return QuantLib::UnitedStates();
+        return QuantLib::UnitedStates(QuantLib::UnitedStates::Settlement);
     case quantra::enums::Calendar_UnitedStatesSettlement:
         return QuantLib::UnitedStates(QuantLib::UnitedStates::Settlement);
     case quantra::enums::Calendar_UnitedStatesNYSE:
@@ -165,7 +165,7 @@ QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter)
     case quantra::enums::DayCounter_Actual365NoLeap:
         return QuantLib::Actual365Fixed();
     case quantra::enums::DayCounter_ActualActual:
-        return QuantLib::ActualActual();
+        return QuantLib::ActualActual(QuantLib::ActualActual::ISDA);  // Default to ISDA
     case quantra::enums::DayCounter_ActualActualISMA:
         return QuantLib::ActualActual(QuantLib::ActualActual::ISMA);
     case quantra::enums::DayCounter_ActualActualBond:
@@ -187,7 +187,7 @@ QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter)
     case quantra::enums::DayCounter_Simple:
         return QuantLib::SimpleDayCounter();
     case quantra::enums::DayCounter_Thirty360:
-        return QuantLib::Thirty360();
+        return QuantLib::Thirty360(QuantLib::Thirty360::BondBasis);  // Default to BondBasis
     }
 
     QUANTRA_ERROR("Day Counter not found");
@@ -234,96 +234,69 @@ std::shared_ptr<QuantLib::IborIndex> IborToQL(const quantra::enums::Ibor ibor)
 
     switch (ibor)
     {
+    // Euribor with generic Period constructor (replaces removed specialized classes)
     case quantra::enums::Ibor_EuriborSW:
-        return std::make_shared<QuantLib::EuriborSW>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(1 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor2W:
-        return std::make_shared<QuantLib::Euribor2W>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(2 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor3W:
-        return std::make_shared<QuantLib::Euribor3W>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(3 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor1M:
-        return std::make_shared<QuantLib::Euribor1M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(1 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor2M:
-        return std::make_shared<QuantLib::Euribor2M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(2 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor3M:
-        return std::make_shared<QuantLib::Euribor3M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(3 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor4M:
-        return std::make_shared<QuantLib::Euribor4M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(4 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor5M:
-        return std::make_shared<QuantLib::Euribor5M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(5 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor6M:
-        return std::make_shared<QuantLib::Euribor6M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(6 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor7M:
-        return std::make_shared<QuantLib::Euribor7M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(7 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor8M:
-        return std::make_shared<QuantLib::Euribor8M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(8 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor9M:
-        return std::make_shared<QuantLib::Euribor9M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(9 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor10M:
-        return std::make_shared<QuantLib::Euribor10M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(10 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor11M:
-        return std::make_shared<QuantLib::Euribor11M>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(11 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor1Y:
-        return std::make_shared<QuantLib::Euribor1Y>();
-        break;
+        return std::make_shared<QuantLib::Euribor>(1 * QuantLib::Years);
+
+    // Euribor365 with generic Period constructor
     case quantra::enums::Ibor_Euribor365_SW:
-        return std::make_shared<QuantLib::Euribor365_SW>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(1 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor365_2W:
-        return std::make_shared<QuantLib::Euribor365_2W>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(2 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor365_3W:
-        return std::make_shared<QuantLib::Euribor365_3W>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(3 * QuantLib::Weeks);
     case quantra::enums::Ibor_Euribor365_1M:
-        return std::make_shared<QuantLib::Euribor365_1M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(1 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_2M:
-        return std::make_shared<QuantLib::Euribor365_2M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(2 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_3M:
-        return std::make_shared<QuantLib::Euribor365_3M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(3 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_4M:
-        return std::make_shared<QuantLib::Euribor365_4M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(4 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_5M:
-        return std::make_shared<QuantLib::Euribor365_5M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(5 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_6M:
-        return std::make_shared<QuantLib::Euribor365_6M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(6 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_7M:
-        return std::make_shared<QuantLib::Euribor365_7M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(7 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_8M:
-        return std::make_shared<QuantLib::Euribor365_8M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(8 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_9M:
-        return std::make_shared<QuantLib::Euribor365_9M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(9 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_10M:
-        return std::make_shared<QuantLib::Euribor365_10M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(10 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_11M:
-        return std::make_shared<QuantLib::Euribor365_11M>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(11 * QuantLib::Months);
     case quantra::enums::Ibor_Euribor365_1Y:
-        return std::make_shared<QuantLib::Euribor365_1Y>();
-        break;
+        return std::make_shared<QuantLib::Euribor365>(1 * QuantLib::Years);
     }
 
     QUANTRA_ERROR("Index not found");

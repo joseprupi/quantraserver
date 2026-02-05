@@ -15,4 +15,8 @@ std::shared_ptr<QuantLib::IborIndex> IborToQL(const quantra::enums::Ibor ibor);
 QuantLib::DateGeneration::Rule DateGenerationToQL(const quantra::enums::DateGenerationRule dateGeneration);
 QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compounding);
 
+// NOTE: OvernightIndex and IborFamily mapping is handled by IndexFactory
+// (parser/index_factory.h) rather than global functions, since those
+// require forwarding curve handles.
+
 #endif //ENUMS_H

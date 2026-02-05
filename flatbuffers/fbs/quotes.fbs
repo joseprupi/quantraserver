@@ -2,9 +2,20 @@ include "enums.fbs";
 
 namespace quantra;
 
+/// Market quote kind
+enum QuoteKind : byte {
+    Rate = 0,
+    Spread = 1,
+    Price = 2,
+    FuturesPrice = 3,
+    FxSpot = 4,
+    FxPoints = 5
+}
+
 /// Market quote (spot price, FX rate, etc.)
-/// Used by: EquityOption (future)
+/// Used by: Pricing.quotes[], helper quote_id references
 table QuoteSpec {
     id:string (required);
+    kind:QuoteKind = Rate;
     value:double;
 }

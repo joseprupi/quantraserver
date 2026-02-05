@@ -1,36 +1,52 @@
 #ifndef QUANTRASERVER_TERMSTRUCTUREPARSER_H
 #define QUANTRASERVER_TERMSTRUCTUREPARSER_H
 
+#include <memory>
+
 #include <ql/qldefines.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
-#include <ql/termstructures/yield/oisratehelper.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
-#include <ql/indexes/ibor/eonia.hpp>
-#include <ql/indexes/ibor/euribor.hpp>
-#include <ql/time/imm.hpp>
-#include <ql/time/calendars/target.hpp>
-#include <ql/time/daycounters/actual360.hpp>
-#include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/daycounters/actualactual.hpp>
-#include <ql/math/interpolations/cubicinterpolation.hpp>
-#include <ql/math/interpolations/loginterpolation.hpp>
 
 #include "term_structure_generated.h"
 #include "term_structure_point_parser.h"
+#include "quote_registry.h"
+#include "curve_registry.h"
+#include "index_factory.h"
 #include "enums.h"
 #include "common.h"
 
-using namespace QuantLib;
-using namespace quantra;
+namespace quantra {
 
-class TermStructureParser
-{
+/**
+ * TermStructureParser
+ *
+ * Bootstraps a PiecewiseYieldCurve from a FlatBuffers TermStructure spec.
+ *
+ * Two signatures:
+ *   1. parse(ts) - legacy, inline values only (backward compatible)
+ *   2. parse(ts, quotes, curves, indexFactory) - full multi-curve support
+ */
+class TermStructureParser {
+public:
+    /// Legacy: parse with inline values only (backward compatible)
+    std::shared_ptr<QuantLib::YieldTermStructure> parse(
+        const quantra::TermStructure* ts);
+
+    /// Full: parse with registries for quote resolution, exogenous curves, etc.
+    std::shared_ptr<QuantLib::YieldTermStructure> parse(
+        const quantra::TermStructure* ts,
+        const QuoteRegistry* quotes,
+        const CurveRegistry* curves,
+        const IndexFactory* indexFactory);
 
 private:
-public:
-    std::shared_ptr<YieldTermStructure> parse(const quantra::TermStructure *ts);
+    /// Internal: build piecewise curve from helpers
+    std::shared_ptr<QuantLib::YieldTermStructure> buildCurve(
+        const quantra::TermStructure* ts,
+        std::vector<std::shared_ptr<QuantLib::RateHelper>>& instruments);
 };
 
-#endif //QUANTRASERVER_TERMSTRUCTUREPARSER_H
+} // namespace quantra
+
+#endif // QUANTRASERVER_TERMSTRUCTUREPARSER_H

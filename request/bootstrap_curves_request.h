@@ -7,31 +7,23 @@
 #include "bootstrap_curves_response_generated.h"
 #include "term_structure_parser.h"
 #include "term_structure_point_parser.h"
+#include "curve_bootstrapper.h"
 #include "common_parser.h"
 #include "error.h"
 
 /**
  * BootstrapCurvesRequestHandler - Bootstraps yield curves and returns sampled measures.
  * 
+ * CHANGE: Now uses CurveBootstrapper for dependency-aware multi-curve bootstrapping.
+ * If curves reference each other via HelperDependencies (e.g., Euribor curve
+ * discounted with OIS), the bootstrapper handles the ordering automatically.
+ * 
  * Supports:
- * - Multiple curves in a single request
+ * - Multiple curves in a single request (with inter-curve dependencies)
  * - Measures: DF (discount factor), ZERO (zero rate), FWD (forward rate)
  * - Grid types: TenorGrid (structured {n, unit} tenors) or RangeGrid (daily/weekly sampling)
  * - Configurable zero rate conventions (compounding, frequency, day counter)
  * - Configurable forward rate conventions (instantaneous or period forward)
- * 
- * Grid types:
- * - TenorGrid: Specify tenors as structured {n, unit} pairs that map directly to QuantLib::Period.
- *   Examples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]
- *   Dates are computed relative to the curve's reference date using calendar.advance().
- * - RangeGrid: Specify start/end dates with step size for daily/weekly/monthly sampling.
- *   Useful for visualization or getting a "daily curve".
- * 
- * Forward rate types:
- * - Instantaneous: Forward rate over [d, d+eps] where eps defaults to 1 day.
- *   This approximates the instantaneous forward rate f(t).
- * - Period: Forward rate over [d, d+tenor] where tenor is configurable (e.g., 3M).
- *   This gives the implied forward rate for a specific period (like 3M LIBOR forward).
  */
 class BootstrapCurvesRequestHandler
 {
@@ -85,8 +77,7 @@ private:
     QuantLib::BusinessDayConvention getBdcFromGrid(
         const quantra::CurveGridSpec *gridSpec) const;
 
-    // Extract pillar dates from the TermStructure helpers (always works)
-    // This computes maturity dates from each helper's tenor
+    // Extract pillar dates from the TermStructure helpers
     std::vector<QuantLib::Date> extractPillarDatesFromHelpers(
         const quantra::TermStructure *termStructure,
         const QuantLib::Date &referenceDate) const;

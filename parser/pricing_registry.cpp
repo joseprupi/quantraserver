@@ -2,13 +2,17 @@
  * Pricing Registry Builder Implementation
  * 
  * Builds the PricingRegistry by delegating to type-specific parsers.
+ * 
+ * CHANGE: Curves are now bootstrapped via CurveBootstrapper, which handles
+ * dependency ordering (e.g., OIS curve before Euribor curve that uses it
+ * as exogenous discount).
  */
 
 #include "pricing_registry.h"
 
 #include <ql/settings.hpp>
 
-#include "term_structure_parser.h"
+#include "curve_bootstrapper.h"
 #include "enums.h"
 #include "common.h"
 
@@ -32,27 +36,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     PricingRegistry reg;
 
     // ==========================================================================
-    // Parse Curves
-    // ==========================================================================
-    if (!pricing->curves()) {
-        QUANTRA_ERROR("curves is required (at least one curve needed)");
-    }
-
-    TermStructureParser tsParser;
-    for (auto it = pricing->curves()->begin(); it != pricing->curves()->end(); ++it) {
-        if (!it->id()) {
-            QUANTRA_ERROR("TermStructure.id is required");
-        }
-        std::string id = it->id()->str();
-        
-        auto handle = std::make_shared<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>();
-        auto curve = tsParser.parse(*it);
-        handle->linkTo(curve);
-        reg.curves.emplace(id, handle);
-    }
-
-    // ==========================================================================
-    // Parse Quotes (optional, for equity/FX)
+    // Parse Quotes (optional, for equity/FX and now helper quote_id resolution)
     // ==========================================================================
     if (pricing->quotes()) {
         for (auto it = pricing->quotes()->begin(); it != pricing->quotes()->end(); ++it) {
@@ -60,10 +44,30 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 QUANTRA_ERROR("QuoteSpec.id is required");
             }
             std::string id = it->id()->str();
-            
             auto sq = std::make_shared<QuantLib::SimpleQuote>(it->value());
             reg.quotes.emplace(id, QuantLib::Handle<QuantLib::Quote>(sq));
         }
+    }
+
+    // ==========================================================================
+    // Parse Curves (dependency-aware via CurveBootstrapper)
+    //
+    // This replaces the old loop that bootstrapped each curve independently.
+    // CurveBootstrapper:
+    //   1. Creates empty RelinkableHandles for all curves
+    //   2. Scans helper deps to build a dependency graph
+    //   3. Topologically sorts curves
+    //   4. Bootstraps in order, linking handles progressively
+    // ==========================================================================
+    if (!pricing->curves()) {
+        QUANTRA_ERROR("curves is required (at least one curve needed)");
+    }
+
+    CurveBootstrapper bootstrapper;
+    auto booted = bootstrapper.bootstrapAll(pricing->curves(), pricing->quotes());
+
+    for (auto& kv : booted.handles) {
+        reg.curves.emplace(kv.first, kv.second);
     }
 
     // ==========================================================================
@@ -119,6 +123,18 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             reg.models[id] = spec;
         }
     }
+
+    // ==========================================================================
+    // Coupon pricers (optional)
+    // ==========================================================================
+    if (pricing->coupon_pricers()) {
+        for (auto it = pricing->coupon_pricers()->begin(); it != pricing->coupon_pricers()->end(); ++it) {
+            reg.couponPricers.emplace_back(*it);
+        }
+    }
+
+    reg.bondPricingDetails = pricing->bond_pricing_details();
+    reg.bondPricingFlows = pricing->bond_pricing_flows();
 
     return reg;
 }

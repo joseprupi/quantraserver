@@ -140,7 +140,7 @@ enum DateGenerationRule : byte {
 }
 
 // ============================================================================
-// Interest Rate Indices
+// Interest Rate Indices — IBOR
 // ============================================================================
 enum Ibor : byte {
     Euribor10M,
@@ -173,6 +173,28 @@ enum Ibor : byte {
     Euribor8M,
     Euribor9M,
     EuriborSW
+}
+
+// ============================================================================
+// Interest Rate Indices — Overnight
+// ============================================================================
+enum OvernightIndex : byte {
+    SOFR,
+    ESTR,
+    SONIA,
+    FedFunds,
+    EONIA
+}
+
+// ============================================================================
+// IBOR Index Families (for IndexSpec-based construction)
+// ============================================================================
+enum IborFamily : byte {
+    Euribor,
+    USDLibor,
+    GBPLibor,
+    JPYLibor,
+    Tibor
 }
 
 // ============================================================================

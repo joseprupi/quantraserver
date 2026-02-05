@@ -2,11 +2,6 @@ include "enums.fbs";
 
 namespace quantra;
 
-table Fixing{
-    date:string;
-    rate:float;
-} 
-
 table Index {
     period_number:int;
     period_time_unit:enums.TimeUnit;

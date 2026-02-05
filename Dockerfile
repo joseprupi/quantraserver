@@ -38,7 +38,7 @@ RUN apt-get update && \
 FROM base AS deps
 ARG GRPC_VERSION=v1.60.0
 ARG FLATBUFFERS_VERSION=v24.12.23
-ARG QUANTLIB_VERSION=1.22
+ARG QUANTLIB_VERSION=1.41
 ARG ENVOY_VERSION=1.28.0
 
 ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
@@ -102,7 +102,8 @@ RUN echo "${DEPS_INSTALL_PREFIX}/lib" > /etc/ld.so.conf.d/quantra-deps.conf && l
 # -----------------------------------------------------------------------------
 RUN echo "=== Building QuantLib ${QUANTLIB_VERSION} ===" && \
     cd /tmp && \
-    wget -q https://github.com/lballabio/QuantLib/releases/download/QuantLib-v${QUANTLIB_VERSION}/QuantLib-${QUANTLIB_VERSION}.tar.gz && \
+    # wget -q https://github.com/lballabio/QuantLib/releases/download/QuantLib-v${QUANTLIB_VERSION}/QuantLib-${QUANTLIB_VERSION}.tar.gz && \
+    wget -q https://github.com/lballabio/QuantLib/releases/download/v${QUANTLIB_VERSION}/QuantLib-${QUANTLIB_VERSION}.tar.gz && \
     tar -zxf QuantLib-${QUANTLIB_VERSION}.tar.gz && \
     cd QuantLib-${QUANTLIB_VERSION} && \
     ./configure --enable-std-pointers --prefix=${DEPS_INSTALL_PREFIX} --quiet && \

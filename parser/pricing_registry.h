@@ -10,6 +10,9 @@
  * This replaces the old VolatilityParser approach with a unified registry
  * that handles curves, quotes, vol surfaces, and models consistently.
  * 
+ * CHANGE: Curves are now bootstrapped via CurveBootstrapper, which handles
+ * dependency ordering for multi-curve setups (OIS discount + projection).
+ * 
  * Usage:
  *   PricingRegistryBuilder builder;
  *   PricingRegistry reg = builder.build(pricing);
@@ -27,6 +30,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <vector>
 
 #include <ql/handle.hpp>
 #include <ql/quote.hpp>
@@ -63,6 +67,13 @@ struct PricingRegistry {
     
     // Model specs (lazy - engine created on demand)
     std::map<std::string, const quantra::ModelSpec*> models;
+
+    // Coupon pricers (for floating rate instruments)
+    std::vector<const quantra::CouponPricer*> couponPricers;
+
+    // Bond pricing flags
+    bool bondPricingDetails = false;
+    bool bondPricingFlows = false;
 };
 
 /**
