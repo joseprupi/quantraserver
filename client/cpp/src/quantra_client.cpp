@@ -28,8 +28,12 @@ JsonResponse JsonResponse::ServerError(const std::string& error) {
 
 JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
     std::ostringstream oss;
+    std::string details = status.error_details();
+    if (details.empty()) {
+        details = status.error_message();
+    }
     oss << R"({"error": "gRPC error", "code": )" << status.error_code()
-        << R"(, "message": ")" << status.error_message() << R"("})";
+        << R"(, "message": ")" << details << R"("})";
     return {false, 500, oss.str()};
 }
 
