@@ -214,7 +214,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     }
 
     // ------------------------------------------------------------------
-    // Dated OIS helper
+    // Dated OIS helper - using OISRateHelper (DatedOISRateHelper is deprecated)
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_DatedOISHelper) {
         auto point = static_cast<const quantra::DatedOISHelper*>(data);
@@ -232,7 +232,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         Date start = DateToQL(point->start_date()->str());
         Date end   = DateToQL(point->end_date()->str());
 
-        return std::make_shared<DatedOISRateHelper>(
+        // Use OISRateHelper with explicit start/end dates constructor
+        // QuantLib 1.31+ deprecates DatedOISRateHelper in favor of OISRateHelper
+        // OISRateHelper has a constructor that takes (startDate, endDate, quote, index)
+        return std::make_shared<OISRateHelper>(
             start, end, q, on);
     }
 

@@ -1,5 +1,7 @@
 #include "cds_pricing_request.h"
 
+#include "pricing_registry.h"
+
 using namespace QuantLib;
 using namespace quantra;
 
@@ -7,29 +9,14 @@ flatbuffers::Offset<PriceCDSResponse> CDSPricingRequest::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const PriceCDSRequest *request) const
 {
-    // Parse pricing information
-    PricingParser pricing_parser;
-    TermStructureParser term_structure_parser;
+    // Build registry (handles curves with dependency ordering via CurveBootstrapper)
+    PricingRegistryBuilder regBuilder;
+    PricingRegistry reg = regBuilder.build(request->pricing());
+
     CDSParser cds_parser;
     CreditCurveParser credit_curve_parser;
 
-    auto pricing = pricing_parser.parse(request->pricing());
-
-    // Set evaluation date
-    QuantLib::Date as_of_date = DateToQL(pricing->as_of_date);
-    QuantLib::Settings::instance().evaluationDate() = as_of_date;
-
-    // Build all yield curves
-    auto curves = pricing->curves;
-    std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> term_structures;
-
-    for (auto it = curves->begin(); it != curves->end(); it++)
-    {
-        auto term_structure_handle = std::make_shared<RelinkableHandle<YieldTermStructure>>();
-        std::shared_ptr<YieldTermStructure> term_structure = term_structure_parser.parse(*it);
-        term_structure_handle->linkTo(term_structure);
-        term_structures.insert(std::make_pair(it->id()->str(), term_structure_handle));
-    }
+    Date as_of_date = Settings::instance().evaluationDate();
 
     // Process each CDS
     auto cds_pricings = request->cds_list();
@@ -40,8 +27,8 @@ flatbuffers::Offset<PriceCDSResponse> CDSPricingRequest::request(
         try
         {
             // Lookup discounting curve by ID
-            auto discounting_curve_it = term_structures.find(it->discounting_curve()->str());
-            if (discounting_curve_it == term_structures.end())
+            auto discounting_curve_it = reg.curves.find(it->discounting_curve()->str());
+            if (discounting_curve_it == reg.curves.end())
             {
                 // Create error response
                 auto error_msg = builder->CreateString("Discounting curve not found: " + it->discounting_curve()->str());

@@ -12,6 +12,20 @@ NC='\033[0m'
 
 PASSED=0
 FAILED=0
+GRPC_PID=""
+JSON_PID=""
+
+cleanup() {
+    echo ""
+    echo "Cleaning up..."
+    [ -n "$JSON_PID" ] && kill $JSON_PID 2>/dev/null
+    [ -n "$GRPC_PID" ] && kill $GRPC_PID 2>/dev/null
+    # Also kill any orphaned servers
+    pkill -f "sync_server 50051" 2>/dev/null
+    pkill -f "json_server localhost:50051" 2>/dev/null
+}
+
+trap cleanup EXIT
 
 run_test() {
     local name="$1"
@@ -39,6 +53,62 @@ skip_test() {
     echo -e "${YELLOW}⚠ SKIPPED: ${reason}${NC}"
 }
 
+start_servers() {
+    echo ""
+    echo "Starting servers..."
+    
+    # Kill any existing servers first
+    pkill -f "sync_server 50051" 2>/dev/null
+    pkill -f "json_server localhost:50051" 2>/dev/null
+    sleep 1
+    
+    # Start gRPC server
+    if [ -f "${BUILD}/server/sync_server" ]; then
+        ${BUILD}/server/sync_server 50051 > /tmp/grpc.log 2>&1 &
+        GRPC_PID=$!
+        sleep 2
+        
+        # Verify gRPC server is running
+        if ! kill -0 $GRPC_PID 2>/dev/null; then
+            echo -e "${RED}ERROR: gRPC server failed to start. Check /tmp/grpc.log${NC}"
+            cat /tmp/grpc.log
+            return 1
+        fi
+        echo "  gRPC server started (PID: $GRPC_PID)"
+    else
+        echo -e "${RED}ERROR: sync_server binary not found${NC}"
+        return 1
+    fi
+    
+    # Start JSON server
+    if [ -f "${BUILD}/jsonserver/json_server" ]; then
+        ${BUILD}/jsonserver/json_server localhost:50051 8080 > /tmp/json.log 2>&1 &
+        JSON_PID=$!
+        sleep 2
+        
+        # Verify JSON server is running
+        if ! kill -0 $JSON_PID 2>/dev/null; then
+            echo -e "${RED}ERROR: JSON server failed to start. Check /tmp/json.log${NC}"
+            cat /tmp/json.log
+            return 1
+        fi
+        echo "  JSON server started (PID: $JSON_PID)"
+    else
+        echo -e "${RED}ERROR: json_server binary not found${NC}"
+        return 1
+    fi
+    
+    # Verify JSON server health endpoint
+    sleep 1
+    if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        echo -e "${RED}ERROR: JSON server health check failed${NC}"
+        return 1
+    fi
+    echo "  Health check passed"
+    
+    return 0
+}
+
 echo ""
 echo "╔════════════════════════════════════════════╗"
 echo "║         QUANTRA TEST SUITE                 ║"
@@ -47,18 +117,10 @@ echo ""
 echo "Workspace: ${WORKSPACE}"
 echo "Build:     ${BUILD}"
 
-# Start servers if not running
-if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
-    echo ""
-    echo "Starting servers..."
-    if [ -f "${BUILD}/server/sync_server" ]; then
-        ${BUILD}/server/sync_server 50051 > /tmp/grpc.log 2>&1 &
-        sleep 2
-    fi
-    if [ -f "${BUILD}/jsonserver/json_server" ]; then
-        ${BUILD}/jsonserver/json_server localhost:50051 8080 > /tmp/json.log 2>&1 &
-        sleep 2
-    fi
+# Start servers
+if ! start_servers; then
+    echo -e "${RED}Failed to start servers. Aborting.${NC}"
+    exit 1
 fi
 
 # Test 1: C++ Unit Tests
@@ -70,6 +132,13 @@ else
     ((FAILED++))
 fi
 
+# Check if gRPC server is still alive after unit tests
+if ! kill -0 $GRPC_PID 2>/dev/null; then
+    echo -e "${RED}WARNING: gRPC server crashed during unit tests. Restarting...${NC}"
+    cat /tmp/grpc.log | tail -20
+    start_servers
+fi
+
 # Test 2: C++ gRPC Integration
 if [ -f "${BUILD}/tests/test_server_client" ]; then
     run_test "2. C++ gRPC Integration Tests" \
@@ -77,6 +146,13 @@ if [ -f "${BUILD}/tests/test_server_client" ]; then
 else
     skip_test "2. C++ gRPC Integration Tests" "Binary not found"
     ((FAILED++))
+fi
+
+# Check if gRPC server is still alive
+if ! kill -0 $GRPC_PID 2>/dev/null; then
+    echo -e "${RED}WARNING: gRPC server crashed. Restarting...${NC}"
+    cat /tmp/grpc.log | tail -20
+    start_servers
 fi
 
 # Test 3: JSON API Tests
@@ -96,6 +172,13 @@ if [ -n "$JSON_TEST" ]; then
 else
     skip_test "3. JSON HTTP API Tests" "Test file not found"
     ((FAILED++))
+fi
+
+# Check if gRPC server is still alive
+if ! kill -0 $GRPC_PID 2>/dev/null; then
+    echo -e "${RED}WARNING: gRPC server crashed. Restarting...${NC}"
+    cat /tmp/grpc.log | tail -20
+    start_servers
 fi
 
 # Test 4: Python gRPC Client

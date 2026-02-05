@@ -109,6 +109,8 @@ std::shared_ptr<QuantLib::OvernightIndex> IndexFactory::makeOvernightIndex(
         default:
             QUANTRA_ERROR("Unsupported OvernightIndex enum value");
     }
+    // Unreachable, but silences compiler warning
+    return nullptr;
 }
 
 // =============================================================================

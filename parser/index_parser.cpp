@@ -27,7 +27,7 @@ std::shared_ptr<QuantLib::IborIndex> IndexParser::parse(const quantra::Index *in
         for (int i = 0; i < fixings->size(); i++)
         {
             auto fixing = fixings->Get(i);
-            ibor_index->addFixing(DateToQL(fixing->date()->str()), fixing->rate());
+            ibor_index->addFixing(DateToQL(fixing->date()->str()), fixing->value());
         }
     }
 

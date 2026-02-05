@@ -50,7 +50,6 @@ public:
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes = nullptr
     ) const;
 
-private:
     /// Kahn's algorithm for topological sort
     static std::vector<std::string> topoSort(
         const std::unordered_map<std::string, std::vector<std::string>>& deps);

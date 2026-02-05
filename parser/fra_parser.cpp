@@ -30,14 +30,15 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(const quantra::
     indexParser.link_term_structure(forwarding_term_structure_.currentLink());
     auto iborIndex = indexParser.parse(fra->index());
 
-    // Create the FRA
+    // Create the FRA - QuantLib 1.31+ constructor: (index, valueDate, maturityDate, position, strike, notional, curve)
+    // Note: In newer QuantLib, index comes FIRST
     auto fraInstrument = std::make_shared<QuantLib::ForwardRateAgreement>(
+        iborIndex,
         startDate,
         maturityDate,
         position,
         fra->strike(),
         fra->notional(),
-        iborIndex,
         forwarding_term_structure_
     );
 

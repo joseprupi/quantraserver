@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_Ibor" : {
+      "type" : "string",
+      "enum": ["Euribor10M", "Euribor11M", "Euribor1M", "Euribor1Y", "Euribor2M", "Euribor2W", "Euribor365_10M", "Euribor365_11M", "Euribor365_1M", "Euribor365_1Y", "Euribor365_2M", "Euribor365_2W", "Euribor365_3M", "Euribor365_3W", "Euribor365_4M", "Euribor365_5M", "Euribor365_6M", "Euribor365_7M", "Euribor365_8M", "Euribor365_9M", "Euribor365_SW", "Euribor3M", "Euribor3W", "Euribor4M", "Euribor5M", "Euribor6M", "Euribor7M", "Euribor8M", "Euribor9M", "EuriborSW"]
+    },
+    "quantra_enums_OvernightIndex" : {
+      "type" : "string",
+      "enum": ["SOFR", "ESTR", "SONIA", "FedFunds", "EONIA"]
+    },
+    "quantra_enums_IborFamily" : {
+      "type" : "string",
+      "enum": ["Euribor", "USDLibor", "GBPLibor", "JPYLibor", "Tibor"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_Schedule" : {
+      "type" : "object",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "effective_date" : {
+                "type" : "string"
+              },
+        "termination_date" : {
+                "type" : "string"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "termination_date_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "end_of_month" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FixedRateBond" : {
+      "type" : "object",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "face_amount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "accrual_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "redemption" : {
+                "type" : "number"
+              },
+        "issue_date" : {
+                "type" : "string"
+              },
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule"
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_FixedRateBond"
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_CapFloorLet" : {
+      "type" : "object",
+      "properties" : {
+        "payment_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "strike" : {
+                "type" : "number"
+              },
+        "forward_rate" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CapFloorResponse" : {
+      "type" : "object",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "atm_rate" : {
+                "type" : "number"
+              },
+        "implied_volatility" : {
+                "type" : "number"
+              },
+        "cap_floor_lets" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CapFloorLet"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceCapFloorResponse" : {
+      "type" : "object",
+      "properties" : {
+        "cap_floors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CapFloorResponse"}
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceCapFloorResponse"
+}

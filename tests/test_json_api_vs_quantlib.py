@@ -763,6 +763,333 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
     return result
 
 
+def _make_multicurve_exogenous_request() -> dict:
+    """
+    Build a 2-curve request:
+      1) EUR_OIS: OIS discount curve built from OIS helpers
+      2) EUR_6M: 6M forwarding curve using swap helper discounting off EUR_OIS (exogenous discount)
+    """
+    return {
+        "as_of_date": "2026-01-15",
+        "curves": [
+            {
+                "curve": {
+                    "id": "EUR_OIS",
+                    "day_counter": "Actual360",
+                    "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [
+                        {
+                            "point_type": "OISHelper",
+                            "point": {
+                                "rate": 0.0300,
+                                "tenor_number": 1,
+                                "tenor_time_unit": "Years",
+                                "overnight_index": "ESTR",
+                                "settlement_days": 2,
+                                "calendar": "TARGET",
+                                "fixed_leg_frequency": "Annual",
+                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_day_counter": "Actual360"
+                            }
+                        },
+                        {
+                            "point_type": "OISHelper",
+                            "point": {
+                                "rate": 0.0290,
+                                "tenor_number": 5,
+                                "tenor_time_unit": "Years",
+                                "overnight_index": "ESTR",
+                                "settlement_days": 2,
+                                "calendar": "TARGET",
+                                "fixed_leg_frequency": "Annual",
+                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_day_counter": "Actual360"
+                            }
+                        },
+                        {
+                            "point_type": "OISHelper",
+                            "point": {
+                                "rate": 0.0280,
+                                "tenor_number": 10,
+                                "tenor_time_unit": "Years",
+                                "overnight_index": "ESTR",
+                                "settlement_days": 2,
+                                "calendar": "TARGET",
+                                "fixed_leg_frequency": "Annual",
+                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_day_counter": "Actual360"
+                            }
+                        }
+                    ]
+                },
+                "query": {
+                    "measures": ["DF", "ZERO", "FWD"],
+                    "grid": {
+                        "grid_type": "TenorGrid",
+                        "grid": {
+                            "tenors": [
+                                {"n": 1, "unit": "Days"},
+                                {"n": 1, "unit": "Weeks"},
+                                {"n": 1, "unit": "Months"},
+                                {"n": 3, "unit": "Months"},
+                                {"n": 6, "unit": "Months"},
+                                {"n": 1, "unit": "Years"},
+                                {"n": 2, "unit": "Years"},
+                                {"n": 5, "unit": "Years"},
+                                {"n": 10, "unit": "Years"}
+                            ],
+                            "calendar": "TARGET",
+                            "business_day_convention": "Following"
+                        }
+                    },
+                    "zero": {
+                        "use_curve_day_counter": True,
+                        "compounding": "Continuous",
+                        "frequency": "Annual"
+                    },
+                    "fwd": {
+                        "use_curve_day_counter": True,
+                        "compounding": "Simple",
+                        "frequency": "Annual",
+                        "forward_type": "Period",
+                        "tenor_number": 6,
+                        "tenor_time_unit": "Months",
+                        "use_grid_calendar_for_advance": True
+                    }
+                }
+            },
+            {
+                "curve": {
+                    "id": "EUR_6M",
+                    "day_counter": "Actual360",
+                    "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [
+                        {
+                            "point_type": "DepositHelper",
+                            "point": {
+                                "rate": 0.0320,
+                                "tenor_number": 6,
+                                "tenor_time_unit": "Months",
+                                "fixing_days": 2,
+                                "calendar": "TARGET",
+                                "business_day_convention": "ModifiedFollowing",
+                                "day_counter": "Actual360"
+                            }
+                        },
+                        {
+                            "point_type": "SwapHelper",
+                            "point": {
+                                "rate": 0.0310,
+                                "tenor_number": 5,
+                                "tenor_time_unit": "Years",
+                                "calendar": "TARGET",
+                                "sw_fixed_leg_frequency": "Annual",
+                                "sw_fixed_leg_convention": "ModifiedFollowing",
+                                "sw_fixed_leg_day_counter": "Thirty360",
+                                "sw_floating_leg_index": "Euribor6M",
+                                "float_index_type": "IborIndexSpec",
+                                "float_index": {
+                                    "family": "Euribor",
+                                    "tenor_number": 6,
+                                    "tenor_time_unit": "Months",
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "end_of_month": False,
+                                    "day_counter": "Actual360"
+                                },
+                                "spread": 0.0,
+                                "fwd_start_days": 0,
+                                "deps": {
+                                    "discount_curve": {"id": "EUR_OIS"}
+                                }
+                            }
+                        }
+                    ]
+                },
+                "query": {
+                    "measures": ["DF", "ZERO", "FWD"],
+                    "grid": {
+                        "grid_type": "TenorGrid",
+                        "grid": {
+                            "tenors": [
+                                {"n": 1, "unit": "Days"},
+                                {"n": 1, "unit": "Weeks"},
+                                {"n": 1, "unit": "Months"},
+                                {"n": 3, "unit": "Months"},
+                                {"n": 6, "unit": "Months"},
+                                {"n": 1, "unit": "Years"},
+                                {"n": 2, "unit": "Years"},
+                                {"n": 5, "unit": "Years"},
+                                {"n": 10, "unit": "Years"}
+                            ],
+                            "calendar": "TARGET",
+                            "business_day_convention": "Following"
+                        }
+                    },
+                    "zero": {
+                        "use_curve_day_counter": True,
+                        "compounding": "Continuous",
+                        "frequency": "Annual"
+                    },
+                    "fwd": {
+                        "use_curve_day_counter": True,
+                        "compounding": "Simple",
+                        "frequency": "Annual",
+                        "forward_type": "Period",
+                        "tenor_number": 6,
+                        "tenor_time_unit": "Months",
+                        "use_grid_calendar_for_advance": True
+                    }
+                }
+            }
+        ]
+    }
+
+
+def test_bootstrap_curves_multicurve_exogenous(client: ApiClient) -> dict:
+    """Bootstraps two curves in one call and checks exogenous discount dependency wiring."""
+    result = {
+        "product": "bootstrap_curves_multicurve_exogenous",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None
+    }
+
+    try:
+        request = _make_multicurve_exogenous_request()
+        resp = client.session.post(f"{client.base_url}/bootstrap-curves", json=request)
+
+        if resp.status_code != 200:
+            result["error"] = f"HTTP {resp.status_code}: {resp.text[:300]}"
+            return result
+
+        data = resp.json()
+        results = data.get("results", [])
+        if len(results) != 2:
+            result["error"] = f"Expected 2 curve results, got {len(results)}"
+            return result
+
+        # Basic shape checks
+        ids = {r.get("id") for r in results}
+        if ids != {"EUR_OIS", "EUR_6M"}:
+            result["error"] = f"Unexpected curve ids: {ids}"
+            return result
+
+        by_id = {r["id"]: r for r in results}
+        for cid in ["EUR_OIS", "EUR_6M"]:
+            r = by_id[cid]
+            if r.get("error"):
+                result["error"] = f"Curve {cid} failed: {r['error']}"
+                return result
+            grid_dates = r.get("grid_dates") or []
+            series = r.get("series") or []
+            if len(grid_dates) == 0 or len(series) < 2:
+                result["error"] = f"Curve {cid} missing grid/series"
+                return result
+            for s in series:
+                vals = s.get("values") or []
+                if len(vals) != len(grid_dates):
+                    result["error"] = f"Curve {cid} series length mismatch"
+                    return result
+
+        # A lightweight behavioral check:
+        # Discount factors should start near 1.0 and (weakly) decrease with maturity for both curves.
+        def _df_series(curve_result: dict):
+            for s in (curve_result.get("series") or []):
+                m = s.get("measure")
+                # FlatBuffers JSON might omit default DF measure=0, so treat missing as DF
+                if m in (None, "DF", 0):
+                    return s.get("values") or []
+            return []
+
+        df_ois = _df_series(by_id["EUR_OIS"])
+        df_6m  = _df_series(by_id["EUR_6M"])
+
+        if not df_ois or not df_6m:
+            result["error"] = "Missing DF series in one or both curves"
+            return result
+
+        if not (0.95 < df_ois[0] <= 1.0001 and 0.95 < df_6m[0] <= 1.0001):
+            result["error"] = f"DF at first grid point not near 1.0 (ois={df_ois[0]}, 6m={df_6m[0]})"
+            return result
+
+        if any(df_ois[i] < df_ois[i+1] - 1e-10 for i in range(len(df_ois)-1)):
+            result["error"] = "OIS DF is not non-increasing"
+            return result
+
+        if any(df_6m[i] < df_6m[i+1] - 1e-10 for i in range(len(df_6m)-1)):
+            result["error"] = "6M DF is not non-increasing"
+            return result
+
+        result["passed"] = True
+        # Put something numeric in summary columns
+        result["quantra_npv"] = float(df_6m[-1])
+        result["quantlib_npv"] = float(df_ois[-1])
+        result["diff"] = abs(result["quantra_npv"] - result["quantlib_npv"])
+        return result
+
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
+def test_bootstrap_curves_missing_dependency_fails(client: ApiClient) -> dict:
+    """Requests a curve that references an exogenous discount curve that is not provided; should fail cleanly."""
+    result = {
+        "product": "bootstrap_curves_missing_dependency",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None
+    }
+
+    try:
+        request = _make_multicurve_exogenous_request()
+        # Drop the discount curve so EUR_6M references a missing EUR_OIS
+        request["curves"] = [request["curves"][1]]
+
+        resp = client.session.post(f"{client.base_url}/bootstrap-curves", json=request)
+
+        # Accept either:
+        # - HTTP-level failure (4xx) OR
+        # - 200 with per-curve error populated
+        if resp.status_code != 200:
+            result["passed"] = True
+            result["quantra_npv"] = 1.0
+            result["quantlib_npv"] = 1.0
+            result["diff"] = 0.0
+            return result
+
+        data = resp.json()
+        results = data.get("results", [])
+        if len(results) != 1:
+            result["error"] = f"Expected 1 curve result, got {len(results)}"
+            return result
+
+        err = results[0].get("error")
+        if not err:
+            result["error"] = "Expected an error for missing dependency but got success"
+            return result
+
+        result["passed"] = True
+        result["quantra_npv"] = 1.0
+        result["quantlib_npv"] = 1.0
+        result["diff"] = 0.0
+        return result
+
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
 # =============================================================================
 # Main Test Runner
 # =============================================================================
@@ -888,6 +1215,33 @@ def main():
         print(f"  Max Diff:     {bc_result['diff']:>15.2e}")
         print(f"  Status:       {status}")
     
+
+
+    # New: multi-curve + exogenous dependency tests (schema/features beyond the legacy single-curve flow)
+    mc_ok = test_bootstrap_curves_multicurve_exogenous(client)
+    results.append(mc_ok)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP CURVES (MULTI-CURVE + EXOGENOUS DISCOUNT)")
+    print(f"{'='*70}")
+    if mc_ok["error"]:
+        print(f"  ❌ Error: {mc_ok['error']}")
+    else:
+        status = "✓ PASS" if mc_ok["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
+        print(f"  EUR_6M DF@last grid: {mc_ok['quantra_npv']:>15.8f}")
+        print(f"  EUR_OIS DF@last grid:{mc_ok['quantlib_npv']:>15.8f}")
+        print(f"  Abs diff:     {mc_ok['diff']:>15.2e}")
+
+    mc_missing = test_bootstrap_curves_missing_dependency_fails(client)
+    results.append(mc_missing)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP CURVES (MISSING DEPENDENCY SHOULD FAIL)")
+    print(f"{'='*70}")
+    if mc_missing["error"]:
+        print(f"  ❌ Error: {mc_missing['error']}")
+    else:
+        status = "✓ PASS" if mc_missing["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
     # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")

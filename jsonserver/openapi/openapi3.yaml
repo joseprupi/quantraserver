@@ -533,6 +533,22 @@ components:
       - Euribor8M
       - Euribor9M
       - EuriborSW
+    quantra_enums_OvernightIndex:
+      type: string
+      enum:
+      - SOFR
+      - ESTR
+      - SONIA
+      - FedFunds
+      - EONIA
+    quantra_enums_IborFamily:
+      type: string
+      enum:
+      - Euribor
+      - USDLibor
+      - GBPLibor
+      - JPYLibor
+      - Tibor
     quantra_enums_Compounding:
       type: string
       enum:
@@ -593,6 +609,12 @@ components:
       enum:
       - BlackScholesAnalytic
       - BinomialCRR
+    quantra_IndexSpec:
+      type: string
+      enum:
+      - NONE
+      - IborIndexSpec
+      - OvernightIndexSpec
     quantra_Point:
       type: string
       enum:
@@ -602,6 +624,11 @@ components:
       - FutureHelper
       - SwapHelper
       - BondHelper
+      - OISHelper
+      - DatedOISHelper
+      - TenorBasisSwapHelper
+      - FxSwapHelper
+      - CrossCcyBasisHelper
     quantra_CurveMeasure:
       type: string
       enum:
@@ -639,6 +666,89 @@ components:
         end_of_month:
           type: boolean
       additionalProperties: false
+    quantra_IborIndexSpec:
+      type: object
+      description: IBOR index fully described by conventions
+      properties:
+        family:
+          $ref: '#/components/schemas/quantra_enums_IborFamily'
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        fixing_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        end_of_month:
+          type: boolean
+      additionalProperties: false
+    quantra_OvernightIndexSpec:
+      type: object
+      description: Overnight index fully described by conventions
+      properties:
+        name:
+          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
+        fixing_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+      additionalProperties: false
+    quantra_CurveRef:
+      type: object
+      properties:
+        id:
+          type: string
+      required:
+      - id
+      additionalProperties: false
+    quantra_HelperDependencies:
+      type: object
+      properties:
+        discount_curve:
+          $ref: '#/components/schemas/quantra_CurveRef'
+        projection_curve:
+          $ref: '#/components/schemas/quantra_CurveRef'
+        projection_curve_2:
+          $ref: '#/components/schemas/quantra_CurveRef'
+        fx_spot_quote_id:
+          type: string
+      additionalProperties: false
+    quantra_Fixing:
+      type: object
+      properties:
+        date:
+          type: string
+        value:
+          type: number
+      required:
+      - date
+      additionalProperties: false
+    quantra_IndexFixings:
+      type: object
+      properties:
+        index_id:
+          type: string
+        fixings:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_Fixing'
+      required:
+      - index_id
+      - fixings
+      additionalProperties: false
     quantra_DepositHelper:
       type: object
       properties:
@@ -660,6 +770,10 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
+        quote_id:
+          type: string
+          description: 'Optional: reference a shared quote by id instead of inline
+            rate'
       additionalProperties: false
     quantra_FRAHelper:
       type: object
@@ -684,6 +798,8 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_FutureHelper:
       type: object
@@ -702,6 +818,14 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
+        futures_price:
+          type: number
+          description: Futures price (e.g. 95.25); if set, rate is ignored
+        convexity_adjustment:
+          type: number
+          description: Convexity adjustment added to implied rate
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_SwapHelper:
       type: object
@@ -724,12 +848,24 @@ components:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         sw_floating_leg_index:
           $ref: '#/components/schemas/quantra_enums_Ibor'
+        float_index_type:
+          $ref: '#/components/schemas/quantra_IndexSpec'
+        float_index:
+          description: 'NEW: data-driven index spec (takes precedence over sw_floating_leg_index
+            if set)'
+          anyOf:
+          - $ref: '#/components/schemas/quantra_IborIndexSpec'
+          - $ref: '#/components/schemas/quantra_OvernightIndexSpec'
         spread:
           type: number
         fwd_start_days:
           type: integer
           minimum: -2147483648
           maximum: 2147483647
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_BondHelper:
       type: object
@@ -754,6 +890,136 @@ components:
           type: number
         issue_date:
           type: string
+        price:
+          type: number
+          description: Bond price (preferred over rate for clarity)
+        quote_id:
+          type: string
+      additionalProperties: false
+    quantra_OISHelper:
+      type: object
+      properties:
+        rate:
+          type: number
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        overnight_index:
+          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
+        overnight_index_spec:
+          $ref: '#/components/schemas/quantra_OvernightIndexSpec'
+        settlement_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        fixed_leg_frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+        fixed_leg_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        fixed_leg_day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        quote_id:
+          type: string
+      additionalProperties: false
+    quantra_DatedOISHelper:
+      type: object
+      properties:
+        rate:
+          type: number
+        start_date:
+          type: string
+        end_date:
+          type: string
+        overnight_index:
+          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
+        overnight_index_spec:
+          $ref: '#/components/schemas/quantra_OvernightIndexSpec'
+        settlement_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        fixed_leg_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        fixed_leg_day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        quote_id:
+          type: string
+      required:
+      - start_date
+      - end_date
+      additionalProperties: false
+    quantra_TenorBasisSwapHelper:
+      type: object
+      properties:
+        spread:
+          type: number
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        index_short:
+          $ref: '#/components/schemas/quantra_enums_Ibor'
+        index_long:
+          $ref: '#/components/schemas/quantra_enums_Ibor'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
+        quote_id:
+          type: string
+      additionalProperties: false
+    quantra_FxSwapHelper:
+      type: object
+      properties:
+        fx_points:
+          type: number
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        spot_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        calendar_domestic:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        calendar_foreign:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
+        quote_id:
+          type: string
+      additionalProperties: false
+    quantra_CrossCcyBasisHelper:
+      type: object
+      properties:
+        spread:
+          type: number
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        index_domestic:
+          $ref: '#/components/schemas/quantra_enums_Ibor'
+        index_foreign:
+          $ref: '#/components/schemas/quantra_enums_Ibor'
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_PointsWrapper:
       type: object
@@ -767,6 +1033,11 @@ components:
           - $ref: '#/components/schemas/quantra_FutureHelper'
           - $ref: '#/components/schemas/quantra_SwapHelper'
           - $ref: '#/components/schemas/quantra_BondHelper'
+          - $ref: '#/components/schemas/quantra_OISHelper'
+          - $ref: '#/components/schemas/quantra_DatedOISHelper'
+          - $ref: '#/components/schemas/quantra_TenorBasisSwapHelper'
+          - $ref: '#/components/schemas/quantra_FxSwapHelper'
+          - $ref: '#/components/schemas/quantra_CrossCcyBasisHelper'
       additionalProperties: false
     quantra_TermStructure:
       type: object
@@ -986,6 +1257,15 @@ components:
       enum:
       - NONE
       - BlackIborCouponPricer
+    quantra_QuoteKind:
+      type: string
+      enum:
+      - Rate
+      - Spread
+      - Price
+      - FuturesPrice
+      - FxSpot
+      - FxPoints
     quantra_ModelPayload:
       type: string
       enum:
@@ -1113,10 +1393,12 @@ components:
       type: object
       description: 'Market quote (spot price, FX rate, etc.)
 
-        Used by: EquityOption (future)'
+        Used by: Pricing.quotes[], helper quote_id references'
       properties:
         id:
           type: string
+        kind:
+          $ref: '#/components/schemas/quantra_QuoteKind'
         value:
           type: number
       required:
@@ -1371,14 +1653,6 @@ components:
             $ref: '#/components/schemas/quantra_BootstrapCurveResult'
       required:
       - results
-      additionalProperties: false
-    quantra_Fixing:
-      type: object
-      properties:
-        date:
-          type: string
-        rate:
-          type: number
       additionalProperties: false
     quantra_Index:
       type: object

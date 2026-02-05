@@ -1,5 +1,7 @@
 #include "vanilla_swap_pricing_request.h"
 
+#include "pricing_registry.h"
+
 using namespace QuantLib;
 using namespace quantra;
 
@@ -7,28 +9,12 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const PriceVanillaSwapRequest *request) const
 {
-    // Parse pricing information
-    PricingParser pricing_parser;
-    TermStructureParser term_structure_parser;
+    // Build registry (handles curves with dependency ordering via CurveBootstrapper)
+    PricingRegistryBuilder regBuilder;
+    PricingRegistry reg = regBuilder.build(request->pricing());
+
     VanillaSwapParser swap_parser;
-
-    auto pricing = pricing_parser.parse(request->pricing());
-
-    // Set evaluation date
-    Date as_of_date = DateToQL(pricing->as_of_date);
-    Settings::instance().evaluationDate() = as_of_date;
-
-    // Build term structures map
-    auto curves = pricing->curves;
-    std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> term_structures;
-
-    for (auto it = curves->begin(); it != curves->end(); it++)
-    {
-        auto term_structure_handle = std::make_shared<RelinkableHandle<YieldTermStructure>>();
-        std::shared_ptr<YieldTermStructure> term_structure = term_structure_parser.parse(*it);
-        term_structure_handle->linkTo(term_structure);
-        term_structures.insert(std::make_pair(it->id()->str(), term_structure_handle));
-    }
+    Date as_of_date = Settings::instance().evaluationDate();
 
     // Check if we should include flows
     bool include_flows = request->include_flows();
@@ -40,15 +26,15 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
     for (auto it = swap_pricings->begin(); it != swap_pricings->end(); it++)
     {
         // Get discounting curve
-        auto discounting_curve_it = term_structures.find(it->discounting_curve()->str());
-        if (discounting_curve_it == term_structures.end())
+        auto discounting_curve_it = reg.curves.find(it->discounting_curve()->str());
+        if (discounting_curve_it == reg.curves.end())
         {
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
         }
 
         // Get forwarding curve (may be same as discounting)
-        auto forwarding_curve_it = term_structures.find(it->forwarding_curve()->str());
-        if (forwarding_curve_it == term_structures.end())
+        auto forwarding_curve_it = reg.curves.find(it->forwarding_curve()->str());
+        if (forwarding_curve_it == reg.curves.end())
         {
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
         }

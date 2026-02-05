@@ -57,7 +57,16 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
     std::vector<std::shared_ptr<RateHelper>>& instruments)
 {
     double tolerance = 1.0e-15;
-    Date ref = DateToQL(ts->reference_date()->str());
+    
+    // FIX: Handle null reference_date by using evaluation date as fallback
+    Date ref;
+    if (ts->reference_date()) {
+        ref = DateToQL(ts->reference_date()->str());
+    } else {
+        // Use the global evaluation date as fallback
+        ref = Settings::instance().evaluationDate();
+    }
+    
     DayCounter dc = DayCounterToQL(ts->day_counter());
 
     switch (ts->interpolator()) {
