@@ -5,13 +5,15 @@ include "schedule.fbs";
 namespace quantra;
 
 // Cap or Floor instrument
-// CapFloorType enum now in enums.fbs
 table CapFloor {
     cap_floor_type:enums.CapFloorType;
     notional:double;
     strike:double;                           // Strike rate (e.g., 0.04 for 4%)
     schedule:Schedule;                       // Payment schedule
-    index:Index;                             // Reference index (e.g., 3M Euribor)
+
+    /// Reference to an IndexDef by id (e.g., "EUR_3M")
+    index:IndexRef (required);
+
     day_counter:enums.DayCounter;
     business_day_convention:enums.BusinessDayConvention;
 }

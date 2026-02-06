@@ -7,11 +7,6 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # Sample the curve between start/end with a step.
-# Use this for "daily curve until X".
-#
-# Note on business_days_only: 
-# - Requires a real calendar (not NullCalendar) to skip weekends/holidays
-# - If business_days_only=true with NullCalendar, falls back to WeekendsOnly
 class RangeGrid(object):
     __slots__ = ['_tab']
 
@@ -30,7 +25,6 @@ class RangeGrid(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # If omitted, server defaults to as_of_date.
     # RangeGrid
     def StartDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -38,7 +32,6 @@ class RangeGrid(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Required end date (YYYY-MM-DD or YYYY/MM/DD).
     # RangeGrid
     def EndDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -46,7 +39,6 @@ class RangeGrid(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Step size, e.g. 1 Days for daily, 1 Weeks, 1 Months.
     # RangeGrid
     def StepNumber(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -61,8 +53,6 @@ class RangeGrid(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # If true, generate only business days using the calendar below.
-    # Requires a non-NullCalendar to properly skip weekends/holidays.
     # RangeGrid
     def BusinessDaysOnly(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -70,7 +60,6 @@ class RangeGrid(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Calendar used for business day checks and date advancement.
     # RangeGrid
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -78,7 +67,6 @@ class RangeGrid(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 21
 
-    # Business day convention used when adjusting generated dates.
     # RangeGrid
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

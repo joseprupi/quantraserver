@@ -145,6 +145,43 @@ def get_ibor_index(name: str):
 # Curve Building
 # =============================================================================
 
+
+def find_index_def(idx_id, request_data):
+    """Find an IndexDef in the request's indices array by id."""
+    pricing = request_data.get("pricing", request_data)
+    indices = pricing.get("indices", [])
+    for idef in indices:
+        if idef.get("id") == idx_id:
+            return idef
+    # Also check top-level indices (for bootstrap requests)
+    for idef in request_data.get("indices", []):
+        if idef.get("id") == idx_id:
+            return idef
+    return None
+
+
+def resolve_index_from_id(idx_id, request_data):
+    """Resolve an IndexRef id to a QuantLib index for QuantLib-side comparison."""
+    idx_def = find_index_def(idx_id, request_data)
+    if idx_def:
+        period = idx_def.get("tenor_number", 6)
+    else:
+        # Fallback: parse from id like "EUR_6M"
+        if "3M" in idx_id:
+            period = 3
+        elif "6M" in idx_id:
+            period = 6
+        else:
+            period = 6
+    
+    if period == 3:
+        return ql.Euribor3M()
+    elif period == 6:
+        return ql.Euribor6M()
+    else:
+        return ql.Euribor6M()
+
+
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     helpers = []
@@ -322,8 +359,12 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     )
     
     # Get index info
-    idx = bond.get("index", {})
-    period_months = idx.get("period_number", 6)
+    idx_ref = bond.get("index", {})
+    idx_id = idx_ref.get("id", "EUR_6M") if isinstance(idx_ref, dict) else "EUR_6M"
+    
+    # Resolve index from definitions
+    idx_def = find_index_def(idx_id, request)
+    period_months = idx_def.get("tenor_number", 6) if idx_def else 6
     
     # Create index with forecasting curve
     if period_months == 3:
@@ -333,10 +374,11 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     else:
         index = ql.Euribor6M(forecast_curve)
     
-    # Add any fixings from the JSON
-    for fixing in idx.get("fixings", []):
-        fixing_date = parse_date(fixing["date"])
-        index.addFixing(fixing_date, fixing["rate"])
+    # Add any fixings from the IndexDef
+    if idx_def:
+        for fixing in idx_def.get("fixings", []):
+            fixing_date = parse_date(fixing["date"])
+            index.addFixing(fixing_date, fixing["value"])
     
     # Build floating rate bond
     ql_bond = ql.FloatingRateBond(
@@ -360,8 +402,8 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     pricer = ql.BlackIborCouponPricer()
     volatility = ql.ConstantOptionletVolatility(
         bond.get("settlement_days", 2),
-        get_calendar(idx.get("calendar", "TARGET")),
-        get_convention(idx.get("business_day_convention", "ModifiedFollowing")),
+        get_calendar((idx_def or {}).get("calendar", "TARGET")),
+        get_convention((idx_def or {}).get("business_day_convention", "ModifiedFollowing")),
         0.0,  # zero volatility for simple pricing
         ql.Actual365Fixed()
     )
@@ -450,7 +492,12 @@ def price_fra_ql(request: dict) -> float:
     
     # Get index period from JSON
     idx = fra.get("index", {})
-    period_months = idx.get("period_number", 3)
+    # New schema: index is IndexRef with just id
+    if isinstance(idx, dict) and "id" in idx:
+        idx_def = find_index_def(idx["id"], request)
+        period_months = idx_def.get("tenor_number", 3) if idx_def else 3
+    else:
+        period_months = idx.get("period_number", 3)
     
     if period_months == 3:
         index = ql.Euribor3M(curve)
@@ -496,7 +543,12 @@ def price_cap_floor_ql(request: dict) -> float:
     
     # Get index
     idx = cf.get("index", {})
-    period_months = idx.get("period_number", 3)
+    # New schema: index is IndexRef with just id
+    if isinstance(idx, dict) and "id" in idx:
+        idx_def = find_index_def(idx["id"], request)
+        period_months = idx_def.get("tenor_number", 3) if idx_def else 3
+    else:
+        period_months = idx.get("period_number", 3)
     index = ql.Euribor3M(curve) if period_months == 3 else ql.Euribor6M(curve)
     
     # Build cap or floor
@@ -702,7 +754,11 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
             elif point_type == "SwapHelper":
                 tenor = ql.Period(point["tenor_number"],
                                   get_time_unit(point["tenor_time_unit"]))
-                index = get_ibor_index(point["sw_floating_leg_index"])
+                # New schema: float_index is an IndexRef with just an id
+                float_idx = point.get("float_index", {})
+                idx_id = float_idx.get("id", "EUR_6M") if isinstance(float_idx, dict) else "EUR_6M"
+                # Resolve index from indices definitions in the request
+                index = resolve_index_from_id(idx_id, request)
                 fwd_start = ql.Period(point.get("fwd_start_days", 0), ql.Days)
                 helpers.append(ql.SwapRateHelper(
                     point["rate"], tenor,
@@ -771,6 +827,33 @@ def _make_multicurve_exogenous_request() -> dict:
     """
     return {
         "as_of_date": "2026-01-15",
+        "indices": [
+            {
+                "id": "EUR_6M",
+                "name": "Euribor",
+                "index_type": "Ibor",
+                "tenor_number": 6,
+                "tenor_time_unit": "Months",
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "end_of_month": False,
+                "currency": "EUR"
+            },
+            {
+                "id": "EUR_ESTR",
+                "name": "ESTR",
+                "index_type": "Overnight",
+                "tenor_number": 0,
+                "tenor_time_unit": "Days",
+                "fixing_days": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "Following",
+                "day_counter": "Actual360",
+                "currency": "EUR"
+            }
+        ],
         "curves": [
             {
                 "curve": {
@@ -785,7 +868,7 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "rate": 0.0300,
                                 "tenor_number": 1,
                                 "tenor_time_unit": "Years",
-                                "overnight_index": "ESTR",
+                                "overnight_index": {"id": "EUR_ESTR"},
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
@@ -799,7 +882,7 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "rate": 0.0290,
                                 "tenor_number": 5,
                                 "tenor_time_unit": "Years",
-                                "overnight_index": "ESTR",
+                                "overnight_index": {"id": "EUR_ESTR"},
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
@@ -813,7 +896,7 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "rate": 0.0280,
                                 "tenor_number": 10,
                                 "tenor_time_unit": "Years",
-                                "overnight_index": "ESTR",
+                                "overnight_index": {"id": "EUR_ESTR"},
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
@@ -888,18 +971,7 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "sw_fixed_leg_frequency": "Annual",
                                 "sw_fixed_leg_convention": "ModifiedFollowing",
                                 "sw_fixed_leg_day_counter": "Thirty360",
-                                "sw_floating_leg_index": "Euribor6M",
-                                "float_index_type": "IborIndexSpec",
-                                "float_index": {
-                                    "family": "Euribor",
-                                    "tenor_number": 6,
-                                    "tenor_time_unit": "Months",
-                                    "fixing_days": 2,
-                                    "calendar": "TARGET",
-                                    "business_day_convention": "ModifiedFollowing",
-                                    "end_of_month": False,
-                                    "day_counter": "Actual360"
-                                },
+                                "float_index": {"id": "EUR_6M"},
                                 "spread": 0.0,
                                 "fwd_start_days": 0,
                                 "deps": {

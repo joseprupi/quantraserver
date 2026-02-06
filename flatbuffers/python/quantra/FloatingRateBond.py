@@ -49,13 +49,14 @@ class FloatingRateBond(object):
             return obj
         return None
 
+    # Reference to an IndexDef by id (e.g., "EUR_6M")
     # FloatingRateBond
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Index import Index
-            obj = Index()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -199,7 +200,7 @@ class FloatingRateBondT(object):
         self.settlementDays = 0  # type: int
         self.faceAmount = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
-        self.index = None  # type: Optional[IndexT]
+        self.index = None  # type: Optional[IndexRefT]
         self.accrualDayCounter = 0  # type: int
         self.paymentConvention = 0  # type: int
         self.fixingDays = 0  # type: int
@@ -234,7 +235,7 @@ class FloatingRateBondT(object):
         if floatingRateBond.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(floatingRateBond.Schedule())
         if floatingRateBond.Index() is not None:
-            self.index = IndexT.InitFromObj(floatingRateBond.Index())
+            self.index = IndexRefT.InitFromObj(floatingRateBond.Index())
         self.accrualDayCounter = floatingRateBond.AccrualDayCounter()
         self.paymentConvention = floatingRateBond.PaymentConvention()
         self.fixingDays = floatingRateBond.FixingDays()

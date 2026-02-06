@@ -45,19 +45,28 @@ class TenorBasisSwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Short tenor index (e.g., "EUR_3M")
     # TenorBasisSwapHelper
     def IndexShort(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
+    # Long tenor index (e.g., "EUR_6M")
     # TenorBasisSwapHelper
     def IndexLong(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = IndexRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # TenorBasisSwapHelper
     def Calendar(self):
@@ -109,13 +118,13 @@ def AddTenorTimeUnit(builder, tenorTimeUnit):
     TenorBasisSwapHelperAddTenorTimeUnit(builder, tenorTimeUnit)
 
 def TenorBasisSwapHelperAddIndexShort(builder, indexShort):
-    builder.PrependInt8Slot(3, indexShort, 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexShort), 0)
 
 def AddIndexShort(builder, indexShort):
     TenorBasisSwapHelperAddIndexShort(builder, indexShort)
 
 def TenorBasisSwapHelperAddIndexLong(builder, indexLong):
-    builder.PrependInt8Slot(4, indexLong, 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(indexLong), 0)
 
 def AddIndexLong(builder, indexLong):
     TenorBasisSwapHelperAddIndexLong(builder, indexLong)
@@ -156,8 +165,8 @@ class TenorBasisSwapHelperT(object):
         self.spread = 0.0  # type: float
         self.tenorNumber = 0  # type: int
         self.tenorTimeUnit = 0  # type: int
-        self.indexShort = 0  # type: int
-        self.indexLong = 0  # type: int
+        self.indexShort = None  # type: Optional[IndexRefT]
+        self.indexLong = None  # type: Optional[IndexRefT]
         self.calendar = 0  # type: int
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
@@ -186,8 +195,10 @@ class TenorBasisSwapHelperT(object):
         self.spread = tenorBasisSwapHelper.Spread()
         self.tenorNumber = tenorBasisSwapHelper.TenorNumber()
         self.tenorTimeUnit = tenorBasisSwapHelper.TenorTimeUnit()
-        self.indexShort = tenorBasisSwapHelper.IndexShort()
-        self.indexLong = tenorBasisSwapHelper.IndexLong()
+        if tenorBasisSwapHelper.IndexShort() is not None:
+            self.indexShort = IndexRefT.InitFromObj(tenorBasisSwapHelper.IndexShort())
+        if tenorBasisSwapHelper.IndexLong() is not None:
+            self.indexLong = IndexRefT.InitFromObj(tenorBasisSwapHelper.IndexLong())
         self.calendar = tenorBasisSwapHelper.Calendar()
         if tenorBasisSwapHelper.Deps() is not None:
             self.deps = HelperDependenciesT.InitFromObj(tenorBasisSwapHelper.Deps())
@@ -195,6 +206,10 @@ class TenorBasisSwapHelperT(object):
 
     # TenorBasisSwapHelperT
     def Pack(self, builder):
+        if self.indexShort is not None:
+            indexShort = self.indexShort.Pack(builder)
+        if self.indexLong is not None:
+            indexLong = self.indexLong.Pack(builder)
         if self.deps is not None:
             deps = self.deps.Pack(builder)
         if self.quoteId is not None:
@@ -203,8 +218,10 @@ class TenorBasisSwapHelperT(object):
         TenorBasisSwapHelperAddSpread(builder, self.spread)
         TenorBasisSwapHelperAddTenorNumber(builder, self.tenorNumber)
         TenorBasisSwapHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
-        TenorBasisSwapHelperAddIndexShort(builder, self.indexShort)
-        TenorBasisSwapHelperAddIndexLong(builder, self.indexLong)
+        if self.indexShort is not None:
+            TenorBasisSwapHelperAddIndexShort(builder, indexShort)
+        if self.indexLong is not None:
+            TenorBasisSwapHelperAddIndexLong(builder, indexLong)
         TenorBasisSwapHelperAddCalendar(builder, self.calendar)
         if self.deps is not None:
             TenorBasisSwapHelperAddDeps(builder, deps)

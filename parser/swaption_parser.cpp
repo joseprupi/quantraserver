@@ -1,6 +1,8 @@
 #include "swaption_parser.h"
 
-std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(const quantra::Swaption *swaption)
+std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
+    const quantra::Swaption *swaption,
+    const quantra::IndexRegistry& indices)
 {
     if (swaption == NULL)
         QUANTRA_ERROR("Swaption not found");
@@ -11,10 +13,10 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(const quantra::Swaptio
     // Parse exercise date
     QuantLib::Date exerciseDate = DateToQL(swaption->exercise_date()->str());
 
-    // Parse underlying swap
+    // Parse underlying swap (passing indices for floating leg resolution)
     VanillaSwapParser swapParser;
     swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
-    auto underlyingSwap = swapParser.parse(swaption->underlying_swap());
+    auto underlyingSwap = swapParser.parse(swaption->underlying_swap(), indices);
 
     // Create exercise based on type
     std::shared_ptr<QuantLib::Exercise> exercise;
@@ -23,11 +25,9 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(const quantra::Swaptio
             exercise = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
             break;
         case quantra::enums::ExerciseType_Bermudan:
-            // For now, treat as European - full Bermudan needs multiple dates
             exercise = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
             break;
         case quantra::enums::ExerciseType_American:
-            // American exercise from today to exercise date
             exercise = std::make_shared<QuantLib::AmericanExercise>(
                 QuantLib::Settings::instance().evaluationDate(),
                 exerciseDate
@@ -50,7 +50,6 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(const quantra::Swaptio
             settlementType = QuantLib::Settlement::Physical;
     }
 
-    // Create swaption
     auto swaptionInstrument = std::make_shared<QuantLib::Swaption>(
         underlyingSwap,
         exercise,

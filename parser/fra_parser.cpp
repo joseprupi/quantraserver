@@ -1,12 +1,14 @@
 #include "fra_parser.h"
 
-std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(const quantra::FRA *fra)
+std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
+    const quantra::FRA *fra,
+    const quantra::IndexRegistry& indices)
 {
     if (fra == NULL)
         QUANTRA_ERROR("FRA not found");
 
-    if (fra->index() == NULL)
-        QUANTRA_ERROR("FRA index not found");
+    if (!fra->index() || !fra->index()->id())
+        QUANTRA_ERROR("FRA index.id is required");
 
     // Parse dates
     Date startDate = DateToQL(fra->start_date()->str());
@@ -25,13 +27,10 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(const quantra::
             QUANTRA_ERROR("Invalid FRA type");
     }
 
-    // Parse index
-    IndexParser indexParser;
-    indexParser.link_term_structure(forwarding_term_structure_.currentLink());
-    auto iborIndex = indexParser.parse(fra->index());
+    // Resolve index from registry and clone with forwarding curve
+    std::string indexId = fra->index()->id()->str();
+    auto iborIndex = indices.getIborWithCurve(indexId, forwarding_term_structure_);
 
-    // Create the FRA - QuantLib 1.31+ constructor: (index, valueDate, maturityDate, position, strike, notional, curve)
-    // Note: In newer QuantLib, index comes FIRST
     auto fraInstrument = std::make_shared<QuantLib::ForwardRateAgreement>(
         iborIndex,
         startDate,

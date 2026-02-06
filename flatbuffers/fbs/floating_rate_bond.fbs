@@ -8,7 +8,10 @@ table FloatingRateBond {
     settlement_days:int;
     face_amount:double;
     schedule:Schedule;
-    index:Index;
+
+    /// Reference to an IndexDef by id (e.g., "EUR_6M")
+    index:IndexRef (required);
+
     accrual_day_counter:enums.DayCounter;
     payment_convention:enums.BusinessDayConvention;
     fixing_days:int;

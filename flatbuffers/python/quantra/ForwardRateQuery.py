@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Options for forward rate output.
 class ForwardRateQuery(object):
     __slots__ = ['_tab']
 
@@ -25,7 +24,6 @@ class ForwardRateQuery(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # If true, use TermStructure.day_counter. If false, use day_counter below.
     # ForwardRateQuery
     def UseCurveDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,7 +31,6 @@ class ForwardRateQuery(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # Used only when use_curve_day_counter=false.
     # ForwardRateQuery
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -41,7 +38,6 @@ class ForwardRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
 
-    # Reporting convention for the returned forward rate.
     # ForwardRateQuery
     def Compounding(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -56,7 +52,6 @@ class ForwardRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Default: instantaneous forward (approximated).
     # ForwardRateQuery
     def ForwardType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -64,8 +59,6 @@ class ForwardRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # When forward_type=Instantaneous, compute forward over [d, d + eps].
-    # Defaults: eps = 1 Day.
     # ForwardRateQuery
     def InstantaneousEpsNumber(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -80,7 +73,6 @@ class ForwardRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Used only when forward_type=Period, compute forward over [d, d + tenor].
     # ForwardRateQuery
     def TenorNumber(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -95,8 +87,6 @@ class ForwardRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 5
 
-    # If true, use calendar from grid for date advancement.
-    # If false, use curve's instrument calendar.
     # ForwardRateQuery
     def UseGridCalendarForAdvance(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))

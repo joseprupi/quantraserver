@@ -56,9 +56,11 @@
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
               "sw_fixed_leg_day_counter": "Thirty360",
-              "sw_floating_leg_index": "Euribor6M",
               "spread": 0.0,
-              "fwd_start_days": 0
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
             }
           },
           {
@@ -71,12 +73,29 @@
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
               "sw_fixed_leg_day_counter": "Thirty360",
-              "sw_floating_leg_index": "Euribor6M",
               "spread": 0.0,
-              "fwd_start_days": 0
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
             }
           }
         ]
+      }
+    ],
+    "indices": [
+      {
+        "id": "EUR_6M",
+        "name": "Euribor",
+        "index_type": "Ibor",
+        "tenor_number": 6,
+        "tenor_time_unit": "Months",
+        "fixing_days": 2,
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual360",
+        "end_of_month": false,
+        "currency": "EUR"
       }
     ]
   },
@@ -100,7 +119,7 @@
       },
       "discounting_curve": "discount",
       "credit_curve": {
-        "recovery_rate": 0.40,
+        "recovery_rate": 0.4,
         "flat_hazard_rate": 0.02
       }
     }

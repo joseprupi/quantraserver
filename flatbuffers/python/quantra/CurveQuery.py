@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# What to sample from the curve.
 class CurveQuery(object):
     __slots__ = ['_tab']
 
@@ -25,7 +24,6 @@ class CurveQuery(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Which measures to return.
     # CurveQuery
     def Measures(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -53,7 +51,6 @@ class CurveQuery(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
-    # Where to sample.
     # CurveQuery
     def Grid(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -65,7 +62,6 @@ class CurveQuery(object):
             return obj
         return None
 
-    # Optional: if omitted, defaults are used (continuous zero, instantaneous fwd).
     # CurveQuery
     def Zero(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

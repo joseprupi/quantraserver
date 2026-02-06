@@ -18,6 +18,7 @@
 #include "fixed_rate_bond_response_generated.h"
 #include "vanilla_swap_response_generated.h"
 #include "cds_response_generated.h"
+#include "index_generated.h"
 
 namespace quantra { namespace testing {
 
@@ -76,6 +77,7 @@ protected:
         pw1y.add_point(dep1y_off.Union());
         points_vector.push_back(pw1y.Finish());
         
+        auto float_idx_5y = buildIndexRef(b, "EUR_6M");
         quantra::SwapHelperBuilder sw5y(b);
         sw5y.add_rate(flatRate_); sw5y.add_tenor_number(5);
         sw5y.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
@@ -83,7 +85,7 @@ protected:
         sw5y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw5y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         sw5y.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
-        sw5y.add_sw_floating_leg_index(quantra::enums::Ibor_Euribor6M);
+        sw5y.add_float_index(float_idx_5y);
         sw5y.add_spread(0.0); sw5y.add_fwd_start_days(0);
         auto sw5y_off = sw5y.Finish();
         quantra::PointsWrapperBuilder pw5y(b);
@@ -91,6 +93,7 @@ protected:
         pw5y.add_point(sw5y_off.Union());
         points_vector.push_back(pw5y.Finish());
         
+        auto float_idx_10y = buildIndexRef(b, "EUR_6M");
         quantra::SwapHelperBuilder sw10y(b);
         sw10y.add_rate(flatRate_); sw10y.add_tenor_number(10);
         sw10y.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
@@ -98,7 +101,7 @@ protected:
         sw10y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw10y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         sw10y.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
-        sw10y.add_sw_floating_leg_index(quantra::enums::Ibor_Euribor6M);
+        sw10y.add_float_index(float_idx_10y);
         sw10y.add_spread(0.0); sw10y.add_fwd_start_days(0);
         auto sw10y_off = sw10y.Finish();
         quantra::PointsWrapperBuilder pw10y(b);
@@ -119,16 +122,39 @@ protected:
         return tsb.Finish();
     }
     
-    flatbuffers::Offset<quantra::Index> buildIndex6M(flatbuffers::grpc::MessageBuilder& b) {
-        quantra::IndexBuilder ib(b);
-        ib.add_period_number(6);
-        ib.add_period_time_unit(quantra::enums::TimeUnit_Months);
-        ib.add_settlement_days(2);
-        ib.add_calendar(quantra::enums::Calendar_TARGET);
-        ib.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        ib.add_end_of_month(false);
-        ib.add_day_counter(quantra::enums::DayCounter_Actual360);
-        return ib.Finish();
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_EUR6M(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("EUR_6M");
+        auto name = b.CreateString("Euribor");
+        auto ccy = b.CreateString("EUR");
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Ibor);
+        idb.add_tenor_number(6);
+        idb.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        idb.add_fixing_days(2);
+        idb.add_calendar(quantra::enums::Calendar_TARGET);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_end_of_month(false);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
+    flatbuffers::Offset<quantra::IndexRef> buildIndexRef(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& refId) {
+        auto sid = b.CreateString(refId);
+        quantra::IndexRefBuilder irb(b);
+        irb.add_id(sid);
+        return irb.Finish();
+    }
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>>
+    buildIndicesVector(flatbuffers::grpc::MessageBuilder& b) {
+        std::vector<flatbuffers::Offset<quantra::IndexDef>> defs;
+        defs.push_back(buildIndexDef_EUR6M(b));
+        return b.CreateVector(defs);
     }
     
     flatbuffers::Offset<quantra::Yield> buildYield(flatbuffers::grpc::MessageBuilder& b) {
@@ -155,9 +181,11 @@ TEST_F(ServerClientTest, FixedRateBond_RoundTrip) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof); pb.add_settlement_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves); pb.add_bond_pricing_details(true);
     auto pricing = pb.Finish();
     
@@ -211,9 +239,12 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices2 = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof); pb.add_settlement_date(asof); pb.add_curves(curves);
+    pb.add_as_of_date(asof); pb.add_settlement_date(asof);
+    pb.add_indices(indices2);
+    pb.add_curves(curves);
     auto pricing = pb.Finish();
     
     auto feff = b.CreateString("2025-01-17"); auto fterm = b.CreateString("2030-01-17");
@@ -242,7 +273,7 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     auto floatSch = flsb.Finish();
     
-    auto idx6m = buildIndex6M(b);
+    auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::SwapFloatingLegBuilder flgb(b);
     flgb.add_notional(notional); flgb.add_schedule(floatSch); flgb.add_index(idx6m);
     flgb.add_day_counter(quantra::enums::DayCounter_Actual360); flgb.add_spread(0.0);
@@ -282,9 +313,12 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices3 = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof); pb.add_settlement_date(asof); pb.add_curves(curves);
+    pb.add_as_of_date(asof); pb.add_settlement_date(asof);
+    pb.add_indices(indices3);
+    pb.add_curves(curves);
     auto pricing = pb.Finish();
     
     auto eff = b.CreateString("2025-01-15"); auto term = b.CreateString("2030-01-15");
@@ -341,9 +375,12 @@ TEST_F(ServerClientTest, Latency_MultipleRequests) {
         flatbuffers::grpc::MessageBuilder b;
         auto ts = buildCurve(b, "discount");
         auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        auto lat_indices = buildIndicesVector(b);
         auto asof = b.CreateString("2025-01-15");
         quantra::PricingBuilder pb(b);
-        pb.add_as_of_date(asof); pb.add_settlement_date(asof); pb.add_curves(curves);
+        pb.add_as_of_date(asof); pb.add_settlement_date(asof);
+        pb.add_indices(lat_indices);
+        pb.add_curves(curves);
         auto pricing = pb.Finish();
         
         auto eff = b.CreateString("2024-01-15"); auto term = b.CreateString("2029-01-15");

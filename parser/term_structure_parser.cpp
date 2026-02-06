@@ -24,7 +24,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     const quantra::TermStructure* ts,
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
-    const IndexFactory* indexFactory)
+    const IndexRegistry* indices)
 {
     if (ts == nullptr)
         QUANTRA_ERROR("TermStructure not found");
@@ -40,7 +40,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
         auto point = points->Get(i)->point();
         auto type  = points->Get(i)->point_type();
-        auto helper = pointParser.parse(type, point, quotes, curves, indexFactory);
+        auto helper = pointParser.parse(type, point, quotes, curves, indices);
         if (!helper)
             QUANTRA_ERROR("Failed to parse term structure point at index " + std::to_string(i));
         instruments.push_back(helper);
@@ -50,7 +50,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 }
 
 // =============================================================================
-// Build PiecewiseYieldCurve from helpers (shared by both parse overloads)
+// Build PiecewiseYieldCurve from helpers
 // =============================================================================
 std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
     const quantra::TermStructure* ts,
@@ -58,12 +58,10 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
 {
     double tolerance = 1.0e-15;
     
-    // FIX: Handle null reference_date by using evaluation date as fallback
     Date ref;
     if (ts->reference_date()) {
         ref = DateToQL(ts->reference_date()->str());
     } else {
-        // Use the global evaluation date as fallback
         ref = Settings::instance().evaluationDate();
     }
     

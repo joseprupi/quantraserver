@@ -1,8 +1,9 @@
 #include "cap_floor_parser.h"
 #include <ql/cashflows/couponpricer.hpp>
-#include <ql/cashflows/conundrumpricer.hpp>
 
-std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(const quantra::CapFloor *capFloor)
+std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(
+    const quantra::CapFloor *capFloor,
+    const quantra::IndexRegistry& indices)
 {
     if (capFloor == NULL)
         QUANTRA_ERROR("CapFloor not found");
@@ -10,17 +11,16 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(const quantra::CapFloo
     if (capFloor->schedule() == NULL)
         QUANTRA_ERROR("CapFloor schedule not found");
 
-    if (capFloor->index() == NULL)
-        QUANTRA_ERROR("CapFloor index not found");
+    if (!capFloor->index() || !capFloor->index()->id())
+        QUANTRA_ERROR("CapFloor index.id is required");
 
     // Parse schedule
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(capFloor->schedule());
 
-    // Parse index
-    IndexParser indexParser;
-    indexParser.link_term_structure(forwarding_term_structure_.currentLink());
-    auto iborIndex = indexParser.parse(capFloor->index());
+    // Resolve index from registry and clone with forwarding curve
+    std::string indexId = capFloor->index()->id()->str();
+    auto iborIndex = indices.getIborWithCurve(indexId, forwarding_term_structure_);
 
     // Create the floating leg (IborLeg)
     Leg leg = IborLeg(*schedule, iborIndex)
@@ -40,7 +40,6 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(const quantra::CapFloo
             instrument = std::make_shared<QuantLib::Floor>(leg, strikes);
             break;
         case quantra::enums::CapFloorType_Collar:
-            // Collar needs both cap and floor strikes - for now error
             QUANTRA_ERROR("Collar not yet supported - use separate Cap and Floor");
             break;
         default:

@@ -9,7 +9,6 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondPric
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const quantra::PriceFloatingRateBondRequest *request) const
 {
-    // Build registry (handles curves with dependency ordering via CurveBootstrapper)
     PricingRegistryBuilder regBuilder;
     PricingRegistry reg = regBuilder.build(request->pricing());
 
@@ -18,12 +17,10 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondPric
 
     Date as_of_date = Settings::instance().evaluationDate();
 
-    // Get settlement date from pricing
     PricingParser pricing_parser;
     auto pricing = pricing_parser.parse(request->pricing());
     Date settlement_date = DateToQL(pricing->settlement_date);
 
-    // Build coupon pricers map
     std::map<std::string, std::shared_ptr<QuantLib::IborCouponPricer>> pricers_map;
     for (const auto& pricer_spec : reg.couponPricers)
     {
@@ -40,20 +37,16 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondPric
         auto pricer = pricers_map.find(it->coupon_pricer()->str());
 
         if (discounting_term_structure == reg.curves.end())
-        {
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
-        }
         if (forecasting_term_structure == reg.curves.end())
-        {
             QUANTRA_ERROR("Forecasting curve not found: " + it->forecasting_curve()->str());
-        }
         if (pricer == pricers_map.end())
-        {
             QUANTRA_ERROR("Coupon pricer not found: " + it->coupon_pricer()->str());
-        }
 
-        std::shared_ptr<QuantLib::FloatingRateBond> bond = bond_parser.parse(it->floating_rate_bond());
-        bond_parser.index_parser.link_term_structure(forecasting_term_structure->second->currentLink());
+        // Link forecasting curve and parse bond with IndexRegistry
+        bond_parser.linkForecastingTermStructure(forecasting_term_structure->second->currentLink());
+        std::shared_ptr<QuantLib::FloatingRateBond> bond = bond_parser.parse(it->floating_rate_bond(), reg.indices);
+
         std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> flows_vector;
         std::shared_ptr<PricingEngine> bond_engine(new QuantLib::DiscountingBondEngine(*discounting_term_structure->second));
         bond->setPricingEngine(bond_engine);

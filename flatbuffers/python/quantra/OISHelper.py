@@ -45,60 +45,64 @@ class OISHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Overnight index (enum-based for simplicity)
+    # Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
     # OISHelper
     def OvernightIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
-
-    # Or use full spec (takes precedence if set)
-    # OISHelper
-    def OvernightIndexSpec(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.OvernightIndexSpec import OvernightIndexSpec
-            obj = OvernightIndexSpec()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # OISHelper
     def SettlementDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
     # OISHelper
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # OISHelper
     def FixedLegFrequency(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # OISHelper
     def FixedLegConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # OISHelper
     def FixedLegDayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
+
+    # Exogenous discount curve for dual-curve OIS bootstrapping
+    # OISHelper
+    def Deps(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.HelperDependencies import HelperDependencies
+            obj = HelperDependencies()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # OISHelper
     def QuoteId(self):
@@ -132,46 +136,46 @@ def AddTenorTimeUnit(builder, tenorTimeUnit):
     OISHelperAddTenorTimeUnit(builder, tenorTimeUnit)
 
 def OISHelperAddOvernightIndex(builder, overnightIndex):
-    builder.PrependInt8Slot(3, overnightIndex, 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(overnightIndex), 0)
 
 def AddOvernightIndex(builder, overnightIndex):
     OISHelperAddOvernightIndex(builder, overnightIndex)
 
-def OISHelperAddOvernightIndexSpec(builder, overnightIndexSpec):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(overnightIndexSpec), 0)
-
-def AddOvernightIndexSpec(builder, overnightIndexSpec):
-    OISHelperAddOvernightIndexSpec(builder, overnightIndexSpec)
-
 def OISHelperAddSettlementDays(builder, settlementDays):
-    builder.PrependInt32Slot(5, settlementDays, 2)
+    builder.PrependInt32Slot(4, settlementDays, 2)
 
 def AddSettlementDays(builder, settlementDays):
     OISHelperAddSettlementDays(builder, settlementDays)
 
 def OISHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(5, calendar, 32)
 
 def AddCalendar(builder, calendar):
     OISHelperAddCalendar(builder, calendar)
 
 def OISHelperAddFixedLegFrequency(builder, fixedLegFrequency):
-    builder.PrependInt8Slot(7, fixedLegFrequency, 0)
+    builder.PrependInt8Slot(6, fixedLegFrequency, 0)
 
 def AddFixedLegFrequency(builder, fixedLegFrequency):
     OISHelperAddFixedLegFrequency(builder, fixedLegFrequency)
 
 def OISHelperAddFixedLegConvention(builder, fixedLegConvention):
-    builder.PrependInt8Slot(8, fixedLegConvention, 2)
+    builder.PrependInt8Slot(7, fixedLegConvention, 2)
 
 def AddFixedLegConvention(builder, fixedLegConvention):
     OISHelperAddFixedLegConvention(builder, fixedLegConvention)
 
 def OISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter):
-    builder.PrependInt8Slot(9, fixedLegDayCounter, 0)
+    builder.PrependInt8Slot(8, fixedLegDayCounter, 0)
 
 def AddFixedLegDayCounter(builder, fixedLegDayCounter):
     OISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter)
+
+def OISHelperAddDeps(builder, deps):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+
+def AddDeps(builder, deps):
+    OISHelperAddDeps(builder, deps)
 
 def OISHelperAddQuoteId(builder, quoteId):
     builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
@@ -197,13 +201,13 @@ class OISHelperT(object):
         self.rate = 0.0  # type: float
         self.tenorNumber = 0  # type: int
         self.tenorTimeUnit = 0  # type: int
-        self.overnightIndex = 0  # type: int
-        self.overnightIndexSpec = None  # type: Optional[OvernightIndexSpecT]
+        self.overnightIndex = None  # type: Optional[IndexRefT]
         self.settlementDays = 2  # type: int
         self.calendar = 32  # type: int
         self.fixedLegFrequency = 0  # type: int
         self.fixedLegConvention = 2  # type: int
         self.fixedLegDayCounter = 0  # type: int
+        self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 
     @classmethod
@@ -230,34 +234,38 @@ class OISHelperT(object):
         self.rate = oishelper.Rate()
         self.tenorNumber = oishelper.TenorNumber()
         self.tenorTimeUnit = oishelper.TenorTimeUnit()
-        self.overnightIndex = oishelper.OvernightIndex()
-        if oishelper.OvernightIndexSpec() is not None:
-            self.overnightIndexSpec = OvernightIndexSpecT.InitFromObj(oishelper.OvernightIndexSpec())
+        if oishelper.OvernightIndex() is not None:
+            self.overnightIndex = IndexRefT.InitFromObj(oishelper.OvernightIndex())
         self.settlementDays = oishelper.SettlementDays()
         self.calendar = oishelper.Calendar()
         self.fixedLegFrequency = oishelper.FixedLegFrequency()
         self.fixedLegConvention = oishelper.FixedLegConvention()
         self.fixedLegDayCounter = oishelper.FixedLegDayCounter()
+        if oishelper.Deps() is not None:
+            self.deps = HelperDependenciesT.InitFromObj(oishelper.Deps())
         self.quoteId = oishelper.QuoteId()
 
     # OISHelperT
     def Pack(self, builder):
-        if self.overnightIndexSpec is not None:
-            overnightIndexSpec = self.overnightIndexSpec.Pack(builder)
+        if self.overnightIndex is not None:
+            overnightIndex = self.overnightIndex.Pack(builder)
+        if self.deps is not None:
+            deps = self.deps.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
         OISHelperStart(builder)
         OISHelperAddRate(builder, self.rate)
         OISHelperAddTenorNumber(builder, self.tenorNumber)
         OISHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
-        OISHelperAddOvernightIndex(builder, self.overnightIndex)
-        if self.overnightIndexSpec is not None:
-            OISHelperAddOvernightIndexSpec(builder, overnightIndexSpec)
+        if self.overnightIndex is not None:
+            OISHelperAddOvernightIndex(builder, overnightIndex)
         OISHelperAddSettlementDays(builder, self.settlementDays)
         OISHelperAddCalendar(builder, self.calendar)
         OISHelperAddFixedLegFrequency(builder, self.fixedLegFrequency)
         OISHelperAddFixedLegConvention(builder, self.fixedLegConvention)
         OISHelperAddFixedLegDayCounter(builder, self.fixedLegDayCounter)
+        if self.deps is not None:
+            OISHelperAddDeps(builder, deps)
         if self.quoteId is not None:
             OISHelperAddQuoteId(builder, quoteId)
         oishelper = OISHelperEnd(builder)

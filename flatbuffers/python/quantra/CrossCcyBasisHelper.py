@@ -45,19 +45,28 @@ class CrossCcyBasisHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Domestic leg index
     # CrossCcyBasisHelper
     def IndexDomestic(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
+    # Foreign leg index
     # CrossCcyBasisHelper
     def IndexForeign(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = IndexRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # CrossCcyBasisHelper
     def Deps(self):
@@ -102,13 +111,13 @@ def AddTenorTimeUnit(builder, tenorTimeUnit):
     CrossCcyBasisHelperAddTenorTimeUnit(builder, tenorTimeUnit)
 
 def CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic):
-    builder.PrependInt8Slot(3, indexDomestic, 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexDomestic), 0)
 
 def AddIndexDomestic(builder, indexDomestic):
     CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
 
 def CrossCcyBasisHelperAddIndexForeign(builder, indexForeign):
-    builder.PrependInt8Slot(4, indexForeign, 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(indexForeign), 0)
 
 def AddIndexForeign(builder, indexForeign):
     CrossCcyBasisHelperAddIndexForeign(builder, indexForeign)
@@ -143,8 +152,8 @@ class CrossCcyBasisHelperT(object):
         self.spread = 0.0  # type: float
         self.tenorNumber = 0  # type: int
         self.tenorTimeUnit = 0  # type: int
-        self.indexDomestic = 0  # type: int
-        self.indexForeign = 0  # type: int
+        self.indexDomestic = None  # type: Optional[IndexRefT]
+        self.indexForeign = None  # type: Optional[IndexRefT]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 
@@ -172,14 +181,20 @@ class CrossCcyBasisHelperT(object):
         self.spread = crossCcyBasisHelper.Spread()
         self.tenorNumber = crossCcyBasisHelper.TenorNumber()
         self.tenorTimeUnit = crossCcyBasisHelper.TenorTimeUnit()
-        self.indexDomestic = crossCcyBasisHelper.IndexDomestic()
-        self.indexForeign = crossCcyBasisHelper.IndexForeign()
+        if crossCcyBasisHelper.IndexDomestic() is not None:
+            self.indexDomestic = IndexRefT.InitFromObj(crossCcyBasisHelper.IndexDomestic())
+        if crossCcyBasisHelper.IndexForeign() is not None:
+            self.indexForeign = IndexRefT.InitFromObj(crossCcyBasisHelper.IndexForeign())
         if crossCcyBasisHelper.Deps() is not None:
             self.deps = HelperDependenciesT.InitFromObj(crossCcyBasisHelper.Deps())
         self.quoteId = crossCcyBasisHelper.QuoteId()
 
     # CrossCcyBasisHelperT
     def Pack(self, builder):
+        if self.indexDomestic is not None:
+            indexDomestic = self.indexDomestic.Pack(builder)
+        if self.indexForeign is not None:
+            indexForeign = self.indexForeign.Pack(builder)
         if self.deps is not None:
             deps = self.deps.Pack(builder)
         if self.quoteId is not None:
@@ -188,8 +203,10 @@ class CrossCcyBasisHelperT(object):
         CrossCcyBasisHelperAddSpread(builder, self.spread)
         CrossCcyBasisHelperAddTenorNumber(builder, self.tenorNumber)
         CrossCcyBasisHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
-        CrossCcyBasisHelperAddIndexDomestic(builder, self.indexDomestic)
-        CrossCcyBasisHelperAddIndexForeign(builder, self.indexForeign)
+        if self.indexDomestic is not None:
+            CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
+        if self.indexForeign is not None:
+            CrossCcyBasisHelperAddIndexForeign(builder, indexForeign)
         if self.deps is not None:
             CrossCcyBasisHelperAddDeps(builder, deps)
         if self.quoteId is not None:

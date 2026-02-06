@@ -45,51 +45,57 @@ class DatedOISHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Reference to an overnight IndexDef by id
     # DatedOISHelper
     def OvernightIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
-
-    # DatedOISHelper
-    def OvernightIndexSpec(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.OvernightIndexSpec import OvernightIndexSpec
-            obj = OvernightIndexSpec()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # DatedOISHelper
     def SettlementDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
     # DatedOISHelper
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # DatedOISHelper
     def FixedLegConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # DatedOISHelper
     def FixedLegDayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
+
+    # Exogenous discount curve for dual-curve OIS bootstrapping
+    # DatedOISHelper
+    def Deps(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.HelperDependencies import HelperDependencies
+            obj = HelperDependencies()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # DatedOISHelper
     def QuoteId(self):
@@ -123,40 +129,40 @@ def AddEndDate(builder, endDate):
     DatedOISHelperAddEndDate(builder, endDate)
 
 def DatedOISHelperAddOvernightIndex(builder, overnightIndex):
-    builder.PrependInt8Slot(3, overnightIndex, 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(overnightIndex), 0)
 
 def AddOvernightIndex(builder, overnightIndex):
     DatedOISHelperAddOvernightIndex(builder, overnightIndex)
 
-def DatedOISHelperAddOvernightIndexSpec(builder, overnightIndexSpec):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(overnightIndexSpec), 0)
-
-def AddOvernightIndexSpec(builder, overnightIndexSpec):
-    DatedOISHelperAddOvernightIndexSpec(builder, overnightIndexSpec)
-
 def DatedOISHelperAddSettlementDays(builder, settlementDays):
-    builder.PrependInt32Slot(5, settlementDays, 2)
+    builder.PrependInt32Slot(4, settlementDays, 2)
 
 def AddSettlementDays(builder, settlementDays):
     DatedOISHelperAddSettlementDays(builder, settlementDays)
 
 def DatedOISHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(5, calendar, 32)
 
 def AddCalendar(builder, calendar):
     DatedOISHelperAddCalendar(builder, calendar)
 
 def DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention):
-    builder.PrependInt8Slot(7, fixedLegConvention, 2)
+    builder.PrependInt8Slot(6, fixedLegConvention, 2)
 
 def AddFixedLegConvention(builder, fixedLegConvention):
     DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention)
 
 def DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter):
-    builder.PrependInt8Slot(8, fixedLegDayCounter, 0)
+    builder.PrependInt8Slot(7, fixedLegDayCounter, 0)
 
 def AddFixedLegDayCounter(builder, fixedLegDayCounter):
     DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter)
+
+def DatedOISHelperAddDeps(builder, deps):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+
+def AddDeps(builder, deps):
+    DatedOISHelperAddDeps(builder, deps)
 
 def DatedOISHelperAddQuoteId(builder, quoteId):
     builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
@@ -182,12 +188,12 @@ class DatedOISHelperT(object):
         self.rate = 0.0  # type: float
         self.startDate = None  # type: str
         self.endDate = None  # type: str
-        self.overnightIndex = 0  # type: int
-        self.overnightIndexSpec = None  # type: Optional[OvernightIndexSpecT]
+        self.overnightIndex = None  # type: Optional[IndexRefT]
         self.settlementDays = 2  # type: int
         self.calendar = 32  # type: int
         self.fixedLegConvention = 2  # type: int
         self.fixedLegDayCounter = 0  # type: int
+        self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 
     @classmethod
@@ -214,13 +220,14 @@ class DatedOISHelperT(object):
         self.rate = datedOishelper.Rate()
         self.startDate = datedOishelper.StartDate()
         self.endDate = datedOishelper.EndDate()
-        self.overnightIndex = datedOishelper.OvernightIndex()
-        if datedOishelper.OvernightIndexSpec() is not None:
-            self.overnightIndexSpec = OvernightIndexSpecT.InitFromObj(datedOishelper.OvernightIndexSpec())
+        if datedOishelper.OvernightIndex() is not None:
+            self.overnightIndex = IndexRefT.InitFromObj(datedOishelper.OvernightIndex())
         self.settlementDays = datedOishelper.SettlementDays()
         self.calendar = datedOishelper.Calendar()
         self.fixedLegConvention = datedOishelper.FixedLegConvention()
         self.fixedLegDayCounter = datedOishelper.FixedLegDayCounter()
+        if datedOishelper.Deps() is not None:
+            self.deps = HelperDependenciesT.InitFromObj(datedOishelper.Deps())
         self.quoteId = datedOishelper.QuoteId()
 
     # DatedOISHelperT
@@ -229,8 +236,10 @@ class DatedOISHelperT(object):
             startDate = builder.CreateString(self.startDate)
         if self.endDate is not None:
             endDate = builder.CreateString(self.endDate)
-        if self.overnightIndexSpec is not None:
-            overnightIndexSpec = self.overnightIndexSpec.Pack(builder)
+        if self.overnightIndex is not None:
+            overnightIndex = self.overnightIndex.Pack(builder)
+        if self.deps is not None:
+            deps = self.deps.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
         DatedOISHelperStart(builder)
@@ -239,13 +248,14 @@ class DatedOISHelperT(object):
             DatedOISHelperAddStartDate(builder, startDate)
         if self.endDate is not None:
             DatedOISHelperAddEndDate(builder, endDate)
-        DatedOISHelperAddOvernightIndex(builder, self.overnightIndex)
-        if self.overnightIndexSpec is not None:
-            DatedOISHelperAddOvernightIndexSpec(builder, overnightIndexSpec)
+        if self.overnightIndex is not None:
+            DatedOISHelperAddOvernightIndex(builder, overnightIndex)
         DatedOISHelperAddSettlementDays(builder, self.settlementDays)
         DatedOISHelperAddCalendar(builder, self.calendar)
         DatedOISHelperAddFixedLegConvention(builder, self.fixedLegConvention)
         DatedOISHelperAddFixedLegDayCounter(builder, self.fixedLegDayCounter)
+        if self.deps is not None:
+            DatedOISHelperAddDeps(builder, deps)
         if self.quoteId is not None:
             DatedOISHelperAddQuoteId(builder, quoteId)
         datedOishelper = DatedOISHelperEnd(builder)

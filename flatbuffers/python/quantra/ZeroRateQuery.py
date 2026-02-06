@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Options for zero rate output.
 class ZeroRateQuery(object):
     __slots__ = ['_tab']
 
@@ -25,7 +24,6 @@ class ZeroRateQuery(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # If true, use TermStructure.day_counter. If false, use day_counter below.
     # ZeroRateQuery
     def UseCurveDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,7 +31,6 @@ class ZeroRateQuery(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # Used only when use_curve_day_counter=false.
     # ZeroRateQuery
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -41,7 +38,6 @@ class ZeroRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
 
-    # Default: continuously-compounded zero rate.
     # ZeroRateQuery
     def Compounding(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -49,7 +45,6 @@ class ZeroRateQuery(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
 
-    # Used only for non-continuous compounding.
     # ZeroRateQuery
     def Frequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

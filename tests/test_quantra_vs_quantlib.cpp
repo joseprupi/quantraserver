@@ -3,6 +3,12 @@
  * 
  * Tests that Quantra FlatBuffers serialization produces identical results to raw QuantLib.
  * Uses identical bootstrapped curves for exact matching.
+ *
+ * Updated for IndexDef/IndexRef redesign:
+ *   - No more Ibor/OvernightIndex enums
+ *   - SwapHelper uses IndexRef (float_index)
+ *   - Instruments use IndexRef (index)
+ *   - IndexDef objects registered in Pricing.indices / BootstrapCurvesRequest.indices
  */
 
 #include <gtest/gtest.h>
@@ -34,6 +40,7 @@
 #include "model_generated.h"
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
+#include "index_generated.h"
 
 namespace quantra { namespace testing {
 
@@ -77,7 +84,68 @@ protected:
         forwardHandle_ = discountHandle_;
     }
 
-    // Build yield curve for Quantra
+    // =========================================================================
+    // IndexDef builders — define the index once, reference by id everywhere
+    // =========================================================================
+
+    /// Build an IndexDef for EUR 3M (Euribor-like conventions)
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_EUR3M(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("EUR_3M");
+        auto name = b.CreateString("Euribor");
+        auto ccy = b.CreateString("EUR");
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Ibor);
+        idb.add_tenor_number(3);
+        idb.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        idb.add_fixing_days(2);
+        idb.add_calendar(quantra::enums::Calendar_TARGET);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_end_of_month(false);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
+    /// Build an IndexDef for EUR 6M (Euribor-like conventions)
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_EUR6M(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("EUR_6M");
+        auto name = b.CreateString("Euribor");
+        auto ccy = b.CreateString("EUR");
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Ibor);
+        idb.add_tenor_number(6);
+        idb.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        idb.add_fixing_days(2);
+        idb.add_calendar(quantra::enums::Calendar_TARGET);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_end_of_month(false);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
+    // =========================================================================
+    // IndexRef builders — lightweight reference by id
+    // =========================================================================
+
+    flatbuffers::Offset<quantra::IndexRef> buildIndexRef(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id) {
+        auto sid = b.CreateString(id);
+        quantra::IndexRefBuilder irb(b);
+        irb.add_id(sid);
+        return irb.Finish();
+    }
+
+    // =========================================================================
+    // Yield curve builder for Quantra (with IndexRef for SwapHelpers)
+    // =========================================================================
+
     flatbuffers::Offset<quantra::TermStructure> buildCurve(
         flatbuffers::grpc::MessageBuilder& b, const std::string& id) {
         
@@ -128,7 +196,8 @@ protected:
         pw1y.add_point(dep1y_off.Union());
         points_vector.push_back(pw1y.Finish());
         
-        // 5Y swap
+        // 5Y swap — uses IndexRef instead of Ibor enum
+        auto float_idx_5y = buildIndexRef(b, "EUR_6M");
         quantra::SwapHelperBuilder sw5y(b);
         sw5y.add_rate(flatRate_);
         sw5y.add_tenor_number(5);
@@ -137,7 +206,7 @@ protected:
         sw5y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw5y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         sw5y.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
-        sw5y.add_sw_floating_leg_index(quantra::enums::Ibor_Euribor6M);
+        sw5y.add_float_index(float_idx_5y);
         sw5y.add_spread(0.0);
         sw5y.add_fwd_start_days(0);
         auto sw5y_off = sw5y.Finish();
@@ -147,6 +216,7 @@ protected:
         points_vector.push_back(pw5y.Finish());
         
         // 10Y swap
+        auto float_idx_10y = buildIndexRef(b, "EUR_6M");
         quantra::SwapHelperBuilder sw10y(b);
         sw10y.add_rate(flatRate_);
         sw10y.add_tenor_number(10);
@@ -155,7 +225,7 @@ protected:
         sw10y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw10y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         sw10y.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
-        sw10y.add_sw_floating_leg_index(quantra::enums::Ibor_Euribor6M);
+        sw10y.add_float_index(float_idx_10y);
         sw10y.add_spread(0.0);
         sw10y.add_fwd_start_days(0);
         auto sw10y_off = sw10y.Finish();
@@ -178,28 +248,14 @@ protected:
         return tsb.Finish();
     }
     
-    flatbuffers::Offset<quantra::Index> buildIndex3M(flatbuffers::grpc::MessageBuilder& b) {
-        quantra::IndexBuilder ib(b);
-        ib.add_period_number(3);
-        ib.add_period_time_unit(quantra::enums::TimeUnit_Months);
-        ib.add_settlement_days(2);
-        ib.add_calendar(quantra::enums::Calendar_TARGET);
-        ib.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        ib.add_end_of_month(false);
-        ib.add_day_counter(quantra::enums::DayCounter_Actual360);
-        return ib.Finish();
-    }
-    
-    flatbuffers::Offset<quantra::Index> buildIndex6M(flatbuffers::grpc::MessageBuilder& b) {
-        quantra::IndexBuilder ib(b);
-        ib.add_period_number(6);
-        ib.add_period_time_unit(quantra::enums::TimeUnit_Months);
-        ib.add_settlement_days(2);
-        ib.add_calendar(quantra::enums::Calendar_TARGET);
-        ib.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        ib.add_end_of_month(false);
-        ib.add_day_counter(quantra::enums::DayCounter_Actual360);
-        return ib.Finish();
+    /// Build indices vector for Pricing or BootstrapCurvesRequest
+    /// Contains all IndexDefs needed by the curve helpers and instruments
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>>
+    buildIndicesVector(flatbuffers::grpc::MessageBuilder& b, bool include3M = false) {
+        std::vector<flatbuffers::Offset<quantra::IndexDef>> defs;
+        defs.push_back(buildIndexDef_EUR6M(b));
+        if (include3M) defs.push_back(buildIndexDef_EUR3M(b));
+        return b.CreateVector(defs);
     }
     
     flatbuffers::Offset<quantra::Yield> buildYield(flatbuffers::grpc::MessageBuilder& b) {
@@ -218,7 +274,6 @@ protected:
         
         auto ref_date = b.CreateString("2025-01-15");
         
-        // Build IrVolBaseSpec
         quantra::IrVolBaseSpecBuilder baseBuilder(b);
         baseBuilder.add_reference_date(ref_date);
         baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
@@ -230,12 +285,10 @@ protected:
         baseBuilder.add_constant_vol(vol);
         auto base = baseBuilder.Finish();
         
-        // Build OptionletVolSpec (wraps base)
         quantra::OptionletVolSpecBuilder optBuilder(b);
         optBuilder.add_base(base);
         auto optPayload = optBuilder.Finish();
         
-        // Build VolSurfaceSpec with union payload
         auto vol_id = b.CreateString(id);
         quantra::VolSurfaceSpecBuilder vsBuilder(b);
         vsBuilder.add_id(vol_id);
@@ -252,7 +305,6 @@ protected:
         
         auto ref_date = b.CreateString("2025-01-15");
         
-        // Build IrVolBaseSpec
         quantra::IrVolBaseSpecBuilder baseBuilder(b);
         baseBuilder.add_reference_date(ref_date);
         baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
@@ -264,12 +316,10 @@ protected:
         baseBuilder.add_constant_vol(vol);
         auto base = baseBuilder.Finish();
         
-        // Build SwaptionVolSpec (wraps base)
         quantra::SwaptionVolSpecBuilder swpBuilder(b);
         swpBuilder.add_base(base);
         auto swpPayload = swpBuilder.Finish();
         
-        // Build VolSurfaceSpec with union payload
         auto vol_id = b.CreateString(id);
         quantra::VolSurfaceSpecBuilder vsBuilder(b);
         vsBuilder.add_id(vol_id);
@@ -283,12 +333,10 @@ protected:
         flatbuffers::grpc::MessageBuilder& b, const std::string& id,
         quantra::enums::IrModelType modelType = quantra::enums::IrModelType_Black) {
         
-        // Build CapFloorModelSpec
         quantra::CapFloorModelSpecBuilder cfmBuilder(b);
         cfmBuilder.add_model_type(modelType);
         auto cfmPayload = cfmBuilder.Finish();
         
-        // Build ModelSpec with union payload
         auto model_id = b.CreateString(id);
         quantra::ModelSpecBuilder msBuilder(b);
         msBuilder.add_id(model_id);
@@ -302,12 +350,10 @@ protected:
         flatbuffers::grpc::MessageBuilder& b, const std::string& id,
         quantra::enums::IrModelType modelType = quantra::enums::IrModelType_Black) {
         
-        // Build SwaptionModelSpec
         quantra::SwaptionModelSpecBuilder smBuilder(b);
         smBuilder.add_model_type(modelType);
         auto smPayload = smBuilder.Finish();
         
-        // Build ModelSpec with union payload
         auto model_id = b.CreateString(id);
         quantra::ModelSpecBuilder msBuilder(b);
         msBuilder.add_id(model_id);
@@ -339,11 +385,14 @@ TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    // IndexDefs needed by SwapHelpers in the curve
+    auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     pb.add_bond_pricing_details(true);
     auto pricing = pb.Finish();
@@ -420,11 +469,13 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     auto pricing = pb.Finish();
     
@@ -449,7 +500,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto fixedLeg = flb.Finish();
     
-    // Float leg
+    // Float leg — uses IndexRef
     auto fleff = b.CreateString("2025-01-17");
     auto flterm = b.CreateString("2030-01-17");
     quantra::ScheduleBuilder flsb(b);
@@ -462,7 +513,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     auto floatSch = flsb.Finish();
     
-    auto idx6m = buildIndex6M(b);
+    auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::SwapFloatingLegBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
@@ -523,17 +574,19 @@ TEST_F(QuantraComparisonTest, FRA_NPVMatches) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b, true);  // include EUR_3M
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     auto pricing = pb.Finish();
     
     auto vd = b.CreateString("2025-04-15");
     auto md = b.CreateString("2025-07-15");
-    auto idx3m = buildIndex3M(b);
+    auto idx3m = buildIndexRef(b, "EUR_3M");
     
     quantra::FRABuilder fb(b);
     fb.add_start_date(vd);
@@ -595,22 +648,21 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
 
     flatbuffers::grpc::MessageBuilder b;
     
-    // Build everything BEFORE Pricing
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     
-    // Build vol surface (OptionletVolSpec for caps/floors)
     auto volSurface = buildOptionletVolSurface(b, "vol_20pct", vol);
     auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     
-    // Build model (CapFloorModelSpec with Black model type)
     auto model = buildCapFloorModel(b, "black_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     
+    auto indices = buildIndicesVector(b, true);  // include EUR_3M for cap
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     pb.add_vol_surfaces(vols);
     pb.add_models(models);
@@ -628,7 +680,7 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     auto schedule = sb.Finish();
     
-    auto idx3m = buildIndex3M(b);
+    auto idx3m = buildIndexRef(b, "EUR_3M");
     quantra::CapFloorBuilder cb(b);
     cb.add_cap_floor_type(quantra::enums::CapFloorType_Cap);
     cb.add_notional(notional);
@@ -692,24 +744,21 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
 
     flatbuffers::grpc::MessageBuilder b;
     
-    // IMPORTANT: Build ALL strings and nested objects BEFORE parents that use them
-    // Build curve
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     
-    // Build volatility (SwaptionVolSpec for swaptions)
     auto volSurface = buildSwaptionVolSurface(b, "swaption_vol", vol);
     auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     
-    // Build model (SwaptionModelSpec with Black model type)
     auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     
+    auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
     
-    // Build Pricing with curves, vol_surfaces, and models
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     pb.add_vol_surfaces(vols);
     pb.add_models(models);
@@ -749,7 +798,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     auto floatSch = flsb.Finish();
     
-    auto idx6m = buildIndex6M(b);
+    auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::SwapFloatingLegBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
@@ -773,7 +822,6 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
     
-    // Create string references for PriceSwaption
     auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol");
     auto model_id = b.CreateString("black_swaption_model");
@@ -823,11 +871,13 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);  // needed by SwapHelpers in the curve
     auto asof = b.CreateString("2025-01-15");
     
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_settlement_date(asof);
+    pb.add_indices(indices);
     pb.add_curves(curves);
     auto pricing = pb.Finish();
     
@@ -894,22 +944,19 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
     
     flatbuffers::grpc::MessageBuilder b;
     
-    // Build TenorGrid with 1Y, 5Y, 10Y using structured Tenor
+    // Build TenorGrid with 1Y, 5Y, 10Y
     std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
     
     quantra::TenorBuilder t1y(b);
-    t1y.add_n(1);
-    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    t1y.add_n(1); t1y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t1y.Finish());
     
     quantra::TenorBuilder t5y(b);
-    t5y.add_n(5);
-    t5y.add_unit(quantra::enums::TimeUnit_Years);
+    t5y.add_n(5); t5y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t5y.Finish());
     
     quantra::TenorBuilder t10y(b);
-    t10y.add_n(10);
-    t10y.add_unit(quantra::enums::TimeUnit_Years);
+    t10y.add_n(10); t10y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t10y.Finish());
     
     auto tenors_vec = b.CreateVector(tenors);
@@ -923,17 +970,14 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
     cgsb.add_grid(tenor_grid.Union());
     auto grid_spec = cgsb.Finish();
     
-    // Build measures - use int8_t for enum vector
     std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_DF)};
     auto measures = b.CreateVector(measures_vec);
     
-    // Build query
     quantra::CurveQueryBuilder cqb(b);
     cqb.add_measures(measures);
     cqb.add_grid(grid_spec);
     auto query = cqb.Finish();
     
-    // Build curve spec
     auto curve = buildCurve(b, "test_curve");
     quantra::BootstrapCurveSpecBuilder bcsb(b);
     bcsb.add_curve(curve);
@@ -944,14 +988,16 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
     curves_vec.push_back(curve_spec);
     auto curves = b.CreateVector(curves_vec);
     
-    // Build request
+    // IndexDefs needed by SwapHelpers
+    auto indices = buildIndicesVector(b);
+    
     auto as_of = b.CreateString("2025-01-15");
     quantra::BootstrapCurvesRequestBuilder reqb(b);
     reqb.add_as_of_date(as_of);
+    reqb.add_indices(indices);
     reqb.add_curves(curves);
     b.Finish(reqb.Finish());
     
-    // Execute request
     auto request = flatbuffers::GetRoot<quantra::BootstrapCurvesRequest>(b.GetBufferPointer());
     BootstrapCurvesRequestHandler handler;
     auto response_builder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
@@ -960,7 +1006,6 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
     
     auto response = flatbuffers::GetRoot<quantra::BootstrapCurvesResponse>(response_builder->GetBufferPointer());
     
-    // Verify response
     ASSERT_EQ(response->results()->size(), 1u);
     auto result = response->results()->Get(0);
     ASSERT_EQ(result->error(), nullptr);
@@ -970,7 +1015,6 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_DiscountFactors) {
     ASSERT_EQ(df_series->measure(), quantra::CurveMeasure_DF);
     ASSERT_EQ(df_series->values()->size(), 3u);
     
-    // Compare with QuantLib
     QuantLib::Date refDate = bootstrappedCurve_->referenceDate();
     std::vector<QuantLib::Date> testDates = {
         refDate + 1 * QuantLib::Years,
@@ -993,17 +1037,14 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_ZeroRates) {
     
     flatbuffers::grpc::MessageBuilder b;
     
-    // Build TenorGrid
     std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
     
     quantra::TenorBuilder t1y(b);
-    t1y.add_n(1);
-    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    t1y.add_n(1); t1y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t1y.Finish());
     
     quantra::TenorBuilder t5y(b);
-    t5y.add_n(5);
-    t5y.add_unit(quantra::enums::TimeUnit_Years);
+    t5y.add_n(5); t5y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t5y.Finish());
     
     auto tenors_vec = b.CreateVector(tenors);
@@ -1017,17 +1058,14 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_ZeroRates) {
     cgsb.add_grid(tenor_grid.Union());
     auto grid_spec = cgsb.Finish();
     
-    // Build measures - ZERO (use int8_t for enum vector)
     std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_ZERO)};
     auto measures = b.CreateVector(measures_vec);
     
-    // Build query
     quantra::CurveQueryBuilder cqb(b);
     cqb.add_measures(measures);
     cqb.add_grid(grid_spec);
     auto query = cqb.Finish();
     
-    // Build curve spec
     auto curve = buildCurve(b, "test_curve");
     quantra::BootstrapCurveSpecBuilder bcsb(b);
     bcsb.add_curve(curve);
@@ -1038,9 +1076,12 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_ZeroRates) {
     curves_vec.push_back(curve_spec);
     auto curves = b.CreateVector(curves_vec);
     
+    auto indices = buildIndicesVector(b);
+    
     auto as_of = b.CreateString("2025-01-15");
     quantra::BootstrapCurvesRequestBuilder reqb(b);
     reqb.add_as_of_date(as_of);
+    reqb.add_indices(indices);
     reqb.add_curves(curves);
     b.Finish(reqb.Finish());
     
@@ -1058,7 +1099,6 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_ZeroRates) {
     auto zero_series = result->series()->Get(0);
     ASSERT_EQ(zero_series->measure(), quantra::CurveMeasure_ZERO);
     
-    // Compare with QuantLib (continuous compounding)
     QuantLib::Date refDate = bootstrappedCurve_->referenceDate();
     std::vector<QuantLib::Date> testDates = {
         refDate + 1 * QuantLib::Years,
@@ -1081,11 +1121,9 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_PillarDates) {
     
     flatbuffers::grpc::MessageBuilder b;
     
-    // Minimal tenor grid
     std::vector<flatbuffers::Offset<quantra::Tenor>> tenors;
     quantra::TenorBuilder t1y(b);
-    t1y.add_n(1);
-    t1y.add_unit(quantra::enums::TimeUnit_Years);
+    t1y.add_n(1); t1y.add_unit(quantra::enums::TimeUnit_Years);
     tenors.push_back(t1y.Finish());
     auto tenors_vec = b.CreateVector(tenors);
     
@@ -1098,7 +1136,6 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_PillarDates) {
     cgsb.add_grid(tenor_grid.Union());
     auto grid_spec = cgsb.Finish();
     
-    // Build measures (use int8_t for enum vector)
     std::vector<int8_t> measures_vec = {static_cast<int8_t>(quantra::CurveMeasure_DF)};
     auto measures = b.CreateVector(measures_vec);
     
@@ -1117,9 +1154,12 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_PillarDates) {
     curves_vec.push_back(curve_spec);
     auto curves = b.CreateVector(curves_vec);
     
+    auto indices = buildIndicesVector(b);
+    
     auto as_of = b.CreateString("2025-01-15");
     quantra::BootstrapCurvesRequestBuilder reqb(b);
     reqb.add_as_of_date(as_of);
+    reqb.add_indices(indices);
     reqb.add_curves(curves);
     b.Finish(reqb.Finish());
     
@@ -1134,7 +1174,6 @@ TEST_F(QuantraComparisonTest, BootstrapCurves_PillarDates) {
     auto result = response->results()->Get(0);
     ASSERT_NE(result->pillar_dates(), nullptr);
     
-    // Should have at least 6 pillar dates: ref date + 3 deposits + 2 swaps
     std::cout << "  Pillar dates count: " << result->pillar_dates()->size() << std::endl;
     for (size_t i = 0; i < result->pillar_dates()->size(); i++) {
         std::cout << "    " << result->pillar_dates()->Get(i)->c_str() << std::endl;

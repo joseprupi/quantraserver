@@ -56,13 +56,14 @@ class CapFloor(object):
             return obj
         return None
 
+    # Reference to an IndexDef by id (e.g., "EUR_3M")
     # CapFloor
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Index import Index
-            obj = Index()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -148,7 +149,7 @@ class CapFloorT(object):
         self.notional = 0.0  # type: float
         self.strike = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
-        self.index = None  # type: Optional[IndexT]
+        self.index = None  # type: Optional[IndexRefT]
         self.dayCounter = 0  # type: int
         self.businessDayConvention = 0  # type: int
 
@@ -179,7 +180,7 @@ class CapFloorT(object):
         if capFloor.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(capFloor.Schedule())
         if capFloor.Index() is not None:
-            self.index = IndexT.InitFromObj(capFloor.Index())
+            self.index = IndexRefT.InitFromObj(capFloor.Index())
         self.dayCounter = capFloor.DayCounter()
         self.businessDayConvention = capFloor.BusinessDayConvention()
 

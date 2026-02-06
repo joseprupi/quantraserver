@@ -14,17 +14,10 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "enums_generated.h"
+#include "index_generated.h"
 #include "schedule_generated.h"
 
 namespace quantra {
-
-struct IborIndexSpec;
-struct IborIndexSpecBuilder;
-struct IborIndexSpecT;
-
-struct OvernightIndexSpec;
-struct OvernightIndexSpecBuilder;
-struct OvernightIndexSpecT;
 
 struct CurveRef;
 struct CurveRefBuilder;
@@ -33,14 +26,6 @@ struct CurveRefT;
 struct HelperDependencies;
 struct HelperDependenciesBuilder;
 struct HelperDependenciesT;
-
-struct Fixing;
-struct FixingBuilder;
-struct FixingT;
-
-struct IndexFixings;
-struct IndexFixingsBuilder;
-struct IndexFixingsT;
 
 struct DepositHelper;
 struct DepositHelperBuilder;
@@ -89,114 +74,6 @@ struct PointsWrapperT;
 struct TermStructure;
 struct TermStructureBuilder;
 struct TermStructureT;
-
-enum IndexSpec : uint8_t {
-  IndexSpec_NONE = 0,
-  IndexSpec_IborIndexSpec = 1,
-  IndexSpec_OvernightIndexSpec = 2,
-  IndexSpec_MIN = IndexSpec_NONE,
-  IndexSpec_MAX = IndexSpec_OvernightIndexSpec
-};
-
-inline const IndexSpec (&EnumValuesIndexSpec())[3] {
-  static const IndexSpec values[] = {
-    IndexSpec_NONE,
-    IndexSpec_IborIndexSpec,
-    IndexSpec_OvernightIndexSpec
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesIndexSpec() {
-  static const char * const names[4] = {
-    "NONE",
-    "IborIndexSpec",
-    "OvernightIndexSpec",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameIndexSpec(IndexSpec e) {
-  if (::flatbuffers::IsOutRange(e, IndexSpec_NONE, IndexSpec_OvernightIndexSpec)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesIndexSpec()[index];
-}
-
-template<typename T> struct IndexSpecTraits {
-  static const IndexSpec enum_value = IndexSpec_NONE;
-};
-
-template<> struct IndexSpecTraits<quantra::IborIndexSpec> {
-  static const IndexSpec enum_value = IndexSpec_IborIndexSpec;
-};
-
-template<> struct IndexSpecTraits<quantra::OvernightIndexSpec> {
-  static const IndexSpec enum_value = IndexSpec_OvernightIndexSpec;
-};
-
-template<typename T> struct IndexSpecUnionTraits {
-  static const IndexSpec enum_value = IndexSpec_NONE;
-};
-
-template<> struct IndexSpecUnionTraits<quantra::IborIndexSpecT> {
-  static const IndexSpec enum_value = IndexSpec_IborIndexSpec;
-};
-
-template<> struct IndexSpecUnionTraits<quantra::OvernightIndexSpecT> {
-  static const IndexSpec enum_value = IndexSpec_OvernightIndexSpec;
-};
-
-struct IndexSpecUnion {
-  IndexSpec type;
-  void *value;
-
-  IndexSpecUnion() : type(IndexSpec_NONE), value(nullptr) {}
-  IndexSpecUnion(IndexSpecUnion&& u) FLATBUFFERS_NOEXCEPT :
-    type(IndexSpec_NONE), value(nullptr)
-    { std::swap(type, u.type); std::swap(value, u.value); }
-  IndexSpecUnion(const IndexSpecUnion &);
-  IndexSpecUnion &operator=(const IndexSpecUnion &u)
-    { IndexSpecUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
-  IndexSpecUnion &operator=(IndexSpecUnion &&u) FLATBUFFERS_NOEXCEPT
-    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
-  ~IndexSpecUnion() { Reset(); }
-
-  void Reset();
-
-  template <typename T>
-  void Set(T&& val) {
-    typedef typename std::remove_reference<T>::type RT;
-    Reset();
-    type = IndexSpecUnionTraits<RT>::enum_value;
-    if (type != IndexSpec_NONE) {
-      value = new RT(std::forward<T>(val));
-    }
-  }
-
-  static void *UnPack(const void *obj, IndexSpec type, const ::flatbuffers::resolver_function_t *resolver);
-  ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
-
-  quantra::IborIndexSpecT *AsIborIndexSpec() {
-    return type == IndexSpec_IborIndexSpec ?
-      reinterpret_cast<quantra::IborIndexSpecT *>(value) : nullptr;
-  }
-  const quantra::IborIndexSpecT *AsIborIndexSpec() const {
-    return type == IndexSpec_IborIndexSpec ?
-      reinterpret_cast<const quantra::IborIndexSpecT *>(value) : nullptr;
-  }
-  quantra::OvernightIndexSpecT *AsOvernightIndexSpec() {
-    return type == IndexSpec_OvernightIndexSpec ?
-      reinterpret_cast<quantra::OvernightIndexSpecT *>(value) : nullptr;
-  }
-  const quantra::OvernightIndexSpecT *AsOvernightIndexSpec() const {
-    return type == IndexSpec_OvernightIndexSpec ?
-      reinterpret_cast<const quantra::OvernightIndexSpecT *>(value) : nullptr;
-  }
-};
-
-bool VerifyIndexSpec(::flatbuffers::Verifier &verifier, const void *obj, IndexSpec type);
-bool VerifyIndexSpecVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
 enum Point : uint8_t {
   Point_NONE = 0,
@@ -458,222 +335,6 @@ struct PointUnion {
 bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type);
 bool VerifyPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
-struct IborIndexSpecT : public ::flatbuffers::NativeTable {
-  typedef IborIndexSpec TableType;
-  quantra::enums::IborFamily family = quantra::enums::IborFamily_Euribor;
-  int32_t tenor_number = 3;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months;
-  int32_t fixing_days = 2;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  bool end_of_month = true;
-};
-
-/// IBOR index fully described by conventions
-struct IborIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef IborIndexSpecT NativeTableType;
-  typedef IborIndexSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_FAMILY = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_FIXING_DAYS = 10,
-    VT_CALENDAR = 12,
-    VT_BUSINESS_DAY_CONVENTION = 14,
-    VT_DAY_COUNTER = 16,
-    VT_END_OF_MONTH = 18
-  };
-  quantra::enums::IborFamily family() const {
-    return static_cast<quantra::enums::IborFamily>(GetField<int8_t>(VT_FAMILY, 0));
-  }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 3);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 5));
-  }
-  int32_t fixing_days() const {
-    return GetField<int32_t>(VT_FIXING_DAYS, 2);
-  }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
-  }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
-  }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
-  }
-  bool end_of_month() const {
-    return GetField<uint8_t>(VT_END_OF_MONTH, 1) != 0;
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_FAMILY, 1) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
-           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
-           verifier.EndTable();
-  }
-  IborIndexSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(IborIndexSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<IborIndexSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborIndexSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct IborIndexSpecBuilder {
-  typedef IborIndexSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_family(quantra::enums::IborFamily family) {
-    fbb_.AddElement<int8_t>(IborIndexSpec::VT_FAMILY, static_cast<int8_t>(family), 0);
-  }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(IborIndexSpec::VT_TENOR_NUMBER, tenor_number, 3);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(IborIndexSpec::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 5);
-  }
-  void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(IborIndexSpec::VT_FIXING_DAYS, fixing_days, 2);
-  }
-  void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(IborIndexSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
-  }
-  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(IborIndexSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(IborIndexSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
-  }
-  void add_end_of_month(bool end_of_month) {
-    fbb_.AddElement<uint8_t>(IborIndexSpec::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 1);
-  }
-  explicit IborIndexSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<IborIndexSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<IborIndexSpec>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<IborIndexSpec> CreateIborIndexSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::IborFamily family = quantra::enums::IborFamily_Euribor,
-    int32_t tenor_number = 3,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
-    int32_t fixing_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    bool end_of_month = true) {
-  IborIndexSpecBuilder builder_(_fbb);
-  builder_.add_fixing_days(fixing_days);
-  builder_.add_tenor_number(tenor_number);
-  builder_.add_end_of_month(end_of_month);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
-  builder_.add_family(family);
-  return builder_.Finish();
-}
-
-::flatbuffers::Offset<IborIndexSpec> CreateIborIndexSpec(::flatbuffers::FlatBufferBuilder &_fbb, const IborIndexSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct OvernightIndexSpecT : public ::flatbuffers::NativeTable {
-  typedef OvernightIndexSpec TableType;
-  quantra::enums::OvernightIndex name = quantra::enums::OvernightIndex_SOFR;
-  int32_t fixing_days = 0;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_UnitedStatesGovernmentBond;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-};
-
-/// Overnight index fully described by conventions
-struct OvernightIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef OvernightIndexSpecT NativeTableType;
-  typedef OvernightIndexSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NAME = 4,
-    VT_FIXING_DAYS = 6,
-    VT_CALENDAR = 8,
-    VT_DAY_COUNTER = 10
-  };
-  quantra::enums::OvernightIndex name() const {
-    return static_cast<quantra::enums::OvernightIndex>(GetField<int8_t>(VT_NAME, 0));
-  }
-  int32_t fixing_days() const {
-    return GetField<int32_t>(VT_FIXING_DAYS, 0);
-  }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 38));
-  }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_NAME, 1) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           verifier.EndTable();
-  }
-  OvernightIndexSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(OvernightIndexSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<OvernightIndexSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightIndexSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct OvernightIndexSpecBuilder {
-  typedef OvernightIndexSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_name(quantra::enums::OvernightIndex name) {
-    fbb_.AddElement<int8_t>(OvernightIndexSpec::VT_NAME, static_cast<int8_t>(name), 0);
-  }
-  void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(OvernightIndexSpec::VT_FIXING_DAYS, fixing_days, 0);
-  }
-  void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(OvernightIndexSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 38);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(OvernightIndexSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
-  }
-  explicit OvernightIndexSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<OvernightIndexSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<OvernightIndexSpec>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<OvernightIndexSpec> CreateOvernightIndexSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::OvernightIndex name = quantra::enums::OvernightIndex_SOFR,
-    int32_t fixing_days = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_UnitedStatesGovernmentBond,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
-  OvernightIndexSpecBuilder builder_(_fbb);
-  builder_.add_fixing_days(fixing_days);
-  builder_.add_day_counter(day_counter);
-  builder_.add_calendar(calendar);
-  builder_.add_name(name);
-  return builder_.Finish();
-}
-
-::flatbuffers::Offset<OvernightIndexSpec> CreateOvernightIndexSpec(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightIndexSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct CurveRefT : public ::flatbuffers::NativeTable {
   typedef CurveRef TableType;
   std::string id{};
@@ -758,15 +419,32 @@ struct HelperDependencies FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
     VT_PROJECTION_CURVE_2 = 8,
     VT_FX_SPOT_QUOTE_ID = 10
   };
+  /// Exogenous discount curve for dual-curve bootstrapping.
+  /// Supported by: SwapHelper, OISHelper, DatedOISHelper,
+  /// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
   const quantra::CurveRef *discount_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_DISCOUNT_CURVE);
   }
+  /// Exogenous projection/forwarding curve.
+  ///
+  /// ⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.
+  /// QuantLib's SwapRateHelper/OISRateHelper override the index forwarding
+  /// handle via index->clone(termStructureHandle_) during bootstrapping.
+  /// The projection curve is ALWAYS the curve being bootstrapped for these
+  /// helpers. Setting this field on Swap/OIS helpers will produce a hard
+  /// error at parse time.
+  ///
+  /// Supported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper
+  /// (and future custom helpers that genuinely encode projection relationships).
   const quantra::CurveRef *projection_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE);
   }
+  /// Second projection curve for basis/XCCY helpers (e.g. the "other leg").
+  /// Same restrictions as projection_curve above.
   const quantra::CurveRef *projection_curve_2() const {
     return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE_2);
   }
+  /// FX spot quote reference for FX-implied curve helpers.
   const ::flatbuffers::String *fx_spot_quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT_QUOTE_ID);
   }
@@ -844,166 +522,6 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependenciesDirect(
 }
 
 ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(::flatbuffers::FlatBufferBuilder &_fbb, const HelperDependenciesT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct FixingT : public ::flatbuffers::NativeTable {
-  typedef Fixing TableType;
-  std::string date{};
-  double value = 0.0;
-};
-
-struct Fixing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef FixingT NativeTableType;
-  typedef FixingBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_DATE = 4,
-    VT_VALUE = 6
-  };
-  const ::flatbuffers::String *date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
-  }
-  double value() const {
-    return GetField<double>(VT_VALUE, 0.0);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_DATE) &&
-           verifier.VerifyString(date()) &&
-           VerifyField<double>(verifier, VT_VALUE, 8) &&
-           verifier.EndTable();
-  }
-  FixingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FixingT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<Fixing> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct FixingBuilder {
-  typedef Fixing Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
-    fbb_.AddOffset(Fixing::VT_DATE, date);
-  }
-  void add_value(double value) {
-    fbb_.AddElement<double>(Fixing::VT_VALUE, value, 0.0);
-  }
-  explicit FixingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<Fixing> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<Fixing>(end);
-    fbb_.Required(o, Fixing::VT_DATE);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<Fixing> CreateFixing(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
-    double value = 0.0) {
-  FixingBuilder builder_(_fbb);
-  builder_.add_value(value);
-  builder_.add_date(date);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<Fixing> CreateFixingDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    const char *date = nullptr,
-    double value = 0.0) {
-  auto date__ = date ? _fbb.CreateString(date) : 0;
-  return quantra::CreateFixing(
-      _fbb,
-      date__,
-      value);
-}
-
-::flatbuffers::Offset<Fixing> CreateFixing(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct IndexFixingsT : public ::flatbuffers::NativeTable {
-  typedef IndexFixings TableType;
-  std::string index_id{};
-  std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
-  IndexFixingsT() = default;
-  IndexFixingsT(const IndexFixingsT &o);
-  IndexFixingsT(IndexFixingsT&&) FLATBUFFERS_NOEXCEPT = default;
-  IndexFixingsT &operator=(IndexFixingsT o) FLATBUFFERS_NOEXCEPT;
-};
-
-struct IndexFixings FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef IndexFixingsT NativeTableType;
-  typedef IndexFixingsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_INDEX_ID = 4,
-    VT_FIXINGS = 6
-  };
-  const ::flatbuffers::String *index_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_INDEX_ID);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *fixings() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *>(VT_FIXINGS);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_INDEX_ID) &&
-           verifier.VerifyString(index_id()) &&
-           VerifyOffsetRequired(verifier, VT_FIXINGS) &&
-           verifier.VerifyVector(fixings()) &&
-           verifier.VerifyVectorOfTables(fixings()) &&
-           verifier.EndTable();
-  }
-  IndexFixingsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(IndexFixingsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<IndexFixings> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexFixingsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct IndexFixingsBuilder {
-  typedef IndexFixings Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_index_id(::flatbuffers::Offset<::flatbuffers::String> index_id) {
-    fbb_.AddOffset(IndexFixings::VT_INDEX_ID, index_id);
-  }
-  void add_fixings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings) {
-    fbb_.AddOffset(IndexFixings::VT_FIXINGS, fixings);
-  }
-  explicit IndexFixingsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<IndexFixings> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<IndexFixings>(end);
-    fbb_.Required(o, IndexFixings::VT_INDEX_ID);
-    fbb_.Required(o, IndexFixings::VT_FIXINGS);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<IndexFixings> CreateIndexFixings(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::String> index_id = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings = 0) {
-  IndexFixingsBuilder builder_(_fbb);
-  builder_.add_fixings(fixings);
-  builder_.add_index_id(index_id);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<IndexFixings> CreateIndexFixingsDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    const char *index_id = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::Fixing>> *fixings = nullptr) {
-  auto index_id__ = index_id ? _fbb.CreateString(index_id) : 0;
-  auto fixings__ = fixings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>>(*fixings) : 0;
-  return quantra::CreateIndexFixings(
-      _fbb,
-      index_id__,
-      fixings__);
-}
-
-::flatbuffers::Offset<IndexFixings> CreateIndexFixings(::flatbuffers::FlatBufferBuilder &_fbb, const IndexFixingsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct DepositHelperT : public ::flatbuffers::NativeTable {
   typedef DepositHelper TableType;
@@ -1491,8 +1009,7 @@ struct SwapHelperT : public ::flatbuffers::NativeTable {
   quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual;
   quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following;
   quantra::enums::DayCounter sw_fixed_leg_day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::Ibor sw_floating_leg_index = quantra::enums::Ibor_Euribor10M;
-  quantra::IndexSpecUnion float_index{};
+  std::unique_ptr<quantra::IndexRefT> float_index{};
   double spread = 0.0;
   int32_t fwd_start_days = 0;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
@@ -1514,13 +1031,11 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_SW_FIXED_LEG_FREQUENCY = 12,
     VT_SW_FIXED_LEG_CONVENTION = 14,
     VT_SW_FIXED_LEG_DAY_COUNTER = 16,
-    VT_SW_FLOATING_LEG_INDEX = 18,
-    VT_FLOAT_INDEX_TYPE = 20,
-    VT_FLOAT_INDEX = 22,
-    VT_SPREAD = 24,
-    VT_FWD_START_DAYS = 26,
-    VT_DEPS = 28,
-    VT_QUOTE_ID = 30
+    VT_FLOAT_INDEX = 18,
+    VT_SPREAD = 20,
+    VT_FWD_START_DAYS = 22,
+    VT_DEPS = 24,
+    VT_QUOTE_ID = 26
   };
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
@@ -1543,23 +1058,9 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter sw_fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_SW_FIXED_LEG_DAY_COUNTER, 0));
   }
-  /// Legacy enum-based index (backward compatible)
-  quantra::enums::Ibor sw_floating_leg_index() const {
-    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_SW_FLOATING_LEG_INDEX, 0));
-  }
-  quantra::IndexSpec float_index_type() const {
-    return static_cast<quantra::IndexSpec>(GetField<uint8_t>(VT_FLOAT_INDEX_TYPE, 0));
-  }
-  /// NEW: data-driven index spec (takes precedence over sw_floating_leg_index if set)
-  const void *float_index() const {
-    return GetPointer<const void *>(VT_FLOAT_INDEX);
-  }
-  template<typename T> const T *float_index_as() const;
-  const quantra::IborIndexSpec *float_index_as_IborIndexSpec() const {
-    return float_index_type() == quantra::IndexSpec_IborIndexSpec ? static_cast<const quantra::IborIndexSpec *>(float_index()) : nullptr;
-  }
-  const quantra::OvernightIndexSpec *float_index_as_OvernightIndexSpec() const {
-    return float_index_type() == quantra::IndexSpec_OvernightIndexSpec ? static_cast<const quantra::OvernightIndexSpec *>(float_index()) : nullptr;
+  /// Reference to an IndexDef by id (e.g., "EUR_6M")
+  const quantra::IndexRef *float_index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_FLOAT_INDEX);
   }
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
@@ -1567,7 +1068,7 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t fwd_start_days() const {
     return GetField<int32_t>(VT_FWD_START_DAYS, 0);
   }
-  /// NEW: exogenous discount curve for multi-curve bootstrapping
+  /// Exogenous discount curve for multi-curve bootstrapping
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
   }
@@ -1583,10 +1084,8 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_FREQUENCY, 1) &&
            VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_DAY_COUNTER, 1) &&
-           VerifyField<int8_t>(verifier, VT_SW_FLOATING_LEG_INDEX, 1) &&
-           VerifyField<uint8_t>(verifier, VT_FLOAT_INDEX_TYPE, 1) &&
-           VerifyOffset(verifier, VT_FLOAT_INDEX) &&
-           VerifyIndexSpec(verifier, float_index(), float_index_type()) &&
+           VerifyOffsetRequired(verifier, VT_FLOAT_INDEX) &&
+           verifier.VerifyTable(float_index()) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
            VerifyField<int32_t>(verifier, VT_FWD_START_DAYS, 4) &&
            VerifyOffset(verifier, VT_DEPS) &&
@@ -1599,14 +1098,6 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   void UnPackTo(SwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
   static ::flatbuffers::Offset<SwapHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
-
-template<> inline const quantra::IborIndexSpec *SwapHelper::float_index_as<quantra::IborIndexSpec>() const {
-  return float_index_as_IborIndexSpec();
-}
-
-template<> inline const quantra::OvernightIndexSpec *SwapHelper::float_index_as<quantra::OvernightIndexSpec>() const {
-  return float_index_as_OvernightIndexSpec();
-}
 
 struct SwapHelperBuilder {
   typedef SwapHelper Table;
@@ -1633,13 +1124,7 @@ struct SwapHelperBuilder {
   void add_sw_fixed_leg_day_counter(quantra::enums::DayCounter sw_fixed_leg_day_counter) {
     fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(sw_fixed_leg_day_counter), 0);
   }
-  void add_sw_floating_leg_index(quantra::enums::Ibor sw_floating_leg_index) {
-    fbb_.AddElement<int8_t>(SwapHelper::VT_SW_FLOATING_LEG_INDEX, static_cast<int8_t>(sw_floating_leg_index), 0);
-  }
-  void add_float_index_type(quantra::IndexSpec float_index_type) {
-    fbb_.AddElement<uint8_t>(SwapHelper::VT_FLOAT_INDEX_TYPE, static_cast<uint8_t>(float_index_type), 0);
-  }
-  void add_float_index(::flatbuffers::Offset<void> float_index) {
+  void add_float_index(::flatbuffers::Offset<quantra::IndexRef> float_index) {
     fbb_.AddOffset(SwapHelper::VT_FLOAT_INDEX, float_index);
   }
   void add_spread(double spread) {
@@ -1661,6 +1146,7 @@ struct SwapHelperBuilder {
   ::flatbuffers::Offset<SwapHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<SwapHelper>(end);
+    fbb_.Required(o, SwapHelper::VT_FLOAT_INDEX);
     return o;
   }
 };
@@ -1674,9 +1160,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter sw_fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::Ibor sw_floating_leg_index = quantra::enums::Ibor_Euribor10M,
-    quantra::IndexSpec float_index_type = quantra::IndexSpec_NONE,
-    ::flatbuffers::Offset<void> float_index = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> float_index = 0,
     double spread = 0.0,
     int32_t fwd_start_days = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
@@ -1689,8 +1173,6 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
   builder_.add_fwd_start_days(fwd_start_days);
   builder_.add_float_index(float_index);
   builder_.add_tenor_number(tenor_number);
-  builder_.add_float_index_type(float_index_type);
-  builder_.add_sw_floating_leg_index(sw_floating_leg_index);
   builder_.add_sw_fixed_leg_day_counter(sw_fixed_leg_day_counter);
   builder_.add_sw_fixed_leg_convention(sw_fixed_leg_convention);
   builder_.add_sw_fixed_leg_frequency(sw_fixed_leg_frequency);
@@ -1708,9 +1190,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter sw_fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::Ibor sw_floating_leg_index = quantra::enums::Ibor_Euribor10M,
-    quantra::IndexSpec float_index_type = quantra::IndexSpec_NONE,
-    ::flatbuffers::Offset<void> float_index = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> float_index = 0,
     double spread = 0.0,
     int32_t fwd_start_days = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
@@ -1725,8 +1205,6 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
       sw_fixed_leg_frequency,
       sw_fixed_leg_convention,
       sw_fixed_leg_day_counter,
-      sw_floating_leg_index,
-      float_index_type,
       float_index,
       spread,
       fwd_start_days,
@@ -1941,13 +1419,13 @@ struct OISHelperT : public ::flatbuffers::NativeTable {
   double rate = 0.0;
   int32_t tenor_number = 0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR;
-  std::unique_ptr<quantra::OvernightIndexSpecT> overnight_index_spec{};
+  std::unique_ptr<quantra::IndexRefT> overnight_index{};
   int32_t settlement_days = 2;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual;
   quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360;
+  std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   OISHelperT() = default;
   OISHelperT(const OISHelperT &o);
@@ -1963,12 +1441,12 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TENOR_NUMBER = 6,
     VT_TENOR_TIME_UNIT = 8,
     VT_OVERNIGHT_INDEX = 10,
-    VT_OVERNIGHT_INDEX_SPEC = 12,
-    VT_SETTLEMENT_DAYS = 14,
-    VT_CALENDAR = 16,
-    VT_FIXED_LEG_FREQUENCY = 18,
-    VT_FIXED_LEG_CONVENTION = 20,
-    VT_FIXED_LEG_DAY_COUNTER = 22,
+    VT_SETTLEMENT_DAYS = 12,
+    VT_CALENDAR = 14,
+    VT_FIXED_LEG_FREQUENCY = 16,
+    VT_FIXED_LEG_CONVENTION = 18,
+    VT_FIXED_LEG_DAY_COUNTER = 20,
+    VT_DEPS = 22,
     VT_QUOTE_ID = 24
   };
   double rate() const {
@@ -1980,13 +1458,9 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::TimeUnit tenor_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
   }
-  /// Overnight index (enum-based for simplicity)
-  quantra::enums::OvernightIndex overnight_index() const {
-    return static_cast<quantra::enums::OvernightIndex>(GetField<int8_t>(VT_OVERNIGHT_INDEX, 0));
-  }
-  /// Or use full spec (takes precedence if set)
-  const quantra::OvernightIndexSpec *overnight_index_spec() const {
-    return GetPointer<const quantra::OvernightIndexSpec *>(VT_OVERNIGHT_INDEX_SPEC);
+  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+  const quantra::IndexRef *overnight_index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 2);
@@ -2003,6 +1477,10 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
   }
+  /// Exogenous discount curve for dual-curve OIS bootstrapping
+  const quantra::HelperDependencies *deps() const {
+    return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
+  }
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
@@ -2011,14 +1489,15 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_RATE, 8) &&
            VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int8_t>(verifier, VT_OVERNIGHT_INDEX, 1) &&
-           VerifyOffset(verifier, VT_OVERNIGHT_INDEX_SPEC) &&
-           verifier.VerifyTable(overnight_index_spec()) &&
+           VerifyOffsetRequired(verifier, VT_OVERNIGHT_INDEX) &&
+           verifier.VerifyTable(overnight_index()) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_FREQUENCY, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyOffset(verifier, VT_DEPS) &&
+           verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
            verifier.VerifyString(quote_id()) &&
            verifier.EndTable();
@@ -2041,11 +1520,8 @@ struct OISHelperBuilder {
   void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
     fbb_.AddElement<int8_t>(OISHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
   }
-  void add_overnight_index(quantra::enums::OvernightIndex overnight_index) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_OVERNIGHT_INDEX, static_cast<int8_t>(overnight_index), 0);
-  }
-  void add_overnight_index_spec(::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec) {
-    fbb_.AddOffset(OISHelper::VT_OVERNIGHT_INDEX_SPEC, overnight_index_spec);
+  void add_overnight_index(::flatbuffers::Offset<quantra::IndexRef> overnight_index) {
+    fbb_.AddOffset(OISHelper::VT_OVERNIGHT_INDEX, overnight_index);
   }
   void add_settlement_days(int32_t settlement_days) {
     fbb_.AddElement<int32_t>(OISHelper::VT_SETTLEMENT_DAYS, settlement_days, 2);
@@ -2062,6 +1538,9 @@ struct OISHelperBuilder {
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
     fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter), 0);
   }
+  void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
+    fbb_.AddOffset(OISHelper::VT_DEPS, deps);
+  }
   void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
     fbb_.AddOffset(OISHelper::VT_QUOTE_ID, quote_id);
   }
@@ -2072,6 +1551,7 @@ struct OISHelperBuilder {
   ::flatbuffers::Offset<OISHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<OISHelper>(end);
+    fbb_.Required(o, OISHelper::VT_OVERNIGHT_INDEX);
     return o;
   }
 };
@@ -2081,25 +1561,25 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     double rate = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR,
-    ::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   OISHelperBuilder builder_(_fbb);
   builder_.add_rate(rate);
   builder_.add_quote_id(quote_id);
+  builder_.add_deps(deps);
   builder_.add_settlement_days(settlement_days);
-  builder_.add_overnight_index_spec(overnight_index_spec);
+  builder_.add_overnight_index(overnight_index);
   builder_.add_tenor_number(tenor_number);
   builder_.add_fixed_leg_day_counter(fixed_leg_day_counter);
   builder_.add_fixed_leg_convention(fixed_leg_convention);
   builder_.add_fixed_leg_frequency(fixed_leg_frequency);
   builder_.add_calendar(calendar);
-  builder_.add_overnight_index(overnight_index);
   builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
@@ -2109,13 +1589,13 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
     double rate = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR,
-    ::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   return quantra::CreateOISHelper(
@@ -2124,12 +1604,12 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
       tenor_number,
       tenor_time_unit,
       overnight_index,
-      overnight_index_spec,
       settlement_days,
       calendar,
       fixed_leg_frequency,
       fixed_leg_convention,
       fixed_leg_day_counter,
+      deps,
       quote_id__);
 }
 
@@ -2140,12 +1620,12 @@ struct DatedOISHelperT : public ::flatbuffers::NativeTable {
   double rate = 0.0;
   std::string start_date{};
   std::string end_date{};
-  quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR;
-  std::unique_ptr<quantra::OvernightIndexSpecT> overnight_index_spec{};
+  std::unique_ptr<quantra::IndexRefT> overnight_index{};
   int32_t settlement_days = 2;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360;
+  std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   DatedOISHelperT() = default;
   DatedOISHelperT(const DatedOISHelperT &o);
@@ -2161,11 +1641,11 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_START_DATE = 6,
     VT_END_DATE = 8,
     VT_OVERNIGHT_INDEX = 10,
-    VT_OVERNIGHT_INDEX_SPEC = 12,
-    VT_SETTLEMENT_DAYS = 14,
-    VT_CALENDAR = 16,
-    VT_FIXED_LEG_CONVENTION = 18,
-    VT_FIXED_LEG_DAY_COUNTER = 20,
+    VT_SETTLEMENT_DAYS = 12,
+    VT_CALENDAR = 14,
+    VT_FIXED_LEG_CONVENTION = 16,
+    VT_FIXED_LEG_DAY_COUNTER = 18,
+    VT_DEPS = 20,
     VT_QUOTE_ID = 22
   };
   double rate() const {
@@ -2177,11 +1657,9 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }
-  quantra::enums::OvernightIndex overnight_index() const {
-    return static_cast<quantra::enums::OvernightIndex>(GetField<int8_t>(VT_OVERNIGHT_INDEX, 0));
-  }
-  const quantra::OvernightIndexSpec *overnight_index_spec() const {
-    return GetPointer<const quantra::OvernightIndexSpec *>(VT_OVERNIGHT_INDEX_SPEC);
+  /// Reference to an overnight IndexDef by id
+  const quantra::IndexRef *overnight_index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 2);
@@ -2195,6 +1673,10 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
   }
+  /// Exogenous discount curve for dual-curve OIS bootstrapping
+  const quantra::HelperDependencies *deps() const {
+    return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
+  }
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
@@ -2205,13 +1687,14 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(start_date()) &&
            VerifyOffsetRequired(verifier, VT_END_DATE) &&
            verifier.VerifyString(end_date()) &&
-           VerifyField<int8_t>(verifier, VT_OVERNIGHT_INDEX, 1) &&
-           VerifyOffset(verifier, VT_OVERNIGHT_INDEX_SPEC) &&
-           verifier.VerifyTable(overnight_index_spec()) &&
+           VerifyOffsetRequired(verifier, VT_OVERNIGHT_INDEX) &&
+           verifier.VerifyTable(overnight_index()) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyOffset(verifier, VT_DEPS) &&
+           verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
            verifier.VerifyString(quote_id()) &&
            verifier.EndTable();
@@ -2234,11 +1717,8 @@ struct DatedOISHelperBuilder {
   void add_end_date(::flatbuffers::Offset<::flatbuffers::String> end_date) {
     fbb_.AddOffset(DatedOISHelper::VT_END_DATE, end_date);
   }
-  void add_overnight_index(quantra::enums::OvernightIndex overnight_index) {
-    fbb_.AddElement<int8_t>(DatedOISHelper::VT_OVERNIGHT_INDEX, static_cast<int8_t>(overnight_index), 0);
-  }
-  void add_overnight_index_spec(::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec) {
-    fbb_.AddOffset(DatedOISHelper::VT_OVERNIGHT_INDEX_SPEC, overnight_index_spec);
+  void add_overnight_index(::flatbuffers::Offset<quantra::IndexRef> overnight_index) {
+    fbb_.AddOffset(DatedOISHelper::VT_OVERNIGHT_INDEX, overnight_index);
   }
   void add_settlement_days(int32_t settlement_days) {
     fbb_.AddElement<int32_t>(DatedOISHelper::VT_SETTLEMENT_DAYS, settlement_days, 2);
@@ -2252,6 +1732,9 @@ struct DatedOISHelperBuilder {
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
     fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter), 0);
   }
+  void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
+    fbb_.AddOffset(DatedOISHelper::VT_DEPS, deps);
+  }
   void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
     fbb_.AddOffset(DatedOISHelper::VT_QUOTE_ID, quote_id);
   }
@@ -2264,6 +1747,7 @@ struct DatedOISHelperBuilder {
     auto o = ::flatbuffers::Offset<DatedOISHelper>(end);
     fbb_.Required(o, DatedOISHelper::VT_START_DATE);
     fbb_.Required(o, DatedOISHelper::VT_END_DATE);
+    fbb_.Required(o, DatedOISHelper::VT_OVERNIGHT_INDEX);
     return o;
   }
 };
@@ -2273,24 +1757,24 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
     double rate = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
-    quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR,
-    ::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   DatedOISHelperBuilder builder_(_fbb);
   builder_.add_rate(rate);
   builder_.add_quote_id(quote_id);
+  builder_.add_deps(deps);
   builder_.add_settlement_days(settlement_days);
-  builder_.add_overnight_index_spec(overnight_index_spec);
+  builder_.add_overnight_index(overnight_index);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
   builder_.add_fixed_leg_day_counter(fixed_leg_day_counter);
   builder_.add_fixed_leg_convention(fixed_leg_convention);
   builder_.add_calendar(calendar);
-  builder_.add_overnight_index(overnight_index);
   return builder_.Finish();
 }
 
@@ -2299,12 +1783,12 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
     double rate = 0.0,
     const char *start_date = nullptr,
     const char *end_date = nullptr,
-    quantra::enums::OvernightIndex overnight_index = quantra::enums::OvernightIndex_SOFR,
-    ::flatbuffers::Offset<quantra::OvernightIndexSpec> overnight_index_spec = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
   auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
@@ -2315,11 +1799,11 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
       start_date__,
       end_date__,
       overnight_index,
-      overnight_index_spec,
       settlement_days,
       calendar,
       fixed_leg_convention,
       fixed_leg_day_counter,
+      deps,
       quote_id__);
 }
 
@@ -2330,8 +1814,8 @@ struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   double spread = 0.0;
   int32_t tenor_number = 0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  quantra::enums::Ibor index_short = quantra::enums::Ibor_Euribor10M;
-  quantra::enums::Ibor index_long = quantra::enums::Ibor_Euribor10M;
+  std::unique_ptr<quantra::IndexRefT> index_short{};
+  std::unique_ptr<quantra::IndexRefT> index_long{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
@@ -2363,11 +1847,13 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   quantra::enums::TimeUnit tenor_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
   }
-  quantra::enums::Ibor index_short() const {
-    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_INDEX_SHORT, 0));
+  /// Short tenor index (e.g., "EUR_3M")
+  const quantra::IndexRef *index_short() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX_SHORT);
   }
-  quantra::enums::Ibor index_long() const {
-    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_INDEX_LONG, 0));
+  /// Long tenor index (e.g., "EUR_6M")
+  const quantra::IndexRef *index_long() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX_LONG);
   }
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
@@ -2383,8 +1869,10 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
            VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int8_t>(verifier, VT_INDEX_SHORT, 1) &&
-           VerifyField<int8_t>(verifier, VT_INDEX_LONG, 1) &&
+           VerifyOffsetRequired(verifier, VT_INDEX_SHORT) &&
+           verifier.VerifyTable(index_short()) &&
+           VerifyOffsetRequired(verifier, VT_INDEX_LONG) &&
+           verifier.VerifyTable(index_long()) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyOffset(verifier, VT_DEPS) &&
            verifier.VerifyTable(deps()) &&
@@ -2410,11 +1898,11 @@ struct TenorBasisSwapHelperBuilder {
   void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
     fbb_.AddElement<int8_t>(TenorBasisSwapHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
   }
-  void add_index_short(quantra::enums::Ibor index_short) {
-    fbb_.AddElement<int8_t>(TenorBasisSwapHelper::VT_INDEX_SHORT, static_cast<int8_t>(index_short), 0);
+  void add_index_short(::flatbuffers::Offset<quantra::IndexRef> index_short) {
+    fbb_.AddOffset(TenorBasisSwapHelper::VT_INDEX_SHORT, index_short);
   }
-  void add_index_long(quantra::enums::Ibor index_long) {
-    fbb_.AddElement<int8_t>(TenorBasisSwapHelper::VT_INDEX_LONG, static_cast<int8_t>(index_long), 0);
+  void add_index_long(::flatbuffers::Offset<quantra::IndexRef> index_long) {
+    fbb_.AddOffset(TenorBasisSwapHelper::VT_INDEX_LONG, index_long);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
     fbb_.AddElement<int8_t>(TenorBasisSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
@@ -2432,6 +1920,8 @@ struct TenorBasisSwapHelperBuilder {
   ::flatbuffers::Offset<TenorBasisSwapHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<TenorBasisSwapHelper>(end);
+    fbb_.Required(o, TenorBasisSwapHelper::VT_INDEX_SHORT);
+    fbb_.Required(o, TenorBasisSwapHelper::VT_INDEX_LONG);
     return o;
   }
 };
@@ -2441,8 +1931,8 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
     double spread = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::Ibor index_short = quantra::enums::Ibor_Euribor10M,
-    quantra::enums::Ibor index_long = quantra::enums::Ibor_Euribor10M,
+    ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
@@ -2450,10 +1940,10 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
   builder_.add_spread(spread);
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
-  builder_.add_tenor_number(tenor_number);
-  builder_.add_calendar(calendar);
   builder_.add_index_long(index_long);
   builder_.add_index_short(index_short);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_calendar(calendar);
   builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
@@ -2463,8 +1953,8 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDir
     double spread = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::Ibor index_short = quantra::enums::Ibor_Euribor10M,
-    quantra::enums::Ibor index_long = quantra::enums::Ibor_Euribor10M,
+    ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
@@ -2646,8 +2136,8 @@ struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   double spread = 0.0;
   int32_t tenor_number = 0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  quantra::enums::Ibor index_domestic = quantra::enums::Ibor_Euribor10M;
-  quantra::enums::Ibor index_foreign = quantra::enums::Ibor_Euribor10M;
+  std::unique_ptr<quantra::IndexRefT> index_domestic{};
+  std::unique_ptr<quantra::IndexRefT> index_foreign{};
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   CrossCcyBasisHelperT() = default;
@@ -2677,11 +2167,13 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   quantra::enums::TimeUnit tenor_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
   }
-  quantra::enums::Ibor index_domestic() const {
-    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_INDEX_DOMESTIC, 0));
+  /// Domestic leg index
+  const quantra::IndexRef *index_domestic() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX_DOMESTIC);
   }
-  quantra::enums::Ibor index_foreign() const {
-    return static_cast<quantra::enums::Ibor>(GetField<int8_t>(VT_INDEX_FOREIGN, 0));
+  /// Foreign leg index
+  const quantra::IndexRef *index_foreign() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX_FOREIGN);
   }
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
@@ -2694,8 +2186,10 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
            VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int8_t>(verifier, VT_INDEX_DOMESTIC, 1) &&
-           VerifyField<int8_t>(verifier, VT_INDEX_FOREIGN, 1) &&
+           VerifyOffsetRequired(verifier, VT_INDEX_DOMESTIC) &&
+           verifier.VerifyTable(index_domestic()) &&
+           VerifyOffsetRequired(verifier, VT_INDEX_FOREIGN) &&
+           verifier.VerifyTable(index_foreign()) &&
            VerifyOffset(verifier, VT_DEPS) &&
            verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
@@ -2720,11 +2214,11 @@ struct CrossCcyBasisHelperBuilder {
   void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
     fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
   }
-  void add_index_domestic(quantra::enums::Ibor index_domestic) {
-    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_INDEX_DOMESTIC, static_cast<int8_t>(index_domestic), 0);
+  void add_index_domestic(::flatbuffers::Offset<quantra::IndexRef> index_domestic) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_INDEX_DOMESTIC, index_domestic);
   }
-  void add_index_foreign(quantra::enums::Ibor index_foreign) {
-    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_INDEX_FOREIGN, static_cast<int8_t>(index_foreign), 0);
+  void add_index_foreign(::flatbuffers::Offset<quantra::IndexRef> index_foreign) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_INDEX_FOREIGN, index_foreign);
   }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_DEPS, deps);
@@ -2739,6 +2233,8 @@ struct CrossCcyBasisHelperBuilder {
   ::flatbuffers::Offset<CrossCcyBasisHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<CrossCcyBasisHelper>(end);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_INDEX_DOMESTIC);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_INDEX_FOREIGN);
     return o;
   }
 };
@@ -2748,17 +2244,17 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
     double spread = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::Ibor index_domestic = quantra::enums::Ibor_Euribor10M,
-    quantra::enums::Ibor index_foreign = quantra::enums::Ibor_Euribor10M,
+    ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   CrossCcyBasisHelperBuilder builder_(_fbb);
   builder_.add_spread(spread);
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
-  builder_.add_tenor_number(tenor_number);
   builder_.add_index_foreign(index_foreign);
   builder_.add_index_domestic(index_domestic);
+  builder_.add_tenor_number(tenor_number);
   builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
@@ -2768,8 +2264,8 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirec
     double spread = 0.0,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    quantra::enums::Ibor index_domestic = quantra::enums::Ibor_Euribor10M,
-    quantra::enums::Ibor index_foreign = quantra::enums::Ibor_Euribor10M,
+    ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
@@ -3056,88 +2552,6 @@ inline ::flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
 
 ::flatbuffers::Offset<TermStructure> CreateTermStructure(::flatbuffers::FlatBufferBuilder &_fbb, const TermStructureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline IborIndexSpecT *IborIndexSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<IborIndexSpecT>(new IborIndexSpecT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void IborIndexSpec::UnPackTo(IborIndexSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = family(); _o->family = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = fixing_days(); _o->fixing_days = _e; }
-  { auto _e = calendar(); _o->calendar = _e; }
-  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = end_of_month(); _o->end_of_month = _e; }
-}
-
-inline ::flatbuffers::Offset<IborIndexSpec> IborIndexSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborIndexSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateIborIndexSpec(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<IborIndexSpec> CreateIborIndexSpec(::flatbuffers::FlatBufferBuilder &_fbb, const IborIndexSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IborIndexSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _family = _o->family;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _fixing_days = _o->fixing_days;
-  auto _calendar = _o->calendar;
-  auto _business_day_convention = _o->business_day_convention;
-  auto _day_counter = _o->day_counter;
-  auto _end_of_month = _o->end_of_month;
-  return quantra::CreateIborIndexSpec(
-      _fbb,
-      _family,
-      _tenor_number,
-      _tenor_time_unit,
-      _fixing_days,
-      _calendar,
-      _business_day_convention,
-      _day_counter,
-      _end_of_month);
-}
-
-inline OvernightIndexSpecT *OvernightIndexSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<OvernightIndexSpecT>(new OvernightIndexSpecT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void OvernightIndexSpec::UnPackTo(OvernightIndexSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = name(); _o->name = _e; }
-  { auto _e = fixing_days(); _o->fixing_days = _e; }
-  { auto _e = calendar(); _o->calendar = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-}
-
-inline ::flatbuffers::Offset<OvernightIndexSpec> OvernightIndexSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightIndexSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateOvernightIndexSpec(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<OvernightIndexSpec> CreateOvernightIndexSpec(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightIndexSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OvernightIndexSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _name = _o->name;
-  auto _fixing_days = _o->fixing_days;
-  auto _calendar = _o->calendar;
-  auto _day_counter = _o->day_counter;
-  return quantra::CreateOvernightIndexSpec(
-      _fbb,
-      _name,
-      _fixing_days,
-      _calendar,
-      _day_counter);
-}
-
 inline CurveRefT *CurveRef::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<CurveRefT>(new CurveRefT());
   UnPackTo(_o.get(), _resolver);
@@ -3212,76 +2626,6 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(::flat
       _projection_curve,
       _projection_curve_2,
       _fx_spot_quote_id);
-}
-
-inline FixingT *Fixing::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<FixingT>(new FixingT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void Fixing::UnPackTo(FixingT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = date(); if (_e) _o->date = _e->str(); }
-  { auto _e = value(); _o->value = _e; }
-}
-
-inline ::flatbuffers::Offset<Fixing> Fixing::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateFixing(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<Fixing> CreateFixing(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FixingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _date = _fbb.CreateString(_o->date);
-  auto _value = _o->value;
-  return quantra::CreateFixing(
-      _fbb,
-      _date,
-      _value);
-}
-
-inline IndexFixingsT::IndexFixingsT(const IndexFixingsT &o)
-      : index_id(o.index_id) {
-  fixings.reserve(o.fixings.size());
-  for (const auto &fixings_ : o.fixings) { fixings.emplace_back((fixings_) ? new quantra::FixingT(*fixings_) : nullptr); }
-}
-
-inline IndexFixingsT &IndexFixingsT::operator=(IndexFixingsT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(index_id, o.index_id);
-  std::swap(fixings, o.fixings);
-  return *this;
-}
-
-inline IndexFixingsT *IndexFixings::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<IndexFixingsT>(new IndexFixingsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void IndexFixings::UnPackTo(IndexFixingsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = index_id(); if (_e) _o->index_id = _e->str(); }
-  { auto _e = fixings(); if (_e) { _o->fixings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fixings[_i]) { _e->Get(_i)->UnPackTo(_o->fixings[_i].get(), _resolver); } else { _o->fixings[_i] = std::unique_ptr<quantra::FixingT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fixings.resize(0); } }
-}
-
-inline ::flatbuffers::Offset<IndexFixings> IndexFixings::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexFixingsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateIndexFixings(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<IndexFixings> CreateIndexFixings(::flatbuffers::FlatBufferBuilder &_fbb, const IndexFixingsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IndexFixingsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _index_id = _fbb.CreateString(_o->index_id);
-  auto _fixings = _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>> (_o->fixings.size(), [](size_t i, _VectorArgs *__va) { return CreateFixing(*__va->__fbb, __va->__o->fixings[i].get(), __va->__rehasher); }, &_va );
-  return quantra::CreateIndexFixings(
-      _fbb,
-      _index_id,
-      _fixings);
 }
 
 inline DepositHelperT *DepositHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -3436,8 +2780,7 @@ inline SwapHelperT::SwapHelperT(const SwapHelperT &o)
         sw_fixed_leg_frequency(o.sw_fixed_leg_frequency),
         sw_fixed_leg_convention(o.sw_fixed_leg_convention),
         sw_fixed_leg_day_counter(o.sw_fixed_leg_day_counter),
-        sw_floating_leg_index(o.sw_floating_leg_index),
-        float_index(o.float_index),
+        float_index((o.float_index) ? new quantra::IndexRefT(*o.float_index) : nullptr),
         spread(o.spread),
         fwd_start_days(o.fwd_start_days),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
@@ -3452,7 +2795,6 @@ inline SwapHelperT &SwapHelperT::operator=(SwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(sw_fixed_leg_frequency, o.sw_fixed_leg_frequency);
   std::swap(sw_fixed_leg_convention, o.sw_fixed_leg_convention);
   std::swap(sw_fixed_leg_day_counter, o.sw_fixed_leg_day_counter);
-  std::swap(sw_floating_leg_index, o.sw_floating_leg_index);
   std::swap(float_index, o.float_index);
   std::swap(spread, o.spread);
   std::swap(fwd_start_days, o.fwd_start_days);
@@ -3477,9 +2819,7 @@ inline void SwapHelper::UnPackTo(SwapHelperT *_o, const ::flatbuffers::resolver_
   { auto _e = sw_fixed_leg_frequency(); _o->sw_fixed_leg_frequency = _e; }
   { auto _e = sw_fixed_leg_convention(); _o->sw_fixed_leg_convention = _e; }
   { auto _e = sw_fixed_leg_day_counter(); _o->sw_fixed_leg_day_counter = _e; }
-  { auto _e = sw_floating_leg_index(); _o->sw_floating_leg_index = _e; }
-  { auto _e = float_index_type(); _o->float_index.type = _e; }
-  { auto _e = float_index(); if (_e) _o->float_index.value = quantra::IndexSpecUnion::UnPack(_e, float_index_type(), _resolver); }
+  { auto _e = float_index(); if (_e) { if(_o->float_index) { _e->UnPackTo(_o->float_index.get(), _resolver); } else { _o->float_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->float_index) { _o->float_index.reset(); } }
   { auto _e = spread(); _o->spread = _e; }
   { auto _e = fwd_start_days(); _o->fwd_start_days = _e; }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
@@ -3501,9 +2841,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBuf
   auto _sw_fixed_leg_frequency = _o->sw_fixed_leg_frequency;
   auto _sw_fixed_leg_convention = _o->sw_fixed_leg_convention;
   auto _sw_fixed_leg_day_counter = _o->sw_fixed_leg_day_counter;
-  auto _sw_floating_leg_index = _o->sw_floating_leg_index;
-  auto _float_index_type = _o->float_index.type;
-  auto _float_index = _o->float_index.Pack(_fbb);
+  auto _float_index = _o->float_index ? CreateIndexRef(_fbb, _o->float_index.get(), _rehasher) : 0;
   auto _spread = _o->spread;
   auto _fwd_start_days = _o->fwd_start_days;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
@@ -3517,8 +2855,6 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBuf
       _sw_fixed_leg_frequency,
       _sw_fixed_leg_convention,
       _sw_fixed_leg_day_counter,
-      _sw_floating_leg_index,
-      _float_index_type,
       _float_index,
       _spread,
       _fwd_start_days,
@@ -3615,13 +2951,13 @@ inline OISHelperT::OISHelperT(const OISHelperT &o)
       : rate(o.rate),
         tenor_number(o.tenor_number),
         tenor_time_unit(o.tenor_time_unit),
-        overnight_index(o.overnight_index),
-        overnight_index_spec((o.overnight_index_spec) ? new quantra::OvernightIndexSpecT(*o.overnight_index_spec) : nullptr),
+        overnight_index((o.overnight_index) ? new quantra::IndexRefT(*o.overnight_index) : nullptr),
         settlement_days(o.settlement_days),
         calendar(o.calendar),
         fixed_leg_frequency(o.fixed_leg_frequency),
         fixed_leg_convention(o.fixed_leg_convention),
         fixed_leg_day_counter(o.fixed_leg_day_counter),
+        deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
 }
 
@@ -3630,12 +2966,12 @@ inline OISHelperT &OISHelperT::operator=(OISHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(tenor_number, o.tenor_number);
   std::swap(tenor_time_unit, o.tenor_time_unit);
   std::swap(overnight_index, o.overnight_index);
-  std::swap(overnight_index_spec, o.overnight_index_spec);
   std::swap(settlement_days, o.settlement_days);
   std::swap(calendar, o.calendar);
   std::swap(fixed_leg_frequency, o.fixed_leg_frequency);
   std::swap(fixed_leg_convention, o.fixed_leg_convention);
   std::swap(fixed_leg_day_counter, o.fixed_leg_day_counter);
+  std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
   return *this;
 }
@@ -3652,13 +2988,13 @@ inline void OISHelper::UnPackTo(OISHelperT *_o, const ::flatbuffers::resolver_fu
   { auto _e = rate(); _o->rate = _e; }
   { auto _e = tenor_number(); _o->tenor_number = _e; }
   { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = overnight_index(); _o->overnight_index = _e; }
-  { auto _e = overnight_index_spec(); if (_e) { if(_o->overnight_index_spec) { _e->UnPackTo(_o->overnight_index_spec.get(), _resolver); } else { _o->overnight_index_spec = std::unique_ptr<quantra::OvernightIndexSpecT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index_spec) { _o->overnight_index_spec.reset(); } }
+  { auto _e = overnight_index(); if (_e) { if(_o->overnight_index) { _e->UnPackTo(_o->overnight_index.get(), _resolver); } else { _o->overnight_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index) { _o->overnight_index.reset(); } }
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = fixed_leg_frequency(); _o->fixed_leg_frequency = _e; }
   { auto _e = fixed_leg_convention(); _o->fixed_leg_convention = _e; }
   { auto _e = fixed_leg_day_counter(); _o->fixed_leg_day_counter = _e; }
+  { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
 
@@ -3673,13 +3009,13 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
   auto _rate = _o->rate;
   auto _tenor_number = _o->tenor_number;
   auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _overnight_index = _o->overnight_index;
-  auto _overnight_index_spec = _o->overnight_index_spec ? CreateOvernightIndexSpec(_fbb, _o->overnight_index_spec.get(), _rehasher) : 0;
+  auto _overnight_index = _o->overnight_index ? CreateIndexRef(_fbb, _o->overnight_index.get(), _rehasher) : 0;
   auto _settlement_days = _o->settlement_days;
   auto _calendar = _o->calendar;
   auto _fixed_leg_frequency = _o->fixed_leg_frequency;
   auto _fixed_leg_convention = _o->fixed_leg_convention;
   auto _fixed_leg_day_counter = _o->fixed_leg_day_counter;
+  auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateOISHelper(
       _fbb,
@@ -3687,12 +3023,12 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
       _tenor_number,
       _tenor_time_unit,
       _overnight_index,
-      _overnight_index_spec,
       _settlement_days,
       _calendar,
       _fixed_leg_frequency,
       _fixed_leg_convention,
       _fixed_leg_day_counter,
+      _deps,
       _quote_id);
 }
 
@@ -3700,12 +3036,12 @@ inline DatedOISHelperT::DatedOISHelperT(const DatedOISHelperT &o)
       : rate(o.rate),
         start_date(o.start_date),
         end_date(o.end_date),
-        overnight_index(o.overnight_index),
-        overnight_index_spec((o.overnight_index_spec) ? new quantra::OvernightIndexSpecT(*o.overnight_index_spec) : nullptr),
+        overnight_index((o.overnight_index) ? new quantra::IndexRefT(*o.overnight_index) : nullptr),
         settlement_days(o.settlement_days),
         calendar(o.calendar),
         fixed_leg_convention(o.fixed_leg_convention),
         fixed_leg_day_counter(o.fixed_leg_day_counter),
+        deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
 }
 
@@ -3714,11 +3050,11 @@ inline DatedOISHelperT &DatedOISHelperT::operator=(DatedOISHelperT o) FLATBUFFER
   std::swap(start_date, o.start_date);
   std::swap(end_date, o.end_date);
   std::swap(overnight_index, o.overnight_index);
-  std::swap(overnight_index_spec, o.overnight_index_spec);
   std::swap(settlement_days, o.settlement_days);
   std::swap(calendar, o.calendar);
   std::swap(fixed_leg_convention, o.fixed_leg_convention);
   std::swap(fixed_leg_day_counter, o.fixed_leg_day_counter);
+  std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
   return *this;
 }
@@ -3735,12 +3071,12 @@ inline void DatedOISHelper::UnPackTo(DatedOISHelperT *_o, const ::flatbuffers::r
   { auto _e = rate(); _o->rate = _e; }
   { auto _e = start_date(); if (_e) _o->start_date = _e->str(); }
   { auto _e = end_date(); if (_e) _o->end_date = _e->str(); }
-  { auto _e = overnight_index(); _o->overnight_index = _e; }
-  { auto _e = overnight_index_spec(); if (_e) { if(_o->overnight_index_spec) { _e->UnPackTo(_o->overnight_index_spec.get(), _resolver); } else { _o->overnight_index_spec = std::unique_ptr<quantra::OvernightIndexSpecT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index_spec) { _o->overnight_index_spec.reset(); } }
+  { auto _e = overnight_index(); if (_e) { if(_o->overnight_index) { _e->UnPackTo(_o->overnight_index.get(), _resolver); } else { _o->overnight_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index) { _o->overnight_index.reset(); } }
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = fixed_leg_convention(); _o->fixed_leg_convention = _e; }
   { auto _e = fixed_leg_day_counter(); _o->fixed_leg_day_counter = _e; }
+  { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
 
@@ -3755,12 +3091,12 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
   auto _rate = _o->rate;
   auto _start_date = _fbb.CreateString(_o->start_date);
   auto _end_date = _fbb.CreateString(_o->end_date);
-  auto _overnight_index = _o->overnight_index;
-  auto _overnight_index_spec = _o->overnight_index_spec ? CreateOvernightIndexSpec(_fbb, _o->overnight_index_spec.get(), _rehasher) : 0;
+  auto _overnight_index = _o->overnight_index ? CreateIndexRef(_fbb, _o->overnight_index.get(), _rehasher) : 0;
   auto _settlement_days = _o->settlement_days;
   auto _calendar = _o->calendar;
   auto _fixed_leg_convention = _o->fixed_leg_convention;
   auto _fixed_leg_day_counter = _o->fixed_leg_day_counter;
+  auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateDatedOISHelper(
       _fbb,
@@ -3768,11 +3104,11 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
       _start_date,
       _end_date,
       _overnight_index,
-      _overnight_index_spec,
       _settlement_days,
       _calendar,
       _fixed_leg_convention,
       _fixed_leg_day_counter,
+      _deps,
       _quote_id);
 }
 
@@ -3780,8 +3116,8 @@ inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT 
       : spread(o.spread),
         tenor_number(o.tenor_number),
         tenor_time_unit(o.tenor_time_unit),
-        index_short(o.index_short),
-        index_long(o.index_long),
+        index_short((o.index_short) ? new quantra::IndexRefT(*o.index_short) : nullptr),
+        index_long((o.index_long) ? new quantra::IndexRefT(*o.index_long) : nullptr),
         calendar(o.calendar),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
@@ -3811,8 +3147,8 @@ inline void TenorBasisSwapHelper::UnPackTo(TenorBasisSwapHelperT *_o, const ::fl
   { auto _e = spread(); _o->spread = _e; }
   { auto _e = tenor_number(); _o->tenor_number = _e; }
   { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = index_short(); _o->index_short = _e; }
-  { auto _e = index_long(); _o->index_long = _e; }
+  { auto _e = index_short(); if (_e) { if(_o->index_short) { _e->UnPackTo(_o->index_short.get(), _resolver); } else { _o->index_short = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_short) { _o->index_short.reset(); } }
+  { auto _e = index_long(); if (_e) { if(_o->index_long) { _e->UnPackTo(_o->index_long.get(), _resolver); } else { _o->index_long = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_long) { _o->index_long.reset(); } }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
@@ -3829,8 +3165,8 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(::
   auto _spread = _o->spread;
   auto _tenor_number = _o->tenor_number;
   auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _index_short = _o->index_short;
-  auto _index_long = _o->index_long;
+  auto _index_short = _o->index_short ? CreateIndexRef(_fbb, _o->index_short.get(), _rehasher) : 0;
+  auto _index_long = _o->index_long ? CreateIndexRef(_fbb, _o->index_long.get(), _rehasher) : 0;
   auto _calendar = _o->calendar;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
@@ -3920,8 +3256,8 @@ inline CrossCcyBasisHelperT::CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o)
       : spread(o.spread),
         tenor_number(o.tenor_number),
         tenor_time_unit(o.tenor_time_unit),
-        index_domestic(o.index_domestic),
-        index_foreign(o.index_foreign),
+        index_domestic((o.index_domestic) ? new quantra::IndexRefT(*o.index_domestic) : nullptr),
+        index_foreign((o.index_foreign) ? new quantra::IndexRefT(*o.index_foreign) : nullptr),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
 }
@@ -3949,8 +3285,8 @@ inline void CrossCcyBasisHelper::UnPackTo(CrossCcyBasisHelperT *_o, const ::flat
   { auto _e = spread(); _o->spread = _e; }
   { auto _e = tenor_number(); _o->tenor_number = _e; }
   { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = index_domestic(); _o->index_domestic = _e; }
-  { auto _e = index_foreign(); _o->index_foreign = _e; }
+  { auto _e = index_domestic(); if (_e) { if(_o->index_domestic) { _e->UnPackTo(_o->index_domestic.get(), _resolver); } else { _o->index_domestic = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_domestic) { _o->index_domestic.reset(); } }
+  { auto _e = index_foreign(); if (_e) { if(_o->index_foreign) { _e->UnPackTo(_o->index_foreign.get(), _resolver); } else { _o->index_foreign = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_foreign) { _o->index_foreign.reset(); } }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
@@ -3966,8 +3302,8 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
   auto _spread = _o->spread;
   auto _tenor_number = _o->tenor_number;
   auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _index_domestic = _o->index_domestic;
-  auto _index_foreign = _o->index_foreign;
+  auto _index_domestic = _o->index_domestic ? CreateIndexRef(_fbb, _o->index_domestic.get(), _rehasher) : 0;
+  auto _index_foreign = _o->index_foreign ? CreateIndexRef(_fbb, _o->index_foreign.get(), _rehasher) : 0;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateCrossCcyBasisHelper(
@@ -4069,98 +3405,6 @@ inline ::flatbuffers::Offset<TermStructure> CreateTermStructure(::flatbuffers::F
       _bootstrap_trait,
       _points,
       _reference_date);
-}
-
-inline bool VerifyIndexSpec(::flatbuffers::Verifier &verifier, const void *obj, IndexSpec type) {
-  switch (type) {
-    case IndexSpec_NONE: {
-      return true;
-    }
-    case IndexSpec_IborIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::IborIndexSpec *>(obj);
-      return verifier.VerifyTable(ptr);
-    }
-    case IndexSpec_OvernightIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::OvernightIndexSpec *>(obj);
-      return verifier.VerifyTable(ptr);
-    }
-    default: return true;
-  }
-}
-
-inline bool VerifyIndexSpecVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
-  if (!values || !types) return !values && !types;
-  if (values->size() != types->size()) return false;
-  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
-    if (!VerifyIndexSpec(
-        verifier,  values->Get(i), types->GetEnum<IndexSpec>(i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-inline void *IndexSpecUnion::UnPack(const void *obj, IndexSpec type, const ::flatbuffers::resolver_function_t *resolver) {
-  (void)resolver;
-  switch (type) {
-    case IndexSpec_IborIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::IborIndexSpec *>(obj);
-      return ptr->UnPack(resolver);
-    }
-    case IndexSpec_OvernightIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::OvernightIndexSpec *>(obj);
-      return ptr->UnPack(resolver);
-    }
-    default: return nullptr;
-  }
-}
-
-inline ::flatbuffers::Offset<void> IndexSpecUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
-  (void)_rehasher;
-  switch (type) {
-    case IndexSpec_IborIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::IborIndexSpecT *>(value);
-      return CreateIborIndexSpec(_fbb, ptr, _rehasher).Union();
-    }
-    case IndexSpec_OvernightIndexSpec: {
-      auto ptr = reinterpret_cast<const quantra::OvernightIndexSpecT *>(value);
-      return CreateOvernightIndexSpec(_fbb, ptr, _rehasher).Union();
-    }
-    default: return 0;
-  }
-}
-
-inline IndexSpecUnion::IndexSpecUnion(const IndexSpecUnion &u) : type(u.type), value(nullptr) {
-  switch (type) {
-    case IndexSpec_IborIndexSpec: {
-      value = new quantra::IborIndexSpecT(*reinterpret_cast<quantra::IborIndexSpecT *>(u.value));
-      break;
-    }
-    case IndexSpec_OvernightIndexSpec: {
-      value = new quantra::OvernightIndexSpecT(*reinterpret_cast<quantra::OvernightIndexSpecT *>(u.value));
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-inline void IndexSpecUnion::Reset() {
-  switch (type) {
-    case IndexSpec_IborIndexSpec: {
-      auto ptr = reinterpret_cast<quantra::IborIndexSpecT *>(value);
-      delete ptr;
-      break;
-    }
-    case IndexSpec_OvernightIndexSpec: {
-      auto ptr = reinterpret_cast<quantra::OvernightIndexSpecT *>(value);
-      delete ptr;
-      break;
-    }
-    default: break;
-  }
-  value = nullptr;
-  type = IndexSpec_NONE;
 }
 
 inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Point type) {

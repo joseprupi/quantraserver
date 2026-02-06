@@ -9,27 +9,15 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const BootstrapCurvesRequest *request) const
 {
-    // Set evaluation date
     Date asOfDate = DateToQL(request->as_of_date()->str());
     Settings::instance().evaluationDate() = asOfDate;
 
-    // =========================================================================
-    // Bootstrap ALL curves together (dependency-aware)
-    // =========================================================================
-    // Collect all TermStructure specs from the request
+    // Collect all TermStructure specs
     std::vector<const quantra::TermStructure*> tsSpecs;
     auto curveSpecs = request->curves();
     for (flatbuffers::uoffset_t i = 0; i < curveSpecs->size(); i++) {
         tsSpecs.push_back(curveSpecs->Get(i)->curve());
     }
-
-    // Build a temporary FlatBuffers vector-like structure for the bootstrapper
-    // We need to pass the TermStructure objects to CurveBootstrapper
-    // Since they're already in the request, we can bootstrap per-curve with
-    // shared registries, or use CurveBootstrapper if curves have inter-deps.
-    //
-    // Strategy: Use CurveBootstrapper to handle multi-curve deps if any curve
-    // has HelperDependencies. Otherwise fall back to independent bootstrapping.
 
     // Check if any curve has dependencies
     bool hasDeps = false;
@@ -42,7 +30,6 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 auto h = static_cast<const SwapHelper*>(ts->points()->Get(j)->point());
                 if (h->deps() && h->deps()->discount_curve()) { hasDeps = true; break; }
             }
-            // Check other helper types with deps...
             if (ptype == Point_TenorBasisSwapHelper || ptype == Point_FxSwapHelper ||
                 ptype == Point_CrossCcyBasisHelper) {
                 hasDeps = true; break;
@@ -51,15 +38,16 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
         if (hasDeps) break;
     }
 
-    // Bootstrap curves (with or without dependency awareness)
-    // We'll use TermStructureParser directly for each curve, but with shared
-    // registries if there are dependencies.
+    // Build registries
     quantra::QuoteRegistry quoteReg;
     quantra::CurveRegistry curveReg;
-    quantra::IndexFactory indexFactory;
     quantra::TermStructureParser tsParser;
 
-    // Pre-create empty handles for all curves (needed for dep resolution)
+    // Build IndexRegistry from request indices
+    quantra::IndexRegistryBuilder indexBuilder;
+    quantra::IndexRegistry indexReg = indexBuilder.build(request->indices());
+
+    // Pre-create empty handles for all curves
     std::map<std::string, std::shared_ptr<RelinkableHandle<YieldTermStructure>>> curveHandles;
     for (flatbuffers::uoffset_t i = 0; i < curveSpecs->size(); i++) {
         auto ts = curveSpecs->Get(i)->curve();
@@ -71,16 +59,14 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
         }
     }
 
-    // If there are dependencies, we need to bootstrap in topological order
-    // For simplicity and correctness, we always use the dependency-aware path
-    // (it degrades gracefully to independent bootstrapping when there are no deps)
+    // Topological sort
     std::unordered_map<std::string, std::vector<std::string>> deps;
     for (flatbuffers::uoffset_t i = 0; i < curveSpecs->size(); i++) {
         quantra::CurveBootstrapper::collectDeps(curveSpecs->Get(i)->curve(), deps);
     }
     auto order = quantra::CurveBootstrapper::topoSort(deps);
 
-    // Index specs by id for ordered lookup
+    // Index specs by id
     std::map<std::string, flatbuffers::uoffset_t> specIndex;
     for (flatbuffers::uoffset_t i = 0; i < curveSpecs->size(); i++) {
         auto ts = curveSpecs->Get(i)->curve();
@@ -92,24 +78,21 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
     std::map<std::string, std::shared_ptr<YieldTermStructure>> builtCurves;
     for (const auto& id : order) {
         auto sit = specIndex.find(id);
-        if (sit == specIndex.end()) continue; // referenced dep not in this request
+        if (sit == specIndex.end()) continue;
         
         auto ts = curveSpecs->Get(sit->second)->curve();
         try {
-            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexFactory);
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
             builtCurves[id] = curve;
             if (curveHandles.count(id)) {
                 curveHandles[id]->linkTo(curve);
             }
         } catch (std::exception& e) {
-            // Will be handled per-curve in the results loop below
             builtCurves[id] = nullptr;
         }
     }
 
-    // =========================================================================
-    // Build results for each curve spec
-    // =========================================================================
+    // Build results
     std::vector<flatbuffers::Offset<BootstrapCurveResult>> results;
 
     for (flatbuffers::uoffset_t i = 0; i < curveSpecs->size(); i++)
@@ -122,13 +105,11 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
         {
             auto curve = builtCurves.count(curveId) ? builtCurves[curveId] : nullptr;
             if (!curve) {
-                // Fallback: try independent bootstrap
-                curve = tsParser.parse(termStructure, &quoteReg, &curveReg, &indexFactory);
+                curve = tsParser.parse(termStructure, &quoteReg, &curveReg, &indexReg);
             }
             curve->enableExtrapolation();
 
             Date referenceDate = curve->referenceDate();
-            
             Calendar curveCalendar = getCalendarFromTermStructure(termStructure);
 
             // Build grid dates
@@ -144,16 +125,11 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 gridBdc = getBdcFromGrid(gridSpec);
                 
                 if (gridSpec->grid_type() == CurveGrid_TenorGrid)
-                {
                     gridDates = buildTenorGrid(gridSpec->grid_as_TenorGrid(), referenceDate, curveCalendar);
-                }
                 else if (gridSpec->grid_type() == CurveGrid_RangeGrid)
-                {
                     gridDates = buildRangeGrid(gridSpec->grid_as_RangeGrid(), asOfDate);
-                }
             }
 
-            // Convert grid dates to strings
             std::vector<flatbuffers::Offset<flatbuffers::String>> gridDateStrings;
             for (const auto &d : gridDates)
             {
@@ -162,7 +138,6 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 gridDateStrings.push_back(builder->CreateString(os.str()));
             }
 
-            // Compute requested measures
             std::vector<flatbuffers::Offset<CurveSeries>> seriesVector;
 
             if (query && query->measures())
@@ -182,7 +157,7 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                         values = computeZeroRates(curve, gridDates, query->zero());
                         break;
                     case CurveMeasure_FWD:
-                        values = computeForwardRates(curve, gridDates, query->fwd(), 
+                        values = computeForwardRates(curve, gridDates, query->fwd(),
                                                      gridCalendar, gridBdc, curveCalendar);
                         break;
                     }
@@ -195,7 +170,6 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 }
             }
 
-            // Extract pillar dates
             std::vector<Date> pillarDates = extractPillarDatesFromHelpers(termStructure, referenceDate);
             std::vector<flatbuffers::Offset<flatbuffers::String>> pillarDateStrings;
             for (const auto &d : pillarDates)
@@ -205,7 +179,6 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 pillarDateStrings.push_back(builder->CreateString(os.str()));
             }
 
-            // Build result
             auto idStr = builder->CreateString(curveId);
             std::ostringstream refDateOs;
             refDateOs << io::iso_date(referenceDate);
@@ -247,9 +220,7 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
     return responseBuilder.Finish();
 }
 
-// =============================================================================
-// Helper methods (unchanged except extractPillarDatesFromHelpers)
-// =============================================================================
+// Helper methods (unchanged)
 
 Calendar BootstrapCurvesRequestHandler::getCalendarFromTermStructure(
     const quantra::TermStructure *termStructure) const
@@ -352,31 +323,26 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
             if (bond->schedule() && bond->schedule()->termination_date())
                 maturityDate = DateToQL(bond->schedule()->termination_date()->str());
         }
-        // NEW: OIS helpers
         else if (auto ois = point->point_as_OISHelper())
         {
             Period tenor(ois->tenor_number(), TimeUnitToQL(ois->tenor_time_unit()));
             maturityDate = calendar.advance(referenceDate, tenor,
                                            ConventionToQL(ois->fixed_leg_convention()));
         }
-        // NEW: Dated OIS helpers
         else if (auto datedOis = point->point_as_DatedOISHelper())
         {
             maturityDate = DateToQL(datedOis->end_date()->str());
         }
-        // NEW: TenorBasisSwapHelper
         else if (auto basis = point->point_as_TenorBasisSwapHelper())
         {
             Period tenor(basis->tenor_number(), TimeUnitToQL(basis->tenor_time_unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         }
-        // NEW: FxSwapHelper
         else if (auto fx = point->point_as_FxSwapHelper())
         {
             Period tenor(fx->tenor_number(), TimeUnitToQL(fx->tenor_time_unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         }
-        // NEW: CrossCcyBasisHelper
         else if (auto xccy = point->point_as_CrossCcyBasisHelper())
         {
             Period tenor(xccy->tenor_number(), TimeUnitToQL(xccy->tenor_time_unit()));
@@ -384,22 +350,17 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
         }
         
         if (maturityDate != Date())
-        {
             dateSet.insert(maturityDate);
-        }
     }
     
     return std::vector<Date>(dateSet.begin(), dateSet.end());
 }
 
 std::vector<Date> BootstrapCurvesRequestHandler::buildTenorGrid(
-    const TenorGrid *grid,
-    const Date &referenceDate,
-    const Calendar &fallbackCalendar) const
+    const TenorGrid *grid, const Date &referenceDate, const Calendar &fallbackCalendar) const
 {
     std::vector<Date> dates;
     auto tenors = grid->tenors();
-    
     Calendar calendar = fallbackCalendar;
     BusinessDayConvention bdc = Following;
     bool useCalendar = false;
@@ -417,20 +378,10 @@ std::vector<Date> BootstrapCurvesRequestHandler::buildTenorGrid(
         int n = tenor->n();
         TimeUnit unit = TimeUnitToQL(tenor->unit());
         
-        if (n == 0)
-        {
-            dates.push_back(referenceDate);
-            continue;
-        }
+        if (n == 0) { dates.push_back(referenceDate); continue; }
         
         Period period(n, unit);
-        Date d;
-        
-        if (useCalendar)
-            d = calendar.advance(referenceDate, period, bdc);
-        else
-            d = referenceDate + period;
-        
+        Date d = useCalendar ? calendar.advance(referenceDate, period, bdc) : referenceDate + period;
         dates.push_back(d);
     }
 
@@ -438,81 +389,56 @@ std::vector<Date> BootstrapCurvesRequestHandler::buildTenorGrid(
 }
 
 std::vector<Date> BootstrapCurvesRequestHandler::buildRangeGrid(
-    const RangeGrid *grid,
-    const Date &asOfDate) const
+    const RangeGrid *grid, const Date &asOfDate) const
 {
     std::vector<Date> dates;
-
     Date startDate = grid->start_date() ? DateToQL(grid->start_date()->str()) : asOfDate;
     Date endDate = DateToQL(grid->end_date()->str());
-
     int stepNumber = grid->step_number();
     TimeUnit stepUnit = TimeUnitToQL(grid->step_time_unit());
     Period step(stepNumber, stepUnit);
-
     bool businessDaysOnly = grid->business_days_only();
     Calendar calendar = CalendarToQL(grid->calendar());
     BusinessDayConvention bdc = ConventionToQL(grid->business_day_convention());
     
     bool isNullCalendar = (grid->calendar() == enums::Calendar_NullCalendar);
-    if (businessDaysOnly && isNullCalendar)
-    {
-        calendar = WeekendsOnly();
-    }
+    if (businessDaysOnly && isNullCalendar) calendar = WeekendsOnly();
 
     Date current = startDate;
     while (current <= endDate)
     {
-        if (businessDaysOnly)
-        {
-            if (calendar.isBusinessDay(current))
-                dates.push_back(current);
-        }
-        else
-        {
-            dates.push_back(current);
-        }
+        if (businessDaysOnly) { if (calendar.isBusinessDay(current)) dates.push_back(current); }
+        else dates.push_back(current);
 
-        if (stepUnit == Days)
-            current = current + stepNumber;
-        else if (stepUnit == Weeks)
-            current = current + stepNumber * 7;
-        else
-            current = calendar.advance(current, step, bdc);
+        if (stepUnit == Days) current = current + stepNumber;
+        else if (stepUnit == Weeks) current = current + stepNumber * 7;
+        else current = calendar.advance(current, step, bdc);
 
         if (dates.size() > 50000)
-        {
-            QUANTRA_ERROR("Grid too large (>50000 points). Consider using a larger step or smaller date range.");
-        }
+            QUANTRA_ERROR("Grid too large (>50000 points).");
     }
 
     return dates;
 }
 
 std::vector<double> BootstrapCurvesRequestHandler::computeDiscountFactors(
-    const std::shared_ptr<YieldTermStructure> &curve,
-    const std::vector<Date> &dates) const
+    const std::shared_ptr<YieldTermStructure> &curve, const std::vector<Date> &dates) const
 {
     std::vector<double> values;
     values.reserve(dates.size());
-    for (const auto &d : dates)
-        values.push_back(curve->discount(d));
+    for (const auto &d : dates) values.push_back(curve->discount(d));
     return values;
 }
 
 std::vector<double> BootstrapCurvesRequestHandler::computeZeroRates(
-    const std::shared_ptr<YieldTermStructure> &curve,
-    const std::vector<Date> &dates,
+    const std::shared_ptr<YieldTermStructure> &curve, const std::vector<Date> &dates,
     const ZeroRateQuery *zeroQuery) const
 {
     DayCounter dc = curve->dayCounter();
     Compounding comp = Continuous;
     Frequency freq = Annual;
-
-    if (zeroQuery)
-    {
-        if (!zeroQuery->use_curve_day_counter())
-            dc = DayCounterToQL(zeroQuery->day_counter());
+    if (zeroQuery) {
+        if (!zeroQuery->use_curve_day_counter()) dc = DayCounterToQL(zeroQuery->day_counter());
         comp = CompoundingToQL(zeroQuery->compounding());
         freq = FrequencyToQL(zeroQuery->frequency());
     }
@@ -520,47 +446,29 @@ std::vector<double> BootstrapCurvesRequestHandler::computeZeroRates(
     std::vector<double> values;
     values.reserve(dates.size());
     Date refDate = curve->referenceDate();
-
-    for (const auto &d : dates)
-    {
-        if (d <= refDate)
-        {
-            Date d1 = refDate + 1;
-            InterestRate rate = curve->zeroRate(d1, dc, comp, freq);
-            values.push_back(rate.rate());
-        }
-        else
-        {
-            InterestRate rate = curve->zeroRate(d, dc, comp, freq);
-            values.push_back(rate.rate());
-        }
+    for (const auto &d : dates) {
+        Date dd = (d <= refDate) ? refDate + 1 : d;
+        InterestRate rate = curve->zeroRate(dd, dc, comp, freq);
+        values.push_back(rate.rate());
     }
-
     return values;
 }
 
 std::vector<double> BootstrapCurvesRequestHandler::computeForwardRates(
-    const std::shared_ptr<YieldTermStructure> &curve,
-    const std::vector<Date> &dates,
-    const ForwardRateQuery *fwdQuery,
-    const Calendar &gridCalendar,
-    BusinessDayConvention gridBdc,
-    const Calendar &curveCalendar) const
+    const std::shared_ptr<YieldTermStructure> &curve, const std::vector<Date> &dates,
+    const ForwardRateQuery *fwdQuery, const Calendar &gridCalendar,
+    BusinessDayConvention gridBdc, const Calendar &curveCalendar) const
 {
     DayCounter dc = curve->dayCounter();
     Compounding comp = Simple;
     Frequency freq = Annual;
     ForwardType fwdType = ForwardType_Instantaneous;
-    int epsNumber = 1;
-    TimeUnit epsUnit = Days;
-    int tenorNumber = 3;
-    TimeUnit tenorUnit = Months;
+    int epsNumber = 1; TimeUnit epsUnit = Days;
+    int tenorNumber = 3; TimeUnit tenorUnit = Months;
     bool useGridCalendar = true;
 
-    if (fwdQuery)
-    {
-        if (!fwdQuery->use_curve_day_counter())
-            dc = DayCounterToQL(fwdQuery->day_counter());
+    if (fwdQuery) {
+        if (!fwdQuery->use_curve_day_counter()) dc = DayCounterToQL(fwdQuery->day_counter());
         comp = CompoundingToQL(fwdQuery->compounding());
         freq = FrequencyToQL(fwdQuery->frequency());
         fwdType = fwdQuery->forward_type();
@@ -576,29 +484,16 @@ std::vector<double> BootstrapCurvesRequestHandler::computeForwardRates(
 
     std::vector<double> values;
     values.reserve(dates.size());
-
-    for (const auto &d : dates)
-    {
+    for (const auto &d : dates) {
         Date endDate;
-        
-        if (fwdType == ForwardType_Instantaneous)
-        {
-            if (epsUnit == Days)
-                endDate = d + epsNumber;
-            else
-                endDate = calendar.advance(d, Period(epsNumber, epsUnit), bdc);
-        }
-        else
-        {
+        if (fwdType == ForwardType_Instantaneous) {
+            endDate = (epsUnit == Days) ? d + epsNumber : calendar.advance(d, Period(epsNumber, epsUnit), bdc);
+        } else {
             endDate = calendar.advance(d, Period(tenorNumber, tenorUnit), bdc);
         }
-
-        if (endDate <= d)
-            endDate = d + 1;
-
+        if (endDate <= d) endDate = d + 1;
         InterestRate rate = curve->forwardRate(d, endDate, dc, comp, freq);
         values.push_back(rate.rate());
     }
-
     return values;
 }

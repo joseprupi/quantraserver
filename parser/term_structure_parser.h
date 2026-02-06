@@ -12,7 +12,7 @@
 #include "term_structure_point_parser.h"
 #include "quote_registry.h"
 #include "curve_registry.h"
-#include "index_factory.h"
+#include "index_registry.h"
 #include "enums.h"
 #include "common.h"
 
@@ -22,26 +22,21 @@ namespace quantra {
  * TermStructureParser
  *
  * Bootstraps a PiecewiseYieldCurve from a FlatBuffers TermStructure spec.
- *
- * Two signatures:
- *   1. parse(ts) - legacy, inline values only (backward compatible)
- *   2. parse(ts, quotes, curves, indexFactory) - full multi-curve support
  */
 class TermStructureParser {
 public:
-    /// Legacy: parse with inline values only (backward compatible)
+    /// Legacy: parse with inline values only (no index resolution - deposits/bonds only)
     std::shared_ptr<QuantLib::YieldTermStructure> parse(
         const quantra::TermStructure* ts);
 
-    /// Full: parse with registries for quote resolution, exogenous curves, etc.
+    /// Full: parse with registries for quotes, curves, and indices
     std::shared_ptr<QuantLib::YieldTermStructure> parse(
         const quantra::TermStructure* ts,
         const QuoteRegistry* quotes,
         const CurveRegistry* curves,
-        const IndexFactory* indexFactory);
+        const IndexRegistry* indices);
 
 private:
-    /// Internal: build piecewise curve from helpers
     std::shared_ptr<QuantLib::YieldTermStructure> buildCurve(
         const quantra::TermStructure* ts,
         std::vector<std::shared_ptr<QuantLib::RateHelper>>& instruments);

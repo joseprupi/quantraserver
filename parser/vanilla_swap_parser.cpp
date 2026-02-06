@@ -1,6 +1,8 @@
 #include "vanilla_swap_parser.h"
 
-std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(const quantra::VanillaSwap *swap)
+std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
+    const quantra::VanillaSwap *swap,
+    const quantra::IndexRegistry& indices)
 {
     if (swap == NULL)
         QUANTRA_ERROR("VanillaSwap not found");
@@ -39,8 +41,8 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(const quantra::V
     if (floatingLeg->schedule() == NULL)
         QUANTRA_ERROR("VanillaSwap floating_leg schedule not found");
 
-    if (floatingLeg->index() == NULL)
-        QUANTRA_ERROR("VanillaSwap floating_leg index not found");
+    if (!floatingLeg->index() || !floatingLeg->index()->id())
+        QUANTRA_ERROR("VanillaSwap floating_leg index.id is required");
 
     auto floatingSchedule = scheduleParser.parse(floatingLeg->schedule());
 
@@ -48,16 +50,11 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(const quantra::V
     double spread = floatingLeg->spread();
     DayCounter floatingDayCounter = DayCounterToQL(floatingLeg->day_counter());
 
-    // Parse index
-    IndexParser indexParser;
-    indexParser.link_term_structure(forwarding_term_structure_.currentLink());
-    auto iborIndex = indexParser.parse(floatingLeg->index());
+    // Resolve index from registry and clone with forwarding curve
+    std::string indexId = floatingLeg->index()->id()->str();
+    auto iborIndex = indices.getIborWithCurve(indexId, forwarding_term_structure_);
 
-    // Create the swap
-    // Note: VanillaSwap assumes same notional for both legs
-    // If notionals differ, we'd need to use a more complex swap type
     if (fixedNotional != floatingNotional) {
-        // For now, use fixed notional and log a warning
         std::cout << "Warning: Fixed and floating notionals differ. Using fixed notional." << std::endl;
     }
 

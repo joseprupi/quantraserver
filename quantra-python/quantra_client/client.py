@@ -267,7 +267,9 @@ from quantra.BondHelper import BondHelperT
 from quantra.FRAHelper import FRAHelperT
 from quantra.FutureHelper import FutureHelperT
 from quantra.Yield import YieldT
-from quantra.Index import IndexT
+from quantra.IndexDef import IndexDefT
+from quantra.IndexRef import IndexRefT
+from quantra.IndexType import IndexType
 from quantra.Fixing import FixingT
 
 # NEW: Vol Surface types (typed by product family)
@@ -328,7 +330,6 @@ from quantra.enums.DateGenerationRule import DateGenerationRule
 from quantra.enums.Interpolator import Interpolator
 from quantra.enums.BootstrapTrait import BootstrapTrait
 from quantra.enums.Compounding import Compounding
-from quantra.enums.Ibor import Ibor
 from quantra.enums.SwapType import SwapType
 from quantra.enums.FRAType import FRAType
 from quantra.enums.CapFloorType import CapFloorType
@@ -377,7 +378,9 @@ __all__ = [
     'FRAHelperT',
     'FutureHelperT',
     'YieldT',
-    'IndexT',
+    'IndexDefT',
+    'IndexRefT',
+    'IndexType',
     'FixingT',
     
     # NEW: Vol Surface types
@@ -428,7 +431,6 @@ __all__ = [
     'Interpolator',
     'BootstrapTrait',
     'Compounding',
-    'Ibor',
     'SwapType',
     'FRAType',
     'CapFloorType',

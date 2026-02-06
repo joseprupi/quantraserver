@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Specification for a single curve to bootstrap.
 class BootstrapCurveSpec(object):
     __slots__ = ['_tab']
 
@@ -25,7 +24,6 @@ class BootstrapCurveSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Reuse your existing curve schema.
     # BootstrapCurveSpec
     def Curve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -37,8 +35,6 @@ class BootstrapCurveSpec(object):
             return obj
         return None
 
-    # Optional: what outputs you want back.
-    # If omitted, server returns only pillar dates (if available).
     # BootstrapCurveSpec
     def Query(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))

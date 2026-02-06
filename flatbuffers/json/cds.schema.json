@@ -33,18 +33,6 @@
       "type" : "string",
       "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
     },
-    "quantra_enums_Ibor" : {
-      "type" : "string",
-      "enum": ["Euribor10M", "Euribor11M", "Euribor1M", "Euribor1Y", "Euribor2M", "Euribor2W", "Euribor365_10M", "Euribor365_11M", "Euribor365_1M", "Euribor365_1Y", "Euribor365_2M", "Euribor365_2W", "Euribor365_3M", "Euribor365_3W", "Euribor365_4M", "Euribor365_5M", "Euribor365_6M", "Euribor365_7M", "Euribor365_8M", "Euribor365_9M", "Euribor365_SW", "Euribor3M", "Euribor3W", "Euribor4M", "Euribor5M", "Euribor6M", "Euribor7M", "Euribor8M", "Euribor9M", "EuriborSW"]
-    },
-    "quantra_enums_OvernightIndex" : {
-      "type" : "string",
-      "enum": ["SOFR", "ESTR", "SONIA", "FedFunds", "EONIA"]
-    },
-    "quantra_enums_IborFamily" : {
-      "type" : "string",
-      "enum": ["Euribor", "USDLibor", "GBPLibor", "JPYLibor", "Tibor"]
-    },
     "quantra_enums_Compounding" : {
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]

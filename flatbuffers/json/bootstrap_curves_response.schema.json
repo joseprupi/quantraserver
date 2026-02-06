@@ -33,18 +33,6 @@
       "type" : "string",
       "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
     },
-    "quantra_enums_Ibor" : {
-      "type" : "string",
-      "enum": ["Euribor10M", "Euribor11M", "Euribor1M", "Euribor1Y", "Euribor2M", "Euribor2W", "Euribor365_10M", "Euribor365_11M", "Euribor365_1M", "Euribor365_1Y", "Euribor365_2M", "Euribor365_2W", "Euribor365_3M", "Euribor365_3W", "Euribor365_4M", "Euribor365_5M", "Euribor365_6M", "Euribor365_7M", "Euribor365_8M", "Euribor365_9M", "Euribor365_SW", "Euribor3M", "Euribor3W", "Euribor4M", "Euribor5M", "Euribor6M", "Euribor7M", "Euribor8M", "Euribor9M", "EuriborSW"]
-    },
-    "quantra_enums_OvernightIndex" : {
-      "type" : "string",
-      "enum": ["SOFR", "ESTR", "SONIA", "FedFunds", "EONIA"]
-    },
-    "quantra_enums_IborFamily" : {
-      "type" : "string",
-      "enum": ["Euribor", "USDLibor", "GBPLibor", "JPYLibor", "Tibor"]
-    },
     "quantra_enums_Compounding" : {
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
@@ -89,9 +77,9 @@
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
     },
-    "quantra_IndexSpec" : {
+    "quantra_IndexType" : {
       "type" : "string",
-      "enum": ["NONE", "IborIndexSpec", "OvernightIndexSpec"]
+      "enum": ["Ibor", "Overnight"]
     },
     "quantra_Point" : {
       "type" : "string",
@@ -163,54 +151,83 @@
       },
       "additionalProperties" : false
     },
-    "quantra_IborIndexSpec" : {
+    "quantra_Fixing" : {
       "type" : "object",
-      "description" : "IBOR index fully described by conventions",
       "properties" : {
-        "family" : {
-                "$ref" : "#/definitions/quantra_enums_IborFamily"
+        "date" : {
+                "type" : "string"
+              },
+        "value" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexDef" : {
+      "type" : "object",
+      "description" : "Complete index definition. Registered once per request, referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")"
+              },
+        "name" : {
+                "type" : "string",
+                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\", \"MyBank3M\")\nUsed as the QuantLib index familyName. No financial logic depends on this."
+              },
+        "index_type" : {
+                "$ref" : "#/definitions/quantra_IndexType",
+                "description" : "IBOR or Overnight. Determines QuantLib class used."
               },
         "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)\nFor overnight indices, set tenor_number=0."
               },
         "tenor_time_unit" : {
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "fixing_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)"
               },
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar for fixing/payment dates"
               },
         "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention"
               },
         "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day count convention"
               },
         "end_of_month" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "End of month rule (IBOR only, ignored for overnight)"
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")\nMapped to QuantLib Currency objects. Required."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Past fixings needed for seasoned instruments.\nApplied via index->addFixing() before pricing."
               }
       },
+      "required" : ["id", "name"],
       "additionalProperties" : false
     },
-    "quantra_OvernightIndexSpec" : {
+    "quantra_IndexRef" : {
       "type" : "object",
-      "description" : "Overnight index fully described by conventions",
+      "description" : "Reference to an IndexDef by its id.\nUsed by helpers and instruments to point to a registered index.",
       "properties" : {
-        "name" : {
-                "$ref" : "#/definitions/quantra_enums_OvernightIndex"
-              },
-        "fixing_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+        "id" : {
+                "type" : "string"
               }
       },
+      "required" : ["id"],
       "additionalProperties" : false
     },
     "quantra_CurveRef" : {
@@ -227,44 +244,22 @@
       "type" : "object",
       "properties" : {
         "discount_curve" : {
-                "$ref" : "#/definitions/quantra_CurveRef"
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous discount curve for dual-curve bootstrapping.\nSupported by: SwapHelper, OISHelper, DatedOISHelper,\nTenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper."
               },
         "projection_curve" : {
-                "$ref" : "#/definitions/quantra_CurveRef"
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous projection/forwarding curve.\n\n⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.\nQuantLib's SwapRateHelper/OISRateHelper override the index forwarding\nhandle via index->clone(termStructureHandle_) during bootstrapping.\nThe projection curve is ALWAYS the curve being bootstrapped for these\nhelpers. Setting this field on Swap/OIS helpers will produce a hard\nerror at parse time.\n\nSupported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper\n(and future custom helpers that genuinely encode projection relationships)."
               },
         "projection_curve_2" : {
-                "$ref" : "#/definitions/quantra_CurveRef"
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Second projection curve for basis/XCCY helpers (e.g. the \"other leg\").\nSame restrictions as projection_curve above."
               },
         "fx_spot_quote_id" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "FX spot quote reference for FX-implied curve helpers."
               }
       },
-      "additionalProperties" : false
-    },
-    "quantra_Fixing" : {
-      "type" : "object",
-      "properties" : {
-        "date" : {
-                "type" : "string"
-              },
-        "value" : {
-                "type" : "number"
-              }
-      },
-      "required" : ["date"],
-      "additionalProperties" : false
-    },
-    "quantra_IndexFixings" : {
-      "type" : "object",
-      "properties" : {
-        "index_id" : {
-                "type" : "string"
-              },
-        "fixings" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"}
-              }
-      },
-      "required" : ["index_id", "fixings"],
       "additionalProperties" : false
     },
     "quantra_DepositHelper" : {
@@ -387,16 +382,9 @@
         "sw_fixed_leg_day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
-        "sw_floating_leg_index" : {
-                "$ref" : "#/definitions/quantra_enums_Ibor",
-                "description" : "Legacy enum-based index (backward compatible)"
-              },
-        "float_index_type" : {
-                "$ref" : "#/definitions/quantra_IndexSpec"
-              },
         "float_index" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_IborIndexSpec" },{ "$ref" : "#/definitions/quantra_OvernightIndexSpec" }],
-                "description" : "NEW: data-driven index spec (takes precedence over sw_floating_leg_index if set)"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an IndexDef by id (e.g., \"EUR_6M\")"
               },
         "spread" : {
                 "type" : "number"
@@ -406,12 +394,13 @@
               },
         "deps" : {
                 "$ref" : "#/definitions/quantra_HelperDependencies",
-                "description" : "NEW: exogenous discount curve for multi-curve bootstrapping"
+                "description" : "Exogenous discount curve for multi-curve bootstrapping"
               },
         "quote_id" : {
                 "type" : "string"
               }
       },
+      "required" : ["float_index"],
       "additionalProperties" : false
     },
     "quantra_BondHelper" : {
@@ -467,12 +456,8 @@
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "overnight_index" : {
-                "$ref" : "#/definitions/quantra_enums_OvernightIndex",
-                "description" : "Overnight index (enum-based for simplicity)"
-              },
-        "overnight_index_spec" : {
-                "$ref" : "#/definitions/quantra_OvernightIndexSpec",
-                "description" : "Or use full spec (takes precedence if set)"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")"
               },
         "settlement_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -489,10 +474,15 @@
         "fixed_leg_day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping"
+              },
         "quote_id" : {
                 "type" : "string"
               }
       },
+      "required" : ["overnight_index"],
       "additionalProperties" : false
     },
     "quantra_DatedOISHelper" : {
@@ -508,10 +498,8 @@
                 "type" : "string"
               },
         "overnight_index" : {
-                "$ref" : "#/definitions/quantra_enums_OvernightIndex"
-              },
-        "overnight_index_spec" : {
-                "$ref" : "#/definitions/quantra_OvernightIndexSpec"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id"
               },
         "settlement_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -525,11 +513,15 @@
         "fixed_leg_day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping"
+              },
         "quote_id" : {
                 "type" : "string"
               }
       },
-      "required" : ["start_date", "end_date"],
+      "required" : ["start_date", "end_date", "overnight_index"],
       "additionalProperties" : false
     },
     "quantra_TenorBasisSwapHelper" : {
@@ -545,10 +537,12 @@
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "index_short" : {
-                "$ref" : "#/definitions/quantra_enums_Ibor"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Short tenor index (e.g., \"EUR_3M\")"
               },
         "index_long" : {
-                "$ref" : "#/definitions/quantra_enums_Ibor"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Long tenor index (e.g., \"EUR_6M\")"
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -560,6 +554,7 @@
                 "type" : "string"
               }
       },
+      "required" : ["index_short", "index_long"],
       "additionalProperties" : false
     },
     "quantra_FxSwapHelper" : {
@@ -605,10 +600,12 @@
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "index_domestic" : {
-                "$ref" : "#/definitions/quantra_enums_Ibor"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Domestic leg index"
               },
         "index_foreign" : {
-                "$ref" : "#/definitions/quantra_enums_Ibor"
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Foreign leg index"
               },
         "deps" : {
                 "$ref" : "#/definitions/quantra_HelperDependencies"
@@ -617,6 +614,7 @@
                 "type" : "string"
               }
       },
+      "required" : ["index_domestic", "index_foreign"],
       "additionalProperties" : false
     },
     "quantra_PointsWrapper" : {
@@ -897,6 +895,10 @@
                 "type" : "string",
                 "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond"
               },
+        "indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
+                "description" : "Index definitions. Used by: ALL floating-rate instruments and curve helpers.\nEvery IndexRef in the request must resolve to an IndexDef here."
+              },
         "curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
                 "description" : "Yield curves for discounting/forwarding. Used by: ALL"
@@ -1066,7 +1068,7 @@
     },
     "quantra_Tenor" : {
       "type" : "object",
-      "description" : "A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.\nExamples: {n:1, unit:Days}, {n:3, unit:Months}, {n:10, unit:Years}",
+      "description" : "A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -1079,18 +1081,16 @@
     },
     "quantra_TenorGrid" : {
       "type" : "object",
-      "description" : "Tenors relative to the curve reference date (or as_of_date if no reference date).\nExamples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]\n \nCalendar behavior:\n- If calendar is NullCalendar (default): raw date arithmetic (refDate + period)\n- If calendar is set: uses calendar.advance(refDate, period, bdc)",
+      "description" : "Tenors relative to the curve reference date (or as_of_date if no reference date).",
       "properties" : {
         "tenors" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Tenor"}
               },
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar for business-day-adjusted tenor dates.\nDefault NullCalendar means raw date arithmetic without business day adjustment."
+                "$ref" : "#/definitions/quantra_enums_Calendar"
               },
         "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention for advancing dates (used when calendar is not NullCalendar)."
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               }
       },
       "required" : ["tenors"],
@@ -1098,34 +1098,28 @@
     },
     "quantra_RangeGrid" : {
       "type" : "object",
-      "description" : "Sample the curve between start/end with a step.\nUse this for \"daily curve until X\".\n\nNote on business_days_only:\n- Requires a real calendar (not NullCalendar) to skip weekends/holidays\n- If business_days_only=true with NullCalendar, falls back to WeekendsOnly",
+      "description" : "Sample the curve between start/end with a step.",
       "properties" : {
         "start_date" : {
-                "type" : "string",
-                "description" : "If omitted, server defaults to as_of_date."
+                "type" : "string"
               },
         "end_date" : {
-                "type" : "string",
-                "description" : "Required end date (YYYY-MM-DD or YYYY/MM/DD)."
+                "type" : "string"
               },
         "step_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Step size, e.g. 1 Days for daily, 1 Weeks, 1 Months."
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "step_time_unit" : {
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "business_days_only" : {
-                "type" : "boolean",
-                "description" : "If true, generate only business days using the calendar below.\nRequires a non-NullCalendar to properly skip weekends/holidays."
+                "type" : "boolean"
               },
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar used for business day checks and date advancement."
+                "$ref" : "#/definitions/quantra_enums_Calendar"
               },
         "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention used when adjusting generated dates."
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               }
       },
       "required" : ["end_date"],
@@ -1146,86 +1140,69 @@
     },
     "quantra_ZeroRateQuery" : {
       "type" : "object",
-      "description" : "Options for zero rate output.",
       "properties" : {
         "use_curve_day_counter" : {
-                "type" : "boolean",
-                "description" : "If true, use TermStructure.day_counter. If false, use day_counter below."
+                "type" : "boolean"
               },
         "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter",
-                "description" : "Used only when use_curve_day_counter=false."
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
         "compounding" : {
-                "$ref" : "#/definitions/quantra_enums_Compounding",
-                "description" : "Default: continuously-compounded zero rate."
+                "$ref" : "#/definitions/quantra_enums_Compounding"
               },
         "frequency" : {
-                "$ref" : "#/definitions/quantra_enums_Frequency",
-                "description" : "Used only for non-continuous compounding."
+                "$ref" : "#/definitions/quantra_enums_Frequency"
               }
       },
       "additionalProperties" : false
     },
     "quantra_ForwardRateQuery" : {
       "type" : "object",
-      "description" : "Options for forward rate output.",
       "properties" : {
         "use_curve_day_counter" : {
-                "type" : "boolean",
-                "description" : "If true, use TermStructure.day_counter. If false, use day_counter below."
+                "type" : "boolean"
               },
         "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter",
-                "description" : "Used only when use_curve_day_counter=false."
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
               },
         "compounding" : {
-                "$ref" : "#/definitions/quantra_enums_Compounding",
-                "description" : "Reporting convention for the returned forward rate."
+                "$ref" : "#/definitions/quantra_enums_Compounding"
               },
         "frequency" : {
                 "$ref" : "#/definitions/quantra_enums_Frequency"
               },
         "forward_type" : {
-                "$ref" : "#/definitions/quantra_ForwardType",
-                "description" : "Default: instantaneous forward (approximated)."
+                "$ref" : "#/definitions/quantra_ForwardType"
               },
         "instantaneous_eps_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "When forward_type=Instantaneous, compute forward over [d, d + eps].\nDefaults: eps = 1 Day."
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "instantaneous_eps_time_unit" : {
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Used only when forward_type=Period, compute forward over [d, d + tenor]."
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "tenor_time_unit" : {
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "use_grid_calendar_for_advance" : {
-                "type" : "boolean",
-                "description" : "If true, use calendar from grid for date advancement.\nIf false, use curve's instrument calendar."
+                "type" : "boolean"
               }
       },
       "additionalProperties" : false
     },
     "quantra_CurveQuery" : {
       "type" : "object",
-      "description" : "What to sample from the curve.",
       "properties" : {
         "measures" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveMeasure"},
-                "description" : "Which measures to return."
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveMeasure"}
               },
         "grid" : {
-                "$ref" : "#/definitions/quantra_CurveGridSpec",
-                "description" : "Where to sample."
+                "$ref" : "#/definitions/quantra_CurveGridSpec"
               },
         "zero" : {
-                "$ref" : "#/definitions/quantra_ZeroRateQuery",
-                "description" : "Optional: if omitted, defaults are used (continuous zero, instantaneous fwd)."
+                "$ref" : "#/definitions/quantra_ZeroRateQuery"
               },
         "fwd" : {
                 "$ref" : "#/definitions/quantra_ForwardRateQuery"
@@ -1236,15 +1213,12 @@
     },
     "quantra_BootstrapCurveSpec" : {
       "type" : "object",
-      "description" : "Specification for a single curve to bootstrap.",
       "properties" : {
         "curve" : {
-                "$ref" : "#/definitions/quantra_TermStructure",
-                "description" : "Reuse your existing curve schema."
+                "$ref" : "#/definitions/quantra_TermStructure"
               },
         "query" : {
-                "$ref" : "#/definitions/quantra_CurveQuery",
-                "description" : "Optional: what outputs you want back.\nIf omitted, server returns only pillar dates (if available)."
+                "$ref" : "#/definitions/quantra_CurveQuery"
               }
       },
       "required" : ["curve"],
@@ -1257,6 +1231,10 @@
         "as_of_date" : {
                 "type" : "string",
                 "description" : "Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate()."
+              },
+        "indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
+                "description" : "Index definitions needed by curve helpers (SwapHelper, OISHelper, etc.)\nEvery IndexRef in helpers must resolve to an IndexDef here."
               },
         "curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_BootstrapCurveSpec"},

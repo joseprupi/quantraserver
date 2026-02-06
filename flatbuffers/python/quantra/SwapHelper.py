@@ -73,50 +73,36 @@ class SwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Legacy enum-based index (backward compatible)
-    # SwapHelper
-    def SwFloatingLegIndex(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
-
-    # SwapHelper
-    def FloatIndexType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
-        return 0
-
-    # NEW: data-driven index spec (takes precedence over sw_floating_leg_index if set)
+    # Reference to an IndexDef by id (e.g., "EUR_6M")
     # SwapHelper
     def FloatIndex(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
-            from flatbuffers.table import Table
-            obj = Table(bytearray(), 0)
-            self._tab.Union(obj, o)
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
+            obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # SwapHelper
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapHelper
     def FwdStartDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # NEW: exogenous discount curve for multi-curve bootstrapping
+    # Exogenous discount curve for multi-curve bootstrapping
     # SwapHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -127,13 +113,13 @@ class SwapHelper(object):
 
     # SwapHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def SwapHelperStart(builder):
-    builder.StartObject(14)
+    builder.StartObject(12)
 
 def Start(builder):
     SwapHelperStart(builder)
@@ -180,44 +166,32 @@ def SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
 def AddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
     SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter)
 
-def SwapHelperAddSwFloatingLegIndex(builder, swFloatingLegIndex):
-    builder.PrependInt8Slot(7, swFloatingLegIndex, 0)
-
-def AddSwFloatingLegIndex(builder, swFloatingLegIndex):
-    SwapHelperAddSwFloatingLegIndex(builder, swFloatingLegIndex)
-
-def SwapHelperAddFloatIndexType(builder, floatIndexType):
-    builder.PrependUint8Slot(8, floatIndexType, 0)
-
-def AddFloatIndexType(builder, floatIndexType):
-    SwapHelperAddFloatIndexType(builder, floatIndexType)
-
 def SwapHelperAddFloatIndex(builder, floatIndex):
-    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(floatIndex), 0)
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(floatIndex), 0)
 
 def AddFloatIndex(builder, floatIndex):
     SwapHelperAddFloatIndex(builder, floatIndex)
 
 def SwapHelperAddSpread(builder, spread):
-    builder.PrependFloat64Slot(10, spread, 0.0)
+    builder.PrependFloat64Slot(8, spread, 0.0)
 
 def AddSpread(builder, spread):
     SwapHelperAddSpread(builder, spread)
 
 def SwapHelperAddFwdStartDays(builder, fwdStartDays):
-    builder.PrependInt32Slot(11, fwdStartDays, 0)
+    builder.PrependInt32Slot(9, fwdStartDays, 0)
 
 def AddFwdStartDays(builder, fwdStartDays):
     SwapHelperAddFwdStartDays(builder, fwdStartDays)
 
 def SwapHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     SwapHelperAddDeps(builder, deps)
 
 def SwapHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(13, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     SwapHelperAddQuoteId(builder, quoteId)
@@ -229,7 +203,7 @@ def End(builder):
     return SwapHelperEnd(builder)
 
 try:
-    from typing import Optional, Union
+    from typing import Optional
 except:
     pass
 
@@ -244,9 +218,7 @@ class SwapHelperT(object):
         self.swFixedLegFrequency = 0  # type: int
         self.swFixedLegConvention = 0  # type: int
         self.swFixedLegDayCounter = 0  # type: int
-        self.swFloatingLegIndex = 0  # type: int
-        self.floatIndexType = 0  # type: int
-        self.floatIndex = None  # type: Union[None, IborIndexSpecT, OvernightIndexSpecT]
+        self.floatIndex = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
         self.fwdStartDays = 0  # type: int
         self.deps = None  # type: Optional[HelperDependenciesT]
@@ -280,9 +252,8 @@ class SwapHelperT(object):
         self.swFixedLegFrequency = swapHelper.SwFixedLegFrequency()
         self.swFixedLegConvention = swapHelper.SwFixedLegConvention()
         self.swFixedLegDayCounter = swapHelper.SwFixedLegDayCounter()
-        self.swFloatingLegIndex = swapHelper.SwFloatingLegIndex()
-        self.floatIndexType = swapHelper.FloatIndexType()
-        self.floatIndex = IndexSpecCreator(self.floatIndexType, swapHelper.FloatIndex())
+        if swapHelper.FloatIndex() is not None:
+            self.floatIndex = IndexRefT.InitFromObj(swapHelper.FloatIndex())
         self.spread = swapHelper.Spread()
         self.fwdStartDays = swapHelper.FwdStartDays()
         if swapHelper.Deps() is not None:
@@ -305,8 +276,6 @@ class SwapHelperT(object):
         SwapHelperAddSwFixedLegFrequency(builder, self.swFixedLegFrequency)
         SwapHelperAddSwFixedLegConvention(builder, self.swFixedLegConvention)
         SwapHelperAddSwFixedLegDayCounter(builder, self.swFixedLegDayCounter)
-        SwapHelperAddSwFloatingLegIndex(builder, self.swFloatingLegIndex)
-        SwapHelperAddFloatIndexType(builder, self.floatIndexType)
         if self.floatIndex is not None:
             SwapHelperAddFloatIndex(builder, floatIndex)
         SwapHelperAddSpread(builder, self.spread)

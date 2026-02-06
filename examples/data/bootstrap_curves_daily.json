@@ -1,66 +1,88 @@
 {
   "as_of_date": "2025/01/15",
-  "curves": [{
-    "curve": {
-      "id": "EUR_CURVE",
-      "reference_date": "2025/01/15",
-      "day_counter": "Actual365Fixed",
-      "interpolator": "LogLinear",
-      "bootstrap_trait": "Discount",
-      "points": [
-        {
-          "point_type": "DepositHelper",
-          "point": {
-            "rate": 0.03,
-            "tenor_number": 3,
-            "tenor_time_unit": "Months",
-            "fixing_days": 2,
-            "calendar": "TARGET",
-            "business_day_convention": "ModifiedFollowing",
-            "day_counter": "Actual360"
+  "curves": [
+    {
+      "curve": {
+        "id": "EUR_CURVE",
+        "reference_date": "2025/01/15",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_number": 3,
+              "tenor_time_unit": "Months",
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual360"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.032,
+              "tenor_number": 6,
+              "tenor_time_unit": "Months",
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual360"
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.035,
+              "tenor_number": 1,
+              "tenor_time_unit": "Years",
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 2,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
           }
-        },
-        {
-          "point_type": "DepositHelper",
-          "point": {
-            "rate": 0.032,
-            "tenor_number": 6,
-            "tenor_time_unit": "Months",
-            "fixing_days": 2,
-            "calendar": "TARGET",
-            "business_day_convention": "ModifiedFollowing",
-            "day_counter": "Actual360"
-          }
-        },
-        {
-          "point_type": "SwapHelper",
-          "point": {
-            "rate": 0.035,
-            "tenor_number": 1,
-            "tenor_time_unit": "Years",
-            "calendar": "TARGET",
-            "sw_fixed_leg_frequency": "Annual",
-            "sw_fixed_leg_convention": "ModifiedFollowing",
-            "sw_fixed_leg_day_counter": "Thirty360",
-            "sw_floating_leg_index": "Euribor6M",
-            "spread": 0.0,
-            "fwd_start_days": 2
-          }
-        }
-      ]
-    },
-    "query": {
-      "measures": ["DF", "ZERO"],
-      "grid": {
-        "grid_type": "RangeGrid",
+        ]
+      },
+      "query": {
+        "measures": [
+          "DF",
+          "ZERO"
+        ],
         "grid": {
-          "start_date": "2025/01/15",
-          "end_date": "2025/07/15",
-          "step_number": 1,
-          "step_time_unit": "Days",
-          "business_days_only": false
+          "grid_type": "RangeGrid",
+          "grid": {
+            "start_date": "2025/01/15",
+            "end_date": "2025/07/15",
+            "step_number": 1,
+            "step_time_unit": "Days",
+            "business_days_only": false
+          }
         }
       }
     }
-  }]
+  ],
+  "indices": [
+    {
+      "id": "EUR_6M",
+      "name": "Euribor",
+      "index_type": "Ibor",
+      "tenor_number": 6,
+      "tenor_time_unit": "Months",
+      "fixing_days": 2,
+      "calendar": "TARGET",
+      "business_day_convention": "ModifiedFollowing",
+      "day_counter": "Actual360",
+      "end_of_month": false,
+      "currency": "EUR"
+    }
+  ]
 }

@@ -140,62 +140,17 @@ enum DateGenerationRule : byte {
 }
 
 // ============================================================================
-// Interest Rate Indices — IBOR
+// REMOVED: Interest Rate Index Enums
 // ============================================================================
-enum Ibor : byte {
-    Euribor10M,
-    Euribor11M,
-    Euribor1M,
-    Euribor1Y,
-    Euribor2M,
-    Euribor2W,
-    Euribor365_10M,
-    Euribor365_11M,
-    Euribor365_1M,
-    Euribor365_1Y,
-    Euribor365_2M,
-    Euribor365_2W,
-    Euribor365_3M,
-    Euribor365_3W,
-    Euribor365_4M,
-    Euribor365_5M,
-    Euribor365_6M,
-    Euribor365_7M,
-    Euribor365_8M,
-    Euribor365_9M,
-    Euribor365_SW,
-    Euribor3M,
-    Euribor3W,
-    Euribor4M,
-    Euribor5M,
-    Euribor6M,
-    Euribor7M,
-    Euribor8M,
-    Euribor9M,
-    EuriborSW
-}
-
+// The following enums have been REMOVED in favor of data-driven IndexDef:
+//   - Ibor (Euribor3M, Euribor6M, etc.)
+//   - OvernightIndex (SOFR, ESTR, SONIA, FedFunds, EONIA)
+//   - IborFamily (Euribor, USDLibor, GBPLibor, JPYLibor, Tibor)
+//
+// All indices are now defined via IndexDef in index.fbs.
+// Presets (e.g., "Euribor 6M with standard conventions") live in the
+// portal UI, not in the API type system.
 // ============================================================================
-// Interest Rate Indices — Overnight
-// ============================================================================
-enum OvernightIndex : byte {
-    SOFR,
-    ESTR,
-    SONIA,
-    FedFunds,
-    EONIA
-}
-
-// ============================================================================
-// IBOR Index Families (for IndexSpec-based construction)
-// ============================================================================
-enum IborFamily : byte {
-    Euribor,
-    USDLibor,
-    GBPLibor,
-    JPYLibor,
-    Tibor
-}
 
 // ============================================================================
 // Compounding
@@ -208,7 +163,7 @@ enum Compounding : byte {
 }
 
 // ============================================================================
-// Product-Specific Enums (moved from individual .fbs files)
+// Product-Specific Enums
 // ============================================================================
 
 // Swap direction

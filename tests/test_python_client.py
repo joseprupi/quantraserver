@@ -39,7 +39,9 @@ from quantra_client.client import (
     DepositHelperT,
     SwapHelperT,
     YieldT,
-    IndexT,
+    IndexDefT,
+    IndexRefT,
+    IndexType,
     # NEW: Vol Surface types (replacing VolatilityTermStructureT)
     VolSurfaceSpecT,
     OptionletVolSpecT,
@@ -77,7 +79,6 @@ from quantra_client.client import (
     Interpolator,
     BootstrapTrait,
     Compounding,
-    Ibor,
     SwapType,
     FRAType,
     CapFloorType,
@@ -214,7 +215,9 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     sw5y.swFixedLegFrequency = Frequency.Annual
     sw5y.swFixedLegConvention = BusinessDayConvention.ModifiedFollowing
     sw5y.swFixedLegDayCounter = DayCounter.Thirty360
-    sw5y.swFloatingLegIndex = Ibor.Euribor6M
+    float_idx_5y = IndexRefT()
+    float_idx_5y.id = "EUR_6M"
+    sw5y.floatIndex = float_idx_5y
     sw5y.spread = 0.0
     sw5y.fwdStartDays = 0
     pw = PointsWrapperT()
@@ -231,7 +234,9 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     sw10y.swFixedLegFrequency = Frequency.Annual
     sw10y.swFixedLegConvention = BusinessDayConvention.ModifiedFollowing
     sw10y.swFixedLegDayCounter = DayCounter.Thirty360
-    sw10y.swFloatingLegIndex = Ibor.Euribor6M
+    float_idx_10y = IndexRefT()
+    float_idx_10y.id = "EUR_6M"
+    sw10y.floatIndex = float_idx_10y
     sw10y.spread = 0.0
     sw10y.fwdStartDays = 0
     pw = PointsWrapperT()
@@ -242,43 +247,69 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     return ts
 
 
-def build_quantra_index_6m() -> IndexT:
-    """Build 6M index for Quantra."""
-    idx = IndexT()
-    idx.periodNumber = 6
-    idx.periodTimeUnit = TimeUnit.Months
-    idx.settlementDays = 2
-    idx.calendar = Calendar.TARGET
-    idx.businessDayConvention = BusinessDayConvention.ModifiedFollowing
-    idx.endOfMonth = False
-    idx.dayCounter = DayCounter.Actual360
-    return idx
+def build_quantra_index_6m() -> IndexRefT:
+    """Build 6M index reference for Quantra."""
+    ref = IndexRefT()
+    ref.id = "EUR_6M"
+    return ref
 
 
-def build_quantra_index_3m() -> IndexT:
-    """Build 3M index for Quantra."""
-    idx = IndexT()
-    idx.periodNumber = 3
-    idx.periodTimeUnit = TimeUnit.Months
-    idx.settlementDays = 2
-    idx.calendar = Calendar.TARGET
-    idx.businessDayConvention = BusinessDayConvention.ModifiedFollowing
-    idx.endOfMonth = False
-    idx.dayCounter = DayCounter.Actual360
-    return idx
+def build_quantra_index_3m() -> IndexRefT:
+    """Build 3M index reference for Quantra."""
+    ref = IndexRefT()
+    ref.id = "EUR_3M"
+    return ref
 
 
-def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list = None) -> PricingT:
+
+
+def build_index_def_eur6m() -> IndexDefT:
+    """Build EUR 6M IndexDef (Euribor-like conventions)."""
+    idef = IndexDefT()
+    idef.id = "EUR_6M"
+    idef.name = "Euribor"
+    idef.indexType = IndexType.Ibor
+    idef.tenorNumber = 6
+    idef.tenorTimeUnit = TimeUnit.Months
+    idef.fixingDays = 2
+    idef.calendar = Calendar.TARGET
+    idef.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    idef.dayCounter = DayCounter.Actual360
+    idef.endOfMonth = False
+    idef.currency = "EUR"
+    return idef
+
+
+def build_index_def_eur3m() -> IndexDefT:
+    """Build EUR 3M IndexDef (Euribor-like conventions)."""
+    idef = IndexDefT()
+    idef.id = "EUR_3M"
+    idef.name = "Euribor"
+    idef.indexType = IndexType.Ibor
+    idef.tenorNumber = 3
+    idef.tenorTimeUnit = TimeUnit.Months
+    idef.fixingDays = 2
+    idef.calendar = Calendar.TARGET
+    idef.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    idef.dayCounter = DayCounter.Actual360
+    idef.endOfMonth = False
+    idef.currency = "EUR"
+    return idef
+
+def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list = None,
+                            indices: list = None) -> PricingT:
     """Build Pricing object for Quantra.
     
     Args:
         curves: List of TermStructureT
         vol_surfaces: List of VolSurfaceSpecT (for caps/floors/swaptions)
         models: List of ModelSpecT (for caps/floors/swaptions)
+        indices: List of IndexDefT (index definitions referenced by helpers/instruments)
     """
     p = PricingT()
     p.asOfDate = EVAL_DATE_STR
     p.settlementDate = EVAL_DATE_STR
+    p.indices = indices or []
     p.curves = curves
     p.volSurfaces = vol_surfaces or []
     p.models = models or []
@@ -450,7 +481,7 @@ def test_fixed_rate_bond(client: Client, curve_handle: ql.YieldTermStructureHand
     price_bond.yield_ = yield_spec
     
     request = PriceFixedRateBondRequestT()
-    request.pricing = build_quantra_pricing([build_quantra_curve("discount")])
+    request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur6m()])
     request.bonds = [price_bond]
     
     response = client.price_fixed_rate_bonds(request)
@@ -549,7 +580,7 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     price_swap.forwardingCurve = "discount"
     
     request = PriceVanillaSwapRequestT()
-    request.pricing = build_quantra_pricing([build_quantra_curve("discount")])
+    request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur6m()])
     request.swaps = [price_swap]
     
     response = client.price_vanilla_swaps(request)
@@ -615,7 +646,7 @@ def test_fra(client: Client, curve_handle: ql.YieldTermStructureHandle):
     price_fra.forwardingCurve = "discount"
     
     request = PriceFRARequestT()
-    request.pricing = build_quantra_pricing([build_quantra_curve("discount")])
+    request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur3m(), build_index_def_eur6m()])
     request.fras = [price_fra]
     
     response = client.price_fras(request)
@@ -704,7 +735,8 @@ def test_cap(client: Client, curve_handle: ql.YieldTermStructureHandle):
     request.pricing = build_quantra_pricing(
         curves=[build_quantra_curve("discount")],
         vol_surfaces=[build_quantra_optionlet_vol("cap_vol", vol)],
-        models=[build_quantra_cap_floor_model("black_model", IrModelType.Black)]
+        models=[build_quantra_cap_floor_model("black_model", IrModelType.Black)],
+        indices=[build_index_def_eur3m(), build_index_def_eur6m()]
     )
     request.capFloors = [price_cap]
     
@@ -825,7 +857,8 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     request.pricing = build_quantra_pricing(
         curves=[build_quantra_curve("discount")],
         vol_surfaces=[build_quantra_swaption_vol("swaption_vol", vol)],
-        models=[build_quantra_swaption_model("black_model", IrModelType.Black)]
+        models=[build_quantra_swaption_model("black_model", IrModelType.Black)],
+        indices=[build_index_def_eur6m()]
     )
     request.swaptions = [price_swaption]
     
@@ -907,7 +940,7 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
     price_cds.creditCurve = credit_curve
     
     request = PriceCDSRequestT()
-    request.pricing = build_quantra_pricing([build_quantra_curve("discount")])
+    request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur6m()])
     request.cdsList = [price_cds]
     
     response = client.price_cds(request)
@@ -980,6 +1013,7 @@ def test_bootstrap_curves(client, curve_handle):
     # Build request
     request = BootstrapCurvesRequestT()
     request.asOfDate = EVAL_DATE_STR
+    request.indices = [build_index_def_eur6m()]
     request.curves = [curve_spec]
     
     response = client.bootstrap_curves(request)

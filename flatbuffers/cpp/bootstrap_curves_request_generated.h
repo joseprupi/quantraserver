@@ -14,6 +14,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "enums_generated.h"
+#include "index_generated.h"
 #include "term_structure_generated.h"
 
 namespace quantra {
@@ -239,7 +240,6 @@ struct TenorT : public ::flatbuffers::NativeTable {
 };
 
 /// A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
-/// Examples: {n:1, unit:Days}, {n:3, unit:Months}, {n:10, unit:Years}
 struct Tenor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef TenorT NativeTableType;
   typedef TenorBuilder Builder;
@@ -309,11 +309,6 @@ struct TenorGridT : public ::flatbuffers::NativeTable {
 };
 
 /// Tenors relative to the curve reference date (or as_of_date if no reference date).
-/// Examples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]
-/// 
-/// Calendar behavior:
-/// - If calendar is NullCalendar (default): raw date arithmetic (refDate + period)
-/// - If calendar is set: uses calendar.advance(refDate, period, bdc)
 struct TenorGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef TenorGridT NativeTableType;
   typedef TenorGridBuilder Builder;
@@ -325,12 +320,9 @@ struct TenorGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Tenor>> *tenors() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Tenor>> *>(VT_TENORS);
   }
-  /// Calendar for business-day-adjusted tenor dates. 
-  /// Default NullCalendar means raw date arithmetic without business day adjustment.
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
   }
-  /// Business day convention for advancing dates (used when calendar is not NullCalendar).
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
   }
@@ -412,11 +404,6 @@ struct RangeGridT : public ::flatbuffers::NativeTable {
 };
 
 /// Sample the curve between start/end with a step.
-/// Use this for "daily curve until X".
-///
-/// Note on business_days_only: 
-/// - Requires a real calendar (not NullCalendar) to skip weekends/holidays
-/// - If business_days_only=true with NullCalendar, falls back to WeekendsOnly
 struct RangeGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef RangeGridT NativeTableType;
   typedef RangeGridBuilder Builder;
@@ -429,31 +416,24 @@ struct RangeGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CALENDAR = 14,
     VT_BUSINESS_DAY_CONVENTION = 16
   };
-  /// If omitted, server defaults to as_of_date.
   const ::flatbuffers::String *start_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
   }
-  /// Required end date (YYYY-MM-DD or YYYY/MM/DD).
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }
-  /// Step size, e.g. 1 Days for daily, 1 Weeks, 1 Months.
   int32_t step_number() const {
     return GetField<int32_t>(VT_STEP_NUMBER, 1);
   }
   quantra::enums::TimeUnit step_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_STEP_TIME_UNIT, 0));
   }
-  /// If true, generate only business days using the calendar below.
-  /// Requires a non-NullCalendar to properly skip weekends/holidays.
   bool business_days_only() const {
     return GetField<uint8_t>(VT_BUSINESS_DAYS_ONLY, 0) != 0;
   }
-  /// Calendar used for business day checks and date advancement.
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
   }
-  /// Business day convention used when adjusting generated dates.
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
   }
@@ -643,7 +623,6 @@ struct ZeroRateQueryT : public ::flatbuffers::NativeTable {
   quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
 };
 
-/// Options for zero rate output.
 struct ZeroRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ZeroRateQueryT NativeTableType;
   typedef ZeroRateQueryBuilder Builder;
@@ -653,19 +632,15 @@ struct ZeroRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_COMPOUNDING = 8,
     VT_FREQUENCY = 10
   };
-  /// If true, use TermStructure.day_counter. If false, use day_counter below.
   bool use_curve_day_counter() const {
     return GetField<uint8_t>(VT_USE_CURVE_DAY_COUNTER, 1) != 0;
   }
-  /// Used only when use_curve_day_counter=false.
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
   }
-  /// Default: continuously-compounded zero rate.
   quantra::enums::Compounding compounding() const {
     return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 1));
   }
-  /// Used only for non-continuous compounding.
   quantra::enums::Frequency frequency() const {
     return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
   }
@@ -739,7 +714,6 @@ struct ForwardRateQueryT : public ::flatbuffers::NativeTable {
   bool use_grid_calendar_for_advance = true;
 };
 
-/// Options for forward rate output.
 struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ForwardRateQueryT NativeTableType;
   typedef ForwardRateQueryBuilder Builder;
@@ -755,42 +729,33 @@ struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TENOR_TIME_UNIT = 20,
     VT_USE_GRID_CALENDAR_FOR_ADVANCE = 22
   };
-  /// If true, use TermStructure.day_counter. If false, use day_counter below.
   bool use_curve_day_counter() const {
     return GetField<uint8_t>(VT_USE_CURVE_DAY_COUNTER, 1) != 0;
   }
-  /// Used only when use_curve_day_counter=false.
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
   }
-  /// Reporting convention for the returned forward rate.
   quantra::enums::Compounding compounding() const {
     return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 2));
   }
   quantra::enums::Frequency frequency() const {
     return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
   }
-  /// Default: instantaneous forward (approximated).
   quantra::ForwardType forward_type() const {
     return static_cast<quantra::ForwardType>(GetField<int8_t>(VT_FORWARD_TYPE, 0));
   }
-  /// When forward_type=Instantaneous, compute forward over [d, d + eps].
-  /// Defaults: eps = 1 Day.
   int32_t instantaneous_eps_number() const {
     return GetField<int32_t>(VT_INSTANTANEOUS_EPS_NUMBER, 1);
   }
   quantra::enums::TimeUnit instantaneous_eps_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_INSTANTANEOUS_EPS_TIME_UNIT, 0));
   }
-  /// Used only when forward_type=Period, compute forward over [d, d + tenor].
   int32_t tenor_number() const {
     return GetField<int32_t>(VT_TENOR_NUMBER, 3);
   }
   quantra::enums::TimeUnit tenor_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 5));
   }
-  /// If true, use calendar from grid for date advancement.
-  /// If false, use curve's instrument calendar.
   bool use_grid_calendar_for_advance() const {
     return GetField<uint8_t>(VT_USE_GRID_CALENDAR_FOR_ADVANCE, 1) != 0;
   }
@@ -898,7 +863,6 @@ struct CurveQueryT : public ::flatbuffers::NativeTable {
   CurveQueryT &operator=(CurveQueryT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// What to sample from the curve.
 struct CurveQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CurveQueryT NativeTableType;
   typedef CurveQueryBuilder Builder;
@@ -908,15 +872,12 @@ struct CurveQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_ZERO = 8,
     VT_FWD = 10
   };
-  /// Which measures to return.
   const ::flatbuffers::Vector<int8_t> *measures() const {
     return GetPointer<const ::flatbuffers::Vector<int8_t> *>(VT_MEASURES);
   }
-  /// Where to sample.
   const quantra::CurveGridSpec *grid() const {
     return GetPointer<const quantra::CurveGridSpec *>(VT_GRID);
   }
-  /// Optional: if omitted, defaults are used (continuous zero, instantaneous fwd).
   const quantra::ZeroRateQuery *zero() const {
     return GetPointer<const quantra::ZeroRateQuery *>(VT_ZERO);
   }
@@ -1010,7 +971,6 @@ struct BootstrapCurveSpecT : public ::flatbuffers::NativeTable {
   BootstrapCurveSpecT &operator=(BootstrapCurveSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Specification for a single curve to bootstrap.
 struct BootstrapCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BootstrapCurveSpecT NativeTableType;
   typedef BootstrapCurveSpecBuilder Builder;
@@ -1018,12 +978,9 @@ struct BootstrapCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
     VT_CURVE = 4,
     VT_QUERY = 6
   };
-  /// Reuse your existing curve schema.
   const quantra::TermStructure *curve() const {
     return GetPointer<const quantra::TermStructure *>(VT_CURVE);
   }
-  /// Optional: what outputs you want back.
-  /// If omitted, server returns only pillar dates (if available).
   const quantra::CurveQuery *query() const {
     return GetPointer<const quantra::CurveQuery *>(VT_QUERY);
   }
@@ -1077,6 +1034,7 @@ inline ::flatbuffers::Offset<BootstrapCurveSpec> CreateBootstrapCurveSpec(
 struct BootstrapCurvesRequestT : public ::flatbuffers::NativeTable {
   typedef BootstrapCurvesRequest TableType;
   std::string as_of_date{};
+  std::vector<std::unique_ptr<quantra::IndexDefT>> indices{};
   std::vector<std::unique_ptr<quantra::BootstrapCurveSpecT>> curves{};
   BootstrapCurvesRequestT() = default;
   BootstrapCurvesRequestT(const BootstrapCurvesRequestT &o);
@@ -1090,11 +1048,17 @@ struct BootstrapCurvesRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   typedef BootstrapCurvesRequestBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_AS_OF_DATE = 4,
-    VT_CURVES = 6
+    VT_INDICES = 6,
+    VT_CURVES = 8
   };
   /// Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate().
   const ::flatbuffers::String *as_of_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
+  }
+  /// Index definitions needed by curve helpers (SwapHelper, OISHelper, etc.)
+  /// Every IndexRef in helpers must resolve to an IndexDef here.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *indices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *>(VT_INDICES);
   }
   /// Bootstrap many curves at once.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>> *curves() const {
@@ -1104,6 +1068,9 @@ struct BootstrapCurvesRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_AS_OF_DATE) &&
            verifier.VerifyString(as_of_date()) &&
+           VerifyOffset(verifier, VT_INDICES) &&
+           verifier.VerifyVector(indices()) &&
+           verifier.VerifyVectorOfTables(indices()) &&
            VerifyOffsetRequired(verifier, VT_CURVES) &&
            verifier.VerifyVector(curves()) &&
            verifier.VerifyVectorOfTables(curves()) &&
@@ -1120,6 +1087,9 @@ struct BootstrapCurvesRequestBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_as_of_date(::flatbuffers::Offset<::flatbuffers::String> as_of_date) {
     fbb_.AddOffset(BootstrapCurvesRequest::VT_AS_OF_DATE, as_of_date);
+  }
+  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
+    fbb_.AddOffset(BootstrapCurvesRequest::VT_INDICES, indices);
   }
   void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>>> curves) {
     fbb_.AddOffset(BootstrapCurvesRequest::VT_CURVES, curves);
@@ -1140,9 +1110,11 @@ struct BootstrapCurvesRequestBuilder {
 inline ::flatbuffers::Offset<BootstrapCurvesRequest> CreateBootstrapCurvesRequest(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> as_of_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>>> curves = 0) {
   BootstrapCurvesRequestBuilder builder_(_fbb);
   builder_.add_curves(curves);
+  builder_.add_indices(indices);
   builder_.add_as_of_date(as_of_date);
   return builder_.Finish();
 }
@@ -1150,12 +1122,15 @@ inline ::flatbuffers::Offset<BootstrapCurvesRequest> CreateBootstrapCurvesReques
 inline ::flatbuffers::Offset<BootstrapCurvesRequest> CreateBootstrapCurvesRequestDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *as_of_date = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::IndexDef>> *indices = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>> *curves = nullptr) {
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
+  auto indices__ = indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>>(*indices) : 0;
   auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>>(*curves) : 0;
   return quantra::CreateBootstrapCurvesRequest(
       _fbb,
       as_of_date__,
+      indices__,
       curves__);
 }
 
@@ -1489,12 +1464,15 @@ inline ::flatbuffers::Offset<BootstrapCurveSpec> CreateBootstrapCurveSpec(::flat
 
 inline BootstrapCurvesRequestT::BootstrapCurvesRequestT(const BootstrapCurvesRequestT &o)
       : as_of_date(o.as_of_date) {
+  indices.reserve(o.indices.size());
+  for (const auto &indices_ : o.indices) { indices.emplace_back((indices_) ? new quantra::IndexDefT(*indices_) : nullptr); }
   curves.reserve(o.curves.size());
   for (const auto &curves_ : o.curves) { curves.emplace_back((curves_) ? new quantra::BootstrapCurveSpecT(*curves_) : nullptr); }
 }
 
 inline BootstrapCurvesRequestT &BootstrapCurvesRequestT::operator=(BootstrapCurvesRequestT o) FLATBUFFERS_NOEXCEPT {
   std::swap(as_of_date, o.as_of_date);
+  std::swap(indices, o.indices);
   std::swap(curves, o.curves);
   return *this;
 }
@@ -1509,6 +1487,7 @@ inline void BootstrapCurvesRequest::UnPackTo(BootstrapCurvesRequestT *_o, const 
   (void)_o;
   (void)_resolver;
   { auto _e = as_of_date(); if (_e) _o->as_of_date = _e->str(); }
+  { auto _e = indices(); if (_e) { _o->indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->indices[_i]) { _e->Get(_i)->UnPackTo(_o->indices[_i].get(), _resolver); } else { _o->indices[_i] = std::unique_ptr<quantra::IndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->indices.resize(0); } }
   { auto _e = curves(); if (_e) { _o->curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curves[_i]) { _e->Get(_i)->UnPackTo(_o->curves[_i].get(), _resolver); } else { _o->curves[_i] = std::unique_ptr<quantra::BootstrapCurveSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curves.resize(0); } }
 }
 
@@ -1521,10 +1500,12 @@ inline ::flatbuffers::Offset<BootstrapCurvesRequest> CreateBootstrapCurvesReques
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BootstrapCurvesRequestT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _as_of_date = _fbb.CreateString(_o->as_of_date);
+  auto _indices = _o->indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>> (_o->indices.size(), [](size_t i, _VectorArgs *__va) { return CreateIndexDef(*__va->__fbb, __va->__o->indices[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _curves = _fbb.CreateVector<::flatbuffers::Offset<quantra::BootstrapCurveSpec>> (_o->curves.size(), [](size_t i, _VectorArgs *__va) { return CreateBootstrapCurveSpec(*__va->__fbb, __va->__o->curves[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreateBootstrapCurvesRequest(
       _fbb,
       _as_of_date,
+      _indices,
       _curves);
 }
 

@@ -15,6 +15,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "coupon_pricer_generated.h"
 #include "enums_generated.h"
+#include "index_generated.h"
 #include "model_generated.h"
 #include "quotes_generated.h"
 #include "term_structure_generated.h"
@@ -263,6 +264,7 @@ struct PricingT : public ::flatbuffers::NativeTable {
   typedef Pricing TableType;
   std::string as_of_date{};
   std::string settlement_date{};
+  std::vector<std::unique_ptr<quantra::IndexDefT>> indices{};
   std::vector<std::unique_ptr<quantra::TermStructureT>> curves{};
   std::vector<std::unique_ptr<quantra::QuoteSpecT>> quotes{};
   std::vector<std::unique_ptr<quantra::VolSurfaceSpecT>> vol_surfaces{};
@@ -282,13 +284,14 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_AS_OF_DATE = 4,
     VT_SETTLEMENT_DATE = 6,
-    VT_CURVES = 8,
-    VT_QUOTES = 10,
-    VT_VOL_SURFACES = 12,
-    VT_MODELS = 14,
-    VT_BOND_PRICING_DETAILS = 16,
-    VT_BOND_PRICING_FLOWS = 18,
-    VT_COUPON_PRICERS = 20
+    VT_INDICES = 8,
+    VT_CURVES = 10,
+    VT_QUOTES = 12,
+    VT_VOL_SURFACES = 14,
+    VT_MODELS = 16,
+    VT_BOND_PRICING_DETAILS = 18,
+    VT_BOND_PRICING_FLOWS = 20,
+    VT_COUPON_PRICERS = 22
   };
   /// Valuation date (YYYY-MM-DD). Used by: ALL
   const ::flatbuffers::String *as_of_date() const {
@@ -297,6 +300,11 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond
   const ::flatbuffers::String *settlement_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
+  }
+  /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
+  /// Every IndexRef in the request must resolve to an IndexDef here.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *indices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *>(VT_INDICES);
   }
   /// Yield curves for discounting/forwarding. Used by: ALL
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
@@ -332,6 +340,9 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(as_of_date()) &&
            VerifyOffset(verifier, VT_SETTLEMENT_DATE) &&
            verifier.VerifyString(settlement_date()) &&
+           VerifyOffset(verifier, VT_INDICES) &&
+           verifier.VerifyVector(indices()) &&
+           verifier.VerifyVectorOfTables(indices()) &&
            VerifyOffsetRequired(verifier, VT_CURVES) &&
            verifier.VerifyVector(curves()) &&
            verifier.VerifyVectorOfTables(curves()) &&
@@ -365,6 +376,9 @@ struct PricingBuilder {
   }
   void add_settlement_date(::flatbuffers::Offset<::flatbuffers::String> settlement_date) {
     fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date);
+  }
+  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
+    fbb_.AddOffset(Pricing::VT_INDICES, indices);
   }
   void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
     fbb_.AddOffset(Pricing::VT_CURVES, curves);
@@ -404,6 +418,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> as_of_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> settlement_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces = 0,
@@ -417,6 +432,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
   builder_.add_vol_surfaces(vol_surfaces);
   builder_.add_quotes(quotes);
   builder_.add_curves(curves);
+  builder_.add_indices(indices);
   builder_.add_settlement_date(settlement_date);
   builder_.add_as_of_date(as_of_date);
   builder_.add_bond_pricing_flows(bond_pricing_flows);
@@ -428,6 +444,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *as_of_date = nullptr,
     const char *settlement_date = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::IndexDef>> *indices = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::TermStructure>> *curves = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces = nullptr,
@@ -437,6 +454,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     const std::vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers = nullptr) {
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
   auto settlement_date__ = settlement_date ? _fbb.CreateString(settlement_date) : 0;
+  auto indices__ = indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>>(*indices) : 0;
   auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>>(*curves) : 0;
   auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>>(*quotes) : 0;
   auto vol_surfaces__ = vol_surfaces ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>(*vol_surfaces) : 0;
@@ -446,6 +464,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
       _fbb,
       as_of_date__,
       settlement_date__,
+      indices__,
       curves__,
       quotes__,
       vol_surfaces__,
@@ -1266,6 +1285,8 @@ inline PricingT::PricingT(const PricingT &o)
         settlement_date(o.settlement_date),
         bond_pricing_details(o.bond_pricing_details),
         bond_pricing_flows(o.bond_pricing_flows) {
+  indices.reserve(o.indices.size());
+  for (const auto &indices_ : o.indices) { indices.emplace_back((indices_) ? new quantra::IndexDefT(*indices_) : nullptr); }
   curves.reserve(o.curves.size());
   for (const auto &curves_ : o.curves) { curves.emplace_back((curves_) ? new quantra::TermStructureT(*curves_) : nullptr); }
   quotes.reserve(o.quotes.size());
@@ -1281,6 +1302,7 @@ inline PricingT::PricingT(const PricingT &o)
 inline PricingT &PricingT::operator=(PricingT o) FLATBUFFERS_NOEXCEPT {
   std::swap(as_of_date, o.as_of_date);
   std::swap(settlement_date, o.settlement_date);
+  std::swap(indices, o.indices);
   std::swap(curves, o.curves);
   std::swap(quotes, o.quotes);
   std::swap(vol_surfaces, o.vol_surfaces);
@@ -1302,6 +1324,7 @@ inline void Pricing::UnPackTo(PricingT *_o, const ::flatbuffers::resolver_functi
   (void)_resolver;
   { auto _e = as_of_date(); if (_e) _o->as_of_date = _e->str(); }
   { auto _e = settlement_date(); if (_e) _o->settlement_date = _e->str(); }
+  { auto _e = indices(); if (_e) { _o->indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->indices[_i]) { _e->Get(_i)->UnPackTo(_o->indices[_i].get(), _resolver); } else { _o->indices[_i] = std::unique_ptr<quantra::IndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->indices.resize(0); } }
   { auto _e = curves(); if (_e) { _o->curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curves[_i]) { _e->Get(_i)->UnPackTo(_o->curves[_i].get(), _resolver); } else { _o->curves[_i] = std::unique_ptr<quantra::TermStructureT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curves.resize(0); } }
   { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::QuoteSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
   { auto _e = vol_surfaces(); if (_e) { _o->vol_surfaces.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->vol_surfaces[_i]) { _e->Get(_i)->UnPackTo(_o->vol_surfaces[_i].get(), _resolver); } else { _o->vol_surfaces[_i] = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->vol_surfaces.resize(0); } }
@@ -1321,6 +1344,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PricingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _as_of_date = _fbb.CreateString(_o->as_of_date);
   auto _settlement_date = _o->settlement_date.empty() ? 0 : _fbb.CreateString(_o->settlement_date);
+  auto _indices = _o->indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>> (_o->indices.size(), [](size_t i, _VectorArgs *__va) { return CreateIndexDef(*__va->__fbb, __va->__o->indices[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _curves = _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>> (_o->curves.size(), [](size_t i, _VectorArgs *__va) { return CreateTermStructure(*__va->__fbb, __va->__o->curves[i].get(), __va->__rehasher); }, &_va );
   auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateQuoteSpec(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _vol_surfaces = _o->vol_surfaces.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> (_o->vol_surfaces.size(), [](size_t i, _VectorArgs *__va) { return CreateVolSurfaceSpec(*__va->__fbb, __va->__o->vol_surfaces[i].get(), __va->__rehasher); }, &_va ) : 0;
@@ -1332,6 +1356,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
       _fbb,
       _as_of_date,
       _settlement_date,
+      _indices,
       _curves,
       _quotes,
       _vol_surfaces,

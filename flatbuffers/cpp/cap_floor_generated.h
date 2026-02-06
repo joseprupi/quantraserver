@@ -29,7 +29,7 @@ struct CapFloorT : public ::flatbuffers::NativeTable {
   double notional = 0.0;
   double strike = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  std::unique_ptr<quantra::IndexT> index{};
+  std::unique_ptr<quantra::IndexRefT> index{};
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   CapFloorT() = default;
@@ -62,8 +62,9 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  const quantra::Index *index() const {
-    return GetPointer<const quantra::Index *>(VT_INDEX);
+  /// Reference to an IndexDef by id (e.g., "EUR_3M")
+  const quantra::IndexRef *index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
@@ -78,7 +79,7 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_STRIKE, 8) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
-           VerifyOffset(verifier, VT_INDEX) &&
+           VerifyOffsetRequired(verifier, VT_INDEX) &&
            verifier.VerifyTable(index()) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
@@ -105,7 +106,7 @@ struct CapFloorBuilder {
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(CapFloor::VT_SCHEDULE, schedule);
   }
-  void add_index(::flatbuffers::Offset<quantra::Index> index) {
+  void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
     fbb_.AddOffset(CapFloor::VT_INDEX, index);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
@@ -121,6 +122,7 @@ struct CapFloorBuilder {
   ::flatbuffers::Offset<CapFloor> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<CapFloor>(end);
+    fbb_.Required(o, CapFloor::VT_INDEX);
     return o;
   }
 };
@@ -131,7 +133,7 @@ inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(
     double notional = 0.0,
     double strike = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Offset<quantra::Index> index = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
   CapFloorBuilder builder_(_fbb);
@@ -152,7 +154,7 @@ inline CapFloorT::CapFloorT(const CapFloorT &o)
         notional(o.notional),
         strike(o.strike),
         schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        index((o.index) ? new quantra::IndexT(*o.index) : nullptr),
+        index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
         day_counter(o.day_counter),
         business_day_convention(o.business_day_convention) {
 }
@@ -181,7 +183,7 @@ inline void CapFloor::UnPackTo(CapFloorT *_o, const ::flatbuffers::resolver_func
   { auto _e = notional(); _o->notional = _e; }
   { auto _e = strike(); _o->strike = _e; }
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
+  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
 }
@@ -198,7 +200,7 @@ inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(::flatbuffers::FlatBufferB
   auto _notional = _o->notional;
   auto _strike = _o->strike;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _index = _o->index ? CreateIndex(_fbb, _o->index.get(), _rehasher) : 0;
+  auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
   auto _day_counter = _o->day_counter;
   auto _business_day_convention = _o->business_day_convention;
   return quantra::CreateCapFloor(

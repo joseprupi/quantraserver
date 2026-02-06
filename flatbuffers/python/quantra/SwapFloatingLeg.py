@@ -42,13 +42,14 @@ class SwapFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Reference to an IndexDef by id (e.g., "EUR_6M")
     # SwapFloatingLeg
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Index import Index
-            obj = Index()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -159,7 +160,7 @@ class SwapFloatingLegT(object):
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = 0.0  # type: float
-        self.index = None  # type: Optional[IndexT]
+        self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
         self.dayCounter = 0  # type: int
         self.paymentConvention = 0  # type: int
@@ -191,7 +192,7 @@ class SwapFloatingLegT(object):
             self.schedule = ScheduleT.InitFromObj(swapFloatingLeg.Schedule())
         self.notional = swapFloatingLeg.Notional()
         if swapFloatingLeg.Index() is not None:
-            self.index = IndexT.InitFromObj(swapFloatingLeg.Index())
+            self.index = IndexRefT.InitFromObj(swapFloatingLeg.Index())
         self.spread = swapFloatingLeg.Spread()
         self.dayCounter = swapFloatingLeg.DayCounter()
         self.paymentConvention = swapFloatingLeg.PaymentConvention()

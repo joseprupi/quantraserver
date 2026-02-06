@@ -7,7 +7,6 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
-# Examples: {n:1, unit:Days}, {n:3, unit:Months}, {n:10, unit:Years}
 class Tenor(object):
     __slots__ = ['_tab']
 

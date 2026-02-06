@@ -500,55 +500,6 @@ components:
       - Twentieth
       - TwentiethIMM
       - Zero
-    quantra_enums_Ibor:
-      type: string
-      enum:
-      - Euribor10M
-      - Euribor11M
-      - Euribor1M
-      - Euribor1Y
-      - Euribor2M
-      - Euribor2W
-      - Euribor365_10M
-      - Euribor365_11M
-      - Euribor365_1M
-      - Euribor365_1Y
-      - Euribor365_2M
-      - Euribor365_2W
-      - Euribor365_3M
-      - Euribor365_3W
-      - Euribor365_4M
-      - Euribor365_5M
-      - Euribor365_6M
-      - Euribor365_7M
-      - Euribor365_8M
-      - Euribor365_9M
-      - Euribor365_SW
-      - Euribor3M
-      - Euribor3W
-      - Euribor4M
-      - Euribor5M
-      - Euribor6M
-      - Euribor7M
-      - Euribor8M
-      - Euribor9M
-      - EuriborSW
-    quantra_enums_OvernightIndex:
-      type: string
-      enum:
-      - SOFR
-      - ESTR
-      - SONIA
-      - FedFunds
-      - EONIA
-    quantra_enums_IborFamily:
-      type: string
-      enum:
-      - Euribor
-      - USDLibor
-      - GBPLibor
-      - JPYLibor
-      - Tibor
     quantra_enums_Compounding:
       type: string
       enum:
@@ -609,12 +560,11 @@ components:
       enum:
       - BlackScholesAnalytic
       - BinomialCRR
-    quantra_IndexSpec:
+    quantra_IndexType:
       type: string
       enum:
-      - NONE
-      - IborIndexSpec
-      - OvernightIndexSpec
+      - Ibor
+      - Overnight
     quantra_Point:
       type: string
       enum:
@@ -666,20 +616,44 @@ components:
         end_of_month:
           type: boolean
       additionalProperties: false
-    quantra_IborIndexSpec:
+    quantra_Fixing:
       type: object
-      description: IBOR index fully described by conventions
       properties:
-        family:
-          $ref: '#/components/schemas/quantra_enums_IborFamily'
+        date:
+          type: string
+        value:
+          type: number
+      required:
+      - date
+      additionalProperties: false
+    quantra_IndexDef:
+      type: object
+      description: Complete index definition. Registered once per request, referenced
+        by id.
+      properties:
+        id:
+          type: string
+          description: Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
+        name:
+          type: string
+          description: 'Human-readable name / family label (e.g., "Euribor", "SOFR",
+            "MyBank3M")
+
+            Used as the QuantLib index familyName. No financial logic depends on this.'
+        index_type:
+          $ref: '#/components/schemas/quantra_IndexType'
         tenor_number:
           type: integer
+          description: 'Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
+
+            For overnight indices, set tenor_number=0.'
           minimum: -2147483648
           maximum: 2147483647
         tenor_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         fixing_days:
           type: integer
+          description: Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
           minimum: -2147483648
           maximum: 2147483647
         calendar:
@@ -690,21 +664,33 @@ components:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         end_of_month:
           type: boolean
+          description: End of month rule (IBOR only, ignored for overnight)
+        currency:
+          type: string
+          description: 'ISO currency code (e.g., "EUR", "USD", "GBP", "JPY")
+
+            Mapped to QuantLib Currency objects. Required.'
+        fixings:
+          type: array
+          description: 'Past fixings needed for seasoned instruments.
+
+            Applied via index->addFixing() before pricing.'
+          items:
+            $ref: '#/components/schemas/quantra_Fixing'
+      required:
+      - id
+      - name
       additionalProperties: false
-    quantra_OvernightIndexSpec:
+    quantra_IndexRef:
       type: object
-      description: Overnight index fully described by conventions
+      description: 'Reference to an IndexDef by its id.
+
+        Used by helpers and instruments to point to a registered index.'
       properties:
-        name:
-          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
-        fixing_days:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        calendar:
-          $ref: '#/components/schemas/quantra_enums_Calendar'
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        id:
+          type: string
+      required:
+      - id
       additionalProperties: false
     quantra_CurveRef:
       type: object
@@ -725,29 +711,7 @@ components:
           $ref: '#/components/schemas/quantra_CurveRef'
         fx_spot_quote_id:
           type: string
-      additionalProperties: false
-    quantra_Fixing:
-      type: object
-      properties:
-        date:
-          type: string
-        value:
-          type: number
-      required:
-      - date
-      additionalProperties: false
-    quantra_IndexFixings:
-      type: object
-      properties:
-        index_id:
-          type: string
-        fixings:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_Fixing'
-      required:
-      - index_id
-      - fixings
+          description: FX spot quote reference for FX-implied curve helpers.
       additionalProperties: false
     quantra_DepositHelper:
       type: object
@@ -846,16 +810,8 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         sw_fixed_leg_day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
-        sw_floating_leg_index:
-          $ref: '#/components/schemas/quantra_enums_Ibor'
-        float_index_type:
-          $ref: '#/components/schemas/quantra_IndexSpec'
         float_index:
-          description: 'NEW: data-driven index spec (takes precedence over sw_floating_leg_index
-            if set)'
-          anyOf:
-          - $ref: '#/components/schemas/quantra_IborIndexSpec'
-          - $ref: '#/components/schemas/quantra_OvernightIndexSpec'
+          $ref: '#/components/schemas/quantra_IndexRef'
         spread:
           type: number
         fwd_start_days:
@@ -866,6 +822,8 @@ components:
           $ref: '#/components/schemas/quantra_HelperDependencies'
         quote_id:
           type: string
+      required:
+      - float_index
       additionalProperties: false
     quantra_BondHelper:
       type: object
@@ -908,9 +866,7 @@ components:
         tenor_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         overnight_index:
-          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
-        overnight_index_spec:
-          $ref: '#/components/schemas/quantra_OvernightIndexSpec'
+          $ref: '#/components/schemas/quantra_IndexRef'
         settlement_days:
           type: integer
           minimum: -2147483648
@@ -923,8 +879,12 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         fixed_leg_day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
         quote_id:
           type: string
+      required:
+      - overnight_index
       additionalProperties: false
     quantra_DatedOISHelper:
       type: object
@@ -936,9 +896,7 @@ components:
         end_date:
           type: string
         overnight_index:
-          $ref: '#/components/schemas/quantra_enums_OvernightIndex'
-        overnight_index_spec:
-          $ref: '#/components/schemas/quantra_OvernightIndexSpec'
+          $ref: '#/components/schemas/quantra_IndexRef'
         settlement_days:
           type: integer
           minimum: -2147483648
@@ -949,11 +907,14 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         fixed_leg_day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
+        deps:
+          $ref: '#/components/schemas/quantra_HelperDependencies'
         quote_id:
           type: string
       required:
       - start_date
       - end_date
+      - overnight_index
       additionalProperties: false
     quantra_TenorBasisSwapHelper:
       type: object
@@ -967,15 +928,18 @@ components:
         tenor_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         index_short:
-          $ref: '#/components/schemas/quantra_enums_Ibor'
+          $ref: '#/components/schemas/quantra_IndexRef'
         index_long:
-          $ref: '#/components/schemas/quantra_enums_Ibor'
+          $ref: '#/components/schemas/quantra_IndexRef'
         calendar:
           $ref: '#/components/schemas/quantra_enums_Calendar'
         deps:
           $ref: '#/components/schemas/quantra_HelperDependencies'
         quote_id:
           type: string
+      required:
+      - index_short
+      - index_long
       additionalProperties: false
     quantra_FxSwapHelper:
       type: object
@@ -1013,13 +977,16 @@ components:
         tenor_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         index_domestic:
-          $ref: '#/components/schemas/quantra_enums_Ibor'
+          $ref: '#/components/schemas/quantra_IndexRef'
         index_foreign:
-          $ref: '#/components/schemas/quantra_enums_Ibor'
+          $ref: '#/components/schemas/quantra_IndexRef'
         deps:
           $ref: '#/components/schemas/quantra_HelperDependencies'
         quote_id:
           type: string
+      required:
+      - index_domestic
+      - index_foreign
       additionalProperties: false
     quantra_PointsWrapper:
       type: object
@@ -1059,9 +1026,7 @@ components:
       additionalProperties: false
     quantra_Tenor:
       type: object
-      description: 'A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
-
-        Examples: {n:1, unit:Days}, {n:3, unit:Months}, {n:10, unit:Years}'
+      description: A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
       properties:
         n:
           type: integer
@@ -1072,11 +1037,8 @@ components:
       additionalProperties: false
     quantra_TenorGrid:
       type: object
-      description: "Tenors relative to the curve reference date (or as_of_date if\
-        \ no reference date).\nExamples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]\n\
-        \ \nCalendar behavior:\n- If calendar is NullCalendar (default): raw date\
-        \ arithmetic (refDate + period)\n- If calendar is set: uses calendar.advance(refDate,\
-        \ period, bdc)"
+      description: Tenors relative to the curve reference date (or as_of_date if no
+        reference date).
       properties:
         tenors:
           type: array
@@ -1091,35 +1053,20 @@ components:
       additionalProperties: false
     quantra_RangeGrid:
       type: object
-      description: 'Sample the curve between start/end with a step.
-
-        Use this for "daily curve until X".
-
-
-        Note on business_days_only:
-
-        - Requires a real calendar (not NullCalendar) to skip weekends/holidays
-
-        - If business_days_only=true with NullCalendar, falls back to WeekendsOnly'
+      description: Sample the curve between start/end with a step.
       properties:
         start_date:
           type: string
-          description: If omitted, server defaults to as_of_date.
         end_date:
           type: string
-          description: Required end date (YYYY-MM-DD or YYYY/MM/DD).
         step_number:
           type: integer
-          description: Step size, e.g. 1 Days for daily, 1 Weeks, 1 Months.
           minimum: -2147483648
           maximum: 2147483647
         step_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         business_days_only:
           type: boolean
-          description: 'If true, generate only business days using the calendar below.
-
-            Requires a non-NullCalendar to properly skip weekends/holidays.'
         calendar:
           $ref: '#/components/schemas/quantra_enums_Calendar'
         business_day_convention:
@@ -1141,12 +1088,9 @@ components:
       additionalProperties: false
     quantra_ZeroRateQuery:
       type: object
-      description: Options for zero rate output.
       properties:
         use_curve_day_counter:
           type: boolean
-          description: If true, use TermStructure.day_counter. If false, use day_counter
-            below.
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         compounding:
@@ -1156,12 +1100,9 @@ components:
       additionalProperties: false
     quantra_ForwardRateQuery:
       type: object
-      description: Options for forward rate output.
       properties:
         use_curve_day_counter:
           type: boolean
-          description: If true, use TermStructure.day_counter. If false, use day_counter
-            below.
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         compounding:
@@ -1172,35 +1113,24 @@ components:
           $ref: '#/components/schemas/quantra_ForwardType'
         instantaneous_eps_number:
           type: integer
-          description: 'When forward_type=Instantaneous, compute forward over [d,
-            d + eps].
-
-            Defaults: eps = 1 Day.'
           minimum: -2147483648
           maximum: 2147483647
         instantaneous_eps_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         tenor_number:
           type: integer
-          description: Used only when forward_type=Period, compute forward over [d,
-            d + tenor].
           minimum: -2147483648
           maximum: 2147483647
         tenor_time_unit:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         use_grid_calendar_for_advance:
           type: boolean
-          description: 'If true, use calendar from grid for date advancement.
-
-            If false, use curve''s instrument calendar.'
       additionalProperties: false
     quantra_CurveQuery:
       type: object
-      description: What to sample from the curve.
       properties:
         measures:
           type: array
-          description: Which measures to return.
           items:
             $ref: '#/components/schemas/quantra_CurveMeasure'
         grid:
@@ -1215,7 +1145,6 @@ components:
       additionalProperties: false
     quantra_BootstrapCurveSpec:
       type: object
-      description: Specification for a single curve to bootstrap.
       properties:
         curve:
           $ref: '#/components/schemas/quantra_TermStructure'
@@ -1231,6 +1160,14 @@ components:
         as_of_date:
           type: string
           description: Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate().
+        indices:
+          type: array
+          description: 'Index definitions needed by curve helpers (SwapHelper, OISHelper,
+            etc.)
+
+            Every IndexRef in helpers must resolve to an IndexDef here.'
+          items:
+            $ref: '#/components/schemas/quantra_IndexDef'
         curves:
           type: array
           description: Bootstrap many curves at once.
@@ -1464,6 +1401,14 @@ components:
         settlement_date:
           type: string
           description: 'Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond'
+        indices:
+          type: array
+          description: 'Index definitions. Used by: ALL floating-rate instruments
+            and curve helpers.
+
+            Every IndexRef in the request must resolve to an IndexDef here.'
+          items:
+            $ref: '#/components/schemas/quantra_IndexDef'
         curves:
           type: array
           description: 'Yield curves for discounting/forwarding. Used by: ALL'
@@ -1654,32 +1599,6 @@ components:
       required:
       - results
       additionalProperties: false
-    quantra_Index:
-      type: object
-      properties:
-        period_number:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        period_time_unit:
-          $ref: '#/components/schemas/quantra_enums_TimeUnit'
-        settlement_days:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        calendar:
-          $ref: '#/components/schemas/quantra_enums_Calendar'
-        business_day_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-        end_of_month:
-          type: boolean
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
-        fixings:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_Fixing'
-      additionalProperties: false
     quantra_CapFloor:
       type: object
       properties:
@@ -1692,11 +1611,13 @@ components:
         schedule:
           $ref: '#/components/schemas/quantra_Schedule'
         index:
-          $ref: '#/components/schemas/quantra_Index'
+          $ref: '#/components/schemas/quantra_IndexRef'
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         business_day_convention:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - index
       additionalProperties: false
     quantra_CapFloorLet:
       type: object
@@ -1852,7 +1773,7 @@ components:
         schedule:
           $ref: '#/components/schemas/quantra_Schedule'
         index:
-          $ref: '#/components/schemas/quantra_Index'
+          $ref: '#/components/schemas/quantra_IndexRef'
         accrual_day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         payment_convention:
@@ -1869,6 +1790,8 @@ components:
           type: number
         issue_date:
           type: string
+      required:
+      - index
       additionalProperties: false
     quantra_FloatingRateBondResponse:
       type: object
@@ -1920,13 +1843,15 @@ components:
         strike:
           type: number
         index:
-          $ref: '#/components/schemas/quantra_Index'
+          $ref: '#/components/schemas/quantra_IndexRef'
         day_counter:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         calendar:
           $ref: '#/components/schemas/quantra_enums_Calendar'
         business_day_convention:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - index
       additionalProperties: false
     quantra_FRAResponse:
       type: object
@@ -2104,7 +2029,7 @@ components:
         notional:
           type: number
         index:
-          $ref: '#/components/schemas/quantra_Index'
+          $ref: '#/components/schemas/quantra_IndexRef'
         spread:
           type: number
         day_counter:
@@ -2117,6 +2042,8 @@ components:
           maximum: 2147483647
         in_arrears:
           type: boolean
+      required:
+      - index
       additionalProperties: false
     quantra_VanillaSwap:
       type: object

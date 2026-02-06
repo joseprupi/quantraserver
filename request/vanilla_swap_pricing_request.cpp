@@ -41,7 +41,7 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
 
         // Link forwarding curve to parser and parse swap
         swap_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
-        auto swap = swap_parser.parse(it->vanilla_swap());
+        auto swap = swap_parser.parse(it->vanilla_swap(), reg.indices);
 
         // Set pricing engine
         auto engine = std::make_shared<DiscountingSwapEngine>(*discounting_curve_it->second);

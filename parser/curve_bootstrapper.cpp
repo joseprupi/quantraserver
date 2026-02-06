@@ -31,7 +31,25 @@ static void addDepFromRef(
     }
 }
 
-static void addDepsFromHelper(
+/// Add only discount_curve dependency.
+/// Used for SwapHelper/OISHelper/DatedOISHelper where QuantLib overrides the
+/// projection curve with the curve being bootstrapped (via setTermStructure).
+/// projection_curve is validated and rejected later in TermStructurePointParser;
+/// we must not add it as a dependency here or the topo-sort may produce a
+/// misleading cycle error before the parser can emit the clear hard-error.
+static void addDiscountOnlyDep(
+    std::unordered_map<std::string, std::vector<std::string>>& deps,
+    const std::string& curveId,
+    const quantra::HelperDependencies* hd)
+{
+    if (!hd) return;
+    addDepFromRef(deps, curveId, hd->discount_curve());
+}
+
+/// Add all dependency edges (discount + projection + projection_2).
+/// Used for helpers that genuinely encode multi-curve projection relationships:
+/// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+static void addAllDeps(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& curveId,
     const quantra::HelperDependencies* hd)
@@ -53,7 +71,6 @@ void CurveBootstrapper::collectDeps(
     if (!ts->id()) return;
     std::string curveId = ts->id()->str();
 
-    // Ensure node exists even with no deps
     deps.try_emplace(curveId, std::vector<std::string>{});
 
     if (!ts->points()) return;
@@ -62,28 +79,36 @@ void CurveBootstrapper::collectDeps(
         auto wrapper = ts->points()->Get(i);
         auto ptype = wrapper->point_type();
 
-        // SwapHelper has deps
+        // Swap/OIS helpers: discount-curve only.
+        // QuantLib's SwapRateHelper/OISRateHelper override projection via
+        // index->clone(termStructureHandle_), so projection_curve deps are
+        // meaningless and would create bogus ordering constraints.
         if (ptype == quantra::Point_SwapHelper) {
             auto h = static_cast<const quantra::SwapHelper*>(wrapper->point());
-            addDepsFromHelper(deps, curveId, h->deps());
+            addDiscountOnlyDep(deps, curveId, h->deps());
         }
-        // TenorBasisSwapHelper has deps
+        else if (ptype == quantra::Point_OISHelper) {
+            auto h = static_cast<const quantra::OISHelper*>(wrapper->point());
+            addDiscountOnlyDep(deps, curveId, h->deps());
+        }
+        else if (ptype == quantra::Point_DatedOISHelper) {
+            auto h = static_cast<const quantra::DatedOISHelper*>(wrapper->point());
+            addDiscountOnlyDep(deps, curveId, h->deps());
+        }
+        // Basis/XCCY/FX helpers: full deps including projection curves.
+        // These helpers genuinely use exogenous projection relationships.
         else if (ptype == quantra::Point_TenorBasisSwapHelper) {
             auto h = static_cast<const quantra::TenorBasisSwapHelper*>(wrapper->point());
-            addDepsFromHelper(deps, curveId, h->deps());
+            addAllDeps(deps, curveId, h->deps());
         }
-        // FxSwapHelper has deps
         else if (ptype == quantra::Point_FxSwapHelper) {
             auto h = static_cast<const quantra::FxSwapHelper*>(wrapper->point());
-            addDepsFromHelper(deps, curveId, h->deps());
+            addAllDeps(deps, curveId, h->deps());
         }
-        // CrossCcyBasisHelper has deps
         else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto h = static_cast<const quantra::CrossCcyBasisHelper*>(wrapper->point());
-            addDepsFromHelper(deps, curveId, h->deps());
+            addAllDeps(deps, curveId, h->deps());
         }
-        // Other helpers (Deposit, FRA, Future, Bond, OIS, DatedOIS)
-        // have no exogenous curve deps
     }
 }
 
@@ -94,13 +119,9 @@ void CurveBootstrapper::collectDeps(
 std::vector<std::string> CurveBootstrapper::topoSort(
     const std::unordered_map<std::string, std::vector<std::string>>& deps)
 {
-    // Build adjacency list and in-degree map
-    // Edge: u -> v means "u depends on v" (v must be built before u)
-    // So in the adjacency list for the sort, v -> u (v enables u)
     std::unordered_map<std::string, int> indeg;
-    std::unordered_map<std::string, std::vector<std::string>> adj; // v -> [u1, u2, ...]
+    std::unordered_map<std::string, std::vector<std::string>> adj;
 
-    // Initialize all nodes
     for (const auto& kv : deps) {
         indeg.try_emplace(kv.first, 0);
         for (const auto& d : kv.second) {
@@ -108,7 +129,6 @@ std::vector<std::string> CurveBootstrapper::topoSort(
         }
     }
 
-    // Build edges: if u depends on v, then v -> u
     for (const auto& kv : deps) {
         const auto& u = kv.first;
         for (const auto& v : kv.second) {
@@ -117,7 +137,6 @@ std::vector<std::string> CurveBootstrapper::topoSort(
         }
     }
 
-    // Kahn's: start with nodes that have no dependencies
     std::queue<std::string> q;
     for (const auto& kv : indeg) {
         if (kv.second == 0) q.push(kv.first);
@@ -139,8 +158,7 @@ std::vector<std::string> CurveBootstrapper::topoSort(
     }
 
     if (order.size() != indeg.size()) {
-        QUANTRA_ERROR("Curve dependency graph has a cycle. "
-                      "Check that no two curves depend on each other.");
+        QUANTRA_ERROR("Curve dependency graph has a cycle.");
     }
 
     return order;
@@ -152,7 +170,8 @@ std::vector<std::string> CurveBootstrapper::topoSort(
 
 BootstrappedCurves CurveBootstrapper::bootstrapAll(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>* curves,
-    const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices
 ) const {
     if (!curves || curves->size() == 0) {
         QUANTRA_ERROR("curves is required (at least one curve)");
@@ -168,7 +187,11 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         }
     }
 
-    // ---- 2. Index curves by id ----
+    // ---- 2. Build IndexRegistry ----
+    IndexRegistryBuilder indexBuilder;
+    IndexRegistry indexReg = indexBuilder.build(indices);
+
+    // ---- 3. Index curves by id ----
     std::unordered_map<std::string, const quantra::TermStructure*> curveIndex;
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); i++) {
         auto ts = curves->Get(i);
@@ -176,44 +199,38 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         curveIndex[ts->id()->str()] = ts;
     }
 
-    // ---- 3. Create empty handles and register them ----
+    // ---- 4. Create empty handles and register them ----
     BootstrappedCurves out;
     CurveRegistry curveReg;
 
     for (const auto& kv : curveIndex) {
         auto h = std::make_shared<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>();
         out.handles.emplace(kv.first, h);
-        // Register the empty handle — helpers will hold a copy of this Handle
-        // and see the real curve once we linkTo() after bootstrapping
         curveReg.put(kv.first, *h);
     }
 
-    // ---- 4. Build dependency graph ----
+    // ---- 5. Build dependency graph ----
     std::unordered_map<std::string, std::vector<std::string>> deps;
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); i++) {
         collectDeps(curves->Get(i), deps);
     }
 
-    // ---- 5. Topological sort ----
+    // ---- 6. Topological sort ----
     auto order = topoSort(deps);
 
-    // ---- 6. Bootstrap in order ----
-    IndexFactory indexFactory;
+    // ---- 7. Bootstrap in order ----
     TermStructureParser tsParser;
 
     for (const auto& id : order) {
         auto it = curveIndex.find(id);
         if (it == curveIndex.end()) {
-            // This id was referenced as a dependency but not provided
-            // It might be an external/pre-existing curve — skip if already in registry
             if (curveReg.has(id)) continue;
             QUANTRA_ERROR("Curve id '" + id + "' referenced in dependencies but not provided");
         }
 
         const auto* ts = it->second;
-        auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexFactory);
+        auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
 
-        // Link the handle so all downstream helpers see the real curve
         out.handles.at(id)->linkTo(curve);
     }
 

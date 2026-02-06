@@ -33,10 +33,37 @@ class BootstrapCurvesRequest(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Index definitions needed by curve helpers (SwapHelper, OISHelper, etc.)
+    # Every IndexRef in helpers must resolve to an IndexDef here.
+    # BootstrapCurvesRequest
+    def Indices(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.IndexDef import IndexDef
+            obj = IndexDef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # BootstrapCurvesRequest
+    def IndicesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BootstrapCurvesRequest
+    def IndicesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
     # Bootstrap many curves at once.
     # BootstrapCurvesRequest
     def Curves(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -49,18 +76,18 @@ class BootstrapCurvesRequest(object):
 
     # BootstrapCurvesRequest
     def CurvesLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # BootstrapCurvesRequest
     def CurvesIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
 def BootstrapCurvesRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     BootstrapCurvesRequestStart(builder)
@@ -71,8 +98,20 @@ def BootstrapCurvesRequestAddAsOfDate(builder, asOfDate):
 def AddAsOfDate(builder, asOfDate):
     BootstrapCurvesRequestAddAsOfDate(builder, asOfDate)
 
+def BootstrapCurvesRequestAddIndices(builder, indices):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(indices), 0)
+
+def AddIndices(builder, indices):
+    BootstrapCurvesRequestAddIndices(builder, indices)
+
+def BootstrapCurvesRequestStartIndicesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartIndicesVector(builder, numElems):
+    return BootstrapCurvesRequestStartIndicesVector(builder, numElems)
+
 def BootstrapCurvesRequestAddCurves(builder, curves):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(curves), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(curves), 0)
 
 def AddCurves(builder, curves):
     BootstrapCurvesRequestAddCurves(builder, curves)
@@ -99,6 +138,7 @@ class BootstrapCurvesRequestT(object):
     # BootstrapCurvesRequestT
     def __init__(self):
         self.asOfDate = None  # type: str
+        self.indices = None  # type: List[IndexDefT]
         self.curves = None  # type: List[BootstrapCurveSpecT]
 
     @classmethod
@@ -123,6 +163,14 @@ class BootstrapCurvesRequestT(object):
         if bootstrapCurvesRequest is None:
             return
         self.asOfDate = bootstrapCurvesRequest.AsOfDate()
+        if not bootstrapCurvesRequest.IndicesIsNone():
+            self.indices = []
+            for i in range(bootstrapCurvesRequest.IndicesLength()):
+                if bootstrapCurvesRequest.Indices(i) is None:
+                    self.indices.append(None)
+                else:
+                    indexDef_ = IndexDefT.InitFromObj(bootstrapCurvesRequest.Indices(i))
+                    self.indices.append(indexDef_)
         if not bootstrapCurvesRequest.CurvesIsNone():
             self.curves = []
             for i in range(bootstrapCurvesRequest.CurvesLength()):
@@ -136,6 +184,14 @@ class BootstrapCurvesRequestT(object):
     def Pack(self, builder):
         if self.asOfDate is not None:
             asOfDate = builder.CreateString(self.asOfDate)
+        if self.indices is not None:
+            indiceslist = []
+            for i in range(len(self.indices)):
+                indiceslist.append(self.indices[i].Pack(builder))
+            BootstrapCurvesRequestStartIndicesVector(builder, len(self.indices))
+            for i in reversed(range(len(self.indices))):
+                builder.PrependUOffsetTRelative(indiceslist[i])
+            indices = builder.EndVector()
         if self.curves is not None:
             curveslist = []
             for i in range(len(self.curves)):
@@ -147,6 +203,8 @@ class BootstrapCurvesRequestT(object):
         BootstrapCurvesRequestStart(builder)
         if self.asOfDate is not None:
             BootstrapCurvesRequestAddAsOfDate(builder, asOfDate)
+        if self.indices is not None:
+            BootstrapCurvesRequestAddIndices(builder, indices)
         if self.curves is not None:
             BootstrapCurvesRequestAddCurves(builder, curves)
         bootstrapCurvesRequest = BootstrapCurvesRequestEnd(builder)

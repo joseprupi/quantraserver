@@ -14,283 +14,614 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "enums_generated.h"
-#include "term_structure_generated.h"
 
 namespace quantra {
 
-struct Index;
-struct IndexBuilder;
-struct IndexT;
+struct Fixing;
+struct FixingBuilder;
+struct FixingT;
 
-struct IndexT : public ::flatbuffers::NativeTable {
-  typedef Index TableType;
-  int32_t period_number = 0;
-  quantra::enums::TimeUnit period_time_unit = quantra::enums::TimeUnit_Days;
-  int32_t settlement_days = 0;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
-  bool end_of_month = false;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
-  IndexT() = default;
-  IndexT(const IndexT &o);
-  IndexT(IndexT&&) FLATBUFFERS_NOEXCEPT = default;
-  IndexT &operator=(IndexT o) FLATBUFFERS_NOEXCEPT;
+struct IndexDef;
+struct IndexDefBuilder;
+struct IndexDefT;
+
+struct IndexRef;
+struct IndexRefBuilder;
+struct IndexRefT;
+
+/// Whether this is an IBOR (term) or Overnight index.
+/// This determines which QuantLib base class to use.
+enum IndexType : int8_t {
+  IndexType_Ibor = 0,
+  IndexType_Overnight = 1,
+  IndexType_MIN = IndexType_Ibor,
+  IndexType_MAX = IndexType_Overnight
 };
 
-struct Index FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef IndexT NativeTableType;
-  typedef IndexBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_PERIOD_NUMBER = 4,
-    VT_PERIOD_TIME_UNIT = 6,
-    VT_SETTLEMENT_DAYS = 8,
-    VT_CALENDAR = 10,
-    VT_BUSINESS_DAY_CONVENTION = 12,
-    VT_END_OF_MONTH = 14,
-    VT_DAY_COUNTER = 16,
-    VT_FIXINGS = 18
+inline const IndexType (&EnumValuesIndexType())[2] {
+  static const IndexType values[] = {
+    IndexType_Ibor,
+    IndexType_Overnight
   };
-  int32_t period_number() const {
-    return GetField<int32_t>(VT_PERIOD_NUMBER, 0);
+  return values;
+}
+
+inline const char * const *EnumNamesIndexType() {
+  static const char * const names[3] = {
+    "Ibor",
+    "Overnight",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameIndexType(IndexType e) {
+  if (::flatbuffers::IsOutRange(e, IndexType_Ibor, IndexType_Overnight)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesIndexType()[index];
+}
+
+struct FixingT : public ::flatbuffers::NativeTable {
+  typedef Fixing TableType;
+  std::string date{};
+  double value = 0.0;
+};
+
+struct Fixing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef FixingT NativeTableType;
+  typedef FixingBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DATE = 4,
+    VT_VALUE = 6
+  };
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
   }
-  quantra::enums::TimeUnit period_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_PERIOD_TIME_UNIT, 0));
+  double value() const {
+    return GetField<double>(VT_VALUE, 0.0);
   }
-  int32_t settlement_days() const {
-    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyField<double>(verifier, VT_VALUE, 8) &&
+           verifier.EndTable();
   }
+  FixingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(FixingT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<Fixing> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct FixingBuilder {
+  typedef Fixing Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(Fixing::VT_DATE, date);
+  }
+  void add_value(double value) {
+    fbb_.AddElement<double>(Fixing::VT_VALUE, value, 0.0);
+  }
+  explicit FixingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Fixing> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Fixing>(end);
+    fbb_.Required(o, Fixing::VT_DATE);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Fixing> CreateFixing(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    double value = 0.0) {
+  FixingBuilder builder_(_fbb);
+  builder_.add_value(value);
+  builder_.add_date(date);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Fixing> CreateFixingDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *date = nullptr,
+    double value = 0.0) {
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateFixing(
+      _fbb,
+      date__,
+      value);
+}
+
+::flatbuffers::Offset<Fixing> CreateFixing(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct IndexDefT : public ::flatbuffers::NativeTable {
+  typedef IndexDef TableType;
+  std::string id{};
+  std::string name{};
+  quantra::IndexType index_type = quantra::IndexType_Ibor;
+  int32_t tenor_number = 3;
+  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months;
+  int32_t fixing_days = 2;
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
+  bool end_of_month = true;
+  std::string currency{};
+  std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
+  IndexDefT() = default;
+  IndexDefT(const IndexDefT &o);
+  IndexDefT(IndexDefT&&) FLATBUFFERS_NOEXCEPT = default;
+  IndexDefT &operator=(IndexDefT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Complete index definition. Registered once per request, referenced by id.
+struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef IndexDefT NativeTableType;
+  typedef IndexDefBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_NAME = 6,
+    VT_INDEX_TYPE = 8,
+    VT_TENOR_NUMBER = 10,
+    VT_TENOR_TIME_UNIT = 12,
+    VT_FIXING_DAYS = 14,
+    VT_CALENDAR = 16,
+    VT_BUSINESS_DAY_CONVENTION = 18,
+    VT_DAY_COUNTER = 20,
+    VT_END_OF_MONTH = 22,
+    VT_CURRENCY = 24,
+    VT_FIXINGS = 26
+  };
+  /// Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  /// Human-readable name / family label (e.g., "Euribor", "SOFR", "MyBank3M")
+  /// Used as the QuantLib index familyName. No financial logic depends on this.
+  const ::flatbuffers::String *name() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NAME);
+  }
+  /// IBOR or Overnight. Determines QuantLib class used.
+  quantra::IndexType index_type() const {
+    return static_cast<quantra::IndexType>(GetField<int8_t>(VT_INDEX_TYPE, 0));
+  }
+  /// Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
+  /// For overnight indices, set tenor_number=0.
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 3);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 5));
+  }
+  /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
+  int32_t fixing_days() const {
+    return GetField<int32_t>(VT_FIXING_DAYS, 2);
+  }
+  /// Calendar for fixing/payment dates
   quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
   }
+  /// Business day convention
   quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
   }
-  bool end_of_month() const {
-    return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
-  }
+  /// Day count convention
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
+  /// End of month rule (IBOR only, ignored for overnight)
+  bool end_of_month() const {
+    return GetField<uint8_t>(VT_END_OF_MONTH, 1) != 0;
+  }
+  /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY")
+  /// Mapped to QuantLib Currency objects. Required.
+  const ::flatbuffers::String *currency() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_CURRENCY);
+  }
+  /// Past fixings needed for seasoned instruments.
+  /// Applied via index->addFixing() before pricing.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *fixings() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *>(VT_FIXINGS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_PERIOD_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_PERIOD_TIME_UNIT, 1) &&
-           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
+           VerifyOffsetRequired(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyOffsetRequired(verifier, VT_NAME) &&
+           verifier.VerifyString(name()) &&
+           VerifyField<int8_t>(verifier, VT_INDEX_TYPE, 1) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
-           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
+           VerifyOffset(verifier, VT_CURRENCY) &&
+           verifier.VerifyString(currency()) &&
            VerifyOffset(verifier, VT_FIXINGS) &&
            verifier.VerifyVector(fixings()) &&
            verifier.VerifyVectorOfTables(fixings()) &&
            verifier.EndTable();
   }
-  IndexT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(IndexT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<Index> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  IndexDefT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(IndexDefT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<IndexDef> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexDefT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct IndexBuilder {
-  typedef Index Table;
+struct IndexDefBuilder {
+  typedef IndexDef Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_period_number(int32_t period_number) {
-    fbb_.AddElement<int32_t>(Index::VT_PERIOD_NUMBER, period_number, 0);
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(IndexDef::VT_ID, id);
   }
-  void add_period_time_unit(quantra::enums::TimeUnit period_time_unit) {
-    fbb_.AddElement<int8_t>(Index::VT_PERIOD_TIME_UNIT, static_cast<int8_t>(period_time_unit), 0);
+  void add_name(::flatbuffers::Offset<::flatbuffers::String> name) {
+    fbb_.AddOffset(IndexDef::VT_NAME, name);
   }
-  void add_settlement_days(int32_t settlement_days) {
-    fbb_.AddElement<int32_t>(Index::VT_SETTLEMENT_DAYS, settlement_days, 0);
+  void add_index_type(quantra::IndexType index_type) {
+    fbb_.AddElement<int8_t>(IndexDef::VT_INDEX_TYPE, static_cast<int8_t>(index_type), 0);
+  }
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(IndexDef::VT_TENOR_NUMBER, tenor_number, 3);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(IndexDef::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 5);
+  }
+  void add_fixing_days(int32_t fixing_days) {
+    fbb_.AddElement<int32_t>(IndexDef::VT_FIXING_DAYS, fixing_days, 2);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(Index::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(IndexDef::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(Index::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
-  }
-  void add_end_of_month(bool end_of_month) {
-    fbb_.AddElement<uint8_t>(Index::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 0);
+    fbb_.AddElement<int8_t>(IndexDef::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(Index::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(IndexDef::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  void add_end_of_month(bool end_of_month) {
+    fbb_.AddElement<uint8_t>(IndexDef::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 1);
+  }
+  void add_currency(::flatbuffers::Offset<::flatbuffers::String> currency) {
+    fbb_.AddOffset(IndexDef::VT_CURRENCY, currency);
   }
   void add_fixings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings) {
-    fbb_.AddOffset(Index::VT_FIXINGS, fixings);
+    fbb_.AddOffset(IndexDef::VT_FIXINGS, fixings);
   }
-  explicit IndexBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit IndexDefBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<Index> Finish() {
+  ::flatbuffers::Offset<IndexDef> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<Index>(end);
+    auto o = ::flatbuffers::Offset<IndexDef>(end);
+    fbb_.Required(o, IndexDef::VT_ID);
+    fbb_.Required(o, IndexDef::VT_NAME);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<Index> CreateIndex(
+inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t period_number = 0,
-    quantra::enums::TimeUnit period_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t settlement_days = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    bool end_of_month = false,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> name = 0,
+    quantra::IndexType index_type = quantra::IndexType_Ibor,
+    int32_t tenor_number = 3,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
+    int32_t fixing_days = 2,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    bool end_of_month = true,
+    ::flatbuffers::Offset<::flatbuffers::String> currency = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings = 0) {
-  IndexBuilder builder_(_fbb);
+  IndexDefBuilder builder_(_fbb);
   builder_.add_fixings(fixings);
-  builder_.add_settlement_days(settlement_days);
-  builder_.add_period_number(period_number);
-  builder_.add_day_counter(day_counter);
+  builder_.add_currency(currency);
+  builder_.add_fixing_days(fixing_days);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_name(name);
+  builder_.add_id(id);
   builder_.add_end_of_month(end_of_month);
+  builder_.add_day_counter(day_counter);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
-  builder_.add_period_time_unit(period_time_unit);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  builder_.add_index_type(index_type);
   return builder_.Finish();
 }
 
-inline ::flatbuffers::Offset<Index> CreateIndexDirect(
+inline ::flatbuffers::Offset<IndexDef> CreateIndexDefDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t period_number = 0,
-    quantra::enums::TimeUnit period_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t settlement_days = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    bool end_of_month = false,
+    const char *id = nullptr,
+    const char *name = nullptr,
+    quantra::IndexType index_type = quantra::IndexType_Ibor,
+    int32_t tenor_number = 3,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
+    int32_t fixing_days = 2,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    bool end_of_month = true,
+    const char *currency = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::Fixing>> *fixings = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto currency__ = currency ? _fbb.CreateString(currency) : 0;
   auto fixings__ = fixings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>>(*fixings) : 0;
-  return quantra::CreateIndex(
+  return quantra::CreateIndexDef(
       _fbb,
-      period_number,
-      period_time_unit,
-      settlement_days,
+      id__,
+      name__,
+      index_type,
+      tenor_number,
+      tenor_time_unit,
+      fixing_days,
       calendar,
       business_day_convention,
-      end_of_month,
       day_counter,
+      end_of_month,
+      currency__,
       fixings__);
 }
 
-::flatbuffers::Offset<Index> CreateIndex(::flatbuffers::FlatBufferBuilder &_fbb, const IndexT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<IndexDef> CreateIndexDef(::flatbuffers::FlatBufferBuilder &_fbb, const IndexDefT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline IndexT::IndexT(const IndexT &o)
-      : period_number(o.period_number),
-        period_time_unit(o.period_time_unit),
-        settlement_days(o.settlement_days),
-        calendar(o.calendar),
-        business_day_convention(o.business_day_convention),
-        end_of_month(o.end_of_month),
-        day_counter(o.day_counter) {
-  fixings.reserve(o.fixings.size());
-  for (const auto &fixings_ : o.fixings) { fixings.emplace_back((fixings_) ? new quantra::FixingT(*fixings_) : nullptr); }
+struct IndexRefT : public ::flatbuffers::NativeTable {
+  typedef IndexRef TableType;
+  std::string id{};
+};
+
+/// Reference to an IndexDef by its id.
+/// Used by helpers and instruments to point to a registered index.
+struct IndexRef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef IndexRefT NativeTableType;
+  typedef IndexRefBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4
+  };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           verifier.EndTable();
+  }
+  IndexRefT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(IndexRefT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<IndexRef> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexRefT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct IndexRefBuilder {
+  typedef IndexRef Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(IndexRef::VT_ID, id);
+  }
+  explicit IndexRefBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<IndexRef> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<IndexRef>(end);
+    fbb_.Required(o, IndexRef::VT_ID);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<IndexRef> CreateIndexRef(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0) {
+  IndexRefBuilder builder_(_fbb);
+  builder_.add_id(id);
+  return builder_.Finish();
 }
 
-inline IndexT &IndexT::operator=(IndexT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(period_number, o.period_number);
-  std::swap(period_time_unit, o.period_time_unit);
-  std::swap(settlement_days, o.settlement_days);
-  std::swap(calendar, o.calendar);
-  std::swap(business_day_convention, o.business_day_convention);
-  std::swap(end_of_month, o.end_of_month);
-  std::swap(day_counter, o.day_counter);
-  std::swap(fixings, o.fixings);
-  return *this;
+inline ::flatbuffers::Offset<IndexRef> CreateIndexRefDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  return quantra::CreateIndexRef(
+      _fbb,
+      id__);
 }
 
-inline IndexT *Index::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<IndexT>(new IndexT());
+::flatbuffers::Offset<IndexRef> CreateIndexRef(::flatbuffers::FlatBufferBuilder &_fbb, const IndexRefT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline FixingT *Fixing::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<FixingT>(new FixingT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void Index::UnPackTo(IndexT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void Fixing::UnPackTo(FixingT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = period_number(); _o->period_number = _e; }
-  { auto _e = period_time_unit(); _o->period_time_unit = _e; }
-  { auto _e = settlement_days(); _o->settlement_days = _e; }
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = value(); _o->value = _e; }
+}
+
+inline ::flatbuffers::Offset<Fixing> Fixing::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateFixing(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<Fixing> CreateFixing(::flatbuffers::FlatBufferBuilder &_fbb, const FixingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FixingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _date = _fbb.CreateString(_o->date);
+  auto _value = _o->value;
+  return quantra::CreateFixing(
+      _fbb,
+      _date,
+      _value);
+}
+
+inline IndexDefT::IndexDefT(const IndexDefT &o)
+      : id(o.id),
+        name(o.name),
+        index_type(o.index_type),
+        tenor_number(o.tenor_number),
+        tenor_time_unit(o.tenor_time_unit),
+        fixing_days(o.fixing_days),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        day_counter(o.day_counter),
+        end_of_month(o.end_of_month),
+        currency(o.currency) {
+  fixings.reserve(o.fixings.size());
+  for (const auto &fixings_ : o.fixings) { fixings.emplace_back((fixings_) ? new quantra::FixingT(*fixings_) : nullptr); }
+}
+
+inline IndexDefT &IndexDefT::operator=(IndexDefT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(id, o.id);
+  std::swap(name, o.name);
+  std::swap(index_type, o.index_type);
+  std::swap(tenor_number, o.tenor_number);
+  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(fixing_days, o.fixing_days);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(day_counter, o.day_counter);
+  std::swap(end_of_month, o.end_of_month);
+  std::swap(currency, o.currency);
+  std::swap(fixings, o.fixings);
+  return *this;
+}
+
+inline IndexDefT *IndexDef::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<IndexDefT>(new IndexDefT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void IndexDef::UnPackTo(IndexDefT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = id(); if (_e) _o->id = _e->str(); }
+  { auto _e = name(); if (_e) _o->name = _e->str(); }
+  { auto _e = index_type(); _o->index_type = _e; }
+  { auto _e = tenor_number(); _o->tenor_number = _e; }
+  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = fixing_days(); _o->fixing_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
-  { auto _e = end_of_month(); _o->end_of_month = _e; }
   { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = end_of_month(); _o->end_of_month = _e; }
+  { auto _e = currency(); if (_e) _o->currency = _e->str(); }
   { auto _e = fixings(); if (_e) { _o->fixings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fixings[_i]) { _e->Get(_i)->UnPackTo(_o->fixings[_i].get(), _resolver); } else { _o->fixings[_i] = std::unique_ptr<quantra::FixingT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fixings.resize(0); } }
 }
 
-inline ::flatbuffers::Offset<Index> Index::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateIndex(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<IndexDef> IndexDef::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexDefT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateIndexDef(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<Index> CreateIndex(::flatbuffers::FlatBufferBuilder &_fbb, const IndexT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(::flatbuffers::FlatBufferBuilder &_fbb, const IndexDefT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IndexT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _period_number = _o->period_number;
-  auto _period_time_unit = _o->period_time_unit;
-  auto _settlement_days = _o->settlement_days;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IndexDefT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _id = _fbb.CreateString(_o->id);
+  auto _name = _fbb.CreateString(_o->name);
+  auto _index_type = _o->index_type;
+  auto _tenor_number = _o->tenor_number;
+  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _fixing_days = _o->fixing_days;
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
-  auto _end_of_month = _o->end_of_month;
   auto _day_counter = _o->day_counter;
+  auto _end_of_month = _o->end_of_month;
+  auto _currency = _o->currency.empty() ? 0 : _fbb.CreateString(_o->currency);
   auto _fixings = _o->fixings.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>> (_o->fixings.size(), [](size_t i, _VectorArgs *__va) { return CreateFixing(*__va->__fbb, __va->__o->fixings[i].get(), __va->__rehasher); }, &_va ) : 0;
-  return quantra::CreateIndex(
+  return quantra::CreateIndexDef(
       _fbb,
-      _period_number,
-      _period_time_unit,
-      _settlement_days,
+      _id,
+      _name,
+      _index_type,
+      _tenor_number,
+      _tenor_time_unit,
+      _fixing_days,
       _calendar,
       _business_day_convention,
-      _end_of_month,
       _day_counter,
+      _end_of_month,
+      _currency,
       _fixings);
 }
 
-inline const quantra::Index *GetIndex(const void *buf) {
-  return ::flatbuffers::GetRoot<quantra::Index>(buf);
+inline IndexRefT *IndexRef::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<IndexRefT>(new IndexRefT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
 }
 
-inline const quantra::Index *GetSizePrefixedIndex(const void *buf) {
-  return ::flatbuffers::GetSizePrefixedRoot<quantra::Index>(buf);
+inline void IndexRef::UnPackTo(IndexRefT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = id(); if (_e) _o->id = _e->str(); }
 }
 
-inline bool VerifyIndexBuffer(
+inline ::flatbuffers::Offset<IndexRef> IndexRef::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IndexRefT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateIndexRef(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<IndexRef> CreateIndexRef(::flatbuffers::FlatBufferBuilder &_fbb, const IndexRefT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IndexRefT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _id = _fbb.CreateString(_o->id);
+  return quantra::CreateIndexRef(
+      _fbb,
+      _id);
+}
+
+inline const quantra::IndexDef *GetIndexDef(const void *buf) {
+  return ::flatbuffers::GetRoot<quantra::IndexDef>(buf);
+}
+
+inline const quantra::IndexDef *GetSizePrefixedIndexDef(const void *buf) {
+  return ::flatbuffers::GetSizePrefixedRoot<quantra::IndexDef>(buf);
+}
+
+inline bool VerifyIndexDefBuffer(
     ::flatbuffers::Verifier &verifier) {
-  return verifier.VerifyBuffer<quantra::Index>(nullptr);
+  return verifier.VerifyBuffer<quantra::IndexDef>(nullptr);
 }
 
-inline bool VerifySizePrefixedIndexBuffer(
+inline bool VerifySizePrefixedIndexDefBuffer(
     ::flatbuffers::Verifier &verifier) {
-  return verifier.VerifySizePrefixedBuffer<quantra::Index>(nullptr);
+  return verifier.VerifySizePrefixedBuffer<quantra::IndexDef>(nullptr);
 }
 
-inline void FinishIndexBuffer(
+inline void FinishIndexDefBuffer(
     ::flatbuffers::FlatBufferBuilder &fbb,
-    ::flatbuffers::Offset<quantra::Index> root) {
+    ::flatbuffers::Offset<quantra::IndexDef> root) {
   fbb.Finish(root);
 }
 
-inline void FinishSizePrefixedIndexBuffer(
+inline void FinishSizePrefixedIndexDefBuffer(
     ::flatbuffers::FlatBufferBuilder &fbb,
-    ::flatbuffers::Offset<quantra::Index> root) {
+    ::flatbuffers::Offset<quantra::IndexDef> root) {
   fbb.FinishSizePrefixed(root);
 }
 
-inline std::unique_ptr<quantra::IndexT> UnPackIndex(
+inline std::unique_ptr<quantra::IndexDefT> UnPackIndexDef(
     const void *buf,
     const ::flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<quantra::IndexT>(GetIndex(buf)->UnPack(res));
+  return std::unique_ptr<quantra::IndexDefT>(GetIndexDef(buf)->UnPack(res));
 }
 
-inline std::unique_ptr<quantra::IndexT> UnPackSizePrefixedIndex(
+inline std::unique_ptr<quantra::IndexDefT> UnPackSizePrefixedIndexDef(
     const void *buf,
     const ::flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<quantra::IndexT>(GetSizePrefixedIndex(buf)->UnPack(res));
+  return std::unique_ptr<quantra::IndexDefT>(GetSizePrefixedIndexDef(buf)->UnPack(res));
 }
 
 }  // namespace quantra

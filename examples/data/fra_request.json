@@ -48,6 +48,21 @@
           }
         ]
       }
+    ],
+    "indices": [
+      {
+        "id": "EUR_3M",
+        "name": "Euribor",
+        "index_type": "Ibor",
+        "tenor_number": 3,
+        "tenor_time_unit": "Months",
+        "fixing_days": 2,
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual360",
+        "end_of_month": false,
+        "currency": "EUR"
+      }
     ]
   },
   "fras": [
@@ -59,13 +74,7 @@
         "maturity_date": "2025-07-15",
         "strike": 0.032,
         "index": {
-          "period_number": 3,
-          "period_time_unit": "Months",
-          "settlement_days": 2,
-          "calendar": "TARGET",
-          "business_day_convention": "ModifiedFollowing",
-          "end_of_month": false,
-          "day_counter": "Actual360"
+          "id": "EUR_3M"
         },
         "day_counter": "Actual360",
         "calendar": "TARGET",

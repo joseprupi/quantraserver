@@ -1,17 +1,83 @@
 include "enums.fbs";
-include "term_structure.fbs";
 
 namespace quantra;
 
-table Index {
-    period_number:int;
-    period_time_unit:enums.TimeUnit;
-    settlement_days:int;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    end_of_month:bool;
-    day_counter:enums.DayCounter;
+// ============================================================================
+// Fixings (historical index fixings for seasoned instruments)
+// ============================================================================
+
+table Fixing {
+    date:string (required);
+    value:double;
+}
+
+// ============================================================================
+// Index Definition (the ONLY way to define an index in the API)
+//
+// Fully data-driven: the client specifies all conventions explicitly.
+// No enum-based shortcuts. Presets live in the portal UI, not here.
+//
+// Works for:
+//   - IBOR indices (Euribor, LIBOR, TIBOR, Term SOFR, any custom)
+//   - Overnight indices (SOFR, ESTR, SONIA, FedFunds, any custom)
+// ============================================================================
+
+/// Whether this is an IBOR (term) or Overnight index.
+/// This determines which QuantLib base class to use.
+enum IndexType : byte {
+    Ibor,
+    Overnight
+}
+
+/// Complete index definition. Registered once per request, referenced by id.
+table IndexDef {
+    /// Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
+    id:string (required);
+
+    /// Human-readable name / family label (e.g., "Euribor", "SOFR", "MyBank3M")
+    /// Used as the QuantLib index familyName. No financial logic depends on this.
+    name:string (required);
+
+    /// IBOR or Overnight. Determines QuantLib class used.
+    index_type:IndexType = Ibor;
+
+    // ---- Conventions (all required for correctness) ----
+
+    /// Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
+    /// For overnight indices, set tenor_number=0.
+    tenor_number:int = 3;
+    tenor_time_unit:enums.TimeUnit = Months;
+
+    /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
+    fixing_days:int = 2;
+
+    /// Calendar for fixing/payment dates
+    calendar:enums.Calendar = TARGET;
+
+    /// Business day convention
+    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+
+    /// Day count convention
+    day_counter:enums.DayCounter = Actual360;
+
+    /// End of month rule (IBOR only, ignored for overnight)
+    end_of_month:bool = true;
+
+    /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY")
+    /// Mapped to QuantLib Currency objects. Required.
+    currency:string;
+
+    // ---- Optional: historical fixings ----
+
+    /// Past fixings needed for seasoned instruments.
+    /// Applied via index->addFixing() before pricing.
     fixings:[Fixing];
 }
 
-root_type Index;
+/// Reference to an IndexDef by its id.
+/// Used by helpers and instruments to point to a registered index.
+table IndexRef {
+    id:string (required);
+}
+
+root_type IndexDef;

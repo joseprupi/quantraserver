@@ -28,7 +28,7 @@ struct FloatingRateBondT : public ::flatbuffers::NativeTable {
   int32_t settlement_days = 0;
   double face_amount = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  std::unique_ptr<quantra::IndexT> index{};
+  std::unique_ptr<quantra::IndexRefT> index{};
   quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360;
   quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
   int32_t fixing_days = 0;
@@ -67,8 +67,9 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  const quantra::Index *index() const {
-    return GetPointer<const quantra::Index *>(VT_INDEX);
+  /// Reference to an IndexDef by id (e.g., "EUR_6M")
+  const quantra::IndexRef *index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
   quantra::enums::DayCounter accrual_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_ACCRUAL_DAY_COUNTER, 0));
@@ -97,7 +98,7 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_FACE_AMOUNT, 8) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
-           VerifyOffset(verifier, VT_INDEX) &&
+           VerifyOffsetRequired(verifier, VT_INDEX) &&
            verifier.VerifyTable(index()) &&
            VerifyField<int8_t>(verifier, VT_ACCRUAL_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
@@ -127,7 +128,7 @@ struct FloatingRateBondBuilder {
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(FloatingRateBond::VT_SCHEDULE, schedule);
   }
-  void add_index(::flatbuffers::Offset<quantra::Index> index) {
+  void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
     fbb_.AddOffset(FloatingRateBond::VT_INDEX, index);
   }
   void add_accrual_day_counter(quantra::enums::DayCounter accrual_day_counter) {
@@ -158,6 +159,7 @@ struct FloatingRateBondBuilder {
   ::flatbuffers::Offset<FloatingRateBond> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<FloatingRateBond>(end);
+    fbb_.Required(o, FloatingRateBond::VT_INDEX);
     return o;
   }
 };
@@ -167,7 +169,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
     int32_t settlement_days = 0,
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Offset<quantra::Index> index = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
     int32_t fixing_days = 0,
@@ -195,7 +197,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
     int32_t settlement_days = 0,
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Offset<quantra::Index> index = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
     int32_t fixing_days = 0,
@@ -225,7 +227,7 @@ inline FloatingRateBondT::FloatingRateBondT(const FloatingRateBondT &o)
       : settlement_days(o.settlement_days),
         face_amount(o.face_amount),
         schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        index((o.index) ? new quantra::IndexT(*o.index) : nullptr),
+        index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
         accrual_day_counter(o.accrual_day_counter),
         payment_convention(o.payment_convention),
         fixing_days(o.fixing_days),
@@ -262,7 +264,7 @@ inline void FloatingRateBond::UnPackTo(FloatingRateBondT *_o, const ::flatbuffer
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = face_amount(); _o->face_amount = _e; }
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
+  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
   { auto _e = accrual_day_counter(); _o->accrual_day_counter = _e; }
   { auto _e = payment_convention(); _o->payment_convention = _e; }
   { auto _e = fixing_days(); _o->fixing_days = _e; }
@@ -283,7 +285,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(::flatbuff
   auto _settlement_days = _o->settlement_days;
   auto _face_amount = _o->face_amount;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _index = _o->index ? CreateIndex(_fbb, _o->index.get(), _rehasher) : 0;
+  auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
   auto _accrual_day_counter = _o->accrual_day_counter;
   auto _payment_convention = _o->payment_convention;
   auto _fixing_days = _o->fixing_days;

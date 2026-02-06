@@ -4,6 +4,7 @@ include "coupon_pricer.fbs";
 include "enums.fbs";
 include "quotes.fbs";
 include "model.fbs";
+include "index.fbs";
 
 namespace quantra;
 
@@ -14,13 +15,17 @@ table Yield {
 }
 
 // Central pricing configuration
-// Curves, volatility surfaces, and models are defined once here and referenced by id
+// Indices, curves, volatility surfaces, and models are defined once here and referenced by id
 table Pricing {
     /// Valuation date (YYYY-MM-DD). Used by: ALL
     as_of_date:string (required);
     
     /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond
     settlement_date:string;
+
+    /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
+    /// Every IndexRef in the request must resolve to an IndexDef here.
+    indices:[IndexDef];
     
     /// Yield curves for discounting/forwarding. Used by: ALL
     curves:[TermStructure] (required);

@@ -1,34 +1,8 @@
 include "enums.fbs";
 include "schedule.fbs";
+include "index.fbs";
 
 namespace quantra;
-
-// ============================================================================
-// Index specification (data-driven, replaces hardcoded enum for new helpers)
-// ============================================================================
-
-/// IBOR index fully described by conventions
-table IborIndexSpec {
-    family:enums.IborFamily = Euribor;
-    tenor_number:int = 3;
-    tenor_time_unit:enums.TimeUnit = Months;
-
-    fixing_days:int = 2;
-    calendar:enums.Calendar = TARGET;
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    day_counter:enums.DayCounter = Actual360;
-    end_of_month:bool = true;
-}
-
-/// Overnight index fully described by conventions
-table OvernightIndexSpec {
-    name:enums.OvernightIndex = SOFR;
-    fixing_days:int = 0;
-    calendar:enums.Calendar = UnitedStatesGovernmentBond;
-    day_counter:enums.DayCounter = Actual360;
-}
-
-union IndexSpec { IborIndexSpec, OvernightIndexSpec }
 
 // ============================================================================
 // Exogenous curve references (multi-curve bootstrapping)
@@ -39,24 +13,30 @@ table CurveRef {
 }
 
 table HelperDependencies {
-    discount_curve:CurveRef;        // exogenous discount curve
-    projection_curve:CurveRef;      // exogenous projection curve (optional)
-    projection_curve_2:CurveRef;    // for basis/XCCY (optional)
-    fx_spot_quote_id:string;        // for FX helpers (optional)
-}
+    /// Exogenous discount curve for dual-curve bootstrapping.
+    /// Supported by: SwapHelper, OISHelper, DatedOISHelper,
+    /// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+    discount_curve:CurveRef;
 
-// ============================================================================
-// Fixings (historical index fixings for seasoned instruments)
-// ============================================================================
+    /// Exogenous projection/forwarding curve.
+    ///
+    /// ⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.
+    /// QuantLib's SwapRateHelper/OISRateHelper override the index forwarding
+    /// handle via index->clone(termStructureHandle_) during bootstrapping.
+    /// The projection curve is ALWAYS the curve being bootstrapped for these
+    /// helpers. Setting this field on Swap/OIS helpers will produce a hard
+    /// error at parse time.
+    ///
+    /// Supported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper
+    /// (and future custom helpers that genuinely encode projection relationships).
+    projection_curve:CurveRef;
 
-table Fixing {
-    date:string (required);
-    value:double;
-}
+    /// Second projection curve for basis/XCCY helpers (e.g. the "other leg").
+    /// Same restrictions as projection_curve above.
+    projection_curve_2:CurveRef;
 
-table IndexFixings {
-    index_id:string (required);
-    fixings:[Fixing] (required);
+    /// FX spot quote reference for FX-implied curve helpers.
+    fx_spot_quote_id:string;
 }
 
 // ============================================================================
@@ -105,7 +85,8 @@ table FutureHelper {
 }
 
 // ============================================================================
-// Vanilla IBOR swap helper (multi-curve via deps.discount_curve)
+// Vanilla IBOR swap helper
+// Now uses IndexRef to reference an IndexDef from the request's indices[]
 // ============================================================================
 
 table SwapHelper {
@@ -117,16 +98,13 @@ table SwapHelper {
     sw_fixed_leg_convention:enums.BusinessDayConvention;
     sw_fixed_leg_day_counter:enums.DayCounter;
 
-    /// Legacy enum-based index (backward compatible)
-    sw_floating_leg_index:enums.Ibor;
-
-    /// NEW: data-driven index spec (takes precedence over sw_floating_leg_index if set)
-    float_index:IndexSpec;
+    /// Reference to an IndexDef by id (e.g., "EUR_6M")
+    float_index:IndexRef (required);
 
     spread:double;
     fwd_start_days:int; 
 
-    /// NEW: exogenous discount curve for multi-curve bootstrapping
+    /// Exogenous discount curve for multi-curve bootstrapping
     deps:HelperDependencies;
 
     quote_id:string;
@@ -155,6 +133,7 @@ table BondHelper {
 
 // ============================================================================
 // OIS helpers (overnight indexed swaps)
+// Now uses IndexRef to reference an IndexDef (overnight type)
 // ============================================================================
 
 table OISHelper {
@@ -163,17 +142,17 @@ table OISHelper {
     tenor_number:int;
     tenor_time_unit:enums.TimeUnit;
 
-    /// Overnight index (enum-based for simplicity)
-    overnight_index:enums.OvernightIndex;
-
-    /// Or use full spec (takes precedence if set)
-    overnight_index_spec:OvernightIndexSpec;
+    /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+    overnight_index:IndexRef (required);
 
     settlement_days:int = 2;
     calendar:enums.Calendar = TARGET;
     fixed_leg_frequency:enums.Frequency = Annual;
     fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
     fixed_leg_day_counter:enums.DayCounter = Actual360;
+
+    /// Exogenous discount curve for dual-curve OIS bootstrapping
+    deps:HelperDependencies;
 
     quote_id:string;
 }
@@ -184,19 +163,22 @@ table DatedOISHelper {
     start_date:string (required);
     end_date:string (required);
 
-    overnight_index:enums.OvernightIndex;
-    overnight_index_spec:OvernightIndexSpec;
+    /// Reference to an overnight IndexDef by id
+    overnight_index:IndexRef (required);
 
     settlement_days:int = 2;
     calendar:enums.Calendar = TARGET;
     fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
     fixed_leg_day_counter:enums.DayCounter = Actual360;
 
+    /// Exogenous discount curve for dual-curve OIS bootstrapping
+    deps:HelperDependencies;
+
     quote_id:string;
 }
 
 // ============================================================================
-// Basis / FX / XCCY scaffolding (schema-ready, parser stubs initially)
+// Basis / FX / XCCY helpers (all use IndexRef now)
 // ============================================================================
 
 table TenorBasisSwapHelper {
@@ -205,8 +187,10 @@ table TenorBasisSwapHelper {
     tenor_number:int;
     tenor_time_unit:enums.TimeUnit;
 
-    index_short:enums.Ibor;
-    index_long:enums.Ibor;
+    /// Short tenor index (e.g., "EUR_3M")
+    index_short:IndexRef (required);
+    /// Long tenor index (e.g., "EUR_6M")
+    index_long:IndexRef (required);
 
     calendar:enums.Calendar;
     deps:HelperDependencies;
@@ -233,8 +217,10 @@ table CrossCcyBasisHelper {
     tenor_number:int;
     tenor_time_unit:enums.TimeUnit;
 
-    index_domestic:enums.Ibor;
-    index_foreign:enums.Ibor;
+    /// Domestic leg index
+    index_domestic:IndexRef (required);
+    /// Foreign leg index
+    index_foreign:IndexRef (required);
 
     deps:HelperDependencies;
     quote_id:string;

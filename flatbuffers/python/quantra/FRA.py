@@ -59,13 +59,14 @@ class FRA(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Reference to an IndexDef by id (e.g., "EUR_3M")
     # FRA
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Index import Index
-            obj = Index()
+            from quantra.IndexRef import IndexRef
+            obj = IndexRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -171,7 +172,7 @@ class FRAT(object):
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
         self.strike = 0.0  # type: float
-        self.index = None  # type: Optional[IndexT]
+        self.index = None  # type: Optional[IndexRefT]
         self.dayCounter = 0  # type: int
         self.calendar = 0  # type: int
         self.businessDayConvention = 0  # type: int
@@ -203,7 +204,7 @@ class FRAT(object):
         self.maturityDate = fra.MaturityDate()
         self.strike = fra.Strike()
         if fra.Index() is not None:
-            self.index = IndexT.InitFromObj(fra.Index())
+            self.index = IndexRefT.InitFromObj(fra.Index())
         self.dayCounter = fra.DayCounter()
         self.calendar = fra.Calendar()
         self.businessDayConvention = fra.BusinessDayConvention()

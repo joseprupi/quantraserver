@@ -24,7 +24,6 @@ Handle<Quote> TermStructurePointParser::resolveQuote(
             return quotes->getHandle(id);
         }
     }
-    // Inline fallback: create a standalone SimpleQuote
     auto sq = std::make_shared<SimpleQuote>(inlineValue);
     return Handle<Quote>(sq);
 }
@@ -54,7 +53,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     const void* data,
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
-    const IndexFactory* indexFactory
+    const IndexRegistry* indices
 ) const {
 
     // ------------------------------------------------------------------
@@ -98,7 +97,6 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     else if (point_type == quantra::Point_FutureHelper) {
         auto point = static_cast<const quantra::FutureHelper*>(data);
 
-        // If futures_price is set, use it; otherwise use rate
         double rateValue = point->rate();
         if (point->futures_price() != 0.0) {
             rateValue = 1.0 - (point->futures_price() / 100.0);
@@ -118,26 +116,55 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     }
 
     // ------------------------------------------------------------------
-    // Vanilla IBOR Swap (with optional exogenous discount curve)
+    // Vanilla IBOR Swap (index resolved from IndexRegistry)
+    //
+    // Forwarding curve: ALWAYS the curve being bootstrapped.
+    //
+    // QuantLib's SwapRateHelper::initializeDates() internally does:
+    //   iborIndex_->clone(termStructureHandle_)
+    // where termStructureHandle_ is linked to the curve being bootstrapped
+    // via setTermStructure(). This means ANY forwarding handle we attach
+    // to the index gets overwritten — the helper always projects off the
+    // curve being built. This is by design in QuantLib.
+    //
+    // Therefore:
+    //   - We pass a "naked" index (no forwarding handle) from IndexRegistry
+    //   - The helper's bootstrap machinery attaches the correct handle
+    //   - deps.discount_curve provides the exogenous discount curve for
+    //     multi-curve setups (e.g., Euribor curve discounted with OIS)
+    //
+    // NOTE: deps.projection_curve is NOT supported for SwapHelper because
+    // QuantLib's SwapRateHelper always overrides the index forwarding
+    // handle. Supporting exogenous projection would require custom
+    // RateHelper subclasses that override setTermStructure() behavior.
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_SwapHelper) {
         auto point = static_cast<const quantra::SwapHelper*>(data);
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes);
 
-        // Build the floating leg index
-        std::shared_ptr<IborIndex> ibor;
-
-        // Prefer data-driven IndexSpec if available
-        if (point->float_index_type() == quantra::IndexSpec_IborIndexSpec && indexFactory) {
-            ibor = indexFactory->makeIborIndexFromSpec(
-                point->float_index_as_IborIndexSpec());
-        } else if (indexFactory) {
-            // Use legacy enum
-            ibor = indexFactory->makeIborIndex(point->sw_floating_leg_index());
-        } else {
-            // Fallback to global IborToQL (no forwarding curve)
-            ibor = IborToQL(point->sw_floating_leg_index());
+        if (!indices) {
+            QUANTRA_ERROR("IndexRegistry is required for SwapHelper");
         }
+        if (!point->float_index() || !point->float_index()->id()) {
+            QUANTRA_ERROR("SwapHelper.float_index.id is required");
+        }
+
+        std::string indexId = point->float_index()->id()->str();
+
+        // Hard error: projection_curve is not supported for SwapHelper
+        if (point->deps() && point->deps()->projection_curve() &&
+            point->deps()->projection_curve()->id()) {
+            QUANTRA_ERROR(
+                "projection_curve is not supported for SwapHelper. "
+                "QuantLib's SwapRateHelper::setTermStructure() overrides the index "
+                "forwarding handle with the curve being bootstrapped. "
+                "Use deps.discount_curve for multi-curve discounting (e.g., Euribor "
+                "curve discounted with OIS). For true multi-curve projection "
+                "relationships, use basis/XCCY/FX helpers (future).");
+        }
+
+        // Naked index — QuantLib bootstrap clones it with curve being built
+        auto ibor = indices->getIbor(indexId);
 
         auto spread = Handle<Quote>(std::make_shared<SimpleQuote>(point->spread()));
 
@@ -147,9 +174,6 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             discount = resolveCurve(point->deps()->discount_curve(), curves);
         }
 
-        // Build SwapRateHelper
-        // QuantLib >= 1.15 supports passing a discount curve to SwapRateHelper
-        // via the 10th constructor parameter.
         return std::make_shared<SwapRateHelper>(
             q,
             point->tenor_number() * TimeUnitToQL(point->tenor_time_unit()),
@@ -160,7 +184,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             ibor,
             spread,
             point->fwd_start_days() * Days,
-            discount  // exogenous discount (empty handle = self-discounting)
+            discount
         );
     }
 
@@ -171,7 +195,6 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto point = static_cast<const quantra::BondHelper*>(data);
         ScheduleParser schedule_parser;
 
-        // Prefer price field; fall back to rate for backward compat
         double px = point->price();
         if (px == 0.0) px = point->rate();
 
@@ -190,69 +213,111 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     }
 
     // ------------------------------------------------------------------
-    // OIS helper
+    // OIS helper (index resolved from IndexRegistry)
+    //
+    // Same as SwapHelper: QuantLib's OISRateHelper::initializeDates()
+    // builds the OIS swap using MakeOIS with the stored overnightIndex_,
+    // and setTermStructure() links termStructureHandle_ to the curve
+    // being bootstrapped. The overnight index forwarding is always tied
+    // to the curve being built.
+    //
+    // deps.discount_curve provides exogenous discounting for dual-curve
+    // OIS (e.g., OIS discounted off a funding curve).
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_OISHelper) {
         auto point = static_cast<const quantra::OISHelper*>(data);
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes);
 
-        // Build overnight index
-        std::shared_ptr<OvernightIndex> on;
-        if (point->overnight_index_spec() && indexFactory) {
-            on = indexFactory->makeOvernightIndexFromSpec(point->overnight_index_spec());
-        } else if (indexFactory) {
-            on = indexFactory->makeOvernightIndex(point->overnight_index());
-        } else {
-            QUANTRA_ERROR("IndexFactory is required for OISHelper");
+        if (!indices) {
+            QUANTRA_ERROR("IndexRegistry is required for OISHelper");
+        }
+        if (!point->overnight_index() || !point->overnight_index()->id()) {
+            QUANTRA_ERROR("OISHelper.overnight_index.id is required");
+        }
+
+        std::string indexId = point->overnight_index()->id()->str();
+
+        // Hard error: projection_curve is not supported for OISHelper
+        if (point->deps() && point->deps()->projection_curve() &&
+            point->deps()->projection_curve()->id()) {
+            QUANTRA_ERROR(
+                "projection_curve is not supported for OISHelper. "
+                "QuantLib's OISRateHelper::setTermStructure() overrides the overnight "
+                "index forwarding handle with the curve being bootstrapped. "
+                "Use deps.discount_curve for dual-curve OIS discounting. "
+                "For true multi-curve projection, use basis/XCCY helpers (future).");
+        }
+
+        auto on = indices->getOvernight(indexId);
+
+        // Resolve exogenous discount curve (for dual-curve OIS)
+        Handle<YieldTermStructure> discount;
+        if (point->deps() && point->deps()->discount_curve()) {
+            discount = resolveCurve(point->deps()->discount_curve(), curves);
         }
 
         return std::make_shared<OISRateHelper>(
             point->settlement_days(),
             point->tenor_number() * TimeUnitToQL(point->tenor_time_unit()),
             q,
-            on);
+            on,
+            discount
+        );
     }
 
     // ------------------------------------------------------------------
-    // Dated OIS helper - using OISRateHelper (DatedOISRateHelper is deprecated)
+    // Dated OIS helper (index resolved from IndexRegistry)
+    // Same projection limitation as OISHelper above.
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_DatedOISHelper) {
         auto point = static_cast<const quantra::DatedOISHelper*>(data);
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes);
 
-        std::shared_ptr<OvernightIndex> on;
-        if (point->overnight_index_spec() && indexFactory) {
-            on = indexFactory->makeOvernightIndexFromSpec(point->overnight_index_spec());
-        } else if (indexFactory) {
-            on = indexFactory->makeOvernightIndex(point->overnight_index());
-        } else {
-            QUANTRA_ERROR("IndexFactory is required for DatedOISHelper");
+        if (!indices) {
+            QUANTRA_ERROR("IndexRegistry is required for DatedOISHelper");
         }
+        if (!point->overnight_index() || !point->overnight_index()->id()) {
+            QUANTRA_ERROR("DatedOISHelper.overnight_index.id is required");
+        }
+
+        std::string indexId = point->overnight_index()->id()->str();
+
+        // Hard error: projection_curve is not supported for DatedOISHelper
+        if (point->deps() && point->deps()->projection_curve() &&
+            point->deps()->projection_curve()->id()) {
+            QUANTRA_ERROR(
+                "projection_curve is not supported for DatedOISHelper. "
+                "QuantLib's OISRateHelper overrides the overnight index forwarding "
+                "handle with the curve being bootstrapped. "
+                "Use deps.discount_curve for dual-curve OIS discounting.");
+        }
+
+        auto on = indices->getOvernight(indexId);
 
         Date start = DateToQL(point->start_date()->str());
         Date end   = DateToQL(point->end_date()->str());
 
-        // Use OISRateHelper with explicit start/end dates constructor
-        // QuantLib 1.31+ deprecates DatedOISRateHelper in favor of OISRateHelper
-        // OISRateHelper has a constructor that takes (startDate, endDate, quote, index)
+        // Resolve exogenous discount curve
+        Handle<YieldTermStructure> discount;
+        if (point->deps() && point->deps()->discount_curve()) {
+            discount = resolveCurve(point->deps()->discount_curve(), curves);
+        }
+
         return std::make_shared<OISRateHelper>(
-            start, end, q, on);
+            start, end, q, on, discount);
     }
 
     // ------------------------------------------------------------------
-    // Stubs for basis / FX / XCCY (schema-ready, not yet implemented)
+    // Stubs for basis / FX / XCCY
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_TenorBasisSwapHelper) {
-        QUANTRA_ERROR("TenorBasisSwapHelper: schema-ready but not implemented. "
-                      "Add QuantLib TenorBasisSwap helper wiring + deps resolution.");
+        QUANTRA_ERROR("TenorBasisSwapHelper: schema-ready but not implemented.");
     }
     else if (point_type == quantra::Point_FxSwapHelper) {
-        QUANTRA_ERROR("FxSwapHelper: schema-ready but not implemented. "
-                      "Requires FX spot quote + domestic/foreign curves.");
+        QUANTRA_ERROR("FxSwapHelper: schema-ready but not implemented.");
     }
     else if (point_type == quantra::Point_CrossCcyBasisHelper) {
-        QUANTRA_ERROR("CrossCcyBasisHelper: schema-ready but not implemented. "
-                      "Requires FX spot + 2 curves + basis helper.");
+        QUANTRA_ERROR("CrossCcyBasisHelper: schema-ready but not implemented.");
     }
 
     QUANTRA_ERROR("Unknown point type: " + std::to_string(point_type));

@@ -7,11 +7,6 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # Tenors relative to the curve reference date (or as_of_date if no reference date).
-# Examples: [{n:1,unit:Days},{n:1,unit:Weeks},{n:3,unit:Months},{n:10,unit:Years}]
-# 
-# Calendar behavior:
-# - If calendar is NullCalendar (default): raw date arithmetic (refDate + period)
-# - If calendar is set: uses calendar.advance(refDate, period, bdc)
 class TenorGrid(object):
     __slots__ = ['_tab']
 
@@ -55,8 +50,6 @@ class TenorGrid(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
-    # Calendar for business-day-adjusted tenor dates. 
-    # Default NullCalendar means raw date arithmetic without business day adjustment.
     # TenorGrid
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -64,7 +57,6 @@ class TenorGrid(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 21
 
-    # Business day convention for advancing dates (used when calendar is not NullCalendar).
     # TenorGrid
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

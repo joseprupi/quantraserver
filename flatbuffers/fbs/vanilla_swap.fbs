@@ -17,7 +17,10 @@ table SwapFixedLeg {
 table SwapFloatingLeg {
     schedule:Schedule;
     notional:double;
-    index:Index;
+
+    /// Reference to an IndexDef by id (e.g., "EUR_6M")
+    index:IndexRef (required);
+
     spread:double = 0.0;
     day_counter:enums.DayCounter;
     payment_convention:enums.BusinessDayConvention;
@@ -26,7 +29,6 @@ table SwapFloatingLeg {
 }
 
 // Vanilla Interest Rate Swap
-// SwapType enum now in enums.fbs
 table VanillaSwap {
     swap_type:enums.SwapType;
     fixed_leg:SwapFixedLeg;
