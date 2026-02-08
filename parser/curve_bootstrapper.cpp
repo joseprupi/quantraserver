@@ -2,9 +2,13 @@
 
 #include <queue>
 #include <algorithm>
+#include <chrono>
 
 #include "common.h"
 #include "term_structure_parser.h"
+#include "curve_cache.h"
+#include "curve_cache_key.h"
+#include "curve_serializer.h"
 
 namespace quantra {
 
@@ -218,8 +222,16 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     // ---- 6. Topological sort ----
     auto order = topoSort(deps);
 
-    // ---- 7. Bootstrap in order ----
+    // ---- 7. Bootstrap in order (with cache) ----
     TermStructureParser tsParser;
+    auto& cache = CurveCache::instance();
+    std::map<std::string, std::string> depKeys; // curve_id → cache_key (for dep chaining)
+
+    // Build quote/index lookup maps once (O(1) lookups during key computation)
+    KeyContext keyCtx;
+    if (cache.enabled()) {
+        keyCtx = KeyContext::build(quotes, indices);
+    }
 
     for (const auto& id : order) {
         auto it = curveIndex.find(id);
@@ -229,9 +241,81 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         }
 
         const auto* ts = it->second;
-        auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
 
-        out.handles.at(id)->linkTo(curve);
+        if (cache.enabled()) {
+            auto t0 = std::chrono::steady_clock::now();
+
+            // Compute canonical cache key
+            // depKeys contains keys of already-resolved dependency curves
+            std::map<std::string, std::string> relevantDepKeys;
+            if (deps.count(id)) {
+                for (const auto& depId : deps.at(id)) {
+                    if (depKeys.count(depId)) {
+                        relevantDepKeys[depId] = depKeys.at(depId);
+                    }
+                }
+            }
+
+            std::string asOfDate;
+            auto evalDate = QuantLib::Settings::instance().evaluationDate();
+            std::ostringstream os;
+            os << QuantLib::io::iso_date(evalDate);
+            asOfDate = os.str();
+
+            std::string key = CurveKeyBuilder::compute(
+                asOfDate, ts, keyCtx, relevantDepKeys);
+
+            auto tKey = std::chrono::steady_clock::now();
+            double keyMs = std::chrono::duration<double, std::milli>(tKey - t0).count();
+
+            // --- L1 check ---
+            auto cached = cache.backend().getL1(key);
+            if (cached) {
+                cache.stats().l1_hits++;
+                cache.logEvent(id, key, "L1_HIT", keyMs);
+                out.handles.at(id)->linkTo(cached);
+                depKeys[id] = key;
+                continue;
+            }
+            cache.stats().l1_misses++;
+
+            // --- L2 check (future: Redis) ---
+            auto l2data = cache.backend().getL2(key);
+            if (l2data.has_value()) {
+                cache.stats().l2_hits++;
+                auto curve = CurveSerializer::reconstruct(l2data.value());
+                cache.backend().putL1(key, curve);
+                cache.logEvent(id, key, "L2_HIT");
+                out.handles.at(id)->linkTo(curve);
+                depKeys[id] = key;
+                continue;
+            }
+            cache.stats().l2_misses++;
+
+            // --- Full bootstrap (cache miss) ---
+            auto tBootStart = std::chrono::steady_clock::now();
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
+            auto tBootEnd = std::chrono::steady_clock::now();
+            double bootMs = std::chrono::duration<double, std::milli>(tBootEnd - tBootStart).count();
+
+            cache.stats().bootstraps++;
+
+            // Store in L1
+            cache.backend().putL1(key, curve);
+
+            // Store in L2 (serialized DFs — for future Redis)
+            auto serialized = CurveSerializer::serialize(curve, ts);
+            cache.backend().putL2(key, serialized);
+
+            cache.logEvent(id, key, "MISS_BOOTSTRAP", bootMs);
+
+            out.handles.at(id)->linkTo(curve);
+            depKeys[id] = key;
+        } else {
+            // Cache disabled — original behavior
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
+            out.handles.at(id)->linkTo(curve);
+        }
     }
 
     return out;
