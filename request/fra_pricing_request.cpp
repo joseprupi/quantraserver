@@ -28,6 +28,7 @@ flatbuffers::Offset<PriceFRAResponse> FRAPricingRequest::request(
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
 
         fra_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
+        fra_parser.linkDiscountingTermStructure(discounting_curve_it->second->currentLink());
         auto fra = fra_parser.parse(it->fra(), reg.indices);
 
         double npv = fra->NPV();

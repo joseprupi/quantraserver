@@ -38,7 +38,7 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
         position,
         fra->strike(),
         fra->notional(),
-        forwarding_term_structure_
+        discounting_term_structure_
     );
 
     return fraInstrument;
@@ -47,4 +47,9 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
 void FRAParser::linkForwardingTermStructure(std::shared_ptr<YieldTermStructure> term_structure)
 {
     forwarding_term_structure_.linkTo(term_structure);
+}
+
+void FRAParser::linkDiscountingTermStructure(std::shared_ptr<YieldTermStructure> term_structure)
+{
+    discounting_term_structure_.linkTo(term_structure);
 }

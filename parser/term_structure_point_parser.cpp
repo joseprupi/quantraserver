@@ -303,7 +303,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             discount = resolveCurve(point->deps()->discount_curve(), curves);
         }
 
-        return std::make_shared<OISRateHelper>(
+        return std::make_shared<DatedOISRateHelper>(
             start, end, q, on, discount);
     }
 

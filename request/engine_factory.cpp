@@ -9,10 +9,11 @@
 #include <ql/pricingengines/capfloor/bacheliercapfloorengine.hpp>
 #include <ql/pricingengines/capfloor/blackcapfloorengine.hpp>
 #include <ql/pricingengines/swaption/blackswaptionengine.hpp>
+#include <ql/version.hpp>
 
-// Check if BachelierSwaptionEngine exists (QuantLib 1.20+)
-#if __has_include(<ql/pricingengines/swaption/bachelierswaptionengine.hpp>)
-    #include <ql/pricingengines/swaption/bachelierswaptionengine.hpp>
+// BachelierSwaptionEngine is defined in blackswaptionengine.hpp for the
+// QuantLib versions we support. Gate on version instead of header presence.
+#if QL_HEX_VERSION >= 0x012000f0
     #define QL_HAS_BACHELIER_SWAPTION_ENGINE 1
 #else
     #define QL_HAS_BACHELIER_SWAPTION_ENGINE 0
