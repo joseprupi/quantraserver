@@ -273,4 +273,34 @@ QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compound
     QUANTRA_ERROR("Compounding not found");
 }
 
+QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging)
+{
+    switch (averaging)
+    {
+    case quantra::enums::RateAveragingType_Compound:
+        return QuantLib::RateAveraging::Compound;
+    case quantra::enums::RateAveragingType_Simple:
+        return QuantLib::RateAveraging::Simple;
+    }
+
+    QUANTRA_ERROR("Rate averaging type not found");
+}
+
+QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::SettlementMethod method)
+{
+    switch (method)
+    {
+    case quantra::enums::SettlementMethod_PhysicalOTC:
+        return QuantLib::Settlement::PhysicalOTC;
+    case quantra::enums::SettlementMethod_PhysicalCleared:
+        return QuantLib::Settlement::PhysicalCleared;
+    case quantra::enums::SettlementMethod_CollateralizedCashPrice:
+        return QuantLib::Settlement::CollateralizedCashPrice;
+    case quantra::enums::SettlementMethod_ParYieldCurve:
+        return QuantLib::Settlement::ParYieldCurve;
+    }
+
+    QUANTRA_ERROR("Settlement method not found");
+}
+
 #pragma GCC diagnostic pop

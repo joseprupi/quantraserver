@@ -13,5 +13,7 @@ QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter)
 QuantLib::Frequency FrequencyToQL(const quantra::enums::Frequency frequency);
 QuantLib::DateGeneration::Rule DateGenerationToQL(const quantra::enums::DateGenerationRule dateGeneration);
 QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compounding);
+QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging);
+QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::SettlementMethod method);
 
 #endif //ENUMS_H

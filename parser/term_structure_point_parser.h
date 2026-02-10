@@ -45,7 +45,8 @@ public:
         const void* data,
         const QuoteRegistry* quotes = nullptr,
         const CurveRegistry* curves = nullptr,
-        const IndexRegistry* indices = nullptr
+        const IndexRegistry* indices = nullptr,
+        double bump = 0.0
     ) const;
 
 private:
@@ -53,7 +54,8 @@ private:
         double inlineValue,
         const flatbuffers::String* quoteId,
         const QuoteRegistry* quotes,
-        quantra::QuoteType expectedType
+        quantra::QuoteType expectedType,
+        double bump
     ) const;
 
     QuantLib::Handle<QuantLib::YieldTermStructure> resolveCurve(

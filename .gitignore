@@ -7,4 +7,6 @@ flatbuffers/latex/*
 flatbuffers/build/*
 .vscode/*
 .quantra/
+.venv/* "dv01": 3595191348.854026794434
 core
+tmp/*

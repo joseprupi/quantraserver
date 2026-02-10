@@ -133,6 +133,91 @@ def get_time_unit(name: str):
     return mapping.get(name, ql.Days)
 
 
+def get_rate_averaging(name: str):
+    mapping = {
+        "Compound": ql.RateAveraging.Compound,
+        "Simple": ql.RateAveraging.Simple,
+    }
+    return mapping.get(name, ql.RateAveraging.Compound)
+
+
+def get_settlement_method(name: str):
+    mapping = {
+        "PhysicalOTC": ql.Settlement.PhysicalOTC,
+        "PhysicalCleared": ql.Settlement.PhysicalCleared,
+        "CollateralizedCashPrice": ql.Settlement.CollateralizedCashPrice,
+        "ParYieldCurve": ql.Settlement.ParYieldCurve,
+    }
+    return mapping.get(name, ql.Settlement.PhysicalOTC)
+
+
+def get_volatility_type(name: str):
+    mapping = {
+        "Normal": ql.Normal,
+        "Lognormal": ql.ShiftedLognormal,
+        "ShiftedLognormal": ql.ShiftedLognormal,
+    }
+    return mapping.get(name, ql.ShiftedLognormal)
+
+
+def get_compounding(name: str):
+    mapping = {
+        "Compounded": ql.Compounded,
+        "Continuous": ql.Continuous,
+        "Simple": ql.Simple,
+        "SimpleThenCompounded": ql.SimpleThenCompounded,
+    }
+    return mapping.get(name, ql.Continuous)
+
+
+def get_interpolator(name: str):
+    mapping = {
+        "Linear": ql.Linear(),
+        "LogLinear": ql.LogLinear(),
+        "BackwardFlat": ql.BackwardFlat(),
+        "ForwardFlat": ql.ForwardFlat(),
+        "LogCubic": ql.MonotonicLogCubic(),
+    }
+    return mapping.get(name, ql.Linear())
+
+
+def get_currency(code: str):
+    mapping = {
+        "USD": ql.USDCurrency(),
+        "EUR": ql.EURCurrency(),
+        "GBP": ql.GBPCurrency(),
+        "JPY": ql.JPYCurrency(),
+        "CHF": ql.CHFCurrency(),
+    }
+    return mapping.get(code, ql.USDCurrency())
+
+
+def build_ibor_index(idx_def: dict, curve_handle=None):
+    period = ql.Period(
+        idx_def.get("tenor_number", 6),
+        get_time_unit(idx_def.get("tenor_time_unit", "Months")),
+    )
+    fixing_days = idx_def.get("fixing_days", 2)
+    calendar = get_calendar(idx_def.get("calendar", "TARGET"))
+    bdc = get_convention(idx_def.get("business_day_convention", "ModifiedFollowing"))
+    eom = idx_def.get("end_of_month", False)
+    day_counter = get_day_counter(idx_def.get("day_counter", "Actual360"))
+    ccy = get_currency(idx_def.get("currency", "USD"))
+    name = idx_def.get("name", idx_def.get("id", "Ibor"))
+    handle = curve_handle if curve_handle else ql.YieldTermStructureHandle()
+    return ql.IborIndex(name, period, fixing_days, ccy, calendar, bdc, eom, day_counter, handle)
+
+
+def build_overnight_index(idx_def: dict, curve_handle=None):
+    fixing_days = idx_def.get("fixing_days", 0)
+    calendar = get_calendar(idx_def.get("calendar", "TARGET"))
+    day_counter = get_day_counter(idx_def.get("day_counter", "Actual360"))
+    ccy = get_currency(idx_def.get("currency", "USD"))
+    name = idx_def.get("name", idx_def.get("id", "ON"))
+    handle = curve_handle if curve_handle else ql.YieldTermStructureHandle()
+    return ql.OvernightIndex(name, fixing_days, ccy, calendar, day_counter, handle)
+
+
 def get_ibor_index(name: str):
     if "Euribor6M" in name:
         return ql.Euribor6M()
@@ -160,34 +245,63 @@ def find_index_def(idx_id, request_data):
     return None
 
 
-def resolve_index_from_id(idx_id, request_data):
+def resolve_index_from_id(idx_id, request_data, curve_handle=None):
     """Resolve an IndexRef id to a QuantLib index for QuantLib-side comparison."""
     idx_def = find_index_def(idx_id, request_data)
     if idx_def:
-        period = idx_def.get("tenor_number", 6)
-    else:
-        # Fallback: parse from id like "EUR_6M"
-        if "3M" in idx_id:
-            period = 3
-        elif "6M" in idx_id:
-            period = 6
-        else:
-            period = 6
-    
-    if period == 3:
+        if idx_def.get("index_type") == "Overnight":
+            return build_overnight_index(idx_def, curve_handle)
+        return build_ibor_index(idx_def, curve_handle)
+
+    # Fallback for legacy ids
+    if "3M" in idx_id:
         return ql.Euribor3M()
-    elif period == 6:
+    if "6M" in idx_id:
         return ql.Euribor6M()
-    else:
-        return ql.Euribor6M()
+    return ql.Euribor6M()
 
 
-def build_curve_from_json(curve_json: dict, eval_date: ql.Date) -> ql.YieldTermStructureHandle:
+def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
+    points = curve_json.get("points", [])
+    if any(p.get("point_type") == "ZeroRatePoint" for p in points):
+        dates = []
+        rates = []
+        compounding = ql.Continuous
+        frequency = ql.Annual
+        comp_set = False
+
+        for point_wrapper in points:
+            if point_wrapper["point_type"] != "ZeroRatePoint":
+                raise ValueError("ZeroRatePoint cannot be mixed with bootstrap helpers")
+            point = point_wrapper["point"]
+            if "date" in point and point["date"]:
+                d = parse_date(point["date"])
+            else:
+                tenor_num = point.get("tenor_number", 0)
+                tenor_unit = get_time_unit(point.get("tenor_time_unit", "Days"))
+                cal = get_calendar(point.get("calendar", "TARGET"))
+                bdc = get_convention(point.get("business_day_convention", "ModifiedFollowing"))
+                d = cal.advance(eval_date, ql.Period(tenor_num, tenor_unit), bdc)
+            dates.append(d)
+            rates.append(point["zero_rate"])
+
+            if not comp_set:
+                compounding = get_compounding(point.get("compounding", "Continuous"))
+                frequency = get_frequency(point.get("frequency", "Annual"))
+                comp_set = True
+
+        day_counter = get_day_counter(curve_json.get("day_counter", "Actual365Fixed"))
+        interpolator = get_interpolator(curve_json.get("interpolator", "Linear"))
+        curve = ql.ZeroCurve(dates, rates, day_counter, get_calendar(curve_json.get("calendar", "TARGET")),
+                             interpolator, compounding, frequency)
+        curve.enableExtrapolation()
+        return ql.YieldTermStructureHandle(curve)
+
     helpers = []
     seen_pillars = set()  # Track pillar dates to avoid duplicates
-    
-    for point_wrapper in curve_json.get("points", []):
+
+    for point_wrapper in points:
         point_type = point_wrapper["point_type"]
         point = point_wrapper["point"]
         
@@ -220,7 +334,9 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date) -> ql.YieldTermS
         elif point_type == "SwapHelper":
             tenor_num = point["tenor_number"]
             tenor_unit = ql.Years if point["tenor_time_unit"] == "Years" else ql.Months
-            index = ql.Euribor6M()  # Default, could be configured
+            index = ql.Euribor6M()
+            if request_data and point.get("float_index", {}).get("id"):
+                index = resolve_index_from_id(point["float_index"]["id"], request_data)
             
             helper = ql.SwapRateHelper(
                 point["rate"],
@@ -233,6 +349,27 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date) -> ql.YieldTermS
             )
             
             # Check for duplicate pillar
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+        
+        elif point_type == "OISHelper":
+            tenor_num = point["tenor_number"]
+            tenor_unit = get_time_unit(point["tenor_time_unit"])
+            overnight_idx = None
+            if request_data and point.get("overnight_index", {}).get("id"):
+                overnight_idx = resolve_index_from_id(point["overnight_index"]["id"], request_data)
+            if overnight_idx is None:
+                overnight_idx = ql.OvernightIndex(
+                    "ON", 0, ql.USDCurrency(), ql.TARGET(), ql.Actual360()
+                )
+            helper = ql.OISRateHelper(
+                point.get("settlement_days", 2),
+                ql.Period(tenor_num, tenor_unit),
+                point["rate"],
+                overnight_idx
+            )
             pillar = helper.pillarDate()
             if pillar not in seen_pillars:
                 helpers.append(helper)
@@ -298,7 +435,7 @@ def price_fixed_rate_bond_ql(request: dict) -> float:
     # Build curve
     curve_id = bond_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Build schedule
     sch = bond["schedule"]
@@ -338,12 +475,12 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     # Build discount curve
     curve_id = bond_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    discount_curve = build_curve_from_json(curve_json, eval_date)
+    discount_curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Build forecasting curve (may be different)
     forecast_id = bond_data.get("forecasting_curve", curve_id)
     forecast_json = next((c for c in pricing["curves"] if c["id"] == forecast_id), curve_json)
-    forecast_curve = build_curve_from_json(forecast_json, eval_date)
+    forecast_curve = build_curve_from_json(forecast_json, eval_date, request)
     
     # Build schedule
     sch = bond["schedule"]
@@ -427,7 +564,7 @@ def price_vanilla_swap_ql(request: dict) -> float:
     # Build curve
     curve_id = swap_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Fixed leg
     fixed_leg = swap["fixed_leg"]
@@ -488,7 +625,7 @@ def price_fra_ql(request: dict) -> float:
     # Build curve
     curve_id = fra_data.get("forwarding_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Get index period from JSON
     idx = fra.get("index", {})
@@ -526,7 +663,7 @@ def price_cap_floor_ql(request: dict) -> float:
     # Build curve
     curve_id = cf_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Build schedule
     sch = cf["schedule"]
@@ -577,7 +714,11 @@ def price_swaption_ql(request: dict) -> float:
     pricing = request["pricing"]
     sw_data = request["swaptions"][0]
     sw = sw_data["swaption"]
-    underlying = sw["underlying_swap"]
+    underlying_type = sw.get("underlying_type")
+    underlying = sw.get("underlying")
+    if not underlying_type or underlying is None:
+        underlying_type = "VanillaSwap"
+        underlying = sw.get("underlying_swap")
     
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
@@ -585,65 +726,183 @@ def price_swaption_ql(request: dict) -> float:
     # Build curve
     curve_id = sw_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
-    # Fixed leg schedule
-    fixed_leg = underlying["fixed_leg"]
-    fixed_sch = fixed_leg["schedule"]
-    fixed_schedule = ql.Schedule(
-        parse_date(fixed_sch["effective_date"]),
-        parse_date(fixed_sch["termination_date"]),
-        ql.Period(get_frequency(fixed_sch["frequency"])),
-        get_calendar(fixed_sch.get("calendar", "TARGET")),
-        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
-        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-        False
-    )
-    
-    # Float leg schedule
-    float_leg = underlying["floating_leg"]
-    float_sch = float_leg["schedule"]
-    float_schedule = ql.Schedule(
-        parse_date(float_sch["effective_date"]),
-        parse_date(float_sch["termination_date"]),
-        ql.Period(get_frequency(float_sch["frequency"])),
-        get_calendar(float_sch.get("calendar", "TARGET")),
-        get_convention(float_sch.get("convention", "ModifiedFollowing")),
-        get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
-        get_date_generation(float_sch.get("date_generation_rule", "Forward")),
-        False
-    )
-    
-    index = ql.Euribor6M(curve)
-    swap_type = ql.VanillaSwap.Payer if underlying["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
-    
-    swap = ql.VanillaSwap(
-        swap_type,
-        fixed_leg["notional"],
-        fixed_schedule,
-        fixed_leg["rate"],
-        get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
-        float_schedule,
-        index,
-        float_leg.get("spread", 0.0),
-        get_day_counter(float_leg.get("day_counter", "Actual360"))
-    )
+    if underlying_type == "OisSwap":
+        fixed_leg = underlying["fixed_leg"]
+        fixed_sch = fixed_leg["schedule"]
+        fixed_schedule = ql.Schedule(
+            parse_date(fixed_sch["effective_date"]),
+            parse_date(fixed_sch["termination_date"]),
+            ql.Period(get_frequency(fixed_sch["frequency"])),
+            get_calendar(fixed_sch.get("calendar", "TARGET")),
+            get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
+            get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
+            get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
+            False
+        )
+
+        on_leg = underlying["overnight_leg"]
+        on_sch = on_leg["schedule"]
+        on_schedule = ql.Schedule(
+            parse_date(on_sch["effective_date"]),
+            parse_date(on_sch["termination_date"]),
+            ql.Period(get_frequency(on_sch["frequency"])),
+            get_calendar(on_sch.get("calendar", "TARGET")),
+            get_convention(on_sch.get("convention", "ModifiedFollowing")),
+            get_convention(on_sch.get("termination_date_convention", "ModifiedFollowing")),
+            get_date_generation(on_sch.get("date_generation_rule", "Forward")),
+            False
+        )
+
+        on_index = resolve_index_from_id(on_leg["index"]["id"], request, curve)
+        swap_type = ql.OvernightIndexedSwap.Payer if underlying["swap_type"] == "Payer" else ql.OvernightIndexedSwap.Receiver
+        payment_calendar = get_calendar(on_leg.get("payment_calendar", on_sch.get("calendar", "TARGET")))
+        payment_lag = on_leg.get("payment_lag", 0)
+        averaging = get_rate_averaging(on_leg.get("averaging_method", "Compound"))
+        lookback = on_leg.get("lookback_days", -1)
+        if lookback < 0:
+            if hasattr(ql, "NullNatural"):
+                lookback = ql.NullNatural()
+            elif hasattr(ql, "NullInteger"):
+                lookback = ql.NullInteger()
+            else:
+                lookback = 0
+        lockout = on_leg.get("lockout_days", 0)
+        apply_shift = on_leg.get("apply_observation_shift", False)
+        telescopic = on_leg.get("telescopic_value_dates", False)
+
+        try:
+            swap = ql.OvernightIndexedSwap(
+                swap_type,
+                fixed_leg["notional"],
+                fixed_schedule,
+                fixed_leg["rate"],
+                get_day_counter(fixed_leg.get("day_counter", "Actual360")),
+                on_schedule,
+                on_index,
+                on_leg.get("spread", 0.0),
+                payment_lag,
+                get_convention(on_leg.get("payment_convention", "Following")),
+                payment_calendar,
+                telescopic,
+                averaging,
+                lookback,
+                lockout,
+                apply_shift
+            )
+        except Exception:
+            # Python QuantLib bindings might not expose the dual-schedule ctor
+            swap = ql.OvernightIndexedSwap(
+                swap_type,
+                fixed_leg["notional"],
+                fixed_schedule,
+                fixed_leg["rate"],
+                get_day_counter(fixed_leg.get("day_counter", "Actual360")),
+                on_index,
+                on_leg.get("spread", 0.0),
+                payment_lag,
+                get_convention(on_leg.get("payment_convention", "Following")),
+                payment_calendar,
+                telescopic,
+                averaging,
+                lookback,
+                lockout,
+                apply_shift
+            )
+    else:
+        fixed_leg = underlying["fixed_leg"]
+        fixed_sch = fixed_leg["schedule"]
+        fixed_schedule = ql.Schedule(
+            parse_date(fixed_sch["effective_date"]),
+            parse_date(fixed_sch["termination_date"]),
+            ql.Period(get_frequency(fixed_sch["frequency"])),
+            get_calendar(fixed_sch.get("calendar", "TARGET")),
+            get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
+            get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
+            get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
+            False
+        )
+
+        float_leg = underlying["floating_leg"]
+        float_sch = float_leg["schedule"]
+        float_schedule = ql.Schedule(
+            parse_date(float_sch["effective_date"]),
+            parse_date(float_sch["termination_date"]),
+            ql.Period(get_frequency(float_sch["frequency"])),
+            get_calendar(float_sch.get("calendar", "TARGET")),
+            get_convention(float_sch.get("convention", "ModifiedFollowing")),
+            get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
+            get_date_generation(float_sch.get("date_generation_rule", "Forward")),
+            False
+        )
+
+        index = resolve_index_from_id(float_leg["index"]["id"], request, curve)
+        swap_type = ql.VanillaSwap.Payer if underlying["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
+
+        swap = ql.VanillaSwap(
+            swap_type,
+            fixed_leg["notional"],
+            fixed_schedule,
+            fixed_leg["rate"],
+            get_day_counter(fixed_leg.get("day_counter", "Thirty360")),
+            float_schedule,
+            index,
+            float_leg.get("spread", 0.0),
+            get_day_counter(float_leg.get("day_counter", "Actual360"))
+        )
     
     exercise = ql.EuropeanExercise(parse_date(sw["exercise_date"]))
-    swaption = ql.Swaption(swap, exercise)
+    settlement_type = sw.get("settlement_type", "Physical")
+    settlement_method = sw.get("settlement_method", "PhysicalOTC")
+    ql_settlement_type = ql.Settlement.Cash if settlement_type == "Cash" else ql.Settlement.Physical
+    ql_settlement_method = get_settlement_method(settlement_method)
+    swaption = ql.Swaption(swap, exercise, ql_settlement_type, ql_settlement_method)
     
     # Get volatility
     vol = 0.20
-    for v in pricing.get("volatilities", []):
-        if v["id"] == sw_data.get("volatility"):
-            vol = v.get("constant_vol", 0.20)
+    vol_type = ql.ShiftedLognormal
+    displacement = 0.0
+    for v in pricing.get("vol_surfaces", []):
+        if v.get("id") == sw_data.get("volatility"):
+            payload = v.get("payload", {})
+            base = payload.get("base", {})
+            vol = base.get("constant_vol", vol)
+            vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
+            displacement = base.get("displacement", 0.0)
             break
-    
-    vol_handle = ql.SwaptionVolatilityStructureHandle(
-        ql.ConstantSwaptionVolatility(eval_date, ql.TARGET(), ql.ModifiedFollowing, vol, ql.Actual365Fixed())
-    )
-    swaption.setPricingEngine(ql.BlackSwaptionEngine(curve, vol_handle))
+
+    if "vol_surfaces" not in pricing:
+        for v in pricing.get("volatilities", []):
+            if v["id"] == sw_data.get("volatility"):
+                vol = v.get("constant_vol", 0.20)
+                break
+
+    if displacement and displacement != 0.0:
+        vol_handle = ql.SwaptionVolatilityStructureHandle(
+            ql.ConstantSwaptionVolatility(
+                eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
+                ql.Actual365Fixed(), vol_type, displacement
+            )
+        )
+    else:
+        vol_handle = ql.SwaptionVolatilityStructureHandle(
+            ql.ConstantSwaptionVolatility(
+                eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
+                ql.Actual365Fixed(), vol_type
+            )
+        )
+
+    model_type = "Black"
+    for m in pricing.get("models", []):
+        if m.get("id") == sw_data.get("model"):
+            model_type = m.get("payload", {}).get("model_type", "Black")
+            break
+
+    if model_type == "Bachelier":
+        swaption.setPricingEngine(ql.BachelierSwaptionEngine(curve, vol_handle))
+    else:
+        swaption.setPricingEngine(ql.BlackSwaptionEngine(curve, vol_handle))
     
     return swaption.NPV()
 
@@ -660,7 +919,7 @@ def price_cds_ql(request: dict) -> float:
     # Build discount curve
     curve_id = cds_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date)
+    curve = build_curve_from_json(curve_json, eval_date, request)
     
     # Build schedule
     sch = cds["schedule"]
@@ -1243,6 +1502,8 @@ def main():
         ("fra", "fra_request.json", price_fra_ql),
         ("cap_floor", "cap_floor_request.json", price_cap_floor_ql),
         ("swaption", "swaption_request.json", price_swaption_ql),
+        ("swaption", "swaption_ois_request.json", price_swaption_ql),
+        ("swaption", "swaption_ois_bbg_zerorate_request.json", price_swaption_ql),
         ("cds", "cds_request.json", price_cds_ql),
     ]
     

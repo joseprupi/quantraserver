@@ -507,6 +507,11 @@ components:
       - Continuous
       - Simple
       - SimpleThenCompounded
+    quantra_enums_RateAveragingType:
+      type: string
+      enum:
+      - Compound
+      - Simple
     quantra_enums_SwapType:
       type: string
       enum:
@@ -534,6 +539,13 @@ components:
       enum:
       - Physical
       - Cash
+    quantra_enums_SettlementMethod:
+      type: string
+      enum:
+      - PhysicalOTC
+      - PhysicalCleared
+      - CollateralizedCashPrice
+      - ParYieldCurve
     quantra_enums_ProtectionSide:
       type: string
       enum:
@@ -576,6 +588,7 @@ components:
       - BondHelper
       - OISHelper
       - DatedOISHelper
+      - ZeroRatePoint
       - TenorBasisSwapHelper
       - FxSwapHelper
       - CrossCcyBasisHelper
@@ -916,6 +929,31 @@ components:
       - end_date
       - overnight_index
       additionalProperties: false
+    quantra_ZeroRatePoint:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Maturity date for the zero rate (YYYY-MM-DD)
+        tenor_number:
+          type: integer
+          description: 'Alternative: tenor from reference date'
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        zero_rate:
+          type: number
+          description: Zero rate for this maturity
+        compounding:
+          $ref: '#/components/schemas/quantra_enums_Compounding'
+        frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+      additionalProperties: false
     quantra_TenorBasisSwapHelper:
       type: object
       properties:
@@ -1002,6 +1040,7 @@ components:
           - $ref: '#/components/schemas/quantra_BondHelper'
           - $ref: '#/components/schemas/quantra_OISHelper'
           - $ref: '#/components/schemas/quantra_DatedOISHelper'
+          - $ref: '#/components/schemas/quantra_ZeroRatePoint'
           - $ref: '#/components/schemas/quantra_TenorBasisSwapHelper'
           - $ref: '#/components/schemas/quantra_FxSwapHelper'
           - $ref: '#/components/schemas/quantra_CrossCcyBasisHelper'
@@ -1450,6 +1489,12 @@ components:
         bond_pricing_flows:
           type: boolean
           description: 'Include cash flow details. Used by: FixedRateBond, FloatingRateBond'
+        swaption_pricing_details:
+          type: boolean
+          description: Include detailed swaption analytics (delta/vega/gamma/theta/DV01).
+        swaption_pricing_rebump:
+          type: boolean
+          description: Include curve-rebump swaption analytics (Bloomberg-style).
         coupon_pricers:
           type: array
           description: 'Coupon pricers for floating legs. Used by: FloatingRateBond,
@@ -2018,6 +2063,12 @@ components:
           items:
             $ref: '#/components/schemas/quantra_PriceFRA'
       additionalProperties: false
+    quantra_SwaptionUnderlying:
+      type: string
+      enum:
+      - NONE
+      - VanillaSwap
+      - OisSwap
     quantra_SwapFixedLeg:
       type: object
       properties:
@@ -2066,6 +2117,54 @@ components:
         floating_leg:
           $ref: '#/components/schemas/quantra_SwapFloatingLeg'
       additionalProperties: false
+    quantra_OisFloatingLeg:
+      type: object
+      properties:
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        notional:
+          type: number
+        index:
+          $ref: '#/components/schemas/quantra_IndexRef'
+        spread:
+          type: number
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        payment_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        payment_lag:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        averaging_method:
+          $ref: '#/components/schemas/quantra_enums_RateAveragingType'
+        lookback_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        lockout_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        apply_observation_shift:
+          type: boolean
+        telescopic_value_dates:
+          type: boolean
+      required:
+      - index
+      additionalProperties: false
+    quantra_OisSwap:
+      type: object
+      properties:
+        swap_type:
+          $ref: '#/components/schemas/quantra_enums_SwapType'
+        fixed_leg:
+          $ref: '#/components/schemas/quantra_SwapFixedLeg'
+        overnight_leg:
+          $ref: '#/components/schemas/quantra_OisFloatingLeg'
+      additionalProperties: false
     quantra_Swaption:
       type: object
       properties:
@@ -2073,10 +2172,18 @@ components:
           $ref: '#/components/schemas/quantra_enums_ExerciseType'
         settlement_type:
           $ref: '#/components/schemas/quantra_enums_SettlementType'
+        settlement_method:
+          $ref: '#/components/schemas/quantra_enums_SettlementMethod'
         exercise_date:
           type: string
         underlying_swap:
           $ref: '#/components/schemas/quantra_VanillaSwap'
+        underlying_type:
+          $ref: '#/components/schemas/quantra_SwaptionUnderlying'
+        underlying:
+          anyOf:
+          - $ref: '#/components/schemas/quantra_VanillaSwap'
+          - $ref: '#/components/schemas/quantra_OisSwap'
       additionalProperties: false
     quantra_PriceSwaption:
       type: object
@@ -2138,6 +2245,12 @@ components:
         delta:
           type: number
         vega:
+          type: number
+        gamma:
+          type: number
+        theta:
+          type: number
+        dv01:
           type: number
       additionalProperties: false
     quantra_PriceSwaptionResponse:

@@ -8,6 +8,9 @@ table SwaptionResponse {
     annuity:double;                 // PV01 of underlying swap
     delta:double;                   // Option delta
     vega:double;                    // Sensitivity to vol
+    gamma:double;                   // Option gamma
+    theta:double;                   // Sensitivity to time
+    dv01:double;                    // 1bp sensitivity (approx)
 }
 
 // Response wrapper for multiple swaptions

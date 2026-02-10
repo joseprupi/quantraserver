@@ -37,6 +37,10 @@
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
     },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
     "quantra_enums_SwapType" : {
       "type" : "string",
       "enum": ["Payer", "Receiver"]
@@ -56,6 +60,10 @@
     "quantra_enums_SettlementType" : {
       "type" : "string",
       "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
     },
     "quantra_enums_ProtectionSide" : {
       "type" : "string",
@@ -80,6 +88,10 @@
     "quantra_IndexType" : {
       "type" : "string",
       "enum": ["Ibor", "Overnight"]
+    },
+    "quantra_SwaptionUnderlying" : {
+      "type" : "string",
+      "enum": ["NONE", "VanillaSwap", "OisSwap"]
     },
     "quantra_Schedule" : {
       "type" : "object",
@@ -258,6 +270,70 @@
       },
       "additionalProperties" : false
     },
+    "quantra_OisFloatingLeg" : {
+      "type" : "object",
+      "properties" : {
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule"
+              },
+        "notional" : {
+                "type" : "number"
+              },
+        "index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")"
+              },
+        "spread" : {
+                "type" : "number"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "payment_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Payment adjustments"
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Overnight accrual conventions"
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean"
+              },
+        "telescopic_value_dates" : {
+                "type" : "boolean"
+              }
+      },
+      "required" : ["index"],
+      "additionalProperties" : false
+    },
+    "quantra_OisSwap" : {
+      "type" : "object",
+      "properties" : {
+        "swap_type" : {
+                "$ref" : "#/definitions/quantra_enums_SwapType"
+              },
+        "fixed_leg" : {
+                "$ref" : "#/definitions/quantra_SwapFixedLeg"
+              },
+        "overnight_leg" : {
+                "$ref" : "#/definitions/quantra_OisFloatingLeg"
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_Swaption" : {
       "type" : "object",
       "properties" : {
@@ -267,11 +343,20 @@
         "settlement_type" : {
                 "$ref" : "#/definitions/quantra_enums_SettlementType"
               },
+        "settlement_method" : {
+                "$ref" : "#/definitions/quantra_enums_SettlementMethod"
+              },
         "exercise_date" : {
                 "type" : "string"
               },
         "underlying_swap" : {
                 "$ref" : "#/definitions/quantra_VanillaSwap"
+              },
+        "underlying_type" : {
+                "$ref" : "#/definitions/quantra_SwaptionUnderlying"
+              },
+        "underlying" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_VanillaSwap" },{ "$ref" : "#/definitions/quantra_OisSwap" }]
               }
       },
       "additionalProperties" : false

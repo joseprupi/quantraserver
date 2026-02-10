@@ -21,6 +21,15 @@
               },
         "vega" : {
                 "type" : "number"
+              },
+        "gamma" : {
+                "type" : "number"
+              },
+        "theta" : {
+                "type" : "number"
+              },
+        "dv01" : {
+                "type" : "number"
               }
       },
       "additionalProperties" : false

@@ -178,6 +178,26 @@ table DatedOISHelper {
 }
 
 // ============================================================================
+// Zero-rate points (direct curve construction, no bootstrapping)
+// ============================================================================
+
+table ZeroRatePoint {
+    /// Maturity date for the zero rate (YYYY-MM-DD)
+    date:string;
+    /// Alternative: tenor from reference date
+    tenor_number:int;
+    tenor_time_unit:enums.TimeUnit;
+    calendar:enums.Calendar = TARGET;
+    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    /// Zero rate for this maturity
+    zero_rate:double;
+    /// Compounding convention for the zero rate
+    compounding:enums.Compounding = Continuous;
+    /// Frequency (used when compounding != Continuous)
+    frequency:enums.Frequency = Annual;
+}
+
+// ============================================================================
 // Basis / FX / XCCY helpers (all use IndexRef now)
 // ============================================================================
 
@@ -238,6 +258,7 @@ union Point {
     BondHelper,
     OISHelper,
     DatedOISHelper,
+    ZeroRatePoint,
     TenorBasisSwapHelper,
     FxSwapHelper,
     CrossCcyBasisHelper

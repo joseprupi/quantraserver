@@ -34,12 +34,20 @@ public:
         const quantra::TermStructure* ts,
         const QuoteRegistry* quotes,
         const CurveRegistry* curves,
-        const IndexRegistry* indices);
+        const IndexRegistry* indices,
+        double bump = 0.0);
 
 private:
     std::shared_ptr<QuantLib::YieldTermStructure> buildCurve(
         const quantra::TermStructure* ts,
         std::vector<std::shared_ptr<QuantLib::RateHelper>>& instruments);
+
+    std::shared_ptr<QuantLib::YieldTermStructure> buildZeroCurve(
+        const quantra::TermStructure* ts,
+        const std::vector<QuantLib::Date>& dates,
+        const std::vector<QuantLib::Rate>& zeroRates,
+        QuantLib::Compounding compounding,
+        QuantLib::Frequency frequency);
 };
 
 } // namespace quantra

@@ -66,8 +66,29 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # SwaptionResponse
+    def Gamma(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def Theta(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def Dv01(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
 def SwaptionResponseStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(9)
 
 def Start(builder):
     SwaptionResponseStart(builder)
@@ -108,6 +129,24 @@ def SwaptionResponseAddVega(builder, vega):
 def AddVega(builder, vega):
     SwaptionResponseAddVega(builder, vega)
 
+def SwaptionResponseAddGamma(builder, gamma):
+    builder.PrependFloat64Slot(6, gamma, 0.0)
+
+def AddGamma(builder, gamma):
+    SwaptionResponseAddGamma(builder, gamma)
+
+def SwaptionResponseAddTheta(builder, theta):
+    builder.PrependFloat64Slot(7, theta, 0.0)
+
+def AddTheta(builder, theta):
+    SwaptionResponseAddTheta(builder, theta)
+
+def SwaptionResponseAddDv01(builder, dv01):
+    builder.PrependFloat64Slot(8, dv01, 0.0)
+
+def AddDv01(builder, dv01):
+    SwaptionResponseAddDv01(builder, dv01)
+
 def SwaptionResponseEnd(builder):
     return builder.EndObject()
 
@@ -125,6 +164,9 @@ class SwaptionResponseT(object):
         self.annuity = 0.0  # type: float
         self.delta = 0.0  # type: float
         self.vega = 0.0  # type: float
+        self.gamma = 0.0  # type: float
+        self.theta = 0.0  # type: float
+        self.dv01 = 0.0  # type: float
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -153,6 +195,9 @@ class SwaptionResponseT(object):
         self.annuity = swaptionResponse.Annuity()
         self.delta = swaptionResponse.Delta()
         self.vega = swaptionResponse.Vega()
+        self.gamma = swaptionResponse.Gamma()
+        self.theta = swaptionResponse.Theta()
+        self.dv01 = swaptionResponse.Dv01()
 
     # SwaptionResponseT
     def Pack(self, builder):
@@ -163,5 +208,8 @@ class SwaptionResponseT(object):
         SwaptionResponseAddAnnuity(builder, self.annuity)
         SwaptionResponseAddDelta(builder, self.delta)
         SwaptionResponseAddVega(builder, self.vega)
+        SwaptionResponseAddGamma(builder, self.gamma)
+        SwaptionResponseAddTheta(builder, self.theta)
+        SwaptionResponseAddDv01(builder, self.dv01)
         swaptionResponse = SwaptionResponseEnd(builder)
         return swaptionResponse

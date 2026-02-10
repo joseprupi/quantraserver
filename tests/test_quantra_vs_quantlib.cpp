@@ -34,6 +34,7 @@
 #include "cap_floor_response_generated.h"
 #include "price_swaption_request_generated.h"
 #include "swaption_response_generated.h"
+#include "ois_swap_generated.h"
 #include "price_cds_request_generated.h"
 #include "cds_response_generated.h"
 #include "volatility_generated.h"
@@ -127,6 +128,26 @@ protected:
         idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         idb.add_day_counter(quantra::enums::DayCounter_Actual360);
         idb.add_end_of_month(false);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
+    /// Build an IndexDef for USD SOFR (overnight conventions)
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_USD_SOFR(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("USD_SOFR");
+        auto name = b.CreateString("SOFR");
+        auto ccy = b.CreateString("USD");
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Overnight);
+        idb.add_tenor_number(0);
+        idb.add_tenor_time_unit(quantra::enums::TimeUnit_Days);
+        idb.add_fixing_days(0);
+        idb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
         idb.add_currency(ccy);
         return idb.Finish();
     }
@@ -248,6 +269,56 @@ protected:
         tsb.add_points(points);
         return tsb.Finish();
     }
+
+    struct OisTenorRate {
+        int tenor_number;
+        quantra::enums::TimeUnit tenor_unit;
+        double rate;
+    };
+
+    // Build OIS curve using OISHelpers (overnight index)
+    flatbuffers::Offset<quantra::TermStructure> buildOisCurve(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        const std::string& overnightIndexId,
+        const std::vector<OisTenorRate>& rates,
+        quantra::enums::Calendar calendar) {
+        
+        std::vector<flatbuffers::Offset<quantra::PointsWrapper>> points_vector;
+        auto idxRef = buildIndexRef(b, overnightIndexId);
+
+        for (const auto& tr : rates) {
+            quantra::OISHelperBuilder ois(b);
+            ois.add_rate(tr.rate);
+            ois.add_tenor_number(tr.tenor_number);
+            ois.add_tenor_time_unit(tr.tenor_unit);
+            ois.add_overnight_index(idxRef);
+            ois.add_settlement_days(2);
+            ois.add_calendar(calendar);
+            ois.add_fixed_leg_frequency(quantra::enums::Frequency_Annual);
+            ois.add_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+            ois.add_fixed_leg_day_counter(quantra::enums::DayCounter_Actual360);
+            auto ois_off = ois.Finish();
+
+            quantra::PointsWrapperBuilder pw(b);
+            pw.add_point_type(quantra::Point_OISHelper);
+            pw.add_point(ois_off.Union());
+            points_vector.push_back(pw.Finish());
+        }
+
+        auto points = b.CreateVector(points_vector);
+        auto cid = b.CreateString(id);
+        auto ref_date = b.CreateString("2024-08-14");
+
+        quantra::TermStructureBuilder tsb(b);
+        tsb.add_id(cid);
+        tsb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        tsb.add_interpolator(quantra::enums::Interpolator_LogLinear);
+        tsb.add_bootstrap_trait(quantra::enums::BootstrapTrait_Discount);
+        tsb.add_reference_date(ref_date);
+        tsb.add_points(points);
+        return tsb.Finish();
+    }
     
     /// Build indices vector for Pricing or BootstrapCurvesRequest
     /// Contains all IndexDefs needed by the curve helpers and instruments
@@ -303,9 +374,10 @@ protected:
         flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol,
         quantra::enums::VolatilityType volType = quantra::enums::VolatilityType_Lognormal,
         double displacement = 0.0,
-        const std::string& quoteId = "") {
+        const std::string& quoteId = "",
+        const std::string& refDate = "2025-01-15") {
         
-        auto ref_date = b.CreateString("2025-01-15");
+        auto ref_date = b.CreateString(refDate);
         flatbuffers::Offset<flatbuffers::String> qid;
         if (!quoteId.empty()) {
             qid = b.CreateString(quoteId);
@@ -1000,6 +1072,276 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
 
     std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
+}
+
+// ======================== SWAPTION (OIS / SOFR, Bachelier) ===================
+TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
+    std::cout << "\n=== Swaption (OIS SOFR, Bachelier) ===" << std::endl;
+
+    QuantLib::Date prevEval = QuantLib::Settings::instance().evaluationDate();
+    QuantLib::Date evalDate(14, QuantLib::August, 2024);
+    QuantLib::Settings::instance().evaluationDate() = evalDate;
+
+    double notional = 1000000.0;
+    double strike = 0.03367463;
+    double vol = 0.010267; // Normal vol
+
+    QuantLib::Date exerciseDate(16, QuantLib::September, 2024);
+    QuantLib::Date swapStart(18, QuantLib::September, 2024);
+    QuantLib::Date swapEnd(18, QuantLib::September, 2034);
+
+    QuantLib::Calendar usGov = QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond);
+
+    struct OisRate {
+        QuantLib::Period tenor;
+        double rate;
+    };
+
+    std::vector<OisRate> oisRates = {
+        {1 * QuantLib::Weeks, 0.0533410},
+        {2 * QuantLib::Weeks, 0.0533585},
+        {3 * QuantLib::Weeks, 0.0533814},
+        {1 * QuantLib::Months, 0.0534261},
+        {2 * QuantLib::Months, 0.0520565},
+        {3 * QuantLib::Months, 0.0511385},
+        {4 * QuantLib::Months, 0.0502265},
+        {5 * QuantLib::Months, 0.0490300},
+        {6 * QuantLib::Months, 0.0478850},
+        {7 * QuantLib::Months, 0.0470850},
+        {8 * QuantLib::Months, 0.0460968},
+        {9 * QuantLib::Months, 0.0452458},
+        {10 * QuantLib::Months, 0.0444082},
+        {11 * QuantLib::Months, 0.0436380},
+        {12 * QuantLib::Months, 0.0428710},
+        {18 * QuantLib::Months, 0.0392930},
+        {2 * QuantLib::Years, 0.0373480},
+        {3 * QuantLib::Years, 0.0351270},
+        {4 * QuantLib::Years, 0.0340905},
+        {5 * QuantLib::Years, 0.0336448},
+        {6 * QuantLib::Years, 0.0334900},
+        {7 * QuantLib::Years, 0.0334540},
+        {8 * QuantLib::Years, 0.0335100},
+        {9 * QuantLib::Years, 0.0336048},
+        {10 * QuantLib::Years, 0.0337219},
+        {12 * QuantLib::Years, 0.0340177},
+        {15 * QuantLib::Years, 0.0343655},
+        {20 * QuantLib::Years, 0.0343820},
+        {25 * QuantLib::Years, 0.0337260},
+        {30 * QuantLib::Years, 0.0329430},
+        {40 * QuantLib::Years, 0.0310050},
+        {50 * QuantLib::Years, 0.0290915}
+    };
+
+    std::vector<std::shared_ptr<QuantLib::RateHelper>> helpers;
+    auto sofr = std::make_shared<QuantLib::OvernightIndex>(
+        "SOFR", 0, QuantLib::USDCurrency(), usGov, QuantLib::Actual360());
+    for (const auto& tr : oisRates) {
+        helpers.push_back(std::make_shared<QuantLib::OISRateHelper>(
+            2, tr.tenor, tr.rate, sofr));
+    }
+
+    auto oisCurve = std::make_shared<
+        QuantLib::PiecewiseYieldCurve<QuantLib::Discount, QuantLib::LogLinear>>(
+        evalDate, helpers, QuantLib::Actual365Fixed());
+    oisCurve->enableExtrapolation();
+
+    QuantLib::Handle<QuantLib::YieldTermStructure> oisHandle(oisCurve);
+    auto sofrWithCurve = std::make_shared<QuantLib::OvernightIndex>(
+        "SOFR", 0, QuantLib::USDCurrency(), usGov, QuantLib::Actual360(), oisHandle);
+
+    QuantLib::Schedule fixedSchedule(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov,
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
+        QuantLib::DateGeneration::Forward, false);
+    QuantLib::Schedule floatSchedule(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov,
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
+        QuantLib::DateGeneration::Forward, false);
+
+    auto oisSwap = std::make_shared<QuantLib::OvernightIndexedSwap>(
+        QuantLib::OvernightIndexedSwap::Payer,
+        notional,
+        fixedSchedule,
+        strike,
+        QuantLib::Actual360(),
+        floatSchedule,
+        sofrWithCurve,
+        0.0,
+        2,
+        QuantLib::ModifiedFollowing,
+        usGov,
+        false,
+        QuantLib::RateAveraging::Compound);
+
+    auto ex = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
+    auto qlSwaption = std::make_shared<QuantLib::Swaption>(
+        oisSwap, ex, QuantLib::Settlement::Cash, QuantLib::Settlement::ParYieldCurve);
+
+    auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
+        std::make_shared<QuantLib::ConstantSwaptionVolatility>(
+            evalDate, usGov, QuantLib::ModifiedFollowing, vol,
+            QuantLib::Actual365Fixed(), QuantLib::Normal));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::BachelierSwaptionEngine>(oisHandle, volH));
+    double qlNPV = qlSwaption->NPV();
+
+    flatbuffers::grpc::MessageBuilder b;
+
+    std::vector<OisTenorRate> oisRatesFb = {
+        {1, quantra::enums::TimeUnit_Weeks, 0.0533410},
+        {2, quantra::enums::TimeUnit_Weeks, 0.0533585},
+        {3, quantra::enums::TimeUnit_Weeks, 0.0533814},
+        {1, quantra::enums::TimeUnit_Months, 0.0534261},
+        {2, quantra::enums::TimeUnit_Months, 0.0520565},
+        {3, quantra::enums::TimeUnit_Months, 0.0511385},
+        {4, quantra::enums::TimeUnit_Months, 0.0502265},
+        {5, quantra::enums::TimeUnit_Months, 0.0490300},
+        {6, quantra::enums::TimeUnit_Months, 0.0478850},
+        {7, quantra::enums::TimeUnit_Months, 0.0470850},
+        {8, quantra::enums::TimeUnit_Months, 0.0460968},
+        {9, quantra::enums::TimeUnit_Months, 0.0452458},
+        {10, quantra::enums::TimeUnit_Months, 0.0444082},
+        {11, quantra::enums::TimeUnit_Months, 0.0436380},
+        {12, quantra::enums::TimeUnit_Months, 0.0428710},
+        {18, quantra::enums::TimeUnit_Months, 0.0392930},
+        {2, quantra::enums::TimeUnit_Years, 0.0373480},
+        {3, quantra::enums::TimeUnit_Years, 0.0351270},
+        {4, quantra::enums::TimeUnit_Years, 0.0340905},
+        {5, quantra::enums::TimeUnit_Years, 0.0336448},
+        {6, quantra::enums::TimeUnit_Years, 0.0334900},
+        {7, quantra::enums::TimeUnit_Years, 0.0334540},
+        {8, quantra::enums::TimeUnit_Years, 0.0335100},
+        {9, quantra::enums::TimeUnit_Years, 0.0336048},
+        {10, quantra::enums::TimeUnit_Years, 0.0337219},
+        {12, quantra::enums::TimeUnit_Years, 0.0340177},
+        {15, quantra::enums::TimeUnit_Years, 0.0343655},
+        {20, quantra::enums::TimeUnit_Years, 0.0343820},
+        {25, quantra::enums::TimeUnit_Years, 0.0337260},
+        {30, quantra::enums::TimeUnit_Years, 0.0329430},
+        {40, quantra::enums::TimeUnit_Years, 0.0310050},
+        {50, quantra::enums::TimeUnit_Years, 0.0290915}
+    };
+
+    auto ts = buildOisCurve(
+        b, "USD_SOFR", "USD_SOFR", oisRatesFb,
+        quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+
+    auto volSurface = buildSwaptionVolSurface(
+        b, "usd_sofr_vol", vol, quantra::enums::VolatilityType_Normal, 0.0, "", "2024-08-14");
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
+    auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+
+    auto indices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::IndexDef>>{buildIndexDef_USD_SOFR(b)});
+    auto asof = b.CreateString("2024-08-14");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
+    auto pricing = pb.Finish();
+
+    // Fixed leg schedule
+    auto feff = b.CreateString("2024-09-18");
+    auto fterm = b.CreateString("2034-09-18");
+    quantra::ScheduleBuilder fsb(b);
+    fsb.add_effective_date(feff);
+    fsb.add_termination_date(fterm);
+    fsb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    fsb.add_frequency(quantra::enums::Frequency_Annual);
+    fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto fixedSch = fsb.Finish();
+
+    quantra::SwapFixedLegBuilder flb(b);
+    flb.add_notional(notional);
+    flb.add_schedule(fixedSch);
+    flb.add_rate(strike);
+    flb.add_day_counter(quantra::enums::DayCounter_Actual360);
+    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto fixedLeg = flb.Finish();
+
+    // Overnight leg schedule
+    auto oeff = b.CreateString("2024-09-18");
+    auto oterm = b.CreateString("2034-09-18");
+    quantra::ScheduleBuilder osb(b);
+    osb.add_effective_date(oeff);
+    osb.add_termination_date(oterm);
+    osb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    osb.add_frequency(quantra::enums::Frequency_Annual);
+    osb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    osb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    osb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto overnightSch = osb.Finish();
+
+    auto idxRef = buildIndexRef(b, "USD_SOFR");
+    quantra::OisFloatingLegBuilder olb(b);
+    olb.add_notional(notional);
+    olb.add_schedule(overnightSch);
+    olb.add_index(idxRef);
+    olb.add_spread(0.0);
+    olb.add_day_counter(quantra::enums::DayCounter_Actual360);
+    olb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    olb.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    olb.add_payment_lag(2);
+    olb.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+    olb.add_lookback_days(-1);
+    olb.add_lockout_days(0);
+    olb.add_apply_observation_shift(false);
+    olb.add_telescopic_value_dates(false);
+    auto overnightLeg = olb.Finish();
+
+    quantra::OisSwapBuilder oisBuilder(b);
+    oisBuilder.add_swap_type(quantra::enums::SwapType_Payer);
+    oisBuilder.add_fixed_leg(fixedLeg);
+    oisBuilder.add_overnight_leg(overnightLeg);
+    auto oisSwapFb = oisBuilder.Finish();
+
+    auto exd = b.CreateString("2024-09-16");
+    quantra::SwaptionBuilder swb(b);
+    swb.add_exercise_date(exd);
+    swb.add_exercise_type(quantra::enums::ExerciseType_European);
+    swb.add_settlement_type(quantra::enums::SettlementType_Cash);
+    swb.add_settlement_method(quantra::enums::SettlementMethod_ParYieldCurve);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_OisSwap);
+    swb.add_underlying(oisSwapFb.Union());
+    auto swaption = swb.Finish();
+
+    auto dc = b.CreateString("USD_SOFR");
+    auto vol_id = b.CreateString("usd_sofr_vol");
+    auto model_id = b.CreateString("bachelier_model");
+
+    quantra::PriceSwaptionBuilder psb(b);
+    psb.add_swaption(swaption);
+    psb.add_discounting_curve(dc);
+    psb.add_forwarding_curve(dc);
+    psb.add_volatility(vol_id);
+    psb.add_model(model_id);
+    auto psbOff = psb.Finish();
+
+    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+
+    quantra::PriceSwaptionRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaptions(swaptions);
+    b.Finish(rb.Finish());
+
+    SwaptionPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    respB->Finish(resp);
+    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    EXPECT_NEAR(qlNPV, qNPV, 0.05);
+
+    QuantLib::Settings::instance().evaluationDate() = prevEval;
 }
 
 // ======================== CDS ========================

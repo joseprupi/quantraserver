@@ -18,15 +18,21 @@ Handle<Quote> TermStructurePointParser::resolveQuote(
     double inlineValue,
     const flatbuffers::String* quoteId,
     const QuoteRegistry* quotes,
-    quantra::QuoteType expectedType
+    quantra::QuoteType expectedType,
+    double bump
 ) const {
     if (quoteId && quotes) {
         const std::string id = quoteId->str();
         if (!id.empty()) {
-            return quotes->getHandle(id, expectedType);
+            if (bump == 0.0) {
+                return quotes->getHandle(id, expectedType);
+            }
+            double v = quotes->getValue(id, expectedType) + bump;
+            auto sq = std::make_shared<SimpleQuote>(v);
+            return Handle<Quote>(sq);
         }
     }
-    auto sq = std::make_shared<SimpleQuote>(inlineValue);
+    auto sq = std::make_shared<SimpleQuote>(inlineValue + bump);
     return Handle<Quote>(sq);
 }
 
@@ -55,7 +61,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     const void* data,
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
-    const IndexRegistry* indices
+    const IndexRegistry* indices,
+    double bump
 ) const {
 
     // ------------------------------------------------------------------
@@ -63,7 +70,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     if (point_type == quantra::Point_DepositHelper) {
         auto point = static_cast<const quantra::DepositHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<DepositRateHelper>(
             q,
@@ -80,7 +87,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_FRAHelper) {
         auto point = static_cast<const quantra::FRAHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<FraRateHelper>(
             q,
@@ -105,7 +112,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         }
         rateValue += point->convexity_adjustment();
 
-        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<FuturesRateHelper>(
             q,
@@ -142,7 +149,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_SwapHelper) {
         auto point = static_cast<const quantra::SwapHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for SwapHelper");
@@ -200,7 +207,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         double px = point->price();
         if (px == 0.0) px = point->rate();
 
-        auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<FixedRateBondHelper>(
             q,
@@ -228,7 +235,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_OISHelper) {
         auto point = static_cast<const quantra::OISHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for OISHelper");
@@ -273,7 +280,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_DatedOISHelper) {
         auto point = static_cast<const quantra::DatedOISHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve);
+        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for DatedOISHelper");

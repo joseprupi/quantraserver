@@ -75,7 +75,7 @@ class PointsWrapperT(object):
     # PointsWrapperT
     def __init__(self):
         self.pointType = 0  # type: int
-        self.point = None  # type: Union[None, DepositHelperT, FRAHelperT, FutureHelperT, SwapHelperT, BondHelperT, OISHelperT, DatedOISHelperT, TenorBasisSwapHelperT, FxSwapHelperT, CrossCcyBasisHelperT]
+        self.point = None  # type: Union[None, DepositHelperT, FRAHelperT, FutureHelperT, SwapHelperT, BondHelperT, OISHelperT, DatedOISHelperT, ZeroRatePointT, TenorBasisSwapHelperT, FxSwapHelperT, CrossCcyBasisHelperT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

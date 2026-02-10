@@ -187,10 +187,26 @@ class Pricing(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Include detailed swaption analytics (delta/vega/gamma/theta/DV01).
+    # Pricing
+    def SwaptionPricingDetails(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # Include curve-rebump swaption analytics (Bloomberg-style).
+    # Pricing
+    def SwaptionPricingRebump(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
     # Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
     # Pricing
     def CouponPricers(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -203,18 +219,18 @@ class Pricing(object):
 
     # Pricing
     def CouponPricersLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def CouponPricersIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         return o == 0
 
 def PricingStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(12)
 
 def Start(builder):
     PricingStart(builder)
@@ -303,8 +319,20 @@ def PricingAddBondPricingFlows(builder, bondPricingFlows):
 def AddBondPricingFlows(builder, bondPricingFlows):
     PricingAddBondPricingFlows(builder, bondPricingFlows)
 
+def PricingAddSwaptionPricingDetails(builder, swaptionPricingDetails):
+    builder.PrependBoolSlot(9, swaptionPricingDetails, 0)
+
+def AddSwaptionPricingDetails(builder, swaptionPricingDetails):
+    PricingAddSwaptionPricingDetails(builder, swaptionPricingDetails)
+
+def PricingAddSwaptionPricingRebump(builder, swaptionPricingRebump):
+    builder.PrependBoolSlot(10, swaptionPricingRebump, 0)
+
+def AddSwaptionPricingRebump(builder, swaptionPricingRebump):
+    PricingAddSwaptionPricingRebump(builder, swaptionPricingRebump)
+
 def PricingAddCouponPricers(builder, couponPricers):
-    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
 
 def AddCouponPricers(builder, couponPricers):
     PricingAddCouponPricers(builder, couponPricers)
@@ -339,6 +367,8 @@ class PricingT(object):
         self.models = None  # type: List[ModelSpecT]
         self.bondPricingDetails = False  # type: bool
         self.bondPricingFlows = False  # type: bool
+        self.swaptionPricingDetails = False  # type: bool
+        self.swaptionPricingRebump = False  # type: bool
         self.couponPricers = None  # type: List[CouponPricerT]
 
     @classmethod
@@ -406,6 +436,8 @@ class PricingT(object):
                     self.models.append(modelSpec_)
         self.bondPricingDetails = pricing.BondPricingDetails()
         self.bondPricingFlows = pricing.BondPricingFlows()
+        self.swaptionPricingDetails = pricing.SwaptionPricingDetails()
+        self.swaptionPricingRebump = pricing.SwaptionPricingRebump()
         if not pricing.CouponPricersIsNone():
             self.couponPricers = []
             for i in range(pricing.CouponPricersLength()):
@@ -486,6 +518,8 @@ class PricingT(object):
             PricingAddModels(builder, models)
         PricingAddBondPricingDetails(builder, self.bondPricingDetails)
         PricingAddBondPricingFlows(builder, self.bondPricingFlows)
+        PricingAddSwaptionPricingDetails(builder, self.swaptionPricingDetails)
+        PricingAddSwaptionPricingRebump(builder, self.swaptionPricingRebump)
         if self.couponPricers is not None:
             PricingAddCouponPricers(builder, couponPricers)
         pricing = PricingEnd(builder)

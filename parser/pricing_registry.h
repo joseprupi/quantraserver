@@ -44,6 +44,10 @@ struct PricingRegistry {
     // Bond pricing flags
     bool bondPricingDetails = false;
     bool bondPricingFlows = false;
+
+    // Swaption analytics flag
+    bool swaptionPricingDetails = false;
+    bool swaptionPricingRebump = false;
 };
 
 /**

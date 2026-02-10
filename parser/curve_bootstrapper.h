@@ -38,7 +38,8 @@ public:
     BootstrappedCurves bootstrapAll(
         const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>* curves,
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes = nullptr,
-        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices = nullptr
+        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices = nullptr,
+        double curveBump = 0.0
     ) const;
 
     static std::vector<std::string> topoSort(

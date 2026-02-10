@@ -162,6 +162,12 @@ enum Compounding : byte {
     SimpleThenCompounded
 }
 
+// Overnight rate averaging
+enum RateAveragingType : byte {
+    Compound,
+    Simple
+}
+
 // ============================================================================
 // Product-Specific Enums
 // ============================================================================
@@ -196,6 +202,14 @@ enum ExerciseType : byte {
 enum SettlementType : byte {
     Physical,   // Deliver the swap
     Cash        // Cash settle the value
+}
+
+// Swaption settlement method (used when settlement_type = Cash)
+enum SettlementMethod : byte {
+    PhysicalOTC,
+    PhysicalCleared,
+    CollateralizedCashPrice,
+    ParYieldCurve
 }
 
 // CDS protection side

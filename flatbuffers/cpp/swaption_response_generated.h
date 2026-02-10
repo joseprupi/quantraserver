@@ -31,6 +31,9 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   double annuity = 0.0;
   double delta = 0.0;
   double vega = 0.0;
+  double gamma = 0.0;
+  double theta = 0.0;
+  double dv01 = 0.0;
 };
 
 struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -42,7 +45,10 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_ATM_FORWARD = 8,
     VT_ANNUITY = 10,
     VT_DELTA = 12,
-    VT_VEGA = 14
+    VT_VEGA = 14,
+    VT_GAMMA = 16,
+    VT_THETA = 18,
+    VT_DV01 = 20
   };
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
@@ -62,6 +68,15 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double vega() const {
     return GetField<double>(VT_VEGA, 0.0);
   }
+  double gamma() const {
+    return GetField<double>(VT_GAMMA, 0.0);
+  }
+  double theta() const {
+    return GetField<double>(VT_THETA, 0.0);
+  }
+  double dv01() const {
+    return GetField<double>(VT_DV01, 0.0);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -70,6 +85,9 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_ANNUITY, 8) &&
            VerifyField<double>(verifier, VT_DELTA, 8) &&
            VerifyField<double>(verifier, VT_VEGA, 8) &&
+           VerifyField<double>(verifier, VT_GAMMA, 8) &&
+           VerifyField<double>(verifier, VT_THETA, 8) &&
+           VerifyField<double>(verifier, VT_DV01, 8) &&
            verifier.EndTable();
   }
   SwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -99,6 +117,15 @@ struct SwaptionResponseBuilder {
   void add_vega(double vega) {
     fbb_.AddElement<double>(SwaptionResponse::VT_VEGA, vega, 0.0);
   }
+  void add_gamma(double gamma) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_GAMMA, gamma, 0.0);
+  }
+  void add_theta(double theta) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_THETA, theta, 0.0);
+  }
+  void add_dv01(double dv01) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_DV01, dv01, 0.0);
+  }
   explicit SwaptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -117,8 +144,14 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     double atm_forward = 0.0,
     double annuity = 0.0,
     double delta = 0.0,
-    double vega = 0.0) {
+    double vega = 0.0,
+    double gamma = 0.0,
+    double theta = 0.0,
+    double dv01 = 0.0) {
   SwaptionResponseBuilder builder_(_fbb);
+  builder_.add_dv01(dv01);
+  builder_.add_theta(theta);
+  builder_.add_gamma(gamma);
   builder_.add_vega(vega);
   builder_.add_delta(delta);
   builder_.add_annuity(annuity);
@@ -212,6 +245,9 @@ inline void SwaptionResponse::UnPackTo(SwaptionResponseT *_o, const ::flatbuffer
   { auto _e = annuity(); _o->annuity = _e; }
   { auto _e = delta(); _o->delta = _e; }
   { auto _e = vega(); _o->vega = _e; }
+  { auto _e = gamma(); _o->gamma = _e; }
+  { auto _e = theta(); _o->theta = _e; }
+  { auto _e = dv01(); _o->dv01 = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionResponse> SwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -228,6 +264,9 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
   auto _annuity = _o->annuity;
   auto _delta = _o->delta;
   auto _vega = _o->vega;
+  auto _gamma = _o->gamma;
+  auto _theta = _o->theta;
+  auto _dv01 = _o->dv01;
   return quantra::CreateSwaptionResponse(
       _fbb,
       _npv,
@@ -235,7 +274,10 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
       _atm_forward,
       _annuity,
       _delta,
-      _vega);
+      _vega,
+      _gamma,
+      _theta,
+      _dv01);
 }
 
 inline PriceSwaptionResponseT::PriceSwaptionResponseT(const PriceSwaptionResponseT &o) {

@@ -562,6 +562,36 @@ inline const char *EnumNameCompounding(Compounding e) {
   return EnumNamesCompounding()[index];
 }
 
+enum RateAveragingType : int8_t {
+  RateAveragingType_Compound = 0,
+  RateAveragingType_Simple = 1,
+  RateAveragingType_MIN = RateAveragingType_Compound,
+  RateAveragingType_MAX = RateAveragingType_Simple
+};
+
+inline const RateAveragingType (&EnumValuesRateAveragingType())[2] {
+  static const RateAveragingType values[] = {
+    RateAveragingType_Compound,
+    RateAveragingType_Simple
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesRateAveragingType() {
+  static const char * const names[3] = {
+    "Compound",
+    "Simple",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameRateAveragingType(RateAveragingType e) {
+  if (::flatbuffers::IsOutRange(e, RateAveragingType_Compound, RateAveragingType_Simple)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesRateAveragingType()[index];
+}
+
 enum SwapType : int8_t {
   SwapType_Payer = 0,
   SwapType_Receiver = 1,
@@ -716,6 +746,42 @@ inline const char *EnumNameSettlementType(SettlementType e) {
   if (::flatbuffers::IsOutRange(e, SettlementType_Physical, SettlementType_Cash)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSettlementType()[index];
+}
+
+enum SettlementMethod : int8_t {
+  SettlementMethod_PhysicalOTC = 0,
+  SettlementMethod_PhysicalCleared = 1,
+  SettlementMethod_CollateralizedCashPrice = 2,
+  SettlementMethod_ParYieldCurve = 3,
+  SettlementMethod_MIN = SettlementMethod_PhysicalOTC,
+  SettlementMethod_MAX = SettlementMethod_ParYieldCurve
+};
+
+inline const SettlementMethod (&EnumValuesSettlementMethod())[4] {
+  static const SettlementMethod values[] = {
+    SettlementMethod_PhysicalOTC,
+    SettlementMethod_PhysicalCleared,
+    SettlementMethod_CollateralizedCashPrice,
+    SettlementMethod_ParYieldCurve
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSettlementMethod() {
+  static const char * const names[5] = {
+    "PhysicalOTC",
+    "PhysicalCleared",
+    "CollateralizedCashPrice",
+    "ParYieldCurve",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSettlementMethod(SettlementMethod e) {
+  if (::flatbuffers::IsOutRange(e, SettlementMethod_PhysicalOTC, SettlementMethod_ParYieldCurve)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSettlementMethod()[index];
 }
 
 enum ProtectionSide : int8_t {

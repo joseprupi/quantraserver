@@ -37,6 +37,10 @@
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
     },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
     "quantra_enums_SwapType" : {
       "type" : "string",
       "enum": ["Payer", "Receiver"]
@@ -56,6 +60,10 @@
     "quantra_enums_SettlementType" : {
       "type" : "string",
       "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
     },
     "quantra_enums_ProtectionSide" : {
       "type" : "string",
@@ -83,7 +91,7 @@
     },
     "quantra_Point" : {
       "type" : "string",
-      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
     },
     "quantra_VolPayload" : {
       "type" : "string",
@@ -112,6 +120,10 @@
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_SwaptionUnderlying" : {
+      "type" : "string",
+      "enum": ["NONE", "VanillaSwap", "OisSwap"]
     },
     "quantra_Schedule" : {
       "type" : "object",
@@ -516,6 +528,41 @@
       "required" : ["start_date", "end_date", "overnight_index"],
       "additionalProperties" : false
     },
+    "quantra_ZeroRatePoint" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the zero rate (YYYY-MM-DD)"
+              },
+        "tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Alternative: tenor from reference date"
+              },
+        "tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "zero_rate" : {
+                "type" : "number",
+                "description" : "Zero rate for this maturity"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding",
+                "description" : "Compounding convention for the zero rate"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Frequency (used when compounding != Continuous)"
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_TenorBasisSwapHelper" : {
       "type" : "object",
       "properties" : {
@@ -616,7 +663,7 @@
                 "$ref" : "#/definitions/quantra_Point"
               },
         "point" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
               }
       },
       "additionalProperties" : false
@@ -924,6 +971,14 @@
                 "type" : "boolean",
                 "description" : "Include cash flow details. Used by: FixedRateBond, FloatingRateBond"
               },
+        "swaption_pricing_details" : {
+                "type" : "boolean",
+                "description" : "Include detailed swaption analytics (delta/vega/gamma/theta/DV01)."
+              },
+        "swaption_pricing_rebump" : {
+                "type" : "boolean",
+                "description" : "Include curve-rebump swaption analytics (Bloomberg-style)."
+              },
         "coupon_pricers" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
                 "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap"
@@ -1135,6 +1190,70 @@
       },
       "additionalProperties" : false
     },
+    "quantra_OisFloatingLeg" : {
+      "type" : "object",
+      "properties" : {
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule"
+              },
+        "notional" : {
+                "type" : "number"
+              },
+        "index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")"
+              },
+        "spread" : {
+                "type" : "number"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "payment_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Payment adjustments"
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Overnight accrual conventions"
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean"
+              },
+        "telescopic_value_dates" : {
+                "type" : "boolean"
+              }
+      },
+      "required" : ["index"],
+      "additionalProperties" : false
+    },
+    "quantra_OisSwap" : {
+      "type" : "object",
+      "properties" : {
+        "swap_type" : {
+                "$ref" : "#/definitions/quantra_enums_SwapType"
+              },
+        "fixed_leg" : {
+                "$ref" : "#/definitions/quantra_SwapFixedLeg"
+              },
+        "overnight_leg" : {
+                "$ref" : "#/definitions/quantra_OisFloatingLeg"
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_Swaption" : {
       "type" : "object",
       "properties" : {
@@ -1144,11 +1263,20 @@
         "settlement_type" : {
                 "$ref" : "#/definitions/quantra_enums_SettlementType"
               },
+        "settlement_method" : {
+                "$ref" : "#/definitions/quantra_enums_SettlementMethod"
+              },
         "exercise_date" : {
                 "type" : "string"
               },
         "underlying_swap" : {
                 "$ref" : "#/definitions/quantra_VanillaSwap"
+              },
+        "underlying_type" : {
+                "$ref" : "#/definitions/quantra_SwaptionUnderlying"
+              },
+        "underlying" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_VanillaSwap" },{ "$ref" : "#/definitions/quantra_OisSwap" }]
               }
       },
       "additionalProperties" : false

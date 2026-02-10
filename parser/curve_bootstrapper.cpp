@@ -175,7 +175,8 @@ std::vector<std::string> CurveBootstrapper::topoSort(
 BootstrappedCurves CurveBootstrapper::bootstrapAll(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>* curves,
     const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
-    const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices,
+    double curveBump
 ) const {
     if (!curves || curves->size() == 0) {
         QUANTRA_ERROR("curves is required (at least one curve)");
@@ -187,7 +188,11 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
             auto q = quotes->Get(i);
             if (!q->id()) QUANTRA_ERROR("QuoteSpec.id is required");
-            quoteReg.upsert(q->id()->str(), q->value(), quantra::QuoteType_Curve);
+            double v = q->value();
+            if (q->quote_type() == quantra::QuoteType_Curve) {
+                v += curveBump;
+            }
+            quoteReg.upsert(q->id()->str(), v, q->quote_type());
         }
     }
 
@@ -229,7 +234,8 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
     // Build quote/index lookup maps once (O(1) lookups during key computation)
     KeyContext keyCtx;
-    if (cache.enabled()) {
+    bool useCache = cache.enabled() && curveBump == 0.0;
+    if (useCache) {
         keyCtx = KeyContext::build(quotes, indices);
     }
 
@@ -242,7 +248,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
         const auto* ts = it->second;
 
-        if (cache.enabled()) {
+        if (useCache) {
             auto t0 = std::chrono::steady_clock::now();
 
             // Compute canonical cache key
@@ -294,7 +300,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             // --- Full bootstrap (cache miss) ---
             auto tBootStart = std::chrono::steady_clock::now();
-            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
             auto tBootEnd = std::chrono::steady_clock::now();
             double bootMs = std::chrono::duration<double, std::milli>(tBootEnd - tBootStart).count();
 
@@ -313,7 +319,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             depKeys[id] = key;
         } else {
             // Cache disabled — original behavior
-            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg);
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
             out.handles.at(id)->linkTo(curve);
         }
     }

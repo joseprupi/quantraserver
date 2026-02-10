@@ -11,9 +11,10 @@ class Point(object):
     BondHelper = 5
     OISHelper = 6
     DatedOISHelper = 7
-    TenorBasisSwapHelper = 8
-    FxSwapHelper = 9
-    CrossCcyBasisHelper = 10
+    ZeroRatePoint = 8
+    TenorBasisSwapHelper = 9
+    FxSwapHelper = 10
+    CrossCcyBasisHelper = 11
 
 def PointCreator(unionType, table):
     from flatbuffers.table import Table
@@ -33,6 +34,8 @@ def PointCreator(unionType, table):
         return OISHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.DatedOISHelper:
         return DatedOISHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.ZeroRatePoint:
+        return ZeroRatePointT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.TenorBasisSwapHelper:
         return TenorBasisSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.FxSwapHelper:

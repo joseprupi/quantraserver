@@ -1,0 +1,38 @@
+include "enums.fbs";
+include "schedule.fbs";
+include "index.fbs";
+include "vanilla_swap.fbs";
+
+namespace quantra;
+
+// Floating leg for OIS swaps (compounded overnight)
+table OisFloatingLeg {
+    schedule:Schedule;
+    notional:double;
+
+    /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+    index:IndexRef (required);
+
+    spread:double = 0.0;
+    day_counter:enums.DayCounter = Actual360;
+    payment_convention:enums.BusinessDayConvention = Following;
+
+    /// Payment adjustments
+    payment_calendar:enums.Calendar = TARGET;
+    payment_lag:int = 0;
+
+    /// Overnight accrual conventions
+    averaging_method:enums.RateAveragingType = Compound;
+    lookback_days:int = -1;
+    lockout_days:int = 0;
+    apply_observation_shift:bool = false;
+    telescopic_value_dates:bool = false;
+}
+
+// Overnight indexed swap: fixed vs compounded overnight
+table OisSwap {
+    swap_type:enums.SwapType;
+    fixed_leg:SwapFixedLeg;
+    overnight_leg:OisFloatingLeg;
+}
+

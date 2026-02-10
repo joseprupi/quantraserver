@@ -39,15 +39,22 @@ class Swaption(object):
         return 0
 
     # Swaption
-    def ExerciseDate(self):
+    def SettlementMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # Swaption
+    def ExerciseDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
     # Swaption
     def UnderlyingSwap(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.VanillaSwap import VanillaSwap
@@ -56,8 +63,25 @@ class Swaption(object):
             return obj
         return None
 
+    # Swaption
+    def UnderlyingType(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
+        return 0
+
+    # Swaption
+    def Underlying(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            from flatbuffers.table import Table
+            obj = Table(bytearray(), 0)
+            self._tab.Union(obj, o)
+            return obj
+        return None
+
 def SwaptionStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(7)
 
 def Start(builder):
     SwaptionStart(builder)
@@ -74,17 +98,35 @@ def SwaptionAddSettlementType(builder, settlementType):
 def AddSettlementType(builder, settlementType):
     SwaptionAddSettlementType(builder, settlementType)
 
+def SwaptionAddSettlementMethod(builder, settlementMethod):
+    builder.PrependInt8Slot(2, settlementMethod, 0)
+
+def AddSettlementMethod(builder, settlementMethod):
+    SwaptionAddSettlementMethod(builder, settlementMethod)
+
 def SwaptionAddExerciseDate(builder, exerciseDate):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(exerciseDate), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(exerciseDate), 0)
 
 def AddExerciseDate(builder, exerciseDate):
     SwaptionAddExerciseDate(builder, exerciseDate)
 
 def SwaptionAddUnderlyingSwap(builder, underlyingSwap):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingSwap), 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingSwap), 0)
 
 def AddUnderlyingSwap(builder, underlyingSwap):
     SwaptionAddUnderlyingSwap(builder, underlyingSwap)
+
+def SwaptionAddUnderlyingType(builder, underlyingType):
+    builder.PrependUint8Slot(5, underlyingType, 0)
+
+def AddUnderlyingType(builder, underlyingType):
+    SwaptionAddUnderlyingType(builder, underlyingType)
+
+def SwaptionAddUnderlying(builder, underlying):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(underlying), 0)
+
+def AddUnderlying(builder, underlying):
+    SwaptionAddUnderlying(builder, underlying)
 
 def SwaptionEnd(builder):
     return builder.EndObject()
@@ -93,7 +135,7 @@ def End(builder):
     return SwaptionEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import Optional, Union
 except:
     pass
 
@@ -103,8 +145,11 @@ class SwaptionT(object):
     def __init__(self):
         self.exerciseType = 0  # type: int
         self.settlementType = 0  # type: int
+        self.settlementMethod = 0  # type: int
         self.exerciseDate = None  # type: str
         self.underlyingSwap = None  # type: Optional[VanillaSwapT]
+        self.underlyingType = 0  # type: int
+        self.underlying = None  # type: Union[None, VanillaSwapT, OisSwapT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -129,9 +174,12 @@ class SwaptionT(object):
             return
         self.exerciseType = swaption.ExerciseType()
         self.settlementType = swaption.SettlementType()
+        self.settlementMethod = swaption.SettlementMethod()
         self.exerciseDate = swaption.ExerciseDate()
         if swaption.UnderlyingSwap() is not None:
             self.underlyingSwap = VanillaSwapT.InitFromObj(swaption.UnderlyingSwap())
+        self.underlyingType = swaption.UnderlyingType()
+        self.underlying = SwaptionUnderlyingCreator(self.underlyingType, swaption.Underlying())
 
     # SwaptionT
     def Pack(self, builder):
@@ -139,12 +187,18 @@ class SwaptionT(object):
             exerciseDate = builder.CreateString(self.exerciseDate)
         if self.underlyingSwap is not None:
             underlyingSwap = self.underlyingSwap.Pack(builder)
+        if self.underlying is not None:
+            underlying = self.underlying.Pack(builder)
         SwaptionStart(builder)
         SwaptionAddExerciseType(builder, self.exerciseType)
         SwaptionAddSettlementType(builder, self.settlementType)
+        SwaptionAddSettlementMethod(builder, self.settlementMethod)
         if self.exerciseDate is not None:
             SwaptionAddExerciseDate(builder, exerciseDate)
         if self.underlyingSwap is not None:
             SwaptionAddUnderlyingSwap(builder, underlyingSwap)
+        SwaptionAddUnderlyingType(builder, self.underlyingType)
+        if self.underlying is not None:
+            SwaptionAddUnderlying(builder, underlying)
         swaption = SwaptionEnd(builder)
         return swaption

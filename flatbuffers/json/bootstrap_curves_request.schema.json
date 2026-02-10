@@ -37,6 +37,10 @@
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
     },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
     "quantra_enums_SwapType" : {
       "type" : "string",
       "enum": ["Payer", "Receiver"]
@@ -56,6 +60,10 @@
     "quantra_enums_SettlementType" : {
       "type" : "string",
       "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
     },
     "quantra_enums_ProtectionSide" : {
       "type" : "string",
@@ -83,7 +91,7 @@
     },
     "quantra_Point" : {
       "type" : "string",
-      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
     },
     "quantra_CurveMeasure" : {
       "type" : "string",
@@ -500,6 +508,41 @@
       "required" : ["start_date", "end_date", "overnight_index"],
       "additionalProperties" : false
     },
+    "quantra_ZeroRatePoint" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the zero rate (YYYY-MM-DD)"
+              },
+        "tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Alternative: tenor from reference date"
+              },
+        "tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "zero_rate" : {
+                "type" : "number",
+                "description" : "Zero rate for this maturity"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding",
+                "description" : "Compounding convention for the zero rate"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Frequency (used when compounding != Continuous)"
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_TenorBasisSwapHelper" : {
       "type" : "object",
       "properties" : {
@@ -600,7 +643,7 @@
                 "$ref" : "#/definitions/quantra_Point"
               },
         "point" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
               }
       },
       "additionalProperties" : false

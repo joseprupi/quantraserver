@@ -37,6 +37,10 @@
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
     },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
     "quantra_enums_SwapType" : {
       "type" : "string",
       "enum": ["Payer", "Receiver"]
@@ -56,6 +60,10 @@
     "quantra_enums_SettlementType" : {
       "type" : "string",
       "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
     },
     "quantra_enums_ProtectionSide" : {
       "type" : "string",

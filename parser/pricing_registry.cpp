@@ -138,6 +138,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
     reg.bondPricingDetails = pricing->bond_pricing_details();
     reg.bondPricingFlows = pricing->bond_pricing_flows();
+    reg.swaptionPricingDetails = pricing->swaption_pricing_details();
+    reg.swaptionPricingRebump = pricing->swaption_pricing_rebump();
 
     return reg;
 }

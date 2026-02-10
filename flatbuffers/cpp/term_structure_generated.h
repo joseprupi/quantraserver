@@ -55,6 +55,10 @@ struct DatedOISHelper;
 struct DatedOISHelperBuilder;
 struct DatedOISHelperT;
 
+struct ZeroRatePoint;
+struct ZeroRatePointBuilder;
+struct ZeroRatePointT;
+
 struct TenorBasisSwapHelper;
 struct TenorBasisSwapHelperBuilder;
 struct TenorBasisSwapHelperT;
@@ -84,14 +88,15 @@ enum Point : uint8_t {
   Point_BondHelper = 5,
   Point_OISHelper = 6,
   Point_DatedOISHelper = 7,
-  Point_TenorBasisSwapHelper = 8,
-  Point_FxSwapHelper = 9,
-  Point_CrossCcyBasisHelper = 10,
+  Point_ZeroRatePoint = 8,
+  Point_TenorBasisSwapHelper = 9,
+  Point_FxSwapHelper = 10,
+  Point_CrossCcyBasisHelper = 11,
   Point_MIN = Point_NONE,
   Point_MAX = Point_CrossCcyBasisHelper
 };
 
-inline const Point (&EnumValuesPoint())[11] {
+inline const Point (&EnumValuesPoint())[12] {
   static const Point values[] = {
     Point_NONE,
     Point_DepositHelper,
@@ -101,6 +106,7 @@ inline const Point (&EnumValuesPoint())[11] {
     Point_BondHelper,
     Point_OISHelper,
     Point_DatedOISHelper,
+    Point_ZeroRatePoint,
     Point_TenorBasisSwapHelper,
     Point_FxSwapHelper,
     Point_CrossCcyBasisHelper
@@ -109,7 +115,7 @@ inline const Point (&EnumValuesPoint())[11] {
 }
 
 inline const char * const *EnumNamesPoint() {
-  static const char * const names[12] = {
+  static const char * const names[13] = {
     "NONE",
     "DepositHelper",
     "FRAHelper",
@@ -118,6 +124,7 @@ inline const char * const *EnumNamesPoint() {
     "BondHelper",
     "OISHelper",
     "DatedOISHelper",
+    "ZeroRatePoint",
     "TenorBasisSwapHelper",
     "FxSwapHelper",
     "CrossCcyBasisHelper",
@@ -164,6 +171,10 @@ template<> struct PointTraits<quantra::DatedOISHelper> {
   static const Point enum_value = Point_DatedOISHelper;
 };
 
+template<> struct PointTraits<quantra::ZeroRatePoint> {
+  static const Point enum_value = Point_ZeroRatePoint;
+};
+
 template<> struct PointTraits<quantra::TenorBasisSwapHelper> {
   static const Point enum_value = Point_TenorBasisSwapHelper;
 };
@@ -206,6 +217,10 @@ template<> struct PointUnionTraits<quantra::OISHelperT> {
 
 template<> struct PointUnionTraits<quantra::DatedOISHelperT> {
   static const Point enum_value = Point_DatedOISHelper;
+};
+
+template<> struct PointUnionTraits<quantra::ZeroRatePointT> {
+  static const Point enum_value = Point_ZeroRatePoint;
 };
 
 template<> struct PointUnionTraits<quantra::TenorBasisSwapHelperT> {
@@ -305,6 +320,14 @@ struct PointUnion {
   const quantra::DatedOISHelperT *AsDatedOISHelper() const {
     return type == Point_DatedOISHelper ?
       reinterpret_cast<const quantra::DatedOISHelperT *>(value) : nullptr;
+  }
+  quantra::ZeroRatePointT *AsZeroRatePoint() {
+    return type == Point_ZeroRatePoint ?
+      reinterpret_cast<quantra::ZeroRatePointT *>(value) : nullptr;
+  }
+  const quantra::ZeroRatePointT *AsZeroRatePoint() const {
+    return type == Point_ZeroRatePoint ?
+      reinterpret_cast<const quantra::ZeroRatePointT *>(value) : nullptr;
   }
   quantra::TenorBasisSwapHelperT *AsTenorBasisSwapHelper() {
     return type == Point_TenorBasisSwapHelper ?
@@ -1809,6 +1832,164 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
 
 ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers::FlatBufferBuilder &_fbb, const DatedOISHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct ZeroRatePointT : public ::flatbuffers::NativeTable {
+  typedef ZeroRatePoint TableType;
+  std::string date{};
+  int32_t tenor_number = 0;
+  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  double zero_rate = 0.0;
+  quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous;
+  quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
+};
+
+struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ZeroRatePointT NativeTableType;
+  typedef ZeroRatePointBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DATE = 4,
+    VT_TENOR_NUMBER = 6,
+    VT_TENOR_TIME_UNIT = 8,
+    VT_CALENDAR = 10,
+    VT_BUSINESS_DAY_CONVENTION = 12,
+    VT_ZERO_RATE = 14,
+    VT_COMPOUNDING = 16,
+    VT_FREQUENCY = 18
+  };
+  /// Maturity date for the zero rate (YYYY-MM-DD)
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  /// Alternative: tenor from reference date
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  }
+  /// Zero rate for this maturity
+  double zero_rate() const {
+    return GetField<double>(VT_ZERO_RATE, 0.0);
+  }
+  /// Compounding convention for the zero rate
+  quantra::enums::Compounding compounding() const {
+    return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 1));
+  }
+  /// Frequency (used when compounding != Continuous)
+  quantra::enums::Frequency frequency() const {
+    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_ZERO_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_COMPOUNDING, 1) &&
+           VerifyField<int8_t>(verifier, VT_FREQUENCY, 1) &&
+           verifier.EndTable();
+  }
+  ZeroRatePointT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ZeroRatePointT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<ZeroRatePoint> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroRatePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ZeroRatePointBuilder {
+  typedef ZeroRatePoint Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(ZeroRatePoint::VT_DATE, date);
+  }
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(ZeroRatePoint::VT_TENOR_NUMBER, tenor_number, 0);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+  }
+  void add_zero_rate(double zero_rate) {
+    fbb_.AddElement<double>(ZeroRatePoint::VT_ZERO_RATE, zero_rate, 0.0);
+  }
+  void add_compounding(quantra::enums::Compounding compounding) {
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_COMPOUNDING, static_cast<int8_t>(compounding), 1);
+  }
+  void add_frequency(quantra::enums::Frequency frequency) {
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_FREQUENCY, static_cast<int8_t>(frequency), 0);
+  }
+  explicit ZeroRatePointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ZeroRatePoint> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ZeroRatePoint>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    int32_t tenor_number = 0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    double zero_rate = 0.0,
+    quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
+    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
+  ZeroRatePointBuilder builder_(_fbb);
+  builder_.add_zero_rate(zero_rate);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_date(date);
+  builder_.add_frequency(frequency);
+  builder_.add_compounding(compounding);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *date = nullptr,
+    int32_t tenor_number = 0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    double zero_rate = 0.0,
+    quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
+    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateZeroRatePoint(
+      _fbb,
+      date__,
+      tenor_number,
+      tenor_time_unit,
+      calendar,
+      business_day_convention,
+      zero_rate,
+      compounding,
+      frequency);
+}
+
+::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroRatePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   typedef TenorBasisSwapHelper TableType;
   double spread = 0.0;
@@ -2322,6 +2503,9 @@ struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::DatedOISHelper *point_as_DatedOISHelper() const {
     return point_type() == quantra::Point_DatedOISHelper ? static_cast<const quantra::DatedOISHelper *>(point()) : nullptr;
   }
+  const quantra::ZeroRatePoint *point_as_ZeroRatePoint() const {
+    return point_type() == quantra::Point_ZeroRatePoint ? static_cast<const quantra::ZeroRatePoint *>(point()) : nullptr;
+  }
   const quantra::TenorBasisSwapHelper *point_as_TenorBasisSwapHelper() const {
     return point_type() == quantra::Point_TenorBasisSwapHelper ? static_cast<const quantra::TenorBasisSwapHelper *>(point()) : nullptr;
   }
@@ -2369,6 +2553,10 @@ template<> inline const quantra::OISHelper *PointsWrapper::point_as<quantra::OIS
 
 template<> inline const quantra::DatedOISHelper *PointsWrapper::point_as<quantra::DatedOISHelper>() const {
   return point_as_DatedOISHelper();
+}
+
+template<> inline const quantra::ZeroRatePoint *PointsWrapper::point_as<quantra::ZeroRatePoint>() const {
+  return point_as_ZeroRatePoint();
 }
 
 template<> inline const quantra::TenorBasisSwapHelper *PointsWrapper::point_as<quantra::TenorBasisSwapHelper>() const {
@@ -3112,6 +3300,53 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
       _quote_id);
 }
 
+inline ZeroRatePointT *ZeroRatePoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ZeroRatePointT>(new ZeroRatePointT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void ZeroRatePoint::UnPackTo(ZeroRatePointT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = tenor_number(); _o->tenor_number = _e; }
+  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = zero_rate(); _o->zero_rate = _e; }
+  { auto _e = compounding(); _o->compounding = _e; }
+  { auto _e = frequency(); _o->frequency = _e; }
+}
+
+inline ::flatbuffers::Offset<ZeroRatePoint> ZeroRatePoint::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroRatePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateZeroRatePoint(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroRatePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ZeroRatePointT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  auto _tenor_number = _o->tenor_number;
+  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _zero_rate = _o->zero_rate;
+  auto _compounding = _o->compounding;
+  auto _frequency = _o->frequency;
+  return quantra::CreateZeroRatePoint(
+      _fbb,
+      _date,
+      _tenor_number,
+      _tenor_time_unit,
+      _calendar,
+      _business_day_convention,
+      _zero_rate,
+      _compounding,
+      _frequency);
+}
+
 inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT &o)
       : spread(o.spread),
         tenor_number(o.tenor_number),
@@ -3440,6 +3675,10 @@ inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Poin
       auto ptr = reinterpret_cast<const quantra::DatedOISHelper *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case Point_ZeroRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ZeroRatePoint *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     case Point_TenorBasisSwapHelper: {
       auto ptr = reinterpret_cast<const quantra::TenorBasisSwapHelper *>(obj);
       return verifier.VerifyTable(ptr);
@@ -3499,6 +3738,10 @@ inline void *PointUnion::UnPack(const void *obj, Point type, const ::flatbuffers
       auto ptr = reinterpret_cast<const quantra::DatedOISHelper *>(obj);
       return ptr->UnPack(resolver);
     }
+    case Point_ZeroRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ZeroRatePoint *>(obj);
+      return ptr->UnPack(resolver);
+    }
     case Point_TenorBasisSwapHelper: {
       auto ptr = reinterpret_cast<const quantra::TenorBasisSwapHelper *>(obj);
       return ptr->UnPack(resolver);
@@ -3546,6 +3789,10 @@ inline ::flatbuffers::Offset<void> PointUnion::Pack(::flatbuffers::FlatBufferBui
       auto ptr = reinterpret_cast<const quantra::DatedOISHelperT *>(value);
       return CreateDatedOISHelper(_fbb, ptr, _rehasher).Union();
     }
+    case Point_ZeroRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ZeroRatePointT *>(value);
+      return CreateZeroRatePoint(_fbb, ptr, _rehasher).Union();
+    }
     case Point_TenorBasisSwapHelper: {
       auto ptr = reinterpret_cast<const quantra::TenorBasisSwapHelperT *>(value);
       return CreateTenorBasisSwapHelper(_fbb, ptr, _rehasher).Union();
@@ -3590,6 +3837,10 @@ inline PointUnion::PointUnion(const PointUnion &u) : type(u.type), value(nullptr
     }
     case Point_DatedOISHelper: {
       value = new quantra::DatedOISHelperT(*reinterpret_cast<quantra::DatedOISHelperT *>(u.value));
+      break;
+    }
+    case Point_ZeroRatePoint: {
+      value = new quantra::ZeroRatePointT(*reinterpret_cast<quantra::ZeroRatePointT *>(u.value));
       break;
     }
     case Point_TenorBasisSwapHelper: {
@@ -3643,6 +3894,11 @@ inline void PointUnion::Reset() {
     }
     case Point_DatedOISHelper: {
       auto ptr = reinterpret_cast<quantra::DatedOISHelperT *>(value);
+      delete ptr;
+      break;
+    }
+    case Point_ZeroRatePoint: {
+      auto ptr = reinterpret_cast<quantra::ZeroRatePointT *>(value);
       delete ptr;
       break;
     }

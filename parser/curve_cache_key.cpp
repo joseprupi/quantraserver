@@ -231,6 +231,19 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         break;
     }
 
+    case quantra::Point_ZeroRatePoint: {
+        auto p = pw->point_as_ZeroRatePoint();
+        buf.writeFbString(p->date());
+        buf.writeDouble(p->zero_rate());
+        buf.writeI32(p->tenor_number());
+        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeU8(static_cast<uint8_t>(p->calendar()));
+        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
+        buf.writeU8(static_cast<uint8_t>(p->compounding()));
+        buf.writeU8(static_cast<uint8_t>(p->frequency()));
+        break;
+    }
+
     case quantra::Point_TenorBasisSwapHelper: {
         auto p = pw->point_as_TenorBasisSwapHelper();
         buf.writeDouble(resolveQuoteValue(p->spread(), p->quote_id(), ctx));

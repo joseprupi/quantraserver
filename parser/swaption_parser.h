@@ -7,6 +7,7 @@
 
 #include "swaption_generated.h"
 #include "vanilla_swap_parser.h"
+#include "ois_swap_parser.h"
 #include "enums.h"
 #include "common.h"
 #include "index_registry.h"
