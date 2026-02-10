@@ -13,6 +13,7 @@
 #include "index_registry_builder.h"
 #include "enums.h"
 #include "common.h"
+#include "quote_registry.h"
 
 namespace quantra {
 
@@ -36,6 +37,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Parse Quotes (optional)
     // ==========================================================================
+    QuoteRegistry quoteRegistry;
     if (pricing->quotes()) {
         for (auto it = pricing->quotes()->begin(); it != pricing->quotes()->end(); ++it) {
             if (!it->id()) {
@@ -44,6 +46,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             std::string id = it->id()->str();
             auto sq = std::make_shared<QuantLib::SimpleQuote>(it->value());
             reg.quotes.emplace(id, QuantLib::Handle<QuantLib::Quote>(sq));
+            quoteRegistry.upsert(id, it->value(), it->quote_type());
         }
     }
 
@@ -85,15 +88,15 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
             switch (spec->payload_type()) {
                 case quantra::VolPayload_OptionletVolSpec:
-                    reg.optionletVols.emplace(id, parseOptionletVol(spec));
+                    reg.optionletVols.emplace(id, parseOptionletVol(spec, &quoteRegistry));
                     break;
                     
                 case quantra::VolPayload_SwaptionVolSpec:
-                    reg.swaptionVols.emplace(id, parseSwaptionVol(spec));
+                    reg.swaptionVols.emplace(id, parseSwaptionVol(spec, &quoteRegistry));
                     break;
                     
                 case quantra::VolPayload_BlackVolSpec:
-                    reg.blackVols.emplace(id, parseBlackVol(spec));
+                    reg.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry));
                     break;
                     
                 case quantra::VolPayload_NONE:

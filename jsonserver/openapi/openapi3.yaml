@@ -1203,6 +1203,11 @@ components:
       - FuturesPrice
       - FxSpot
       - FxPoints
+    quantra_QuoteType:
+      type: string
+      enum:
+      - Curve
+      - Volatility
     quantra_ModelPayload:
       type: string
       enum:
@@ -1236,6 +1241,8 @@ components:
           type: number
         constant_vol:
           type: number
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_BlackVolBaseSpec:
       type: object
@@ -1252,6 +1259,8 @@ components:
           $ref: '#/components/schemas/quantra_enums_VolSurfaceShape'
         constant_vol:
           type: number
+        quote_id:
+          type: string
       additionalProperties: false
     quantra_OptionletVolSpec:
       type: object
@@ -1338,6 +1347,8 @@ components:
           $ref: '#/components/schemas/quantra_QuoteKind'
         value:
           type: number
+        quote_type:
+          $ref: '#/components/schemas/quantra_QuoteType'
       required:
       - id
       additionalProperties: false

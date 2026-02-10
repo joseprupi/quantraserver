@@ -64,11 +64,43 @@ inline const char *EnumNameQuoteKind(QuoteKind e) {
   return EnumNamesQuoteKind()[index];
 }
 
+/// High-level quote type (usage)
+enum QuoteType : int8_t {
+  QuoteType_Curve = 0,
+  QuoteType_Volatility = 1,
+  QuoteType_MIN = QuoteType_Curve,
+  QuoteType_MAX = QuoteType_Volatility
+};
+
+inline const QuoteType (&EnumValuesQuoteType())[2] {
+  static const QuoteType values[] = {
+    QuoteType_Curve,
+    QuoteType_Volatility
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesQuoteType() {
+  static const char * const names[3] = {
+    "Curve",
+    "Volatility",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameQuoteType(QuoteType e) {
+  if (::flatbuffers::IsOutRange(e, QuoteType_Curve, QuoteType_Volatility)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesQuoteType()[index];
+}
+
 struct QuoteSpecT : public ::flatbuffers::NativeTable {
   typedef QuoteSpec TableType;
   std::string id{};
   quantra::QuoteKind kind = quantra::QuoteKind_Rate;
   double value = 0.0;
+  quantra::QuoteType quote_type = quantra::QuoteType_Curve;
 };
 
 /// Market quote (spot price, FX rate, etc.)
@@ -79,7 +111,8 @@ struct QuoteSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
     VT_KIND = 6,
-    VT_VALUE = 8
+    VT_VALUE = 8,
+    VT_QUOTE_TYPE = 10
   };
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
@@ -90,12 +123,16 @@ struct QuoteSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double value() const {
     return GetField<double>(VT_VALUE, 0.0);
   }
+  quantra::QuoteType quote_type() const {
+    return static_cast<quantra::QuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
            verifier.VerifyString(id()) &&
            VerifyField<int8_t>(verifier, VT_KIND, 1) &&
            VerifyField<double>(verifier, VT_VALUE, 8) &&
+           VerifyField<int8_t>(verifier, VT_QUOTE_TYPE, 1) &&
            verifier.EndTable();
   }
   QuoteSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -116,6 +153,9 @@ struct QuoteSpecBuilder {
   void add_value(double value) {
     fbb_.AddElement<double>(QuoteSpec::VT_VALUE, value, 0.0);
   }
+  void add_quote_type(quantra::QuoteType quote_type) {
+    fbb_.AddElement<int8_t>(QuoteSpec::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type), 0);
+  }
   explicit QuoteSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -132,10 +172,12 @@ inline ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     quantra::QuoteKind kind = quantra::QuoteKind_Rate,
-    double value = 0.0) {
+    double value = 0.0,
+    quantra::QuoteType quote_type = quantra::QuoteType_Curve) {
   QuoteSpecBuilder builder_(_fbb);
   builder_.add_value(value);
   builder_.add_id(id);
+  builder_.add_quote_type(quote_type);
   builder_.add_kind(kind);
   return builder_.Finish();
 }
@@ -144,13 +186,15 @@ inline ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     quantra::QuoteKind kind = quantra::QuoteKind_Rate,
-    double value = 0.0) {
+    double value = 0.0,
+    quantra::QuoteType quote_type = quantra::QuoteType_Curve) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   return quantra::CreateQuoteSpec(
       _fbb,
       id__,
       kind,
-      value);
+      value,
+      quote_type);
 }
 
 ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpec(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -167,6 +211,7 @@ inline void QuoteSpec::UnPackTo(QuoteSpecT *_o, const ::flatbuffers::resolver_fu
   { auto _e = id(); if (_e) _o->id = _e->str(); }
   { auto _e = kind(); _o->kind = _e; }
   { auto _e = value(); _o->value = _e; }
+  { auto _e = quote_type(); _o->quote_type = _e; }
 }
 
 inline ::flatbuffers::Offset<QuoteSpec> QuoteSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -180,11 +225,13 @@ inline ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpec(::flatbuffers::FlatBuffe
   auto _id = _fbb.CreateString(_o->id);
   auto _kind = _o->kind;
   auto _value = _o->value;
+  auto _quote_type = _o->quote_type;
   return quantra::CreateQuoteSpec(
       _fbb,
       _id,
       _kind,
-      _value);
+      _value,
+      _quote_type);
 }
 
 }  // namespace quantra

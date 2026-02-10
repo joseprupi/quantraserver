@@ -47,8 +47,15 @@ class QuoteSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # QuoteSpec
+    def QuoteType(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
 def QuoteSpecStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     QuoteSpecStart(builder)
@@ -71,6 +78,12 @@ def QuoteSpecAddValue(builder, value):
 def AddValue(builder, value):
     QuoteSpecAddValue(builder, value)
 
+def QuoteSpecAddQuoteType(builder, quoteType):
+    builder.PrependInt8Slot(3, quoteType, 0)
+
+def AddQuoteType(builder, quoteType):
+    QuoteSpecAddQuoteType(builder, quoteType)
+
 def QuoteSpecEnd(builder):
     return builder.EndObject()
 
@@ -85,6 +98,7 @@ class QuoteSpecT(object):
         self.id = None  # type: str
         self.kind = 0  # type: int
         self.value = 0.0  # type: float
+        self.quoteType = 0  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -110,6 +124,7 @@ class QuoteSpecT(object):
         self.id = quoteSpec.Id()
         self.kind = quoteSpec.Kind()
         self.value = quoteSpec.Value()
+        self.quoteType = quoteSpec.QuoteType()
 
     # QuoteSpecT
     def Pack(self, builder):
@@ -120,5 +135,6 @@ class QuoteSpecT(object):
             QuoteSpecAddId(builder, id)
         QuoteSpecAddKind(builder, self.kind)
         QuoteSpecAddValue(builder, self.value)
+        QuoteSpecAddQuoteType(builder, self.quoteType)
         quoteSpec = QuoteSpecEnd(builder)
         return quoteSpec

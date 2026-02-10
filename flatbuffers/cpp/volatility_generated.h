@@ -179,6 +179,7 @@ struct IrVolBaseSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal;
   double displacement = 0.0;
   double constant_vol = 0.0;
+  std::string quote_id{};
 };
 
 struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -192,7 +193,8 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_SHAPE = 12,
     VT_VOLATILITY_TYPE = 14,
     VT_DISPLACEMENT = 16,
-    VT_CONSTANT_VOL = 18
+    VT_CONSTANT_VOL = 18,
+    VT_QUOTE_ID = 20
   };
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
@@ -218,6 +220,9 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double constant_vol() const {
     return GetField<double>(VT_CONSTANT_VOL, 0.0);
   }
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_REFERENCE_DATE) &&
@@ -229,6 +234,8 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_VOLATILITY_TYPE, 1) &&
            VerifyField<double>(verifier, VT_DISPLACEMENT, 8) &&
            VerifyField<double>(verifier, VT_CONSTANT_VOL, 8) &&
+           VerifyOffset(verifier, VT_QUOTE_ID) &&
+           verifier.VerifyString(quote_id()) &&
            verifier.EndTable();
   }
   IrVolBaseSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -264,6 +271,9 @@ struct IrVolBaseSpecBuilder {
   void add_constant_vol(double constant_vol) {
     fbb_.AddElement<double>(IrVolBaseSpec::VT_CONSTANT_VOL, constant_vol, 0.0);
   }
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(IrVolBaseSpec::VT_QUOTE_ID, quote_id);
+  }
   explicit IrVolBaseSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -284,10 +294,12 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
     double displacement = 0.0,
-    double constant_vol = 0.0) {
+    double constant_vol = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   IrVolBaseSpecBuilder builder_(_fbb);
   builder_.add_constant_vol(constant_vol);
   builder_.add_displacement(displacement);
+  builder_.add_quote_id(quote_id);
   builder_.add_reference_date(reference_date);
   builder_.add_volatility_type(volatility_type);
   builder_.add_shape(shape);
@@ -306,8 +318,10 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpecDirect(
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
     double displacement = 0.0,
-    double constant_vol = 0.0) {
+    double constant_vol = 0.0,
+    const char *quote_id = nullptr) {
   auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
+  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   return quantra::CreateIrVolBaseSpec(
       _fbb,
       reference_date__,
@@ -317,7 +331,8 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpecDirect(
       shape,
       volatility_type,
       displacement,
-      constant_vol);
+      constant_vol,
+      quote_id__);
 }
 
 ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(::flatbuffers::FlatBufferBuilder &_fbb, const IrVolBaseSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -330,6 +345,7 @@ struct BlackVolBaseSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
   quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant;
   double constant_vol = 0.0;
+  std::string quote_id{};
 };
 
 struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -341,7 +357,8 @@ struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_BUSINESS_DAY_CONVENTION = 8,
     VT_DAY_COUNTER = 10,
     VT_SHAPE = 12,
-    VT_CONSTANT_VOL = 14
+    VT_CONSTANT_VOL = 14,
+    VT_QUOTE_ID = 16
   };
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
@@ -361,6 +378,9 @@ struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double constant_vol() const {
     return GetField<double>(VT_CONSTANT_VOL, 0.0);
   }
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_REFERENCE_DATE) &&
@@ -370,6 +390,8 @@ struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_SHAPE, 1) &&
            VerifyField<double>(verifier, VT_CONSTANT_VOL, 8) &&
+           VerifyOffset(verifier, VT_QUOTE_ID) &&
+           verifier.VerifyString(quote_id()) &&
            verifier.EndTable();
   }
   BlackVolBaseSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -399,6 +421,9 @@ struct BlackVolBaseSpecBuilder {
   void add_constant_vol(double constant_vol) {
     fbb_.AddElement<double>(BlackVolBaseSpec::VT_CONSTANT_VOL, constant_vol, 0.0);
   }
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(BlackVolBaseSpec::VT_QUOTE_ID, quote_id);
+  }
   explicit BlackVolBaseSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -417,9 +442,11 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
-    double constant_vol = 0.0) {
+    double constant_vol = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   BlackVolBaseSpecBuilder builder_(_fbb);
   builder_.add_constant_vol(constant_vol);
+  builder_.add_quote_id(quote_id);
   builder_.add_reference_date(reference_date);
   builder_.add_shape(shape);
   builder_.add_day_counter(day_counter);
@@ -435,8 +462,10 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpecDirect(
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
-    double constant_vol = 0.0) {
+    double constant_vol = 0.0,
+    const char *quote_id = nullptr) {
   auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
+  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   return quantra::CreateBlackVolBaseSpec(
       _fbb,
       reference_date__,
@@ -444,7 +473,8 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpecDirect(
       business_day_convention,
       day_counter,
       shape,
-      constant_vol);
+      constant_vol,
+      quote_id__);
 }
 
 ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolBaseSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -752,6 +782,7 @@ inline void IrVolBaseSpec::UnPackTo(IrVolBaseSpecT *_o, const ::flatbuffers::res
   { auto _e = volatility_type(); _o->volatility_type = _e; }
   { auto _e = displacement(); _o->displacement = _e; }
   { auto _e = constant_vol(); _o->constant_vol = _e; }
+  { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<IrVolBaseSpec> IrVolBaseSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IrVolBaseSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -770,6 +801,7 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(::flatbuffers::F
   auto _volatility_type = _o->volatility_type;
   auto _displacement = _o->displacement;
   auto _constant_vol = _o->constant_vol;
+  auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateIrVolBaseSpec(
       _fbb,
       _reference_date,
@@ -779,7 +811,8 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(::flatbuffers::F
       _shape,
       _volatility_type,
       _displacement,
-      _constant_vol);
+      _constant_vol,
+      _quote_id);
 }
 
 inline BlackVolBaseSpecT *BlackVolBaseSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -797,6 +830,7 @@ inline void BlackVolBaseSpec::UnPackTo(BlackVolBaseSpecT *_o, const ::flatbuffer
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = shape(); _o->shape = _e; }
   { auto _e = constant_vol(); _o->constant_vol = _e; }
+  { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<BlackVolBaseSpec> BlackVolBaseSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolBaseSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -813,6 +847,7 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(::flatbuff
   auto _day_counter = _o->day_counter;
   auto _shape = _o->shape;
   auto _constant_vol = _o->constant_vol;
+  auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateBlackVolBaseSpec(
       _fbb,
       _reference_date,
@@ -820,7 +855,8 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(::flatbuff
       _business_day_convention,
       _day_counter,
       _shape,
-      _constant_vol);
+      _constant_vol,
+      _quote_id);
 }
 
 inline OptionletVolSpecT::OptionletVolSpecT(const OptionletVolSpecT &o)

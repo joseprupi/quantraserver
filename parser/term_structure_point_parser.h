@@ -52,7 +52,8 @@ private:
     QuantLib::Handle<QuantLib::Quote> resolveQuote(
         double inlineValue,
         const flatbuffers::String* quoteId,
-        const QuoteRegistry* quotes
+        const QuoteRegistry* quotes,
+        quantra::QuoteType expectedType
     ) const;
 
     QuantLib::Handle<QuantLib::YieldTermStructure> resolveCurve(

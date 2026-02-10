@@ -80,8 +80,15 @@ class IrVolBaseSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # IrVolBaseSpec
+    def QuoteId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def IrVolBaseSpecStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(9)
 
 def Start(builder):
     IrVolBaseSpecStart(builder)
@@ -134,6 +141,12 @@ def IrVolBaseSpecAddConstantVol(builder, constantVol):
 def AddConstantVol(builder, constantVol):
     IrVolBaseSpecAddConstantVol(builder, constantVol)
 
+def IrVolBaseSpecAddQuoteId(builder, quoteId):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+
+def AddQuoteId(builder, quoteId):
+    IrVolBaseSpecAddQuoteId(builder, quoteId)
+
 def IrVolBaseSpecEnd(builder):
     return builder.EndObject()
 
@@ -153,6 +166,7 @@ class IrVolBaseSpecT(object):
         self.volatilityType = 0  # type: int
         self.displacement = 0.0  # type: float
         self.constantVol = 0.0  # type: float
+        self.quoteId = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -183,11 +197,14 @@ class IrVolBaseSpecT(object):
         self.volatilityType = irVolBaseSpec.VolatilityType()
         self.displacement = irVolBaseSpec.Displacement()
         self.constantVol = irVolBaseSpec.ConstantVol()
+        self.quoteId = irVolBaseSpec.QuoteId()
 
     # IrVolBaseSpecT
     def Pack(self, builder):
         if self.referenceDate is not None:
             referenceDate = builder.CreateString(self.referenceDate)
+        if self.quoteId is not None:
+            quoteId = builder.CreateString(self.quoteId)
         IrVolBaseSpecStart(builder)
         if self.referenceDate is not None:
             IrVolBaseSpecAddReferenceDate(builder, referenceDate)
@@ -198,5 +215,7 @@ class IrVolBaseSpecT(object):
         IrVolBaseSpecAddVolatilityType(builder, self.volatilityType)
         IrVolBaseSpecAddDisplacement(builder, self.displacement)
         IrVolBaseSpecAddConstantVol(builder, self.constantVol)
+        if self.quoteId is not None:
+            IrVolBaseSpecAddQuoteId(builder, quoteId)
         irVolBaseSpec = IrVolBaseSpecEnd(builder)
         return irVolBaseSpec

@@ -41,6 +41,7 @@
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
 #include "index_generated.h"
+#include "quotes_generated.h"
 
 namespace quantra { namespace testing {
 
@@ -301,9 +302,14 @@ protected:
     flatbuffers::Offset<quantra::VolSurfaceSpec> buildSwaptionVolSurface(
         flatbuffers::grpc::MessageBuilder& b, const std::string& id, double vol,
         quantra::enums::VolatilityType volType = quantra::enums::VolatilityType_Lognormal,
-        double displacement = 0.0) {
+        double displacement = 0.0,
+        const std::string& quoteId = "") {
         
         auto ref_date = b.CreateString("2025-01-15");
+        flatbuffers::Offset<flatbuffers::String> qid;
+        if (!quoteId.empty()) {
+            qid = b.CreateString(quoteId);
+        }
         
         quantra::IrVolBaseSpecBuilder baseBuilder(b);
         baseBuilder.add_reference_date(ref_date);
@@ -314,6 +320,9 @@ protected:
         baseBuilder.add_volatility_type(volType);
         baseBuilder.add_displacement(displacement);
         baseBuilder.add_constant_vol(vol);
+        if (!quoteId.empty()) {
+            baseBuilder.add_quote_id(qid);
+        }
         auto base = baseBuilder.Finish();
         
         quantra::SwaptionVolSpecBuilder swpBuilder(b);
@@ -879,7 +888,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
     auto volSurface = buildSwaptionVolSurface(
-        b, "swaption_vol_norm", vol, quantra::enums::VolatilityType_Normal, 0.0);
+        b, "swaption_vol_norm", vol, quantra::enums::VolatilityType_Normal, 0.0, "swaption_vol_quote");
     auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     auto model = buildSwaptionModel(b, "bachelier_swaption_model", quantra::enums::IrModelType_Bachelier);
@@ -888,10 +897,20 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
 
+    auto quote_id = b.CreateString("swaption_vol_quote");
+    quantra::QuoteSpecBuilder qb(b);
+    qb.add_id(quote_id);
+    qb.add_kind(quantra::QuoteKind_Rate);
+    qb.add_value(vol);
+    qb.add_quote_type(quantra::QuoteType_Volatility);
+    auto quote = qb.Finish();
+    auto quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::QuoteSpec>>{quote});
+
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof);
     pb.add_indices(indices);
     pb.add_curves(curves);
+    pb.add_quotes(quotes);
     pb.add_vol_surfaces(vols);
     pb.add_models(models);
     auto pricing = pb.Finish();

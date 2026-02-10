@@ -66,8 +66,15 @@ class BlackVolBaseSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # BlackVolBaseSpec
+    def QuoteId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def BlackVolBaseSpecStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(7)
 
 def Start(builder):
     BlackVolBaseSpecStart(builder)
@@ -108,6 +115,12 @@ def BlackVolBaseSpecAddConstantVol(builder, constantVol):
 def AddConstantVol(builder, constantVol):
     BlackVolBaseSpecAddConstantVol(builder, constantVol)
 
+def BlackVolBaseSpecAddQuoteId(builder, quoteId):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+
+def AddQuoteId(builder, quoteId):
+    BlackVolBaseSpecAddQuoteId(builder, quoteId)
+
 def BlackVolBaseSpecEnd(builder):
     return builder.EndObject()
 
@@ -125,6 +138,7 @@ class BlackVolBaseSpecT(object):
         self.dayCounter = 0  # type: int
         self.shape = 0  # type: int
         self.constantVol = 0.0  # type: float
+        self.quoteId = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -153,11 +167,14 @@ class BlackVolBaseSpecT(object):
         self.dayCounter = blackVolBaseSpec.DayCounter()
         self.shape = blackVolBaseSpec.Shape()
         self.constantVol = blackVolBaseSpec.ConstantVol()
+        self.quoteId = blackVolBaseSpec.QuoteId()
 
     # BlackVolBaseSpecT
     def Pack(self, builder):
         if self.referenceDate is not None:
             referenceDate = builder.CreateString(self.referenceDate)
+        if self.quoteId is not None:
+            quoteId = builder.CreateString(self.quoteId)
         BlackVolBaseSpecStart(builder)
         if self.referenceDate is not None:
             BlackVolBaseSpecAddReferenceDate(builder, referenceDate)
@@ -166,5 +183,7 @@ class BlackVolBaseSpecT(object):
         BlackVolBaseSpecAddDayCounter(builder, self.dayCounter)
         BlackVolBaseSpecAddShape(builder, self.shape)
         BlackVolBaseSpecAddConstantVol(builder, self.constantVol)
+        if self.quoteId is not None:
+            BlackVolBaseSpecAddQuoteId(builder, quoteId)
         blackVolBaseSpec = BlackVolBaseSpecEnd(builder)
         return blackVolBaseSpec

@@ -110,7 +110,7 @@ struct KeyContext {
         if (quotes) {
             for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
                 auto q = quotes->Get(i);
-                if (q->id()) {
+                if (q->id() && q->quote_type() == quantra::QuoteType_Curve) {
                     ctx.quoteValues[q->id()->str()] = q->value();
                 }
             }

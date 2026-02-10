@@ -187,7 +187,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
             auto q = quotes->Get(i);
             if (!q->id()) QUANTRA_ERROR("QuoteSpec.id is required");
-            quoteReg.upsert(q->id()->str(), q->value());
+            quoteReg.upsert(q->id()->str(), q->value(), quantra::QuoteType_Curve);
         }
     }
 

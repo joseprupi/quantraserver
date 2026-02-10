@@ -15,6 +15,7 @@ table IrVolBaseSpec {
     volatility_type:enums.VolatilityType;
     displacement:double = 0.0;   // Only meaningful for ShiftedLognormal
     constant_vol:double;         // Used when shape=Constant
+    quote_id:string;             // Optional: resolve constant_vol from pricing.quotes
 }
 
 // ============================================================================
@@ -27,6 +28,7 @@ table BlackVolBaseSpec {
     day_counter:enums.DayCounter;
     shape:enums.VolSurfaceShape = Constant;
     constant_vol:double;
+    quote_id:string;             // Optional: resolve constant_vol from pricing.quotes
     // NO volatility_type - always lognormal
     // NO displacement - always 0
 }

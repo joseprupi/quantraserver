@@ -26,6 +26,7 @@
 #include "volatility_generated.h"
 #include "enums.h"
 #include "common.h"
+#include "quote_registry.h"
 
 namespace quantra {
 
@@ -73,17 +74,17 @@ QuantLib::VolatilityType toQlVolType(quantra::enums::VolatilityType t);
 /**
  * Parse OptionletVolSpec from FlatBuffers into QuantLib structure.
  */
-OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec);
+OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
 
 /**
  * Parse SwaptionVolSpec from FlatBuffers into QuantLib structure.
  */
-SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec);
+SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
 
 /**
  * Parse BlackVolSpec from FlatBuffers into QuantLib structure.
  */
-BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec);
+BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
 
 } // namespace quantra
 

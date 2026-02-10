@@ -67,13 +67,30 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
     }
 }
 
+double resolveVolValue(
+    double inlineValue,
+    const flatbuffers::String* quoteId,
+    const QuoteRegistry* quotes,
+    const std::string& id) {
+    if (quoteId && quotes) {
+        const std::string qid = quoteId->str();
+        if (!qid.empty()) {
+            return quotes->getValue(qid, quantra::QuoteType_Volatility);
+        }
+    }
+    if (inlineValue <= 0.0) {
+        QUANTRA_ERROR("constant_vol must be > 0 for vol id: " + id);
+    }
+    return inlineValue;
+}
+
 } // anonymous namespace
 
 // =============================================================================
 // Optionlet Vol Parser (for Caps/Floors)
 // =============================================================================
 
-OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec) {
+OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
     if (!spec || !spec->id()) {
         QUANTRA_ERROR("VolSurfaceSpec or id is null");
     }
@@ -91,7 +108,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec) {
     QuantLib::Calendar cal = CalendarToQL(b->calendar());
     QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
-    double vol = b->constant_vol();
+    double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
     double disp = b->displacement();
     QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -115,7 +132,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec) {
 // Swaption Vol Parser
 // =============================================================================
 
-SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec) {
+SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
     if (!spec || !spec->id()) {
         QUANTRA_ERROR("VolSurfaceSpec or id is null");
     }
@@ -133,7 +150,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec) {
     QuantLib::Calendar cal = CalendarToQL(b->calendar());
     QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
-    double vol = b->constant_vol();
+    double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
     double disp = b->displacement();
     QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -157,7 +174,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec) {
 // Black Vol Parser (for Equity/FX)
 // =============================================================================
 
-BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec) {
+BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
     if (!spec || !spec->id()) {
         QUANTRA_ERROR("VolSurfaceSpec or id is null");
     }
@@ -174,7 +191,7 @@ BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec) {
     QuantLib::Date ref = DateToQL(b->reference_date()->str());
     QuantLib::Calendar cal = CalendarToQL(b->calendar());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
-    double vol = b->constant_vol();
+    double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
 
     auto qlVol = std::make_shared<QuantLib::BlackConstantVol>(ref, cal, vol, dc);
 

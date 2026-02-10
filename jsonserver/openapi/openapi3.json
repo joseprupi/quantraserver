@@ -1710,6 +1710,13 @@
           "FxPoints"
         ]
       },
+      "quantra_QuoteType": {
+        "type": "string",
+        "enum": [
+          "Curve",
+          "Volatility"
+        ]
+      },
       "quantra_ModelPayload": {
         "type": "string",
         "enum": [
@@ -1754,6 +1761,9 @@
           },
           "constant_vol": {
             "type": "number"
+          },
+          "quote_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -1778,6 +1788,9 @@
           },
           "constant_vol": {
             "type": "number"
+          },
+          "quote_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -1911,6 +1924,9 @@
           },
           "value": {
             "type": "number"
+          },
+          "quote_type": {
+            "$ref": "#/components/schemas/quantra_QuoteType"
           }
         },
         "required": [
