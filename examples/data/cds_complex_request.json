@@ -12,7 +12,7 @@
           {
             "point_type": "DepositHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_3m",
               "tenor_time_unit": "Months",
               "tenor_number": 3,
               "fixing_days": 2,
@@ -24,7 +24,7 @@
           {
             "point_type": "DepositHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_6m",
               "tenor_time_unit": "Months",
               "tenor_number": 6,
               "fixing_days": 2,
@@ -36,7 +36,7 @@
           {
             "point_type": "DepositHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_1y",
               "tenor_time_unit": "Years",
               "tenor_number": 1,
               "fixing_days": 2,
@@ -48,7 +48,7 @@
           {
             "point_type": "SwapHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_5y",
               "tenor_time_unit": "Years",
               "tenor_number": 5,
               "calendar": "TARGET",
@@ -65,7 +65,7 @@
           {
             "point_type": "SwapHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_10y",
               "tenor_time_unit": "Years",
               "tenor_number": 10,
               "calendar": "TARGET",
@@ -82,7 +82,7 @@
           {
             "point_type": "SwapHelper",
             "point": {
-              "rate": 0.03,
+              "quote_id": "eur_disc_12y",
               "tenor_time_unit": "Years",
               "tenor_number": 12,
               "calendar": "TARGET",
@@ -119,14 +119,28 @@
           "helper_model": "ISDA"
         },
         "quotes": [
-          { "tenor_number": 6, "tenor_time_unit": "Months", "quote_type": "ParSpread", "quoted_par_spread": 0.0100 },
-          { "tenor_number": 1, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0110 },
-          { "tenor_number": 3, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0120 },
-          { "tenor_number": 5, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0130 },
-          { "tenor_number": 7, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0135 },
-          { "tenor_number": 10, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0140 }
+          { "tenor_number": 6, "tenor_time_unit": "Months", "quote_type": "ParSpread", "quote_id": "eur_credit_6m" },
+          { "tenor_number": 1, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quote_id": "eur_credit_1y" },
+          { "tenor_number": 3, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quote_id": "eur_credit_3y" },
+          { "tenor_number": 5, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quote_id": "eur_credit_5y" },
+          { "tenor_number": 7, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quote_id": "eur_credit_7y" },
+          { "tenor_number": 10, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quote_id": "eur_credit_10y" }
         ]
       }
+    ],
+    "quotes": [
+      { "id": "eur_disc_3m", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_disc_6m", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_disc_1y", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_disc_5y", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_disc_10y", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_disc_12y", "kind": "Rate", "value": 0.03, "quote_type": "Curve" },
+      { "id": "eur_credit_6m", "kind": "Spread", "value": 0.0100, "quote_type": "Credit" },
+      { "id": "eur_credit_1y", "kind": "Spread", "value": 0.0110, "quote_type": "Credit" },
+      { "id": "eur_credit_3y", "kind": "Spread", "value": 0.0120, "quote_type": "Credit" },
+      { "id": "eur_credit_5y", "kind": "Spread", "value": 0.0130, "quote_type": "Credit" },
+      { "id": "eur_credit_7y", "kind": "Spread", "value": 0.0135, "quote_type": "Credit" },
+      { "id": "eur_credit_10y", "kind": "Spread", "value": 0.0140, "quote_type": "Credit" }
     ],
     "models": [
       {

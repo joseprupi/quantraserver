@@ -11,6 +11,7 @@ table CdsQuote {
     tenor_number:int;
     tenor_time_unit:enums.TimeUnit;
     quote_type:enums.CdsQuoteType;
+    quote_id:string;          // Optional; resolves from Pricing.quotes (QuoteType=Credit)
     quoted_par_spread:double; // Used when quote_type = ParSpread (decimal, 0.01 = 100bps)
     quoted_upfront:double;    // Used when quote_type = Upfront (decimal, 0.01 = 1%)
     running_coupon:double;    // Running coupon for upfront quotes (decimal)

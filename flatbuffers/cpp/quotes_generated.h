@@ -68,29 +68,32 @@ inline const char *EnumNameQuoteKind(QuoteKind e) {
 enum QuoteType : int8_t {
   QuoteType_Curve = 0,
   QuoteType_Volatility = 1,
+  QuoteType_Credit = 2,
   QuoteType_MIN = QuoteType_Curve,
-  QuoteType_MAX = QuoteType_Volatility
+  QuoteType_MAX = QuoteType_Credit
 };
 
-inline const QuoteType (&EnumValuesQuoteType())[2] {
+inline const QuoteType (&EnumValuesQuoteType())[3] {
   static const QuoteType values[] = {
     QuoteType_Curve,
-    QuoteType_Volatility
+    QuoteType_Volatility,
+    QuoteType_Credit
   };
   return values;
 }
 
 inline const char * const *EnumNamesQuoteType() {
-  static const char * const names[3] = {
+  static const char * const names[4] = {
     "Curve",
     "Volatility",
+    "Credit",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameQuoteType(QuoteType e) {
-  if (::flatbuffers::IsOutRange(e, QuoteType_Curve, QuoteType_Volatility)) return "";
+  if (::flatbuffers::IsOutRange(e, QuoteType_Curve, QuoteType_Credit)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesQuoteType()[index];
 }

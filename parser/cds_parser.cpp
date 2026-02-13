@@ -105,14 +105,15 @@ std::shared_ptr<QuantLib::CreditDefaultSwap> CDSParser::parse(const quantra::CDS
 std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::parse(
     const quantra::CreditCurveSpec *credit_curve,
     const QuantLib::Date& referenceDate,
-    const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve)
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
+    const QuoteRegistry* quoteRegistry)
 {
     if (credit_curve == NULL)
         QUANTRA_ERROR("CreditCurveSpec not found");
 
     double recoveryRate = credit_curve->recovery_rate();
     double flatHazardRate = credit_curve->flat_hazard_rate();
-    auto quotes = credit_curve->quotes();
+    auto creditQuotes = credit_curve->quotes();
 
     DayCounter curveDc = DayCounterToQL(credit_curve->day_counter());
     if (credit_curve->calendar() == quantra::enums::Calendar_NullCalendar) {
@@ -147,7 +148,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
     }
 
     // If flat hazard rate is provided or no quotes, use FlatHazardRate
-    if (flatHazardRate > 0.0 || quotes == NULL || quotes->size() == 0)
+    if (flatHazardRate > 0.0 || creditQuotes == NULL || creditQuotes->size() == 0)
     {
         // Use flat hazard rate
         double hazardRate = flatHazardRate > 0.0 ? flatHazardRate : 0.01;  // Default 1%
@@ -161,19 +162,30 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
     // Build from CDS quotes using SpreadCdsHelper or UpfrontCdsHelper
     std::vector<std::shared_ptr<QuantLib::DefaultProbabilityHelper>> helpers;
 
-    for (size_t i = 0; i < quotes->size(); i++)
+    for (size_t i = 0; i < creditQuotes->size(); i++)
     {
-        auto quote = quotes->Get(i);
+        auto quote = creditQuotes->Get(i);
         QuantLib::Period tenor(quote->tenor_number(), TimeUnitToQL(quote->tenor_time_unit()));
+        QuantLib::Handle<QuantLib::Quote> quoteHandle;
+        if (quote->quote_id() && quote->quote_id()->size() > 0) {
+            if (!quoteRegistry) {
+                QUANTRA_ERROR("Quote registry required for credit quote_id");
+            }
+            quoteHandle = quoteRegistry->getHandle(quote->quote_id()->str(), quantra::QuoteType_Credit);
+        }
 
         switch (quote->quote_type()) {
             case quantra::enums::CdsQuoteType_Upfront: {
                 if (quote->running_coupon() == 0.0) {
                     QUANTRA_ERROR("CdsQuote.running_coupon is required for upfront quotes");
                 }
-                auto upfrontQuote = std::make_shared<QuantLib::SimpleQuote>(quote->quoted_upfront());
+                auto upfrontQuote = quoteHandle;
+                if (upfrontQuote.empty()) {
+                    auto inlineQuote = std::make_shared<QuantLib::SimpleQuote>(quote->quoted_upfront());
+                    upfrontQuote = QuantLib::Handle<QuantLib::Quote>(inlineQuote);
+                }
                 auto helper = std::make_shared<QuantLib::UpfrontCdsHelper>(
-                    QuantLib::Handle<QuantLib::Quote>(upfrontQuote),
+                    upfrontQuote,
                     quote->running_coupon(),
                     tenor,
                     settlementDays,
@@ -197,9 +209,13 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
             }
             case quantra::enums::CdsQuoteType_ParSpread:
             default: {
-                auto spreadQuote = std::make_shared<QuantLib::SimpleQuote>(quote->quoted_par_spread());
+                auto spreadQuote = quoteHandle;
+                if (spreadQuote.empty()) {
+                    auto inlineQuote = std::make_shared<QuantLib::SimpleQuote>(quote->quoted_par_spread());
+                    spreadQuote = QuantLib::Handle<QuantLib::Quote>(inlineQuote);
+                }
                 auto helper = std::make_shared<QuantLib::SpreadCdsHelper>(
-                    QuantLib::Handle<QuantLib::Quote>(spreadQuote),
+                    spreadQuote,
                     tenor,
                     settlementDays,
                     curveCal,

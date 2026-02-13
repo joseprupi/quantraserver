@@ -13,6 +13,7 @@
 #include "enums.h"
 #include "common.h"
 #include "common_parser.h"
+#include "quote_registry.h"
 
 using namespace QuantLib;
 
@@ -28,7 +29,8 @@ public:
     std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> parse(
         const quantra::CreditCurveSpec *credit_curve,
         const QuantLib::Date& referenceDate,
-        const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve);
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
+        const QuoteRegistry* quotes);
 };
 
 #endif // QUANTRASERVER_CDS_PARSER_H

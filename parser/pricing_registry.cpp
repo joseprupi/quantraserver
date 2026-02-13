@@ -45,10 +45,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             }
             std::string id = it->id()->str();
             auto sq = std::make_shared<QuantLib::SimpleQuote>(it->value());
-            reg.quotes.emplace(id, QuantLib::Handle<QuantLib::Quote>(sq));
             quoteRegistry.upsert(id, it->value(), it->quote_type());
         }
     }
+    reg.quoteRegistry = quoteRegistry;
 
     // ==========================================================================
     // Build IndexRegistry from indices[]

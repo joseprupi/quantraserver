@@ -15,7 +15,8 @@ enum QuoteKind : byte {
 /// High-level quote type (usage)
 enum QuoteType : byte {
     Curve = 0,
-    Volatility = 1
+    Volatility = 1,
+    Credit = 2
 }
 
 /// Market quote (spot price, FX rate, etc.)

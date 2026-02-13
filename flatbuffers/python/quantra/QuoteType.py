@@ -6,3 +6,4 @@
 class QuoteType(object):
     Curve = 0
     Volatility = 1
+    Credit = 2

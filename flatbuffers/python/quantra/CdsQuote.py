@@ -46,28 +46,35 @@ class CdsQuote(object):
         return 0
 
     # CdsQuote
-    def QuotedParSpread(self):
+    def QuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            return self._tab.String(o + self._tab.Pos)
+        return None
 
     # CdsQuote
-    def QuotedUpfront(self):
+    def QuotedParSpread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # CdsQuote
-    def RunningCoupon(self):
+    def QuotedUpfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # CdsQuote
+    def RunningCoupon(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
 def CdsQuoteStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(7)
 
 def Start(builder):
     CdsQuoteStart(builder)
@@ -90,20 +97,26 @@ def CdsQuoteAddQuoteType(builder, quoteType):
 def AddQuoteType(builder, quoteType):
     CdsQuoteAddQuoteType(builder, quoteType)
 
+def CdsQuoteAddQuoteId(builder, quoteId):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+
+def AddQuoteId(builder, quoteId):
+    CdsQuoteAddQuoteId(builder, quoteId)
+
 def CdsQuoteAddQuotedParSpread(builder, quotedParSpread):
-    builder.PrependFloat64Slot(3, quotedParSpread, 0.0)
+    builder.PrependFloat64Slot(4, quotedParSpread, 0.0)
 
 def AddQuotedParSpread(builder, quotedParSpread):
     CdsQuoteAddQuotedParSpread(builder, quotedParSpread)
 
 def CdsQuoteAddQuotedUpfront(builder, quotedUpfront):
-    builder.PrependFloat64Slot(4, quotedUpfront, 0.0)
+    builder.PrependFloat64Slot(5, quotedUpfront, 0.0)
 
 def AddQuotedUpfront(builder, quotedUpfront):
     CdsQuoteAddQuotedUpfront(builder, quotedUpfront)
 
 def CdsQuoteAddRunningCoupon(builder, runningCoupon):
-    builder.PrependFloat64Slot(5, runningCoupon, 0.0)
+    builder.PrependFloat64Slot(6, runningCoupon, 0.0)
 
 def AddRunningCoupon(builder, runningCoupon):
     CdsQuoteAddRunningCoupon(builder, runningCoupon)
@@ -122,6 +135,7 @@ class CdsQuoteT(object):
         self.tenorNumber = 0  # type: int
         self.tenorTimeUnit = 0  # type: int
         self.quoteType = 0  # type: int
+        self.quoteId = None  # type: str
         self.quotedParSpread = 0.0  # type: float
         self.quotedUpfront = 0.0  # type: float
         self.runningCoupon = 0.0  # type: float
@@ -150,16 +164,21 @@ class CdsQuoteT(object):
         self.tenorNumber = cdsQuote.TenorNumber()
         self.tenorTimeUnit = cdsQuote.TenorTimeUnit()
         self.quoteType = cdsQuote.QuoteType()
+        self.quoteId = cdsQuote.QuoteId()
         self.quotedParSpread = cdsQuote.QuotedParSpread()
         self.quotedUpfront = cdsQuote.QuotedUpfront()
         self.runningCoupon = cdsQuote.RunningCoupon()
 
     # CdsQuoteT
     def Pack(self, builder):
+        if self.quoteId is not None:
+            quoteId = builder.CreateString(self.quoteId)
         CdsQuoteStart(builder)
         CdsQuoteAddTenorNumber(builder, self.tenorNumber)
         CdsQuoteAddTenorTimeUnit(builder, self.tenorTimeUnit)
         CdsQuoteAddQuoteType(builder, self.quoteType)
+        if self.quoteId is not None:
+            CdsQuoteAddQuoteId(builder, quoteId)
         CdsQuoteAddQuotedParSpread(builder, self.quotedParSpread)
         CdsQuoteAddQuotedUpfront(builder, self.quotedUpfront)
         CdsQuoteAddRunningCoupon(builder, self.runningCoupon)

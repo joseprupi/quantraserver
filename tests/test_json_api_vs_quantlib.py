@@ -314,6 +314,22 @@ def resolve_index_from_id(idx_id, request_data, curve_handle=None):
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     points = curve_json.get("points", [])
+    quote_values = {}
+    quote_types = {}
+    if request_data:
+        pricing = request_data.get("pricing", {})
+        for q in pricing.get("quotes", []):
+            if "id" in q:
+                quote_values[q["id"]] = q.get("value", 0.0)
+                quote_types[q["id"]] = q.get("quote_type", "Curve")
+
+    def resolve_point_rate(point: dict) -> float:
+        quote_id = point.get("quote_id")
+        if quote_id:
+            if quote_types.get(quote_id, "Curve") != "Curve":
+                raise ValueError(f"Quote id '{quote_id}' has wrong type for curve")
+            return quote_values.get(quote_id, 0.0)
+        return point["rate"]
     if any(p.get("point_type") == "ZeroRatePoint" for p in points):
         dates = []
         rates = []
@@ -366,7 +382,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 tenor_unit = ql.Years
             
             helper = ql.DepositRateHelper(
-                point["rate"],
+                resolve_point_rate(point),
                 ql.Period(tenor_num, tenor_unit),
                 point.get("fixing_days", 2),
                 get_calendar(point.get("calendar", "TARGET")),
@@ -389,7 +405,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 index = resolve_index_from_id(point["float_index"]["id"], request_data)
             
             helper = ql.SwapRateHelper(
-                point["rate"],
+                resolve_point_rate(point),
                 ql.Period(tenor_num, tenor_unit),
                 get_calendar(point.get("calendar", "TARGET")),
                 get_frequency(point.get("sw_fixed_leg_frequency", "Annual")),
@@ -417,7 +433,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
             helper = ql.OISRateHelper(
                 point.get("settlement_days", 2),
                 ql.Period(tenor_num, tenor_unit),
-                point["rate"],
+                resolve_point_rate(point),
                 overnight_idx
             )
             pillar = helper.pillarDate()
@@ -441,7 +457,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
             
             # Create fixed rate bond helper
             helper = ql.FixedRateBondHelper(
-                ql.QuoteHandle(ql.SimpleQuote(point["rate"])),  # Clean price
+                ql.QuoteHandle(ql.SimpleQuote(resolve_point_rate(point))),  # Clean price
                 point.get("settlement_days", 3),
                 point.get("face_amount", 100.0),
                 schedule,
@@ -962,6 +978,8 @@ def price_cds_ql(request: dict) -> float:
     pricing = request["pricing"]
     cds_data = request["cds_list"][0]
     cds = cds_data["cds"]
+    quote_values = {q["id"]: q.get("value", 0.0) for q in pricing.get("quotes", []) if "id" in q}
+    quote_types = {q["id"]: q.get("quote_type", "Curve") for q in pricing.get("quotes", []) if "id" in q}
 
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
@@ -1087,8 +1105,17 @@ def price_cds_ql(request: dict) -> float:
         for q in quotes:
             tenor = ql.Period(q["tenor_number"], get_time_unit(q["tenor_time_unit"]))
             quote_type = q.get("quote_type", "ParSpread")
+            quote_id = q.get("quote_id")
+            if quote_id:
+                if quote_types.get(quote_id, "Curve") != "Credit":
+                    raise ValueError(f"Quote id '{quote_id}' has wrong type for credit")
+                quote_value = quote_values.get(quote_id, 0.0)
+            else:
+                quote_value = None
+
             if quote_type == "Upfront":
-                upfront_quote = ql.QuoteHandle(ql.SimpleQuote(q.get("quoted_upfront", 0.0)))
+                upfront_value = quote_value if quote_value is not None else q.get("quoted_upfront", 0.0)
+                upfront_quote = ql.QuoteHandle(ql.SimpleQuote(upfront_value))
                 running = q.get("running_coupon", 0.0)
                 helper = ql.UpfrontCdsHelper(
                     upfront_quote,
@@ -1110,7 +1137,8 @@ def price_cds_ql(request: dict) -> float:
                     helper_model
                 )
             else:
-                spread_quote = ql.QuoteHandle(ql.SimpleQuote(q.get("quoted_par_spread", 0.0)))
+                spread_value = quote_value if quote_value is not None else q.get("quoted_par_spread", 0.0)
+                spread_quote = ql.QuoteHandle(ql.SimpleQuote(spread_value))
                 helper = ql.SpreadCdsHelper(
                     spread_quote,
                     tenor,
@@ -1220,6 +1248,20 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
         
         curve_spec = request["curves"][0]
         ts = curve_spec["curve"]
+        quote_values = {}
+        quote_types = {}
+        for q in request.get("quotes", []):
+            if "id" in q:
+                quote_values[q["id"]] = q.get("value", 0.0)
+                quote_types[q["id"]] = q.get("quote_type", "Curve")
+
+        def resolve_bootstrap_rate(point: dict) -> float:
+            quote_id = point.get("quote_id")
+            if quote_id:
+                if quote_types.get(quote_id, "Curve") != "Curve":
+                    raise ValueError(f"Quote id '{quote_id}' has wrong type for curve")
+                return quote_values.get(quote_id, 0.0)
+            return point["rate"]
         
         # Build helpers
         helpers = []
@@ -1231,7 +1273,7 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
                 tenor = ql.Period(point["tenor_number"], 
                                   get_time_unit(point["tenor_time_unit"]))
                 helpers.append(ql.DepositRateHelper(
-                    point["rate"], tenor, point.get("fixing_days", 2),
+                    resolve_bootstrap_rate(point), tenor, point.get("fixing_days", 2),
                     get_calendar(point["calendar"]),
                     get_convention(point["business_day_convention"]),
                     True, get_day_counter(point["day_counter"])
@@ -1246,7 +1288,7 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
                 index = resolve_index_from_id(idx_id, request)
                 fwd_start = ql.Period(point.get("fwd_start_days", 0), ql.Days)
                 helpers.append(ql.SwapRateHelper(
-                    point["rate"], tenor,
+                    resolve_bootstrap_rate(point), tenor,
                     get_calendar(point["calendar"]),
                     get_frequency(point["sw_fixed_leg_frequency"]),
                     get_convention(point["sw_fixed_leg_convention"]),

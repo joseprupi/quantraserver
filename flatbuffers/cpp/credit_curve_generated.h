@@ -34,6 +34,7 @@ struct CdsQuoteT : public ::flatbuffers::NativeTable {
   int32_t tenor_number = 0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
   quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread;
+  std::string quote_id{};
   double quoted_par_spread = 0.0;
   double quoted_upfront = 0.0;
   double running_coupon = 0.0;
@@ -46,9 +47,10 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TENOR_NUMBER = 4,
     VT_TENOR_TIME_UNIT = 6,
     VT_QUOTE_TYPE = 8,
-    VT_QUOTED_PAR_SPREAD = 10,
-    VT_QUOTED_UPFRONT = 12,
-    VT_RUNNING_COUPON = 14
+    VT_QUOTE_ID = 10,
+    VT_QUOTED_PAR_SPREAD = 12,
+    VT_QUOTED_UPFRONT = 14,
+    VT_RUNNING_COUPON = 16
   };
   int32_t tenor_number() const {
     return GetField<int32_t>(VT_TENOR_NUMBER, 0);
@@ -58,6 +60,9 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   quantra::enums::CdsQuoteType quote_type() const {
     return static_cast<quantra::enums::CdsQuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
+  }
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
   double quoted_par_spread() const {
     return GetField<double>(VT_QUOTED_PAR_SPREAD, 0.0);
@@ -73,6 +78,8 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
            VerifyField<int8_t>(verifier, VT_QUOTE_TYPE, 1) &&
+           VerifyOffset(verifier, VT_QUOTE_ID) &&
+           verifier.VerifyString(quote_id()) &&
            VerifyField<double>(verifier, VT_QUOTED_PAR_SPREAD, 8) &&
            VerifyField<double>(verifier, VT_QUOTED_UPFRONT, 8) &&
            VerifyField<double>(verifier, VT_RUNNING_COUPON, 8) &&
@@ -95,6 +102,9 @@ struct CdsQuoteBuilder {
   }
   void add_quote_type(quantra::enums::CdsQuoteType quote_type) {
     fbb_.AddElement<int8_t>(CdsQuote::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type), 0);
+  }
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(CdsQuote::VT_QUOTE_ID, quote_id);
   }
   void add_quoted_par_spread(double quoted_par_spread) {
     fbb_.AddElement<double>(CdsQuote::VT_QUOTED_PAR_SPREAD, quoted_par_spread, 0.0);
@@ -121,6 +131,7 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
     quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
     double quoted_par_spread = 0.0,
     double quoted_upfront = 0.0,
     double running_coupon = 0.0) {
@@ -128,10 +139,32 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
   builder_.add_running_coupon(running_coupon);
   builder_.add_quoted_upfront(quoted_upfront);
   builder_.add_quoted_par_spread(quoted_par_spread);
+  builder_.add_quote_id(quote_id);
   builder_.add_tenor_number(tenor_number);
   builder_.add_quote_type(quote_type);
   builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuoteDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t tenor_number = 0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread,
+    const char *quote_id = nullptr,
+    double quoted_par_spread = 0.0,
+    double quoted_upfront = 0.0,
+    double running_coupon = 0.0) {
+  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
+  return quantra::CreateCdsQuote(
+      _fbb,
+      tenor_number,
+      tenor_time_unit,
+      quote_type,
+      quote_id__,
+      quoted_par_spread,
+      quoted_upfront,
+      running_coupon);
 }
 
 ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CdsQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -466,6 +499,7 @@ inline void CdsQuote::UnPackTo(CdsQuoteT *_o, const ::flatbuffers::resolver_func
   { auto _e = tenor_number(); _o->tenor_number = _e; }
   { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
   { auto _e = quote_type(); _o->quote_type = _e; }
+  { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
   { auto _e = quoted_par_spread(); _o->quoted_par_spread = _e; }
   { auto _e = quoted_upfront(); _o->quoted_upfront = _e; }
   { auto _e = running_coupon(); _o->running_coupon = _e; }
@@ -482,6 +516,7 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(::flatbuffers::FlatBufferB
   auto _tenor_number = _o->tenor_number;
   auto _tenor_time_unit = _o->tenor_time_unit;
   auto _quote_type = _o->quote_type;
+  auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   auto _quoted_par_spread = _o->quoted_par_spread;
   auto _quoted_upfront = _o->quoted_upfront;
   auto _running_coupon = _o->running_coupon;
@@ -490,6 +525,7 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(::flatbuffers::FlatBufferB
       _tenor_number,
       _tenor_time_unit,
       _quote_type,
+      _quote_id,
       _quoted_par_spread,
       _quoted_upfront,
       _running_coupon);

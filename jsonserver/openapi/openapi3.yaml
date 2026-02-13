@@ -1277,6 +1277,7 @@ components:
       enum:
       - Curve
       - Volatility
+      - Credit
     quantra_ModelPayload:
       type: string
       enum:
@@ -1490,6 +1491,8 @@ components:
           $ref: '#/components/schemas/quantra_enums_TimeUnit'
         quote_type:
           $ref: '#/components/schemas/quantra_enums_CdsQuoteType'
+        quote_id:
+          type: string
         quoted_par_spread:
           type: number
         quoted_upfront:

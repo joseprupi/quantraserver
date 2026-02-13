@@ -1811,7 +1811,8 @@
         "type": "string",
         "enum": [
           "Curve",
-          "Volatility"
+          "Volatility",
+          "Credit"
         ]
       },
       "quantra_ModelPayload": {
@@ -2134,6 +2135,9 @@
           },
           "quote_type": {
             "$ref": "#/components/schemas/quantra_enums_CdsQuoteType"
+          },
+          "quote_id": {
+            "type": "string"
           },
           "quoted_par_spread": {
             "type": "number"

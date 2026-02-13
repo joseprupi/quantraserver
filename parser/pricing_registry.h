@@ -14,6 +14,7 @@
 #include "common_generated.h"
 #include "model_generated.h"
 #include "index_registry.h"
+#include "quote_registry.h"
 
 namespace QuantLib {
 class DefaultProbabilityTermStructure;
@@ -31,8 +32,8 @@ struct PricingRegistry {
     // Credit curve specs (parsed on demand per CDS trade)
     std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
     
-    // Market quotes (equity spots, FX rates)
-    std::map<std::string, QuantLib::Handle<QuantLib::Quote>> quotes;
+    // Shared market quotes (type-checked)
+    QuoteRegistry quoteRegistry;
 
     // Index registry (IborIndex and OvernightIndex objects by id)
     IndexRegistry indices;

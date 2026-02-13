@@ -66,7 +66,8 @@ flatbuffers::Offset<PriceCDSResponse> CDSPricingRequest::request(
             auto credit_curve = credit_curve_parser.parse(
                 credit_curve_spec,
                 referenceDate,
-                QuantLib::Handle<QuantLib::YieldTermStructure>(discounting_curve_it->second->currentLink()));
+                QuantLib::Handle<QuantLib::YieldTermStructure>(discounting_curve_it->second->currentLink()),
+                &reg.quoteRegistry);
             QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure> creditHandle(credit_curve);
             double recoveryRate = credit_curve_spec->recovery_rate();
 
