@@ -33,6 +33,30 @@
       "type" : "string",
       "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
     },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
     "quantra_enums_Compounding" : {
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
@@ -124,7 +148,7 @@
         "notional" : {
                 "type" : "number"
               },
-        "spread" : {
+        "running_coupon" : {
                 "type" : "number"
               },
         "schedule" : {
@@ -138,6 +162,30 @@
               },
         "business_day_convention" : {
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "settles_accrual" : {
+                "type" : "boolean"
+              },
+        "pays_at_default_time" : {
+                "type" : "boolean"
+              },
+        "rebates_accrual" : {
+                "type" : "boolean"
+              },
+        "protection_start" : {
+                "type" : "string"
+              },
+        "upfront_date" : {
+                "type" : "string"
+              },
+        "last_period_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "trade_date" : {
+                "type" : "string"
+              },
+        "cash_settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               }
       },
       "additionalProperties" : false

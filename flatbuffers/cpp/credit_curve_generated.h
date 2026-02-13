@@ -17,28 +17,38 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
-struct CreditSpreadQuote;
-struct CreditSpreadQuoteBuilder;
-struct CreditSpreadQuoteT;
+struct CdsQuote;
+struct CdsQuoteBuilder;
+struct CdsQuoteT;
 
-struct CreditCurve;
-struct CreditCurveBuilder;
-struct CreditCurveT;
+struct CdsHelperConventions;
+struct CdsHelperConventionsBuilder;
+struct CdsHelperConventionsT;
 
-struct CreditSpreadQuoteT : public ::flatbuffers::NativeTable {
-  typedef CreditSpreadQuote TableType;
+struct CreditCurveSpec;
+struct CreditCurveSpecBuilder;
+struct CreditCurveSpecT;
+
+struct CdsQuoteT : public ::flatbuffers::NativeTable {
+  typedef CdsQuote TableType;
   int32_t tenor_number = 0;
   quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  double spread = 0.0;
+  quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread;
+  double quoted_par_spread = 0.0;
+  double quoted_upfront = 0.0;
+  double running_coupon = 0.0;
 };
 
-struct CreditSpreadQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CreditSpreadQuoteT NativeTableType;
-  typedef CreditSpreadQuoteBuilder Builder;
+struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CdsQuoteT NativeTableType;
+  typedef CdsQuoteBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_TENOR_NUMBER = 4,
     VT_TENOR_TIME_UNIT = 6,
-    VT_SPREAD = 8
+    VT_QUOTE_TYPE = 8,
+    VT_QUOTED_PAR_SPREAD = 10,
+    VT_QUOTED_UPFRONT = 12,
+    VT_RUNNING_COUPON = 14
   };
   int32_t tenor_number() const {
     return GetField<int32_t>(VT_TENOR_NUMBER, 0);
@@ -46,85 +56,256 @@ struct CreditSpreadQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
   quantra::enums::TimeUnit tenor_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
   }
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
+  quantra::enums::CdsQuoteType quote_type() const {
+    return static_cast<quantra::enums::CdsQuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
+  }
+  double quoted_par_spread() const {
+    return GetField<double>(VT_QUOTED_PAR_SPREAD, 0.0);
+  }
+  double quoted_upfront() const {
+    return GetField<double>(VT_QUOTED_UPFRONT, 0.0);
+  }
+  double running_coupon() const {
+    return GetField<double>(VT_RUNNING_COUPON, 0.0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyField<int8_t>(verifier, VT_QUOTE_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_QUOTED_PAR_SPREAD, 8) &&
+           VerifyField<double>(verifier, VT_QUOTED_UPFRONT, 8) &&
+           VerifyField<double>(verifier, VT_RUNNING_COUPON, 8) &&
            verifier.EndTable();
   }
-  CreditSpreadQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CreditSpreadQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CreditSpreadQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  CdsQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CdsQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CdsQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct CreditSpreadQuoteBuilder {
-  typedef CreditSpreadQuote Table;
+struct CdsQuoteBuilder {
+  typedef CdsQuote Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(CreditSpreadQuote::VT_TENOR_NUMBER, tenor_number, 0);
+    fbb_.AddElement<int32_t>(CdsQuote::VT_TENOR_NUMBER, tenor_number, 0);
   }
   void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(CreditSpreadQuote::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+    fbb_.AddElement<int8_t>(CdsQuote::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
   }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(CreditSpreadQuote::VT_SPREAD, spread, 0.0);
+  void add_quote_type(quantra::enums::CdsQuoteType quote_type) {
+    fbb_.AddElement<int8_t>(CdsQuote::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type), 0);
   }
-  explicit CreditSpreadQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  void add_quoted_par_spread(double quoted_par_spread) {
+    fbb_.AddElement<double>(CdsQuote::VT_QUOTED_PAR_SPREAD, quoted_par_spread, 0.0);
+  }
+  void add_quoted_upfront(double quoted_upfront) {
+    fbb_.AddElement<double>(CdsQuote::VT_QUOTED_UPFRONT, quoted_upfront, 0.0);
+  }
+  void add_running_coupon(double running_coupon) {
+    fbb_.AddElement<double>(CdsQuote::VT_RUNNING_COUPON, running_coupon, 0.0);
+  }
+  explicit CdsQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<CreditSpreadQuote> Finish() {
+  ::flatbuffers::Offset<CdsQuote> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CreditSpreadQuote>(end);
+    auto o = ::flatbuffers::Offset<CdsQuote>(end);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(
+inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    double spread = 0.0) {
-  CreditSpreadQuoteBuilder builder_(_fbb);
-  builder_.add_spread(spread);
+    quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread,
+    double quoted_par_spread = 0.0,
+    double quoted_upfront = 0.0,
+    double running_coupon = 0.0) {
+  CdsQuoteBuilder builder_(_fbb);
+  builder_.add_running_coupon(running_coupon);
+  builder_.add_quoted_upfront(quoted_upfront);
+  builder_.add_quoted_par_spread(quoted_par_spread);
   builder_.add_tenor_number(tenor_number);
+  builder_.add_quote_type(quote_type);
   builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
-::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<CdsQuote> CreateCdsQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CdsQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct CreditCurveT : public ::flatbuffers::NativeTable {
-  typedef CreditCurve TableType;
-  std::string id{};
-  std::string reference_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  double recovery_rate = 0.4;
-  std::vector<std::unique_ptr<quantra::CreditSpreadQuoteT>> quotes{};
-  double flat_hazard_rate = 0.0;
-  CreditCurveT() = default;
-  CreditCurveT(const CreditCurveT &o);
-  CreditCurveT(CreditCurveT&&) FLATBUFFERS_NOEXCEPT = default;
-  CreditCurveT &operator=(CreditCurveT o) FLATBUFFERS_NOEXCEPT;
+struct CdsHelperConventionsT : public ::flatbuffers::NativeTable {
+  typedef CdsHelperConventions TableType;
+  int32_t settlement_days = 0;
+  quantra::enums::Frequency frequency = quantra::enums::Frequency_Quarterly;
+  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_TwentiethIMM;
+  quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual365Fixed;
+  bool settles_accrual = true;
+  bool pays_at_default_time = true;
+  bool rebates_accrual = true;
+  quantra::enums::CdsHelperModel helper_model = quantra::enums::CdsHelperModel_MidPoint;
 };
 
-struct CreditCurve FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CreditCurveT NativeTableType;
-  typedef CreditCurveBuilder Builder;
+struct CdsHelperConventions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CdsHelperConventionsT NativeTableType;
+  typedef CdsHelperConventionsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SETTLEMENT_DAYS = 4,
+    VT_FREQUENCY = 6,
+    VT_BUSINESS_DAY_CONVENTION = 8,
+    VT_DATE_GENERATION_RULE = 10,
+    VT_LAST_PERIOD_DAY_COUNTER = 12,
+    VT_SETTLES_ACCRUAL = 14,
+    VT_PAYS_AT_DEFAULT_TIME = 16,
+    VT_REBATES_ACCRUAL = 18,
+    VT_HELPER_MODEL = 20
+  };
+  int32_t settlement_days() const {
+    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
+  }
+  quantra::enums::Frequency frequency() const {
+    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 10));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  }
+  quantra::enums::DateGenerationRule date_generation_rule() const {
+    return static_cast<quantra::enums::DateGenerationRule>(GetField<int8_t>(VT_DATE_GENERATION_RULE, 6));
+  }
+  quantra::enums::DayCounter last_period_day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_LAST_PERIOD_DAY_COUNTER, 1));
+  }
+  bool settles_accrual() const {
+    return GetField<uint8_t>(VT_SETTLES_ACCRUAL, 1) != 0;
+  }
+  bool pays_at_default_time() const {
+    return GetField<uint8_t>(VT_PAYS_AT_DEFAULT_TIME, 1) != 0;
+  }
+  bool rebates_accrual() const {
+    return GetField<uint8_t>(VT_REBATES_ACCRUAL, 1) != 0;
+  }
+  quantra::enums::CdsHelperModel helper_model() const {
+    return static_cast<quantra::enums::CdsHelperModel>(GetField<int8_t>(VT_HELPER_MODEL, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_FREQUENCY, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DATE_GENERATION_RULE, 1) &&
+           VerifyField<int8_t>(verifier, VT_LAST_PERIOD_DAY_COUNTER, 1) &&
+           VerifyField<uint8_t>(verifier, VT_SETTLES_ACCRUAL, 1) &&
+           VerifyField<uint8_t>(verifier, VT_PAYS_AT_DEFAULT_TIME, 1) &&
+           VerifyField<uint8_t>(verifier, VT_REBATES_ACCRUAL, 1) &&
+           VerifyField<int8_t>(verifier, VT_HELPER_MODEL, 1) &&
+           verifier.EndTable();
+  }
+  CdsHelperConventionsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CdsHelperConventionsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CdsHelperConventions> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsHelperConventionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CdsHelperConventionsBuilder {
+  typedef CdsHelperConventions Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_settlement_days(int32_t settlement_days) {
+    fbb_.AddElement<int32_t>(CdsHelperConventions::VT_SETTLEMENT_DAYS, settlement_days, 0);
+  }
+  void add_frequency(quantra::enums::Frequency frequency) {
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_FREQUENCY, static_cast<int8_t>(frequency), 10);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_date_generation_rule(quantra::enums::DateGenerationRule date_generation_rule) {
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_DATE_GENERATION_RULE, static_cast<int8_t>(date_generation_rule), 6);
+  }
+  void add_last_period_day_counter(quantra::enums::DayCounter last_period_day_counter) {
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_LAST_PERIOD_DAY_COUNTER, static_cast<int8_t>(last_period_day_counter), 1);
+  }
+  void add_settles_accrual(bool settles_accrual) {
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_SETTLES_ACCRUAL, static_cast<uint8_t>(settles_accrual), 1);
+  }
+  void add_pays_at_default_time(bool pays_at_default_time) {
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_PAYS_AT_DEFAULT_TIME, static_cast<uint8_t>(pays_at_default_time), 1);
+  }
+  void add_rebates_accrual(bool rebates_accrual) {
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_REBATES_ACCRUAL, static_cast<uint8_t>(rebates_accrual), 1);
+  }
+  void add_helper_model(quantra::enums::CdsHelperModel helper_model) {
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_HELPER_MODEL, static_cast<int8_t>(helper_model), 0);
+  }
+  explicit CdsHelperConventionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CdsHelperConventions> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CdsHelperConventions>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CdsHelperConventions> CreateCdsHelperConventions(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t settlement_days = 0,
+    quantra::enums::Frequency frequency = quantra::enums::Frequency_Quarterly,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_TwentiethIMM,
+    quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    bool settles_accrual = true,
+    bool pays_at_default_time = true,
+    bool rebates_accrual = true,
+    quantra::enums::CdsHelperModel helper_model = quantra::enums::CdsHelperModel_MidPoint) {
+  CdsHelperConventionsBuilder builder_(_fbb);
+  builder_.add_settlement_days(settlement_days);
+  builder_.add_helper_model(helper_model);
+  builder_.add_rebates_accrual(rebates_accrual);
+  builder_.add_pays_at_default_time(pays_at_default_time);
+  builder_.add_settles_accrual(settles_accrual);
+  builder_.add_last_period_day_counter(last_period_day_counter);
+  builder_.add_date_generation_rule(date_generation_rule);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_frequency(frequency);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<CdsHelperConventions> CreateCdsHelperConventions(::flatbuffers::FlatBufferBuilder &_fbb, const CdsHelperConventionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CreditCurveSpecT : public ::flatbuffers::NativeTable {
+  typedef CreditCurveSpec TableType;
+  std::string id{};
+  std::string reference_date{};
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar;
+  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
+  double recovery_rate = 0.4;
+  quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear;
+  std::unique_ptr<quantra::CdsHelperConventionsT> helper_conventions{};
+  std::vector<std::unique_ptr<quantra::CdsQuoteT>> quotes{};
+  double flat_hazard_rate = 0.0;
+  CreditCurveSpecT() = default;
+  CreditCurveSpecT(const CreditCurveSpecT &o);
+  CreditCurveSpecT(CreditCurveSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  CreditCurveSpecT &operator=(CreditCurveSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+struct CreditCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CreditCurveSpecT NativeTableType;
+  typedef CreditCurveSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
     VT_REFERENCE_DATE = 6,
     VT_CALENDAR = 8,
     VT_DAY_COUNTER = 10,
     VT_RECOVERY_RATE = 12,
-    VT_QUOTES = 14,
-    VT_FLAT_HAZARD_RATE = 16
+    VT_CURVE_INTERPOLATOR = 14,
+    VT_HELPER_CONVENTIONS = 16,
+    VT_QUOTES = 18,
+    VT_FLAT_HAZARD_RATE = 20
   };
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
@@ -133,182 +314,270 @@ struct CreditCurve FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
   quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
   }
   quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
   }
   double recovery_rate() const {
     return GetField<double>(VT_RECOVERY_RATE, 0.4);
   }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *quotes() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *>(VT_QUOTES);
+  quantra::enums::Interpolator curve_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_CURVE_INTERPOLATOR, 4));
+  }
+  const quantra::CdsHelperConventions *helper_conventions() const {
+    return GetPointer<const quantra::CdsHelperConventions *>(VT_HELPER_CONVENTIONS);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *>(VT_QUOTES);
   }
   double flat_hazard_rate() const {
     return GetField<double>(VT_FLAT_HAZARD_RATE, 0.0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_ID) &&
+           VerifyOffsetRequired(verifier, VT_ID) &&
            verifier.VerifyString(id()) &&
-           VerifyOffset(verifier, VT_REFERENCE_DATE) &&
+           VerifyOffsetRequired(verifier, VT_REFERENCE_DATE) &&
            verifier.VerifyString(reference_date()) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            VerifyField<double>(verifier, VT_RECOVERY_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_CURVE_INTERPOLATOR, 1) &&
+           VerifyOffset(verifier, VT_HELPER_CONVENTIONS) &&
+           verifier.VerifyTable(helper_conventions()) &&
            VerifyOffset(verifier, VT_QUOTES) &&
            verifier.VerifyVector(quotes()) &&
            verifier.VerifyVectorOfTables(quotes()) &&
            VerifyField<double>(verifier, VT_FLAT_HAZARD_RATE, 8) &&
            verifier.EndTable();
   }
-  CreditCurveT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CreditCurveT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CreditCurve> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  CreditCurveSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CreditCurveSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CreditCurveSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct CreditCurveBuilder {
-  typedef CreditCurve Table;
+struct CreditCurveSpecBuilder {
+  typedef CreditCurveSpec Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
-    fbb_.AddOffset(CreditCurve::VT_ID, id);
+    fbb_.AddOffset(CreditCurveSpec::VT_ID, id);
   }
   void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
-    fbb_.AddOffset(CreditCurve::VT_REFERENCE_DATE, reference_date);
+    fbb_.AddOffset(CreditCurveSpec::VT_REFERENCE_DATE, reference_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(CreditCurve::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 21);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(CreditCurve::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
   }
   void add_recovery_rate(double recovery_rate) {
-    fbb_.AddElement<double>(CreditCurve::VT_RECOVERY_RATE, recovery_rate, 0.4);
+    fbb_.AddElement<double>(CreditCurveSpec::VT_RECOVERY_RATE, recovery_rate, 0.4);
   }
-  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>> quotes) {
-    fbb_.AddOffset(CreditCurve::VT_QUOTES, quotes);
+  void add_curve_interpolator(quantra::enums::Interpolator curve_interpolator) {
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CURVE_INTERPOLATOR, static_cast<int8_t>(curve_interpolator), 4);
+  }
+  void add_helper_conventions(::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions) {
+    fbb_.AddOffset(CreditCurveSpec::VT_HELPER_CONVENTIONS, helper_conventions);
+  }
+  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>>> quotes) {
+    fbb_.AddOffset(CreditCurveSpec::VT_QUOTES, quotes);
   }
   void add_flat_hazard_rate(double flat_hazard_rate) {
-    fbb_.AddElement<double>(CreditCurve::VT_FLAT_HAZARD_RATE, flat_hazard_rate, 0.0);
+    fbb_.AddElement<double>(CreditCurveSpec::VT_FLAT_HAZARD_RATE, flat_hazard_rate, 0.0);
   }
-  explicit CreditCurveBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit CreditCurveSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<CreditCurve> Finish() {
+  ::flatbuffers::Offset<CreditCurveSpec> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CreditCurve>(end);
+    auto o = ::flatbuffers::Offset<CreditCurveSpec>(end);
+    fbb_.Required(o, CreditCurveSpec::VT_ID);
+    fbb_.Required(o, CreditCurveSpec::VT_REFERENCE_DATE);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurve(
+inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
     double recovery_rate = 0.4,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>> quotes = 0,
+    quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
+    ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>>> quotes = 0,
     double flat_hazard_rate = 0.0) {
-  CreditCurveBuilder builder_(_fbb);
+  CreditCurveSpecBuilder builder_(_fbb);
   builder_.add_flat_hazard_rate(flat_hazard_rate);
   builder_.add_recovery_rate(recovery_rate);
   builder_.add_quotes(quotes);
+  builder_.add_helper_conventions(helper_conventions);
   builder_.add_reference_date(reference_date);
   builder_.add_id(id);
+  builder_.add_curve_interpolator(curve_interpolator);
   builder_.add_day_counter(day_counter);
   builder_.add_calendar(calendar);
   return builder_.Finish();
 }
 
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurveDirect(
+inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
     double recovery_rate = 0.4,
-    const std::vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *quotes = nullptr,
+    quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
+    ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
+    const std::vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes = nullptr,
     double flat_hazard_rate = 0.0) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
-  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>(*quotes) : 0;
-  return quantra::CreateCreditCurve(
+  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CdsQuote>>(*quotes) : 0;
+  return quantra::CreateCreditCurveSpec(
       _fbb,
       id__,
       reference_date__,
       calendar,
       day_counter,
       recovery_rate,
+      curve_interpolator,
+      helper_conventions,
       quotes__,
       flat_hazard_rate);
 }
 
-::flatbuffers::Offset<CreditCurve> CreateCreditCurve(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline CreditSpreadQuoteT *CreditSpreadQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CreditSpreadQuoteT>(new CreditSpreadQuoteT());
+inline CdsQuoteT *CdsQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CdsQuoteT>(new CdsQuoteT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void CreditSpreadQuote::UnPackTo(CreditSpreadQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void CdsQuote::UnPackTo(CdsQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = tenor_number(); _o->tenor_number = _e; }
   { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = spread(); _o->spread = _e; }
+  { auto _e = quote_type(); _o->quote_type = _e; }
+  { auto _e = quoted_par_spread(); _o->quoted_par_spread = _e; }
+  { auto _e = quoted_upfront(); _o->quoted_upfront = _e; }
+  { auto _e = running_coupon(); _o->running_coupon = _e; }
 }
 
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreditSpreadQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCreditSpreadQuote(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<CdsQuote> CdsQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCdsQuote(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CdsQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditSpreadQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CdsQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _tenor_number = _o->tenor_number;
   auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _spread = _o->spread;
-  return quantra::CreateCreditSpreadQuote(
+  auto _quote_type = _o->quote_type;
+  auto _quoted_par_spread = _o->quoted_par_spread;
+  auto _quoted_upfront = _o->quoted_upfront;
+  auto _running_coupon = _o->running_coupon;
+  return quantra::CreateCdsQuote(
       _fbb,
       _tenor_number,
       _tenor_time_unit,
-      _spread);
+      _quote_type,
+      _quoted_par_spread,
+      _quoted_upfront,
+      _running_coupon);
 }
 
-inline CreditCurveT::CreditCurveT(const CreditCurveT &o)
+inline CdsHelperConventionsT *CdsHelperConventions::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CdsHelperConventionsT>(new CdsHelperConventionsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CdsHelperConventions::UnPackTo(CdsHelperConventionsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = settlement_days(); _o->settlement_days = _e; }
+  { auto _e = frequency(); _o->frequency = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = date_generation_rule(); _o->date_generation_rule = _e; }
+  { auto _e = last_period_day_counter(); _o->last_period_day_counter = _e; }
+  { auto _e = settles_accrual(); _o->settles_accrual = _e; }
+  { auto _e = pays_at_default_time(); _o->pays_at_default_time = _e; }
+  { auto _e = rebates_accrual(); _o->rebates_accrual = _e; }
+  { auto _e = helper_model(); _o->helper_model = _e; }
+}
+
+inline ::flatbuffers::Offset<CdsHelperConventions> CdsHelperConventions::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsHelperConventionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCdsHelperConventions(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CdsHelperConventions> CreateCdsHelperConventions(::flatbuffers::FlatBufferBuilder &_fbb, const CdsHelperConventionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CdsHelperConventionsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _settlement_days = _o->settlement_days;
+  auto _frequency = _o->frequency;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _date_generation_rule = _o->date_generation_rule;
+  auto _last_period_day_counter = _o->last_period_day_counter;
+  auto _settles_accrual = _o->settles_accrual;
+  auto _pays_at_default_time = _o->pays_at_default_time;
+  auto _rebates_accrual = _o->rebates_accrual;
+  auto _helper_model = _o->helper_model;
+  return quantra::CreateCdsHelperConventions(
+      _fbb,
+      _settlement_days,
+      _frequency,
+      _business_day_convention,
+      _date_generation_rule,
+      _last_period_day_counter,
+      _settles_accrual,
+      _pays_at_default_time,
+      _rebates_accrual,
+      _helper_model);
+}
+
+inline CreditCurveSpecT::CreditCurveSpecT(const CreditCurveSpecT &o)
       : id(o.id),
         reference_date(o.reference_date),
         calendar(o.calendar),
         day_counter(o.day_counter),
         recovery_rate(o.recovery_rate),
+        curve_interpolator(o.curve_interpolator),
+        helper_conventions((o.helper_conventions) ? new quantra::CdsHelperConventionsT(*o.helper_conventions) : nullptr),
         flat_hazard_rate(o.flat_hazard_rate) {
   quotes.reserve(o.quotes.size());
-  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::CreditSpreadQuoteT(*quotes_) : nullptr); }
+  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::CdsQuoteT(*quotes_) : nullptr); }
 }
 
-inline CreditCurveT &CreditCurveT::operator=(CreditCurveT o) FLATBUFFERS_NOEXCEPT {
+inline CreditCurveSpecT &CreditCurveSpecT::operator=(CreditCurveSpecT o) FLATBUFFERS_NOEXCEPT {
   std::swap(id, o.id);
   std::swap(reference_date, o.reference_date);
   std::swap(calendar, o.calendar);
   std::swap(day_counter, o.day_counter);
   std::swap(recovery_rate, o.recovery_rate);
+  std::swap(curve_interpolator, o.curve_interpolator);
+  std::swap(helper_conventions, o.helper_conventions);
   std::swap(quotes, o.quotes);
   std::swap(flat_hazard_rate, o.flat_hazard_rate);
   return *this;
 }
 
-inline CreditCurveT *CreditCurve::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CreditCurveT>(new CreditCurveT());
+inline CreditCurveSpecT *CreditCurveSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CreditCurveSpecT>(new CreditCurveSpecT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void CreditCurve::UnPackTo(CreditCurveT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void CreditCurveSpec::UnPackTo(CreditCurveSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = id(); if (_e) _o->id = _e->str(); }
@@ -316,32 +585,38 @@ inline void CreditCurve::UnPackTo(CreditCurveT *_o, const ::flatbuffers::resolve
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = recovery_rate(); _o->recovery_rate = _e; }
-  { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::CreditSpreadQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
+  { auto _e = curve_interpolator(); _o->curve_interpolator = _e; }
+  { auto _e = helper_conventions(); if (_e) { if(_o->helper_conventions) { _e->UnPackTo(_o->helper_conventions.get(), _resolver); } else { _o->helper_conventions = std::unique_ptr<quantra::CdsHelperConventionsT>(_e->UnPack(_resolver)); } } else if (_o->helper_conventions) { _o->helper_conventions.reset(); } }
+  { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::CdsQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
   { auto _e = flat_hazard_rate(); _o->flat_hazard_rate = _e; }
 }
 
-inline ::flatbuffers::Offset<CreditCurve> CreditCurve::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCreditCurve(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<CreditCurveSpec> CreditCurveSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCreditCurveSpec(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurve(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditCurveT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _id = _o->id.empty() ? 0 : _fbb.CreateString(_o->id);
-  auto _reference_date = _o->reference_date.empty() ? 0 : _fbb.CreateString(_o->reference_date);
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditCurveSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _id = _fbb.CreateString(_o->id);
+  auto _reference_date = _fbb.CreateString(_o->reference_date);
   auto _calendar = _o->calendar;
   auto _day_counter = _o->day_counter;
   auto _recovery_rate = _o->recovery_rate;
-  auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCreditSpreadQuote(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _curve_interpolator = _o->curve_interpolator;
+  auto _helper_conventions = _o->helper_conventions ? CreateCdsHelperConventions(_fbb, _o->helper_conventions.get(), _rehasher) : 0;
+  auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CdsQuote>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCdsQuote(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _flat_hazard_rate = _o->flat_hazard_rate;
-  return quantra::CreateCreditCurve(
+  return quantra::CreateCreditCurveSpec(
       _fbb,
       _id,
       _reference_date,
       _calendar,
       _day_counter,
       _recovery_rate,
+      _curve_interpolator,
+      _helper_conventions,
       _quotes,
       _flat_hazard_rate);
 }

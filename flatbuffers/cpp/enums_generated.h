@@ -526,6 +526,186 @@ inline const char *EnumNameDateGenerationRule(DateGenerationRule e) {
   return EnumNamesDateGenerationRule()[index];
 }
 
+enum CdsEngineType : int8_t {
+  CdsEngineType_MidPoint = 0,
+  CdsEngineType_ISDA = 1,
+  CdsEngineType_MIN = CdsEngineType_MidPoint,
+  CdsEngineType_MAX = CdsEngineType_ISDA
+};
+
+inline const CdsEngineType (&EnumValuesCdsEngineType())[2] {
+  static const CdsEngineType values[] = {
+    CdsEngineType_MidPoint,
+    CdsEngineType_ISDA
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsEngineType() {
+  static const char * const names[3] = {
+    "MidPoint",
+    "ISDA",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsEngineType(CdsEngineType e) {
+  if (::flatbuffers::IsOutRange(e, CdsEngineType_MidPoint, CdsEngineType_ISDA)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsEngineType()[index];
+}
+
+enum CdsHelperModel : int8_t {
+  CdsHelperModel_MidPoint = 0,
+  CdsHelperModel_ISDA = 1,
+  CdsHelperModel_MIN = CdsHelperModel_MidPoint,
+  CdsHelperModel_MAX = CdsHelperModel_ISDA
+};
+
+inline const CdsHelperModel (&EnumValuesCdsHelperModel())[2] {
+  static const CdsHelperModel values[] = {
+    CdsHelperModel_MidPoint,
+    CdsHelperModel_ISDA
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsHelperModel() {
+  static const char * const names[3] = {
+    "MidPoint",
+    "ISDA",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsHelperModel(CdsHelperModel e) {
+  if (::flatbuffers::IsOutRange(e, CdsHelperModel_MidPoint, CdsHelperModel_ISDA)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsHelperModel()[index];
+}
+
+enum CdsQuoteType : int8_t {
+  CdsQuoteType_ParSpread = 0,
+  CdsQuoteType_Upfront = 1,
+  CdsQuoteType_MIN = CdsQuoteType_ParSpread,
+  CdsQuoteType_MAX = CdsQuoteType_Upfront
+};
+
+inline const CdsQuoteType (&EnumValuesCdsQuoteType())[2] {
+  static const CdsQuoteType values[] = {
+    CdsQuoteType_ParSpread,
+    CdsQuoteType_Upfront
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsQuoteType() {
+  static const char * const names[3] = {
+    "ParSpread",
+    "Upfront",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsQuoteType(CdsQuoteType e) {
+  if (::flatbuffers::IsOutRange(e, CdsQuoteType_ParSpread, CdsQuoteType_Upfront)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsQuoteType()[index];
+}
+
+enum CdsIsdaNumericalFix : int8_t {
+  CdsIsdaNumericalFix_None = 0,
+  CdsIsdaNumericalFix_Taylor = 1,
+  CdsIsdaNumericalFix_MIN = CdsIsdaNumericalFix_None,
+  CdsIsdaNumericalFix_MAX = CdsIsdaNumericalFix_Taylor
+};
+
+inline const CdsIsdaNumericalFix (&EnumValuesCdsIsdaNumericalFix())[2] {
+  static const CdsIsdaNumericalFix values[] = {
+    CdsIsdaNumericalFix_None,
+    CdsIsdaNumericalFix_Taylor
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsIsdaNumericalFix() {
+  static const char * const names[3] = {
+    "None",
+    "Taylor",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsIsdaNumericalFix(CdsIsdaNumericalFix e) {
+  if (::flatbuffers::IsOutRange(e, CdsIsdaNumericalFix_None, CdsIsdaNumericalFix_Taylor)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsIsdaNumericalFix()[index];
+}
+
+enum CdsIsdaAccrualBias : int8_t {
+  CdsIsdaAccrualBias_HalfDayBias = 0,
+  CdsIsdaAccrualBias_NoBias = 1,
+  CdsIsdaAccrualBias_MIN = CdsIsdaAccrualBias_HalfDayBias,
+  CdsIsdaAccrualBias_MAX = CdsIsdaAccrualBias_NoBias
+};
+
+inline const CdsIsdaAccrualBias (&EnumValuesCdsIsdaAccrualBias())[2] {
+  static const CdsIsdaAccrualBias values[] = {
+    CdsIsdaAccrualBias_HalfDayBias,
+    CdsIsdaAccrualBias_NoBias
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsIsdaAccrualBias() {
+  static const char * const names[3] = {
+    "HalfDayBias",
+    "NoBias",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsIsdaAccrualBias(CdsIsdaAccrualBias e) {
+  if (::flatbuffers::IsOutRange(e, CdsIsdaAccrualBias_HalfDayBias, CdsIsdaAccrualBias_NoBias)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsIsdaAccrualBias()[index];
+}
+
+enum CdsIsdaForwardsInCouponPeriod : int8_t {
+  CdsIsdaForwardsInCouponPeriod_Flat = 0,
+  CdsIsdaForwardsInCouponPeriod_Piecewise = 1,
+  CdsIsdaForwardsInCouponPeriod_MIN = CdsIsdaForwardsInCouponPeriod_Flat,
+  CdsIsdaForwardsInCouponPeriod_MAX = CdsIsdaForwardsInCouponPeriod_Piecewise
+};
+
+inline const CdsIsdaForwardsInCouponPeriod (&EnumValuesCdsIsdaForwardsInCouponPeriod())[2] {
+  static const CdsIsdaForwardsInCouponPeriod values[] = {
+    CdsIsdaForwardsInCouponPeriod_Flat,
+    CdsIsdaForwardsInCouponPeriod_Piecewise
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCdsIsdaForwardsInCouponPeriod() {
+  static const char * const names[3] = {
+    "Flat",
+    "Piecewise",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCdsIsdaForwardsInCouponPeriod(CdsIsdaForwardsInCouponPeriod e) {
+  if (::flatbuffers::IsOutRange(e, CdsIsdaForwardsInCouponPeriod_Flat, CdsIsdaForwardsInCouponPeriod_Piecewise)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCdsIsdaForwardsInCouponPeriod()[index];
+}
+
 enum Compounding : int8_t {
   Compounding_Compounded = 0,
   Compounding_Continuous = 1,

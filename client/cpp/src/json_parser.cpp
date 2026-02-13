@@ -72,6 +72,7 @@ private:
     std::shared_ptr<flatbuffers::Parser> LoadSchema(const char* filename) {
         auto parser = std::make_shared<flatbuffers::Parser>();
         parser->opts.strict_json = true;
+        parser->opts.force_defaults = true;
         
         std::string filepath = std::string(Config::FBS_DIR) + "/" + filename;
         std::string content;

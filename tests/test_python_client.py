@@ -68,7 +68,10 @@ from quantra_client.client import (
     PriceSwaptionT,
     CDST,
     PriceCDST,
-    CreditCurveT,
+    CreditCurveSpecT,
+    CdsHelperConventionsT,
+    CdsQuoteT,
+    CdsModelSpecT,
     # Enums
     DayCounter,
     Calendar,
@@ -87,6 +90,8 @@ from quantra_client.client import (
     ProtectionSide,
     VolatilityType,
     IrModelType,
+    CdsHelperModel,
+    CdsEngineType,
     Point,
 )
 
@@ -297,7 +302,7 @@ def build_index_def_eur3m() -> IndexDefT:
     return idef
 
 def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list = None,
-                            indices: list = None) -> PricingT:
+                            indices: list = None, credit_curves: list = None) -> PricingT:
     """Build Pricing object for Quantra.
     
     Args:
@@ -305,12 +310,14 @@ def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list 
         vol_surfaces: List of VolSurfaceSpecT (for caps/floors/swaptions)
         models: List of ModelSpecT (for caps/floors/swaptions)
         indices: List of IndexDefT (index definitions referenced by helpers/instruments)
+        credit_curves: List of CreditCurveSpecT (CDS credit curves)
     """
     p = PricingT()
     p.asOfDate = EVAL_DATE_STR
     p.settlementDate = EVAL_DATE_STR
     p.indices = indices or []
     p.curves = curves
+    p.creditCurves = credit_curves or []
     p.volSurfaces = vol_surfaces or []
     p.models = models or []
     p.bondPricingDetails = True
@@ -925,22 +932,52 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
     cds = CDST()
     cds.side = ProtectionSide.Buyer
     cds.notional = notional
-    cds.spread = spread
+    cds.runningCoupon = spread
     cds.schedule = schedule_q
     cds.dayCounter = DayCounter.Actual360
     cds.businessDayConvention = BusinessDayConvention.Following
     
-    credit_curve = CreditCurveT()
+    credit_curve = CreditCurveSpecT()
+    credit_curve.id = "credit"
+    credit_curve.referenceDate = EVAL_DATE_STR
+    credit_curve.calendar = Calendar.TARGET
+    credit_curve.dayCounter = DayCounter.Actual365Fixed
     credit_curve.recoveryRate = recovery
+    credit_curve.curveInterpolator = Interpolator.LogLinear
     credit_curve.flatHazardRate = hazard
+    helper_conv = CdsHelperConventionsT()
+    helper_conv.settlementDays = 0
+    helper_conv.frequency = Frequency.Quarterly
+    helper_conv.businessDayConvention = BusinessDayConvention.Following
+    helper_conv.dateGenerationRule = DateGenerationRule.TwentiethIMM
+    helper_conv.lastPeriodDayCounter = DayCounter.Actual365Fixed
+    helper_conv.settlesAccrual = True
+    helper_conv.paysAtDefaultTime = True
+    helper_conv.rebatesAccrual = True
+    helper_conv.helperModel = CdsHelperModel.MidPoint
+    credit_curve.helperConventions = helper_conv
+    credit_curve.quotes = []
+
+    cds_model = CdsModelSpecT()
+    cds_model.engineType = CdsEngineType.MidPoint
+    model_spec = ModelSpecT()
+    model_spec.id = "cds_model"
+    model_spec.payloadType = ModelPayload.CdsModelSpec
+    model_spec.payload = cds_model
     
     price_cds = PriceCDST()
     price_cds.cds = cds
     price_cds.discountingCurve = "discount"
-    price_cds.creditCurve = credit_curve
+    price_cds.creditCurveId = "credit"
+    price_cds.model = "cds_model"
     
     request = PriceCDSRequestT()
-    request.pricing = build_quantra_pricing([build_quantra_curve("discount")], indices=[build_index_def_eur6m()])
+    request.pricing = build_quantra_pricing(
+        [build_quantra_curve("discount")],
+        indices=[build_index_def_eur6m()],
+        credit_curves=[credit_curve],
+        models=[model_spec]
+    )
     request.cdsList = [price_cds]
     
     response = client.price_cds(request)

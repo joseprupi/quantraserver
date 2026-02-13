@@ -192,6 +192,56 @@ def get_currency(code: str):
     return mapping.get(code, ql.USDCurrency())
 
 
+def get_cds_engine_type(name: str):
+    mapping = {
+        "MidPoint": "MidPoint",
+        "ISDA": "ISDA",
+    }
+    return mapping.get(name, "MidPoint")
+
+
+def get_cds_helper_model(name: str):
+    mapping = {
+        "MidPoint": ql.CreditDefaultSwap.Midpoint,
+        "ISDA": ql.CreditDefaultSwap.ISDA,
+    }
+    return mapping.get(name, ql.CreditDefaultSwap.Midpoint)
+
+
+def get_cds_curve_interpolator(name: str):
+    mapping = {
+        "LogLinear": ql.LogLinear(),
+        "Linear": ql.Linear(),
+        "BackwardFlat": ql.BackwardFlat(),
+    }
+    return mapping.get(name, ql.LogLinear())
+
+
+def get_isda_numerical_fix(name: str):
+    none_fix = getattr(ql.IsdaCdsEngine, "None", ql.IsdaCdsEngine.Taylor)
+    mapping = {
+        "None": none_fix,
+        "Taylor": ql.IsdaCdsEngine.Taylor,
+    }
+    return mapping.get(name, ql.IsdaCdsEngine.Taylor)
+
+
+def get_isda_accrual_bias(name: str):
+    mapping = {
+        "HalfDayBias": ql.IsdaCdsEngine.HalfDayBias,
+        "NoBias": ql.IsdaCdsEngine.NoBias,
+    }
+    return mapping.get(name, ql.IsdaCdsEngine.HalfDayBias)
+
+
+def get_isda_forwards_in_coupon_period(name: str):
+    mapping = {
+        "Flat": ql.IsdaCdsEngine.Flat,
+        "Piecewise": ql.IsdaCdsEngine.Piecewise,
+    }
+    return mapping.get(name, ql.IsdaCdsEngine.Piecewise)
+
+
 def build_ibor_index(idx_def: dict, curve_handle=None):
     period = ql.Period(
         idx_def.get("tenor_number", 6),
@@ -912,15 +962,15 @@ def price_cds_ql(request: dict) -> float:
     pricing = request["pricing"]
     cds_data = request["cds_list"][0]
     cds = cds_data["cds"]
-    
+
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
-    
-    # Build discount curve
+
+    # Build discount curve for pricing
     curve_id = cds_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
     curve = build_curve_from_json(curve_json, eval_date, request)
-    
+
     # Build schedule
     sch = cds["schedule"]
     schedule = ql.Schedule(
@@ -933,28 +983,204 @@ def price_cds_ql(request: dict) -> float:
         get_date_generation(sch.get("date_generation_rule", "Forward")),
         False
     )
-    
+
     protection = ql.Protection.Buyer if cds["side"] == "Buyer" else ql.Protection.Seller
-    
-    ql_cds = ql.CreditDefaultSwap(
-        protection,
-        cds["notional"],
-        cds["spread"],
-        schedule,
-        get_convention(cds.get("business_day_convention", "Following")),
-        get_day_counter(cds.get("day_counter", "Actual360"))
-    )
-    
+
+    settles_accrual = cds.get("settles_accrual", True)
+    pays_at_default = cds.get("pays_at_default_time", True)
+    rebates_accrual = cds.get("rebates_accrual", True)
+    last_period_dc = get_day_counter(cds.get("last_period_day_counter", "Actual360"))
+    cash_settlement_days = cds.get("cash_settlement_days", 3)
+
+    protection_start = parse_date(cds["protection_start"]) if cds.get("protection_start") else ql.Date()
+    upfront_date = parse_date(cds["upfront_date"]) if cds.get("upfront_date") else ql.Date()
+    trade_date = parse_date(cds["trade_date"]) if cds.get("trade_date") else ql.Date()
+
+    upfront = cds.get("upfront", 0.0)
+    running_coupon = cds.get("running_coupon", 0.0)
+    if upfront != 0.0 or cds.get("upfront_date"):
+        try:
+            ql_cds = ql.CreditDefaultSwap(
+                protection,
+                cds["notional"],
+                upfront,
+                running_coupon,
+                schedule,
+                get_convention(cds.get("business_day_convention", "Following")),
+                get_day_counter(cds.get("day_counter", "Actual360")),
+                settles_accrual,
+                pays_at_default,
+                protection_start,
+                upfront_date,
+                None,
+                last_period_dc,
+                rebates_accrual,
+                trade_date,
+                cash_settlement_days
+            )
+        except Exception:
+            ql_cds = ql.CreditDefaultSwap(
+                protection,
+                cds["notional"],
+                upfront,
+                running_coupon,
+                schedule,
+                get_convention(cds.get("business_day_convention", "Following")),
+                get_day_counter(cds.get("day_counter", "Actual360"))
+            )
+    else:
+        try:
+            ql_cds = ql.CreditDefaultSwap(
+                protection,
+                cds["notional"],
+                running_coupon,
+                schedule,
+                get_convention(cds.get("business_day_convention", "Following")),
+                get_day_counter(cds.get("day_counter", "Actual360")),
+                settles_accrual,
+                pays_at_default,
+                protection_start,
+                None,
+                last_period_dc,
+                rebates_accrual,
+                trade_date,
+                cash_settlement_days
+            )
+        except Exception:
+            ql_cds = ql.CreditDefaultSwap(
+                protection,
+                cds["notional"],
+                running_coupon,
+                schedule,
+                get_convention(cds.get("business_day_convention", "Following")),
+                get_day_counter(cds.get("day_counter", "Actual360"))
+            )
+
     # Credit curve
-    credit = cds_data["credit_curve"]
-    recovery = credit["recovery_rate"]
-    hazard = credit["flat_hazard_rate"]
-    
-    default_curve = ql.FlatHazardRate(eval_date, ql.QuoteHandle(ql.SimpleQuote(hazard)), ql.Actual365Fixed())
-    ql_cds.setPricingEngine(
-        ql.MidPointCdsEngine(ql.DefaultProbabilityTermStructureHandle(default_curve), recovery, curve)
-    )
-    
+    credit_curve_id = cds_data["credit_curve_id"]
+    credit = next((c for c in pricing.get("credit_curves", []) if c["id"] == credit_curve_id), None)
+    if credit is None:
+        raise ValueError(f"credit_curve_id not found: {credit_curve_id}")
+
+    recovery = credit.get("recovery_rate", 0.4)
+    hazard = credit.get("flat_hazard_rate", 0.0)
+    quotes = credit.get("quotes", [])
+
+    # Use trade discount curve for credit helpers
+    credit_discount_curve = curve
+
+    if quotes:
+        helper_conv = credit.get("helper_conventions", {})
+        settlement_days = helper_conv.get("settlement_days", 0)
+        calendar = get_calendar(credit.get("calendar", "TARGET"))
+        freq = get_frequency(helper_conv.get("frequency", "Quarterly"))
+        bdc = get_convention(helper_conv.get("business_day_convention", "Following"))
+        rule = get_date_generation(helper_conv.get("date_generation_rule", "TwentiethIMM"))
+        curve_dc = get_day_counter(credit.get("day_counter", "Actual365Fixed"))
+        last_period_dc = get_day_counter(helper_conv.get("last_period_day_counter", "Actual365Fixed"))
+        settles_accrual = helper_conv.get("settles_accrual", True)
+        pays_at_default = helper_conv.get("pays_at_default_time", True)
+        rebates_accrual = helper_conv.get("rebates_accrual", True)
+        helper_model = get_cds_helper_model(helper_conv.get("helper_model", "MidPoint"))
+
+        helpers = []
+        for q in quotes:
+            tenor = ql.Period(q["tenor_number"], get_time_unit(q["tenor_time_unit"]))
+            quote_type = q.get("quote_type", "ParSpread")
+            if quote_type == "Upfront":
+                upfront_quote = ql.QuoteHandle(ql.SimpleQuote(q.get("quoted_upfront", 0.0)))
+                running = q.get("running_coupon", 0.0)
+                helper = ql.UpfrontCdsHelper(
+                    upfront_quote,
+                    running,
+                    tenor,
+                    settlement_days,
+                    calendar,
+                    freq,
+                    bdc,
+                    rule,
+                    curve_dc,
+                    recovery,
+                    credit_discount_curve,
+                    settles_accrual,
+                    pays_at_default,
+                    ql.Date(),
+                    last_period_dc,
+                    rebates_accrual,
+                    helper_model
+                )
+            else:
+                spread_quote = ql.QuoteHandle(ql.SimpleQuote(q.get("quoted_par_spread", 0.0)))
+                helper = ql.SpreadCdsHelper(
+                    spread_quote,
+                    tenor,
+                    settlement_days,
+                    calendar,
+                    freq,
+                    bdc,
+                    rule,
+                    curve_dc,
+                    recovery,
+                    credit_discount_curve,
+                    settles_accrual,
+                    pays_at_default,
+                    ql.Date(),
+                    last_period_dc,
+                    rebates_accrual,
+                    helper_model
+                )
+            helpers.append(helper)
+
+        interp = get_interpolator(credit.get("curve_interpolator", "LogLinear"))
+        if hasattr(ql, "PiecewiseDefaultCurve"):
+            try:
+                default_curve = ql.PiecewiseDefaultCurve(
+                    ql.SurvivalProbability, helpers, curve_dc, interp
+                )
+            except Exception:
+                default_curve = ql.PiecewiseDefaultCurve(
+                    ql.SurvivalProbability, helpers, curve_dc
+                )
+        else:
+            # Fallback for QuantLib Python builds without PiecewiseDefaultCurve
+            default_curve = ql.PiecewiseFlatHazardRate(
+                eval_date, helpers, curve_dc
+            )
+    else:
+        hazard = hazard if hazard > 0.0 else 0.01
+        default_curve = ql.FlatHazardRate(
+            eval_date,
+            ql.QuoteHandle(ql.SimpleQuote(hazard)),
+            get_day_counter(credit.get("day_counter", "Actual365Fixed"))
+        )
+
+    # Model/engine
+    model_id = cds_data["model"]
+    model = next((m for m in pricing.get("models", []) if m["id"] == model_id), None)
+    if model is None:
+        raise ValueError(f"model not found: {model_id}")
+
+    cds_model = model.get("payload", {})
+    engine_type = get_cds_engine_type(cds_model.get("engine_type", "MidPoint"))
+    if engine_type == "ISDA":
+        engine = ql.IsdaCdsEngine(
+            ql.DefaultProbabilityTermStructureHandle(default_curve),
+            recovery,
+            curve,
+            cds_model.get("include_settlement_date_flows"),
+            get_isda_numerical_fix(cds_model.get("isda_numerical_fix", "Taylor")),
+            get_isda_accrual_bias(cds_model.get("isda_accrual_bias", "HalfDayBias")),
+            get_isda_forwards_in_coupon_period(cds_model.get("isda_forwards_in_coupon_period", "Piecewise"))
+        )
+    else:
+        engine = ql.MidPointCdsEngine(
+            ql.DefaultProbabilityTermStructureHandle(default_curve),
+            recovery,
+            curve
+        )
+
+    ql_cds.setPricingEngine(engine)
+
     return ql_cds.NPV()
 
 
@@ -1505,6 +1731,7 @@ def main():
         ("swaption", "swaption_ois_request.json", price_swaption_ql),
         ("swaption", "swaption_ois_bbg_zerorate_request.json", price_swaption_ql),
         ("cds", "cds_request.json", price_cds_ql),
+        ("cds", "cds_complex_request.json", price_cds_ql),
     ]
     
     results = []

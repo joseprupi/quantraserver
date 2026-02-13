@@ -26,11 +26,19 @@ struct CDST : public ::flatbuffers::NativeTable {
   typedef CDS TableType;
   quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer;
   double notional = 0.0;
-  double spread = 0.0;
+  double running_coupon = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   double upfront = 0.0;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  bool settles_accrual = true;
+  bool pays_at_default_time = true;
+  bool rebates_accrual = true;
+  std::string protection_start{};
+  std::string upfront_date{};
+  quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual360;
+  std::string trade_date{};
+  int32_t cash_settlement_days = 3;
   CDST() = default;
   CDST(const CDST &o);
   CDST(CDST&&) FLATBUFFERS_NOEXCEPT = default;
@@ -43,11 +51,19 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SIDE = 4,
     VT_NOTIONAL = 6,
-    VT_SPREAD = 8,
+    VT_RUNNING_COUPON = 8,
     VT_SCHEDULE = 10,
     VT_UPFRONT = 12,
     VT_DAY_COUNTER = 14,
-    VT_BUSINESS_DAY_CONVENTION = 16
+    VT_BUSINESS_DAY_CONVENTION = 16,
+    VT_SETTLES_ACCRUAL = 18,
+    VT_PAYS_AT_DEFAULT_TIME = 20,
+    VT_REBATES_ACCRUAL = 22,
+    VT_PROTECTION_START = 24,
+    VT_UPFRONT_DATE = 26,
+    VT_LAST_PERIOD_DAY_COUNTER = 28,
+    VT_TRADE_DATE = 30,
+    VT_CASH_SETTLEMENT_DAYS = 32
   };
   quantra::enums::ProtectionSide side() const {
     return static_cast<quantra::enums::ProtectionSide>(GetField<int8_t>(VT_SIDE, 0));
@@ -55,8 +71,8 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
+  double running_coupon() const {
+    return GetField<double>(VT_RUNNING_COUPON, 0.0);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
@@ -70,16 +86,51 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
   }
+  bool settles_accrual() const {
+    return GetField<uint8_t>(VT_SETTLES_ACCRUAL, 1) != 0;
+  }
+  bool pays_at_default_time() const {
+    return GetField<uint8_t>(VT_PAYS_AT_DEFAULT_TIME, 1) != 0;
+  }
+  bool rebates_accrual() const {
+    return GetField<uint8_t>(VT_REBATES_ACCRUAL, 1) != 0;
+  }
+  const ::flatbuffers::String *protection_start() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_PROTECTION_START);
+  }
+  const ::flatbuffers::String *upfront_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_UPFRONT_DATE);
+  }
+  quantra::enums::DayCounter last_period_day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_LAST_PERIOD_DAY_COUNTER, 0));
+  }
+  const ::flatbuffers::String *trade_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_TRADE_DATE);
+  }
+  int32_t cash_settlement_days() const {
+    return GetField<int32_t>(VT_CASH_SETTLEMENT_DAYS, 3);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_SIDE, 1) &&
            VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyField<double>(verifier, VT_RUNNING_COUPON, 8) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
            VerifyField<double>(verifier, VT_UPFRONT, 8) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_SETTLES_ACCRUAL, 1) &&
+           VerifyField<uint8_t>(verifier, VT_PAYS_AT_DEFAULT_TIME, 1) &&
+           VerifyField<uint8_t>(verifier, VT_REBATES_ACCRUAL, 1) &&
+           VerifyOffset(verifier, VT_PROTECTION_START) &&
+           verifier.VerifyString(protection_start()) &&
+           VerifyOffset(verifier, VT_UPFRONT_DATE) &&
+           verifier.VerifyString(upfront_date()) &&
+           VerifyField<int8_t>(verifier, VT_LAST_PERIOD_DAY_COUNTER, 1) &&
+           VerifyOffset(verifier, VT_TRADE_DATE) &&
+           verifier.VerifyString(trade_date()) &&
+           VerifyField<int32_t>(verifier, VT_CASH_SETTLEMENT_DAYS, 4) &&
            verifier.EndTable();
   }
   CDST *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -97,8 +148,8 @@ struct CDSBuilder {
   void add_notional(double notional) {
     fbb_.AddElement<double>(CDS::VT_NOTIONAL, notional, 0.0);
   }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(CDS::VT_SPREAD, spread, 0.0);
+  void add_running_coupon(double running_coupon) {
+    fbb_.AddElement<double>(CDS::VT_RUNNING_COUPON, running_coupon, 0.0);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(CDS::VT_SCHEDULE, schedule);
@@ -111,6 +162,30 @@ struct CDSBuilder {
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
     fbb_.AddElement<int8_t>(CDS::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+  }
+  void add_settles_accrual(bool settles_accrual) {
+    fbb_.AddElement<uint8_t>(CDS::VT_SETTLES_ACCRUAL, static_cast<uint8_t>(settles_accrual), 1);
+  }
+  void add_pays_at_default_time(bool pays_at_default_time) {
+    fbb_.AddElement<uint8_t>(CDS::VT_PAYS_AT_DEFAULT_TIME, static_cast<uint8_t>(pays_at_default_time), 1);
+  }
+  void add_rebates_accrual(bool rebates_accrual) {
+    fbb_.AddElement<uint8_t>(CDS::VT_REBATES_ACCRUAL, static_cast<uint8_t>(rebates_accrual), 1);
+  }
+  void add_protection_start(::flatbuffers::Offset<::flatbuffers::String> protection_start) {
+    fbb_.AddOffset(CDS::VT_PROTECTION_START, protection_start);
+  }
+  void add_upfront_date(::flatbuffers::Offset<::flatbuffers::String> upfront_date) {
+    fbb_.AddOffset(CDS::VT_UPFRONT_DATE, upfront_date);
+  }
+  void add_last_period_day_counter(quantra::enums::DayCounter last_period_day_counter) {
+    fbb_.AddElement<int8_t>(CDS::VT_LAST_PERIOD_DAY_COUNTER, static_cast<int8_t>(last_period_day_counter), 0);
+  }
+  void add_trade_date(::flatbuffers::Offset<::flatbuffers::String> trade_date) {
+    fbb_.AddOffset(CDS::VT_TRADE_DATE, trade_date);
+  }
+  void add_cash_settlement_days(int32_t cash_settlement_days) {
+    fbb_.AddElement<int32_t>(CDS::VT_CASH_SETTLEMENT_DAYS, cash_settlement_days, 3);
   }
   explicit CDSBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -127,20 +202,75 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer,
     double notional = 0.0,
-    double spread = 0.0,
+    double running_coupon = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     double upfront = 0.0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    bool settles_accrual = true,
+    bool pays_at_default_time = true,
+    bool rebates_accrual = true,
+    ::flatbuffers::Offset<::flatbuffers::String> protection_start = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> upfront_date = 0,
+    quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Offset<::flatbuffers::String> trade_date = 0,
+    int32_t cash_settlement_days = 3) {
   CDSBuilder builder_(_fbb);
   builder_.add_upfront(upfront);
-  builder_.add_spread(spread);
+  builder_.add_running_coupon(running_coupon);
   builder_.add_notional(notional);
+  builder_.add_cash_settlement_days(cash_settlement_days);
+  builder_.add_trade_date(trade_date);
+  builder_.add_upfront_date(upfront_date);
+  builder_.add_protection_start(protection_start);
   builder_.add_schedule(schedule);
+  builder_.add_last_period_day_counter(last_period_day_counter);
+  builder_.add_rebates_accrual(rebates_accrual);
+  builder_.add_pays_at_default_time(pays_at_default_time);
+  builder_.add_settles_accrual(settles_accrual);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_day_counter(day_counter);
   builder_.add_side(side);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CDS> CreateCDSDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer,
+    double notional = 0.0,
+    double running_coupon = 0.0,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    double upfront = 0.0,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    bool settles_accrual = true,
+    bool pays_at_default_time = true,
+    bool rebates_accrual = true,
+    const char *protection_start = nullptr,
+    const char *upfront_date = nullptr,
+    quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual360,
+    const char *trade_date = nullptr,
+    int32_t cash_settlement_days = 3) {
+  auto protection_start__ = protection_start ? _fbb.CreateString(protection_start) : 0;
+  auto upfront_date__ = upfront_date ? _fbb.CreateString(upfront_date) : 0;
+  auto trade_date__ = trade_date ? _fbb.CreateString(trade_date) : 0;
+  return quantra::CreateCDS(
+      _fbb,
+      side,
+      notional,
+      running_coupon,
+      schedule,
+      upfront,
+      day_counter,
+      business_day_convention,
+      settles_accrual,
+      pays_at_default_time,
+      rebates_accrual,
+      protection_start__,
+      upfront_date__,
+      last_period_day_counter,
+      trade_date__,
+      cash_settlement_days);
 }
 
 ::flatbuffers::Offset<CDS> CreateCDS(::flatbuffers::FlatBufferBuilder &_fbb, const CDST *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -148,21 +278,37 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(
 inline CDST::CDST(const CDST &o)
       : side(o.side),
         notional(o.notional),
-        spread(o.spread),
+        running_coupon(o.running_coupon),
         schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         upfront(o.upfront),
         day_counter(o.day_counter),
-        business_day_convention(o.business_day_convention) {
+        business_day_convention(o.business_day_convention),
+        settles_accrual(o.settles_accrual),
+        pays_at_default_time(o.pays_at_default_time),
+        rebates_accrual(o.rebates_accrual),
+        protection_start(o.protection_start),
+        upfront_date(o.upfront_date),
+        last_period_day_counter(o.last_period_day_counter),
+        trade_date(o.trade_date),
+        cash_settlement_days(o.cash_settlement_days) {
 }
 
 inline CDST &CDST::operator=(CDST o) FLATBUFFERS_NOEXCEPT {
   std::swap(side, o.side);
   std::swap(notional, o.notional);
-  std::swap(spread, o.spread);
+  std::swap(running_coupon, o.running_coupon);
   std::swap(schedule, o.schedule);
   std::swap(upfront, o.upfront);
   std::swap(day_counter, o.day_counter);
   std::swap(business_day_convention, o.business_day_convention);
+  std::swap(settles_accrual, o.settles_accrual);
+  std::swap(pays_at_default_time, o.pays_at_default_time);
+  std::swap(rebates_accrual, o.rebates_accrual);
+  std::swap(protection_start, o.protection_start);
+  std::swap(upfront_date, o.upfront_date);
+  std::swap(last_period_day_counter, o.last_period_day_counter);
+  std::swap(trade_date, o.trade_date);
+  std::swap(cash_settlement_days, o.cash_settlement_days);
   return *this;
 }
 
@@ -177,11 +323,19 @@ inline void CDS::UnPackTo(CDST *_o, const ::flatbuffers::resolver_function_t *_r
   (void)_resolver;
   { auto _e = side(); _o->side = _e; }
   { auto _e = notional(); _o->notional = _e; }
-  { auto _e = spread(); _o->spread = _e; }
+  { auto _e = running_coupon(); _o->running_coupon = _e; }
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
   { auto _e = upfront(); _o->upfront = _e; }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = settles_accrual(); _o->settles_accrual = _e; }
+  { auto _e = pays_at_default_time(); _o->pays_at_default_time = _e; }
+  { auto _e = rebates_accrual(); _o->rebates_accrual = _e; }
+  { auto _e = protection_start(); if (_e) _o->protection_start = _e->str(); }
+  { auto _e = upfront_date(); if (_e) _o->upfront_date = _e->str(); }
+  { auto _e = last_period_day_counter(); _o->last_period_day_counter = _e; }
+  { auto _e = trade_date(); if (_e) _o->trade_date = _e->str(); }
+  { auto _e = cash_settlement_days(); _o->cash_settlement_days = _e; }
 }
 
 inline ::flatbuffers::Offset<CDS> CDS::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CDST* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -194,20 +348,36 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(::flatbuffers::FlatBufferBuilder &_f
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CDST* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _side = _o->side;
   auto _notional = _o->notional;
-  auto _spread = _o->spread;
+  auto _running_coupon = _o->running_coupon;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _upfront = _o->upfront;
   auto _day_counter = _o->day_counter;
   auto _business_day_convention = _o->business_day_convention;
+  auto _settles_accrual = _o->settles_accrual;
+  auto _pays_at_default_time = _o->pays_at_default_time;
+  auto _rebates_accrual = _o->rebates_accrual;
+  auto _protection_start = _o->protection_start.empty() ? 0 : _fbb.CreateString(_o->protection_start);
+  auto _upfront_date = _o->upfront_date.empty() ? 0 : _fbb.CreateString(_o->upfront_date);
+  auto _last_period_day_counter = _o->last_period_day_counter;
+  auto _trade_date = _o->trade_date.empty() ? 0 : _fbb.CreateString(_o->trade_date);
+  auto _cash_settlement_days = _o->cash_settlement_days;
   return quantra::CreateCDS(
       _fbb,
       _side,
       _notional,
-      _spread,
+      _running_coupon,
       _schedule,
       _upfront,
       _day_counter,
-      _business_day_convention);
+      _business_day_convention,
+      _settles_accrual,
+      _pays_at_default_time,
+      _rebates_accrual,
+      _protection_start,
+      _upfront_date,
+      _last_period_day_counter,
+      _trade_date,
+      _cash_settlement_days);
 }
 
 inline const quantra::CDS *GetCDS(const void *buf) {

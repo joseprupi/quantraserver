@@ -8,11 +8,21 @@ namespace quantra;
 table CDS {
     side:enums.ProtectionSide;
     notional:double;
-    spread:double;              // Running spread in decimal (0.01 = 100bps)
+    running_coupon:double;      // Running coupon in decimal (0.01 = 100bps)
     schedule:Schedule;
     upfront:double = 0.0;       // Upfront payment (can be 0)
     day_counter:enums.DayCounter;
     business_day_convention:enums.BusinessDayConvention;
+
+    // Advanced conventions
+    settles_accrual:bool = true;
+    pays_at_default_time:bool = true;
+    rebates_accrual:bool = true;
+    protection_start:string;
+    upfront_date:string;
+    last_period_day_counter:enums.DayCounter = Actual360;
+    trade_date:string;
+    cash_settlement_days:int = 3;
 }
 
 root_type CDS;

@@ -25,6 +25,10 @@ struct SwaptionModelSpec;
 struct SwaptionModelSpecBuilder;
 struct SwaptionModelSpecT;
 
+struct CdsModelSpec;
+struct CdsModelSpecBuilder;
+struct CdsModelSpecT;
+
 struct EquityVanillaModelSpec;
 struct EquityVanillaModelSpecBuilder;
 struct EquityVanillaModelSpecT;
@@ -38,26 +42,29 @@ enum ModelPayload : uint8_t {
   ModelPayload_NONE = 0,
   ModelPayload_CapFloorModelSpec = 1,
   ModelPayload_SwaptionModelSpec = 2,
-  ModelPayload_EquityVanillaModelSpec = 3,
+  ModelPayload_CdsModelSpec = 3,
+  ModelPayload_EquityVanillaModelSpec = 4,
   ModelPayload_MIN = ModelPayload_NONE,
   ModelPayload_MAX = ModelPayload_EquityVanillaModelSpec
 };
 
-inline const ModelPayload (&EnumValuesModelPayload())[4] {
+inline const ModelPayload (&EnumValuesModelPayload())[5] {
   static const ModelPayload values[] = {
     ModelPayload_NONE,
     ModelPayload_CapFloorModelSpec,
     ModelPayload_SwaptionModelSpec,
+    ModelPayload_CdsModelSpec,
     ModelPayload_EquityVanillaModelSpec
   };
   return values;
 }
 
 inline const char * const *EnumNamesModelPayload() {
-  static const char * const names[5] = {
+  static const char * const names[6] = {
     "NONE",
     "CapFloorModelSpec",
     "SwaptionModelSpec",
+    "CdsModelSpec",
     "EquityVanillaModelSpec",
     nullptr
   };
@@ -82,6 +89,10 @@ template<> struct ModelPayloadTraits<quantra::SwaptionModelSpec> {
   static const ModelPayload enum_value = ModelPayload_SwaptionModelSpec;
 };
 
+template<> struct ModelPayloadTraits<quantra::CdsModelSpec> {
+  static const ModelPayload enum_value = ModelPayload_CdsModelSpec;
+};
+
 template<> struct ModelPayloadTraits<quantra::EquityVanillaModelSpec> {
   static const ModelPayload enum_value = ModelPayload_EquityVanillaModelSpec;
 };
@@ -96,6 +107,10 @@ template<> struct ModelPayloadUnionTraits<quantra::CapFloorModelSpecT> {
 
 template<> struct ModelPayloadUnionTraits<quantra::SwaptionModelSpecT> {
   static const ModelPayload enum_value = ModelPayload_SwaptionModelSpec;
+};
+
+template<> struct ModelPayloadUnionTraits<quantra::CdsModelSpecT> {
+  static const ModelPayload enum_value = ModelPayload_CdsModelSpec;
 };
 
 template<> struct ModelPayloadUnionTraits<quantra::EquityVanillaModelSpecT> {
@@ -147,6 +162,14 @@ struct ModelPayloadUnion {
   const quantra::SwaptionModelSpecT *AsSwaptionModelSpec() const {
     return type == ModelPayload_SwaptionModelSpec ?
       reinterpret_cast<const quantra::SwaptionModelSpecT *>(value) : nullptr;
+  }
+  quantra::CdsModelSpecT *AsCdsModelSpec() {
+    return type == ModelPayload_CdsModelSpec ?
+      reinterpret_cast<quantra::CdsModelSpecT *>(value) : nullptr;
+  }
+  const quantra::CdsModelSpecT *AsCdsModelSpec() const {
+    return type == ModelPayload_CdsModelSpec ?
+      reinterpret_cast<const quantra::CdsModelSpecT *>(value) : nullptr;
   }
   quantra::EquityVanillaModelSpecT *AsEquityVanillaModelSpec() {
     return type == ModelPayload_EquityVanillaModelSpec ?
@@ -267,6 +290,103 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(
 
 ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionModelSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct CdsModelSpecT : public ::flatbuffers::NativeTable {
+  typedef CdsModelSpec TableType;
+  quantra::enums::CdsEngineType engine_type = quantra::enums::CdsEngineType_MidPoint;
+  bool include_settlement_date_flows = false;
+  quantra::enums::CdsIsdaNumericalFix isda_numerical_fix = quantra::enums::CdsIsdaNumericalFix_Taylor;
+  quantra::enums::CdsIsdaAccrualBias isda_accrual_bias = quantra::enums::CdsIsdaAccrualBias_HalfDayBias;
+  quantra::enums::CdsIsdaForwardsInCouponPeriod isda_forwards_in_coupon_period = quantra::enums::CdsIsdaForwardsInCouponPeriod_Piecewise;
+};
+
+/// CDS pricing model specification
+struct CdsModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CdsModelSpecT NativeTableType;
+  typedef CdsModelSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ENGINE_TYPE = 4,
+    VT_INCLUDE_SETTLEMENT_DATE_FLOWS = 6,
+    VT_ISDA_NUMERICAL_FIX = 8,
+    VT_ISDA_ACCRUAL_BIAS = 10,
+    VT_ISDA_FORWARDS_IN_COUPON_PERIOD = 12
+  };
+  quantra::enums::CdsEngineType engine_type() const {
+    return static_cast<quantra::enums::CdsEngineType>(GetField<int8_t>(VT_ENGINE_TYPE, 0));
+  }
+  bool include_settlement_date_flows() const {
+    return GetField<uint8_t>(VT_INCLUDE_SETTLEMENT_DATE_FLOWS, 0) != 0;
+  }
+  quantra::enums::CdsIsdaNumericalFix isda_numerical_fix() const {
+    return static_cast<quantra::enums::CdsIsdaNumericalFix>(GetField<int8_t>(VT_ISDA_NUMERICAL_FIX, 1));
+  }
+  quantra::enums::CdsIsdaAccrualBias isda_accrual_bias() const {
+    return static_cast<quantra::enums::CdsIsdaAccrualBias>(GetField<int8_t>(VT_ISDA_ACCRUAL_BIAS, 0));
+  }
+  quantra::enums::CdsIsdaForwardsInCouponPeriod isda_forwards_in_coupon_period() const {
+    return static_cast<quantra::enums::CdsIsdaForwardsInCouponPeriod>(GetField<int8_t>(VT_ISDA_FORWARDS_IN_COUPON_PERIOD, 1));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_ENGINE_TYPE, 1) &&
+           VerifyField<uint8_t>(verifier, VT_INCLUDE_SETTLEMENT_DATE_FLOWS, 1) &&
+           VerifyField<int8_t>(verifier, VT_ISDA_NUMERICAL_FIX, 1) &&
+           VerifyField<int8_t>(verifier, VT_ISDA_ACCRUAL_BIAS, 1) &&
+           VerifyField<int8_t>(verifier, VT_ISDA_FORWARDS_IN_COUPON_PERIOD, 1) &&
+           verifier.EndTable();
+  }
+  CdsModelSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CdsModelSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CdsModelSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsModelSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CdsModelSpecBuilder {
+  typedef CdsModelSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_engine_type(quantra::enums::CdsEngineType engine_type) {
+    fbb_.AddElement<int8_t>(CdsModelSpec::VT_ENGINE_TYPE, static_cast<int8_t>(engine_type), 0);
+  }
+  void add_include_settlement_date_flows(bool include_settlement_date_flows) {
+    fbb_.AddElement<uint8_t>(CdsModelSpec::VT_INCLUDE_SETTLEMENT_DATE_FLOWS, static_cast<uint8_t>(include_settlement_date_flows), 0);
+  }
+  void add_isda_numerical_fix(quantra::enums::CdsIsdaNumericalFix isda_numerical_fix) {
+    fbb_.AddElement<int8_t>(CdsModelSpec::VT_ISDA_NUMERICAL_FIX, static_cast<int8_t>(isda_numerical_fix), 1);
+  }
+  void add_isda_accrual_bias(quantra::enums::CdsIsdaAccrualBias isda_accrual_bias) {
+    fbb_.AddElement<int8_t>(CdsModelSpec::VT_ISDA_ACCRUAL_BIAS, static_cast<int8_t>(isda_accrual_bias), 0);
+  }
+  void add_isda_forwards_in_coupon_period(quantra::enums::CdsIsdaForwardsInCouponPeriod isda_forwards_in_coupon_period) {
+    fbb_.AddElement<int8_t>(CdsModelSpec::VT_ISDA_FORWARDS_IN_COUPON_PERIOD, static_cast<int8_t>(isda_forwards_in_coupon_period), 1);
+  }
+  explicit CdsModelSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CdsModelSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CdsModelSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CdsModelSpec> CreateCdsModelSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::CdsEngineType engine_type = quantra::enums::CdsEngineType_MidPoint,
+    bool include_settlement_date_flows = false,
+    quantra::enums::CdsIsdaNumericalFix isda_numerical_fix = quantra::enums::CdsIsdaNumericalFix_Taylor,
+    quantra::enums::CdsIsdaAccrualBias isda_accrual_bias = quantra::enums::CdsIsdaAccrualBias_HalfDayBias,
+    quantra::enums::CdsIsdaForwardsInCouponPeriod isda_forwards_in_coupon_period = quantra::enums::CdsIsdaForwardsInCouponPeriod_Piecewise) {
+  CdsModelSpecBuilder builder_(_fbb);
+  builder_.add_isda_forwards_in_coupon_period(isda_forwards_in_coupon_period);
+  builder_.add_isda_accrual_bias(isda_accrual_bias);
+  builder_.add_isda_numerical_fix(isda_numerical_fix);
+  builder_.add_include_settlement_date_flows(include_settlement_date_flows);
+  builder_.add_engine_type(engine_type);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<CdsModelSpec> CreateCdsModelSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CdsModelSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct EquityVanillaModelSpecT : public ::flatbuffers::NativeTable {
   typedef EquityVanillaModelSpec TableType;
   quantra::enums::EquityModelType model_type = quantra::enums::EquityModelType_BlackScholesAnalytic;
@@ -362,6 +482,9 @@ struct ModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::SwaptionModelSpec *payload_as_SwaptionModelSpec() const {
     return payload_type() == quantra::ModelPayload_SwaptionModelSpec ? static_cast<const quantra::SwaptionModelSpec *>(payload()) : nullptr;
   }
+  const quantra::CdsModelSpec *payload_as_CdsModelSpec() const {
+    return payload_type() == quantra::ModelPayload_CdsModelSpec ? static_cast<const quantra::CdsModelSpec *>(payload()) : nullptr;
+  }
   const quantra::EquityVanillaModelSpec *payload_as_EquityVanillaModelSpec() const {
     return payload_type() == quantra::ModelPayload_EquityVanillaModelSpec ? static_cast<const quantra::EquityVanillaModelSpec *>(payload()) : nullptr;
   }
@@ -385,6 +508,10 @@ template<> inline const quantra::CapFloorModelSpec *ModelSpec::payload_as<quantr
 
 template<> inline const quantra::SwaptionModelSpec *ModelSpec::payload_as<quantra::SwaptionModelSpec>() const {
   return payload_as_SwaptionModelSpec();
+}
+
+template<> inline const quantra::CdsModelSpec *ModelSpec::payload_as<quantra::CdsModelSpec>() const {
+  return payload_as_CdsModelSpec();
 }
 
 template<> inline const quantra::EquityVanillaModelSpec *ModelSpec::payload_as<quantra::EquityVanillaModelSpec>() const {
@@ -495,6 +622,44 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(::flatbu
       _model_type);
 }
 
+inline CdsModelSpecT *CdsModelSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CdsModelSpecT>(new CdsModelSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CdsModelSpec::UnPackTo(CdsModelSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = engine_type(); _o->engine_type = _e; }
+  { auto _e = include_settlement_date_flows(); _o->include_settlement_date_flows = _e; }
+  { auto _e = isda_numerical_fix(); _o->isda_numerical_fix = _e; }
+  { auto _e = isda_accrual_bias(); _o->isda_accrual_bias = _e; }
+  { auto _e = isda_forwards_in_coupon_period(); _o->isda_forwards_in_coupon_period = _e; }
+}
+
+inline ::flatbuffers::Offset<CdsModelSpec> CdsModelSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CdsModelSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCdsModelSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CdsModelSpec> CreateCdsModelSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CdsModelSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CdsModelSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _engine_type = _o->engine_type;
+  auto _include_settlement_date_flows = _o->include_settlement_date_flows;
+  auto _isda_numerical_fix = _o->isda_numerical_fix;
+  auto _isda_accrual_bias = _o->isda_accrual_bias;
+  auto _isda_forwards_in_coupon_period = _o->isda_forwards_in_coupon_period;
+  return quantra::CreateCdsModelSpec(
+      _fbb,
+      _engine_type,
+      _include_settlement_date_flows,
+      _isda_numerical_fix,
+      _isda_accrual_bias,
+      _isda_forwards_in_coupon_period);
+}
+
 inline EquityVanillaModelSpecT *EquityVanillaModelSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<EquityVanillaModelSpecT>(new EquityVanillaModelSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -569,6 +734,10 @@ inline bool VerifyModelPayload(::flatbuffers::Verifier &verifier, const void *ob
       auto ptr = reinterpret_cast<const quantra::SwaptionModelSpec *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case ModelPayload_CdsModelSpec: {
+      auto ptr = reinterpret_cast<const quantra::CdsModelSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     case ModelPayload_EquityVanillaModelSpec: {
       auto ptr = reinterpret_cast<const quantra::EquityVanillaModelSpec *>(obj);
       return verifier.VerifyTable(ptr);
@@ -600,6 +769,10 @@ inline void *ModelPayloadUnion::UnPack(const void *obj, ModelPayload type, const
       auto ptr = reinterpret_cast<const quantra::SwaptionModelSpec *>(obj);
       return ptr->UnPack(resolver);
     }
+    case ModelPayload_CdsModelSpec: {
+      auto ptr = reinterpret_cast<const quantra::CdsModelSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
     case ModelPayload_EquityVanillaModelSpec: {
       auto ptr = reinterpret_cast<const quantra::EquityVanillaModelSpec *>(obj);
       return ptr->UnPack(resolver);
@@ -619,6 +792,10 @@ inline ::flatbuffers::Offset<void> ModelPayloadUnion::Pack(::flatbuffers::FlatBu
       auto ptr = reinterpret_cast<const quantra::SwaptionModelSpecT *>(value);
       return CreateSwaptionModelSpec(_fbb, ptr, _rehasher).Union();
     }
+    case ModelPayload_CdsModelSpec: {
+      auto ptr = reinterpret_cast<const quantra::CdsModelSpecT *>(value);
+      return CreateCdsModelSpec(_fbb, ptr, _rehasher).Union();
+    }
     case ModelPayload_EquityVanillaModelSpec: {
       auto ptr = reinterpret_cast<const quantra::EquityVanillaModelSpecT *>(value);
       return CreateEquityVanillaModelSpec(_fbb, ptr, _rehasher).Union();
@@ -635,6 +812,10 @@ inline ModelPayloadUnion::ModelPayloadUnion(const ModelPayloadUnion &u) : type(u
     }
     case ModelPayload_SwaptionModelSpec: {
       value = new quantra::SwaptionModelSpecT(*reinterpret_cast<quantra::SwaptionModelSpecT *>(u.value));
+      break;
+    }
+    case ModelPayload_CdsModelSpec: {
+      value = new quantra::CdsModelSpecT(*reinterpret_cast<quantra::CdsModelSpecT *>(u.value));
       break;
     }
     case ModelPayload_EquityVanillaModelSpec: {
@@ -655,6 +836,11 @@ inline void ModelPayloadUnion::Reset() {
     }
     case ModelPayload_SwaptionModelSpec: {
       auto ptr = reinterpret_cast<quantra::SwaptionModelSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case ModelPayload_CdsModelSpec: {
+      auto ptr = reinterpret_cast<quantra::CdsModelSpecT *>(value);
       delete ptr;
       break;
     }

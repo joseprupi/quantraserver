@@ -83,6 +83,38 @@
         ]
       }
     ],
+    "credit_curves": [
+      {
+        "id": "eur_igs",
+        "reference_date": "2025-01-15",
+        "calendar": "TARGET",
+        "day_counter": "Actual365Fixed",
+        "recovery_rate": 0.4,
+        "curve_interpolator": "LogLinear",
+        "helper_conventions": {
+          "settlement_days": 0,
+          "frequency": "Quarterly",
+          "business_day_convention": "Following",
+          "date_generation_rule": "TwentiethIMM",
+          "last_period_day_counter": "Actual365Fixed",
+          "settles_accrual": true,
+          "pays_at_default_time": true,
+          "rebates_accrual": true,
+          "helper_model": "MidPoint"
+        },
+        "quotes": [],
+        "flat_hazard_rate": 0.02
+      }
+    ],
+    "models": [
+      {
+        "id": "cds_midpoint",
+        "payload_type": "CdsModelSpec",
+        "payload": {
+          "engine_type": "MidPoint"
+        }
+      }
+    ],
     "indices": [
       {
         "id": "EUR_6M",
@@ -104,7 +136,7 @@
       "cds": {
         "side": "Buyer",
         "notional": 10000000.0,
-        "spread": 0.01,
+        "running_coupon": 0.01,
         "schedule": {
           "calendar": "TARGET",
           "effective_date": "2025-01-15",
@@ -118,10 +150,8 @@
         "business_day_convention": "Following"
       },
       "discounting_curve": "discount",
-      "credit_curve": {
-        "recovery_rate": 0.4,
-        "flat_hazard_rate": 0.02
-      }
+      "credit_curve_id": "eur_igs",
+      "model": "cds_midpoint"
     }
   ]
 }

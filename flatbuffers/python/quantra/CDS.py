@@ -39,7 +39,7 @@ class CDS(object):
         return 0.0
 
     # CDS
-    def Spread(self):
+    def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
@@ -77,8 +77,64 @@ class CDS(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # CDS
+    def SettlesAccrual(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
+
+    # CDS
+    def PaysAtDefaultTime(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
+
+    # CDS
+    def RebatesAccrual(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
+
+    # CDS
+    def ProtectionStart(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # CDS
+    def UpfrontDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # CDS
+    def LastPeriodDayCounter(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # CDS
+    def TradeDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # CDS
+    def CashSettlementDays(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return 3
+
 def CDSStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(15)
 
 def Start(builder):
     CDSStart(builder)
@@ -95,11 +151,11 @@ def CDSAddNotional(builder, notional):
 def AddNotional(builder, notional):
     CDSAddNotional(builder, notional)
 
-def CDSAddSpread(builder, spread):
-    builder.PrependFloat64Slot(2, spread, 0.0)
+def CDSAddRunningCoupon(builder, runningCoupon):
+    builder.PrependFloat64Slot(2, runningCoupon, 0.0)
 
-def AddSpread(builder, spread):
-    CDSAddSpread(builder, spread)
+def AddRunningCoupon(builder, runningCoupon):
+    CDSAddRunningCoupon(builder, runningCoupon)
 
 def CDSAddSchedule(builder, schedule):
     builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
@@ -125,6 +181,54 @@ def CDSAddBusinessDayConvention(builder, businessDayConvention):
 def AddBusinessDayConvention(builder, businessDayConvention):
     CDSAddBusinessDayConvention(builder, businessDayConvention)
 
+def CDSAddSettlesAccrual(builder, settlesAccrual):
+    builder.PrependBoolSlot(7, settlesAccrual, 1)
+
+def AddSettlesAccrual(builder, settlesAccrual):
+    CDSAddSettlesAccrual(builder, settlesAccrual)
+
+def CDSAddPaysAtDefaultTime(builder, paysAtDefaultTime):
+    builder.PrependBoolSlot(8, paysAtDefaultTime, 1)
+
+def AddPaysAtDefaultTime(builder, paysAtDefaultTime):
+    CDSAddPaysAtDefaultTime(builder, paysAtDefaultTime)
+
+def CDSAddRebatesAccrual(builder, rebatesAccrual):
+    builder.PrependBoolSlot(9, rebatesAccrual, 1)
+
+def AddRebatesAccrual(builder, rebatesAccrual):
+    CDSAddRebatesAccrual(builder, rebatesAccrual)
+
+def CDSAddProtectionStart(builder, protectionStart):
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(protectionStart), 0)
+
+def AddProtectionStart(builder, protectionStart):
+    CDSAddProtectionStart(builder, protectionStart)
+
+def CDSAddUpfrontDate(builder, upfrontDate):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(upfrontDate), 0)
+
+def AddUpfrontDate(builder, upfrontDate):
+    CDSAddUpfrontDate(builder, upfrontDate)
+
+def CDSAddLastPeriodDayCounter(builder, lastPeriodDayCounter):
+    builder.PrependInt8Slot(12, lastPeriodDayCounter, 0)
+
+def AddLastPeriodDayCounter(builder, lastPeriodDayCounter):
+    CDSAddLastPeriodDayCounter(builder, lastPeriodDayCounter)
+
+def CDSAddTradeDate(builder, tradeDate):
+    builder.PrependUOffsetTRelativeSlot(13, flatbuffers.number_types.UOffsetTFlags.py_type(tradeDate), 0)
+
+def AddTradeDate(builder, tradeDate):
+    CDSAddTradeDate(builder, tradeDate)
+
+def CDSAddCashSettlementDays(builder, cashSettlementDays):
+    builder.PrependInt32Slot(14, cashSettlementDays, 3)
+
+def AddCashSettlementDays(builder, cashSettlementDays):
+    CDSAddCashSettlementDays(builder, cashSettlementDays)
+
 def CDSEnd(builder):
     return builder.EndObject()
 
@@ -142,11 +246,19 @@ class CDST(object):
     def __init__(self):
         self.side = 0  # type: int
         self.notional = 0.0  # type: float
-        self.spread = 0.0  # type: float
+        self.runningCoupon = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
         self.upfront = 0.0  # type: float
         self.dayCounter = 0  # type: int
         self.businessDayConvention = 0  # type: int
+        self.settlesAccrual = True  # type: bool
+        self.paysAtDefaultTime = True  # type: bool
+        self.rebatesAccrual = True  # type: bool
+        self.protectionStart = None  # type: str
+        self.upfrontDate = None  # type: str
+        self.lastPeriodDayCounter = 0  # type: int
+        self.tradeDate = None  # type: str
+        self.cashSettlementDays = 3  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -171,25 +283,50 @@ class CDST(object):
             return
         self.side = cds.Side()
         self.notional = cds.Notional()
-        self.spread = cds.Spread()
+        self.runningCoupon = cds.RunningCoupon()
         if cds.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(cds.Schedule())
         self.upfront = cds.Upfront()
         self.dayCounter = cds.DayCounter()
         self.businessDayConvention = cds.BusinessDayConvention()
+        self.settlesAccrual = cds.SettlesAccrual()
+        self.paysAtDefaultTime = cds.PaysAtDefaultTime()
+        self.rebatesAccrual = cds.RebatesAccrual()
+        self.protectionStart = cds.ProtectionStart()
+        self.upfrontDate = cds.UpfrontDate()
+        self.lastPeriodDayCounter = cds.LastPeriodDayCounter()
+        self.tradeDate = cds.TradeDate()
+        self.cashSettlementDays = cds.CashSettlementDays()
 
     # CDST
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
+        if self.protectionStart is not None:
+            protectionStart = builder.CreateString(self.protectionStart)
+        if self.upfrontDate is not None:
+            upfrontDate = builder.CreateString(self.upfrontDate)
+        if self.tradeDate is not None:
+            tradeDate = builder.CreateString(self.tradeDate)
         CDSStart(builder)
         CDSAddSide(builder, self.side)
         CDSAddNotional(builder, self.notional)
-        CDSAddSpread(builder, self.spread)
+        CDSAddRunningCoupon(builder, self.runningCoupon)
         if self.schedule is not None:
             CDSAddSchedule(builder, schedule)
         CDSAddUpfront(builder, self.upfront)
         CDSAddDayCounter(builder, self.dayCounter)
         CDSAddBusinessDayConvention(builder, self.businessDayConvention)
+        CDSAddSettlesAccrual(builder, self.settlesAccrual)
+        CDSAddPaysAtDefaultTime(builder, self.paysAtDefaultTime)
+        CDSAddRebatesAccrual(builder, self.rebatesAccrual)
+        if self.protectionStart is not None:
+            CDSAddProtectionStart(builder, protectionStart)
+        if self.upfrontDate is not None:
+            CDSAddUpfrontDate(builder, upfrontDate)
+        CDSAddLastPeriodDayCounter(builder, self.lastPeriodDayCounter)
+        if self.tradeDate is not None:
+            CDSAddTradeDate(builder, tradeDate)
+        CDSAddCashSettlementDays(builder, self.cashSettlementDays)
         cds = CDSEnd(builder)
         return cds

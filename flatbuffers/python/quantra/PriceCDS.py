@@ -43,18 +43,21 @@ class PriceCDS(object):
         return None
 
     # PriceCDS
-    def CreditCurve(self):
+    def CreditCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.CreditCurve import CreditCurve
-            obj = CreditCurve()
-            obj.Init(self._tab.Bytes, x)
-            return obj
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # PriceCDS
+    def Model(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
         return None
 
 def PriceCDSStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     PriceCDSStart(builder)
@@ -71,11 +74,17 @@ def PriceCDSAddDiscountingCurve(builder, discountingCurve):
 def AddDiscountingCurve(builder, discountingCurve):
     PriceCDSAddDiscountingCurve(builder, discountingCurve)
 
-def PriceCDSAddCreditCurve(builder, creditCurve):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(creditCurve), 0)
+def PriceCDSAddCreditCurveId(builder, creditCurveId):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(creditCurveId), 0)
 
-def AddCreditCurve(builder, creditCurve):
-    PriceCDSAddCreditCurve(builder, creditCurve)
+def AddCreditCurveId(builder, creditCurveId):
+    PriceCDSAddCreditCurveId(builder, creditCurveId)
+
+def PriceCDSAddModel(builder, model):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(model), 0)
+
+def AddModel(builder, model):
+    PriceCDSAddModel(builder, model)
 
 def PriceCDSEnd(builder):
     return builder.EndObject()
@@ -94,7 +103,8 @@ class PriceCDST(object):
     def __init__(self):
         self.cds = None  # type: Optional[CDST]
         self.discountingCurve = None  # type: str
-        self.creditCurve = None  # type: Optional[CreditCurveT]
+        self.creditCurveId = None  # type: str
+        self.model = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -120,8 +130,8 @@ class PriceCDST(object):
         if priceCds.Cds() is not None:
             self.cds = CDST.InitFromObj(priceCds.Cds())
         self.discountingCurve = priceCds.DiscountingCurve()
-        if priceCds.CreditCurve() is not None:
-            self.creditCurve = CreditCurveT.InitFromObj(priceCds.CreditCurve())
+        self.creditCurveId = priceCds.CreditCurveId()
+        self.model = priceCds.Model()
 
     # PriceCDST
     def Pack(self, builder):
@@ -129,14 +139,18 @@ class PriceCDST(object):
             cds = self.cds.Pack(builder)
         if self.discountingCurve is not None:
             discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.creditCurve is not None:
-            creditCurve = self.creditCurve.Pack(builder)
+        if self.creditCurveId is not None:
+            creditCurveId = builder.CreateString(self.creditCurveId)
+        if self.model is not None:
+            model = builder.CreateString(self.model)
         PriceCDSStart(builder)
         if self.cds is not None:
             PriceCDSAddCds(builder, cds)
         if self.discountingCurve is not None:
             PriceCDSAddDiscountingCurve(builder, discountingCurve)
-        if self.creditCurve is not None:
-            PriceCDSAddCreditCurve(builder, creditCurve)
+        if self.creditCurveId is not None:
+            PriceCDSAddCreditCurveId(builder, creditCurveId)
+        if self.model is not None:
+            PriceCDSAddModel(builder, model)
         priceCds = PriceCDSEnd(builder)
         return priceCds

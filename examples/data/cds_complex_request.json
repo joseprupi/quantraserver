@@ -1,0 +1,192 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "curves": [
+      {
+        "id": "discount",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 3,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 6,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 1,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 5,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 10,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 12,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "credit_curves": [
+      {
+        "id": "eur_credit",
+        "reference_date": "2025-01-15",
+        "calendar": "TARGET",
+        "day_counter": "Actual365Fixed",
+        "recovery_rate": 0.4,
+        "curve_interpolator": "LogLinear",
+        "helper_conventions": {
+          "settlement_days": 0,
+          "frequency": "Quarterly",
+          "business_day_convention": "Following",
+          "date_generation_rule": "TwentiethIMM",
+          "last_period_day_counter": "Actual360",
+          "settles_accrual": true,
+          "pays_at_default_time": true,
+          "rebates_accrual": true,
+          "helper_model": "ISDA"
+        },
+        "quotes": [
+          { "tenor_number": 6, "tenor_time_unit": "Months", "quote_type": "ParSpread", "quoted_par_spread": 0.0100 },
+          { "tenor_number": 1, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0110 },
+          { "tenor_number": 3, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0120 },
+          { "tenor_number": 5, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0130 },
+          { "tenor_number": 7, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0135 },
+          { "tenor_number": 10, "tenor_time_unit": "Years", "quote_type": "ParSpread", "quoted_par_spread": 0.0140 }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "cds_isda",
+        "payload_type": "CdsModelSpec",
+        "payload": {
+          "engine_type": "ISDA",
+          "include_settlement_date_flows": true,
+          "isda_numerical_fix": "Taylor",
+          "isda_accrual_bias": "HalfDayBias",
+          "isda_forwards_in_coupon_period": "Piecewise"
+        }
+      }
+    ],
+    "indices": [
+      {
+        "id": "EUR_6M",
+        "name": "Euribor",
+        "index_type": "Ibor",
+        "tenor_number": 6,
+        "tenor_time_unit": "Months",
+        "fixing_days": 2,
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual360",
+        "end_of_month": false,
+        "currency": "EUR"
+      }
+    ]
+  },
+  "cds_list": [
+    {
+      "cds": {
+        "side": "Buyer",
+        "notional": 10000000.0,
+        "running_coupon": 0.0125,
+        "upfront": 0.01,
+        "schedule": {
+          "calendar": "TARGET",
+          "effective_date": "2025-01-15",
+          "termination_date": "2030-01-15",
+          "frequency": "Quarterly",
+          "convention": "Following",
+          "termination_date_convention": "Unadjusted",
+          "date_generation_rule": "TwentiethIMM"
+        },
+        "day_counter": "Actual360",
+        "business_day_convention": "Following",
+        "settles_accrual": true,
+        "pays_at_default_time": true,
+        "rebates_accrual": true,
+        "protection_start": "2025-01-15",
+        "upfront_date": "2025-01-20",
+        "last_period_day_counter": "Actual360",
+        "trade_date": "2025-01-15",
+        "cash_settlement_days": 3
+      },
+      "discounting_curve": "discount",
+      "credit_curve_id": "eur_credit",
+      "model": "cds_isda"
+    }
+  ]
+}

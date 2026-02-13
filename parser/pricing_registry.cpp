@@ -128,6 +128,22 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     }
 
     // ==========================================================================
+    // Register Credit Curve Specs (optional)
+    // ==========================================================================
+    if (pricing->credit_curves()) {
+        for (auto it = pricing->credit_curves()->begin(); it != pricing->credit_curves()->end(); ++it) {
+            const auto* spec = *it;
+            if (!spec->id()) {
+                QUANTRA_ERROR("CreditCurveSpec.id is required");
+            }
+            if (!spec->reference_date()) {
+                QUANTRA_ERROR("CreditCurveSpec.reference_date is required");
+            }
+            reg.creditCurveSpecs.emplace(spec->id()->str(), spec);
+        }
+    }
+
+    // ==========================================================================
     // Coupon pricers (optional)
     // ==========================================================================
     if (pricing->coupon_pricers()) {

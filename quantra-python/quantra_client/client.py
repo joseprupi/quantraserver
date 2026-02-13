@@ -318,7 +318,10 @@ from quantra.PriceSwaption import PriceSwaptionT
 # CDS
 from quantra.CDS import CDST
 from quantra.PriceCDS import PriceCDST
-from quantra.CreditCurve import CreditCurveT
+from quantra.CreditCurveSpec import CreditCurveSpecT
+from quantra.CdsHelperConventions import CdsHelperConventionsT
+from quantra.CdsQuote import CdsQuoteT
+from quantra.CdsModelSpec import CdsModelSpecT
 
 # Enums
 from quantra.enums.DayCounter import DayCounter
@@ -339,6 +342,8 @@ from quantra.enums.ProtectionSide import ProtectionSide
 from quantra.enums.VolatilityType import VolatilityType
 from quantra.enums.IrModelType import IrModelType
 from quantra.enums.EquityModelType import EquityModelType
+from quantra.enums.CdsEngineType import CdsEngineType
+from quantra.enums.CdsHelperModel import CdsHelperModel
 from quantra.Point import Point  # Union type discriminator
 
 
@@ -419,7 +424,10 @@ __all__ = [
     'PriceSwaptionT',
     'CDST',
     'PriceCDST',
-    'CreditCurveT',
+    'CreditCurveSpecT',
+    'CdsHelperConventionsT',
+    'CdsQuoteT',
+    'CdsModelSpecT',
     
     # Enums
     'DayCounter',
@@ -440,5 +448,7 @@ __all__ = [
     'VolatilityType',
     'IrModelType',
     'EquityModelType',
+    'CdsEngineType',
+    'CdsHelperModel',
     'Point',
 ]

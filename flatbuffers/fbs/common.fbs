@@ -5,6 +5,7 @@ include "enums.fbs";
 include "quotes.fbs";
 include "model.fbs";
 include "index.fbs";
+include "credit_curve.fbs";
 
 namespace quantra;
 
@@ -29,6 +30,9 @@ table Pricing {
     
     /// Yield curves for discounting/forwarding. Used by: ALL
     curves:[TermStructure] (required);
+
+    /// Credit curves for CDS pricing. Used by: CDS
+    credit_curves:[CreditCurveSpec];
     
     /// Market quotes (spot prices, FX rates). Used by: EquityOption (future)
     quotes:[QuoteSpec];
@@ -36,7 +40,7 @@ table Pricing {
     /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption
     vol_surfaces:[VolSurfaceSpec];
     
-    /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, EquityOption
+    /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption
     models:[ModelSpec];
     
     /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond

@@ -18,14 +18,6 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
-struct CreditSpreadQuote;
-struct CreditSpreadQuoteBuilder;
-struct CreditSpreadQuoteT;
-
-struct CreditCurve;
-struct CreditCurveBuilder;
-struct CreditCurveT;
-
 struct PriceCDS;
 struct PriceCDSBuilder;
 struct PriceCDST;
@@ -34,178 +26,12 @@ struct PriceCDSRequest;
 struct PriceCDSRequestBuilder;
 struct PriceCDSRequestT;
 
-struct CreditSpreadQuoteT : public ::flatbuffers::NativeTable {
-  typedef CreditSpreadQuote TableType;
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  double spread = 0.0;
-};
-
-struct CreditSpreadQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CreditSpreadQuoteT NativeTableType;
-  typedef CreditSpreadQuoteBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_TENOR_NUMBER = 4,
-    VT_TENOR_TIME_UNIT = 6,
-    VT_SPREAD = 8
-  };
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
-  }
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           verifier.EndTable();
-  }
-  CreditSpreadQuoteT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CreditSpreadQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CreditSpreadQuote> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct CreditSpreadQuoteBuilder {
-  typedef CreditSpreadQuote Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(CreditSpreadQuote::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(CreditSpreadQuote::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
-  }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(CreditSpreadQuote::VT_SPREAD, spread, 0.0);
-  }
-  explicit CreditSpreadQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<CreditSpreadQuote> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CreditSpreadQuote>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    double spread = 0.0) {
-  CreditSpreadQuoteBuilder builder_(_fbb);
-  builder_.add_spread(spread);
-  builder_.add_tenor_number(tenor_number);
-  builder_.add_tenor_time_unit(tenor_time_unit);
-  return builder_.Finish();
-}
-
-::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct CreditCurveT : public ::flatbuffers::NativeTable {
-  typedef CreditCurve TableType;
-  double recovery_rate = 0.4;
-  std::vector<std::unique_ptr<quantra::CreditSpreadQuoteT>> quotes{};
-  double flat_hazard_rate = 0.0;
-  CreditCurveT() = default;
-  CreditCurveT(const CreditCurveT &o);
-  CreditCurveT(CreditCurveT&&) FLATBUFFERS_NOEXCEPT = default;
-  CreditCurveT &operator=(CreditCurveT o) FLATBUFFERS_NOEXCEPT;
-};
-
-struct CreditCurve FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CreditCurveT NativeTableType;
-  typedef CreditCurveBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_RECOVERY_RATE = 4,
-    VT_QUOTES = 6,
-    VT_FLAT_HAZARD_RATE = 8
-  };
-  double recovery_rate() const {
-    return GetField<double>(VT_RECOVERY_RATE, 0.4);
-  }
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *quotes() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *>(VT_QUOTES);
-  }
-  double flat_hazard_rate() const {
-    return GetField<double>(VT_FLAT_HAZARD_RATE, 0.0);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_RECOVERY_RATE, 8) &&
-           VerifyOffset(verifier, VT_QUOTES) &&
-           verifier.VerifyVector(quotes()) &&
-           verifier.VerifyVectorOfTables(quotes()) &&
-           VerifyField<double>(verifier, VT_FLAT_HAZARD_RATE, 8) &&
-           verifier.EndTable();
-  }
-  CreditCurveT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CreditCurveT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CreditCurve> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct CreditCurveBuilder {
-  typedef CreditCurve Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_recovery_rate(double recovery_rate) {
-    fbb_.AddElement<double>(CreditCurve::VT_RECOVERY_RATE, recovery_rate, 0.4);
-  }
-  void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>> quotes) {
-    fbb_.AddOffset(CreditCurve::VT_QUOTES, quotes);
-  }
-  void add_flat_hazard_rate(double flat_hazard_rate) {
-    fbb_.AddElement<double>(CreditCurve::VT_FLAT_HAZARD_RATE, flat_hazard_rate, 0.0);
-  }
-  explicit CreditCurveBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<CreditCurve> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CreditCurve>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurve(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double recovery_rate = 0.4,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>> quotes = 0,
-    double flat_hazard_rate = 0.0) {
-  CreditCurveBuilder builder_(_fbb);
-  builder_.add_flat_hazard_rate(flat_hazard_rate);
-  builder_.add_recovery_rate(recovery_rate);
-  builder_.add_quotes(quotes);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurveDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double recovery_rate = 0.4,
-    const std::vector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> *quotes = nullptr,
-    double flat_hazard_rate = 0.0) {
-  auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditSpreadQuote>>(*quotes) : 0;
-  return quantra::CreateCreditCurve(
-      _fbb,
-      recovery_rate,
-      quotes__,
-      flat_hazard_rate);
-}
-
-::flatbuffers::Offset<CreditCurve> CreateCreditCurve(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct PriceCDST : public ::flatbuffers::NativeTable {
   typedef PriceCDS TableType;
   std::unique_ptr<quantra::CDST> cds{};
   std::string discounting_curve{};
-  std::unique_ptr<quantra::CreditCurveT> credit_curve{};
+  std::string credit_curve_id{};
+  std::string model{};
   PriceCDST() = default;
   PriceCDST(const PriceCDST &o);
   PriceCDST(PriceCDST&&) FLATBUFFERS_NOEXCEPT = default;
@@ -218,7 +44,8 @@ struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CDS = 4,
     VT_DISCOUNTING_CURVE = 6,
-    VT_CREDIT_CURVE = 8
+    VT_CREDIT_CURVE_ID = 8,
+    VT_MODEL = 10
   };
   const quantra::CDS *cds() const {
     return GetPointer<const quantra::CDS *>(VT_CDS);
@@ -226,8 +53,11 @@ struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
-  const quantra::CreditCurve *credit_curve() const {
-    return GetPointer<const quantra::CreditCurve *>(VT_CREDIT_CURVE);
+  const ::flatbuffers::String *credit_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_CREDIT_CURVE_ID);
+  }
+  const ::flatbuffers::String *model() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -235,8 +65,10 @@ struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyTable(cds()) &&
            VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
            verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_CREDIT_CURVE) &&
-           verifier.VerifyTable(credit_curve()) &&
+           VerifyOffset(verifier, VT_CREDIT_CURVE_ID) &&
+           verifier.VerifyString(credit_curve_id()) &&
+           VerifyOffset(verifier, VT_MODEL) &&
+           verifier.VerifyString(model()) &&
            verifier.EndTable();
   }
   PriceCDST *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -254,8 +86,11 @@ struct PriceCDSBuilder {
   void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
     fbb_.AddOffset(PriceCDS::VT_DISCOUNTING_CURVE, discounting_curve);
   }
-  void add_credit_curve(::flatbuffers::Offset<quantra::CreditCurve> credit_curve) {
-    fbb_.AddOffset(PriceCDS::VT_CREDIT_CURVE, credit_curve);
+  void add_credit_curve_id(::flatbuffers::Offset<::flatbuffers::String> credit_curve_id) {
+    fbb_.AddOffset(PriceCDS::VT_CREDIT_CURVE_ID, credit_curve_id);
+  }
+  void add_model(::flatbuffers::Offset<::flatbuffers::String> model) {
+    fbb_.AddOffset(PriceCDS::VT_MODEL, model);
   }
   explicit PriceCDSBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -272,9 +107,11 @@ inline ::flatbuffers::Offset<PriceCDS> CreatePriceCDS(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::CDS> cds = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<quantra::CreditCurve> credit_curve = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> credit_curve_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> model = 0) {
   PriceCDSBuilder builder_(_fbb);
-  builder_.add_credit_curve(credit_curve);
+  builder_.add_model(model);
+  builder_.add_credit_curve_id(credit_curve_id);
   builder_.add_discounting_curve(discounting_curve);
   builder_.add_cds(cds);
   return builder_.Finish();
@@ -284,13 +121,17 @@ inline ::flatbuffers::Offset<PriceCDS> CreatePriceCDSDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::CDS> cds = 0,
     const char *discounting_curve = nullptr,
-    ::flatbuffers::Offset<quantra::CreditCurve> credit_curve = 0) {
+    const char *credit_curve_id = nullptr,
+    const char *model = nullptr) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
+  auto credit_curve_id__ = credit_curve_id ? _fbb.CreateString(credit_curve_id) : 0;
+  auto model__ = model ? _fbb.CreateString(model) : 0;
   return quantra::CreatePriceCDS(
       _fbb,
       cds,
       discounting_curve__,
-      credit_curve);
+      credit_curve_id__,
+      model__);
 }
 
 ::flatbuffers::Offset<PriceCDS> CreatePriceCDS(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCDST *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -376,94 +217,18 @@ inline ::flatbuffers::Offset<PriceCDSRequest> CreatePriceCDSRequestDirect(
 
 ::flatbuffers::Offset<PriceCDSRequest> CreatePriceCDSRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCDSRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline CreditSpreadQuoteT *CreditSpreadQuote::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CreditSpreadQuoteT>(new CreditSpreadQuoteT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void CreditSpreadQuote::UnPackTo(CreditSpreadQuoteT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = spread(); _o->spread = _e; }
-}
-
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreditSpreadQuote::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCreditSpreadQuote(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<CreditSpreadQuote> CreateCreditSpreadQuote(::flatbuffers::FlatBufferBuilder &_fbb, const CreditSpreadQuoteT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditSpreadQuoteT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _spread = _o->spread;
-  return quantra::CreateCreditSpreadQuote(
-      _fbb,
-      _tenor_number,
-      _tenor_time_unit,
-      _spread);
-}
-
-inline CreditCurveT::CreditCurveT(const CreditCurveT &o)
-      : recovery_rate(o.recovery_rate),
-        flat_hazard_rate(o.flat_hazard_rate) {
-  quotes.reserve(o.quotes.size());
-  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::CreditSpreadQuoteT(*quotes_) : nullptr); }
-}
-
-inline CreditCurveT &CreditCurveT::operator=(CreditCurveT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(recovery_rate, o.recovery_rate);
-  std::swap(quotes, o.quotes);
-  std::swap(flat_hazard_rate, o.flat_hazard_rate);
-  return *this;
-}
-
-inline CreditCurveT *CreditCurve::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CreditCurveT>(new CreditCurveT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void CreditCurve::UnPackTo(CreditCurveT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = recovery_rate(); _o->recovery_rate = _e; }
-  { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::CreditSpreadQuoteT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
-  { auto _e = flat_hazard_rate(); _o->flat_hazard_rate = _e; }
-}
-
-inline ::flatbuffers::Offset<CreditCurve> CreditCurve::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCreditCurve(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<CreditCurve> CreateCreditCurve(::flatbuffers::FlatBufferBuilder &_fbb, const CreditCurveT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditCurveT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _recovery_rate = _o->recovery_rate;
-  auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditSpreadQuote>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateCreditSpreadQuote(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _flat_hazard_rate = _o->flat_hazard_rate;
-  return quantra::CreateCreditCurve(
-      _fbb,
-      _recovery_rate,
-      _quotes,
-      _flat_hazard_rate);
-}
-
 inline PriceCDST::PriceCDST(const PriceCDST &o)
       : cds((o.cds) ? new quantra::CDST(*o.cds) : nullptr),
         discounting_curve(o.discounting_curve),
-        credit_curve((o.credit_curve) ? new quantra::CreditCurveT(*o.credit_curve) : nullptr) {
+        credit_curve_id(o.credit_curve_id),
+        model(o.model) {
 }
 
 inline PriceCDST &PriceCDST::operator=(PriceCDST o) FLATBUFFERS_NOEXCEPT {
   std::swap(cds, o.cds);
   std::swap(discounting_curve, o.discounting_curve);
-  std::swap(credit_curve, o.credit_curve);
+  std::swap(credit_curve_id, o.credit_curve_id);
+  std::swap(model, o.model);
   return *this;
 }
 
@@ -478,7 +243,8 @@ inline void PriceCDS::UnPackTo(PriceCDST *_o, const ::flatbuffers::resolver_func
   (void)_resolver;
   { auto _e = cds(); if (_e) { if(_o->cds) { _e->UnPackTo(_o->cds.get(), _resolver); } else { _o->cds = std::unique_ptr<quantra::CDST>(_e->UnPack(_resolver)); } } else if (_o->cds) { _o->cds.reset(); } }
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = credit_curve(); if (_e) { if(_o->credit_curve) { _e->UnPackTo(_o->credit_curve.get(), _resolver); } else { _o->credit_curve = std::unique_ptr<quantra::CreditCurveT>(_e->UnPack(_resolver)); } } else if (_o->credit_curve) { _o->credit_curve.reset(); } }
+  { auto _e = credit_curve_id(); if (_e) _o->credit_curve_id = _e->str(); }
+  { auto _e = model(); if (_e) _o->model = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<PriceCDS> PriceCDS::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceCDST* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -491,12 +257,14 @@ inline ::flatbuffers::Offset<PriceCDS> CreatePriceCDS(::flatbuffers::FlatBufferB
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCDST* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _cds = _o->cds ? CreateCDS(_fbb, _o->cds.get(), _rehasher) : 0;
   auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _credit_curve = _o->credit_curve ? CreateCreditCurve(_fbb, _o->credit_curve.get(), _rehasher) : 0;
+  auto _credit_curve_id = _o->credit_curve_id.empty() ? 0 : _fbb.CreateString(_o->credit_curve_id);
+  auto _model = _o->model.empty() ? 0 : _fbb.CreateString(_o->model);
   return quantra::CreatePriceCDS(
       _fbb,
       _cds,
       _discounting_curve,
-      _credit_curve);
+      _credit_curve_id,
+      _model);
 }
 
 inline PriceCDSRequestT::PriceCDSRequestT(const PriceCDSRequestT &o)

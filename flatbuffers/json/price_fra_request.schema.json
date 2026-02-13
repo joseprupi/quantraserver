@@ -33,6 +33,30 @@
       "type" : "string",
       "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
     },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
     "quantra_enums_Compounding" : {
       "type" : "string",
       "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
@@ -115,7 +139,7 @@
     },
     "quantra_ModelPayload" : {
       "type" : "string",
-      "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "EquityVanillaModelSpec"]
+      "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "CdsModelSpec", "EquityVanillaModelSpec"]
     },
     "quantra_Flow" : {
       "type" : "string",
@@ -883,6 +907,28 @@
       },
       "additionalProperties" : false
     },
+    "quantra_CdsModelSpec" : {
+      "type" : "object",
+      "description" : "CDS pricing model specification",
+      "properties" : {
+        "engine_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsEngineType"
+              },
+        "include_settlement_date_flows" : {
+                "type" : "boolean"
+              },
+        "isda_numerical_fix" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaNumericalFix"
+              },
+        "isda_accrual_bias" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaAccrualBias"
+              },
+        "isda_forwards_in_coupon_period" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaForwardsInCouponPeriod"
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_EquityVanillaModelSpec" : {
       "type" : "object",
       "description" : "Equity vanilla option pricing model specification (future)",
@@ -907,10 +953,101 @@
                 "$ref" : "#/definitions/quantra_ModelPayload"
               },
         "payload" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_CapFloorModelSpec" },{ "$ref" : "#/definitions/quantra_SwaptionModelSpec" },{ "$ref" : "#/definitions/quantra_EquityVanillaModelSpec" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_CapFloorModelSpec" },{ "$ref" : "#/definitions/quantra_SwaptionModelSpec" },{ "$ref" : "#/definitions/quantra_CdsModelSpec" },{ "$ref" : "#/definitions/quantra_EquityVanillaModelSpec" }]
               }
       },
       "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CdsQuote" : {
+      "type" : "object",
+      "properties" : {
+        "tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "quote_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsQuoteType"
+              },
+        "quoted_par_spread" : {
+                "type" : "number"
+              },
+        "quoted_upfront" : {
+                "type" : "number"
+              },
+        "running_coupon" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CdsHelperConventions" : {
+      "type" : "object",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "last_period_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "settles_accrual" : {
+                "type" : "boolean"
+              },
+        "pays_at_default_time" : {
+                "type" : "boolean"
+              },
+        "rebates_accrual" : {
+                "type" : "boolean"
+              },
+        "helper_model" : {
+                "$ref" : "#/definitions/quantra_enums_CdsHelperModel"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CreditCurveSpec" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "recovery_rate" : {
+                "type" : "number"
+              },
+        "curve_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "helper_conventions" : {
+                "$ref" : "#/definitions/quantra_CdsHelperConventions"
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CdsQuote"}
+              },
+        "flat_hazard_rate" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["id", "reference_date"],
       "additionalProperties" : false
     },
     "quantra_Yield" : {
@@ -947,6 +1084,10 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
                 "description" : "Yield curves for discounting/forwarding. Used by: ALL"
               },
+        "credit_curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CreditCurveSpec"},
+                "description" : "Credit curves for CDS pricing. Used by: CDS"
+              },
         "quotes" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
                 "description" : "Market quotes (spot prices, FX rates). Used by: EquityOption (future)"
@@ -957,7 +1098,7 @@
               },
         "models" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ModelSpec"},
-                "description" : "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, EquityOption"
+                "description" : "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption"
               },
         "bond_pricing_details" : {
                 "type" : "boolean",

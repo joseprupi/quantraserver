@@ -65,7 +65,9 @@ public:
         try {
             auto builder = json_parser_->ParseRequest(type, json);
             auto request = builder->template ReleaseMessage<Request>();
-            
+            if (!request.Verify()) {
+                return JsonResponse::BadRequest("Invalid FlatBuffers request");
+            }
             grpc::ClientContext context;
             flatbuffers::grpc::Message<Response> response;
             

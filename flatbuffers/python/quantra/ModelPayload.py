@@ -7,7 +7,8 @@ class ModelPayload(object):
     NONE = 0
     CapFloorModelSpec = 1
     SwaptionModelSpec = 2
-    EquityVanillaModelSpec = 3
+    CdsModelSpec = 3
+    EquityVanillaModelSpec = 4
 
 def ModelPayloadCreator(unionType, table):
     from flatbuffers.table import Table
@@ -17,6 +18,8 @@ def ModelPayloadCreator(unionType, table):
         return CapFloorModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == ModelPayload.SwaptionModelSpec:
         return SwaptionModelSpecT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == ModelPayload.CdsModelSpec:
+        return CdsModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == ModelPayload.EquityVanillaModelSpec:
         return EquityVanillaModelSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

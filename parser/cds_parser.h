@@ -9,7 +9,7 @@
 #include <ql/time/schedule.hpp>
 
 #include "cds_generated.h"
-#include "price_cds_request_generated.h"
+#include "credit_curve_generated.h"
 #include "enums.h"
 #include "common.h"
 #include "common_parser.h"
@@ -26,7 +26,7 @@ class CreditCurveParser
 {
 public:
     std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> parse(
-        const quantra::CreditCurve *credit_curve,
+        const quantra::CreditCurveSpec *credit_curve,
         const QuantLib::Date& referenceDate,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve);
 };

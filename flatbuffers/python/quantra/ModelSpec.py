@@ -90,7 +90,7 @@ class ModelSpecT(object):
     def __init__(self):
         self.id = None  # type: str
         self.payloadType = 0  # type: int
-        self.payload = None  # type: Union[None, CapFloorModelSpecT, SwaptionModelSpecT, EquityVanillaModelSpecT]
+        self.payload = None  # type: Union[None, CapFloorModelSpecT, SwaptionModelSpecT, CdsModelSpecT, EquityVanillaModelSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

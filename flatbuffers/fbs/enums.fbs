@@ -140,6 +140,40 @@ enum DateGenerationRule : byte {
 }
 
 // ============================================================================
+// CDS / Credit Curve Enums
+// ============================================================================
+
+enum CdsEngineType : byte {
+    MidPoint,
+    ISDA
+}
+
+enum CdsHelperModel : byte {
+    MidPoint,
+    ISDA
+}
+
+enum CdsQuoteType : byte {
+    ParSpread,
+    Upfront
+}
+
+enum CdsIsdaNumericalFix : byte {
+    None,
+    Taylor
+}
+
+enum CdsIsdaAccrualBias : byte {
+    HalfDayBias,
+    NoBias
+}
+
+enum CdsIsdaForwardsInCouponPeriod : byte {
+    Flat,
+    Piecewise
+}
+
+// ============================================================================
 // REMOVED: Interest Rate Index Enums
 // ============================================================================
 // The following enums have been REMOVED in favor of data-driven IndexDef:

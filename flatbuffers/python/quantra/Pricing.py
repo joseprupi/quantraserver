@@ -93,10 +93,36 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
+    # Credit curves for CDS pricing. Used by: CDS
+    # Pricing
+    def CreditCurves(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CreditCurveSpec import CreditCurveSpec
+            obj = CreditCurveSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Pricing
+    def CreditCurvesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Pricing
+    def CreditCurvesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        return o == 0
+
     # Market quotes (spot prices, FX rates). Used by: EquityOption (future)
     # Pricing
     def Quotes(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -109,20 +135,20 @@ class Pricing(object):
 
     # Pricing
     def QuotesLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def QuotesIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         return o == 0
 
     # Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption
     # Pricing
     def VolSurfaces(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -135,20 +161,20 @@ class Pricing(object):
 
     # Pricing
     def VolSurfacesLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def VolSurfacesIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         return o == 0
 
-    # Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, EquityOption
+    # Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption
     # Pricing
     def Models(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -161,20 +187,20 @@ class Pricing(object):
 
     # Pricing
     def ModelsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def ModelsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
     # Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
     # Pricing
     def BondPricingDetails(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
@@ -182,7 +208,7 @@ class Pricing(object):
     # Include cash flow details. Used by: FixedRateBond, FloatingRateBond
     # Pricing
     def BondPricingFlows(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
@@ -190,7 +216,7 @@ class Pricing(object):
     # Include detailed swaption analytics (delta/vega/gamma/theta/DV01).
     # Pricing
     def SwaptionPricingDetails(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
@@ -198,7 +224,7 @@ class Pricing(object):
     # Include curve-rebump swaption analytics (Bloomberg-style).
     # Pricing
     def SwaptionPricingRebump(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
@@ -206,7 +232,7 @@ class Pricing(object):
     # Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
     # Pricing
     def CouponPricers(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -219,18 +245,18 @@ class Pricing(object):
 
     # Pricing
     def CouponPricersLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # Pricing
     def CouponPricersIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         return o == 0
 
 def PricingStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(13)
 
 def Start(builder):
     PricingStart(builder)
@@ -271,8 +297,20 @@ def PricingStartCurvesVector(builder, numElems):
 def StartCurvesVector(builder, numElems):
     return PricingStartCurvesVector(builder, numElems)
 
+def PricingAddCreditCurves(builder, creditCurves):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(creditCurves), 0)
+
+def AddCreditCurves(builder, creditCurves):
+    PricingAddCreditCurves(builder, creditCurves)
+
+def PricingStartCreditCurvesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCreditCurvesVector(builder, numElems):
+    return PricingStartCreditCurvesVector(builder, numElems)
+
 def PricingAddQuotes(builder, quotes):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(quotes), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(quotes), 0)
 
 def AddQuotes(builder, quotes):
     PricingAddQuotes(builder, quotes)
@@ -284,7 +322,7 @@ def StartQuotesVector(builder, numElems):
     return PricingStartQuotesVector(builder, numElems)
 
 def PricingAddVolSurfaces(builder, volSurfaces):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(volSurfaces), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(volSurfaces), 0)
 
 def AddVolSurfaces(builder, volSurfaces):
     PricingAddVolSurfaces(builder, volSurfaces)
@@ -296,7 +334,7 @@ def StartVolSurfacesVector(builder, numElems):
     return PricingStartVolSurfacesVector(builder, numElems)
 
 def PricingAddModels(builder, models):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(models), 0)
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(models), 0)
 
 def AddModels(builder, models):
     PricingAddModels(builder, models)
@@ -308,31 +346,31 @@ def StartModelsVector(builder, numElems):
     return PricingStartModelsVector(builder, numElems)
 
 def PricingAddBondPricingDetails(builder, bondPricingDetails):
-    builder.PrependBoolSlot(7, bondPricingDetails, 0)
+    builder.PrependBoolSlot(8, bondPricingDetails, 0)
 
 def AddBondPricingDetails(builder, bondPricingDetails):
     PricingAddBondPricingDetails(builder, bondPricingDetails)
 
 def PricingAddBondPricingFlows(builder, bondPricingFlows):
-    builder.PrependBoolSlot(8, bondPricingFlows, 0)
+    builder.PrependBoolSlot(9, bondPricingFlows, 0)
 
 def AddBondPricingFlows(builder, bondPricingFlows):
     PricingAddBondPricingFlows(builder, bondPricingFlows)
 
 def PricingAddSwaptionPricingDetails(builder, swaptionPricingDetails):
-    builder.PrependBoolSlot(9, swaptionPricingDetails, 0)
+    builder.PrependBoolSlot(10, swaptionPricingDetails, 0)
 
 def AddSwaptionPricingDetails(builder, swaptionPricingDetails):
     PricingAddSwaptionPricingDetails(builder, swaptionPricingDetails)
 
 def PricingAddSwaptionPricingRebump(builder, swaptionPricingRebump):
-    builder.PrependBoolSlot(10, swaptionPricingRebump, 0)
+    builder.PrependBoolSlot(11, swaptionPricingRebump, 0)
 
 def AddSwaptionPricingRebump(builder, swaptionPricingRebump):
     PricingAddSwaptionPricingRebump(builder, swaptionPricingRebump)
 
 def PricingAddCouponPricers(builder, couponPricers):
-    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
+    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricers), 0)
 
 def AddCouponPricers(builder, couponPricers):
     PricingAddCouponPricers(builder, couponPricers)
@@ -362,6 +400,7 @@ class PricingT(object):
         self.settlementDate = None  # type: str
         self.indices = None  # type: List[IndexDefT]
         self.curves = None  # type: List[TermStructureT]
+        self.creditCurves = None  # type: List[CreditCurveSpecT]
         self.quotes = None  # type: List[QuoteSpecT]
         self.volSurfaces = None  # type: List[VolSurfaceSpecT]
         self.models = None  # type: List[ModelSpecT]
@@ -410,6 +449,14 @@ class PricingT(object):
                 else:
                     termStructure_ = TermStructureT.InitFromObj(pricing.Curves(i))
                     self.curves.append(termStructure_)
+        if not pricing.CreditCurvesIsNone():
+            self.creditCurves = []
+            for i in range(pricing.CreditCurvesLength()):
+                if pricing.CreditCurves(i) is None:
+                    self.creditCurves.append(None)
+                else:
+                    creditCurveSpec_ = CreditCurveSpecT.InitFromObj(pricing.CreditCurves(i))
+                    self.creditCurves.append(creditCurveSpec_)
         if not pricing.QuotesIsNone():
             self.quotes = []
             for i in range(pricing.QuotesLength()):
@@ -469,6 +516,14 @@ class PricingT(object):
             for i in reversed(range(len(self.curves))):
                 builder.PrependUOffsetTRelative(curveslist[i])
             curves = builder.EndVector()
+        if self.creditCurves is not None:
+            creditCurveslist = []
+            for i in range(len(self.creditCurves)):
+                creditCurveslist.append(self.creditCurves[i].Pack(builder))
+            PricingStartCreditCurvesVector(builder, len(self.creditCurves))
+            for i in reversed(range(len(self.creditCurves))):
+                builder.PrependUOffsetTRelative(creditCurveslist[i])
+            creditCurves = builder.EndVector()
         if self.quotes is not None:
             quoteslist = []
             for i in range(len(self.quotes)):
@@ -510,6 +565,8 @@ class PricingT(object):
             PricingAddIndices(builder, indices)
         if self.curves is not None:
             PricingAddCurves(builder, curves)
+        if self.creditCurves is not None:
+            PricingAddCreditCurves(builder, creditCurves)
         if self.quotes is not None:
             PricingAddQuotes(builder, quotes)
         if self.volSurfaces is not None:

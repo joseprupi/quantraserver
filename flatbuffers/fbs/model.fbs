@@ -12,6 +12,15 @@ table SwaptionModelSpec {
     model_type:enums.IrModelType;
 }
 
+/// CDS pricing model specification
+table CdsModelSpec {
+    engine_type:enums.CdsEngineType = MidPoint;
+    include_settlement_date_flows:bool;
+    isda_numerical_fix:enums.CdsIsdaNumericalFix = Taylor;
+    isda_accrual_bias:enums.CdsIsdaAccrualBias = HalfDayBias;
+    isda_forwards_in_coupon_period:enums.CdsIsdaForwardsInCouponPeriod = Piecewise;
+}
+
 /// Equity vanilla option pricing model specification (future)
 table EquityVanillaModelSpec {
     model_type:enums.EquityModelType;
@@ -19,7 +28,7 @@ table EquityVanillaModelSpec {
 }
 
 /// Union of all model types
-union ModelPayload { CapFloorModelSpec, SwaptionModelSpec, EquityVanillaModelSpec }
+union ModelPayload { CapFloorModelSpec, SwaptionModelSpec, CdsModelSpec, EquityVanillaModelSpec }
 
 /// Model specification - references by id in trade requests
 table ModelSpec {

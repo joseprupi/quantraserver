@@ -15,6 +15,10 @@
 #include "model_generated.h"
 #include "index_registry.h"
 
+namespace QuantLib {
+class DefaultProbabilityTermStructure;
+}
+
 namespace quantra {
 
 /**
@@ -23,6 +27,9 @@ namespace quantra {
 struct PricingRegistry {
     // Yield curves (bootstrapped or flat)
     std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
+
+    // Credit curve specs (parsed on demand per CDS trade)
+    std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
     
     // Market quotes (equity spots, FX rates)
     std::map<std::string, QuantLib::Handle<QuantLib::Quote>> quotes;

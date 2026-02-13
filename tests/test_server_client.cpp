@@ -241,10 +241,52 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto indices2 = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
+    auto credit_id = b.CreateString("credit");
+    auto discount_id = b.CreateString("discount");
+    auto ref_date = b.CreateString("2025-01-15");
+
+    quantra::CdsHelperConventionsBuilder hcb(b);
+    hcb.add_settlement_days(0);
+    hcb.add_frequency(quantra::enums::Frequency_Quarterly);
+    hcb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+    hcb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
+    hcb.add_last_period_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    hcb.add_settles_accrual(true);
+    hcb.add_pays_at_default_time(true);
+    hcb.add_rebates_accrual(true);
+    hcb.add_helper_model(quantra::enums::CdsHelperModel_MidPoint);
+    auto helper_conv = hcb.Finish();
+    auto empty_quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CdsQuote>>{});
+
+    quantra::CreditCurveSpecBuilder ccb(b);
+    ccb.add_id(credit_id);
+    ccb.add_reference_date(ref_date);
+    ccb.add_calendar(quantra::enums::Calendar_TARGET);
+    ccb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    ccb.add_recovery_rate(0.40);
+    ccb.add_curve_interpolator(quantra::enums::Interpolator_LogLinear);
+    ccb.add_helper_conventions(helper_conv);
+    ccb.add_quotes(empty_quotes);
+    ccb.add_flat_hazard_rate(0.02);
+    auto cc = ccb.Finish();
+    auto credit_curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
+
+    quantra::CdsModelSpecBuilder cmsb(b);
+    cmsb.add_engine_type(quantra::enums::CdsEngineType_MidPoint);
+    auto cds_payload = cmsb.Finish();
+    auto model_id = b.CreateString("cds_model");
+    quantra::ModelSpecBuilder msb(b);
+    msb.add_id(model_id);
+    msb.add_payload_type(quantra::ModelPayload_CdsModelSpec);
+    msb.add_payload(cds_payload.Union());
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
+
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof); pb.add_settlement_date(asof);
     pb.add_indices(indices2);
     pb.add_curves(curves);
+    pb.add_credit_curves(credit_curves);
+    pb.add_models(models);
     auto pricing = pb.Finish();
     
     auto feff = b.CreateString("2025-01-17"); auto fterm = b.CreateString("2030-01-17");
@@ -295,6 +337,7 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     b.Finish(rb.Finish());
     
     auto request = b.ReleaseMessage<quantra::PriceVanillaSwapRequest>();
+    ASSERT_TRUE(request.Verify());
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
     flatbuffers::grpc::Message<quantra::PriceVanillaSwapResponse> response;
@@ -315,10 +358,52 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto indices3 = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
+    auto credit_id = b.CreateString("credit");
+    auto discount_id = b.CreateString("discount");
+    auto ref_date = b.CreateString("2025-01-15");
+
+    quantra::CdsHelperConventionsBuilder hcb(b);
+    hcb.add_settlement_days(0);
+    hcb.add_frequency(quantra::enums::Frequency_Quarterly);
+    hcb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+    hcb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
+    hcb.add_last_period_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    hcb.add_settles_accrual(true);
+    hcb.add_pays_at_default_time(true);
+    hcb.add_rebates_accrual(true);
+    hcb.add_helper_model(quantra::enums::CdsHelperModel_MidPoint);
+    auto helper_conv = hcb.Finish();
+    auto empty_quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CdsQuote>>{});
+
+    quantra::CreditCurveSpecBuilder ccb(b);
+    ccb.add_id(credit_id);
+    ccb.add_reference_date(ref_date);
+    ccb.add_calendar(quantra::enums::Calendar_TARGET);
+    ccb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    ccb.add_recovery_rate(0.40);
+    ccb.add_curve_interpolator(quantra::enums::Interpolator_LogLinear);
+    ccb.add_helper_conventions(helper_conv);
+    ccb.add_quotes(empty_quotes);
+    ccb.add_flat_hazard_rate(0.02);
+    auto cc = ccb.Finish();
+    auto credit_curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
+
+    quantra::CdsModelSpecBuilder cmsb(b);
+    cmsb.add_engine_type(quantra::enums::CdsEngineType_MidPoint);
+    auto cds_payload = cmsb.Finish();
+    auto model_id = b.CreateString("cds_model");
+    quantra::ModelSpecBuilder msb(b);
+    msb.add_id(model_id);
+    msb.add_payload_type(quantra::ModelPayload_CdsModelSpec);
+    msb.add_payload(cds_payload.Union());
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
+
     quantra::PricingBuilder pb(b);
     pb.add_as_of_date(asof); pb.add_settlement_date(asof);
     pb.add_indices(indices3);
     pb.add_curves(curves);
+    pb.add_credit_curves(credit_curves);
+    pb.add_models(models);
     auto pricing = pb.Finish();
     
     auto eff = b.CreateString("2025-01-15"); auto term = b.CreateString("2030-01-15");
@@ -333,19 +418,18 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     
     quantra::CDSBuilder cdsb(b);
     cdsb.add_side(quantra::enums::ProtectionSide_Buyer);
-    cdsb.add_notional(10000000.0); cdsb.add_spread(0.01);
+    cdsb.add_notional(10000000.0); cdsb.add_running_coupon(0.01);
     cdsb.add_schedule(schedule);
     cdsb.add_day_counter(quantra::enums::DayCounter_Actual360);
     cdsb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
     auto cds = cdsb.Finish();
-    
-    quantra::CreditCurveBuilder ccb(b);
-    ccb.add_recovery_rate(0.40); ccb.add_flat_hazard_rate(0.02);
-    auto cc = ccb.Finish();
-    
+
     auto dc = b.CreateString("discount");
     quantra::PriceCDSBuilder pcdsb(b);
-    pcdsb.add_cds(cds); pcdsb.add_discounting_curve(dc); pcdsb.add_credit_curve(cc);
+    pcdsb.add_cds(cds);
+    pcdsb.add_discounting_curve(dc);
+    pcdsb.add_credit_curve_id(credit_id);
+    pcdsb.add_model(model_id);
     auto cdss = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceCDS>>{pcdsb.Finish()});
     
     quantra::PriceCDSRequestBuilder rb(b);
@@ -353,6 +437,7 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     b.Finish(rb.Finish());
     
     auto request = b.ReleaseMessage<quantra::PriceCDSRequest>();
+    ASSERT_TRUE(request.Verify());
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
     flatbuffers::grpc::Message<quantra::PriceCDSResponse> response;
