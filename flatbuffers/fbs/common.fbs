@@ -5,6 +5,7 @@ include "enums.fbs";
 include "quotes.fbs";
 include "model.fbs";
 include "index.fbs";
+include "swap_index.fbs";
 include "credit_curve.fbs";
 
 namespace quantra;
@@ -27,6 +28,9 @@ table Pricing {
     /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
     /// Every IndexRef in the request must resolve to an IndexDef here.
     indices:[IndexDef];
+
+    /// Swap index definitions for convention-stable swaption smile ATM computation.
+    swap_indices:[SwapIndexDef];
     
     /// Yield curves for discounting/forwarding. Used by: ALL
     curves:[TermStructure] (required);

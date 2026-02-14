@@ -99,7 +99,15 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
     },
     "quantra_enums_IrModelType" : {
       "type" : "string",
@@ -116,6 +124,10 @@
     "quantra_Point" : {
       "type" : "string",
       "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
+    },
+    "quantra_SwaptionVolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "SwaptionVolConstantSpec", "SwaptionVolAtmMatrixSpec", "SwaptionVolSmileCubeSpec", "SwaptionSabrParamsSpec", "SwaptionSabrCalibrateSpec"]
     },
     "quantra_VolPayload" : {
       "type" : "string",
@@ -140,6 +152,10 @@
     "quantra_ModelPayload" : {
       "type" : "string",
       "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "CdsModelSpec", "EquityVanillaModelSpec"]
+    },
+    "quantra_SwapIndexKind" : {
+      "type" : "string",
+      "enum": ["IborSwapIndex", "OisSwapIndex"]
     },
     "quantra_Flow" : {
       "type" : "string",
@@ -712,6 +728,57 @@
       },
       "additionalProperties" : false
     },
+    "quantra_PeriodSpec" : {
+      "type" : "object",
+      "properties" : {
+        "tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteMatrix2D" : {
+      "type" : "object",
+      "properties" : {
+        "n_rows" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_cols" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteTensor3D" : {
+      "type" : "object",
+      "properties" : {
+        "n_1" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_2" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_3" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_IrVolBaseSpec" : {
       "type" : "object",
       "properties" : {
@@ -782,12 +849,147 @@
       },
       "additionalProperties" : false
     },
-    "quantra_SwaptionVolSpec" : {
+    "quantra_SwaptionVolConstantSpec" : {
       "type" : "object",
-      "description" : "Swaption volatility",
+      "description" : "Swaption volatility (constant, matrix, smile cube, SABR)",
       "properties" : {
         "base" : {
                 "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolAtmMatrixSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSmileCubeSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "swap_index_id" : {
+                "type" : "string"
+              },
+        "allow_external_atm" : {
+                "type" : "boolean"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "strike_kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
+              },
+        "atm_forwards" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "strike_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrParamsSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "alpha" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "beta" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "rho" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "nu" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrCalibrateSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "beta_fixed" : {
+                "type" : "boolean"
+              },
+        "beta_value" : {
+                "type" : "number"
+              },
+        "weights" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSpec" : {
+      "type" : "object",
+      "properties" : {
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_SwaptionVolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_SwaptionVolConstantSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolAtmMatrixSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSmileCubeSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrParamsSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrCalibrateSpec" }]
               }
       },
       "additionalProperties" : false
@@ -959,6 +1161,97 @@
       "required" : ["id"],
       "additionalProperties" : false
     },
+    "quantra_SwapIndexFixedLegSpec" : {
+      "type" : "object",
+      "properties" : {
+        "fixed_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "fixed_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "fixed_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "fixed_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "fixed_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexFloatLegSpec" : {
+      "type" : "object",
+      "properties" : {
+        "float_tenor_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "float_tenor_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "float_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "float_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "float_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexDef" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_SwapIndexKind"
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "end_of_month" : {
+                "type" : "boolean"
+              },
+        "fixed_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFixedLegSpec"
+              },
+        "float_index_id" : {
+                "type" : "string"
+              },
+        "float_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFloatLegSpec"
+              },
+        "allow_override_from_trade" : {
+                "type" : "boolean"
+              }
+      },
+      "required" : ["id", "float_index_id"],
+      "additionalProperties" : false
+    },
     "quantra_CdsQuote" : {
       "type" : "object",
       "properties" : {
@@ -1082,6 +1375,10 @@
         "indices" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
                 "description" : "Index definitions. Used by: ALL floating-rate instruments and curve helpers.\nEvery IndexRef in the request must resolve to an IndexDef here."
+              },
+        "swap_indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapIndexDef"},
+                "description" : "Swap index definitions for convention-stable swaption smile ATM computation."
               },
         "curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},

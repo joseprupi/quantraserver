@@ -1029,29 +1029,110 @@ inline const char *EnumNameVolatilityType(VolatilityType e) {
 
 enum VolSurfaceShape : int8_t {
   VolSurfaceShape_Constant = 0,
+  VolSurfaceShape_AtmMatrix2D = 1,
+  VolSurfaceShape_SmileCube3D = 2,
+  VolSurfaceShape_SabrParams = 3,
+  VolSurfaceShape_SabrCalibrate = 4,
   VolSurfaceShape_MIN = VolSurfaceShape_Constant,
-  VolSurfaceShape_MAX = VolSurfaceShape_Constant
+  VolSurfaceShape_MAX = VolSurfaceShape_SabrCalibrate
 };
 
-inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[1] {
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[5] {
   static const VolSurfaceShape values[] = {
-    VolSurfaceShape_Constant
+    VolSurfaceShape_Constant,
+    VolSurfaceShape_AtmMatrix2D,
+    VolSurfaceShape_SmileCube3D,
+    VolSurfaceShape_SabrParams,
+    VolSurfaceShape_SabrCalibrate
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceShape() {
-  static const char * const names[2] = {
+  static const char * const names[6] = {
     "Constant",
+    "AtmMatrix2D",
+    "SmileCube3D",
+    "SabrParams",
+    "SabrCalibrate",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_Constant)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceShape_Constant, VolSurfaceShape_SabrCalibrate)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceShape()[index];
+}
+
+enum SwaptionVolKind : int8_t {
+  SwaptionVolKind_Constant = 0,
+  SwaptionVolKind_AtmMatrix2D = 1,
+  SwaptionVolKind_SmileCube3D = 2,
+  SwaptionVolKind_SabrParams = 3,
+  SwaptionVolKind_SabrCalibrate = 4,
+  SwaptionVolKind_MIN = SwaptionVolKind_Constant,
+  SwaptionVolKind_MAX = SwaptionVolKind_SabrCalibrate
+};
+
+inline const SwaptionVolKind (&EnumValuesSwaptionVolKind())[5] {
+  static const SwaptionVolKind values[] = {
+    SwaptionVolKind_Constant,
+    SwaptionVolKind_AtmMatrix2D,
+    SwaptionVolKind_SmileCube3D,
+    SwaptionVolKind_SabrParams,
+    SwaptionVolKind_SabrCalibrate
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwaptionVolKind() {
+  static const char * const names[6] = {
+    "Constant",
+    "AtmMatrix2D",
+    "SmileCube3D",
+    "SabrParams",
+    "SabrCalibrate",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwaptionVolKind(SwaptionVolKind e) {
+  if (::flatbuffers::IsOutRange(e, SwaptionVolKind_Constant, SwaptionVolKind_SabrCalibrate)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwaptionVolKind()[index];
+}
+
+enum SwaptionStrikeKind : int8_t {
+  SwaptionStrikeKind_Absolute = 0,
+  SwaptionStrikeKind_SpreadFromATM = 1,
+  SwaptionStrikeKind_MIN = SwaptionStrikeKind_Absolute,
+  SwaptionStrikeKind_MAX = SwaptionStrikeKind_SpreadFromATM
+};
+
+inline const SwaptionStrikeKind (&EnumValuesSwaptionStrikeKind())[2] {
+  static const SwaptionStrikeKind values[] = {
+    SwaptionStrikeKind_Absolute,
+    SwaptionStrikeKind_SpreadFromATM
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwaptionStrikeKind() {
+  static const char * const names[3] = {
+    "Absolute",
+    "SpreadFromATM",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwaptionStrikeKind(SwaptionStrikeKind e) {
+  if (::flatbuffers::IsOutRange(e, SwaptionStrikeKind_Absolute, SwaptionStrikeKind_SpreadFromATM)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwaptionStrikeKind()[index];
 }
 
 enum IrModelType : int8_t {

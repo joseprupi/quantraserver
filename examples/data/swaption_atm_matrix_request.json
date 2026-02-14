@@ -1,0 +1,168 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "curves": [
+      {
+        "id": "discount",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Months",
+              "tenor_number": 3,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed"
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 5,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "tenor_time_unit": "Years",
+              "tenor_number": 10,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "vol_surfaces": [
+      {
+        "id": "swaption_atm",
+        "payload_type": "SwaptionVolSpec",
+        "payload": {
+          "payload_type": "SwaptionVolAtmMatrixSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2025-01-15",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "volatility_type": "Lognormal",
+              "displacement": 0.0
+            },
+            "expiries": [
+              { "tenor_number": 1, "tenor_time_unit": "Years" },
+              { "tenor_number": 2, "tenor_time_unit": "Years" }
+            ],
+            "tenors": [
+              { "tenor_number": 5, "tenor_time_unit": "Years" },
+              { "tenor_number": 10, "tenor_time_unit": "Years" }
+            ],
+            "vols": {
+              "n_rows": 2,
+              "n_cols": 2,
+              "values": [0.20, 0.22, 0.24, 0.25]
+            }
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "black_model",
+        "payload_type": "SwaptionModelSpec",
+        "payload": {
+          "model_type": "Black"
+        }
+      }
+    ],
+    "indices": [
+      {
+        "id": "EUR_6M",
+        "name": "Euribor",
+        "index_type": "Ibor",
+        "tenor_number": 6,
+        "tenor_time_unit": "Months",
+        "fixing_days": 2,
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual360",
+        "end_of_month": false,
+        "currency": "EUR"
+      }
+    ]
+  },
+  "swaptions": [
+    {
+      "swaption": {
+        "underlying_swap": {
+          "swap_type": "Payer",
+          "fixed_leg": {
+            "notional": 1000000.0,
+            "schedule": {
+              "calendar": "TARGET",
+              "effective_date": "2026-01-17",
+              "termination_date": "2031-01-17",
+              "frequency": "Annual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "rate": 0.03,
+            "day_counter": "Thirty360",
+            "payment_convention": "ModifiedFollowing"
+          },
+          "floating_leg": {
+            "notional": 1000000.0,
+            "schedule": {
+              "calendar": "TARGET",
+              "effective_date": "2026-01-17",
+              "termination_date": "2031-01-17",
+              "frequency": "Semiannual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "index": {
+              "id": "EUR_6M"
+            },
+            "spread": 0.0,
+            "day_counter": "Actual360",
+            "payment_convention": "ModifiedFollowing"
+          }
+        },
+        "exercise_date": "2026-01-15",
+        "settlement_type": "Physical",
+        "settlement_method": "PhysicalOTC"
+      },
+      "discounting_curve": "discount",
+      "forwarding_curve": "discount",
+      "volatility": "swaption_atm",
+      "model": "black_model"
+    }
+  ]
+}

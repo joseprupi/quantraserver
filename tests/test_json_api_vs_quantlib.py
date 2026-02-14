@@ -929,10 +929,75 @@ def price_swaption_ql(request: dict) -> float:
     vol = 0.20
     vol_type = ql.ShiftedLognormal
     displacement = 0.0
+    vol_handle = None
+
+    quote_values = {}
+    quote_types = {}
+    for q in pricing.get("quotes", []):
+        quote_values[q.get("id")] = q.get("value")
+        quote_types[q.get("id")] = q.get("quote_type")
+
     for v in pricing.get("vol_surfaces", []):
         if v.get("id") == sw_data.get("volatility"):
             payload = v.get("payload", {})
-            base = payload.get("base", {})
+            if v.get("payload_type") != "SwaptionVolSpec":
+                break
+
+            inner_type = payload.get("payload_type", "SwaptionVolConstantSpec")
+            inner = payload.get("payload", {})
+
+            if inner_type == "SwaptionVolConstantSpec":
+                base = inner.get("base", {})
+                vol = base.get("constant_vol", vol)
+                vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
+                displacement = base.get("displacement", 0.0)
+                break
+
+            if inner_type == "SwaptionVolAtmMatrixSpec":
+                base = inner.get("base", {})
+                vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
+                displacement = base.get("displacement", 0.0)
+                expiries = inner.get("expiries", [])
+                tenors = inner.get("tenors", [])
+                vols = inner.get("vols", {})
+                n_rows = vols.get("n_rows", 0)
+                n_cols = vols.get("n_cols", 0)
+                values = vols.get("values", [])
+                quote_ids = vols.get("quote_ids", [])
+
+                def to_period(p):
+                    unit = p.get("tenor_time_unit", "Months")
+                    num = p.get("tenor_number", 0)
+                    return ql.Period(num, get_time_unit(unit))
+
+                ql_expiries = [to_period(p) for p in expiries]
+                ql_tenors = [to_period(p) for p in tenors]
+
+                matrix = ql.Matrix(n_rows, n_cols)
+                for i in range(n_rows):
+                    for j in range(n_cols):
+                        idx = i * n_cols + j
+                        if idx < len(quote_ids) and quote_ids[idx]:
+                            qid = quote_ids[idx]
+                            if quote_types.get(qid) != "Volatility":
+                                raise ValueError("Quote type mismatch for vol quote")
+                            vval = quote_values.get(qid)
+                        else:
+                            vval = values[idx]
+                        matrix[i][j] = vval
+
+                # Python bindings are stricter for overloaded constructors; use
+                # the stable calendar-based constructor and default interpolation settings.
+                vol_matrix = ql.SwaptionVolatilityMatrix(
+                    ql.TARGET(), ql.ModifiedFollowing,
+                    ql_expiries, ql_tenors, matrix,
+                    ql.Actual365Fixed()
+                )
+                vol_handle = ql.SwaptionVolatilityStructureHandle(vol_matrix)
+                break
+
+            # Smile cube and SABR are not yet supported in the Python reference pricer
+            base = inner.get("base", {})
             vol = base.get("constant_vol", vol)
             vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
             displacement = base.get("displacement", 0.0)
@@ -944,20 +1009,21 @@ def price_swaption_ql(request: dict) -> float:
                 vol = v.get("constant_vol", 0.20)
                 break
 
-    if displacement and displacement != 0.0:
-        vol_handle = ql.SwaptionVolatilityStructureHandle(
-            ql.ConstantSwaptionVolatility(
-                eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
-                ql.Actual365Fixed(), vol_type, displacement
+    if vol_handle is None:
+        if displacement and displacement != 0.0:
+            vol_handle = ql.SwaptionVolatilityStructureHandle(
+                ql.ConstantSwaptionVolatility(
+                    eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
+                    ql.Actual365Fixed(), vol_type, displacement
+                )
             )
-        )
-    else:
-        vol_handle = ql.SwaptionVolatilityStructureHandle(
-            ql.ConstantSwaptionVolatility(
-                eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
-                ql.Actual365Fixed(), vol_type
+        else:
+            vol_handle = ql.SwaptionVolatilityStructureHandle(
+                ql.ConstantSwaptionVolatility(
+                    eval_date, ql.TARGET(), ql.ModifiedFollowing, vol,
+                    ql.Actual365Fixed(), vol_type
+                )
             )
-        )
 
     model_type = "Black"
     for m in pricing.get("models", []):
@@ -1772,6 +1838,7 @@ def main():
         ("swaption", "swaption_request.json", price_swaption_ql),
         ("swaption", "swaption_ois_request.json", price_swaption_ql),
         ("swaption", "swaption_ois_bbg_zerorate_request.json", price_swaption_ql),
+        ("swaption", "swaption_atm_matrix_request.json", price_swaption_ql),
         ("cds", "cds_request.json", price_cds_ql),
         ("cds", "cds_complex_request.json", price_cds_ql),
     ]

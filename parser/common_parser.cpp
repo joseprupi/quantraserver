@@ -8,7 +8,7 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
     return std::make_shared<QuantLib::Schedule>(
         DateToQL(schedule->effective_date()->str()),
         DateToQL(schedule->termination_date()->str()),
-        QuantLib::Period(FrequencyToQL(schedule->frequency())),
+        FrequencyToPeriod(FrequencyToQL(schedule->frequency())),
         CalendarToQL(schedule->calendar()),
         ConventionToQL(schedule->convention()),
         ConventionToQL(schedule->termination_date_convention()),

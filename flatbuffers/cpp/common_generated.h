@@ -19,6 +19,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "index_generated.h"
 #include "model_generated.h"
 #include "quotes_generated.h"
+#include "swap_index_generated.h"
 #include "term_structure_generated.h"
 #include "volatility_generated.h"
 
@@ -266,6 +267,7 @@ struct PricingT : public ::flatbuffers::NativeTable {
   std::string as_of_date{};
   std::string settlement_date{};
   std::vector<std::unique_ptr<quantra::IndexDefT>> indices{};
+  std::vector<std::unique_ptr<quantra::SwapIndexDefT>> swap_indices{};
   std::vector<std::unique_ptr<quantra::TermStructureT>> curves{};
   std::vector<std::unique_ptr<quantra::CreditCurveSpecT>> credit_curves{};
   std::vector<std::unique_ptr<quantra::QuoteSpecT>> quotes{};
@@ -289,16 +291,17 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_AS_OF_DATE = 4,
     VT_SETTLEMENT_DATE = 6,
     VT_INDICES = 8,
-    VT_CURVES = 10,
-    VT_CREDIT_CURVES = 12,
-    VT_QUOTES = 14,
-    VT_VOL_SURFACES = 16,
-    VT_MODELS = 18,
-    VT_BOND_PRICING_DETAILS = 20,
-    VT_BOND_PRICING_FLOWS = 22,
-    VT_SWAPTION_PRICING_DETAILS = 24,
-    VT_SWAPTION_PRICING_REBUMP = 26,
-    VT_COUPON_PRICERS = 28
+    VT_SWAP_INDICES = 10,
+    VT_CURVES = 12,
+    VT_CREDIT_CURVES = 14,
+    VT_QUOTES = 16,
+    VT_VOL_SURFACES = 18,
+    VT_MODELS = 20,
+    VT_BOND_PRICING_DETAILS = 22,
+    VT_BOND_PRICING_FLOWS = 24,
+    VT_SWAPTION_PRICING_DETAILS = 26,
+    VT_SWAPTION_PRICING_REBUMP = 28,
+    VT_COUPON_PRICERS = 30
   };
   /// Valuation date (YYYY-MM-DD). Used by: ALL
   const ::flatbuffers::String *as_of_date() const {
@@ -312,6 +315,10 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Every IndexRef in the request must resolve to an IndexDef here.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *indices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *>(VT_INDICES);
+  }
+  /// Swap index definitions for convention-stable swaption smile ATM computation.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *>(VT_SWAP_INDICES);
   }
   /// Yield curves for discounting/forwarding. Used by: ALL
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
@@ -362,6 +369,9 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_INDICES) &&
            verifier.VerifyVector(indices()) &&
            verifier.VerifyVectorOfTables(indices()) &&
+           VerifyOffset(verifier, VT_SWAP_INDICES) &&
+           verifier.VerifyVector(swap_indices()) &&
+           verifier.VerifyVectorOfTables(swap_indices()) &&
            VerifyOffsetRequired(verifier, VT_CURVES) &&
            verifier.VerifyVector(curves()) &&
            verifier.VerifyVectorOfTables(curves()) &&
@@ -403,6 +413,9 @@ struct PricingBuilder {
   }
   void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
     fbb_.AddOffset(Pricing::VT_INDICES, indices);
+  }
+  void add_swap_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices) {
+    fbb_.AddOffset(Pricing::VT_SWAP_INDICES, swap_indices);
   }
   void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
     fbb_.AddOffset(Pricing::VT_CURVES, curves);
@@ -452,6 +465,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
     ::flatbuffers::Offset<::flatbuffers::String> as_of_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> settlement_date = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes = 0,
@@ -469,6 +483,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
   builder_.add_quotes(quotes);
   builder_.add_credit_curves(credit_curves);
   builder_.add_curves(curves);
+  builder_.add_swap_indices(swap_indices);
   builder_.add_indices(indices);
   builder_.add_settlement_date(settlement_date);
   builder_.add_as_of_date(as_of_date);
@@ -484,6 +499,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     const char *as_of_date = nullptr,
     const char *settlement_date = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::IndexDef>> *indices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::TermStructure>> *curves = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *credit_curves = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes = nullptr,
@@ -497,6 +513,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
   auto settlement_date__ = settlement_date ? _fbb.CreateString(settlement_date) : 0;
   auto indices__ = indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>>(*indices) : 0;
+  auto swap_indices__ = swap_indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>>(*swap_indices) : 0;
   auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>>(*curves) : 0;
   auto credit_curves__ = credit_curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>>(*credit_curves) : 0;
   auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>>(*quotes) : 0;
@@ -508,6 +525,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
       as_of_date__,
       settlement_date__,
       indices__,
+      swap_indices__,
       curves__,
       credit_curves__,
       quotes__,
@@ -1335,6 +1353,8 @@ inline PricingT::PricingT(const PricingT &o)
         swaption_pricing_rebump(o.swaption_pricing_rebump) {
   indices.reserve(o.indices.size());
   for (const auto &indices_ : o.indices) { indices.emplace_back((indices_) ? new quantra::IndexDefT(*indices_) : nullptr); }
+  swap_indices.reserve(o.swap_indices.size());
+  for (const auto &swap_indices_ : o.swap_indices) { swap_indices.emplace_back((swap_indices_) ? new quantra::SwapIndexDefT(*swap_indices_) : nullptr); }
   curves.reserve(o.curves.size());
   for (const auto &curves_ : o.curves) { curves.emplace_back((curves_) ? new quantra::TermStructureT(*curves_) : nullptr); }
   credit_curves.reserve(o.credit_curves.size());
@@ -1353,6 +1373,7 @@ inline PricingT &PricingT::operator=(PricingT o) FLATBUFFERS_NOEXCEPT {
   std::swap(as_of_date, o.as_of_date);
   std::swap(settlement_date, o.settlement_date);
   std::swap(indices, o.indices);
+  std::swap(swap_indices, o.swap_indices);
   std::swap(curves, o.curves);
   std::swap(credit_curves, o.credit_curves);
   std::swap(quotes, o.quotes);
@@ -1378,6 +1399,7 @@ inline void Pricing::UnPackTo(PricingT *_o, const ::flatbuffers::resolver_functi
   { auto _e = as_of_date(); if (_e) _o->as_of_date = _e->str(); }
   { auto _e = settlement_date(); if (_e) _o->settlement_date = _e->str(); }
   { auto _e = indices(); if (_e) { _o->indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->indices[_i]) { _e->Get(_i)->UnPackTo(_o->indices[_i].get(), _resolver); } else { _o->indices[_i] = std::unique_ptr<quantra::IndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->indices.resize(0); } }
+  { auto _e = swap_indices(); if (_e) { _o->swap_indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swap_indices[_i]) { _e->Get(_i)->UnPackTo(_o->swap_indices[_i].get(), _resolver); } else { _o->swap_indices[_i] = std::unique_ptr<quantra::SwapIndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swap_indices.resize(0); } }
   { auto _e = curves(); if (_e) { _o->curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curves[_i]) { _e->Get(_i)->UnPackTo(_o->curves[_i].get(), _resolver); } else { _o->curves[_i] = std::unique_ptr<quantra::TermStructureT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curves.resize(0); } }
   { auto _e = credit_curves(); if (_e) { _o->credit_curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->credit_curves[_i]) { _e->Get(_i)->UnPackTo(_o->credit_curves[_i].get(), _resolver); } else { _o->credit_curves[_i] = std::unique_ptr<quantra::CreditCurveSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->credit_curves.resize(0); } }
   { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::QuoteSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
@@ -1401,6 +1423,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
   auto _as_of_date = _fbb.CreateString(_o->as_of_date);
   auto _settlement_date = _o->settlement_date.empty() ? 0 : _fbb.CreateString(_o->settlement_date);
   auto _indices = _o->indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>> (_o->indices.size(), [](size_t i, _VectorArgs *__va) { return CreateIndexDef(*__va->__fbb, __va->__o->indices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _swap_indices = _o->swap_indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>> (_o->swap_indices.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapIndexDef(*__va->__fbb, __va->__o->swap_indices[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _curves = _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>> (_o->curves.size(), [](size_t i, _VectorArgs *__va) { return CreateTermStructure(*__va->__fbb, __va->__o->curves[i].get(), __va->__rehasher); }, &_va );
   auto _credit_curves = _o->credit_curves.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>> (_o->credit_curves.size(), [](size_t i, _VectorArgs *__va) { return CreateCreditCurveSpec(*__va->__fbb, __va->__o->credit_curves[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateQuoteSpec(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
@@ -1416,6 +1439,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
       _as_of_date,
       _settlement_date,
       _indices,
+      _swap_indices,
       _curves,
       _credit_curves,
       _quotes,

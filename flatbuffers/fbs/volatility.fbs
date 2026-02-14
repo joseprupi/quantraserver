@@ -3,6 +3,32 @@ include "enums.fbs";
 namespace quantra;
 
 // ============================================================================
+// Period / Tenor
+// ============================================================================
+table PeriodSpec {
+    tenor_number:int;
+    tenor_time_unit:enums.TimeUnit;
+}
+
+// ============================================================================
+// Quote containers (support inline values or quote_ids)
+// ============================================================================
+table QuoteMatrix2D {
+    n_rows:int;                 // expiries
+    n_cols:int;                 // tenors
+    values:[double];            // row-major length = n_rows*n_cols
+    quote_ids:[string];         // optional, length = values, empty => inline
+}
+
+table QuoteTensor3D {
+    n_1:int;                    // expiries
+    n_2:int;                    // tenors
+    n_3:int;                    // strikes
+    values:[double];            // row-major length = n_1*n_2*n_3
+    quote_ids:[string];         // optional, length = values, empty => inline
+}
+
+// ============================================================================
 // IR Volatility Base (for Caps/Floors and Swaptions)
 // Supports Normal, Lognormal, and ShiftedLognormal
 // ============================================================================
@@ -42,9 +68,66 @@ table OptionletVolSpec {
     base:IrVolBaseSpec; 
 }
 
-/// Swaption volatility
-table SwaptionVolSpec { 
-    base:IrVolBaseSpec; 
+/// Swaption volatility (constant, matrix, smile cube, SABR)
+table SwaptionVolConstantSpec {
+    base:IrVolBaseSpec;
+}
+
+table SwaptionVolAtmMatrixSpec {
+    base:IrVolBaseSpec;
+    expiries:[PeriodSpec];
+    tenors:[PeriodSpec];
+    vols:QuoteMatrix2D;
+    expiry_interpolator:enums.Interpolator = Linear;
+    tenor_interpolator:enums.Interpolator = Linear;
+}
+
+table SwaptionVolSmileCubeSpec {
+    base:IrVolBaseSpec;
+    swap_index_id:string; // convention anchor (e.g. USD_SOFR / EUR_6M)
+    allow_external_atm:bool = false; // require explicit opt-in when client provides atm_forwards
+    expiries:[PeriodSpec];
+    tenors:[PeriodSpec];
+    strikes:[double];
+    strike_kind:enums.SwaptionStrikeKind = Absolute;
+    atm_forwards:QuoteMatrix2D; // optional for Absolute, required for SpreadFromATM
+    vols:QuoteTensor3D;
+    expiry_interpolator:enums.Interpolator = Linear;
+    tenor_interpolator:enums.Interpolator = Linear;
+    strike_interpolator:enums.Interpolator = Linear;
+}
+
+table SwaptionSabrParamsSpec {
+    base:IrVolBaseSpec;
+    expiries:[PeriodSpec];
+    tenors:[PeriodSpec];
+    alpha:QuoteMatrix2D;
+    beta:QuoteMatrix2D;
+    rho:QuoteMatrix2D;
+    nu:QuoteMatrix2D;
+}
+
+table SwaptionSabrCalibrateSpec {
+    base:IrVolBaseSpec;
+    expiries:[PeriodSpec];
+    tenors:[PeriodSpec];
+    strikes:[double];
+    vols:QuoteTensor3D;
+    beta_fixed:bool = true;
+    beta_value:double = 0.5;
+    weights:QuoteTensor3D;
+}
+
+union SwaptionVolPayload {
+    SwaptionVolConstantSpec,
+    SwaptionVolAtmMatrixSpec,
+    SwaptionVolSmileCubeSpec,
+    SwaptionSabrParamsSpec,
+    SwaptionSabrCalibrateSpec
+}
+
+table SwaptionVolSpec {
+    payload:SwaptionVolPayload;
 }
 
 /// Black volatility for Equity/FX/Commodity options

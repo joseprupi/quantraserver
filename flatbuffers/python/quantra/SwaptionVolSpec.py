@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Swaption volatility
 class SwaptionVolSpec(object):
     __slots__ = ['_tab']
 
@@ -26,27 +25,39 @@ class SwaptionVolSpec(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # SwaptionVolSpec
-    def Base(self):
+    def PayloadType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.IrVolBaseSpec import IrVolBaseSpec
-            obj = IrVolBaseSpec()
-            obj.Init(self._tab.Bytes, x)
+            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
+        return 0
+
+    # SwaptionVolSpec
+    def Payload(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            from flatbuffers.table import Table
+            obj = Table(bytearray(), 0)
+            self._tab.Union(obj, o)
             return obj
         return None
 
 def SwaptionVolSpecStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     SwaptionVolSpecStart(builder)
 
-def SwaptionVolSpecAddBase(builder, base):
-    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(base), 0)
+def SwaptionVolSpecAddPayloadType(builder, payloadType):
+    builder.PrependUint8Slot(0, payloadType, 0)
 
-def AddBase(builder, base):
-    SwaptionVolSpecAddBase(builder, base)
+def AddPayloadType(builder, payloadType):
+    SwaptionVolSpecAddPayloadType(builder, payloadType)
+
+def SwaptionVolSpecAddPayload(builder, payload):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(payload), 0)
+
+def AddPayload(builder, payload):
+    SwaptionVolSpecAddPayload(builder, payload)
 
 def SwaptionVolSpecEnd(builder):
     return builder.EndObject()
@@ -55,7 +66,7 @@ def End(builder):
     return SwaptionVolSpecEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import Union
 except:
     pass
 
@@ -63,7 +74,8 @@ class SwaptionVolSpecT(object):
 
     # SwaptionVolSpecT
     def __init__(self):
-        self.base = None  # type: Optional[IrVolBaseSpecT]
+        self.payloadType = 0  # type: int
+        self.payload = None  # type: Union[None, SwaptionVolConstantSpecT, SwaptionVolAtmMatrixSpecT, SwaptionVolSmileCubeSpecT, SwaptionSabrParamsSpecT, SwaptionSabrCalibrateSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -86,15 +98,16 @@ class SwaptionVolSpecT(object):
     def _UnPack(self, swaptionVolSpec):
         if swaptionVolSpec is None:
             return
-        if swaptionVolSpec.Base() is not None:
-            self.base = IrVolBaseSpecT.InitFromObj(swaptionVolSpec.Base())
+        self.payloadType = swaptionVolSpec.PayloadType()
+        self.payload = SwaptionVolPayloadCreator(self.payloadType, swaptionVolSpec.Payload())
 
     # SwaptionVolSpecT
     def Pack(self, builder):
-        if self.base is not None:
-            base = self.base.Pack(builder)
+        if self.payload is not None:
+            payload = self.payload.Pack(builder)
         SwaptionVolSpecStart(builder)
-        if self.base is not None:
-            SwaptionVolSpecAddBase(builder, base)
+        SwaptionVolSpecAddPayloadType(builder, self.payloadType)
+        if self.payload is not None:
+            SwaptionVolSpecAddPayload(builder, payload)
         swaptionVolSpec = SwaptionVolSpecEnd(builder)
         return swaptionVolSpec

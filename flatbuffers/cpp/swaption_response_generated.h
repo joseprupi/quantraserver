@@ -13,6 +13,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "enums_generated.h"
+
 namespace quantra {
 
 struct SwaptionResponse;
@@ -34,6 +36,15 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   double gamma = 0.0;
   double theta = 0.0;
   double dv01 = 0.0;
+  double used_volatility = 0.0;
+  std::string used_option_expiry{};
+  std::string used_swap_tenor{};
+  double used_strike = 0.0;
+  double used_atm_forward = 0.0;
+  quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute;
+  double used_spread_from_atm = 0.0;
+  double used_cube_node_atm = 0.0;
+  quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant;
 };
 
 struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -48,7 +59,16 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_VEGA = 14,
     VT_GAMMA = 16,
     VT_THETA = 18,
-    VT_DV01 = 20
+    VT_DV01 = 20,
+    VT_USED_VOLATILITY = 22,
+    VT_USED_OPTION_EXPIRY = 24,
+    VT_USED_SWAP_TENOR = 26,
+    VT_USED_STRIKE = 28,
+    VT_USED_ATM_FORWARD = 30,
+    VT_USED_STRIKE_KIND = 32,
+    VT_USED_SPREAD_FROM_ATM = 34,
+    VT_USED_CUBE_NODE_ATM = 36,
+    VT_VOL_KIND = 38
   };
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
@@ -77,6 +97,33 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double dv01() const {
     return GetField<double>(VT_DV01, 0.0);
   }
+  double used_volatility() const {
+    return GetField<double>(VT_USED_VOLATILITY, 0.0);
+  }
+  const ::flatbuffers::String *used_option_expiry() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_USED_OPTION_EXPIRY);
+  }
+  const ::flatbuffers::String *used_swap_tenor() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_USED_SWAP_TENOR);
+  }
+  double used_strike() const {
+    return GetField<double>(VT_USED_STRIKE, 0.0);
+  }
+  double used_atm_forward() const {
+    return GetField<double>(VT_USED_ATM_FORWARD, 0.0);
+  }
+  quantra::enums::SwaptionStrikeKind used_strike_kind() const {
+    return static_cast<quantra::enums::SwaptionStrikeKind>(GetField<int8_t>(VT_USED_STRIKE_KIND, 0));
+  }
+  double used_spread_from_atm() const {
+    return GetField<double>(VT_USED_SPREAD_FROM_ATM, 0.0);
+  }
+  double used_cube_node_atm() const {
+    return GetField<double>(VT_USED_CUBE_NODE_ATM, 0.0);
+  }
+  quantra::enums::SwaptionVolKind vol_kind() const {
+    return static_cast<quantra::enums::SwaptionVolKind>(GetField<int8_t>(VT_VOL_KIND, 0));
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -88,6 +135,17 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_GAMMA, 8) &&
            VerifyField<double>(verifier, VT_THETA, 8) &&
            VerifyField<double>(verifier, VT_DV01, 8) &&
+           VerifyField<double>(verifier, VT_USED_VOLATILITY, 8) &&
+           VerifyOffset(verifier, VT_USED_OPTION_EXPIRY) &&
+           verifier.VerifyString(used_option_expiry()) &&
+           VerifyOffset(verifier, VT_USED_SWAP_TENOR) &&
+           verifier.VerifyString(used_swap_tenor()) &&
+           VerifyField<double>(verifier, VT_USED_STRIKE, 8) &&
+           VerifyField<double>(verifier, VT_USED_ATM_FORWARD, 8) &&
+           VerifyField<int8_t>(verifier, VT_USED_STRIKE_KIND, 1) &&
+           VerifyField<double>(verifier, VT_USED_SPREAD_FROM_ATM, 8) &&
+           VerifyField<double>(verifier, VT_USED_CUBE_NODE_ATM, 8) &&
+           VerifyField<int8_t>(verifier, VT_VOL_KIND, 1) &&
            verifier.EndTable();
   }
   SwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -126,6 +184,33 @@ struct SwaptionResponseBuilder {
   void add_dv01(double dv01) {
     fbb_.AddElement<double>(SwaptionResponse::VT_DV01, dv01, 0.0);
   }
+  void add_used_volatility(double used_volatility) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_VOLATILITY, used_volatility, 0.0);
+  }
+  void add_used_option_expiry(::flatbuffers::Offset<::flatbuffers::String> used_option_expiry) {
+    fbb_.AddOffset(SwaptionResponse::VT_USED_OPTION_EXPIRY, used_option_expiry);
+  }
+  void add_used_swap_tenor(::flatbuffers::Offset<::flatbuffers::String> used_swap_tenor) {
+    fbb_.AddOffset(SwaptionResponse::VT_USED_SWAP_TENOR, used_swap_tenor);
+  }
+  void add_used_strike(double used_strike) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_STRIKE, used_strike, 0.0);
+  }
+  void add_used_atm_forward(double used_atm_forward) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_ATM_FORWARD, used_atm_forward, 0.0);
+  }
+  void add_used_strike_kind(quantra::enums::SwaptionStrikeKind used_strike_kind) {
+    fbb_.AddElement<int8_t>(SwaptionResponse::VT_USED_STRIKE_KIND, static_cast<int8_t>(used_strike_kind), 0);
+  }
+  void add_used_spread_from_atm(double used_spread_from_atm) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_SPREAD_FROM_ATM, used_spread_from_atm, 0.0);
+  }
+  void add_used_cube_node_atm(double used_cube_node_atm) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_CUBE_NODE_ATM, used_cube_node_atm, 0.0);
+  }
+  void add_vol_kind(quantra::enums::SwaptionVolKind vol_kind) {
+    fbb_.AddElement<int8_t>(SwaptionResponse::VT_VOL_KIND, static_cast<int8_t>(vol_kind), 0);
+  }
   explicit SwaptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -147,8 +232,22 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     double vega = 0.0,
     double gamma = 0.0,
     double theta = 0.0,
-    double dv01 = 0.0) {
+    double dv01 = 0.0,
+    double used_volatility = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> used_option_expiry = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> used_swap_tenor = 0,
+    double used_strike = 0.0,
+    double used_atm_forward = 0.0,
+    quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
+    double used_spread_from_atm = 0.0,
+    double used_cube_node_atm = 0.0,
+    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant) {
   SwaptionResponseBuilder builder_(_fbb);
+  builder_.add_used_cube_node_atm(used_cube_node_atm);
+  builder_.add_used_spread_from_atm(used_spread_from_atm);
+  builder_.add_used_atm_forward(used_atm_forward);
+  builder_.add_used_strike(used_strike);
+  builder_.add_used_volatility(used_volatility);
   builder_.add_dv01(dv01);
   builder_.add_theta(theta);
   builder_.add_gamma(gamma);
@@ -158,7 +257,55 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   builder_.add_atm_forward(atm_forward);
   builder_.add_implied_volatility(implied_volatility);
   builder_.add_npv(npv);
+  builder_.add_used_swap_tenor(used_swap_tenor);
+  builder_.add_used_option_expiry(used_option_expiry);
+  builder_.add_vol_kind(vol_kind);
+  builder_.add_used_strike_kind(used_strike_kind);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    double npv = 0.0,
+    double implied_volatility = 0.0,
+    double atm_forward = 0.0,
+    double annuity = 0.0,
+    double delta = 0.0,
+    double vega = 0.0,
+    double gamma = 0.0,
+    double theta = 0.0,
+    double dv01 = 0.0,
+    double used_volatility = 0.0,
+    const char *used_option_expiry = nullptr,
+    const char *used_swap_tenor = nullptr,
+    double used_strike = 0.0,
+    double used_atm_forward = 0.0,
+    quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
+    double used_spread_from_atm = 0.0,
+    double used_cube_node_atm = 0.0,
+    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant) {
+  auto used_option_expiry__ = used_option_expiry ? _fbb.CreateString(used_option_expiry) : 0;
+  auto used_swap_tenor__ = used_swap_tenor ? _fbb.CreateString(used_swap_tenor) : 0;
+  return quantra::CreateSwaptionResponse(
+      _fbb,
+      npv,
+      implied_volatility,
+      atm_forward,
+      annuity,
+      delta,
+      vega,
+      gamma,
+      theta,
+      dv01,
+      used_volatility,
+      used_option_expiry__,
+      used_swap_tenor__,
+      used_strike,
+      used_atm_forward,
+      used_strike_kind,
+      used_spread_from_atm,
+      used_cube_node_atm,
+      vol_kind);
 }
 
 ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -248,6 +395,15 @@ inline void SwaptionResponse::UnPackTo(SwaptionResponseT *_o, const ::flatbuffer
   { auto _e = gamma(); _o->gamma = _e; }
   { auto _e = theta(); _o->theta = _e; }
   { auto _e = dv01(); _o->dv01 = _e; }
+  { auto _e = used_volatility(); _o->used_volatility = _e; }
+  { auto _e = used_option_expiry(); if (_e) _o->used_option_expiry = _e->str(); }
+  { auto _e = used_swap_tenor(); if (_e) _o->used_swap_tenor = _e->str(); }
+  { auto _e = used_strike(); _o->used_strike = _e; }
+  { auto _e = used_atm_forward(); _o->used_atm_forward = _e; }
+  { auto _e = used_strike_kind(); _o->used_strike_kind = _e; }
+  { auto _e = used_spread_from_atm(); _o->used_spread_from_atm = _e; }
+  { auto _e = used_cube_node_atm(); _o->used_cube_node_atm = _e; }
+  { auto _e = vol_kind(); _o->vol_kind = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionResponse> SwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -267,6 +423,15 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
   auto _gamma = _o->gamma;
   auto _theta = _o->theta;
   auto _dv01 = _o->dv01;
+  auto _used_volatility = _o->used_volatility;
+  auto _used_option_expiry = _o->used_option_expiry.empty() ? 0 : _fbb.CreateString(_o->used_option_expiry);
+  auto _used_swap_tenor = _o->used_swap_tenor.empty() ? 0 : _fbb.CreateString(_o->used_swap_tenor);
+  auto _used_strike = _o->used_strike;
+  auto _used_atm_forward = _o->used_atm_forward;
+  auto _used_strike_kind = _o->used_strike_kind;
+  auto _used_spread_from_atm = _o->used_spread_from_atm;
+  auto _used_cube_node_atm = _o->used_cube_node_atm;
+  auto _vol_kind = _o->vol_kind;
   return quantra::CreateSwaptionResponse(
       _fbb,
       _npv,
@@ -277,7 +442,16 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
       _vega,
       _gamma,
       _theta,
-      _dv01);
+      _dv01,
+      _used_volatility,
+      _used_option_expiry,
+      _used_swap_tenor,
+      _used_strike,
+      _used_atm_forward,
+      _used_strike_kind,
+      _used_spread_from_atm,
+      _used_cube_node_atm,
+      _vol_kind);
 }
 
 inline PriceSwaptionResponseT::PriceSwaptionResponseT(const PriceSwaptionResponseT &o) {

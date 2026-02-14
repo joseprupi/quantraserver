@@ -276,6 +276,15 @@ from quantra.Fixing import FixingT
 from quantra.VolSurfaceSpec import VolSurfaceSpecT
 from quantra.OptionletVolSpec import OptionletVolSpecT
 from quantra.SwaptionVolSpec import SwaptionVolSpecT
+from quantra.SwaptionVolConstantSpec import SwaptionVolConstantSpecT
+from quantra.SwaptionVolAtmMatrixSpec import SwaptionVolAtmMatrixSpecT
+from quantra.SwaptionVolSmileCubeSpec import SwaptionVolSmileCubeSpecT
+from quantra.SwaptionSabrParamsSpec import SwaptionSabrParamsSpecT
+from quantra.SwaptionSabrCalibrateSpec import SwaptionSabrCalibrateSpecT
+from quantra.SwaptionVolPayload import SwaptionVolPayload
+from quantra.PeriodSpec import PeriodSpecT
+from quantra.QuoteMatrix2D import QuoteMatrix2DT
+from quantra.QuoteTensor3D import QuoteTensor3DT
 from quantra.BlackVolSpec import BlackVolSpecT
 from quantra.IrVolBaseSpec import IrVolBaseSpecT
 from quantra.BlackVolBaseSpec import BlackVolBaseSpecT
@@ -392,6 +401,15 @@ __all__ = [
     'VolSurfaceSpecT',
     'OptionletVolSpecT',
     'SwaptionVolSpecT',
+    'SwaptionVolConstantSpecT',
+    'SwaptionVolAtmMatrixSpecT',
+    'SwaptionVolSmileCubeSpecT',
+    'SwaptionSabrParamsSpecT',
+    'SwaptionSabrCalibrateSpecT',
+    'SwaptionVolPayload',
+    'PeriodSpecT',
+    'QuoteMatrix2DT',
+    'QuoteTensor3DT',
     'BlackVolSpecT',
     'IrVolBaseSpecT',
     'BlackVolBaseSpecT',

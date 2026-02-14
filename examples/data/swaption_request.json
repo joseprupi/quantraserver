@@ -76,14 +76,17 @@
         "id": "swaption_vol",
         "payload_type": "SwaptionVolSpec",
         "payload": {
-          "base": {
-            "reference_date": "2025-01-15",
-            "calendar": "TARGET",
-            "business_day_convention": "ModifiedFollowing",
-            "day_counter": "Actual365Fixed",
-            "volatility_type": "Lognormal",
-            "displacement": 0.0,
-            "constant_vol": 0.2
+          "payload_type": "SwaptionVolConstantSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2025-01-15",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "volatility_type": "Lognormal",
+              "displacement": 0.0,
+              "constant_vol": 0.2
+            }
           }
         }
       }

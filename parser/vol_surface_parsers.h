@@ -18,6 +18,8 @@
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
+#include <vector>
+#include <string>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/time/date.hpp>
 #include <ql/time/calendar.hpp>
@@ -51,7 +53,24 @@ struct SwaptionVolEntry {
     double constantVol;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
+    QuantLib::BusinessDayConvention businessDayConvention;
     QuantLib::DayCounter dayCounter;
+    quantra::enums::SwaptionVolKind volKind = quantra::enums::SwaptionVolKind_Constant;
+    std::vector<QuantLib::Period> expiries;
+    std::vector<QuantLib::Period> tenors;
+    std::vector<double> strikes;
+    std::string swapIndexId;
+    quantra::enums::SwaptionStrikeKind strikeKind = quantra::enums::SwaptionStrikeKind_Absolute;
+    bool allowExternalAtm = false;
+    std::vector<double> volsFlat;
+    std::vector<double> atmForwardsFlat;
+    std::vector<double> sabrAlpha;
+    std::vector<double> sabrBeta;
+    std::vector<double> sabrRho;
+    std::vector<double> sabrNu;
+    int nExp = 0;
+    int nTen = 0;
+    int nStrikes = 0;
 };
 
 struct BlackVolEntry {
@@ -80,6 +99,18 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
  * Parse SwaptionVolSpec from FlatBuffers into QuantLib structure.
  */
 SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
+
+/**
+ * Build a bumped swaption vol entry (parallel bump).
+ */
+SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump);
+
+/**
+ * Rebuild smile cube entry with server-computed ATM forwards.
+ */
+SwaptionVolEntry withSwaptionSmileCubeAtm(
+    const SwaptionVolEntry& base,
+    const std::vector<double>& atmForwardsFlat);
 
 /**
  * Parse BlackVolSpec from FlatBuffers into QuantLib structure.

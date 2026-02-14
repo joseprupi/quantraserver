@@ -87,8 +87,71 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # SwaptionResponse
+    def UsedVolatility(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def UsedOptionExpiry(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # SwaptionResponse
+    def UsedSwapTenor(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # SwaptionResponse
+    def UsedStrike(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def UsedAtmForward(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def UsedStrikeKind(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # SwaptionResponse
+    def UsedSpreadFromAtm(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def UsedCubeNodeAtm(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # SwaptionResponse
+    def VolKind(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
 def SwaptionResponseStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(18)
 
 def Start(builder):
     SwaptionResponseStart(builder)
@@ -147,6 +210,60 @@ def SwaptionResponseAddDv01(builder, dv01):
 def AddDv01(builder, dv01):
     SwaptionResponseAddDv01(builder, dv01)
 
+def SwaptionResponseAddUsedVolatility(builder, usedVolatility):
+    builder.PrependFloat64Slot(9, usedVolatility, 0.0)
+
+def AddUsedVolatility(builder, usedVolatility):
+    SwaptionResponseAddUsedVolatility(builder, usedVolatility)
+
+def SwaptionResponseAddUsedOptionExpiry(builder, usedOptionExpiry):
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(usedOptionExpiry), 0)
+
+def AddUsedOptionExpiry(builder, usedOptionExpiry):
+    SwaptionResponseAddUsedOptionExpiry(builder, usedOptionExpiry)
+
+def SwaptionResponseAddUsedSwapTenor(builder, usedSwapTenor):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(usedSwapTenor), 0)
+
+def AddUsedSwapTenor(builder, usedSwapTenor):
+    SwaptionResponseAddUsedSwapTenor(builder, usedSwapTenor)
+
+def SwaptionResponseAddUsedStrike(builder, usedStrike):
+    builder.PrependFloat64Slot(12, usedStrike, 0.0)
+
+def AddUsedStrike(builder, usedStrike):
+    SwaptionResponseAddUsedStrike(builder, usedStrike)
+
+def SwaptionResponseAddUsedAtmForward(builder, usedAtmForward):
+    builder.PrependFloat64Slot(13, usedAtmForward, 0.0)
+
+def AddUsedAtmForward(builder, usedAtmForward):
+    SwaptionResponseAddUsedAtmForward(builder, usedAtmForward)
+
+def SwaptionResponseAddUsedStrikeKind(builder, usedStrikeKind):
+    builder.PrependInt8Slot(14, usedStrikeKind, 0)
+
+def AddUsedStrikeKind(builder, usedStrikeKind):
+    SwaptionResponseAddUsedStrikeKind(builder, usedStrikeKind)
+
+def SwaptionResponseAddUsedSpreadFromAtm(builder, usedSpreadFromAtm):
+    builder.PrependFloat64Slot(15, usedSpreadFromAtm, 0.0)
+
+def AddUsedSpreadFromAtm(builder, usedSpreadFromAtm):
+    SwaptionResponseAddUsedSpreadFromAtm(builder, usedSpreadFromAtm)
+
+def SwaptionResponseAddUsedCubeNodeAtm(builder, usedCubeNodeAtm):
+    builder.PrependFloat64Slot(16, usedCubeNodeAtm, 0.0)
+
+def AddUsedCubeNodeAtm(builder, usedCubeNodeAtm):
+    SwaptionResponseAddUsedCubeNodeAtm(builder, usedCubeNodeAtm)
+
+def SwaptionResponseAddVolKind(builder, volKind):
+    builder.PrependInt8Slot(17, volKind, 0)
+
+def AddVolKind(builder, volKind):
+    SwaptionResponseAddVolKind(builder, volKind)
+
 def SwaptionResponseEnd(builder):
     return builder.EndObject()
 
@@ -167,6 +284,15 @@ class SwaptionResponseT(object):
         self.gamma = 0.0  # type: float
         self.theta = 0.0  # type: float
         self.dv01 = 0.0  # type: float
+        self.usedVolatility = 0.0  # type: float
+        self.usedOptionExpiry = None  # type: str
+        self.usedSwapTenor = None  # type: str
+        self.usedStrike = 0.0  # type: float
+        self.usedAtmForward = 0.0  # type: float
+        self.usedStrikeKind = 0  # type: int
+        self.usedSpreadFromAtm = 0.0  # type: float
+        self.usedCubeNodeAtm = 0.0  # type: float
+        self.volKind = 0  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -198,9 +324,22 @@ class SwaptionResponseT(object):
         self.gamma = swaptionResponse.Gamma()
         self.theta = swaptionResponse.Theta()
         self.dv01 = swaptionResponse.Dv01()
+        self.usedVolatility = swaptionResponse.UsedVolatility()
+        self.usedOptionExpiry = swaptionResponse.UsedOptionExpiry()
+        self.usedSwapTenor = swaptionResponse.UsedSwapTenor()
+        self.usedStrike = swaptionResponse.UsedStrike()
+        self.usedAtmForward = swaptionResponse.UsedAtmForward()
+        self.usedStrikeKind = swaptionResponse.UsedStrikeKind()
+        self.usedSpreadFromAtm = swaptionResponse.UsedSpreadFromAtm()
+        self.usedCubeNodeAtm = swaptionResponse.UsedCubeNodeAtm()
+        self.volKind = swaptionResponse.VolKind()
 
     # SwaptionResponseT
     def Pack(self, builder):
+        if self.usedOptionExpiry is not None:
+            usedOptionExpiry = builder.CreateString(self.usedOptionExpiry)
+        if self.usedSwapTenor is not None:
+            usedSwapTenor = builder.CreateString(self.usedSwapTenor)
         SwaptionResponseStart(builder)
         SwaptionResponseAddNpv(builder, self.npv)
         SwaptionResponseAddImpliedVolatility(builder, self.impliedVolatility)
@@ -211,5 +350,16 @@ class SwaptionResponseT(object):
         SwaptionResponseAddGamma(builder, self.gamma)
         SwaptionResponseAddTheta(builder, self.theta)
         SwaptionResponseAddDv01(builder, self.dv01)
+        SwaptionResponseAddUsedVolatility(builder, self.usedVolatility)
+        if self.usedOptionExpiry is not None:
+            SwaptionResponseAddUsedOptionExpiry(builder, usedOptionExpiry)
+        if self.usedSwapTenor is not None:
+            SwaptionResponseAddUsedSwapTenor(builder, usedSwapTenor)
+        SwaptionResponseAddUsedStrike(builder, self.usedStrike)
+        SwaptionResponseAddUsedAtmForward(builder, self.usedAtmForward)
+        SwaptionResponseAddUsedStrikeKind(builder, self.usedStrikeKind)
+        SwaptionResponseAddUsedSpreadFromAtm(builder, self.usedSpreadFromAtm)
+        SwaptionResponseAddUsedCubeNodeAtm(builder, self.usedCubeNodeAtm)
+        SwaptionResponseAddVolKind(builder, self.volKind)
         swaptionResponse = SwaptionResponseEnd(builder)
         return swaptionResponse

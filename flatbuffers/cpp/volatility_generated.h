@@ -17,6 +17,18 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
+struct PeriodSpec;
+struct PeriodSpecBuilder;
+struct PeriodSpecT;
+
+struct QuoteMatrix2D;
+struct QuoteMatrix2DBuilder;
+struct QuoteMatrix2DT;
+
+struct QuoteTensor3D;
+struct QuoteTensor3DBuilder;
+struct QuoteTensor3DT;
+
 struct IrVolBaseSpec;
 struct IrVolBaseSpecBuilder;
 struct IrVolBaseSpecT;
@@ -29,6 +41,26 @@ struct OptionletVolSpec;
 struct OptionletVolSpecBuilder;
 struct OptionletVolSpecT;
 
+struct SwaptionVolConstantSpec;
+struct SwaptionVolConstantSpecBuilder;
+struct SwaptionVolConstantSpecT;
+
+struct SwaptionVolAtmMatrixSpec;
+struct SwaptionVolAtmMatrixSpecBuilder;
+struct SwaptionVolAtmMatrixSpecT;
+
+struct SwaptionVolSmileCubeSpec;
+struct SwaptionVolSmileCubeSpecBuilder;
+struct SwaptionVolSmileCubeSpecT;
+
+struct SwaptionSabrParamsSpec;
+struct SwaptionSabrParamsSpecBuilder;
+struct SwaptionSabrParamsSpecT;
+
+struct SwaptionSabrCalibrateSpec;
+struct SwaptionSabrCalibrateSpecBuilder;
+struct SwaptionSabrCalibrateSpecT;
+
 struct SwaptionVolSpec;
 struct SwaptionVolSpecBuilder;
 struct SwaptionVolSpecT;
@@ -40,6 +72,171 @@ struct BlackVolSpecT;
 struct VolSurfaceSpec;
 struct VolSurfaceSpecBuilder;
 struct VolSurfaceSpecT;
+
+enum SwaptionVolPayload : uint8_t {
+  SwaptionVolPayload_NONE = 0,
+  SwaptionVolPayload_SwaptionVolConstantSpec = 1,
+  SwaptionVolPayload_SwaptionVolAtmMatrixSpec = 2,
+  SwaptionVolPayload_SwaptionVolSmileCubeSpec = 3,
+  SwaptionVolPayload_SwaptionSabrParamsSpec = 4,
+  SwaptionVolPayload_SwaptionSabrCalibrateSpec = 5,
+  SwaptionVolPayload_MIN = SwaptionVolPayload_NONE,
+  SwaptionVolPayload_MAX = SwaptionVolPayload_SwaptionSabrCalibrateSpec
+};
+
+inline const SwaptionVolPayload (&EnumValuesSwaptionVolPayload())[6] {
+  static const SwaptionVolPayload values[] = {
+    SwaptionVolPayload_NONE,
+    SwaptionVolPayload_SwaptionVolConstantSpec,
+    SwaptionVolPayload_SwaptionVolAtmMatrixSpec,
+    SwaptionVolPayload_SwaptionVolSmileCubeSpec,
+    SwaptionVolPayload_SwaptionSabrParamsSpec,
+    SwaptionVolPayload_SwaptionSabrCalibrateSpec
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwaptionVolPayload() {
+  static const char * const names[7] = {
+    "NONE",
+    "SwaptionVolConstantSpec",
+    "SwaptionVolAtmMatrixSpec",
+    "SwaptionVolSmileCubeSpec",
+    "SwaptionSabrParamsSpec",
+    "SwaptionSabrCalibrateSpec",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwaptionVolPayload(SwaptionVolPayload e) {
+  if (::flatbuffers::IsOutRange(e, SwaptionVolPayload_NONE, SwaptionVolPayload_SwaptionSabrCalibrateSpec)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwaptionVolPayload()[index];
+}
+
+template<typename T> struct SwaptionVolPayloadTraits {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_NONE;
+};
+
+template<> struct SwaptionVolPayloadTraits<quantra::SwaptionVolConstantSpec> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolConstantSpec;
+};
+
+template<> struct SwaptionVolPayloadTraits<quantra::SwaptionVolAtmMatrixSpec> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolAtmMatrixSpec;
+};
+
+template<> struct SwaptionVolPayloadTraits<quantra::SwaptionVolSmileCubeSpec> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolSmileCubeSpec;
+};
+
+template<> struct SwaptionVolPayloadTraits<quantra::SwaptionSabrParamsSpec> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionSabrParamsSpec;
+};
+
+template<> struct SwaptionVolPayloadTraits<quantra::SwaptionSabrCalibrateSpec> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionSabrCalibrateSpec;
+};
+
+template<typename T> struct SwaptionVolPayloadUnionTraits {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_NONE;
+};
+
+template<> struct SwaptionVolPayloadUnionTraits<quantra::SwaptionVolConstantSpecT> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolConstantSpec;
+};
+
+template<> struct SwaptionVolPayloadUnionTraits<quantra::SwaptionVolAtmMatrixSpecT> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolAtmMatrixSpec;
+};
+
+template<> struct SwaptionVolPayloadUnionTraits<quantra::SwaptionVolSmileCubeSpecT> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionVolSmileCubeSpec;
+};
+
+template<> struct SwaptionVolPayloadUnionTraits<quantra::SwaptionSabrParamsSpecT> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionSabrParamsSpec;
+};
+
+template<> struct SwaptionVolPayloadUnionTraits<quantra::SwaptionSabrCalibrateSpecT> {
+  static const SwaptionVolPayload enum_value = SwaptionVolPayload_SwaptionSabrCalibrateSpec;
+};
+
+struct SwaptionVolPayloadUnion {
+  SwaptionVolPayload type;
+  void *value;
+
+  SwaptionVolPayloadUnion() : type(SwaptionVolPayload_NONE), value(nullptr) {}
+  SwaptionVolPayloadUnion(SwaptionVolPayloadUnion&& u) FLATBUFFERS_NOEXCEPT :
+    type(SwaptionVolPayload_NONE), value(nullptr)
+    { std::swap(type, u.type); std::swap(value, u.value); }
+  SwaptionVolPayloadUnion(const SwaptionVolPayloadUnion &);
+  SwaptionVolPayloadUnion &operator=(const SwaptionVolPayloadUnion &u)
+    { SwaptionVolPayloadUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
+  SwaptionVolPayloadUnion &operator=(SwaptionVolPayloadUnion &&u) FLATBUFFERS_NOEXCEPT
+    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
+  ~SwaptionVolPayloadUnion() { Reset(); }
+
+  void Reset();
+
+  template <typename T>
+  void Set(T&& val) {
+    typedef typename std::remove_reference<T>::type RT;
+    Reset();
+    type = SwaptionVolPayloadUnionTraits<RT>::enum_value;
+    if (type != SwaptionVolPayload_NONE) {
+      value = new RT(std::forward<T>(val));
+    }
+  }
+
+  static void *UnPack(const void *obj, SwaptionVolPayload type, const ::flatbuffers::resolver_function_t *resolver);
+  ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
+
+  quantra::SwaptionVolConstantSpecT *AsSwaptionVolConstantSpec() {
+    return type == SwaptionVolPayload_SwaptionVolConstantSpec ?
+      reinterpret_cast<quantra::SwaptionVolConstantSpecT *>(value) : nullptr;
+  }
+  const quantra::SwaptionVolConstantSpecT *AsSwaptionVolConstantSpec() const {
+    return type == SwaptionVolPayload_SwaptionVolConstantSpec ?
+      reinterpret_cast<const quantra::SwaptionVolConstantSpecT *>(value) : nullptr;
+  }
+  quantra::SwaptionVolAtmMatrixSpecT *AsSwaptionVolAtmMatrixSpec() {
+    return type == SwaptionVolPayload_SwaptionVolAtmMatrixSpec ?
+      reinterpret_cast<quantra::SwaptionVolAtmMatrixSpecT *>(value) : nullptr;
+  }
+  const quantra::SwaptionVolAtmMatrixSpecT *AsSwaptionVolAtmMatrixSpec() const {
+    return type == SwaptionVolPayload_SwaptionVolAtmMatrixSpec ?
+      reinterpret_cast<const quantra::SwaptionVolAtmMatrixSpecT *>(value) : nullptr;
+  }
+  quantra::SwaptionVolSmileCubeSpecT *AsSwaptionVolSmileCubeSpec() {
+    return type == SwaptionVolPayload_SwaptionVolSmileCubeSpec ?
+      reinterpret_cast<quantra::SwaptionVolSmileCubeSpecT *>(value) : nullptr;
+  }
+  const quantra::SwaptionVolSmileCubeSpecT *AsSwaptionVolSmileCubeSpec() const {
+    return type == SwaptionVolPayload_SwaptionVolSmileCubeSpec ?
+      reinterpret_cast<const quantra::SwaptionVolSmileCubeSpecT *>(value) : nullptr;
+  }
+  quantra::SwaptionSabrParamsSpecT *AsSwaptionSabrParamsSpec() {
+    return type == SwaptionVolPayload_SwaptionSabrParamsSpec ?
+      reinterpret_cast<quantra::SwaptionSabrParamsSpecT *>(value) : nullptr;
+  }
+  const quantra::SwaptionSabrParamsSpecT *AsSwaptionSabrParamsSpec() const {
+    return type == SwaptionVolPayload_SwaptionSabrParamsSpec ?
+      reinterpret_cast<const quantra::SwaptionSabrParamsSpecT *>(value) : nullptr;
+  }
+  quantra::SwaptionSabrCalibrateSpecT *AsSwaptionSabrCalibrateSpec() {
+    return type == SwaptionVolPayload_SwaptionSabrCalibrateSpec ?
+      reinterpret_cast<quantra::SwaptionSabrCalibrateSpecT *>(value) : nullptr;
+  }
+  const quantra::SwaptionSabrCalibrateSpecT *AsSwaptionSabrCalibrateSpec() const {
+    return type == SwaptionVolPayload_SwaptionSabrCalibrateSpec ?
+      reinterpret_cast<const quantra::SwaptionSabrCalibrateSpecT *>(value) : nullptr;
+  }
+};
+
+bool VerifySwaptionVolPayload(::flatbuffers::Verifier &verifier, const void *obj, SwaptionVolPayload type);
+bool VerifySwaptionVolPayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
 /// Union of all volatility types
 enum VolPayload : uint8_t {
@@ -168,6 +365,290 @@ struct VolPayloadUnion {
 
 bool VerifyVolPayload(::flatbuffers::Verifier &verifier, const void *obj, VolPayload type);
 bool VerifyVolPayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
+
+struct PeriodSpecT : public ::flatbuffers::NativeTable {
+  typedef PeriodSpec TableType;
+  int32_t tenor_number = 0;
+  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+};
+
+struct PeriodSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PeriodSpecT NativeTableType;
+  typedef PeriodSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TENOR_NUMBER = 4,
+    VT_TENOR_TIME_UNIT = 6
+  };
+  int32_t tenor_number() const {
+    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  }
+  quantra::enums::TimeUnit tenor_time_unit() const {
+    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           verifier.EndTable();
+  }
+  PeriodSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PeriodSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<PeriodSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PeriodSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PeriodSpecBuilder {
+  typedef PeriodSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_tenor_number(int32_t tenor_number) {
+    fbb_.AddElement<int32_t>(PeriodSpec::VT_TENOR_NUMBER, tenor_number, 0);
+  }
+  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
+    fbb_.AddElement<int8_t>(PeriodSpec::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  }
+  explicit PeriodSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<PeriodSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<PeriodSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<PeriodSpec> CreatePeriodSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t tenor_number = 0,
+    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days) {
+  PeriodSpecBuilder builder_(_fbb);
+  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor_time_unit(tenor_time_unit);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<PeriodSpec> CreatePeriodSpec(::flatbuffers::FlatBufferBuilder &_fbb, const PeriodSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct QuoteMatrix2DT : public ::flatbuffers::NativeTable {
+  typedef QuoteMatrix2D TableType;
+  int32_t n_rows = 0;
+  int32_t n_cols = 0;
+  std::vector<double> values{};
+  std::vector<std::string> quote_ids{};
+};
+
+struct QuoteMatrix2D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef QuoteMatrix2DT NativeTableType;
+  typedef QuoteMatrix2DBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_N_ROWS = 4,
+    VT_N_COLS = 6,
+    VT_VALUES = 8,
+    VT_QUOTE_IDS = 10
+  };
+  int32_t n_rows() const {
+    return GetField<int32_t>(VT_N_ROWS, 0);
+  }
+  int32_t n_cols() const {
+    return GetField<int32_t>(VT_N_COLS, 0);
+  }
+  const ::flatbuffers::Vector<double> *values() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VALUES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_QUOTE_IDS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_N_ROWS, 4) &&
+           VerifyField<int32_t>(verifier, VT_N_COLS, 4) &&
+           VerifyOffset(verifier, VT_VALUES) &&
+           verifier.VerifyVector(values()) &&
+           VerifyOffset(verifier, VT_QUOTE_IDS) &&
+           verifier.VerifyVector(quote_ids()) &&
+           verifier.VerifyVectorOfStrings(quote_ids()) &&
+           verifier.EndTable();
+  }
+  QuoteMatrix2DT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(QuoteMatrix2DT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<QuoteMatrix2D> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteMatrix2DT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct QuoteMatrix2DBuilder {
+  typedef QuoteMatrix2D Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_n_rows(int32_t n_rows) {
+    fbb_.AddElement<int32_t>(QuoteMatrix2D::VT_N_ROWS, n_rows, 0);
+  }
+  void add_n_cols(int32_t n_cols) {
+    fbb_.AddElement<int32_t>(QuoteMatrix2D::VT_N_COLS, n_cols, 0);
+  }
+  void add_values(::flatbuffers::Offset<::flatbuffers::Vector<double>> values) {
+    fbb_.AddOffset(QuoteMatrix2D::VT_VALUES, values);
+  }
+  void add_quote_ids(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> quote_ids) {
+    fbb_.AddOffset(QuoteMatrix2D::VT_QUOTE_IDS, quote_ids);
+  }
+  explicit QuoteMatrix2DBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<QuoteMatrix2D> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<QuoteMatrix2D>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<QuoteMatrix2D> CreateQuoteMatrix2D(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t n_rows = 0,
+    int32_t n_cols = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> values = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> quote_ids = 0) {
+  QuoteMatrix2DBuilder builder_(_fbb);
+  builder_.add_quote_ids(quote_ids);
+  builder_.add_values(values);
+  builder_.add_n_cols(n_cols);
+  builder_.add_n_rows(n_rows);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<QuoteMatrix2D> CreateQuoteMatrix2DDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t n_rows = 0,
+    int32_t n_cols = 0,
+    const std::vector<double> *values = nullptr,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids = nullptr) {
+  auto values__ = values ? _fbb.CreateVector<double>(*values) : 0;
+  auto quote_ids__ = quote_ids ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*quote_ids) : 0;
+  return quantra::CreateQuoteMatrix2D(
+      _fbb,
+      n_rows,
+      n_cols,
+      values__,
+      quote_ids__);
+}
+
+::flatbuffers::Offset<QuoteMatrix2D> CreateQuoteMatrix2D(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteMatrix2DT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct QuoteTensor3DT : public ::flatbuffers::NativeTable {
+  typedef QuoteTensor3D TableType;
+  int32_t n_1 = 0;
+  int32_t n_2 = 0;
+  int32_t n_3 = 0;
+  std::vector<double> values{};
+  std::vector<std::string> quote_ids{};
+};
+
+struct QuoteTensor3D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef QuoteTensor3DT NativeTableType;
+  typedef QuoteTensor3DBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_N_1 = 4,
+    VT_N_2 = 6,
+    VT_N_3 = 8,
+    VT_VALUES = 10,
+    VT_QUOTE_IDS = 12
+  };
+  int32_t n_1() const {
+    return GetField<int32_t>(VT_N_1, 0);
+  }
+  int32_t n_2() const {
+    return GetField<int32_t>(VT_N_2, 0);
+  }
+  int32_t n_3() const {
+    return GetField<int32_t>(VT_N_3, 0);
+  }
+  const ::flatbuffers::Vector<double> *values() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VALUES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_QUOTE_IDS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int32_t>(verifier, VT_N_1, 4) &&
+           VerifyField<int32_t>(verifier, VT_N_2, 4) &&
+           VerifyField<int32_t>(verifier, VT_N_3, 4) &&
+           VerifyOffset(verifier, VT_VALUES) &&
+           verifier.VerifyVector(values()) &&
+           VerifyOffset(verifier, VT_QUOTE_IDS) &&
+           verifier.VerifyVector(quote_ids()) &&
+           verifier.VerifyVectorOfStrings(quote_ids()) &&
+           verifier.EndTable();
+  }
+  QuoteTensor3DT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(QuoteTensor3DT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<QuoteTensor3D> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteTensor3DT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct QuoteTensor3DBuilder {
+  typedef QuoteTensor3D Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_n_1(int32_t n_1) {
+    fbb_.AddElement<int32_t>(QuoteTensor3D::VT_N_1, n_1, 0);
+  }
+  void add_n_2(int32_t n_2) {
+    fbb_.AddElement<int32_t>(QuoteTensor3D::VT_N_2, n_2, 0);
+  }
+  void add_n_3(int32_t n_3) {
+    fbb_.AddElement<int32_t>(QuoteTensor3D::VT_N_3, n_3, 0);
+  }
+  void add_values(::flatbuffers::Offset<::flatbuffers::Vector<double>> values) {
+    fbb_.AddOffset(QuoteTensor3D::VT_VALUES, values);
+  }
+  void add_quote_ids(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> quote_ids) {
+    fbb_.AddOffset(QuoteTensor3D::VT_QUOTE_IDS, quote_ids);
+  }
+  explicit QuoteTensor3DBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<QuoteTensor3D> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<QuoteTensor3D>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<QuoteTensor3D> CreateQuoteTensor3D(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t n_1 = 0,
+    int32_t n_2 = 0,
+    int32_t n_3 = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> values = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> quote_ids = 0) {
+  QuoteTensor3DBuilder builder_(_fbb);
+  builder_.add_quote_ids(quote_ids);
+  builder_.add_values(values);
+  builder_.add_n_3(n_3);
+  builder_.add_n_2(n_2);
+  builder_.add_n_1(n_1);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<QuoteTensor3D> CreateQuoteTensor3DDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    int32_t n_1 = 0,
+    int32_t n_2 = 0,
+    int32_t n_3 = 0,
+    const std::vector<double> *values = nullptr,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids = nullptr) {
+  auto values__ = values ? _fbb.CreateVector<double>(*values) : 0;
+  auto quote_ids__ = quote_ids ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*quote_ids) : 0;
+  return quantra::CreateQuoteTensor3D(
+      _fbb,
+      n_1,
+      n_2,
+      n_3,
+      values__,
+      quote_ids__);
+}
+
+::flatbuffers::Offset<QuoteTensor3D> CreateQuoteTensor3D(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteTensor3DT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct IrVolBaseSpecT : public ::flatbuffers::NativeTable {
   typedef IrVolBaseSpec TableType;
@@ -537,19 +1018,19 @@ inline ::flatbuffers::Offset<OptionletVolSpec> CreateOptionletVolSpec(
 
 ::flatbuffers::Offset<OptionletVolSpec> CreateOptionletVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const OptionletVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct SwaptionVolSpecT : public ::flatbuffers::NativeTable {
-  typedef SwaptionVolSpec TableType;
+struct SwaptionVolConstantSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionVolConstantSpec TableType;
   std::unique_ptr<quantra::IrVolBaseSpecT> base{};
-  SwaptionVolSpecT() = default;
-  SwaptionVolSpecT(const SwaptionVolSpecT &o);
-  SwaptionVolSpecT(SwaptionVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
-  SwaptionVolSpecT &operator=(SwaptionVolSpecT o) FLATBUFFERS_NOEXCEPT;
+  SwaptionVolConstantSpecT() = default;
+  SwaptionVolConstantSpecT(const SwaptionVolConstantSpecT &o);
+  SwaptionVolConstantSpecT(SwaptionVolConstantSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionVolConstantSpecT &operator=(SwaptionVolConstantSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Swaption volatility
-struct SwaptionVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef SwaptionVolSpecT NativeTableType;
-  typedef SwaptionVolSpecBuilder Builder;
+/// Swaption volatility (constant, matrix, smile cube, SABR)
+struct SwaptionVolConstantSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionVolConstantSpecT NativeTableType;
+  typedef SwaptionVolConstantSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_BASE = 4
   };
@@ -562,17 +1043,790 @@ struct SwaptionVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyTable(base()) &&
            verifier.EndTable();
   }
+  SwaptionVolConstantSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionVolConstantSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionVolConstantSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolConstantSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionVolConstantSpecBuilder {
+  typedef SwaptionVolConstantSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
+    fbb_.AddOffset(SwaptionVolConstantSpec::VT_BASE, base);
+  }
+  explicit SwaptionVolConstantSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionVolConstantSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionVolConstantSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionVolConstantSpec> CreateSwaptionVolConstantSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0) {
+  SwaptionVolConstantSpecBuilder builder_(_fbb);
+  builder_.add_base(base);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<SwaptionVolConstantSpec> CreateSwaptionVolConstantSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolConstantSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwaptionVolAtmMatrixSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionVolAtmMatrixSpec TableType;
+  std::unique_ptr<quantra::IrVolBaseSpecT> base{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> expiries{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> tenors{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> vols{};
+  quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
+  quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear;
+  SwaptionVolAtmMatrixSpecT() = default;
+  SwaptionVolAtmMatrixSpecT(const SwaptionVolAtmMatrixSpecT &o);
+  SwaptionVolAtmMatrixSpecT(SwaptionVolAtmMatrixSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionVolAtmMatrixSpecT &operator=(SwaptionVolAtmMatrixSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+struct SwaptionVolAtmMatrixSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionVolAtmMatrixSpecT NativeTableType;
+  typedef SwaptionVolAtmMatrixSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_EXPIRIES = 6,
+    VT_TENORS = 8,
+    VT_VOLS = 10,
+    VT_EXPIRY_INTERPOLATOR = 12,
+    VT_TENOR_INTERPOLATOR = 14
+  };
+  const quantra::IrVolBaseSpec *base() const {
+    return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_EXPIRIES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_TENORS);
+  }
+  const quantra::QuoteMatrix2D *vols() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_VOLS);
+  }
+  quantra::enums::Interpolator expiry_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_EXPIRY_INTERPOLATOR, 2));
+  }
+  quantra::enums::Interpolator tenor_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_TENOR_INTERPOLATOR, 2));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_TENORS) &&
+           verifier.VerifyVector(tenors()) &&
+           verifier.VerifyVectorOfTables(tenors()) &&
+           VerifyOffset(verifier, VT_VOLS) &&
+           verifier.VerifyTable(vols()) &&
+           VerifyField<int8_t>(verifier, VT_EXPIRY_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_INTERPOLATOR, 1) &&
+           verifier.EndTable();
+  }
+  SwaptionVolAtmMatrixSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionVolAtmMatrixSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolAtmMatrixSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionVolAtmMatrixSpecBuilder {
+  typedef SwaptionVolAtmMatrixSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
+    fbb_.AddOffset(SwaptionVolAtmMatrixSpec::VT_BASE, base);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries) {
+    fbb_.AddOffset(SwaptionVolAtmMatrixSpec::VT_EXPIRIES, expiries);
+  }
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors) {
+    fbb_.AddOffset(SwaptionVolAtmMatrixSpec::VT_TENORS, tenors);
+  }
+  void add_vols(::flatbuffers::Offset<quantra::QuoteMatrix2D> vols) {
+    fbb_.AddOffset(SwaptionVolAtmMatrixSpec::VT_VOLS, vols);
+  }
+  void add_expiry_interpolator(quantra::enums::Interpolator expiry_interpolator) {
+    fbb_.AddElement<int8_t>(SwaptionVolAtmMatrixSpec::VT_EXPIRY_INTERPOLATOR, static_cast<int8_t>(expiry_interpolator), 2);
+  }
+  void add_tenor_interpolator(quantra::enums::Interpolator tenor_interpolator) {
+    fbb_.AddElement<int8_t>(SwaptionVolAtmMatrixSpec::VT_TENOR_INTERPOLATOR, static_cast<int8_t>(tenor_interpolator), 2);
+  }
+  explicit SwaptionVolAtmMatrixSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> CreateSwaptionVolAtmMatrixSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear) {
+  SwaptionVolAtmMatrixSpecBuilder builder_(_fbb);
+  builder_.add_vols(vols);
+  builder_.add_tenors(tenors);
+  builder_.add_expiries(expiries);
+  builder_.add_base(base);
+  builder_.add_tenor_interpolator(tenor_interpolator);
+  builder_.add_expiry_interpolator(expiry_interpolator);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> CreateSwaptionVolAtmMatrixSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors = nullptr,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear) {
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*expiries) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*tenors) : 0;
+  return quantra::CreateSwaptionVolAtmMatrixSpec(
+      _fbb,
+      base,
+      expiries__,
+      tenors__,
+      vols,
+      expiry_interpolator,
+      tenor_interpolator);
+}
+
+::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> CreateSwaptionVolAtmMatrixSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolAtmMatrixSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwaptionVolSmileCubeSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionVolSmileCubeSpec TableType;
+  std::unique_ptr<quantra::IrVolBaseSpecT> base{};
+  std::string swap_index_id{};
+  bool allow_external_atm = false;
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> expiries{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> tenors{};
+  std::vector<double> strikes{};
+  quantra::enums::SwaptionStrikeKind strike_kind = quantra::enums::SwaptionStrikeKind_Absolute;
+  std::unique_ptr<quantra::QuoteMatrix2DT> atm_forwards{};
+  std::unique_ptr<quantra::QuoteTensor3DT> vols{};
+  quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
+  quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear;
+  quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear;
+  SwaptionVolSmileCubeSpecT() = default;
+  SwaptionVolSmileCubeSpecT(const SwaptionVolSmileCubeSpecT &o);
+  SwaptionVolSmileCubeSpecT(SwaptionVolSmileCubeSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionVolSmileCubeSpecT &operator=(SwaptionVolSmileCubeSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+struct SwaptionVolSmileCubeSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionVolSmileCubeSpecT NativeTableType;
+  typedef SwaptionVolSmileCubeSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_SWAP_INDEX_ID = 6,
+    VT_ALLOW_EXTERNAL_ATM = 8,
+    VT_EXPIRIES = 10,
+    VT_TENORS = 12,
+    VT_STRIKES = 14,
+    VT_STRIKE_KIND = 16,
+    VT_ATM_FORWARDS = 18,
+    VT_VOLS = 20,
+    VT_EXPIRY_INTERPOLATOR = 22,
+    VT_TENOR_INTERPOLATOR = 24,
+    VT_STRIKE_INTERPOLATOR = 26
+  };
+  const quantra::IrVolBaseSpec *base() const {
+    return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
+  }
+  const ::flatbuffers::String *swap_index_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
+  }
+  bool allow_external_atm() const {
+    return GetField<uint8_t>(VT_ALLOW_EXTERNAL_ATM, 0) != 0;
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_EXPIRIES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_TENORS);
+  }
+  const ::flatbuffers::Vector<double> *strikes() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
+  }
+  quantra::enums::SwaptionStrikeKind strike_kind() const {
+    return static_cast<quantra::enums::SwaptionStrikeKind>(GetField<int8_t>(VT_STRIKE_KIND, 0));
+  }
+  const quantra::QuoteMatrix2D *atm_forwards() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_ATM_FORWARDS);
+  }
+  const quantra::QuoteTensor3D *vols() const {
+    return GetPointer<const quantra::QuoteTensor3D *>(VT_VOLS);
+  }
+  quantra::enums::Interpolator expiry_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_EXPIRY_INTERPOLATOR, 2));
+  }
+  quantra::enums::Interpolator tenor_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_TENOR_INTERPOLATOR, 2));
+  }
+  quantra::enums::Interpolator strike_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_STRIKE_INTERPOLATOR, 2));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyOffset(verifier, VT_SWAP_INDEX_ID) &&
+           verifier.VerifyString(swap_index_id()) &&
+           VerifyField<uint8_t>(verifier, VT_ALLOW_EXTERNAL_ATM, 1) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_TENORS) &&
+           verifier.VerifyVector(tenors()) &&
+           verifier.VerifyVectorOfTables(tenors()) &&
+           VerifyOffset(verifier, VT_STRIKES) &&
+           verifier.VerifyVector(strikes()) &&
+           VerifyField<int8_t>(verifier, VT_STRIKE_KIND, 1) &&
+           VerifyOffset(verifier, VT_ATM_FORWARDS) &&
+           verifier.VerifyTable(atm_forwards()) &&
+           VerifyOffset(verifier, VT_VOLS) &&
+           verifier.VerifyTable(vols()) &&
+           VerifyField<int8_t>(verifier, VT_EXPIRY_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_TENOR_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_STRIKE_INTERPOLATOR, 1) &&
+           verifier.EndTable();
+  }
+  SwaptionVolSmileCubeSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionVolSmileCubeSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSmileCubeSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionVolSmileCubeSpecBuilder {
+  typedef SwaptionVolSmileCubeSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_BASE, base);
+  }
+  void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_SWAP_INDEX_ID, swap_index_id);
+  }
+  void add_allow_external_atm(bool allow_external_atm) {
+    fbb_.AddElement<uint8_t>(SwaptionVolSmileCubeSpec::VT_ALLOW_EXTERNAL_ATM, static_cast<uint8_t>(allow_external_atm), 0);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_EXPIRIES, expiries);
+  }
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_TENORS, tenors);
+  }
+  void add_strikes(::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_STRIKES, strikes);
+  }
+  void add_strike_kind(quantra::enums::SwaptionStrikeKind strike_kind) {
+    fbb_.AddElement<int8_t>(SwaptionVolSmileCubeSpec::VT_STRIKE_KIND, static_cast<int8_t>(strike_kind), 0);
+  }
+  void add_atm_forwards(::flatbuffers::Offset<quantra::QuoteMatrix2D> atm_forwards) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_ATM_FORWARDS, atm_forwards);
+  }
+  void add_vols(::flatbuffers::Offset<quantra::QuoteTensor3D> vols) {
+    fbb_.AddOffset(SwaptionVolSmileCubeSpec::VT_VOLS, vols);
+  }
+  void add_expiry_interpolator(quantra::enums::Interpolator expiry_interpolator) {
+    fbb_.AddElement<int8_t>(SwaptionVolSmileCubeSpec::VT_EXPIRY_INTERPOLATOR, static_cast<int8_t>(expiry_interpolator), 2);
+  }
+  void add_tenor_interpolator(quantra::enums::Interpolator tenor_interpolator) {
+    fbb_.AddElement<int8_t>(SwaptionVolSmileCubeSpec::VT_TENOR_INTERPOLATOR, static_cast<int8_t>(tenor_interpolator), 2);
+  }
+  void add_strike_interpolator(quantra::enums::Interpolator strike_interpolator) {
+    fbb_.AddElement<int8_t>(SwaptionVolSmileCubeSpec::VT_STRIKE_INTERPOLATOR, static_cast<int8_t>(strike_interpolator), 2);
+  }
+  explicit SwaptionVolSmileCubeSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionVolSmileCubeSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> CreateSwaptionVolSmileCubeSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> swap_index_id = 0,
+    bool allow_external_atm = false,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes = 0,
+    quantra::enums::SwaptionStrikeKind strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> atm_forwards = 0,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
+  SwaptionVolSmileCubeSpecBuilder builder_(_fbb);
+  builder_.add_vols(vols);
+  builder_.add_atm_forwards(atm_forwards);
+  builder_.add_strikes(strikes);
+  builder_.add_tenors(tenors);
+  builder_.add_expiries(expiries);
+  builder_.add_swap_index_id(swap_index_id);
+  builder_.add_base(base);
+  builder_.add_strike_interpolator(strike_interpolator);
+  builder_.add_tenor_interpolator(tenor_interpolator);
+  builder_.add_expiry_interpolator(expiry_interpolator);
+  builder_.add_strike_kind(strike_kind);
+  builder_.add_allow_external_atm(allow_external_atm);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> CreateSwaptionVolSmileCubeSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    const char *swap_index_id = nullptr,
+    bool allow_external_atm = false,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors = nullptr,
+    const std::vector<double> *strikes = nullptr,
+    quantra::enums::SwaptionStrikeKind strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> atm_forwards = 0,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator tenor_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
+  auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*expiries) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*tenors) : 0;
+  auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
+  return quantra::CreateSwaptionVolSmileCubeSpec(
+      _fbb,
+      base,
+      swap_index_id__,
+      allow_external_atm,
+      expiries__,
+      tenors__,
+      strikes__,
+      strike_kind,
+      atm_forwards,
+      vols,
+      expiry_interpolator,
+      tenor_interpolator,
+      strike_interpolator);
+}
+
+::flatbuffers::Offset<SwaptionVolSmileCubeSpec> CreateSwaptionVolSmileCubeSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSmileCubeSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwaptionSabrParamsSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionSabrParamsSpec TableType;
+  std::unique_ptr<quantra::IrVolBaseSpecT> base{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> expiries{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> tenors{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> alpha{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> beta{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> rho{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> nu{};
+  SwaptionSabrParamsSpecT() = default;
+  SwaptionSabrParamsSpecT(const SwaptionSabrParamsSpecT &o);
+  SwaptionSabrParamsSpecT(SwaptionSabrParamsSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionSabrParamsSpecT &operator=(SwaptionSabrParamsSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+struct SwaptionSabrParamsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionSabrParamsSpecT NativeTableType;
+  typedef SwaptionSabrParamsSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_EXPIRIES = 6,
+    VT_TENORS = 8,
+    VT_ALPHA = 10,
+    VT_BETA = 12,
+    VT_RHO = 14,
+    VT_NU = 16
+  };
+  const quantra::IrVolBaseSpec *base() const {
+    return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_EXPIRIES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_TENORS);
+  }
+  const quantra::QuoteMatrix2D *alpha() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_ALPHA);
+  }
+  const quantra::QuoteMatrix2D *beta() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_BETA);
+  }
+  const quantra::QuoteMatrix2D *rho() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_RHO);
+  }
+  const quantra::QuoteMatrix2D *nu() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_NU);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_TENORS) &&
+           verifier.VerifyVector(tenors()) &&
+           verifier.VerifyVectorOfTables(tenors()) &&
+           VerifyOffset(verifier, VT_ALPHA) &&
+           verifier.VerifyTable(alpha()) &&
+           VerifyOffset(verifier, VT_BETA) &&
+           verifier.VerifyTable(beta()) &&
+           VerifyOffset(verifier, VT_RHO) &&
+           verifier.VerifyTable(rho()) &&
+           VerifyOffset(verifier, VT_NU) &&
+           verifier.VerifyTable(nu()) &&
+           verifier.EndTable();
+  }
+  SwaptionSabrParamsSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionSabrParamsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionSabrParamsSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrParamsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionSabrParamsSpecBuilder {
+  typedef SwaptionSabrParamsSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_BASE, base);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_EXPIRIES, expiries);
+  }
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_TENORS, tenors);
+  }
+  void add_alpha(::flatbuffers::Offset<quantra::QuoteMatrix2D> alpha) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_ALPHA, alpha);
+  }
+  void add_beta(::flatbuffers::Offset<quantra::QuoteMatrix2D> beta) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_BETA, beta);
+  }
+  void add_rho(::flatbuffers::Offset<quantra::QuoteMatrix2D> rho) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_RHO, rho);
+  }
+  void add_nu(::flatbuffers::Offset<quantra::QuoteMatrix2D> nu) {
+    fbb_.AddOffset(SwaptionSabrParamsSpec::VT_NU, nu);
+  }
+  explicit SwaptionSabrParamsSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionSabrParamsSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionSabrParamsSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionSabrParamsSpec> CreateSwaptionSabrParamsSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> alpha = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> beta = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> rho = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> nu = 0) {
+  SwaptionSabrParamsSpecBuilder builder_(_fbb);
+  builder_.add_nu(nu);
+  builder_.add_rho(rho);
+  builder_.add_beta(beta);
+  builder_.add_alpha(alpha);
+  builder_.add_tenors(tenors);
+  builder_.add_expiries(expiries);
+  builder_.add_base(base);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrParamsSpec> CreateSwaptionSabrParamsSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors = nullptr,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> alpha = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> beta = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> rho = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> nu = 0) {
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*expiries) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*tenors) : 0;
+  return quantra::CreateSwaptionSabrParamsSpec(
+      _fbb,
+      base,
+      expiries__,
+      tenors__,
+      alpha,
+      beta,
+      rho,
+      nu);
+}
+
+::flatbuffers::Offset<SwaptionSabrParamsSpec> CreateSwaptionSabrParamsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrParamsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwaptionSabrCalibrateSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionSabrCalibrateSpec TableType;
+  std::unique_ptr<quantra::IrVolBaseSpecT> base{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> expiries{};
+  std::vector<std::unique_ptr<quantra::PeriodSpecT>> tenors{};
+  std::vector<double> strikes{};
+  std::unique_ptr<quantra::QuoteTensor3DT> vols{};
+  bool beta_fixed = true;
+  double beta_value = 0.5;
+  std::unique_ptr<quantra::QuoteTensor3DT> weights{};
+  SwaptionSabrCalibrateSpecT() = default;
+  SwaptionSabrCalibrateSpecT(const SwaptionSabrCalibrateSpecT &o);
+  SwaptionSabrCalibrateSpecT(SwaptionSabrCalibrateSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionSabrCalibrateSpecT &operator=(SwaptionSabrCalibrateSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionSabrCalibrateSpecT NativeTableType;
+  typedef SwaptionSabrCalibrateSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BASE = 4,
+    VT_EXPIRIES = 6,
+    VT_TENORS = 8,
+    VT_STRIKES = 10,
+    VT_VOLS = 12,
+    VT_BETA_FIXED = 14,
+    VT_BETA_VALUE = 16,
+    VT_WEIGHTS = 18
+  };
+  const quantra::IrVolBaseSpec *base() const {
+    return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_EXPIRIES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_TENORS);
+  }
+  const ::flatbuffers::Vector<double> *strikes() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
+  }
+  const quantra::QuoteTensor3D *vols() const {
+    return GetPointer<const quantra::QuoteTensor3D *>(VT_VOLS);
+  }
+  bool beta_fixed() const {
+    return GetField<uint8_t>(VT_BETA_FIXED, 1) != 0;
+  }
+  double beta_value() const {
+    return GetField<double>(VT_BETA_VALUE, 0.5);
+  }
+  const quantra::QuoteTensor3D *weights() const {
+    return GetPointer<const quantra::QuoteTensor3D *>(VT_WEIGHTS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_BASE) &&
+           verifier.VerifyTable(base()) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_TENORS) &&
+           verifier.VerifyVector(tenors()) &&
+           verifier.VerifyVectorOfTables(tenors()) &&
+           VerifyOffset(verifier, VT_STRIKES) &&
+           verifier.VerifyVector(strikes()) &&
+           VerifyOffset(verifier, VT_VOLS) &&
+           verifier.VerifyTable(vols()) &&
+           VerifyField<uint8_t>(verifier, VT_BETA_FIXED, 1) &&
+           VerifyField<double>(verifier, VT_BETA_VALUE, 8) &&
+           VerifyOffset(verifier, VT_WEIGHTS) &&
+           verifier.VerifyTable(weights()) &&
+           verifier.EndTable();
+  }
+  SwaptionSabrCalibrateSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionSabrCalibrateSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionSabrCalibrateSpecBuilder {
+  typedef SwaptionSabrCalibrateSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_BASE, base);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_EXPIRIES, expiries);
+  }
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_TENORS, tenors);
+  }
+  void add_strikes(::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_STRIKES, strikes);
+  }
+  void add_vols(::flatbuffers::Offset<quantra::QuoteTensor3D> vols) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_VOLS, vols);
+  }
+  void add_beta_fixed(bool beta_fixed) {
+    fbb_.AddElement<uint8_t>(SwaptionSabrCalibrateSpec::VT_BETA_FIXED, static_cast<uint8_t>(beta_fixed), 1);
+  }
+  void add_beta_value(double beta_value) {
+    fbb_.AddElement<double>(SwaptionSabrCalibrateSpec::VT_BETA_VALUE, beta_value, 0.5);
+  }
+  void add_weights(::flatbuffers::Offset<quantra::QuoteTensor3D> weights) {
+    fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_WEIGHTS, weights);
+  }
+  explicit SwaptionSabrCalibrateSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionSabrCalibrateSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibrateSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes = 0,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
+    bool beta_fixed = true,
+    double beta_value = 0.5,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0) {
+  SwaptionSabrCalibrateSpecBuilder builder_(_fbb);
+  builder_.add_beta_value(beta_value);
+  builder_.add_weights(weights);
+  builder_.add_vols(vols);
+  builder_.add_strikes(strikes);
+  builder_.add_tenors(tenors);
+  builder_.add_expiries(expiries);
+  builder_.add_base(base);
+  builder_.add_beta_fixed(beta_fixed);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibrateSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *expiries = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors = nullptr,
+    const std::vector<double> *strikes = nullptr,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
+    bool beta_fixed = true,
+    double beta_value = 0.5,
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0) {
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*expiries) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*tenors) : 0;
+  auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
+  return quantra::CreateSwaptionSabrCalibrateSpec(
+      _fbb,
+      base,
+      expiries__,
+      tenors__,
+      strikes__,
+      vols,
+      beta_fixed,
+      beta_value,
+      weights);
+}
+
+::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibrateSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwaptionVolSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionVolSpec TableType;
+  quantra::SwaptionVolPayloadUnion payload{};
+};
+
+struct SwaptionVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionVolSpecT NativeTableType;
+  typedef SwaptionVolSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PAYLOAD_TYPE = 4,
+    VT_PAYLOAD = 6
+  };
+  quantra::SwaptionVolPayload payload_type() const {
+    return static_cast<quantra::SwaptionVolPayload>(GetField<uint8_t>(VT_PAYLOAD_TYPE, 0));
+  }
+  const void *payload() const {
+    return GetPointer<const void *>(VT_PAYLOAD);
+  }
+  template<typename T> const T *payload_as() const;
+  const quantra::SwaptionVolConstantSpec *payload_as_SwaptionVolConstantSpec() const {
+    return payload_type() == quantra::SwaptionVolPayload_SwaptionVolConstantSpec ? static_cast<const quantra::SwaptionVolConstantSpec *>(payload()) : nullptr;
+  }
+  const quantra::SwaptionVolAtmMatrixSpec *payload_as_SwaptionVolAtmMatrixSpec() const {
+    return payload_type() == quantra::SwaptionVolPayload_SwaptionVolAtmMatrixSpec ? static_cast<const quantra::SwaptionVolAtmMatrixSpec *>(payload()) : nullptr;
+  }
+  const quantra::SwaptionVolSmileCubeSpec *payload_as_SwaptionVolSmileCubeSpec() const {
+    return payload_type() == quantra::SwaptionVolPayload_SwaptionVolSmileCubeSpec ? static_cast<const quantra::SwaptionVolSmileCubeSpec *>(payload()) : nullptr;
+  }
+  const quantra::SwaptionSabrParamsSpec *payload_as_SwaptionSabrParamsSpec() const {
+    return payload_type() == quantra::SwaptionVolPayload_SwaptionSabrParamsSpec ? static_cast<const quantra::SwaptionSabrParamsSpec *>(payload()) : nullptr;
+  }
+  const quantra::SwaptionSabrCalibrateSpec *payload_as_SwaptionSabrCalibrateSpec() const {
+    return payload_type() == quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec ? static_cast<const quantra::SwaptionSabrCalibrateSpec *>(payload()) : nullptr;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_PAYLOAD_TYPE, 1) &&
+           VerifyOffset(verifier, VT_PAYLOAD) &&
+           VerifySwaptionVolPayload(verifier, payload(), payload_type()) &&
+           verifier.EndTable();
+  }
   SwaptionVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(SwaptionVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
   static ::flatbuffers::Offset<SwaptionVolSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
+template<> inline const quantra::SwaptionVolConstantSpec *SwaptionVolSpec::payload_as<quantra::SwaptionVolConstantSpec>() const {
+  return payload_as_SwaptionVolConstantSpec();
+}
+
+template<> inline const quantra::SwaptionVolAtmMatrixSpec *SwaptionVolSpec::payload_as<quantra::SwaptionVolAtmMatrixSpec>() const {
+  return payload_as_SwaptionVolAtmMatrixSpec();
+}
+
+template<> inline const quantra::SwaptionVolSmileCubeSpec *SwaptionVolSpec::payload_as<quantra::SwaptionVolSmileCubeSpec>() const {
+  return payload_as_SwaptionVolSmileCubeSpec();
+}
+
+template<> inline const quantra::SwaptionSabrParamsSpec *SwaptionVolSpec::payload_as<quantra::SwaptionSabrParamsSpec>() const {
+  return payload_as_SwaptionSabrParamsSpec();
+}
+
+template<> inline const quantra::SwaptionSabrCalibrateSpec *SwaptionVolSpec::payload_as<quantra::SwaptionSabrCalibrateSpec>() const {
+  return payload_as_SwaptionSabrCalibrateSpec();
+}
+
 struct SwaptionVolSpecBuilder {
   typedef SwaptionVolSpec Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_base(::flatbuffers::Offset<quantra::IrVolBaseSpec> base) {
-    fbb_.AddOffset(SwaptionVolSpec::VT_BASE, base);
+  void add_payload_type(quantra::SwaptionVolPayload payload_type) {
+    fbb_.AddElement<uint8_t>(SwaptionVolSpec::VT_PAYLOAD_TYPE, static_cast<uint8_t>(payload_type), 0);
+  }
+  void add_payload(::flatbuffers::Offset<void> payload) {
+    fbb_.AddOffset(SwaptionVolSpec::VT_PAYLOAD, payload);
   }
   explicit SwaptionVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -587,9 +1841,11 @@ struct SwaptionVolSpecBuilder {
 
 inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::IrVolBaseSpec> base = 0) {
+    quantra::SwaptionVolPayload payload_type = quantra::SwaptionVolPayload_NONE,
+    ::flatbuffers::Offset<void> payload = 0) {
   SwaptionVolSpecBuilder builder_(_fbb);
-  builder_.add_base(base);
+  builder_.add_payload(payload);
+  builder_.add_payload_type(payload_type);
   return builder_.Finish();
 }
 
@@ -765,6 +2021,108 @@ inline ::flatbuffers::Offset<VolSurfaceSpec> CreateVolSurfaceSpecDirect(
 
 ::flatbuffers::Offset<VolSurfaceSpec> CreateVolSurfaceSpec(::flatbuffers::FlatBufferBuilder &_fbb, const VolSurfaceSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+inline PeriodSpecT *PeriodSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<PeriodSpecT>(new PeriodSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void PeriodSpec::UnPackTo(PeriodSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = tenor_number(); _o->tenor_number = _e; }
+  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+}
+
+inline ::flatbuffers::Offset<PeriodSpec> PeriodSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PeriodSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePeriodSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<PeriodSpec> CreatePeriodSpec(::flatbuffers::FlatBufferBuilder &_fbb, const PeriodSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PeriodSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _tenor_number = _o->tenor_number;
+  auto _tenor_time_unit = _o->tenor_time_unit;
+  return quantra::CreatePeriodSpec(
+      _fbb,
+      _tenor_number,
+      _tenor_time_unit);
+}
+
+inline QuoteMatrix2DT *QuoteMatrix2D::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<QuoteMatrix2DT>(new QuoteMatrix2DT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void QuoteMatrix2D::UnPackTo(QuoteMatrix2DT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = n_rows(); _o->n_rows = _e; }
+  { auto _e = n_cols(); _o->n_cols = _e; }
+  { auto _e = values(); if (_e) { _o->values.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->values[_i] = _e->Get(_i); } } else { _o->values.resize(0); } }
+  { auto _e = quote_ids(); if (_e) { _o->quote_ids.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quote_ids[_i] = _e->Get(_i)->str(); } } else { _o->quote_ids.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<QuoteMatrix2D> QuoteMatrix2D::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteMatrix2DT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateQuoteMatrix2D(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<QuoteMatrix2D> CreateQuoteMatrix2D(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteMatrix2DT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const QuoteMatrix2DT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _n_rows = _o->n_rows;
+  auto _n_cols = _o->n_cols;
+  auto _values = _o->values.size() ? _fbb.CreateVector(_o->values) : 0;
+  auto _quote_ids = _o->quote_ids.size() ? _fbb.CreateVectorOfStrings(_o->quote_ids) : 0;
+  return quantra::CreateQuoteMatrix2D(
+      _fbb,
+      _n_rows,
+      _n_cols,
+      _values,
+      _quote_ids);
+}
+
+inline QuoteTensor3DT *QuoteTensor3D::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<QuoteTensor3DT>(new QuoteTensor3DT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void QuoteTensor3D::UnPackTo(QuoteTensor3DT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = n_1(); _o->n_1 = _e; }
+  { auto _e = n_2(); _o->n_2 = _e; }
+  { auto _e = n_3(); _o->n_3 = _e; }
+  { auto _e = values(); if (_e) { _o->values.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->values[_i] = _e->Get(_i); } } else { _o->values.resize(0); } }
+  { auto _e = quote_ids(); if (_e) { _o->quote_ids.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quote_ids[_i] = _e->Get(_i)->str(); } } else { _o->quote_ids.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<QuoteTensor3D> QuoteTensor3D::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteTensor3DT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateQuoteTensor3D(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<QuoteTensor3D> CreateQuoteTensor3D(::flatbuffers::FlatBufferBuilder &_fbb, const QuoteTensor3DT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const QuoteTensor3DT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _n_1 = _o->n_1;
+  auto _n_2 = _o->n_2;
+  auto _n_3 = _o->n_3;
+  auto _values = _o->values.size() ? _fbb.CreateVector(_o->values) : 0;
+  auto _quote_ids = _o->quote_ids.size() ? _fbb.CreateVectorOfStrings(_o->quote_ids) : 0;
+  return quantra::CreateQuoteTensor3D(
+      _fbb,
+      _n_1,
+      _n_2,
+      _n_3,
+      _values,
+      _quote_ids);
+}
+
 inline IrVolBaseSpecT *IrVolBaseSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<IrVolBaseSpecT>(new IrVolBaseSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -894,13 +2252,332 @@ inline ::flatbuffers::Offset<OptionletVolSpec> CreateOptionletVolSpec(::flatbuff
       _base);
 }
 
-inline SwaptionVolSpecT::SwaptionVolSpecT(const SwaptionVolSpecT &o)
+inline SwaptionVolConstantSpecT::SwaptionVolConstantSpecT(const SwaptionVolConstantSpecT &o)
       : base((o.base) ? new quantra::IrVolBaseSpecT(*o.base) : nullptr) {
 }
 
-inline SwaptionVolSpecT &SwaptionVolSpecT::operator=(SwaptionVolSpecT o) FLATBUFFERS_NOEXCEPT {
+inline SwaptionVolConstantSpecT &SwaptionVolConstantSpecT::operator=(SwaptionVolConstantSpecT o) FLATBUFFERS_NOEXCEPT {
   std::swap(base, o.base);
   return *this;
+}
+
+inline SwaptionVolConstantSpecT *SwaptionVolConstantSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionVolConstantSpecT>(new SwaptionVolConstantSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionVolConstantSpec::UnPackTo(SwaptionVolConstantSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+}
+
+inline ::flatbuffers::Offset<SwaptionVolConstantSpec> SwaptionVolConstantSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolConstantSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionVolConstantSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionVolConstantSpec> CreateSwaptionVolConstantSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolConstantSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionVolConstantSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  return quantra::CreateSwaptionVolConstantSpec(
+      _fbb,
+      _base);
+}
+
+inline SwaptionVolAtmMatrixSpecT::SwaptionVolAtmMatrixSpecT(const SwaptionVolAtmMatrixSpecT &o)
+      : base((o.base) ? new quantra::IrVolBaseSpecT(*o.base) : nullptr),
+        vols((o.vols) ? new quantra::QuoteMatrix2DT(*o.vols) : nullptr),
+        expiry_interpolator(o.expiry_interpolator),
+        tenor_interpolator(o.tenor_interpolator) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodSpecT(*expiries_) : nullptr); }
+  tenors.reserve(o.tenors.size());
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodSpecT(*tenors_) : nullptr); }
+}
+
+inline SwaptionVolAtmMatrixSpecT &SwaptionVolAtmMatrixSpecT::operator=(SwaptionVolAtmMatrixSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(expiries, o.expiries);
+  std::swap(tenors, o.tenors);
+  std::swap(vols, o.vols);
+  std::swap(expiry_interpolator, o.expiry_interpolator);
+  std::swap(tenor_interpolator, o.tenor_interpolator);
+  return *this;
+}
+
+inline SwaptionVolAtmMatrixSpecT *SwaptionVolAtmMatrixSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionVolAtmMatrixSpecT>(new SwaptionVolAtmMatrixSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionVolAtmMatrixSpec::UnPackTo(SwaptionVolAtmMatrixSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = vols(); if (_e) { if(_o->vols) { _e->UnPackTo(_o->vols.get(), _resolver); } else { _o->vols = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->vols) { _o->vols.reset(); } }
+  { auto _e = expiry_interpolator(); _o->expiry_interpolator = _e; }
+  { auto _e = tenor_interpolator(); _o->tenor_interpolator = _e; }
+}
+
+inline ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> SwaptionVolAtmMatrixSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolAtmMatrixSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionVolAtmMatrixSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionVolAtmMatrixSpec> CreateSwaptionVolAtmMatrixSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolAtmMatrixSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionVolAtmMatrixSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _tenors = _o->tenors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _vols = _o->vols ? CreateQuoteMatrix2D(_fbb, _o->vols.get(), _rehasher) : 0;
+  auto _expiry_interpolator = _o->expiry_interpolator;
+  auto _tenor_interpolator = _o->tenor_interpolator;
+  return quantra::CreateSwaptionVolAtmMatrixSpec(
+      _fbb,
+      _base,
+      _expiries,
+      _tenors,
+      _vols,
+      _expiry_interpolator,
+      _tenor_interpolator);
+}
+
+inline SwaptionVolSmileCubeSpecT::SwaptionVolSmileCubeSpecT(const SwaptionVolSmileCubeSpecT &o)
+      : base((o.base) ? new quantra::IrVolBaseSpecT(*o.base) : nullptr),
+        swap_index_id(o.swap_index_id),
+        allow_external_atm(o.allow_external_atm),
+        strikes(o.strikes),
+        strike_kind(o.strike_kind),
+        atm_forwards((o.atm_forwards) ? new quantra::QuoteMatrix2DT(*o.atm_forwards) : nullptr),
+        vols((o.vols) ? new quantra::QuoteTensor3DT(*o.vols) : nullptr),
+        expiry_interpolator(o.expiry_interpolator),
+        tenor_interpolator(o.tenor_interpolator),
+        strike_interpolator(o.strike_interpolator) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodSpecT(*expiries_) : nullptr); }
+  tenors.reserve(o.tenors.size());
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodSpecT(*tenors_) : nullptr); }
+}
+
+inline SwaptionVolSmileCubeSpecT &SwaptionVolSmileCubeSpecT::operator=(SwaptionVolSmileCubeSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(swap_index_id, o.swap_index_id);
+  std::swap(allow_external_atm, o.allow_external_atm);
+  std::swap(expiries, o.expiries);
+  std::swap(tenors, o.tenors);
+  std::swap(strikes, o.strikes);
+  std::swap(strike_kind, o.strike_kind);
+  std::swap(atm_forwards, o.atm_forwards);
+  std::swap(vols, o.vols);
+  std::swap(expiry_interpolator, o.expiry_interpolator);
+  std::swap(tenor_interpolator, o.tenor_interpolator);
+  std::swap(strike_interpolator, o.strike_interpolator);
+  return *this;
+}
+
+inline SwaptionVolSmileCubeSpecT *SwaptionVolSmileCubeSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionVolSmileCubeSpecT>(new SwaptionVolSmileCubeSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionVolSmileCubeSpec::UnPackTo(SwaptionVolSmileCubeSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = swap_index_id(); if (_e) _o->swap_index_id = _e->str(); }
+  { auto _e = allow_external_atm(); _o->allow_external_atm = _e; }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = strikes(); if (_e) { _o->strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->strikes[_i] = _e->Get(_i); } } else { _o->strikes.resize(0); } }
+  { auto _e = strike_kind(); _o->strike_kind = _e; }
+  { auto _e = atm_forwards(); if (_e) { if(_o->atm_forwards) { _e->UnPackTo(_o->atm_forwards.get(), _resolver); } else { _o->atm_forwards = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->atm_forwards) { _o->atm_forwards.reset(); } }
+  { auto _e = vols(); if (_e) { if(_o->vols) { _e->UnPackTo(_o->vols.get(), _resolver); } else { _o->vols = std::unique_ptr<quantra::QuoteTensor3DT>(_e->UnPack(_resolver)); } } else if (_o->vols) { _o->vols.reset(); } }
+  { auto _e = expiry_interpolator(); _o->expiry_interpolator = _e; }
+  { auto _e = tenor_interpolator(); _o->tenor_interpolator = _e; }
+  { auto _e = strike_interpolator(); _o->strike_interpolator = _e; }
+}
+
+inline ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> SwaptionVolSmileCubeSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSmileCubeSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionVolSmileCubeSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionVolSmileCubeSpec> CreateSwaptionVolSmileCubeSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSmileCubeSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionVolSmileCubeSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _swap_index_id = _o->swap_index_id.empty() ? 0 : _fbb.CreateString(_o->swap_index_id);
+  auto _allow_external_atm = _o->allow_external_atm;
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _tenors = _o->tenors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _strikes = _o->strikes.size() ? _fbb.CreateVector(_o->strikes) : 0;
+  auto _strike_kind = _o->strike_kind;
+  auto _atm_forwards = _o->atm_forwards ? CreateQuoteMatrix2D(_fbb, _o->atm_forwards.get(), _rehasher) : 0;
+  auto _vols = _o->vols ? CreateQuoteTensor3D(_fbb, _o->vols.get(), _rehasher) : 0;
+  auto _expiry_interpolator = _o->expiry_interpolator;
+  auto _tenor_interpolator = _o->tenor_interpolator;
+  auto _strike_interpolator = _o->strike_interpolator;
+  return quantra::CreateSwaptionVolSmileCubeSpec(
+      _fbb,
+      _base,
+      _swap_index_id,
+      _allow_external_atm,
+      _expiries,
+      _tenors,
+      _strikes,
+      _strike_kind,
+      _atm_forwards,
+      _vols,
+      _expiry_interpolator,
+      _tenor_interpolator,
+      _strike_interpolator);
+}
+
+inline SwaptionSabrParamsSpecT::SwaptionSabrParamsSpecT(const SwaptionSabrParamsSpecT &o)
+      : base((o.base) ? new quantra::IrVolBaseSpecT(*o.base) : nullptr),
+        alpha((o.alpha) ? new quantra::QuoteMatrix2DT(*o.alpha) : nullptr),
+        beta((o.beta) ? new quantra::QuoteMatrix2DT(*o.beta) : nullptr),
+        rho((o.rho) ? new quantra::QuoteMatrix2DT(*o.rho) : nullptr),
+        nu((o.nu) ? new quantra::QuoteMatrix2DT(*o.nu) : nullptr) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodSpecT(*expiries_) : nullptr); }
+  tenors.reserve(o.tenors.size());
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodSpecT(*tenors_) : nullptr); }
+}
+
+inline SwaptionSabrParamsSpecT &SwaptionSabrParamsSpecT::operator=(SwaptionSabrParamsSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(expiries, o.expiries);
+  std::swap(tenors, o.tenors);
+  std::swap(alpha, o.alpha);
+  std::swap(beta, o.beta);
+  std::swap(rho, o.rho);
+  std::swap(nu, o.nu);
+  return *this;
+}
+
+inline SwaptionSabrParamsSpecT *SwaptionSabrParamsSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionSabrParamsSpecT>(new SwaptionSabrParamsSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionSabrParamsSpec::UnPackTo(SwaptionSabrParamsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = alpha(); if (_e) { if(_o->alpha) { _e->UnPackTo(_o->alpha.get(), _resolver); } else { _o->alpha = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->alpha) { _o->alpha.reset(); } }
+  { auto _e = beta(); if (_e) { if(_o->beta) { _e->UnPackTo(_o->beta.get(), _resolver); } else { _o->beta = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->beta) { _o->beta.reset(); } }
+  { auto _e = rho(); if (_e) { if(_o->rho) { _e->UnPackTo(_o->rho.get(), _resolver); } else { _o->rho = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->rho) { _o->rho.reset(); } }
+  { auto _e = nu(); if (_e) { if(_o->nu) { _e->UnPackTo(_o->nu.get(), _resolver); } else { _o->nu = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->nu) { _o->nu.reset(); } }
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrParamsSpec> SwaptionSabrParamsSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrParamsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionSabrParamsSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrParamsSpec> CreateSwaptionSabrParamsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrParamsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionSabrParamsSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _tenors = _o->tenors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _alpha = _o->alpha ? CreateQuoteMatrix2D(_fbb, _o->alpha.get(), _rehasher) : 0;
+  auto _beta = _o->beta ? CreateQuoteMatrix2D(_fbb, _o->beta.get(), _rehasher) : 0;
+  auto _rho = _o->rho ? CreateQuoteMatrix2D(_fbb, _o->rho.get(), _rehasher) : 0;
+  auto _nu = _o->nu ? CreateQuoteMatrix2D(_fbb, _o->nu.get(), _rehasher) : 0;
+  return quantra::CreateSwaptionSabrParamsSpec(
+      _fbb,
+      _base,
+      _expiries,
+      _tenors,
+      _alpha,
+      _beta,
+      _rho,
+      _nu);
+}
+
+inline SwaptionSabrCalibrateSpecT::SwaptionSabrCalibrateSpecT(const SwaptionSabrCalibrateSpecT &o)
+      : base((o.base) ? new quantra::IrVolBaseSpecT(*o.base) : nullptr),
+        strikes(o.strikes),
+        vols((o.vols) ? new quantra::QuoteTensor3DT(*o.vols) : nullptr),
+        beta_fixed(o.beta_fixed),
+        beta_value(o.beta_value),
+        weights((o.weights) ? new quantra::QuoteTensor3DT(*o.weights) : nullptr) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodSpecT(*expiries_) : nullptr); }
+  tenors.reserve(o.tenors.size());
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodSpecT(*tenors_) : nullptr); }
+}
+
+inline SwaptionSabrCalibrateSpecT &SwaptionSabrCalibrateSpecT::operator=(SwaptionSabrCalibrateSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(base, o.base);
+  std::swap(expiries, o.expiries);
+  std::swap(tenors, o.tenors);
+  std::swap(strikes, o.strikes);
+  std::swap(vols, o.vols);
+  std::swap(beta_fixed, o.beta_fixed);
+  std::swap(beta_value, o.beta_value);
+  std::swap(weights, o.weights);
+  return *this;
+}
+
+inline SwaptionSabrCalibrateSpecT *SwaptionSabrCalibrateSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionSabrCalibrateSpecT>(new SwaptionSabrCalibrateSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionSabrCalibrateSpec::UnPackTo(SwaptionSabrCalibrateSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = strikes(); if (_e) { _o->strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->strikes[_i] = _e->Get(_i); } } else { _o->strikes.resize(0); } }
+  { auto _e = vols(); if (_e) { if(_o->vols) { _e->UnPackTo(_o->vols.get(), _resolver); } else { _o->vols = std::unique_ptr<quantra::QuoteTensor3DT>(_e->UnPack(_resolver)); } } else if (_o->vols) { _o->vols.reset(); } }
+  { auto _e = beta_fixed(); _o->beta_fixed = _e; }
+  { auto _e = beta_value(); _o->beta_value = _e; }
+  { auto _e = weights(); if (_e) { if(_o->weights) { _e->UnPackTo(_o->weights.get(), _resolver); } else { _o->weights = std::unique_ptr<quantra::QuoteTensor3DT>(_e->UnPack(_resolver)); } } else if (_o->weights) { _o->weights.reset(); } }
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> SwaptionSabrCalibrateSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionSabrCalibrateSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibrateSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionSabrCalibrateSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _tenors = _o->tenors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _strikes = _o->strikes.size() ? _fbb.CreateVector(_o->strikes) : 0;
+  auto _vols = _o->vols ? CreateQuoteTensor3D(_fbb, _o->vols.get(), _rehasher) : 0;
+  auto _beta_fixed = _o->beta_fixed;
+  auto _beta_value = _o->beta_value;
+  auto _weights = _o->weights ? CreateQuoteTensor3D(_fbb, _o->weights.get(), _rehasher) : 0;
+  return quantra::CreateSwaptionSabrCalibrateSpec(
+      _fbb,
+      _base,
+      _expiries,
+      _tenors,
+      _strikes,
+      _vols,
+      _beta_fixed,
+      _beta_value,
+      _weights);
 }
 
 inline SwaptionVolSpecT *SwaptionVolSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -912,7 +2589,8 @@ inline SwaptionVolSpecT *SwaptionVolSpec::UnPack(const ::flatbuffers::resolver_f
 inline void SwaptionVolSpec::UnPackTo(SwaptionVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::IrVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = payload_type(); _o->payload.type = _e; }
+  { auto _e = payload(); if (_e) _o->payload.value = quantra::SwaptionVolPayloadUnion::UnPack(_e, payload_type(), _resolver); }
 }
 
 inline ::flatbuffers::Offset<SwaptionVolSpec> SwaptionVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -923,10 +2601,12 @@ inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpec(::flatbuffer
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionVolSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _base = _o->base ? CreateIrVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _payload_type = _o->payload.type;
+  auto _payload = _o->payload.Pack(_fbb);
   return quantra::CreateSwaptionVolSpec(
       _fbb,
-      _base);
+      _payload_type,
+      _payload);
 }
 
 inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
@@ -994,6 +2674,161 @@ inline ::flatbuffers::Offset<VolSurfaceSpec> CreateVolSurfaceSpec(::flatbuffers:
       _id,
       _payload_type,
       _payload);
+}
+
+inline bool VerifySwaptionVolPayload(::flatbuffers::Verifier &verifier, const void *obj, SwaptionVolPayload type) {
+  switch (type) {
+    case SwaptionVolPayload_NONE: {
+      return true;
+    }
+    case SwaptionVolPayload_SwaptionVolConstantSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolConstantSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SwaptionVolPayload_SwaptionVolAtmMatrixSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolAtmMatrixSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SwaptionVolPayload_SwaptionVolSmileCubeSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolSmileCubeSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SwaptionVolPayload_SwaptionSabrParamsSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrParamsSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrCalibrateSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return true;
+  }
+}
+
+inline bool VerifySwaptionVolPayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifySwaptionVolPayload(
+        verifier,  values->Get(i), types->GetEnum<SwaptionVolPayload>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline void *SwaptionVolPayloadUnion::UnPack(const void *obj, SwaptionVolPayload type, const ::flatbuffers::resolver_function_t *resolver) {
+  (void)resolver;
+  switch (type) {
+    case SwaptionVolPayload_SwaptionVolConstantSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolConstantSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SwaptionVolPayload_SwaptionVolAtmMatrixSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolAtmMatrixSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SwaptionVolPayload_SwaptionVolSmileCubeSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolSmileCubeSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SwaptionVolPayload_SwaptionSabrParamsSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrParamsSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrCalibrateSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    default: return nullptr;
+  }
+}
+
+inline ::flatbuffers::Offset<void> SwaptionVolPayloadUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
+  (void)_rehasher;
+  switch (type) {
+    case SwaptionVolPayload_SwaptionVolConstantSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolConstantSpecT *>(value);
+      return CreateSwaptionVolConstantSpec(_fbb, ptr, _rehasher).Union();
+    }
+    case SwaptionVolPayload_SwaptionVolAtmMatrixSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolAtmMatrixSpecT *>(value);
+      return CreateSwaptionVolAtmMatrixSpec(_fbb, ptr, _rehasher).Union();
+    }
+    case SwaptionVolPayload_SwaptionVolSmileCubeSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionVolSmileCubeSpecT *>(value);
+      return CreateSwaptionVolSmileCubeSpec(_fbb, ptr, _rehasher).Union();
+    }
+    case SwaptionVolPayload_SwaptionSabrParamsSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrParamsSpecT *>(value);
+      return CreateSwaptionSabrParamsSpec(_fbb, ptr, _rehasher).Union();
+    }
+    case SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+      auto ptr = reinterpret_cast<const quantra::SwaptionSabrCalibrateSpecT *>(value);
+      return CreateSwaptionSabrCalibrateSpec(_fbb, ptr, _rehasher).Union();
+    }
+    default: return 0;
+  }
+}
+
+inline SwaptionVolPayloadUnion::SwaptionVolPayloadUnion(const SwaptionVolPayloadUnion &u) : type(u.type), value(nullptr) {
+  switch (type) {
+    case SwaptionVolPayload_SwaptionVolConstantSpec: {
+      value = new quantra::SwaptionVolConstantSpecT(*reinterpret_cast<quantra::SwaptionVolConstantSpecT *>(u.value));
+      break;
+    }
+    case SwaptionVolPayload_SwaptionVolAtmMatrixSpec: {
+      value = new quantra::SwaptionVolAtmMatrixSpecT(*reinterpret_cast<quantra::SwaptionVolAtmMatrixSpecT *>(u.value));
+      break;
+    }
+    case SwaptionVolPayload_SwaptionVolSmileCubeSpec: {
+      value = new quantra::SwaptionVolSmileCubeSpecT(*reinterpret_cast<quantra::SwaptionVolSmileCubeSpecT *>(u.value));
+      break;
+    }
+    case SwaptionVolPayload_SwaptionSabrParamsSpec: {
+      value = new quantra::SwaptionSabrParamsSpecT(*reinterpret_cast<quantra::SwaptionSabrParamsSpecT *>(u.value));
+      break;
+    }
+    case SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+      value = new quantra::SwaptionSabrCalibrateSpecT(*reinterpret_cast<quantra::SwaptionSabrCalibrateSpecT *>(u.value));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+inline void SwaptionVolPayloadUnion::Reset() {
+  switch (type) {
+    case SwaptionVolPayload_SwaptionVolConstantSpec: {
+      auto ptr = reinterpret_cast<quantra::SwaptionVolConstantSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case SwaptionVolPayload_SwaptionVolAtmMatrixSpec: {
+      auto ptr = reinterpret_cast<quantra::SwaptionVolAtmMatrixSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case SwaptionVolPayload_SwaptionVolSmileCubeSpec: {
+      auto ptr = reinterpret_cast<quantra::SwaptionVolSmileCubeSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case SwaptionVolPayload_SwaptionSabrParamsSpec: {
+      auto ptr = reinterpret_cast<quantra::SwaptionSabrParamsSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+      auto ptr = reinterpret_cast<quantra::SwaptionSabrCalibrateSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    default: break;
+  }
+  value = nullptr;
+  type = SwaptionVolPayload_NONE;
 }
 
 inline bool VerifyVolPayload(::flatbuffers::Verifier &verifier, const void *obj, VolPayload type) {

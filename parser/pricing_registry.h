@@ -14,6 +14,7 @@
 #include "common_generated.h"
 #include "model_generated.h"
 #include "index_registry.h"
+#include "swap_index_registry.h"
 #include "quote_registry.h"
 
 namespace QuantLib {
@@ -37,6 +38,8 @@ struct PricingRegistry {
 
     // Index registry (IborIndex and OvernightIndex objects by id)
     IndexRegistry indices;
+    // Swap index registry (swap conventions by id)
+    SwapIndexRegistry swapIndices;
     
     // Vol surfaces - separate maps by QuantLib type
     std::map<std::string, OptionletVolEntry> optionletVols;

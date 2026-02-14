@@ -229,6 +229,35 @@ QuantLib::Frequency FrequencyToQL(const quantra::enums::Frequency frequency)
     QUANTRA_ERROR("Frequency not found");
 }
 
+QuantLib::Period FrequencyToPeriod(QuantLib::Frequency frequency)
+{
+    switch (frequency)
+    {
+    case QuantLib::Annual:
+        return QuantLib::Period(1, QuantLib::Years);
+    case QuantLib::Semiannual:
+        return QuantLib::Period(6, QuantLib::Months);
+    case QuantLib::EveryFourthMonth:
+        return QuantLib::Period(4, QuantLib::Months);
+    case QuantLib::Quarterly:
+        return QuantLib::Period(3, QuantLib::Months);
+    case QuantLib::Bimonthly:
+        return QuantLib::Period(2, QuantLib::Months);
+    case QuantLib::Monthly:
+        return QuantLib::Period(1, QuantLib::Months);
+    case QuantLib::EveryFourthWeek:
+        return QuantLib::Period(4, QuantLib::Weeks);
+    case QuantLib::Biweekly:
+        return QuantLib::Period(2, QuantLib::Weeks);
+    case QuantLib::Weekly:
+        return QuantLib::Period(1, QuantLib::Weeks);
+    case QuantLib::Daily:
+        return QuantLib::Period(1, QuantLib::Days);
+    default:
+        QUANTRA_ERROR("Unsupported frequency for period conversion: " + std::to_string(static_cast<int>(frequency)));
+    }
+}
+
 QuantLib::DateGeneration::Rule DateGenerationToQL(const quantra::enums::DateGenerationRule dateGeneration)
 {
 

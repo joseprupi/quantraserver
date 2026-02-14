@@ -1,3 +1,5 @@
+include "enums.fbs";
+
 namespace quantra;
 
 // Swaption pricing response
@@ -11,6 +13,15 @@ table SwaptionResponse {
     gamma:double;                   // Option gamma
     theta:double;                   // Sensitivity to time
     dv01:double;                    // 1bp sensitivity (approx)
+    used_volatility:double;         // Vol used for this trade
+    used_option_expiry:string;      // ISO date
+    used_swap_tenor:string;         // e.g. 10Y
+    used_strike:double;             // strike used to query vol
+    used_atm_forward:double;        // ATM forward used by smile conventions
+    used_strike_kind:enums.SwaptionStrikeKind = Absolute;
+    used_spread_from_atm:double;    // used_strike - used_cube_node_atm (when applicable)
+    used_cube_node_atm:double;      // ATM level from smile node/interpolated section when available
+    vol_kind:enums.SwaptionVolKind; // Constant/Matrix/Cube/SABR
 }
 
 // Response wrapper for multiple swaptions

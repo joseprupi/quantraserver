@@ -91,15 +91,18 @@ payload = {
                 "id": "usd_sofr_swo_vol",
                 "payload_type": "SwaptionVolSpec",
                 "payload": {
-                    "base": {
-                        "reference_date": "2024-08-14",
-                        "calendar": "UnitedStatesGovernmentBond",
-                        "business_day_convention": "ModifiedFollowing",
-                        "day_counter": "Actual365Fixed",
-                        "shape": "Constant",
-                        "volatility_type": "Normal",
-                        "displacement": 0.0,
-                        "constant_vol": 0.010267
+                    "payload_type": "SwaptionVolConstantSpec",
+                    "payload": {
+                        "base": {
+                            "reference_date": "2024-08-14",
+                            "calendar": "UnitedStatesGovernmentBond",
+                            "business_day_convention": "ModifiedFollowing",
+                            "day_counter": "Actual365Fixed",
+                            "shape": "Constant",
+                            "volatility_type": "Normal",
+                            "displacement": 0.0,
+                            "constant_vol": 0.010267
+                        }
                     }
                 }
             }

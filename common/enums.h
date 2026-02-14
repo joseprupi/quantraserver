@@ -11,6 +11,7 @@ QuantLib::Calendar CalendarToQL(const quantra::enums::Calendar calendar);
 QuantLib::BusinessDayConvention ConventionToQL(const quantra::enums::BusinessDayConvention dayConvention);
 QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter);
 QuantLib::Frequency FrequencyToQL(const quantra::enums::Frequency frequency);
+QuantLib::Period FrequencyToPeriod(QuantLib::Frequency frequency);
 QuantLib::DateGeneration::Rule DateGenerationToQL(const quantra::enums::DateGenerationRule dateGeneration);
 QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compounding);
 QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging);

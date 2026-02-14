@@ -11,6 +11,7 @@
 
 #include "curve_bootstrapper.h"
 #include "index_registry_builder.h"
+#include "swap_index_registry.h"
 #include "enums.h"
 #include "common.h"
 #include "quote_registry.h"
@@ -55,28 +56,12 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     IndexRegistryBuilder indexBuilder;
     reg.indices = indexBuilder.build(pricing->indices());
-
-    // ==========================================================================
-    // Parse Curves (dependency-aware via CurveBootstrapper)
-    // Now passes indices to CurveBootstrapper for helper index resolution
-    // ==========================================================================
-    if (!pricing->curves()) {
-        QUANTRA_ERROR("curves is required (at least one curve needed)");
-    }
-
-    CurveBootstrapper bootstrapper;
-    auto booted = bootstrapper.bootstrapAll(
-        pricing->curves(),
-        pricing->quotes(),
-        pricing->indices()
-    );
-
-    for (auto& kv : booted.handles) {
-        reg.curves.emplace(kv.first, kv.second);
-    }
+    SwapIndexRegistryBuilder swapIndexBuilder;
+    reg.swapIndices = swapIndexBuilder.build(pricing->swap_indices(), reg.indices);
 
     // ==========================================================================
     // Parse Vol Surfaces (optional)
+    // Parsed before curves so swap_index_id contracts are available early.
     // ==========================================================================
     if (pricing->vol_surfaces()) {
         for (auto it = pricing->vol_surfaces()->begin(); it != pricing->vol_surfaces()->end(); ++it) {
@@ -106,6 +91,39 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                     QUANTRA_ERROR("Unknown VolPayload type for vol id: " + id);
             }
         }
+    }
+    for (const auto& kv : reg.swaptionVols) {
+        const auto& entry = kv.second;
+        if (entry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
+            if (entry.swapIndexId.empty()) {
+                QUANTRA_ERROR(
+                    "Swaption smile vol '" + kv.first + "' requires swap_index_id for SpreadFromATM");
+            }
+            if (!reg.swapIndices.has(entry.swapIndexId)) {
+                QUANTRA_ERROR(
+                    "Swaption smile vol '" + kv.first + "' references unknown swap_index_id: " +
+                    entry.swapIndexId);
+            }
+        }
+    }
+
+    // ==========================================================================
+    // Parse Curves (dependency-aware via CurveBootstrapper)
+    // Now passes indices to CurveBootstrapper for helper index resolution
+    // ==========================================================================
+    if (!pricing->curves()) {
+        QUANTRA_ERROR("curves is required (at least one curve needed)");
+    }
+
+    CurveBootstrapper bootstrapper;
+    auto booted = bootstrapper.bootstrapAll(
+        pricing->curves(),
+        pricing->quotes(),
+        pricing->indices()
+    );
+
+    for (auto& kv : booted.handles) {
+        reg.curves.emplace(kv.first, kv.second);
     }
 
     // ==========================================================================

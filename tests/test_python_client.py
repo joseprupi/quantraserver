@@ -46,6 +46,8 @@ from quantra_client.client import (
     VolSurfaceSpecT,
     OptionletVolSpecT,
     SwaptionVolSpecT,
+    SwaptionVolConstantSpecT,
+    SwaptionVolPayload,
     IrVolBaseSpecT,
     VolPayload,
     # NEW: Model types
@@ -378,8 +380,12 @@ def build_quantra_swaption_vol(vol_id: str, vol: float,
     base.displacement = displacement
     base.constantVol = vol
     
+    swaption_const = SwaptionVolConstantSpecT()
+    swaption_const.base = base
+
     swaption_vol = SwaptionVolSpecT()
-    swaption_vol.base = base
+    swaption_vol.payloadType = SwaptionVolPayload.SwaptionVolConstantSpec
+    swaption_vol.payload = swaption_const
     
     spec = VolSurfaceSpecT()
     spec.id = vol_id

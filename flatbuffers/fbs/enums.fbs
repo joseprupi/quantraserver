@@ -262,8 +262,24 @@ enum VolatilityType : byte {
 }
 
 enum VolSurfaceShape : byte {
-    Constant            // Flat volatility
-    // Future: Surface, Matrix, Cube, SABR
+    Constant,           // Flat volatility
+    AtmMatrix2D,        // Expiry x Tenor
+    SmileCube3D,        // Expiry x Tenor x Strike
+    SabrParams,         // SABR parameter grids
+    SabrCalibrate       // SABR calibration from smile quotes
+}
+
+enum SwaptionVolKind : byte {
+    Constant,
+    AtmMatrix2D,
+    SmileCube3D,
+    SabrParams,
+    SabrCalibrate
+}
+
+enum SwaptionStrikeKind : byte {
+    Absolute,
+    SpreadFromATM
 }
 
 // ============================================================================
