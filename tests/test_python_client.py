@@ -1015,23 +1015,22 @@ def test_bootstrap_curves(client, curve_handle):
     """Test curve bootstrapping endpoint - compare discount factors."""
     print("\n--- Test: Bootstrap Curves ---")
     
-    # Build Quantra request using new schema with structured Tenor
+    # Build Pricing + query request (v2 bootstrap schema)
     from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
-    from quantra.BootstrapCurveSpec import BootstrapCurveSpecT
-    from quantra.CurveQuery import CurveQueryT
-    from quantra.CurveGridSpec import CurveGridSpecT
+    from quantra.CurveQuerySpec import CurveQuerySpecT
+    from quantra.DateGridSpec import DateGridSpecT
     from quantra.TenorGrid import TenorGridT
-    from quantra.Tenor import TenorT
-    from quantra.CurveGrid import CurveGrid
+    from quantra.PeriodSpec import PeriodSpecT
+    from quantra.DateGrid import DateGrid
     from quantra.CurveMeasure import CurveMeasure
     
     # Build structured tenors (new format: {n, unit})
     tenors = []
     for n, unit in [(3, TimeUnit.Months), (6, TimeUnit.Months), (1, TimeUnit.Years), 
                     (2, TimeUnit.Years), (5, TimeUnit.Years)]:
-        tenor = TenorT()
-        tenor.n = n
-        tenor.unit = unit
+        tenor = PeriodSpecT()
+        tenor.tenorNumber = n
+        tenor.tenorTimeUnit = unit
         tenors.append(tenor)
     
     # Build tenor grid
@@ -1039,25 +1038,20 @@ def test_bootstrap_curves(client, curve_handle):
     tenor_grid.tenors = tenors
     
     # Build grid spec
-    grid_spec = CurveGridSpecT()
-    grid_spec.gridType = CurveGrid.TenorGrid
+    grid_spec = DateGridSpecT()
+    grid_spec.gridType = DateGrid.TenorGrid
     grid_spec.grid = tenor_grid
     
     # Build query
-    query = CurveQueryT()
+    query = CurveQuerySpecT()
+    query.curveId = "test_curve"
     query.measures = [CurveMeasure.DF]
     query.grid = grid_spec
     
-    # Build curve spec
-    curve_spec = BootstrapCurveSpecT()
-    curve_spec.curve = build_quantra_curve("test_curve")
-    curve_spec.query = query
-    
     # Build request
     request = BootstrapCurvesRequestT()
-    request.asOfDate = EVAL_DATE_STR
-    request.indices = [build_index_def_eur6m()]
-    request.curves = [curve_spec]
+    request.pricing = build_quantra_pricing([build_quantra_curve("test_curve")], indices=[build_index_def_eur6m()])
+    request.queries = [query]
     
     response = client.bootstrap_curves(request)
     

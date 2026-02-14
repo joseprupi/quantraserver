@@ -639,6 +639,67 @@ components:
       - TenorBasisSwapHelper
       - FxSwapHelper
       - CrossCcyBasisHelper
+    quantra_SwaptionVolPayload:
+      type: string
+      enum:
+      - NONE
+      - SwaptionVolConstantSpec
+      - SwaptionVolAtmMatrixSpec
+      - SwaptionVolSmileCubeSpec
+      - SwaptionSabrParamsSpec
+      - SwaptionSabrCalibrateSpec
+    quantra_VolPayload:
+      type: string
+      enum:
+      - NONE
+      - OptionletVolSpec
+      - SwaptionVolSpec
+      - BlackVolSpec
+    quantra_OptionletVolatilityStructure:
+      type: string
+      enum:
+      - NONE
+      - ConstantOptionletVolatility
+    quantra_Pricer:
+      type: string
+      enum:
+      - NONE
+      - BlackIborCouponPricer
+    quantra_QuoteKind:
+      type: string
+      enum:
+      - Rate
+      - Spread
+      - Price
+      - FuturesPrice
+      - FxSpot
+      - FxPoints
+    quantra_QuoteType:
+      type: string
+      enum:
+      - Curve
+      - Volatility
+      - Credit
+    quantra_ModelPayload:
+      type: string
+      enum:
+      - NONE
+      - CapFloorModelSpec
+      - SwaptionModelSpec
+      - CdsModelSpec
+      - EquityVanillaModelSpec
+    quantra_SwapIndexKind:
+      type: string
+      enum:
+      - IborSwapIndex
+      - OisSwapIndex
+    quantra_Flow:
+      type: string
+      enum:
+      - NONE
+      - FlowInterest
+      - FlowPastInterest
+      - FlowNotional
     quantra_CurveMeasure:
       type: string
       enum:
@@ -650,7 +711,7 @@ components:
       enum:
       - Instantaneous
       - Period
-    quantra_CurveGrid:
+    quantra_DateGrid:
       type: string
       enum:
       - NONE
@@ -1110,220 +1171,6 @@ components:
         reference_date:
           type: string
       additionalProperties: false
-    quantra_Tenor:
-      type: object
-      description: A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
-      properties:
-        n:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        unit:
-          $ref: '#/components/schemas/quantra_enums_TimeUnit'
-      additionalProperties: false
-    quantra_TenorGrid:
-      type: object
-      description: Tenors relative to the curve reference date (or as_of_date if no
-        reference date).
-      properties:
-        tenors:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_Tenor'
-        calendar:
-          $ref: '#/components/schemas/quantra_enums_Calendar'
-        business_day_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-      required:
-      - tenors
-      additionalProperties: false
-    quantra_RangeGrid:
-      type: object
-      description: Sample the curve between start/end with a step.
-      properties:
-        start_date:
-          type: string
-        end_date:
-          type: string
-        step_number:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        step_time_unit:
-          $ref: '#/components/schemas/quantra_enums_TimeUnit'
-        business_days_only:
-          type: boolean
-        calendar:
-          $ref: '#/components/schemas/quantra_enums_Calendar'
-        business_day_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-      required:
-      - end_date
-      additionalProperties: false
-    quantra_CurveGridSpec:
-      type: object
-      properties:
-        grid_type:
-          $ref: '#/components/schemas/quantra_CurveGrid'
-        grid:
-          anyOf:
-          - $ref: '#/components/schemas/quantra_TenorGrid'
-          - $ref: '#/components/schemas/quantra_RangeGrid'
-      required:
-      - grid
-      additionalProperties: false
-    quantra_ZeroRateQuery:
-      type: object
-      properties:
-        use_curve_day_counter:
-          type: boolean
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
-        compounding:
-          $ref: '#/components/schemas/quantra_enums_Compounding'
-        frequency:
-          $ref: '#/components/schemas/quantra_enums_Frequency'
-      additionalProperties: false
-    quantra_ForwardRateQuery:
-      type: object
-      properties:
-        use_curve_day_counter:
-          type: boolean
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
-        compounding:
-          $ref: '#/components/schemas/quantra_enums_Compounding'
-        frequency:
-          $ref: '#/components/schemas/quantra_enums_Frequency'
-        forward_type:
-          $ref: '#/components/schemas/quantra_ForwardType'
-        instantaneous_eps_number:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        instantaneous_eps_time_unit:
-          $ref: '#/components/schemas/quantra_enums_TimeUnit'
-        tenor_number:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        tenor_time_unit:
-          $ref: '#/components/schemas/quantra_enums_TimeUnit'
-        use_grid_calendar_for_advance:
-          type: boolean
-      additionalProperties: false
-    quantra_CurveQuery:
-      type: object
-      properties:
-        measures:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_CurveMeasure'
-        grid:
-          $ref: '#/components/schemas/quantra_CurveGridSpec'
-        zero:
-          $ref: '#/components/schemas/quantra_ZeroRateQuery'
-        fwd:
-          $ref: '#/components/schemas/quantra_ForwardRateQuery'
-      required:
-      - measures
-      - grid
-      additionalProperties: false
-    quantra_BootstrapCurveSpec:
-      type: object
-      properties:
-        curve:
-          $ref: '#/components/schemas/quantra_TermStructure'
-        query:
-          $ref: '#/components/schemas/quantra_CurveQuery'
-      required:
-      - curve
-      additionalProperties: false
-    quantra_BootstrapCurvesRequest:
-      type: object
-      description: Request to bootstrap multiple yield curves.
-      properties:
-        as_of_date:
-          type: string
-          description: Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate().
-        indices:
-          type: array
-          description: 'Index definitions needed by curve helpers (SwapHelper, OISHelper,
-            etc.)
-
-            Every IndexRef in helpers must resolve to an IndexDef here.'
-          items:
-            $ref: '#/components/schemas/quantra_IndexDef'
-        curves:
-          type: array
-          description: Bootstrap many curves at once.
-          items:
-            $ref: '#/components/schemas/quantra_BootstrapCurveSpec'
-      required:
-      - as_of_date
-      - curves
-      additionalProperties: false
-    quantra_SwaptionVolPayload:
-      type: string
-      enum:
-      - NONE
-      - SwaptionVolConstantSpec
-      - SwaptionVolAtmMatrixSpec
-      - SwaptionVolSmileCubeSpec
-      - SwaptionSabrParamsSpec
-      - SwaptionSabrCalibrateSpec
-    quantra_VolPayload:
-      type: string
-      enum:
-      - NONE
-      - OptionletVolSpec
-      - SwaptionVolSpec
-      - BlackVolSpec
-    quantra_OptionletVolatilityStructure:
-      type: string
-      enum:
-      - NONE
-      - ConstantOptionletVolatility
-    quantra_Pricer:
-      type: string
-      enum:
-      - NONE
-      - BlackIborCouponPricer
-    quantra_QuoteKind:
-      type: string
-      enum:
-      - Rate
-      - Spread
-      - Price
-      - FuturesPrice
-      - FxSpot
-      - FxPoints
-    quantra_QuoteType:
-      type: string
-      enum:
-      - Curve
-      - Volatility
-      - Credit
-    quantra_ModelPayload:
-      type: string
-      enum:
-      - NONE
-      - CapFloorModelSpec
-      - SwaptionModelSpec
-      - CdsModelSpec
-      - EquityVanillaModelSpec
-    quantra_SwapIndexKind:
-      type: string
-      enum:
-      - IborSwapIndex
-      - OisSwapIndex
-    quantra_Flow:
-      type: string
-      enum:
-      - NONE
-      - FlowInterest
-      - FlowPastInterest
-      - FlowNotional
     quantra_PeriodSpec:
       type: object
       properties:
@@ -1995,15 +1842,156 @@ components:
           - $ref: '#/components/schemas/quantra_FlowPastInterest'
           - $ref: '#/components/schemas/quantra_FlowNotional'
       additionalProperties: false
+    quantra_TenorGrid:
+      type: object
+      description: Tenors relative to a curve reference date.
+      properties:
+        tenors:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PeriodSpec'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - tenors
+      additionalProperties: false
+    quantra_RangeGrid:
+      type: object
+      description: Sample a curve between start/end with a step.
+      properties:
+        start_date:
+          type: string
+        end_date:
+          type: string
+        step_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        step_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        business_days_only:
+          type: boolean
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - end_date
+      additionalProperties: false
+    quantra_DateGridSpec:
+      type: object
+      properties:
+        grid_type:
+          $ref: '#/components/schemas/quantra_DateGrid'
+        grid:
+          anyOf:
+          - $ref: '#/components/schemas/quantra_TenorGrid'
+          - $ref: '#/components/schemas/quantra_RangeGrid'
+      required:
+      - grid
+      additionalProperties: false
+    quantra_QueryOptions:
+      type: object
+      description: Generic query options for reusable sampling endpoints.
+      properties:
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        max_points:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        allow_extrapolation:
+          type: boolean
+      additionalProperties: false
+    quantra_ZeroRateQuery:
+      type: object
+      properties:
+        use_curve_day_counter:
+          type: boolean
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        compounding:
+          $ref: '#/components/schemas/quantra_enums_Compounding'
+        frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+      additionalProperties: false
+    quantra_ForwardRateQuery:
+      type: object
+      properties:
+        use_curve_day_counter:
+          type: boolean
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        compounding:
+          $ref: '#/components/schemas/quantra_enums_Compounding'
+        frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+        forward_type:
+          $ref: '#/components/schemas/quantra_ForwardType'
+        instantaneous_eps_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        instantaneous_eps_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        tenor_number:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        tenor_time_unit:
+          $ref: '#/components/schemas/quantra_enums_TimeUnit'
+        use_grid_calendar_for_advance:
+          type: boolean
+      additionalProperties: false
+    quantra_CurveQuerySpec:
+      type: object
+      description: Query spec for one curve id within Pricing.curves[].
+      properties:
+        curve_id:
+          type: string
+        measures:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_CurveMeasure'
+        grid:
+          $ref: '#/components/schemas/quantra_DateGridSpec'
+        zero:
+          $ref: '#/components/schemas/quantra_ZeroRateQuery'
+        fwd:
+          $ref: '#/components/schemas/quantra_ForwardRateQuery'
+        options:
+          $ref: '#/components/schemas/quantra_QueryOptions'
+      required:
+      - curve_id
+      - measures
+      - grid
+      additionalProperties: false
+    quantra_BootstrapCurvesRequest:
+      type: object
+      description: Request to bootstrap curves from Pricing and sample them by query.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        queries:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_CurveQuerySpec'
+      required:
+      - pricing
+      - queries
+      additionalProperties: false
     quantra_CurveSeries:
       type: object
-      description: One series aligned to grid_dates.
+      description: One sampled series aligned to grid_dates.
       properties:
         measure:
           $ref: '#/components/schemas/quantra_CurveMeasure'
         values:
           type: array
-          description: Values aligned to grid_dates (same length).
           items:
             type: number
       required:
@@ -2011,31 +1999,22 @@ components:
       additionalProperties: false
     quantra_BootstrapCurveResult:
       type: object
-      description: Result for a single curve.
+      description: Result for a single requested curve.
       properties:
         id:
           type: string
-          description: Curve id (copied from TermStructure.id).
         reference_date:
           type: string
-          description: Reference date actually used (YYYY-MM-DD).
         grid_dates:
           type: array
-          description: The realized grid (dates) used for sampling (YYYY-MM-DD).
           items:
             type: string
         series:
           type: array
-          description: Series returned, each aligned to grid_dates.
           items:
             $ref: '#/components/schemas/quantra_CurveSeries'
         pillar_dates:
           type: array
-          description: 'Bootstrapped pillar dates from the curve instruments (YYYY-MM-DD).
-
-            Useful for debugging to see where the curve "nodes" are.
-
-            May be empty if pillar extraction is not supported for the curve type.'
           items:
             type: string
         error:
@@ -2043,7 +2022,7 @@ components:
       additionalProperties: false
     quantra_BootstrapCurvesResponse:
       type: object
-      description: Response containing results for all requested curves.
+      description: Response for all requested curve queries.
       properties:
         results:
           type: array

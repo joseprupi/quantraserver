@@ -1309,14 +1309,14 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
         ).json()
         
         # Build QuantLib curve from request
-        as_of = parse_date(request["as_of_date"])
+        pricing = request["pricing"]
+        as_of = parse_date(pricing["as_of_date"])
         ql.Settings.instance().evaluationDate = as_of
-        
-        curve_spec = request["curves"][0]
-        ts = curve_spec["curve"]
+
+        ts = pricing["curves"][0]
         quote_values = {}
         quote_types = {}
-        for q in request.get("quotes", []):
+        for q in pricing.get("quotes", []):
             if "id" in q:
                 quote_values[q["id"]] = q.get("value", 0.0)
                 quote_types[q["id"]] = q.get("quote_type", "Curve")
@@ -1419,37 +1419,37 @@ def _make_multicurve_exogenous_request() -> dict:
       2) EUR_6M: 6M forwarding curve using swap helper discounting off EUR_OIS (exogenous discount)
     """
     return {
-        "as_of_date": "2026-01-15",
-        "indices": [
-            {
-                "id": "EUR_6M",
-                "name": "Euribor",
-                "index_type": "Ibor",
-                "tenor_number": 6,
-                "tenor_time_unit": "Months",
-                "fixing_days": 2,
-                "calendar": "TARGET",
-                "business_day_convention": "ModifiedFollowing",
-                "day_counter": "Actual360",
-                "end_of_month": False,
-                "currency": "EUR"
-            },
-            {
-                "id": "EUR_ESTR",
-                "name": "ESTR",
-                "index_type": "Overnight",
-                "tenor_number": 0,
-                "tenor_time_unit": "Days",
-                "fixing_days": 0,
-                "calendar": "TARGET",
-                "business_day_convention": "Following",
-                "day_counter": "Actual360",
-                "currency": "EUR"
-            }
-        ],
-        "curves": [
-            {
-                "curve": {
+        "pricing": {
+            "as_of_date": "2026-01-15",
+            "indices": [
+                {
+                    "id": "EUR_6M",
+                    "name": "Euribor",
+                    "index_type": "Ibor",
+                    "tenor_number": 6,
+                    "tenor_time_unit": "Months",
+                    "fixing_days": 2,
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual360",
+                    "end_of_month": False,
+                    "currency": "EUR"
+                },
+                {
+                    "id": "EUR_ESTR",
+                    "name": "ESTR",
+                    "index_type": "Overnight",
+                    "tenor_number": 0,
+                    "tenor_time_unit": "Days",
+                    "fixing_days": 0,
+                    "calendar": "TARGET",
+                    "business_day_convention": "Following",
+                    "day_counter": "Actual360",
+                    "currency": "EUR"
+                }
+            ],
+            "curves": [
+                {
                     "id": "EUR_OIS",
                     "day_counter": "Actual360",
                     "interpolator": "LogLinear",
@@ -1499,44 +1499,7 @@ def _make_multicurve_exogenous_request() -> dict:
                         }
                     ]
                 },
-                "query": {
-                    "measures": ["DF", "ZERO", "FWD"],
-                    "grid": {
-                        "grid_type": "TenorGrid",
-                        "grid": {
-                            "tenors": [
-                                {"n": 1, "unit": "Days"},
-                                {"n": 1, "unit": "Weeks"},
-                                {"n": 1, "unit": "Months"},
-                                {"n": 3, "unit": "Months"},
-                                {"n": 6, "unit": "Months"},
-                                {"n": 1, "unit": "Years"},
-                                {"n": 2, "unit": "Years"},
-                                {"n": 5, "unit": "Years"},
-                                {"n": 10, "unit": "Years"}
-                            ],
-                            "calendar": "TARGET",
-                            "business_day_convention": "Following"
-                        }
-                    },
-                    "zero": {
-                        "use_curve_day_counter": True,
-                        "compounding": "Continuous",
-                        "frequency": "Annual"
-                    },
-                    "fwd": {
-                        "use_curve_day_counter": True,
-                        "compounding": "Simple",
-                        "frequency": "Annual",
-                        "forward_type": "Period",
-                        "tenor_number": 6,
-                        "tenor_time_unit": "Months",
-                        "use_grid_calendar_for_advance": True
-                    }
-                }
-            },
-            {
-                "curve": {
+                {
                     "id": "EUR_6M",
                     "day_counter": "Actual360",
                     "interpolator": "LogLinear",
@@ -1573,41 +1536,80 @@ def _make_multicurve_exogenous_request() -> dict:
                             }
                         }
                     ]
-                },
-                "query": {
-                    "measures": ["DF", "ZERO", "FWD"],
+                }
+            ]
+        },
+        "queries": [
+            {
+                "curve_id": "EUR_OIS",
+                "measures": ["DF", "ZERO", "FWD"],
+                "grid": {
+                    "grid_type": "TenorGrid",
                     "grid": {
-                        "grid_type": "TenorGrid",
-                        "grid": {
-                            "tenors": [
-                                {"n": 1, "unit": "Days"},
-                                {"n": 1, "unit": "Weeks"},
-                                {"n": 1, "unit": "Months"},
-                                {"n": 3, "unit": "Months"},
-                                {"n": 6, "unit": "Months"},
-                                {"n": 1, "unit": "Years"},
-                                {"n": 2, "unit": "Years"},
-                                {"n": 5, "unit": "Years"},
-                                {"n": 10, "unit": "Years"}
-                            ],
-                            "calendar": "TARGET",
-                            "business_day_convention": "Following"
-                        }
-                    },
-                    "zero": {
-                        "use_curve_day_counter": True,
-                        "compounding": "Continuous",
-                        "frequency": "Annual"
-                    },
-                    "fwd": {
-                        "use_curve_day_counter": True,
-                        "compounding": "Simple",
-                        "frequency": "Annual",
-                        "forward_type": "Period",
-                        "tenor_number": 6,
-                        "tenor_time_unit": "Months",
-                        "use_grid_calendar_for_advance": True
+                        "tenors": [
+                            {"tenor_number": 1, "tenor_time_unit": "Days"},
+                            {"tenor_number": 1, "tenor_time_unit": "Weeks"},
+                            {"tenor_number": 1, "tenor_time_unit": "Months"},
+                            {"tenor_number": 3, "tenor_time_unit": "Months"},
+                            {"tenor_number": 6, "tenor_time_unit": "Months"},
+                            {"tenor_number": 1, "tenor_time_unit": "Years"},
+                            {"tenor_number": 2, "tenor_time_unit": "Years"},
+                            {"tenor_number": 5, "tenor_time_unit": "Years"},
+                            {"tenor_number": 10, "tenor_time_unit": "Years"}
+                        ],
+                        "calendar": "TARGET",
+                        "business_day_convention": "Following"
                     }
+                },
+                "zero": {
+                    "use_curve_day_counter": True,
+                    "compounding": "Continuous",
+                    "frequency": "Annual"
+                },
+                "fwd": {
+                    "use_curve_day_counter": True,
+                    "compounding": "Simple",
+                    "frequency": "Annual",
+                    "forward_type": "Period",
+                    "tenor_number": 6,
+                    "tenor_time_unit": "Months",
+                    "use_grid_calendar_for_advance": True
+                }
+            },
+            {
+                "curve_id": "EUR_6M",
+                "measures": ["DF", "ZERO", "FWD"],
+                "grid": {
+                    "grid_type": "TenorGrid",
+                    "grid": {
+                        "tenors": [
+                            {"tenor_number": 1, "tenor_time_unit": "Days"},
+                            {"tenor_number": 1, "tenor_time_unit": "Weeks"},
+                            {"tenor_number": 1, "tenor_time_unit": "Months"},
+                            {"tenor_number": 3, "tenor_time_unit": "Months"},
+                            {"tenor_number": 6, "tenor_time_unit": "Months"},
+                            {"tenor_number": 1, "tenor_time_unit": "Years"},
+                            {"tenor_number": 2, "tenor_time_unit": "Years"},
+                            {"tenor_number": 5, "tenor_time_unit": "Years"},
+                            {"tenor_number": 10, "tenor_time_unit": "Years"}
+                        ],
+                        "calendar": "TARGET",
+                        "business_day_convention": "Following"
+                    }
+                },
+                "zero": {
+                    "use_curve_day_counter": True,
+                    "compounding": "Continuous",
+                    "frequency": "Annual"
+                },
+                "fwd": {
+                    "use_curve_day_counter": True,
+                    "compounding": "Simple",
+                    "frequency": "Annual",
+                    "forward_type": "Period",
+                    "tenor_number": 6,
+                    "tenor_time_unit": "Months",
+                    "use_grid_calendar_for_advance": True
                 }
             }
         ]
@@ -1719,7 +1721,8 @@ def test_bootstrap_curves_missing_dependency_fails(client: ApiClient) -> dict:
     try:
         request = _make_multicurve_exogenous_request()
         # Drop the discount curve so EUR_6M references a missing EUR_OIS
-        request["curves"] = [request["curves"][1]]
+        request["pricing"]["curves"] = [request["pricing"]["curves"][1]]
+        request["queries"] = [request["queries"][1]]
 
         resp = client.session.post(f"{client.base_url}/bootstrap-curves", json=request)
 

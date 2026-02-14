@@ -1,0 +1,84 @@
+include "enums.fbs";
+include "volatility.fbs";
+
+namespace quantra;
+
+/// What output you want sampled from a curve.
+enum CurveMeasure : byte {
+    /// Discount factor P(t)
+    DF = 0,
+    /// Zero rate z(t)
+    ZERO = 1,
+    /// Forward rate f(t) or F(d1,d2)
+    FWD = 2
+}
+
+/// Forward rate definition.
+enum ForwardType : byte {
+    /// Approximated instantaneous forward around d
+    Instantaneous = 0,
+    /// Forward over [d, d + tenor]
+    Period = 1
+}
+
+/// Tenors relative to a curve reference date.
+table TenorGrid {
+    tenors:[PeriodSpec] (required);
+    calendar:enums.Calendar = NullCalendar;
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+/// Sample a curve between start/end with a step.
+table RangeGrid {
+    start_date:string;
+    end_date:string (required);
+    step_number:int = 1;
+    step_time_unit:enums.TimeUnit = Days;
+    business_days_only:bool = false;
+    calendar:enums.Calendar = NullCalendar;
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+union DateGrid { TenorGrid, RangeGrid }
+
+table DateGridSpec {
+    grid:DateGrid (required);
+}
+
+/// Generic query options for reusable sampling endpoints.
+table QueryOptions {
+    calendar:enums.Calendar = NullCalendar;
+    business_day_convention:enums.BusinessDayConvention = Following;
+    max_points:int = 50000;
+    allow_extrapolation:bool = true;
+}
+
+table ZeroRateQuery {
+    use_curve_day_counter:bool = true;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    compounding:enums.Compounding = Continuous;
+    frequency:enums.Frequency = Annual;
+}
+
+table ForwardRateQuery {
+    use_curve_day_counter:bool = true;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    compounding:enums.Compounding = Simple;
+    frequency:enums.Frequency = Annual;
+    forward_type:ForwardType = Instantaneous;
+    instantaneous_eps_number:int = 1;
+    instantaneous_eps_time_unit:enums.TimeUnit = Days;
+    tenor_number:int = 3;
+    tenor_time_unit:enums.TimeUnit = Months;
+    use_grid_calendar_for_advance:bool = true;
+}
+
+/// Query spec for one curve id within Pricing.curves[].
+table CurveQuerySpec {
+    curve_id:string (required);
+    measures:[CurveMeasure] (required);
+    grid:DateGridSpec (required);
+    zero:ZeroRateQuery;
+    fwd:ForwardRateQuery;
+    options:QueryOptions;
+}

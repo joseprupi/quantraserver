@@ -6,32 +6,32 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-class CurveGridSpec(object):
+class DateGridSpec(object):
     __slots__ = ['_tab']
 
     @classmethod
     def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = CurveGridSpec()
+        x = DateGridSpec()
         x.Init(buf, n + offset)
         return x
 
     @classmethod
-    def GetRootAsCurveGridSpec(cls, buf, offset=0):
+    def GetRootAsDateGridSpec(cls, buf, offset=0):
         """This method is deprecated. Please switch to GetRootAs."""
         return cls.GetRootAs(buf, offset)
-    # CurveGridSpec
+    # DateGridSpec
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # CurveGridSpec
+    # DateGridSpec
     def GridType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
-    # CurveGridSpec
+    # DateGridSpec
     def Grid(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -41,47 +41,47 @@ class CurveGridSpec(object):
             return obj
         return None
 
-def CurveGridSpecStart(builder):
+def DateGridSpecStart(builder):
     builder.StartObject(2)
 
 def Start(builder):
-    CurveGridSpecStart(builder)
+    DateGridSpecStart(builder)
 
-def CurveGridSpecAddGridType(builder, gridType):
+def DateGridSpecAddGridType(builder, gridType):
     builder.PrependUint8Slot(0, gridType, 0)
 
 def AddGridType(builder, gridType):
-    CurveGridSpecAddGridType(builder, gridType)
+    DateGridSpecAddGridType(builder, gridType)
 
-def CurveGridSpecAddGrid(builder, grid):
+def DateGridSpecAddGrid(builder, grid):
     builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(grid), 0)
 
 def AddGrid(builder, grid):
-    CurveGridSpecAddGrid(builder, grid)
+    DateGridSpecAddGrid(builder, grid)
 
-def CurveGridSpecEnd(builder):
+def DateGridSpecEnd(builder):
     return builder.EndObject()
 
 def End(builder):
-    return CurveGridSpecEnd(builder)
+    return DateGridSpecEnd(builder)
 
 try:
     from typing import Union
 except:
     pass
 
-class CurveGridSpecT(object):
+class DateGridSpecT(object):
 
-    # CurveGridSpecT
+    # DateGridSpecT
     def __init__(self):
         self.gridType = 0  # type: int
         self.grid = None  # type: Union[None, TenorGridT, RangeGridT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
-        curveGridSpec = CurveGridSpec()
-        curveGridSpec.Init(buf, pos)
-        return cls.InitFromObj(curveGridSpec)
+        dateGridSpec = DateGridSpec()
+        dateGridSpec.Init(buf, pos)
+        return cls.InitFromObj(dateGridSpec)
 
     @classmethod
     def InitFromPackedBuf(cls, buf, pos=0):
@@ -89,25 +89,25 @@ class CurveGridSpecT(object):
         return cls.InitFromBuf(buf, pos+n)
 
     @classmethod
-    def InitFromObj(cls, curveGridSpec):
-        x = CurveGridSpecT()
-        x._UnPack(curveGridSpec)
+    def InitFromObj(cls, dateGridSpec):
+        x = DateGridSpecT()
+        x._UnPack(dateGridSpec)
         return x
 
-    # CurveGridSpecT
-    def _UnPack(self, curveGridSpec):
-        if curveGridSpec is None:
+    # DateGridSpecT
+    def _UnPack(self, dateGridSpec):
+        if dateGridSpec is None:
             return
-        self.gridType = curveGridSpec.GridType()
-        self.grid = CurveGridCreator(self.gridType, curveGridSpec.Grid())
+        self.gridType = dateGridSpec.GridType()
+        self.grid = DateGridCreator(self.gridType, dateGridSpec.Grid())
 
-    # CurveGridSpecT
+    # DateGridSpecT
     def Pack(self, builder):
         if self.grid is not None:
             grid = self.grid.Pack(builder)
-        CurveGridSpecStart(builder)
-        CurveGridSpecAddGridType(builder, self.gridType)
+        DateGridSpecStart(builder)
+        DateGridSpecAddGridType(builder, self.gridType)
         if self.grid is not None:
-            CurveGridSpecAddGrid(builder, grid)
-        curveGridSpec = CurveGridSpecEnd(builder)
-        return curveGridSpec
+            DateGridSpecAddGrid(builder, grid)
+        dateGridSpec = DateGridSpecEnd(builder)
+        return dateGridSpec

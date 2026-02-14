@@ -13,8 +13,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "bootstrap_curves_request_generated.h"
 #include "common_generated.h"
+#include "curve_query_generated.h"
 
 namespace quantra {
 
@@ -36,7 +36,7 @@ struct CurveSeriesT : public ::flatbuffers::NativeTable {
   std::vector<double> values{};
 };
 
-/// One series aligned to grid_dates.
+/// One sampled series aligned to grid_dates.
 struct CurveSeries FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CurveSeriesT NativeTableType;
   typedef CurveSeriesBuilder Builder;
@@ -44,11 +44,9 @@ struct CurveSeries FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_MEASURE = 4,
     VT_VALUES = 6
   };
-  /// Which measure this series represents.
   quantra::CurveMeasure measure() const {
     return static_cast<quantra::CurveMeasure>(GetField<int8_t>(VT_MEASURE, 0));
   }
-  /// Values aligned to grid_dates (same length).
   const ::flatbuffers::Vector<double> *values() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VALUES);
   }
@@ -123,7 +121,7 @@ struct BootstrapCurveResultT : public ::flatbuffers::NativeTable {
   BootstrapCurveResultT &operator=(BootstrapCurveResultT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Result for a single curve.
+/// Result for a single requested curve.
 struct BootstrapCurveResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BootstrapCurveResultT NativeTableType;
   typedef BootstrapCurveResultBuilder Builder;
@@ -135,29 +133,21 @@ struct BootstrapCurveResult FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_PILLAR_DATES = 12,
     VT_ERROR = 14
   };
-  /// Curve id (copied from TermStructure.id).
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
   }
-  /// Reference date actually used (YYYY-MM-DD).
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  /// The realized grid (dates) used for sampling (YYYY-MM-DD).
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *grid_dates() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_GRID_DATES);
   }
-  /// Series returned, each aligned to grid_dates.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CurveSeries>> *series() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CurveSeries>> *>(VT_SERIES);
   }
-  /// Bootstrapped pillar dates from the curve instruments (YYYY-MM-DD).
-  /// Useful for debugging to see where the curve "nodes" are.
-  /// May be empty if pillar extraction is not supported for the curve type.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *pillar_dates() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_PILLAR_DATES);
   }
-  /// Error if this curve failed (null if ok).
   const quantra::Error *error() const {
     return GetPointer<const quantra::Error *>(VT_ERROR);
   }
@@ -270,7 +260,7 @@ struct BootstrapCurvesResponseT : public ::flatbuffers::NativeTable {
   BootstrapCurvesResponseT &operator=(BootstrapCurvesResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Response containing results for all requested curves.
+/// Response for all requested curve queries.
 struct BootstrapCurvesResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BootstrapCurvesResponseT NativeTableType;
   typedef BootstrapCurvesResponseBuilder Builder;

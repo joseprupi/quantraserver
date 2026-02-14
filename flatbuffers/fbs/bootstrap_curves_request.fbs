@@ -1,112 +1,12 @@
-include "enums.fbs";
-include "term_structure.fbs";
-include "index.fbs";
+include "common.fbs";
+include "curve_query.fbs";
 
 namespace quantra;
 
-/// What output you want sampled from the bootstrapped curve.
-enum CurveMeasure : byte {
-    /// Discount factor P(t)
-    DF = 0,
-    /// Zero rate z(t)
-    ZERO = 1,
-    /// Forward rate f(t) or F(d1,d2)
-    FWD = 2
-}
-
-/// Forward rate definition.
-enum ForwardType : byte {
-    /// Approximated instantaneous forward around d
-    Instantaneous = 0,
-    /// Forward over [d, d + tenor]
-    Period = 1
-}
-
-// ----------------------------------------------------------------------------
-// Grid specification (where to sample the curve)
-// ----------------------------------------------------------------------------
-
-/// A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.
-table Tenor {
-    n:int;
-    unit:enums.TimeUnit;
-}
-
-/// Tenors relative to the curve reference date (or as_of_date if no reference date).
-table TenorGrid {
-    tenors:[Tenor] (required);
-    calendar:enums.Calendar = NullCalendar;
-    business_day_convention:enums.BusinessDayConvention = Following;
-}
-
-/// Sample the curve between start/end with a step.
-table RangeGrid {
-    start_date:string;
-    end_date:string (required);
-    step_number:int = 1;
-    step_time_unit:enums.TimeUnit = Days;
-    business_days_only:bool = false;
-    calendar:enums.Calendar = NullCalendar;
-    business_day_convention:enums.BusinessDayConvention = Following;
-}
-
-union CurveGrid { TenorGrid, RangeGrid }
-
-table CurveGridSpec {
-    grid:CurveGrid (required);
-}
-
-// ----------------------------------------------------------------------------
-// Conventions for ZERO and FWD outputs
-// ----------------------------------------------------------------------------
-
-table ZeroRateQuery {
-    use_curve_day_counter:bool = true;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    compounding:enums.Compounding = Continuous;
-    frequency:enums.Frequency = Annual;
-}
-
-table ForwardRateQuery {
-    use_curve_day_counter:bool = true;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    compounding:enums.Compounding = Simple;
-    frequency:enums.Frequency = Annual;
-    forward_type:ForwardType = Instantaneous;
-    instantaneous_eps_number:int = 1;
-    instantaneous_eps_time_unit:enums.TimeUnit = Days;
-    tenor_number:int = 3;
-    tenor_time_unit:enums.TimeUnit = Months;
-    use_grid_calendar_for_advance:bool = true;
-}
-
-table CurveQuery {
-    measures:[CurveMeasure] (required);
-    grid:CurveGridSpec (required);
-    zero:ZeroRateQuery;
-    fwd:ForwardRateQuery;
-}
-
-// ----------------------------------------------------------------------------
-// Bootstrap spec (one per curve)
-// ----------------------------------------------------------------------------
-
-table BootstrapCurveSpec {
-    curve:TermStructure (required);
-    query:CurveQuery;
-}
-
-/// Request to bootstrap multiple yield curves.
+/// Request to bootstrap curves from Pricing and sample them by query.
 table BootstrapCurvesRequest {
-    /// Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate().
-    as_of_date:string (required);
-
-    /// Index definitions needed by curve helpers (SwapHelper, OISHelper, etc.)
-    /// Every IndexRef in helpers must resolve to an IndexDef here.
-    indices:[IndexDef];
-
-    /// Bootstrap many curves at once.
-    curves:[BootstrapCurveSpec] (required);
+    pricing:Pricing (required);
+    queries:[CurveQuerySpec] (required);
 }
 
 root_type BootstrapCurvesRequest;

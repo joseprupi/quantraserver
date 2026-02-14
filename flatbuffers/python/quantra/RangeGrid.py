@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Sample the curve between start/end with a step.
+# Sample a curve between start/end with a step.
 class RangeGrid(object):
     __slots__ = ['_tab']
 

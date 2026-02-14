@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Tenors relative to the curve reference date (or as_of_date if no reference date).
+# Tenors relative to a curve reference date.
 class TenorGrid(object):
     __slots__ = ['_tab']
 
@@ -32,8 +32,8 @@ class TenorGrid(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.Tenor import Tenor
-            obj = Tenor()
+            from quantra.PeriodSpec import PeriodSpec
+            obj = PeriodSpec()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -109,7 +109,7 @@ class TenorGridT(object):
 
     # TenorGridT
     def __init__(self):
-        self.tenors = None  # type: List[TenorT]
+        self.tenors = None  # type: List[PeriodSpecT]
         self.calendar = 21  # type: int
         self.businessDayConvention = 0  # type: int
 
@@ -140,8 +140,8 @@ class TenorGridT(object):
                 if tenorGrid.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
-                    tenor_ = TenorT.InitFromObj(tenorGrid.Tenors(i))
-                    self.tenors.append(tenor_)
+                    periodSpec_ = PeriodSpecT.InitFromObj(tenorGrid.Tenors(i))
+                    self.tenors.append(periodSpec_)
         self.calendar = tenorGrid.Calendar()
         self.businessDayConvention = tenorGrid.BusinessDayConvention()
 

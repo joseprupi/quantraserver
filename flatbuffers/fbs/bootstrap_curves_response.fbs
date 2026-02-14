@@ -1,40 +1,25 @@
 include "common.fbs";
-include "bootstrap_curves_request.fbs";
+include "curve_query.fbs";
 
 namespace quantra;
 
-/// One series aligned to grid_dates.
+/// One sampled series aligned to grid_dates.
 table CurveSeries {
-    /// Which measure this series represents.
     measure:CurveMeasure;
-    /// Values aligned to grid_dates (same length).
     values:[double] (required);
 }
 
-/// Result for a single curve.
+/// Result for a single requested curve.
 table BootstrapCurveResult {
-    /// Curve id (copied from TermStructure.id).
     id:string;
-
-    /// Reference date actually used (YYYY-MM-DD).
     reference_date:string;
-
-    /// The realized grid (dates) used for sampling (YYYY-MM-DD).
     grid_dates:[string];
-
-    /// Series returned, each aligned to grid_dates.
     series:[CurveSeries];
-
-    /// Bootstrapped pillar dates from the curve instruments (YYYY-MM-DD).
-    /// Useful for debugging to see where the curve "nodes" are.
-    /// May be empty if pillar extraction is not supported for the curve type.
     pillar_dates:[string];
-
-    /// Error if this curve failed (null if ok).
     error:Error;
 }
 
-/// Response containing results for all requested curves.
+/// Response for all requested curve queries.
 table BootstrapCurvesResponse {
     results:[BootstrapCurveResult] (required);
 }

@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Response containing results for all requested curves.
+# Response for all requested curve queries.
 class BootstrapCurvesResponse(object):
     __slots__ = ['_tab']
 

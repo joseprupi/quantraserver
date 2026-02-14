@@ -1,8 +1,23 @@
 {
-  "as_of_date": "2025/01/15",
-  "curves": [
-    {
-      "curve": {
+  "pricing": {
+    "as_of_date": "2025/01/15",
+    "indices": [
+      {
+        "id": "EUR_6M",
+        "name": "Euribor",
+        "index_type": "Ibor",
+        "tenor_number": 6,
+        "tenor_time_unit": "Months",
+        "fixing_days": 2,
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual360",
+        "end_of_month": false,
+        "currency": "EUR"
+      }
+    ],
+    "curves": [
+      {
         "id": "USD_LIBOR_3M",
         "reference_date": "2025/01/15",
         "day_counter": "Actual365Fixed",
@@ -68,75 +83,63 @@
             }
           }
         ]
-      },
-      "query": {
-        "measures": [
-          "FWD"
-        ],
-        "grid": {
-          "grid_type": "TenorGrid",
-          "grid": {
-            "tenors": [
-              {
-                "n": 0,
-                "unit": "Days"
-              },
-              {
-                "n": 1,
-                "unit": "Months"
-              },
-              {
-                "n": 2,
-                "unit": "Months"
-              },
-              {
-                "n": 3,
-                "unit": "Months"
-              },
-              {
-                "n": 6,
-                "unit": "Months"
-              },
-              {
-                "n": 9,
-                "unit": "Months"
-              },
-              {
-                "n": 1,
-                "unit": "Years"
-              },
-              {
-                "n": 2,
-                "unit": "Years"
-              }
-            ],
-            "calendar": "TARGET",
-            "business_day_convention": "ModifiedFollowing"
-          }
-        },
-        "fwd": {
-          "forward_type": "Period",
-          "tenor_number": 3,
-          "tenor_time_unit": "Months",
-          "compounding": "Simple",
-          "use_curve_day_counter": true
-        }
       }
-    }
-  ],
-  "indices": [
+    ]
+  },
+  "queries": [
     {
-      "id": "EUR_6M",
-      "name": "Euribor",
-      "index_type": "Ibor",
-      "tenor_number": 6,
-      "tenor_time_unit": "Months",
-      "fixing_days": 2,
-      "calendar": "TARGET",
-      "business_day_convention": "ModifiedFollowing",
-      "day_counter": "Actual360",
-      "end_of_month": false,
-      "currency": "EUR"
+      "curve_id": "USD_LIBOR_3M",
+      "measures": [
+        "FWD"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            {
+              "tenor_number": 0,
+              "tenor_time_unit": "Days"
+            },
+            {
+              "tenor_number": 1,
+              "tenor_time_unit": "Months"
+            },
+            {
+              "tenor_number": 2,
+              "tenor_time_unit": "Months"
+            },
+            {
+              "tenor_number": 3,
+              "tenor_time_unit": "Months"
+            },
+            {
+              "tenor_number": 6,
+              "tenor_time_unit": "Months"
+            },
+            {
+              "tenor_number": 9,
+              "tenor_time_unit": "Months"
+            },
+            {
+              "tenor_number": 1,
+              "tenor_time_unit": "Years"
+            },
+            {
+              "tenor_number": 2,
+              "tenor_time_unit": "Years"
+            }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "fwd": {
+        "forward_type": "Period",
+        "tenor_number": 3,
+        "tenor_time_unit": "Months",
+        "compounding": "Simple",
+        "use_curve_day_counter": true
+      }
     }
   ]
 }

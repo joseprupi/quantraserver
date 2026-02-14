@@ -2,7 +2,7 @@
 
 # namespace: quantra
 
-# What output you want sampled from the bootstrapped curve.
+# What output you want sampled from a curve.
 class CurveMeasure(object):
     # Discount factor P(t)
     DF = 0

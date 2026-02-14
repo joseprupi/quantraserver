@@ -51,15 +51,15 @@ if os.path.exists(pricing_path):
     else:
         print("  ✗ Pricing.py does NOT have 'indices' - STALE! Need to re-run flatc --python")
 
-# Check BootstrapCurvesRequest.py for indices
+# Check BootstrapCurvesRequest.py for pricing field
 bcr_path = os.path.join(fb_dir, "BootstrapCurvesRequest.py")
 if os.path.exists(bcr_path):
     with open(bcr_path) as f:
         content = f.read()
-    if "indices" in content.lower() or "Indices" in content:
-        print("  ✓ BootstrapCurvesRequest.py has 'indices' field")
+    if "pricing" in content.lower() or "Pricing" in content:
+        print("  ✓ BootstrapCurvesRequest.py has 'pricing' field")
     else:
-        print("  ✗ BootstrapCurvesRequest.py does NOT have 'indices' - STALE!")
+        print("  ✗ BootstrapCurvesRequest.py does NOT have 'pricing' - STALE!")
 
 print()
 print("=" * 60)

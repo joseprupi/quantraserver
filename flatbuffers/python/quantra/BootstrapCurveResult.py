@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Result for a single curve.
+# Result for a single requested curve.
 class BootstrapCurveResult(object):
     __slots__ = ['_tab']
 
@@ -25,7 +25,6 @@ class BootstrapCurveResult(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Curve id (copied from TermStructure.id).
     # BootstrapCurveResult
     def Id(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,7 +32,6 @@ class BootstrapCurveResult(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference date actually used (YYYY-MM-DD).
     # BootstrapCurveResult
     def ReferenceDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -41,7 +39,6 @@ class BootstrapCurveResult(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # The realized grid (dates) used for sampling (YYYY-MM-DD).
     # BootstrapCurveResult
     def GridDates(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -62,7 +59,6 @@ class BootstrapCurveResult(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
-    # Series returned, each aligned to grid_dates.
     # BootstrapCurveResult
     def Series(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -88,9 +84,6 @@ class BootstrapCurveResult(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
-    # Bootstrapped pillar dates from the curve instruments (YYYY-MM-DD).
-    # Useful for debugging to see where the curve "nodes" are.
-    # May be empty if pillar extraction is not supported for the curve type.
     # BootstrapCurveResult
     def PillarDates(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -111,7 +104,6 @@ class BootstrapCurveResult(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
-    # Error if this curve failed (null if ok).
     # BootstrapCurveResult
     def Error(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))

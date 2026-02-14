@@ -2,17 +2,17 @@
 
 # namespace: quantra
 
-class CurveGrid(object):
+class DateGrid(object):
     NONE = 0
     TenorGrid = 1
     RangeGrid = 2
 
-def CurveGridCreator(unionType, table):
+def DateGridCreator(unionType, table):
     from flatbuffers.table import Table
     if not isinstance(table, Table):
         return None
-    if unionType == CurveGrid.TenorGrid:
+    if unionType == DateGrid.TenorGrid:
         return TenorGridT.InitFromBuf(table.Bytes, table.Pos)
-    if unionType == CurveGrid.RangeGrid:
+    if unionType == DateGrid.RangeGrid:
         return RangeGridT.InitFromBuf(table.Bytes, table.Pos)
     return None

@@ -169,7 +169,7 @@
       "type" : "string",
       "enum": ["Instantaneous", "Period"]
     },
-    "quantra_CurveGrid" : {
+    "quantra_DateGrid" : {
       "type" : "string",
       "enum": ["NONE", "TenorGrid", "RangeGrid"]
     },
@@ -1571,25 +1571,12 @@
       },
       "additionalProperties" : false
     },
-    "quantra_Tenor" : {
-      "type" : "object",
-      "description" : "A tenor as a structured {n, unit} pair that maps directly to QuantLib::Period.",
-      "properties" : {
-        "n" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
-              }
-      },
-      "additionalProperties" : false
-    },
     "quantra_TenorGrid" : {
       "type" : "object",
-      "description" : "Tenors relative to the curve reference date (or as_of_date if no reference date).",
+      "description" : "Tenors relative to a curve reference date.",
       "properties" : {
         "tenors" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Tenor"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PeriodSpec"}
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -1603,7 +1590,7 @@
     },
     "quantra_RangeGrid" : {
       "type" : "object",
-      "description" : "Sample the curve between start/end with a step.",
+      "description" : "Sample a curve between start/end with a step.",
       "properties" : {
         "start_date" : {
                 "type" : "string"
@@ -1630,17 +1617,36 @@
       "required" : ["end_date"],
       "additionalProperties" : false
     },
-    "quantra_CurveGridSpec" : {
+    "quantra_DateGridSpec" : {
       "type" : "object",
       "properties" : {
         "grid_type" : {
-                "$ref" : "#/definitions/quantra_CurveGrid"
+                "$ref" : "#/definitions/quantra_DateGrid"
               },
         "grid" : {
                 "anyOf": [{ "$ref" : "#/definitions/quantra_TenorGrid" },{ "$ref" : "#/definitions/quantra_RangeGrid" }]
               }
       },
       "required" : ["grid"],
+      "additionalProperties" : false
+    },
+    "quantra_QueryOptions" : {
+      "type" : "object",
+      "description" : "Generic query options for reusable sampling endpoints.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "max_points" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean"
+              }
+      },
       "additionalProperties" : false
     },
     "quantra_ZeroRateQuery" : {
@@ -1697,69 +1703,41 @@
       },
       "additionalProperties" : false
     },
-    "quantra_CurveQuery" : {
+    "quantra_CurveQuerySpec" : {
       "type" : "object",
+      "description" : "Query spec for one curve id within Pricing.curves[].",
       "properties" : {
+        "curve_id" : {
+                "type" : "string"
+              },
         "measures" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveMeasure"}
               },
         "grid" : {
-                "$ref" : "#/definitions/quantra_CurveGridSpec"
+                "$ref" : "#/definitions/quantra_DateGridSpec"
               },
         "zero" : {
                 "$ref" : "#/definitions/quantra_ZeroRateQuery"
               },
         "fwd" : {
                 "$ref" : "#/definitions/quantra_ForwardRateQuery"
+              },
+        "options" : {
+                "$ref" : "#/definitions/quantra_QueryOptions"
               }
       },
-      "required" : ["measures", "grid"],
-      "additionalProperties" : false
-    },
-    "quantra_BootstrapCurveSpec" : {
-      "type" : "object",
-      "properties" : {
-        "curve" : {
-                "$ref" : "#/definitions/quantra_TermStructure"
-              },
-        "query" : {
-                "$ref" : "#/definitions/quantra_CurveQuery"
-              }
-      },
-      "required" : ["curve"],
-      "additionalProperties" : false
-    },
-    "quantra_BootstrapCurvesRequest" : {
-      "type" : "object",
-      "description" : "Request to bootstrap multiple yield curves.",
-      "properties" : {
-        "as_of_date" : {
-                "type" : "string",
-                "description" : "Valuation date (YYYY-MM-DD or YYYY/MM/DD) for evaluationDate()."
-              },
-        "indices" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
-                "description" : "Index definitions needed by curve helpers (SwapHelper, OISHelper, etc.)\nEvery IndexRef in helpers must resolve to an IndexDef here."
-              },
-        "curves" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_BootstrapCurveSpec"},
-                "description" : "Bootstrap many curves at once."
-              }
-      },
-      "required" : ["as_of_date", "curves"],
+      "required" : ["curve_id", "measures", "grid"],
       "additionalProperties" : false
     },
     "quantra_CurveSeries" : {
       "type" : "object",
-      "description" : "One series aligned to grid_dates.",
+      "description" : "One sampled series aligned to grid_dates.",
       "properties" : {
         "measure" : {
-                "$ref" : "#/definitions/quantra_CurveMeasure",
-                "description" : "Which measure this series represents."
+                "$ref" : "#/definitions/quantra_CurveMeasure"
               },
         "values" : {
-                "type" : "array", "items" : {"type" : "number"},
-                "description" : "Values aligned to grid_dates (same length)."
+                "type" : "array", "items" : {"type" : "number"}
               }
       },
       "required" : ["values"],
@@ -1767,38 +1745,32 @@
     },
     "quantra_BootstrapCurveResult" : {
       "type" : "object",
-      "description" : "Result for a single curve.",
+      "description" : "Result for a single requested curve.",
       "properties" : {
         "id" : {
-                "type" : "string",
-                "description" : "Curve id (copied from TermStructure.id)."
+                "type" : "string"
               },
         "reference_date" : {
-                "type" : "string",
-                "description" : "Reference date actually used (YYYY-MM-DD)."
+                "type" : "string"
               },
         "grid_dates" : {
-                "type" : "array", "items" : {"type" : "string"},
-                "description" : "The realized grid (dates) used for sampling (YYYY-MM-DD)."
+                "type" : "array", "items" : {"type" : "string"}
               },
         "series" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveSeries"},
-                "description" : "Series returned, each aligned to grid_dates."
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveSeries"}
               },
         "pillar_dates" : {
-                "type" : "array", "items" : {"type" : "string"},
-                "description" : "Bootstrapped pillar dates from the curve instruments (YYYY-MM-DD).\nUseful for debugging to see where the curve \"nodes\" are.\nMay be empty if pillar extraction is not supported for the curve type."
+                "type" : "array", "items" : {"type" : "string"}
               },
         "error" : {
-                "$ref" : "#/definitions/quantra_Error",
-                "description" : "Error if this curve failed (null if ok)."
+                "$ref" : "#/definitions/quantra_Error"
               }
       },
       "additionalProperties" : false
     },
     "quantra_BootstrapCurvesResponse" : {
       "type" : "object",
-      "description" : "Response containing results for all requested curves.",
+      "description" : "Response for all requested curve queries.",
       "properties" : {
         "results" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_BootstrapCurveResult"}

@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# One series aligned to grid_dates.
+# One sampled series aligned to grid_dates.
 class CurveSeries(object):
     __slots__ = ['_tab']
 
@@ -25,7 +25,6 @@ class CurveSeries(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Which measure this series represents.
     # CurveSeries
     def Measure(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,7 +32,6 @@ class CurveSeries(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Values aligned to grid_dates (same length).
     # CurveSeries
     def Values(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
