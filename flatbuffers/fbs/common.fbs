@@ -1,66 +1,17 @@
-include "term_structure.fbs";
-include "volatility.fbs";
-include "coupon_pricer.fbs";
 include "enums.fbs";
-include "quotes.fbs";
-include "model.fbs";
-include "index.fbs";
-include "swap_index.fbs";
-include "credit_curve.fbs";
 
 namespace quantra;
+
+// Canonical period type used across APIs.
+table Period {
+    n:int;
+    unit:enums.TimeUnit = Months;
+}
 
 table Yield {
     day_counter:enums.DayCounter;
     compounding:enums.Compounding;
     frequency:enums.Frequency;
-}
-
-// Central pricing configuration
-// Indices, curves, volatility surfaces, and models are defined once here and referenced by id
-table Pricing {
-    /// Valuation date (YYYY-MM-DD). Used by: ALL
-    as_of_date:string (required);
-    
-    /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond
-    settlement_date:string;
-
-    /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
-    /// Every IndexRef in the request must resolve to an IndexDef here.
-    indices:[IndexDef];
-
-    /// Swap index definitions for convention-stable swaption smile ATM computation.
-    swap_indices:[SwapIndexDef];
-    
-    /// Yield curves for discounting/forwarding. Used by: ALL
-    curves:[TermStructure] (required);
-
-    /// Credit curves for CDS pricing. Used by: CDS
-    credit_curves:[CreditCurveSpec];
-    
-    /// Market quotes (spot prices, FX rates). Used by: EquityOption (future)
-    quotes:[QuoteSpec];
-    
-    /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption
-    vol_surfaces:[VolSurfaceSpec];
-    
-    /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption
-    models:[ModelSpec];
-    
-    /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
-    bond_pricing_details:bool = false;
-    
-    /// Include cash flow details. Used by: FixedRateBond, FloatingRateBond
-    bond_pricing_flows:bool = false;
-
-    /// Include detailed swaption analytics (delta/vega/gamma/theta/DV01).
-    swaption_pricing_details:bool = false;
-
-    /// Include curve-rebump swaption analytics (Bloomberg-style).
-    swaption_pricing_rebump:bool = false;
-    
-    /// Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
-    coupon_pricers:[CouponPricer];
 }
 
 table Error {

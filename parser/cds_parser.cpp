@@ -165,7 +165,12 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
     for (size_t i = 0; i < creditQuotes->size(); i++)
     {
         auto quote = creditQuotes->Get(i);
-        QuantLib::Period tenor(quote->tenor_number(), TimeUnitToQL(quote->tenor_time_unit()));
+        if (!quote->tenor()) {
+            QUANTRA_ERROR("CdsQuote.tenor is required");
+        }
+        QuantLib::Period tenor(
+            quote->tenor()->n(),
+            TimeUnitToQL(quote->tenor()->unit()));
         QuantLib::Handle<QuantLib::Quote> quoteHandle;
         if (quote->quote_id() && quote->quote_id()->size() > 0) {
             if (!quoteRegistry) {

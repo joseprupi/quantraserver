@@ -84,10 +84,12 @@ public:
             QuantLib::Currency currency = CurrencyFromString(ccyStr);
 
             // Parse conventions
-            QuantLib::Period tenor(
-                def->tenor_number(),
-                TimeUnitToQL(def->tenor_time_unit())
-            );
+            if (!def->tenor()) {
+                QUANTRA_ERROR("IndexDef.tenor is required for id: " + id);
+            }
+            int tenorN = def->tenor()->n();
+            QuantLib::TimeUnit tenorUnit = TimeUnitToQL(def->tenor()->unit());
+            QuantLib::Period tenor(tenorN, tenorUnit);
             int fixingDays = def->fixing_days();
             QuantLib::Calendar calendar = CalendarToQL(def->calendar());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(def->business_day_convention());

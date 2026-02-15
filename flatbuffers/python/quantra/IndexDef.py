@@ -50,26 +50,22 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
-    # For overnight indices, set tenor_number=0.
+    # Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)
     # IndexDef
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 3
-
-    # IndexDef
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 5
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
     # IndexDef
     def FixingDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
@@ -77,7 +73,7 @@ class IndexDef(object):
     # Calendar for fixing/payment dates
     # IndexDef
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
@@ -85,7 +81,7 @@ class IndexDef(object):
     # Business day convention
     # IndexDef
     def BusinessDayConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
@@ -93,7 +89,7 @@ class IndexDef(object):
     # Day count convention
     # IndexDef
     def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
@@ -101,7 +97,7 @@ class IndexDef(object):
     # End of month rule (IBOR only, ignored for overnight)
     # IndexDef
     def EndOfMonth(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
@@ -110,7 +106,7 @@ class IndexDef(object):
     # Mapped to QuantLib Currency objects. Required.
     # IndexDef
     def Currency(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
@@ -119,7 +115,7 @@ class IndexDef(object):
     # Applied via index->addFixing() before pricing.
     # IndexDef
     def Fixings(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -132,18 +128,18 @@ class IndexDef(object):
 
     # IndexDef
     def FixingsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # IndexDef
     def FixingsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         return o == 0
 
 def IndexDefStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(11)
 
 def Start(builder):
     IndexDefStart(builder)
@@ -166,56 +162,50 @@ def IndexDefAddIndexType(builder, indexType):
 def AddIndexType(builder, indexType):
     IndexDefAddIndexType(builder, indexType)
 
-def IndexDefAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(3, tenorNumber, 3)
+def IndexDefAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    IndexDefAddTenorNumber(builder, tenorNumber)
-
-def IndexDefAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(4, tenorTimeUnit, 5)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    IndexDefAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    IndexDefAddTenor(builder, tenor)
 
 def IndexDefAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(5, fixingDays, 2)
+    builder.PrependInt32Slot(4, fixingDays, 2)
 
 def AddFixingDays(builder, fixingDays):
     IndexDefAddFixingDays(builder, fixingDays)
 
 def IndexDefAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(5, calendar, 32)
 
 def AddCalendar(builder, calendar):
     IndexDefAddCalendar(builder, calendar)
 
 def IndexDefAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(7, businessDayConvention, 2)
+    builder.PrependInt8Slot(6, businessDayConvention, 2)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     IndexDefAddBusinessDayConvention(builder, businessDayConvention)
 
 def IndexDefAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(8, dayCounter, 0)
+    builder.PrependInt8Slot(7, dayCounter, 0)
 
 def AddDayCounter(builder, dayCounter):
     IndexDefAddDayCounter(builder, dayCounter)
 
 def IndexDefAddEndOfMonth(builder, endOfMonth):
-    builder.PrependBoolSlot(9, endOfMonth, 1)
+    builder.PrependBoolSlot(8, endOfMonth, 1)
 
 def AddEndOfMonth(builder, endOfMonth):
     IndexDefAddEndOfMonth(builder, endOfMonth)
 
 def IndexDefAddCurrency(builder, currency):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(currency), 0)
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(currency), 0)
 
 def AddCurrency(builder, currency):
     IndexDefAddCurrency(builder, currency)
 
 def IndexDefAddFixings(builder, fixings):
-    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(fixings), 0)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(fixings), 0)
 
 def AddFixings(builder, fixings):
     IndexDefAddFixings(builder, fixings)
@@ -233,7 +223,7 @@ def End(builder):
     return IndexDefEnd(builder)
 
 try:
-    from typing import List
+    from typing import List, Optional
 except:
     pass
 
@@ -244,8 +234,7 @@ class IndexDefT(object):
         self.id = None  # type: str
         self.name = None  # type: str
         self.indexType = 0  # type: int
-        self.tenorNumber = 3  # type: int
-        self.tenorTimeUnit = 5  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.fixingDays = 2  # type: int
         self.calendar = 32  # type: int
         self.businessDayConvention = 2  # type: int
@@ -278,8 +267,8 @@ class IndexDefT(object):
         self.id = indexDef.Id()
         self.name = indexDef.Name()
         self.indexType = indexDef.IndexType()
-        self.tenorNumber = indexDef.TenorNumber()
-        self.tenorTimeUnit = indexDef.TenorTimeUnit()
+        if indexDef.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(indexDef.Tenor())
         self.fixingDays = indexDef.FixingDays()
         self.calendar = indexDef.Calendar()
         self.businessDayConvention = indexDef.BusinessDayConvention()
@@ -301,6 +290,8 @@ class IndexDefT(object):
             id = builder.CreateString(self.id)
         if self.name is not None:
             name = builder.CreateString(self.name)
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.currency is not None:
             currency = builder.CreateString(self.currency)
         if self.fixings is not None:
@@ -317,8 +308,8 @@ class IndexDefT(object):
         if self.name is not None:
             IndexDefAddName(builder, name)
         IndexDefAddIndexType(builder, self.indexType)
-        IndexDefAddTenorNumber(builder, self.tenorNumber)
-        IndexDefAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            IndexDefAddTenor(builder, tenor)
         IndexDefAddFixingDays(builder, self.fixingDays)
         IndexDefAddCalendar(builder, self.calendar)
         IndexDefAddBusinessDayConvention(builder, self.businessDayConvention)

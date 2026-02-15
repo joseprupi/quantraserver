@@ -74,28 +74,25 @@ class ForwardRateQuery(object):
         return 0
 
     # ForwardRateQuery
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 3
-
-    # ForwardRateQuery
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 5
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # ForwardRateQuery
     def UseGridCalendarForAdvance(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
 def ForwardRateQueryStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(9)
 
 def Start(builder):
     ForwardRateQueryStart(builder)
@@ -142,20 +139,14 @@ def ForwardRateQueryAddInstantaneousEpsTimeUnit(builder, instantaneousEpsTimeUni
 def AddInstantaneousEpsTimeUnit(builder, instantaneousEpsTimeUnit):
     ForwardRateQueryAddInstantaneousEpsTimeUnit(builder, instantaneousEpsTimeUnit)
 
-def ForwardRateQueryAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(7, tenorNumber, 3)
+def ForwardRateQueryAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    ForwardRateQueryAddTenorNumber(builder, tenorNumber)
-
-def ForwardRateQueryAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(8, tenorTimeUnit, 5)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    ForwardRateQueryAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    ForwardRateQueryAddTenor(builder, tenor)
 
 def ForwardRateQueryAddUseGridCalendarForAdvance(builder, useGridCalendarForAdvance):
-    builder.PrependBoolSlot(9, useGridCalendarForAdvance, 1)
+    builder.PrependBoolSlot(8, useGridCalendarForAdvance, 1)
 
 def AddUseGridCalendarForAdvance(builder, useGridCalendarForAdvance):
     ForwardRateQueryAddUseGridCalendarForAdvance(builder, useGridCalendarForAdvance)
@@ -166,6 +157,10 @@ def ForwardRateQueryEnd(builder):
 def End(builder):
     return ForwardRateQueryEnd(builder)
 
+try:
+    from typing import Optional
+except:
+    pass
 
 class ForwardRateQueryT(object):
 
@@ -178,8 +173,7 @@ class ForwardRateQueryT(object):
         self.forwardType = 0  # type: int
         self.instantaneousEpsNumber = 1  # type: int
         self.instantaneousEpsTimeUnit = 0  # type: int
-        self.tenorNumber = 3  # type: int
-        self.tenorTimeUnit = 5  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.useGridCalendarForAdvance = True  # type: bool
 
     @classmethod
@@ -210,12 +204,14 @@ class ForwardRateQueryT(object):
         self.forwardType = forwardRateQuery.ForwardType()
         self.instantaneousEpsNumber = forwardRateQuery.InstantaneousEpsNumber()
         self.instantaneousEpsTimeUnit = forwardRateQuery.InstantaneousEpsTimeUnit()
-        self.tenorNumber = forwardRateQuery.TenorNumber()
-        self.tenorTimeUnit = forwardRateQuery.TenorTimeUnit()
+        if forwardRateQuery.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(forwardRateQuery.Tenor())
         self.useGridCalendarForAdvance = forwardRateQuery.UseGridCalendarForAdvance()
 
     # ForwardRateQueryT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         ForwardRateQueryStart(builder)
         ForwardRateQueryAddUseCurveDayCounter(builder, self.useCurveDayCounter)
         ForwardRateQueryAddDayCounter(builder, self.dayCounter)
@@ -224,8 +220,8 @@ class ForwardRateQueryT(object):
         ForwardRateQueryAddForwardType(builder, self.forwardType)
         ForwardRateQueryAddInstantaneousEpsNumber(builder, self.instantaneousEpsNumber)
         ForwardRateQueryAddInstantaneousEpsTimeUnit(builder, self.instantaneousEpsTimeUnit)
-        ForwardRateQueryAddTenorNumber(builder, self.tenorNumber)
-        ForwardRateQueryAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            ForwardRateQueryAddTenor(builder, tenor)
         ForwardRateQueryAddUseGridCalendarForAdvance(builder, self.useGridCalendarForAdvance)
         forwardRateQuery = ForwardRateQueryEnd(builder)
         return forwardRateQuery

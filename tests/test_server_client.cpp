@@ -24,6 +24,14 @@ namespace quantra { namespace testing {
 
 class ServerClientTest : public ::testing::Test {
 protected:
+    flatbuffers::Offset<quantra::Period> buildPeriod(
+        flatbuffers::grpc::MessageBuilder& b, int n, quantra::enums::TimeUnit unit) {
+        quantra::PeriodBuilder pb(b);
+        pb.add_n(n);
+        pb.add_unit(unit);
+        return pb.Finish();
+    }
+
     static void SetUpTestSuite() {
         channel_ = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
         stub_ = quantra::QuantraServer::NewStub(channel_);
@@ -41,9 +49,9 @@ protected:
     flatbuffers::Offset<quantra::TermStructure> buildCurve(flatbuffers::grpc::MessageBuilder& b, const std::string& id) {
         std::vector<flatbuffers::Offset<quantra::PointsWrapper>> points_vector;
         
+        auto dep3mTenor = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
         quantra::DepositHelperBuilder dep3m(b);
-        dep3m.add_rate(flatRate_); dep3m.add_tenor_number(3);
-        dep3m.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        dep3m.add_rate(flatRate_); dep3m.add_tenor(dep3mTenor);
         dep3m.add_fixing_days(2); dep3m.add_calendar(quantra::enums::Calendar_TARGET);
         dep3m.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         dep3m.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
@@ -53,9 +61,9 @@ protected:
         pw3m.add_point(dep3m_off.Union());
         points_vector.push_back(pw3m.Finish());
         
+        auto dep6mTenor = buildPeriod(b, 6, quantra::enums::TimeUnit_Months);
         quantra::DepositHelperBuilder dep6m(b);
-        dep6m.add_rate(flatRate_); dep6m.add_tenor_number(6);
-        dep6m.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        dep6m.add_rate(flatRate_); dep6m.add_tenor(dep6mTenor);
         dep6m.add_fixing_days(2); dep6m.add_calendar(quantra::enums::Calendar_TARGET);
         dep6m.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         dep6m.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
@@ -65,9 +73,9 @@ protected:
         pw6m.add_point(dep6m_off.Union());
         points_vector.push_back(pw6m.Finish());
         
+        auto dep1yTenor = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
         quantra::DepositHelperBuilder dep1y(b);
-        dep1y.add_rate(flatRate_); dep1y.add_tenor_number(1);
-        dep1y.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
+        dep1y.add_rate(flatRate_); dep1y.add_tenor(dep1yTenor);
         dep1y.add_fixing_days(2); dep1y.add_calendar(quantra::enums::Calendar_TARGET);
         dep1y.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
         dep1y.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
@@ -78,9 +86,9 @@ protected:
         points_vector.push_back(pw1y.Finish());
         
         auto float_idx_5y = buildIndexRef(b, "EUR_6M");
+        auto sw5yTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
         quantra::SwapHelperBuilder sw5y(b);
-        sw5y.add_rate(flatRate_); sw5y.add_tenor_number(5);
-        sw5y.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
+        sw5y.add_rate(flatRate_); sw5y.add_tenor(sw5yTenor);
         sw5y.add_calendar(quantra::enums::Calendar_TARGET);
         sw5y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw5y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
@@ -94,9 +102,9 @@ protected:
         points_vector.push_back(pw5y.Finish());
         
         auto float_idx_10y = buildIndexRef(b, "EUR_6M");
+        auto sw10yTenor = buildPeriod(b, 10, quantra::enums::TimeUnit_Years);
         quantra::SwapHelperBuilder sw10y(b);
-        sw10y.add_rate(flatRate_); sw10y.add_tenor_number(10);
-        sw10y.add_tenor_time_unit(quantra::enums::TimeUnit_Years);
+        sw10y.add_rate(flatRate_); sw10y.add_tenor(sw10yTenor);
         sw10y.add_calendar(quantra::enums::Calendar_TARGET);
         sw10y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
         sw10y.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
@@ -127,12 +135,12 @@ protected:
         auto id = b.CreateString("EUR_6M");
         auto name = b.CreateString("Euribor");
         auto ccy = b.CreateString("EUR");
+        auto tenor = buildPeriod(b, 6, quantra::enums::TimeUnit_Months);
         quantra::IndexDefBuilder idb(b);
         idb.add_id(id);
         idb.add_name(name);
         idb.add_index_type(quantra::IndexType_Ibor);
-        idb.add_tenor_number(6);
-        idb.add_tenor_time_unit(quantra::enums::TimeUnit_Months);
+        idb.add_tenor(tenor);
         idb.add_fixing_days(2);
         idb.add_calendar(quantra::enums::Calendar_TARGET);
         idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);

@@ -14,6 +14,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "common_generated.h"
+#include "pricing_generated.h"
 #include "swaption_generated.h"
 
 namespace quantra {

@@ -14,36 +14,42 @@
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.0096,
-              "tenor_time_unit": "Months",
-              "tenor_number": 3,
               "fixing_days": 3,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed"
+              "day_counter": "Actual365Fixed",
+              "tenor": {
+                "n": 3,
+                "unit": "Months"
+              }
             }
           },
           {
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.0145,
-              "tenor_time_unit": "Months",
-              "tenor_number": 6,
               "fixing_days": 3,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed"
+              "day_counter": "Actual365Fixed",
+              "tenor": {
+                "n": 6,
+                "unit": "Months"
+              }
             }
           },
           {
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.0194,
-              "tenor_time_unit": "Months",
-              "tenor_number": 12,
               "fixing_days": 3,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed"
+              "day_counter": "Actual365Fixed",
+              "tenor": {
+                "n": 12,
+                "unit": "Months"
+              }
             }
           },
           {

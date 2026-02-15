@@ -1,6 +1,7 @@
 include "enums.fbs";
 include "schedule.fbs";
 include "index.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -45,8 +46,7 @@ table HelperDependencies {
 
 table DepositHelper {
     rate:double;
-    tenor_time_unit:enums.TimeUnit;
-    tenor_number:int;
+    tenor:Period;
     fixing_days:int;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
@@ -91,8 +91,7 @@ table FutureHelper {
 
 table SwapHelper {
     rate:double;
-    tenor_time_unit:enums.TimeUnit;
-    tenor_number:int;
+    tenor:Period;
     calendar:enums.Calendar;
     sw_fixed_leg_frequency:enums.Frequency;
     sw_fixed_leg_convention:enums.BusinessDayConvention;
@@ -138,9 +137,7 @@ table BondHelper {
 
 table OISHelper {
     rate:double;
-
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
 
     /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
     overnight_index:IndexRef (required);
@@ -185,8 +182,7 @@ table ZeroRatePoint {
     /// Maturity date for the zero rate (YYYY-MM-DD)
     date:string;
     /// Alternative: tenor from reference date
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
     calendar:enums.Calendar = TARGET;
     business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
     /// Zero rate for this maturity
@@ -203,9 +199,7 @@ table ZeroRatePoint {
 
 table TenorBasisSwapHelper {
     spread:double;
-
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
 
     /// Short tenor index (e.g., "EUR_3M")
     index_short:IndexRef (required);
@@ -219,9 +213,7 @@ table TenorBasisSwapHelper {
 
 table FxSwapHelper {
     fx_points:double;
-
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
 
     spot_days:int = 2;
     calendar_domestic:enums.Calendar = TARGET;
@@ -233,9 +225,7 @@ table FxSwapHelper {
 
 table CrossCcyBasisHelper {
     spread:double;
-
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
 
     /// Domestic leg index
     index_domestic:IndexRef (required);

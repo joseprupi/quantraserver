@@ -133,6 +133,13 @@ ENDPOINTS = {
         "request_schema": "quantra_BootstrapCurvesRequest",
         "response_schema": "quantra_BootstrapCurvesResponse",
         "tags": ["Curves"]
+    },
+    "/sample-vol-surfaces": {
+        "summary": "Sample Volatility Surfaces",
+        "description": "Build pricing registries and sample a selected volatility surface on expiry/tenor/strike grids for UI plotting.",
+        "request_schema": "quantra_SampleVolSurfacesRequest",
+        "response_schema": "quantra_SampleVolSurfacesResponse",
+        "tags": ["Volatility"]
     }
 }
 
@@ -362,6 +369,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
+            {"name": "Volatility", "description": "Volatility surface creation and sampling"},
             {"name": "System", "description": "System endpoints"}
         ],
         "paths": paths,

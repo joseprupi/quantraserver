@@ -13,8 +13,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "common_generated.h"
 #include "enums_generated.h"
-#include "volatility_generated.h"
 
 namespace quantra {
 
@@ -226,7 +226,7 @@ bool VerifyDateGridVector(::flatbuffers::Verifier &verifier, const ::flatbuffers
 
 struct TenorGridT : public ::flatbuffers::NativeTable {
   typedef TenorGrid TableType;
-  std::vector<std::unique_ptr<quantra::PeriodSpecT>> tenors{};
+  std::vector<std::unique_ptr<quantra::PeriodT>> tenors{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   TenorGridT() = default;
@@ -244,8 +244,8 @@ struct TenorGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CALENDAR = 6,
     VT_BUSINESS_DAY_CONVENTION = 8
   };
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>> *>(VT_TENORS);
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_TENORS);
   }
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
@@ -271,7 +271,7 @@ struct TenorGridBuilder {
   typedef TenorGrid Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors) {
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> tenors) {
     fbb_.AddOffset(TenorGrid::VT_TENORS, tenors);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
@@ -294,7 +294,7 @@ struct TenorGridBuilder {
 
 inline ::flatbuffers::Offset<TenorGrid> CreateTenorGrid(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PeriodSpec>>> tenors = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> tenors = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
   TenorGridBuilder builder_(_fbb);
@@ -306,10 +306,10 @@ inline ::flatbuffers::Offset<TenorGrid> CreateTenorGrid(
 
 inline ::flatbuffers::Offset<TenorGrid> CreateTenorGridDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::PeriodSpec>> *tenors = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::Period>> *tenors = nullptr,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
-  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>>(*tenors) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*tenors) : 0;
   return quantra::CreateTenorGrid(
       _fbb,
       tenors__,
@@ -548,6 +548,7 @@ struct QueryOptionsT : public ::flatbuffers::NativeTable {
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   int32_t max_points = 50000;
   bool allow_extrapolation = true;
+  bool strict = true;
 };
 
 /// Generic query options for reusable sampling endpoints.
@@ -558,7 +559,8 @@ struct QueryOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CALENDAR = 4,
     VT_BUSINESS_DAY_CONVENTION = 6,
     VT_MAX_POINTS = 8,
-    VT_ALLOW_EXTRAPOLATION = 10
+    VT_ALLOW_EXTRAPOLATION = 10,
+    VT_STRICT = 12
   };
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
@@ -572,12 +574,16 @@ struct QueryOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool allow_extrapolation() const {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 1) != 0;
   }
+  bool strict() const {
+    return GetField<uint8_t>(VT_STRICT, 1) != 0;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
            VerifyField<int32_t>(verifier, VT_MAX_POINTS, 4) &&
            VerifyField<uint8_t>(verifier, VT_ALLOW_EXTRAPOLATION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_STRICT, 1) &&
            verifier.EndTable();
   }
   QueryOptionsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -601,6 +607,9 @@ struct QueryOptionsBuilder {
   void add_allow_extrapolation(bool allow_extrapolation) {
     fbb_.AddElement<uint8_t>(QueryOptions::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 1);
   }
+  void add_strict(bool strict) {
+    fbb_.AddElement<uint8_t>(QueryOptions::VT_STRICT, static_cast<uint8_t>(strict), 1);
+  }
   explicit QueryOptionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -617,9 +626,11 @@ inline ::flatbuffers::Offset<QueryOptions> CreateQueryOptions(
     quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     int32_t max_points = 50000,
-    bool allow_extrapolation = true) {
+    bool allow_extrapolation = true,
+    bool strict = true) {
   QueryOptionsBuilder builder_(_fbb);
   builder_.add_max_points(max_points);
+  builder_.add_strict(strict);
   builder_.add_allow_extrapolation(allow_extrapolation);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
@@ -722,9 +733,12 @@ struct ForwardRateQueryT : public ::flatbuffers::NativeTable {
   quantra::ForwardType forward_type = quantra::ForwardType_Instantaneous;
   int32_t instantaneous_eps_number = 1;
   quantra::enums::TimeUnit instantaneous_eps_time_unit = quantra::enums::TimeUnit_Days;
-  int32_t tenor_number = 3;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   bool use_grid_calendar_for_advance = true;
+  ForwardRateQueryT() = default;
+  ForwardRateQueryT(const ForwardRateQueryT &o);
+  ForwardRateQueryT(ForwardRateQueryT&&) FLATBUFFERS_NOEXCEPT = default;
+  ForwardRateQueryT &operator=(ForwardRateQueryT o) FLATBUFFERS_NOEXCEPT;
 };
 
 struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -738,9 +752,8 @@ struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FORWARD_TYPE = 12,
     VT_INSTANTANEOUS_EPS_NUMBER = 14,
     VT_INSTANTANEOUS_EPS_TIME_UNIT = 16,
-    VT_TENOR_NUMBER = 18,
-    VT_TENOR_TIME_UNIT = 20,
-    VT_USE_GRID_CALENDAR_FOR_ADVANCE = 22
+    VT_TENOR = 18,
+    VT_USE_GRID_CALENDAR_FOR_ADVANCE = 20
   };
   bool use_curve_day_counter() const {
     return GetField<uint8_t>(VT_USE_CURVE_DAY_COUNTER, 1) != 0;
@@ -763,11 +776,8 @@ struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::TimeUnit instantaneous_eps_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_INSTANTANEOUS_EPS_TIME_UNIT, 0));
   }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 3);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 5));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   bool use_grid_calendar_for_advance() const {
     return GetField<uint8_t>(VT_USE_GRID_CALENDAR_FOR_ADVANCE, 1) != 0;
@@ -781,8 +791,8 @@ struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_FORWARD_TYPE, 1) &&
            VerifyField<int32_t>(verifier, VT_INSTANTANEOUS_EPS_NUMBER, 4) &&
            VerifyField<int8_t>(verifier, VT_INSTANTANEOUS_EPS_TIME_UNIT, 1) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<uint8_t>(verifier, VT_USE_GRID_CALENDAR_FOR_ADVANCE, 1) &&
            verifier.EndTable();
   }
@@ -816,11 +826,8 @@ struct ForwardRateQueryBuilder {
   void add_instantaneous_eps_time_unit(quantra::enums::TimeUnit instantaneous_eps_time_unit) {
     fbb_.AddElement<int8_t>(ForwardRateQuery::VT_INSTANTANEOUS_EPS_TIME_UNIT, static_cast<int8_t>(instantaneous_eps_time_unit), 0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(ForwardRateQuery::VT_TENOR_NUMBER, tenor_number, 3);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(ForwardRateQuery::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 5);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(ForwardRateQuery::VT_TENOR, tenor);
   }
   void add_use_grid_calendar_for_advance(bool use_grid_calendar_for_advance) {
     fbb_.AddElement<uint8_t>(ForwardRateQuery::VT_USE_GRID_CALENDAR_FOR_ADVANCE, static_cast<uint8_t>(use_grid_calendar_for_advance), 1);
@@ -845,14 +852,12 @@ inline ::flatbuffers::Offset<ForwardRateQuery> CreateForwardRateQuery(
     quantra::ForwardType forward_type = quantra::ForwardType_Instantaneous,
     int32_t instantaneous_eps_number = 1,
     quantra::enums::TimeUnit instantaneous_eps_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t tenor_number = 3,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     bool use_grid_calendar_for_advance = true) {
   ForwardRateQueryBuilder builder_(_fbb);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_instantaneous_eps_number(instantaneous_eps_number);
   builder_.add_use_grid_calendar_for_advance(use_grid_calendar_for_advance);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   builder_.add_instantaneous_eps_time_unit(instantaneous_eps_time_unit);
   builder_.add_forward_type(forward_type);
   builder_.add_frequency(frequency);
@@ -1009,7 +1014,7 @@ inline TenorGridT::TenorGridT(const TenorGridT &o)
       : calendar(o.calendar),
         business_day_convention(o.business_day_convention) {
   tenors.reserve(o.tenors.size());
-  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodSpecT(*tenors_) : nullptr); }
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodT(*tenors_) : nullptr); }
 }
 
 inline TenorGridT &TenorGridT::operator=(TenorGridT o) FLATBUFFERS_NOEXCEPT {
@@ -1028,7 +1033,7 @@ inline TenorGridT *TenorGrid::UnPack(const ::flatbuffers::resolver_function_t *_
 inline void TenorGrid::UnPackTo(TenorGridT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
 }
@@ -1041,7 +1046,7 @@ inline ::flatbuffers::Offset<TenorGrid> CreateTenorGrid(::flatbuffers::FlatBuffe
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const TenorGridT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _tenors = _fbb.CreateVector<::flatbuffers::Offset<quantra::PeriodSpec>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriodSpec(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va );
+  auto _tenors = _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriod(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va );
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
   return quantra::CreateTenorGrid(
@@ -1137,6 +1142,7 @@ inline void QueryOptions::UnPackTo(QueryOptionsT *_o, const ::flatbuffers::resol
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
   { auto _e = max_points(); _o->max_points = _e; }
   { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
+  { auto _e = strict(); _o->strict = _e; }
 }
 
 inline ::flatbuffers::Offset<QueryOptions> QueryOptions::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const QueryOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1151,12 +1157,14 @@ inline ::flatbuffers::Offset<QueryOptions> CreateQueryOptions(::flatbuffers::Fla
   auto _business_day_convention = _o->business_day_convention;
   auto _max_points = _o->max_points;
   auto _allow_extrapolation = _o->allow_extrapolation;
+  auto _strict = _o->strict;
   return quantra::CreateQueryOptions(
       _fbb,
       _calendar,
       _business_day_convention,
       _max_points,
-      _allow_extrapolation);
+      _allow_extrapolation,
+      _strict);
 }
 
 inline ZeroRateQueryT *ZeroRateQuery::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -1194,6 +1202,31 @@ inline ::flatbuffers::Offset<ZeroRateQuery> CreateZeroRateQuery(::flatbuffers::F
       _frequency);
 }
 
+inline ForwardRateQueryT::ForwardRateQueryT(const ForwardRateQueryT &o)
+      : use_curve_day_counter(o.use_curve_day_counter),
+        day_counter(o.day_counter),
+        compounding(o.compounding),
+        frequency(o.frequency),
+        forward_type(o.forward_type),
+        instantaneous_eps_number(o.instantaneous_eps_number),
+        instantaneous_eps_time_unit(o.instantaneous_eps_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        use_grid_calendar_for_advance(o.use_grid_calendar_for_advance) {
+}
+
+inline ForwardRateQueryT &ForwardRateQueryT::operator=(ForwardRateQueryT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(use_curve_day_counter, o.use_curve_day_counter);
+  std::swap(day_counter, o.day_counter);
+  std::swap(compounding, o.compounding);
+  std::swap(frequency, o.frequency);
+  std::swap(forward_type, o.forward_type);
+  std::swap(instantaneous_eps_number, o.instantaneous_eps_number);
+  std::swap(instantaneous_eps_time_unit, o.instantaneous_eps_time_unit);
+  std::swap(tenor, o.tenor);
+  std::swap(use_grid_calendar_for_advance, o.use_grid_calendar_for_advance);
+  return *this;
+}
+
 inline ForwardRateQueryT *ForwardRateQuery::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<ForwardRateQueryT>(new ForwardRateQueryT());
   UnPackTo(_o.get(), _resolver);
@@ -1210,8 +1243,7 @@ inline void ForwardRateQuery::UnPackTo(ForwardRateQueryT *_o, const ::flatbuffer
   { auto _e = forward_type(); _o->forward_type = _e; }
   { auto _e = instantaneous_eps_number(); _o->instantaneous_eps_number = _e; }
   { auto _e = instantaneous_eps_time_unit(); _o->instantaneous_eps_time_unit = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = use_grid_calendar_for_advance(); _o->use_grid_calendar_for_advance = _e; }
 }
 
@@ -1230,8 +1262,7 @@ inline ::flatbuffers::Offset<ForwardRateQuery> CreateForwardRateQuery(::flatbuff
   auto _forward_type = _o->forward_type;
   auto _instantaneous_eps_number = _o->instantaneous_eps_number;
   auto _instantaneous_eps_time_unit = _o->instantaneous_eps_time_unit;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _use_grid_calendar_for_advance = _o->use_grid_calendar_for_advance;
   return quantra::CreateForwardRateQuery(
       _fbb,
@@ -1242,8 +1273,7 @@ inline ::flatbuffers::Offset<ForwardRateQuery> CreateForwardRateQuery(::flatbuff
       _forward_type,
       _instantaneous_eps_number,
       _instantaneous_eps_time_unit,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _use_grid_calendar_for_advance);
 }
 

@@ -1,4 +1,5 @@
 include "enums.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -43,10 +44,8 @@ table IndexDef {
 
     // ---- Conventions (all required for correctness) ----
 
-    /// Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
-    /// For overnight indices, set tenor_number=0.
-    tenor_number:int = 3;
-    tenor_time_unit:enums.TimeUnit = Months;
+    /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)
+    tenor:Period;
 
     /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
     fixing_days:int = 2;

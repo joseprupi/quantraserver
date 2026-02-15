@@ -1,0 +1,10 @@
+include "common.fbs";
+include "vol_query.fbs";
+
+namespace quantra;
+
+table SampleVolSurfacesResponse {
+    results:[VolSurfaceSample] (required);
+}
+
+root_type SampleVolSurfacesResponse;

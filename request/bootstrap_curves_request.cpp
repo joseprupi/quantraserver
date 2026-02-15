@@ -251,36 +251,54 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
         auto point = points->Get(i);
         Date maturityDate;
         if (auto deposit = point->point_as_DepositHelper()) {
-            Period tenor(deposit->tenor_number(), TimeUnitToQL(deposit->tenor_time_unit()));
+            if (!deposit->tenor()) QUANTRA_ERROR("DepositHelper.tenor is required");
+            QuantLib::Period tenor(
+                deposit->tenor()->n(),
+                TimeUnitToQL(deposit->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor, ConventionToQL(deposit->business_day_convention()));
         } else if (auto swap = point->point_as_SwapHelper()) {
-            Period tenor(swap->tenor_number(), TimeUnitToQL(swap->tenor_time_unit()));
+            if (!swap->tenor()) QUANTRA_ERROR("SwapHelper.tenor is required");
+            QuantLib::Period tenor(
+                swap->tenor()->n(),
+                TimeUnitToQL(swap->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor, ConventionToQL(swap->sw_fixed_leg_convention()));
         } else if (auto fra = point->point_as_FRAHelper()) {
-            Period startPeriod(fra->months_to_start(), Months);
-            Period tenor(fra->months_to_end() - fra->months_to_start(), Months);
+            QuantLib::Period startPeriod(fra->months_to_start(), Months);
+            QuantLib::Period tenor(fra->months_to_end() - fra->months_to_start(), Months);
             Date startDate = calendar.advance(referenceDate, startPeriod);
             maturityDate = calendar.advance(startDate, tenor);
         } else if (auto future = point->point_as_FutureHelper()) {
             Date startDate = DateToQL(future->future_start_date()->str());
-            maturityDate = calendar.advance(startDate, Period(future->future_months(), Months));
+            maturityDate = calendar.advance(startDate, QuantLib::Period(future->future_months(), Months));
         } else if (auto bond = point->point_as_BondHelper()) {
             if (bond->schedule() && bond->schedule()->termination_date()) {
                 maturityDate = DateToQL(bond->schedule()->termination_date()->str());
             }
         } else if (auto ois = point->point_as_OISHelper()) {
-            Period tenor(ois->tenor_number(), TimeUnitToQL(ois->tenor_time_unit()));
+            if (!ois->tenor()) QUANTRA_ERROR("OISHelper.tenor is required");
+            QuantLib::Period tenor(
+                ois->tenor()->n(),
+                TimeUnitToQL(ois->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor, ConventionToQL(ois->fixed_leg_convention()));
         } else if (auto datedOis = point->point_as_DatedOISHelper()) {
             maturityDate = DateToQL(datedOis->end_date()->str());
         } else if (auto basis = point->point_as_TenorBasisSwapHelper()) {
-            Period tenor(basis->tenor_number(), TimeUnitToQL(basis->tenor_time_unit()));
+            if (!basis->tenor()) QUANTRA_ERROR("TenorBasisSwapHelper.tenor is required");
+            QuantLib::Period tenor(
+                basis->tenor()->n(),
+                TimeUnitToQL(basis->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto fx = point->point_as_FxSwapHelper()) {
-            Period tenor(fx->tenor_number(), TimeUnitToQL(fx->tenor_time_unit()));
+            if (!fx->tenor()) QUANTRA_ERROR("FxSwapHelper.tenor is required");
+            QuantLib::Period tenor(
+                fx->tenor()->n(),
+                TimeUnitToQL(fx->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto xccy = point->point_as_CrossCcyBasisHelper()) {
-            Period tenor(xccy->tenor_number(), TimeUnitToQL(xccy->tenor_time_unit()));
+            if (!xccy->tenor()) QUANTRA_ERROR("CrossCcyBasisHelper.tenor is required");
+            QuantLib::Period tenor(
+                xccy->tenor()->n(),
+                TimeUnitToQL(xccy->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         }
         if (maturityDate != Date()) {
@@ -308,13 +326,13 @@ std::vector<Date> BootstrapCurvesRequestHandler::buildTenorGrid(
 
     for (flatbuffers::uoffset_t i = 0; i < tenors->size(); i++) {
         auto tenor = tenors->Get(i);
-        int n = tenor->tenor_number();
-        TimeUnit unit = TimeUnitToQL(tenor->tenor_time_unit());
+        int n = tenor->n();
+        TimeUnit unit = TimeUnitToQL(tenor->unit());
         if (n == 0) {
             dates.push_back(referenceDate);
             continue;
         }
-        Period period(n, unit);
+        QuantLib::Period period(n, unit);
         Date d = useCalendar ? calendar.advance(referenceDate, period, bdc) : referenceDate + period;
         dates.push_back(d);
     }
@@ -331,7 +349,7 @@ std::vector<Date> BootstrapCurvesRequestHandler::buildRangeGrid(
     Date endDate = DateToQL(grid->end_date()->str());
     int stepNumber = grid->step_number();
     TimeUnit stepUnit = TimeUnitToQL(grid->step_time_unit());
-    Period step(stepNumber, stepUnit);
+    QuantLib::Period step(stepNumber, stepUnit);
     bool businessDaysOnly = grid->business_days_only();
     Calendar calendar = CalendarToQL(grid->calendar());
     BusinessDayConvention bdc = ConventionToQL(grid->business_day_convention());
@@ -422,8 +440,10 @@ std::vector<double> BootstrapCurvesRequestHandler::computeForwardRates(
         fwdType = fwdQuery->forward_type();
         epsNumber = fwdQuery->instantaneous_eps_number();
         epsUnit = TimeUnitToQL(fwdQuery->instantaneous_eps_time_unit());
-        tenorNumber = fwdQuery->tenor_number();
-        tenorUnit = TimeUnitToQL(fwdQuery->tenor_time_unit());
+        if (fwdQuery->tenor()) {
+            tenorNumber = fwdQuery->tenor()->n();
+            tenorUnit = TimeUnitToQL(fwdQuery->tenor()->unit());
+        }
         useGridCalendar = fwdQuery->use_grid_calendar_for_advance();
     }
 
@@ -435,9 +455,9 @@ std::vector<double> BootstrapCurvesRequestHandler::computeForwardRates(
     for (const auto& d : dates) {
         Date endDate;
         if (fwdType == ForwardType_Instantaneous) {
-            endDate = (epsUnit == Days) ? d + epsNumber : calendar.advance(d, Period(epsNumber, epsUnit), bdc);
+            endDate = (epsUnit == Days) ? d + epsNumber : calendar.advance(d, QuantLib::Period(epsNumber, epsUnit), bdc);
         } else {
-            endDate = calendar.advance(d, Period(tenorNumber, tenorUnit), bdc);
+            endDate = calendar.advance(d, QuantLib::Period(tenorNumber, tenorUnit), bdc);
         }
         if (endDate <= d) endDate = d + 1;
         InterestRate rate = curve->forwardRate(d, endDate, dc, comp, freq);

@@ -74,12 +74,17 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             if (p->date()) {
                 d = DateToQL(p->date()->str());
             } else {
-                if (p->tenor_number() <= 0) {
+                if (!p->tenor()) {
+                    QUANTRA_ERROR("ZeroRatePoint.tenor is required when date is not provided");
+                }
+                int tenorN = p->tenor()->n();
+                auto tenorUnit = p->tenor()->unit();
+                if (tenorN <= 0) {
                     QUANTRA_ERROR("ZeroRatePoint requires date or tenor");
                 }
                 auto cal = CalendarToQL(p->calendar());
                 auto bdc = ConventionToQL(p->business_day_convention());
-                d = cal.advance(ref, p->tenor_number() * TimeUnitToQL(p->tenor_time_unit()), bdc);
+                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
             }
             dates.push_back(d);
             zeroRates.push_back(p->zero_rate() + bump);

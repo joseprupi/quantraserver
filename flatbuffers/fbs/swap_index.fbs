@@ -1,4 +1,5 @@
 include "enums.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -18,8 +19,7 @@ table SwapIndexFixedLegSpec {
 }
 
 table SwapIndexFloatLegSpec {
-    float_tenor_number:int = 6;
-    float_tenor_time_unit:enums.TimeUnit = Months;
+    float_tenor:Period;
     float_calendar:enums.Calendar = TARGET;
     float_bdc:enums.BusinessDayConvention = ModifiedFollowing;
     float_term_bdc:enums.BusinessDayConvention = ModifiedFollowing;

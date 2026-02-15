@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "common_generated.h"
 #include "enums_generated.h"
 #include "index_generated.h"
 #include "schedule_generated.h"
@@ -549,13 +550,16 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependenciesDirect(
 struct DepositHelperT : public ::flatbuffers::NativeTable {
   typedef DepositHelper TableType;
   double rate = 0.0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  int32_t tenor_number = 0;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   int32_t fixing_days = 0;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
   std::string quote_id{};
+  DepositHelperT() = default;
+  DepositHelperT(const DepositHelperT &o);
+  DepositHelperT(DepositHelperT&&) FLATBUFFERS_NOEXCEPT = default;
+  DepositHelperT &operator=(DepositHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
 struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -563,22 +567,18 @@ struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef DepositHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_RATE = 4,
-    VT_TENOR_TIME_UNIT = 6,
-    VT_TENOR_NUMBER = 8,
-    VT_FIXING_DAYS = 10,
-    VT_CALENDAR = 12,
-    VT_BUSINESS_DAY_CONVENTION = 14,
-    VT_DAY_COUNTER = 16,
-    VT_QUOTE_ID = 18
+    VT_TENOR = 6,
+    VT_FIXING_DAYS = 8,
+    VT_CALENDAR = 10,
+    VT_BUSINESS_DAY_CONVENTION = 12,
+    VT_DAY_COUNTER = 14,
+    VT_QUOTE_ID = 16
   };
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
-  }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   int32_t fixing_days() const {
     return GetField<int32_t>(VT_FIXING_DAYS, 0);
@@ -599,8 +599,8 @@ struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
@@ -621,11 +621,8 @@ struct DepositHelperBuilder {
   void add_rate(double rate) {
     fbb_.AddElement<double>(DepositHelper::VT_RATE, rate, 0.0);
   }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(DepositHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
-  }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(DepositHelper::VT_TENOR_NUMBER, tenor_number, 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(DepositHelper::VT_TENOR, tenor);
   }
   void add_fixing_days(int32_t fixing_days) {
     fbb_.AddElement<int32_t>(DepositHelper::VT_FIXING_DAYS, fixing_days, 0);
@@ -656,8 +653,7 @@ struct DepositHelperBuilder {
 inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t tenor_number = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
@@ -667,19 +663,17 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
   builder_.add_rate(rate);
   builder_.add_quote_id(quote_id);
   builder_.add_fixing_days(fixing_days);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_day_counter(day_counter);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t tenor_number = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
@@ -689,8 +683,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelperDirect(
   return quantra::CreateDepositHelper(
       _fbb,
       rate,
-      tenor_time_unit,
-      tenor_number,
+      tenor,
       fixing_days,
       calendar,
       business_day_convention,
@@ -1026,8 +1019,7 @@ inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
 struct SwapHelperT : public ::flatbuffers::NativeTable {
   typedef SwapHelper TableType;
   double rate = 0.0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
-  int32_t tenor_number = 0;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
   quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual;
   quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following;
@@ -1048,26 +1040,22 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_RATE = 4,
-    VT_TENOR_TIME_UNIT = 6,
-    VT_TENOR_NUMBER = 8,
-    VT_CALENDAR = 10,
-    VT_SW_FIXED_LEG_FREQUENCY = 12,
-    VT_SW_FIXED_LEG_CONVENTION = 14,
-    VT_SW_FIXED_LEG_DAY_COUNTER = 16,
-    VT_FLOAT_INDEX = 18,
-    VT_SPREAD = 20,
-    VT_FWD_START_DAYS = 22,
-    VT_DEPS = 24,
-    VT_QUOTE_ID = 26
+    VT_TENOR = 6,
+    VT_CALENDAR = 8,
+    VT_SW_FIXED_LEG_FREQUENCY = 10,
+    VT_SW_FIXED_LEG_CONVENTION = 12,
+    VT_SW_FIXED_LEG_DAY_COUNTER = 14,
+    VT_FLOAT_INDEX = 16,
+    VT_SPREAD = 18,
+    VT_FWD_START_DAYS = 20,
+    VT_DEPS = 22,
+    VT_QUOTE_ID = 24
   };
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
-  }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
@@ -1101,8 +1089,8 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_FREQUENCY, 1) &&
            VerifyField<int8_t>(verifier, VT_SW_FIXED_LEG_CONVENTION, 1) &&
@@ -1129,11 +1117,8 @@ struct SwapHelperBuilder {
   void add_rate(double rate) {
     fbb_.AddElement<double>(SwapHelper::VT_RATE, rate, 0.0);
   }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(SwapHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
-  }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(SwapHelper::VT_TENOR_NUMBER, tenor_number, 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(SwapHelper::VT_TENOR, tenor);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
     fbb_.AddElement<int8_t>(SwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
@@ -1177,8 +1162,7 @@ struct SwapHelperBuilder {
 inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t tenor_number = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following,
@@ -1195,20 +1179,18 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
   builder_.add_deps(deps);
   builder_.add_fwd_start_days(fwd_start_days);
   builder_.add_float_index(float_index);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_sw_fixed_leg_day_counter(sw_fixed_leg_day_counter);
   builder_.add_sw_fixed_leg_convention(sw_fixed_leg_convention);
   builder_.add_sw_fixed_leg_frequency(sw_fixed_leg_frequency);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
-    int32_t tenor_number = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
     quantra::enums::BusinessDayConvention sw_fixed_leg_convention = quantra::enums::BusinessDayConvention_Following,
@@ -1222,8 +1204,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
   return quantra::CreateSwapHelper(
       _fbb,
       rate,
-      tenor_time_unit,
-      tenor_number,
+      tenor,
       calendar,
       sw_fixed_leg_frequency,
       sw_fixed_leg_convention,
@@ -1440,8 +1421,7 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
 struct OISHelperT : public ::flatbuffers::NativeTable {
   typedef OISHelper TableType;
   double rate = 0.0;
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
   int32_t settlement_days = 2;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
@@ -1461,25 +1441,21 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OISHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_RATE = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_OVERNIGHT_INDEX = 10,
-    VT_SETTLEMENT_DAYS = 12,
-    VT_CALENDAR = 14,
-    VT_FIXED_LEG_FREQUENCY = 16,
-    VT_FIXED_LEG_CONVENTION = 18,
-    VT_FIXED_LEG_DAY_COUNTER = 20,
-    VT_DEPS = 22,
-    VT_QUOTE_ID = 24
+    VT_TENOR = 6,
+    VT_OVERNIGHT_INDEX = 8,
+    VT_SETTLEMENT_DAYS = 10,
+    VT_CALENDAR = 12,
+    VT_FIXED_LEG_FREQUENCY = 14,
+    VT_FIXED_LEG_CONVENTION = 16,
+    VT_FIXED_LEG_DAY_COUNTER = 18,
+    VT_DEPS = 20,
+    VT_QUOTE_ID = 22
   };
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
   const quantra::IndexRef *overnight_index() const {
@@ -1510,8 +1486,8 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyOffsetRequired(verifier, VT_OVERNIGHT_INDEX) &&
            verifier.VerifyTable(overnight_index()) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
@@ -1537,11 +1513,8 @@ struct OISHelperBuilder {
   void add_rate(double rate) {
     fbb_.AddElement<double>(OISHelper::VT_RATE, rate, 0.0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(OISHelper::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(OISHelper::VT_TENOR, tenor);
   }
   void add_overnight_index(::flatbuffers::Offset<quantra::IndexRef> overnight_index) {
     fbb_.AddOffset(OISHelper::VT_OVERNIGHT_INDEX, overnight_index);
@@ -1582,8 +1555,7 @@ struct OISHelperBuilder {
 inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
@@ -1598,20 +1570,18 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
   builder_.add_deps(deps);
   builder_.add_settlement_days(settlement_days);
   builder_.add_overnight_index(overnight_index);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_fixed_leg_day_counter(fixed_leg_day_counter);
   builder_.add_fixed_leg_convention(fixed_leg_convention);
   builder_.add_fixed_leg_frequency(fixed_leg_frequency);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double rate = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
@@ -1624,8 +1594,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
   return quantra::CreateOISHelper(
       _fbb,
       rate,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       overnight_index,
       settlement_days,
       calendar,
@@ -1835,13 +1804,16 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
 struct ZeroRatePointT : public ::flatbuffers::NativeTable {
   typedef ZeroRatePoint TableType;
   std::string date{};
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   double zero_rate = 0.0;
   quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous;
   quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
+  ZeroRatePointT() = default;
+  ZeroRatePointT(const ZeroRatePointT &o);
+  ZeroRatePointT(ZeroRatePointT&&) FLATBUFFERS_NOEXCEPT = default;
+  ZeroRatePointT &operator=(ZeroRatePointT o) FLATBUFFERS_NOEXCEPT;
 };
 
 struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -1849,24 +1821,20 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ZeroRatePointBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DATE = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_CALENDAR = 10,
-    VT_BUSINESS_DAY_CONVENTION = 12,
-    VT_ZERO_RATE = 14,
-    VT_COMPOUNDING = 16,
-    VT_FREQUENCY = 18
+    VT_TENOR = 6,
+    VT_CALENDAR = 8,
+    VT_BUSINESS_DAY_CONVENTION = 10,
+    VT_ZERO_RATE = 12,
+    VT_COMPOUNDING = 14,
+    VT_FREQUENCY = 16
   };
   /// Maturity date for the zero rate (YYYY-MM-DD)
   const ::flatbuffers::String *date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DATE);
   }
   /// Alternative: tenor from reference date
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
@@ -1890,8 +1858,8 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_DATE) &&
            verifier.VerifyString(date()) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
            VerifyField<double>(verifier, VT_ZERO_RATE, 8) &&
@@ -1911,11 +1879,8 @@ struct ZeroRatePointBuilder {
   void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
     fbb_.AddOffset(ZeroRatePoint::VT_DATE, date);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(ZeroRatePoint::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(ZeroRatePoint::VT_TENOR, tenor);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
     fbb_.AddElement<int8_t>(ZeroRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
@@ -1946,8 +1911,7 @@ struct ZeroRatePointBuilder {
 inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> date = 0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     double zero_rate = 0.0,
@@ -1955,21 +1919,19 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(
     quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
   ZeroRatePointBuilder builder_(_fbb);
   builder_.add_zero_rate(zero_rate);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_date(date);
   builder_.add_frequency(frequency);
   builder_.add_compounding(compounding);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *date = nullptr,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     double zero_rate = 0.0,
@@ -1979,8 +1941,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
   return quantra::CreateZeroRatePoint(
       _fbb,
       date__,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       calendar,
       business_day_convention,
       zero_rate,
@@ -1993,8 +1954,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
 struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   typedef TenorBasisSwapHelper TableType;
   double spread = 0.0;
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> index_short{};
   std::unique_ptr<quantra::IndexRefT> index_long{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
@@ -2011,22 +1971,18 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   typedef TenorBasisSwapHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SPREAD = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_INDEX_SHORT = 10,
-    VT_INDEX_LONG = 12,
-    VT_CALENDAR = 14,
-    VT_DEPS = 16,
-    VT_QUOTE_ID = 18
+    VT_TENOR = 6,
+    VT_INDEX_SHORT = 8,
+    VT_INDEX_LONG = 10,
+    VT_CALENDAR = 12,
+    VT_DEPS = 14,
+    VT_QUOTE_ID = 16
   };
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   /// Short tenor index (e.g., "EUR_3M")
   const quantra::IndexRef *index_short() const {
@@ -2048,8 +2004,8 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyOffsetRequired(verifier, VT_INDEX_SHORT) &&
            verifier.VerifyTable(index_short()) &&
            VerifyOffsetRequired(verifier, VT_INDEX_LONG) &&
@@ -2073,11 +2029,8 @@ struct TenorBasisSwapHelperBuilder {
   void add_spread(double spread) {
     fbb_.AddElement<double>(TenorBasisSwapHelper::VT_SPREAD, spread, 0.0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(TenorBasisSwapHelper::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(TenorBasisSwapHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(TenorBasisSwapHelper::VT_TENOR, tenor);
   }
   void add_index_short(::flatbuffers::Offset<quantra::IndexRef> index_short) {
     fbb_.AddOffset(TenorBasisSwapHelper::VT_INDEX_SHORT, index_short);
@@ -2110,8 +2063,7 @@ struct TenorBasisSwapHelperBuilder {
 inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double spread = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
@@ -2123,17 +2075,15 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
   builder_.add_deps(deps);
   builder_.add_index_long(index_long);
   builder_.add_index_short(index_short);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double spread = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
@@ -2143,8 +2093,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDir
   return quantra::CreateTenorBasisSwapHelper(
       _fbb,
       spread,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       index_short,
       index_long,
       calendar,
@@ -2157,8 +2106,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDir
 struct FxSwapHelperT : public ::flatbuffers::NativeTable {
   typedef FxSwapHelper TableType;
   double fx_points = 0.0;
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   int32_t spot_days = 2;
   quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET;
   quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET;
@@ -2175,22 +2123,18 @@ struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FxSwapHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_FX_POINTS = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_SPOT_DAYS = 10,
-    VT_CALENDAR_DOMESTIC = 12,
-    VT_CALENDAR_FOREIGN = 14,
-    VT_DEPS = 16,
-    VT_QUOTE_ID = 18
+    VT_TENOR = 6,
+    VT_SPOT_DAYS = 8,
+    VT_CALENDAR_DOMESTIC = 10,
+    VT_CALENDAR_FOREIGN = 12,
+    VT_DEPS = 14,
+    VT_QUOTE_ID = 16
   };
   double fx_points() const {
     return GetField<double>(VT_FX_POINTS, 0.0);
   }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   int32_t spot_days() const {
     return GetField<int32_t>(VT_SPOT_DAYS, 2);
@@ -2210,8 +2154,8 @@ struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_FX_POINTS, 8) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<int32_t>(verifier, VT_SPOT_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR_DOMESTIC, 1) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR_FOREIGN, 1) &&
@@ -2233,11 +2177,8 @@ struct FxSwapHelperBuilder {
   void add_fx_points(double fx_points) {
     fbb_.AddElement<double>(FxSwapHelper::VT_FX_POINTS, fx_points, 0.0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(FxSwapHelper::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(FxSwapHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(FxSwapHelper::VT_TENOR, tenor);
   }
   void add_spot_days(int32_t spot_days) {
     fbb_.AddElement<int32_t>(FxSwapHelper::VT_SPOT_DAYS, spot_days, 2);
@@ -2268,8 +2209,7 @@ struct FxSwapHelperBuilder {
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double fx_points = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t spot_days = 2,
     quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
     quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET,
@@ -2280,18 +2220,16 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_spot_days(spot_days);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_calendar_foreign(calendar_foreign);
   builder_.add_calendar_domestic(calendar_domestic);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double fx_points = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t spot_days = 2,
     quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
     quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET,
@@ -2301,8 +2239,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
   return quantra::CreateFxSwapHelper(
       _fbb,
       fx_points,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       spot_days,
       calendar_domestic,
       calendar_foreign,
@@ -2315,8 +2252,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
 struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   typedef CrossCcyBasisHelper TableType;
   double spread = 0.0;
-  int32_t tenor_number = 0;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> index_domestic{};
   std::unique_ptr<quantra::IndexRefT> index_foreign{};
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
@@ -2332,21 +2268,17 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   typedef CrossCcyBasisHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SPREAD = 4,
-    VT_TENOR_NUMBER = 6,
-    VT_TENOR_TIME_UNIT = 8,
-    VT_INDEX_DOMESTIC = 10,
-    VT_INDEX_FOREIGN = 12,
-    VT_DEPS = 14,
-    VT_QUOTE_ID = 16
+    VT_TENOR = 6,
+    VT_INDEX_DOMESTIC = 8,
+    VT_INDEX_FOREIGN = 10,
+    VT_DEPS = 12,
+    VT_QUOTE_ID = 14
   };
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 0);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 0));
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   /// Domestic leg index
   const quantra::IndexRef *index_domestic() const {
@@ -2365,8 +2297,8 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyOffsetRequired(verifier, VT_INDEX_DOMESTIC) &&
            verifier.VerifyTable(index_domestic()) &&
            VerifyOffsetRequired(verifier, VT_INDEX_FOREIGN) &&
@@ -2389,11 +2321,8 @@ struct CrossCcyBasisHelperBuilder {
   void add_spread(double spread) {
     fbb_.AddElement<double>(CrossCcyBasisHelper::VT_SPREAD, spread, 0.0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(CrossCcyBasisHelper::VT_TENOR_NUMBER, tenor_number, 0);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 0);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_TENOR, tenor);
   }
   void add_index_domestic(::flatbuffers::Offset<quantra::IndexRef> index_domestic) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_INDEX_DOMESTIC, index_domestic);
@@ -2423,8 +2352,7 @@ struct CrossCcyBasisHelperBuilder {
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double spread = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
@@ -2435,16 +2363,14 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
   builder_.add_deps(deps);
   builder_.add_index_foreign(index_foreign);
   builder_.add_index_domestic(index_domestic);
-  builder_.add_tenor_number(tenor_number);
-  builder_.add_tenor_time_unit(tenor_time_unit);
+  builder_.add_tenor(tenor);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double spread = 0.0,
-    int32_t tenor_number = 0,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Days,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
@@ -2453,8 +2379,7 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirec
   return quantra::CreateCrossCcyBasisHelper(
       _fbb,
       spread,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       index_domestic,
       index_foreign,
       deps,
@@ -2816,6 +2741,27 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(::flat
       _fx_spot_quote_id);
 }
 
+inline DepositHelperT::DepositHelperT(const DepositHelperT &o)
+      : rate(o.rate),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        fixing_days(o.fixing_days),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        day_counter(o.day_counter),
+        quote_id(o.quote_id) {
+}
+
+inline DepositHelperT &DepositHelperT::operator=(DepositHelperT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(rate, o.rate);
+  std::swap(tenor, o.tenor);
+  std::swap(fixing_days, o.fixing_days);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(day_counter, o.day_counter);
+  std::swap(quote_id, o.quote_id);
+  return *this;
+}
+
 inline DepositHelperT *DepositHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<DepositHelperT>(new DepositHelperT());
   UnPackTo(_o.get(), _resolver);
@@ -2826,8 +2772,7 @@ inline void DepositHelper::UnPackTo(DepositHelperT *_o, const ::flatbuffers::res
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = fixing_days(); _o->fixing_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
@@ -2844,8 +2789,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(::flatbuffers::F
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const DepositHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
-  auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _tenor_number = _o->tenor_number;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _fixing_days = _o->fixing_days;
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
@@ -2854,8 +2798,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(::flatbuffers::F
   return quantra::CreateDepositHelper(
       _fbb,
       _rate,
-      _tenor_time_unit,
-      _tenor_number,
+      _tenor,
       _fixing_days,
       _calendar,
       _business_day_convention,
@@ -2962,8 +2905,7 @@ inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(::flatbuffers::Fla
 
 inline SwapHelperT::SwapHelperT(const SwapHelperT &o)
       : rate(o.rate),
-        tenor_time_unit(o.tenor_time_unit),
-        tenor_number(o.tenor_number),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         calendar(o.calendar),
         sw_fixed_leg_frequency(o.sw_fixed_leg_frequency),
         sw_fixed_leg_convention(o.sw_fixed_leg_convention),
@@ -2977,8 +2919,7 @@ inline SwapHelperT::SwapHelperT(const SwapHelperT &o)
 
 inline SwapHelperT &SwapHelperT::operator=(SwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(rate, o.rate);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
-  std::swap(tenor_number, o.tenor_number);
+  std::swap(tenor, o.tenor);
   std::swap(calendar, o.calendar);
   std::swap(sw_fixed_leg_frequency, o.sw_fixed_leg_frequency);
   std::swap(sw_fixed_leg_convention, o.sw_fixed_leg_convention);
@@ -3001,8 +2942,7 @@ inline void SwapHelper::UnPackTo(SwapHelperT *_o, const ::flatbuffers::resolver_
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = sw_fixed_leg_frequency(); _o->sw_fixed_leg_frequency = _e; }
   { auto _e = sw_fixed_leg_convention(); _o->sw_fixed_leg_convention = _e; }
@@ -3023,8 +2963,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBuf
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
-  auto _tenor_time_unit = _o->tenor_time_unit;
-  auto _tenor_number = _o->tenor_number;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _calendar = _o->calendar;
   auto _sw_fixed_leg_frequency = _o->sw_fixed_leg_frequency;
   auto _sw_fixed_leg_convention = _o->sw_fixed_leg_convention;
@@ -3037,8 +2976,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(::flatbuffers::FlatBuf
   return quantra::CreateSwapHelper(
       _fbb,
       _rate,
-      _tenor_time_unit,
-      _tenor_number,
+      _tenor,
       _calendar,
       _sw_fixed_leg_frequency,
       _sw_fixed_leg_convention,
@@ -3137,8 +3075,7 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(::flatbuffers::FlatBuf
 
 inline OISHelperT::OISHelperT(const OISHelperT &o)
       : rate(o.rate),
-        tenor_number(o.tenor_number),
-        tenor_time_unit(o.tenor_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         overnight_index((o.overnight_index) ? new quantra::IndexRefT(*o.overnight_index) : nullptr),
         settlement_days(o.settlement_days),
         calendar(o.calendar),
@@ -3151,8 +3088,7 @@ inline OISHelperT::OISHelperT(const OISHelperT &o)
 
 inline OISHelperT &OISHelperT::operator=(OISHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(rate, o.rate);
-  std::swap(tenor_number, o.tenor_number);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(tenor, o.tenor);
   std::swap(overnight_index, o.overnight_index);
   std::swap(settlement_days, o.settlement_days);
   std::swap(calendar, o.calendar);
@@ -3174,8 +3110,7 @@ inline void OISHelper::UnPackTo(OISHelperT *_o, const ::flatbuffers::resolver_fu
   (void)_o;
   (void)_resolver;
   { auto _e = rate(); _o->rate = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = overnight_index(); if (_e) { if(_o->overnight_index) { _e->UnPackTo(_o->overnight_index.get(), _resolver); } else { _o->overnight_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index) { _o->overnight_index.reset(); } }
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
@@ -3195,8 +3130,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OISHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _rate = _o->rate;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _overnight_index = _o->overnight_index ? CreateIndexRef(_fbb, _o->overnight_index.get(), _rehasher) : 0;
   auto _settlement_days = _o->settlement_days;
   auto _calendar = _o->calendar;
@@ -3208,8 +3142,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
   return quantra::CreateOISHelper(
       _fbb,
       _rate,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _overnight_index,
       _settlement_days,
       _calendar,
@@ -3300,6 +3233,27 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
       _quote_id);
 }
 
+inline ZeroRatePointT::ZeroRatePointT(const ZeroRatePointT &o)
+      : date(o.date),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        zero_rate(o.zero_rate),
+        compounding(o.compounding),
+        frequency(o.frequency) {
+}
+
+inline ZeroRatePointT &ZeroRatePointT::operator=(ZeroRatePointT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(date, o.date);
+  std::swap(tenor, o.tenor);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(zero_rate, o.zero_rate);
+  std::swap(compounding, o.compounding);
+  std::swap(frequency, o.frequency);
+  return *this;
+}
+
 inline ZeroRatePointT *ZeroRatePoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<ZeroRatePointT>(new ZeroRatePointT());
   UnPackTo(_o.get(), _resolver);
@@ -3310,8 +3264,7 @@ inline void ZeroRatePoint::UnPackTo(ZeroRatePointT *_o, const ::flatbuffers::res
   (void)_o;
   (void)_resolver;
   { auto _e = date(); if (_e) _o->date = _e->str(); }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
   { auto _e = zero_rate(); _o->zero_rate = _e; }
@@ -3328,8 +3281,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::F
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ZeroRatePointT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
   auto _zero_rate = _o->zero_rate;
@@ -3338,8 +3290,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::F
   return quantra::CreateZeroRatePoint(
       _fbb,
       _date,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _calendar,
       _business_day_convention,
       _zero_rate,
@@ -3349,8 +3300,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::F
 
 inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT &o)
       : spread(o.spread),
-        tenor_number(o.tenor_number),
-        tenor_time_unit(o.tenor_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         index_short((o.index_short) ? new quantra::IndexRefT(*o.index_short) : nullptr),
         index_long((o.index_long) ? new quantra::IndexRefT(*o.index_long) : nullptr),
         calendar(o.calendar),
@@ -3360,8 +3310,7 @@ inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT 
 
 inline TenorBasisSwapHelperT &TenorBasisSwapHelperT::operator=(TenorBasisSwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(spread, o.spread);
-  std::swap(tenor_number, o.tenor_number);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(tenor, o.tenor);
   std::swap(index_short, o.index_short);
   std::swap(index_long, o.index_long);
   std::swap(calendar, o.calendar);
@@ -3380,8 +3329,7 @@ inline void TenorBasisSwapHelper::UnPackTo(TenorBasisSwapHelperT *_o, const ::fl
   (void)_o;
   (void)_resolver;
   { auto _e = spread(); _o->spread = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = index_short(); if (_e) { if(_o->index_short) { _e->UnPackTo(_o->index_short.get(), _resolver); } else { _o->index_short = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_short) { _o->index_short.reset(); } }
   { auto _e = index_long(); if (_e) { if(_o->index_long) { _e->UnPackTo(_o->index_long.get(), _resolver); } else { _o->index_long = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_long) { _o->index_long.reset(); } }
   { auto _e = calendar(); _o->calendar = _e; }
@@ -3398,8 +3346,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(::
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const TenorBasisSwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _spread = _o->spread;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _index_short = _o->index_short ? CreateIndexRef(_fbb, _o->index_short.get(), _rehasher) : 0;
   auto _index_long = _o->index_long ? CreateIndexRef(_fbb, _o->index_long.get(), _rehasher) : 0;
   auto _calendar = _o->calendar;
@@ -3408,8 +3355,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(::
   return quantra::CreateTenorBasisSwapHelper(
       _fbb,
       _spread,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _index_short,
       _index_long,
       _calendar,
@@ -3419,8 +3365,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(::
 
 inline FxSwapHelperT::FxSwapHelperT(const FxSwapHelperT &o)
       : fx_points(o.fx_points),
-        tenor_number(o.tenor_number),
-        tenor_time_unit(o.tenor_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         spot_days(o.spot_days),
         calendar_domestic(o.calendar_domestic),
         calendar_foreign(o.calendar_foreign),
@@ -3430,8 +3375,7 @@ inline FxSwapHelperT::FxSwapHelperT(const FxSwapHelperT &o)
 
 inline FxSwapHelperT &FxSwapHelperT::operator=(FxSwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(fx_points, o.fx_points);
-  std::swap(tenor_number, o.tenor_number);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(tenor, o.tenor);
   std::swap(spot_days, o.spot_days);
   std::swap(calendar_domestic, o.calendar_domestic);
   std::swap(calendar_foreign, o.calendar_foreign);
@@ -3450,8 +3394,7 @@ inline void FxSwapHelper::UnPackTo(FxSwapHelperT *_o, const ::flatbuffers::resol
   (void)_o;
   (void)_resolver;
   { auto _e = fx_points(); _o->fx_points = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = spot_days(); _o->spot_days = _e; }
   { auto _e = calendar_domestic(); _o->calendar_domestic = _e; }
   { auto _e = calendar_foreign(); _o->calendar_foreign = _e; }
@@ -3468,8 +3411,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(::flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FxSwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _fx_points = _o->fx_points;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _spot_days = _o->spot_days;
   auto _calendar_domestic = _o->calendar_domestic;
   auto _calendar_foreign = _o->calendar_foreign;
@@ -3478,8 +3420,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(::flatbuffers::Fla
   return quantra::CreateFxSwapHelper(
       _fbb,
       _fx_points,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _spot_days,
       _calendar_domestic,
       _calendar_foreign,
@@ -3489,8 +3430,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(::flatbuffers::Fla
 
 inline CrossCcyBasisHelperT::CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o)
       : spread(o.spread),
-        tenor_number(o.tenor_number),
-        tenor_time_unit(o.tenor_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         index_domestic((o.index_domestic) ? new quantra::IndexRefT(*o.index_domestic) : nullptr),
         index_foreign((o.index_foreign) ? new quantra::IndexRefT(*o.index_foreign) : nullptr),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
@@ -3499,8 +3439,7 @@ inline CrossCcyBasisHelperT::CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o)
 
 inline CrossCcyBasisHelperT &CrossCcyBasisHelperT::operator=(CrossCcyBasisHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(spread, o.spread);
-  std::swap(tenor_number, o.tenor_number);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(tenor, o.tenor);
   std::swap(index_domestic, o.index_domestic);
   std::swap(index_foreign, o.index_foreign);
   std::swap(deps, o.deps);
@@ -3518,8 +3457,7 @@ inline void CrossCcyBasisHelper::UnPackTo(CrossCcyBasisHelperT *_o, const ::flat
   (void)_o;
   (void)_resolver;
   { auto _e = spread(); _o->spread = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = index_domestic(); if (_e) { if(_o->index_domestic) { _e->UnPackTo(_o->index_domestic.get(), _resolver); } else { _o->index_domestic = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_domestic) { _o->index_domestic.reset(); } }
   { auto _e = index_foreign(); if (_e) { if(_o->index_foreign) { _e->UnPackTo(_o->index_foreign.get(), _resolver); } else { _o->index_foreign = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_foreign) { _o->index_foreign.reset(); } }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
@@ -3535,8 +3473,7 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CrossCcyBasisHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _spread = _o->spread;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _index_domestic = _o->index_domestic ? CreateIndexRef(_fbb, _o->index_domestic.get(), _rehasher) : 0;
   auto _index_foreign = _o->index_foreign ? CreateIndexRef(_fbb, _o->index_foreign.get(), _rehasher) : 0;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
@@ -3544,8 +3481,7 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
   return quantra::CreateCrossCcyBasisHelper(
       _fbb,
       _spread,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _index_domestic,
       _index_foreign,
       _deps,

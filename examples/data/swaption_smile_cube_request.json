@@ -14,28 +14,13 @@
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.03,
-              "tenor_time_unit": "Months",
-              "tenor_number": 3,
               "fixing_days": 2,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed"
-            }
-          },
-          {
-            "point_type": "SwapHelper",
-            "point": {
-              "rate": 0.03,
-              "tenor_time_unit": "Years",
-              "tenor_number": 5,
-              "calendar": "TARGET",
-              "sw_fixed_leg_frequency": "Annual",
-              "sw_fixed_leg_convention": "ModifiedFollowing",
-              "sw_fixed_leg_day_counter": "Thirty360",
-              "spread": 0.0,
-              "fwd_start_days": 0,
-              "float_index": {
-                "id": "EUR_6M"
+              "day_counter": "Actual365Fixed",
+              "tenor": {
+                "n": 3,
+                "unit": "Months"
               }
             }
           },
@@ -43,8 +28,6 @@
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.03,
-              "tenor_time_unit": "Years",
-              "tenor_number": 10,
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
@@ -53,6 +36,29 @@
               "fwd_start_days": 0,
               "float_index": {
                 "id": "EUR_6M"
+              },
+              "tenor": {
+                "n": 5,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "SwapHelper",
+            "point": {
+              "rate": 0.03,
+              "calendar": "TARGET",
+              "sw_fixed_leg_frequency": "Annual",
+              "sw_fixed_leg_convention": "ModifiedFollowing",
+              "sw_fixed_leg_day_counter": "Thirty360",
+              "spread": 0.0,
+              "fwd_start_days": 0,
+              "float_index": {
+                "id": "EUR_6M"
+              },
+              "tenor": {
+                "n": 10,
+                "unit": "Years"
               }
             }
           }
@@ -64,6 +70,7 @@
         "id": "swaption_smile",
         "payload_type": "SwaptionVolSpec",
         "payload": {
+          "swap_index_id": "EUR_SWAP_6M",
           "payload_type": "SwaptionVolSmileCubeSpec",
           "payload": {
             "base": {
@@ -75,25 +82,48 @@
               "displacement": 0.0
             },
             "expiries": [
-              { "tenor_number": 1, "tenor_time_unit": "Years" },
-              { "tenor_number": 2, "tenor_time_unit": "Years" }
+              {
+                "n": 1,
+                "unit": "Years"
+              },
+              {
+                "n": 2,
+                "unit": "Years"
+              }
             ],
             "tenors": [
-              { "tenor_number": 5, "tenor_time_unit": "Years" },
-              { "tenor_number": 10, "tenor_time_unit": "Years" }
+              {
+                "n": 5,
+                "unit": "Years"
+              },
+              {
+                "n": 10,
+                "unit": "Years"
+              }
             ],
-            "strikes": [-0.01, 0.0, 0.01],
+            "strikes": [
+              -0.01,
+              0.0,
+              0.01
+            ],
             "strike_kind": "SpreadFromATM",
-            "swap_index_id": "EUR_SWAP_6M",
             "vols": {
               "n_1": 2,
               "n_2": 2,
               "n_3": 3,
               "values": [
-                0.20, 0.22, 0.24,
-                0.21, 0.23, 0.25,
-                0.22, 0.24, 0.26,
-                0.23, 0.25, 0.27
+                0.2,
+                0.22,
+                0.24,
+                0.21,
+                0.23,
+                0.25,
+                0.22,
+                0.24,
+                0.26,
+                0.23,
+                0.25,
+                0.27
               ]
             }
           }
@@ -114,14 +144,16 @@
         "id": "EUR_6M",
         "name": "Euribor",
         "index_type": "Ibor",
-        "tenor_number": 6,
-        "tenor_time_unit": "Months",
         "fixing_days": 2,
         "calendar": "TARGET",
         "business_day_convention": "ModifiedFollowing",
         "day_counter": "Actual360",
         "end_of_month": false,
-        "currency": "EUR"
+        "currency": "EUR",
+        "tenor": {
+          "n": 6,
+          "unit": "Months"
+        }
       }
     ],
     "swap_indices": [
@@ -143,13 +175,15 @@
         },
         "float_index_id": "EUR_6M",
         "float_leg": {
-          "float_tenor_number": 6,
-          "float_tenor_time_unit": "Months",
           "float_calendar": "TARGET",
           "float_bdc": "ModifiedFollowing",
           "float_term_bdc": "ModifiedFollowing",
           "float_date_rule": "Forward",
-          "float_eom": false
+          "float_eom": false,
+          "float_tenor": {
+            "n": 6,
+            "unit": "Months"
+          }
         }
       }
     ]

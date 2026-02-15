@@ -38,7 +38,9 @@ SwapIndexRegistry SwapIndexRegistryBuilder::build(
         r.fixedFrequency = FrequencyToQL(f->fixed_frequency());
         r.fixedDayCounter = DayCounterToQL(f->fixed_day_counter());
         r.fixedCalendar = CalendarToQL(f->fixed_calendar());
+        r.fixedCalendarFb = f->fixed_calendar();
         r.fixedBdc = ConventionToQL(f->fixed_bdc());
+        r.fixedBdcFb = f->fixed_bdc();
         r.fixedTermBdc = ConventionToQL(f->fixed_term_bdc());
         r.fixedDateRule = DateGenerationToQL(f->fixed_date_rule());
         r.fixedEom = f->fixed_eom();
@@ -52,9 +54,12 @@ SwapIndexRegistry SwapIndexRegistryBuilder::build(
             QUANTRA_ERROR("SwapIndexDef.float_leg is required for id: " + d->id()->str());
         }
         const auto* fl = d->float_leg();
+        if (!fl->float_tenor()) {
+            QUANTRA_ERROR("SwapIndexDef.float_leg.float_tenor is required for id: " + d->id()->str());
+        }
         r.floatTenor = QuantLib::Period(
-            fl->float_tenor_number(),
-            TimeUnitToQL(fl->float_tenor_time_unit()));
+            fl->float_tenor()->n(),
+            TimeUnitToQL(fl->float_tenor()->unit()));
         r.floatCalendar = CalendarToQL(fl->float_calendar());
         r.floatBdc = ConventionToQL(fl->float_bdc());
         r.floatTermBdc = ConventionToQL(fl->float_term_bdc());

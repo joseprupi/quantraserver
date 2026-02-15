@@ -32,43 +32,40 @@ class DepositHelper(object):
         return 0.0
 
     # DepositHelper
-    def TenorTimeUnit(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # DepositHelper
-    def TenorNumber(self):
+    def FixingDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
     # DepositHelper
-    def FixingDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
-
-    # DepositHelper
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # DepositHelper
     def BusinessDayConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # DepositHelper
     def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
@@ -76,13 +73,13 @@ class DepositHelper(object):
     # Optional: reference a shared quote by id instead of inline rate
     # DepositHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def DepositHelperStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     DepositHelperStart(builder)
@@ -93,44 +90,38 @@ def DepositHelperAddRate(builder, rate):
 def AddRate(builder, rate):
     DepositHelperAddRate(builder, rate)
 
-def DepositHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+def DepositHelperAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    DepositHelperAddTenorTimeUnit(builder, tenorTimeUnit)
-
-def DepositHelperAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(2, tenorNumber, 0)
-
-def AddTenorNumber(builder, tenorNumber):
-    DepositHelperAddTenorNumber(builder, tenorNumber)
+def AddTenor(builder, tenor):
+    DepositHelperAddTenor(builder, tenor)
 
 def DepositHelperAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(3, fixingDays, 0)
+    builder.PrependInt32Slot(2, fixingDays, 0)
 
 def AddFixingDays(builder, fixingDays):
     DepositHelperAddFixingDays(builder, fixingDays)
 
 def DepositHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt8Slot(3, calendar, 0)
 
 def AddCalendar(builder, calendar):
     DepositHelperAddCalendar(builder, calendar)
 
 def DepositHelperAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(5, businessDayConvention, 0)
+    builder.PrependInt8Slot(4, businessDayConvention, 0)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     DepositHelperAddBusinessDayConvention(builder, businessDayConvention)
 
 def DepositHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, 0)
 
 def AddDayCounter(builder, dayCounter):
     DepositHelperAddDayCounter(builder, dayCounter)
 
 def DepositHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     DepositHelperAddQuoteId(builder, quoteId)
@@ -141,14 +132,17 @@ def DepositHelperEnd(builder):
 def End(builder):
     return DepositHelperEnd(builder)
 
+try:
+    from typing import Optional
+except:
+    pass
 
 class DepositHelperT(object):
 
     # DepositHelperT
     def __init__(self):
         self.rate = 0.0  # type: float
-        self.tenorTimeUnit = 0  # type: int
-        self.tenorNumber = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.fixingDays = 0  # type: int
         self.calendar = 0  # type: int
         self.businessDayConvention = 0  # type: int
@@ -177,8 +171,8 @@ class DepositHelperT(object):
         if depositHelper is None:
             return
         self.rate = depositHelper.Rate()
-        self.tenorTimeUnit = depositHelper.TenorTimeUnit()
-        self.tenorNumber = depositHelper.TenorNumber()
+        if depositHelper.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(depositHelper.Tenor())
         self.fixingDays = depositHelper.FixingDays()
         self.calendar = depositHelper.Calendar()
         self.businessDayConvention = depositHelper.BusinessDayConvention()
@@ -187,12 +181,14 @@ class DepositHelperT(object):
 
     # DepositHelperT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
         DepositHelperStart(builder)
         DepositHelperAddRate(builder, self.rate)
-        DepositHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
-        DepositHelperAddTenorNumber(builder, self.tenorNumber)
+        if self.tenor is not None:
+            DepositHelperAddTenor(builder, tenor)
         DepositHelperAddFixingDays(builder, self.fixingDays)
         DepositHelperAddCalendar(builder, self.calendar)
         DepositHelperAddBusinessDayConvention(builder, self.businessDayConvention)

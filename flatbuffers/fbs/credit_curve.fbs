@@ -1,4 +1,5 @@
 include "enums.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -8,8 +9,7 @@ namespace quantra;
 // Default probability curve specification for CDS pricing.
 
 table CdsQuote {
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
+    tenor:Period;
     quote_type:enums.CdsQuoteType;
     quote_id:string;          // Optional; resolves from Pricing.quotes (QuoteType=Credit)
     quoted_par_spread:double; // Used when quote_type = ParSpread (decimal, 0.01 = 100bps)

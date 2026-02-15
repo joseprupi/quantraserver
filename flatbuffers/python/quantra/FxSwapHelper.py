@@ -32,43 +32,40 @@ class FxSwapHelper(object):
         return 0.0
 
     # FxSwapHelper
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
-
-    # FxSwapHelper
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # FxSwapHelper
     def SpotDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
     # FxSwapHelper
     def CalendarDomestic(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # FxSwapHelper
     def CalendarForeign(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # FxSwapHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -79,13 +76,13 @@ class FxSwapHelper(object):
 
     # FxSwapHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def FxSwapHelperStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     FxSwapHelperStart(builder)
@@ -96,44 +93,38 @@ def FxSwapHelperAddFxPoints(builder, fxPoints):
 def AddFxPoints(builder, fxPoints):
     FxSwapHelperAddFxPoints(builder, fxPoints)
 
-def FxSwapHelperAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(1, tenorNumber, 0)
+def FxSwapHelperAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    FxSwapHelperAddTenorNumber(builder, tenorNumber)
-
-def FxSwapHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(2, tenorTimeUnit, 0)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    FxSwapHelperAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    FxSwapHelperAddTenor(builder, tenor)
 
 def FxSwapHelperAddSpotDays(builder, spotDays):
-    builder.PrependInt32Slot(3, spotDays, 2)
+    builder.PrependInt32Slot(2, spotDays, 2)
 
 def AddSpotDays(builder, spotDays):
     FxSwapHelperAddSpotDays(builder, spotDays)
 
 def FxSwapHelperAddCalendarDomestic(builder, calendarDomestic):
-    builder.PrependInt8Slot(4, calendarDomestic, 32)
+    builder.PrependInt8Slot(3, calendarDomestic, 32)
 
 def AddCalendarDomestic(builder, calendarDomestic):
     FxSwapHelperAddCalendarDomestic(builder, calendarDomestic)
 
 def FxSwapHelperAddCalendarForeign(builder, calendarForeign):
-    builder.PrependInt8Slot(5, calendarForeign, 32)
+    builder.PrependInt8Slot(4, calendarForeign, 32)
 
 def AddCalendarForeign(builder, calendarForeign):
     FxSwapHelperAddCalendarForeign(builder, calendarForeign)
 
 def FxSwapHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     FxSwapHelperAddDeps(builder, deps)
 
 def FxSwapHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     FxSwapHelperAddQuoteId(builder, quoteId)
@@ -154,8 +145,7 @@ class FxSwapHelperT(object):
     # FxSwapHelperT
     def __init__(self):
         self.fxPoints = 0.0  # type: float
-        self.tenorNumber = 0  # type: int
-        self.tenorTimeUnit = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.spotDays = 2  # type: int
         self.calendarDomestic = 32  # type: int
         self.calendarForeign = 32  # type: int
@@ -184,8 +174,8 @@ class FxSwapHelperT(object):
         if fxSwapHelper is None:
             return
         self.fxPoints = fxSwapHelper.FxPoints()
-        self.tenorNumber = fxSwapHelper.TenorNumber()
-        self.tenorTimeUnit = fxSwapHelper.TenorTimeUnit()
+        if fxSwapHelper.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(fxSwapHelper.Tenor())
         self.spotDays = fxSwapHelper.SpotDays()
         self.calendarDomestic = fxSwapHelper.CalendarDomestic()
         self.calendarForeign = fxSwapHelper.CalendarForeign()
@@ -195,14 +185,16 @@ class FxSwapHelperT(object):
 
     # FxSwapHelperT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.deps is not None:
             deps = self.deps.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
         FxSwapHelperStart(builder)
         FxSwapHelperAddFxPoints(builder, self.fxPoints)
-        FxSwapHelperAddTenorNumber(builder, self.tenorNumber)
-        FxSwapHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            FxSwapHelperAddTenor(builder, tenor)
         FxSwapHelperAddSpotDays(builder, self.spotDays)
         FxSwapHelperAddCalendarDomestic(builder, self.calendarDomestic)
         FxSwapHelperAddCalendarForeign(builder, self.calendarForeign)

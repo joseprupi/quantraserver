@@ -18,6 +18,7 @@
 #include <ql/math/interpolations/loginterpolation.hpp>
 
 #include "term_structure_generated.h"
+#include "coupon_pricer_generated.h"
 #include "term_structure_point_parser.h"
 #include "enums.h"
 #include "common.h"

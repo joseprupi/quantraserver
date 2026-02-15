@@ -6,14 +6,16 @@
         "id": "EUR_6M",
         "name": "Euribor",
         "index_type": "Ibor",
-        "tenor_number": 6,
-        "tenor_time_unit": "Months",
         "fixing_days": 2,
         "calendar": "TARGET",
         "business_day_convention": "ModifiedFollowing",
         "day_counter": "Actual360",
         "end_of_month": false,
-        "currency": "EUR"
+        "currency": "EUR",
+        "tenor": {
+          "n": 6,
+          "unit": "Months"
+        }
       }
     ],
     "curves": [
@@ -28,32 +30,34 @@
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.045,
-              "tenor_number": 3,
-              "tenor_time_unit": "Months",
               "fixing_days": 2,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual360"
+              "day_counter": "Actual360",
+              "tenor": {
+                "n": 3,
+                "unit": "Months"
+              }
             }
           },
           {
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.048,
-              "tenor_number": 6,
-              "tenor_time_unit": "Months",
               "fixing_days": 2,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual360"
+              "day_counter": "Actual360",
+              "tenor": {
+                "n": 6,
+                "unit": "Months"
+              }
             }
           },
           {
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.042,
-              "tenor_number": 2,
-              "tenor_time_unit": "Years",
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
@@ -62,6 +66,10 @@
               "fwd_start_days": 2,
               "float_index": {
                 "id": "EUR_6M"
+              },
+              "tenor": {
+                "n": 2,
+                "unit": "Years"
               }
             }
           },
@@ -69,8 +77,6 @@
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.04,
-              "tenor_number": 5,
-              "tenor_time_unit": "Years",
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
@@ -79,6 +85,10 @@
               "fwd_start_days": 2,
               "float_index": {
                 "id": "EUR_6M"
+              },
+              "tenor": {
+                "n": 5,
+                "unit": "Years"
               }
             }
           }
@@ -97,36 +107,36 @@
         "grid": {
           "tenors": [
             {
-              "tenor_number": 0,
-              "tenor_time_unit": "Days"
+              "n": 0,
+              "unit": "Days"
             },
             {
-              "tenor_number": 1,
-              "tenor_time_unit": "Months"
+              "n": 1,
+              "unit": "Months"
             },
             {
-              "tenor_number": 2,
-              "tenor_time_unit": "Months"
+              "n": 2,
+              "unit": "Months"
             },
             {
-              "tenor_number": 3,
-              "tenor_time_unit": "Months"
+              "n": 3,
+              "unit": "Months"
             },
             {
-              "tenor_number": 6,
-              "tenor_time_unit": "Months"
+              "n": 6,
+              "unit": "Months"
             },
             {
-              "tenor_number": 9,
-              "tenor_time_unit": "Months"
+              "n": 9,
+              "unit": "Months"
             },
             {
-              "tenor_number": 1,
-              "tenor_time_unit": "Years"
+              "n": 1,
+              "unit": "Years"
             },
             {
-              "tenor_number": 2,
-              "tenor_time_unit": "Years"
+              "n": 2,
+              "unit": "Years"
             }
           ],
           "calendar": "TARGET",
@@ -135,10 +145,12 @@
       },
       "fwd": {
         "forward_type": "Period",
-        "tenor_number": 3,
-        "tenor_time_unit": "Months",
         "compounding": "Simple",
-        "use_curve_day_counter": true
+        "use_curve_day_counter": true,
+        "tenor": {
+          "n": 3,
+          "unit": "Months"
+        }
       }
     }
   ]

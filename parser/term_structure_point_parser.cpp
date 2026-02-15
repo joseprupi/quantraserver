@@ -70,11 +70,14 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     if (point_type == quantra::Point_DepositHelper) {
         auto point = static_cast<const quantra::DepositHelper*>(data);
+        if (!point->tenor()) {
+            QUANTRA_ERROR("DepositHelper.tenor is required");
+        }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<DepositRateHelper>(
             q,
-            point->tenor_number() * TimeUnitToQL(point->tenor_time_unit()),
+            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
             point->fixing_days(),
             CalendarToQL(point->calendar()),
             ConventionToQL(point->business_day_convention()),
@@ -149,6 +152,9 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_SwapHelper) {
         auto point = static_cast<const quantra::SwapHelper*>(data);
+        if (!point->tenor()) {
+            QUANTRA_ERROR("SwapHelper.tenor is required");
+        }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
@@ -185,7 +191,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         return std::make_shared<SwapRateHelper>(
             q,
-            point->tenor_number() * TimeUnitToQL(point->tenor_time_unit()),
+            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
             CalendarToQL(point->calendar()),
             FrequencyToQL(point->sw_fixed_leg_frequency()),
             ConventionToQL(point->sw_fixed_leg_convention()),
@@ -235,6 +241,9 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_OISHelper) {
         auto point = static_cast<const quantra::OISHelper*>(data);
+        if (!point->tenor()) {
+            QUANTRA_ERROR("OISHelper.tenor is required");
+        }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
@@ -267,7 +276,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         return std::make_shared<OISRateHelper>(
             point->settlement_days(),
-            point->tenor_number() * TimeUnitToQL(point->tenor_time_unit()),
+            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
             q,
             on,
             discount

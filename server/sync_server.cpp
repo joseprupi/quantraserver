@@ -12,6 +12,7 @@
 #include "swaption_handler.h"
 #include "cds_handler.h"
 #include "bootstrap_curves_handler.h"
+#include "sample_vol_surfaces_handler.h"
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>

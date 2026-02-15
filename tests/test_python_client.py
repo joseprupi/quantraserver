@@ -79,6 +79,7 @@ from quantra_client.client import (
     Calendar,
     BusinessDayConvention,
     Frequency,
+    PeriodT,
     TimeUnit,
     DateGenerationRule,
     Interpolator,
@@ -105,6 +106,12 @@ FLAT_RATE = 0.03
 EVAL_DATE = ql.Date(15, ql.January, 2025)
 EVAL_DATE_STR = "2025-01-15"
 TOLERANCE = 0.01  # 1 cent tolerance
+
+def mk_period(n: int, unit: int) -> PeriodT:
+    p = PeriodT()
+    p.n = n
+    p.unit = unit
+    return p
 
 
 # =============================================================================
@@ -174,8 +181,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     # 3M deposit
     dep3m = DepositHelperT()
     dep3m.rate = FLAT_RATE
-    dep3m.tenorNumber = 3
-    dep3m.tenorTimeUnit = TimeUnit.Months
+    dep3m.tenor = mk_period(3, TimeUnit.Months)
     dep3m.fixingDays = 2
     dep3m.calendar = Calendar.TARGET
     dep3m.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -188,8 +194,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     # 6M deposit
     dep6m = DepositHelperT()
     dep6m.rate = FLAT_RATE
-    dep6m.tenorNumber = 6
-    dep6m.tenorTimeUnit = TimeUnit.Months
+    dep6m.tenor = mk_period(6, TimeUnit.Months)
     dep6m.fixingDays = 2
     dep6m.calendar = Calendar.TARGET
     dep6m.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -202,8 +207,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     # 1Y deposit
     dep1y = DepositHelperT()
     dep1y.rate = FLAT_RATE
-    dep1y.tenorNumber = 1
-    dep1y.tenorTimeUnit = TimeUnit.Years
+    dep1y.tenor = mk_period(1, TimeUnit.Years)
     dep1y.fixingDays = 2
     dep1y.calendar = Calendar.TARGET
     dep1y.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -216,8 +220,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     # 5Y swap
     sw5y = SwapHelperT()
     sw5y.rate = FLAT_RATE
-    sw5y.tenorNumber = 5
-    sw5y.tenorTimeUnit = TimeUnit.Years
+    sw5y.tenor = mk_period(5, TimeUnit.Years)
     sw5y.calendar = Calendar.TARGET
     sw5y.swFixedLegFrequency = Frequency.Annual
     sw5y.swFixedLegConvention = BusinessDayConvention.ModifiedFollowing
@@ -235,8 +238,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     # 10Y swap
     sw10y = SwapHelperT()
     sw10y.rate = FLAT_RATE
-    sw10y.tenorNumber = 10
-    sw10y.tenorTimeUnit = TimeUnit.Years
+    sw10y.tenor = mk_period(10, TimeUnit.Years)
     sw10y.calendar = Calendar.TARGET
     sw10y.swFixedLegFrequency = Frequency.Annual
     sw10y.swFixedLegConvention = BusinessDayConvention.ModifiedFollowing
@@ -276,8 +278,7 @@ def build_index_def_eur6m() -> IndexDefT:
     idef.id = "EUR_6M"
     idef.name = "Euribor"
     idef.indexType = IndexType.Ibor
-    idef.tenorNumber = 6
-    idef.tenorTimeUnit = TimeUnit.Months
+    idef.tenor = mk_period(6, TimeUnit.Months)
     idef.fixingDays = 2
     idef.calendar = Calendar.TARGET
     idef.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -293,8 +294,7 @@ def build_index_def_eur3m() -> IndexDefT:
     idef.id = "EUR_3M"
     idef.name = "Euribor"
     idef.indexType = IndexType.Ibor
-    idef.tenorNumber = 3
-    idef.tenorTimeUnit = TimeUnit.Months
+    idef.tenor = mk_period(3, TimeUnit.Months)
     idef.fixingDays = 2
     idef.calendar = Calendar.TARGET
     idef.businessDayConvention = BusinessDayConvention.ModifiedFollowing
@@ -384,6 +384,7 @@ def build_quantra_swaption_vol(vol_id: str, vol: float,
     swaption_const.base = base
 
     swaption_vol = SwaptionVolSpecT()
+    swaption_vol.swapIndexId = "EUR_SWAP_6M"
     swaption_vol.payloadType = SwaptionVolPayload.SwaptionVolConstantSpec
     swaption_vol.payload = swaption_const
     
@@ -1020,7 +1021,7 @@ def test_bootstrap_curves(client, curve_handle):
     from quantra.CurveQuerySpec import CurveQuerySpecT
     from quantra.DateGridSpec import DateGridSpecT
     from quantra.TenorGrid import TenorGridT
-    from quantra.PeriodSpec import PeriodSpecT
+    from quantra.Period import PeriodT
     from quantra.DateGrid import DateGrid
     from quantra.CurveMeasure import CurveMeasure
     
@@ -1028,9 +1029,9 @@ def test_bootstrap_curves(client, curve_handle):
     tenors = []
     for n, unit in [(3, TimeUnit.Months), (6, TimeUnit.Months), (1, TimeUnit.Years), 
                     (2, TimeUnit.Years), (5, TimeUnit.Years)]:
-        tenor = PeriodSpecT()
-        tenor.tenorNumber = n
-        tenor.tenorTimeUnit = unit
+        tenor = PeriodT()
+        tenor.n = n
+        tenor.unit = unit
         tenors.append(tenor)
     
     # Build tenor grid

@@ -1,0 +1,1865 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_IndexType" : {
+      "type" : "string",
+      "enum": ["Ibor", "Overnight"]
+    },
+    "quantra_Point" : {
+      "type" : "string",
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
+    },
+    "quantra_SwaptionVolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "SwaptionVolConstantSpec", "SwaptionVolAtmMatrixSpec", "SwaptionVolSmileCubeSpec", "SwaptionSabrParamsSpec", "SwaptionSabrCalibrateSpec"]
+    },
+    "quantra_VolPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec"]
+    },
+    "quantra_OptionletVolatilityStructure" : {
+      "type" : "string",
+      "enum": ["NONE", "ConstantOptionletVolatility"]
+    },
+    "quantra_Pricer" : {
+      "type" : "string",
+      "enum": ["NONE", "BlackIborCouponPricer"]
+    },
+    "quantra_QuoteKind" : {
+      "type" : "string",
+      "enum": ["Rate", "Spread", "Price", "FuturesPrice", "FxSpot", "FxPoints"]
+    },
+    "quantra_QuoteType" : {
+      "type" : "string",
+      "enum": ["Curve", "Volatility", "Credit"]
+    },
+    "quantra_ModelPayload" : {
+      "type" : "string",
+      "enum": ["NONE", "CapFloorModelSpec", "SwaptionModelSpec", "CdsModelSpec", "EquityVanillaModelSpec"]
+    },
+    "quantra_SwapIndexKind" : {
+      "type" : "string",
+      "enum": ["IborSwapIndex", "OisSwapIndex"]
+    },
+    "quantra_CurveMeasure" : {
+      "type" : "string",
+      "enum": ["DF", "ZERO", "FWD"]
+    },
+    "quantra_ForwardType" : {
+      "type" : "string",
+      "enum": ["Instantaneous", "Period"]
+    },
+    "quantra_DateGrid" : {
+      "type" : "string",
+      "enum": ["NONE", "TenorGrid", "RangeGrid"]
+    },
+    "quantra_VolSurfaceType" : {
+      "type" : "string",
+      "enum": ["Swaption", "Optionlet"]
+    },
+    "quantra_VolStrikeAxis" : {
+      "type" : "string",
+      "enum": ["AbsoluteStrike", "SpreadFromATM"]
+    },
+    "quantra_VolOutputMode" : {
+      "type" : "string",
+      "enum": ["Cube", "SmileSlice", "TermSlice", "ExpirySlice"]
+    },
+    "quantra_ExpiryKind" : {
+      "type" : "string",
+      "enum": ["ExerciseDate", "GridDate"]
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterestFloat" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterestFloat" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Schedule" : {
+      "type" : "object",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "effective_date" : {
+                "type" : "string"
+              },
+        "termination_date" : {
+                "type" : "string"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "termination_date_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "end_of_month" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Fixing" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "value" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["date"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexDef" : {
+      "type" : "object",
+      "description" : "Complete index definition. Registered once per request, referenced by id.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")"
+              },
+        "name" : {
+                "type" : "string",
+                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\", \"MyBank3M\")\nUsed as the QuantLib index familyName. No financial logic depends on this."
+              },
+        "index_type" : {
+                "$ref" : "#/definitions/quantra_IndexType",
+                "description" : "IBOR or Overnight. Determines QuantLib class used."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)"
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar for fixing/payment dates"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day count convention"
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End of month rule (IBOR only, ignored for overnight)"
+              },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")\nMapped to QuantLib Currency objects. Required."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Past fixings needed for seasoned instruments.\nApplied via index->addFixing() before pricing."
+              }
+      },
+      "required" : ["id", "name"],
+      "additionalProperties" : false
+    },
+    "quantra_IndexRef" : {
+      "type" : "object",
+      "description" : "Reference to an IndexDef by its id.\nUsed by helpers and instruments to point to a registered index.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CurveRef" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_HelperDependencies" : {
+      "type" : "object",
+      "properties" : {
+        "discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous discount curve for dual-curve bootstrapping.\nSupported by: SwapHelper, OISHelper, DatedOISHelper,\nTenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper."
+              },
+        "projection_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Exogenous projection/forwarding curve.\n\n⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.\nQuantLib's SwapRateHelper/OISRateHelper override the index forwarding\nhandle via index->clone(termStructureHandle_) during bootstrapping.\nThe projection curve is ALWAYS the curve being bootstrapped for these\nhelpers. Setting this field on Swap/OIS helpers will produce a hard\nerror at parse time.\n\nSupported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper\n(and future custom helpers that genuinely encode projection relationships)."
+              },
+        "projection_curve_2" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Second projection curve for basis/XCCY helpers (e.g. the \"other leg\").\nSame restrictions as projection_curve above."
+              },
+        "fx_spot_quote_id" : {
+                "type" : "string",
+                "description" : "FX spot quote reference for FX-implied curve helpers."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_DepositHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: reference a shared quote by id instead of inline rate"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FRAHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "months_to_start" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "months_to_end" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FutureHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "future_start_date" : {
+                "type" : "string"
+              },
+        "future_months" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "futures_price" : {
+                "type" : "number",
+                "description" : "Futures price (e.g. 95.25); if set, rate is ignored"
+              },
+        "convexity_adjustment" : {
+                "type" : "number",
+                "description" : "Convexity adjustment added to implied rate"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "sw_fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "sw_fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "sw_fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "float_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an IndexDef by id (e.g., \"EUR_6M\")"
+              },
+        "spread" : {
+                "type" : "number"
+              },
+        "fwd_start_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for multi-curve bootstrapping"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["float_index"],
+      "additionalProperties" : false
+    },
+    "quantra_BondHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "face_amount" : {
+                "type" : "number"
+              },
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule"
+              },
+        "coupon_rate" : {
+                "type" : "number"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "redemption" : {
+                "type" : "number"
+              },
+        "issue_date" : {
+                "type" : "string"
+              },
+        "price" : {
+                "type" : "number",
+                "description" : "Bond price (preferred over rate for clarity)"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OISHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "overnight_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")"
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["overnight_index"],
+      "additionalProperties" : false
+    },
+    "quantra_DatedOISHelper" : {
+      "type" : "object",
+      "properties" : {
+        "rate" : {
+                "type" : "number"
+              },
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "overnight_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Reference to an overnight IndexDef by id"
+              },
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "fixed_leg_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_leg_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies",
+                "description" : "Exogenous discount curve for dual-curve OIS bootstrapping"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["start_date", "end_date", "overnight_index"],
+      "additionalProperties" : false
+    },
+    "quantra_ZeroRatePoint" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the zero rate (YYYY-MM-DD)"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "zero_rate" : {
+                "type" : "number",
+                "description" : "Zero rate for this maturity"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding",
+                "description" : "Compounding convention for the zero rate"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Frequency (used when compounding != Continuous)"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_TenorBasisSwapHelper" : {
+      "type" : "object",
+      "properties" : {
+        "spread" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "index_short" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Short tenor index (e.g., \"EUR_3M\")"
+              },
+        "index_long" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Long tenor index (e.g., \"EUR_6M\")"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["index_short", "index_long"],
+      "additionalProperties" : false
+    },
+    "quantra_FxSwapHelper" : {
+      "type" : "object",
+      "properties" : {
+        "fx_points" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar_domestic" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "calendar_foreign" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CrossCcyBasisHelper" : {
+      "type" : "object",
+      "properties" : {
+        "spread" : {
+                "type" : "number"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "index_domestic" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Domestic leg index"
+              },
+        "index_foreign" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Foreign leg index"
+              },
+        "deps" : {
+                "$ref" : "#/definitions/quantra_HelperDependencies"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["index_domestic", "index_foreign"],
+      "additionalProperties" : false
+    },
+    "quantra_PointsWrapper" : {
+      "type" : "object",
+      "properties" : {
+        "point_type" : {
+                "$ref" : "#/definitions/quantra_Point"
+              },
+        "point" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_TermStructure" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "bootstrap_trait" : {
+                "$ref" : "#/definitions/quantra_enums_BootstrapTrait"
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PointsWrapper"}
+              },
+        "reference_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteMatrix2D" : {
+      "type" : "object",
+      "properties" : {
+        "n_rows" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_cols" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteTensor3D" : {
+      "type" : "object",
+      "properties" : {
+        "n_1" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_2" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_3" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "values" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "quote_ids" : {
+                "type" : "array", "items" : {"type" : "string"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_IrVolBaseSpec" : {
+      "type" : "object",
+      "properties" : {
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
+        "volatility_type" : {
+                "$ref" : "#/definitions/quantra_enums_VolatilityType"
+              },
+        "displacement" : {
+                "type" : "number"
+              },
+        "constant_vol" : {
+                "type" : "number"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolBaseSpec" : {
+      "type" : "object",
+      "properties" : {
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "shape" : {
+                "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
+              },
+        "constant_vol" : {
+                "type" : "number"
+              },
+        "quote_id" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_OptionletVolSpec" : {
+      "type" : "object",
+      "description" : "Optionlet volatility for Caps/Floors",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolConstantSpec" : {
+      "type" : "object",
+      "description" : "Swaption volatility (constant, matrix, smile cube, SABR)",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolAtmMatrixSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSmileCubeSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "allow_external_atm" : {
+                "type" : "boolean"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "strike_kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
+              },
+        "atm_forwards" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "expiry_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "tenor_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "strike_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrParamsSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "alpha" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "beta" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "rho" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              },
+        "nu" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionSabrCalibrateSpec" : {
+      "type" : "object",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_IrVolBaseSpec"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "vols" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              },
+        "beta_fixed" : {
+                "type" : "boolean"
+              },
+        "beta_value" : {
+                "type" : "number"
+              },
+        "weights" : {
+                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolSpec" : {
+      "type" : "object",
+      "properties" : {
+        "swap_index_id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_SwaptionVolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_SwaptionVolConstantSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolAtmMatrixSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSmileCubeSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrParamsSpec" },{ "$ref" : "#/definitions/quantra_SwaptionSabrCalibrateSpec" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackVolSpec" : {
+      "type" : "object",
+      "description" : "Black volatility for Equity/FX/Commodity options",
+      "properties" : {
+        "base" : {
+                "$ref" : "#/definitions/quantra_BlackVolBaseSpec"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceSpec" : {
+      "type" : "object",
+      "description" : "Volatility surface specification - referenced by id in trade requests",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_VolPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" }]
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_ConstantOptionletVolatility" : {
+      "type" : "object",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "volatility" : {
+                "type" : "number"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_BlackIborCouponPricer" : {
+      "type" : "object",
+      "properties" : {
+        "optionlet_volatility_structure_type" : {
+                "$ref" : "#/definitions/quantra_OptionletVolatilityStructure"
+              },
+        "optionlet_volatility_structure" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_ConstantOptionletVolatility" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CouponPricer" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "pricer_type" : {
+                "$ref" : "#/definitions/quantra_Pricer"
+              },
+        "pricer" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_BlackIborCouponPricer" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_QuoteSpec" : {
+      "type" : "object",
+      "description" : "Market quote (spot price, FX rate, etc.)\nUsed by: Pricing.quotes[], helper quote_id references",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_QuoteKind"
+              },
+        "value" : {
+                "type" : "number"
+              },
+        "quote_type" : {
+                "$ref" : "#/definitions/quantra_QuoteType"
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_CapFloorModelSpec" : {
+      "type" : "object",
+      "description" : "Cap/Floor pricing model specification",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionModelSpec" : {
+      "type" : "object",
+      "description" : "Swaption pricing model specification",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_IrModelType"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CdsModelSpec" : {
+      "type" : "object",
+      "description" : "CDS pricing model specification",
+      "properties" : {
+        "engine_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsEngineType"
+              },
+        "include_settlement_date_flows" : {
+                "type" : "boolean"
+              },
+        "isda_numerical_fix" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaNumericalFix"
+              },
+        "isda_accrual_bias" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaAccrualBias"
+              },
+        "isda_forwards_in_coupon_period" : {
+                "$ref" : "#/definitions/quantra_enums_CdsIsdaForwardsInCouponPeriod"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityVanillaModelSpec" : {
+      "type" : "object",
+      "description" : "Equity vanilla option pricing model specification (future)",
+      "properties" : {
+        "model_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityModelType"
+              },
+        "binomial_steps" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ModelSpec" : {
+      "type" : "object",
+      "description" : "Model specification - references by id in trade requests",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "payload_type" : {
+                "$ref" : "#/definitions/quantra_ModelPayload"
+              },
+        "payload" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_CapFloorModelSpec" },{ "$ref" : "#/definitions/quantra_SwaptionModelSpec" },{ "$ref" : "#/definitions/quantra_CdsModelSpec" },{ "$ref" : "#/definitions/quantra_EquityVanillaModelSpec" }]
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexFixedLegSpec" : {
+      "type" : "object",
+      "properties" : {
+        "fixed_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "fixed_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "fixed_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "fixed_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "fixed_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "fixed_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexFloatLegSpec" : {
+      "type" : "object",
+      "properties" : {
+        "float_tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "float_calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "float_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_term_bdc" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "float_date_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "float_eom" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapIndexDef" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_SwapIndexKind"
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "end_of_month" : {
+                "type" : "boolean"
+              },
+        "fixed_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFixedLegSpec"
+              },
+        "float_index_id" : {
+                "type" : "string"
+              },
+        "float_leg" : {
+                "$ref" : "#/definitions/quantra_SwapIndexFloatLegSpec"
+              },
+        "allow_override_from_trade" : {
+                "type" : "boolean"
+              }
+      },
+      "required" : ["id", "float_index_id"],
+      "additionalProperties" : false
+    },
+    "quantra_CdsQuote" : {
+      "type" : "object",
+      "properties" : {
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "quote_type" : {
+                "$ref" : "#/definitions/quantra_enums_CdsQuoteType"
+              },
+        "quote_id" : {
+                "type" : "string"
+              },
+        "quoted_par_spread" : {
+                "type" : "number"
+              },
+        "quoted_upfront" : {
+                "type" : "number"
+              },
+        "running_coupon" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CdsHelperConventions" : {
+      "type" : "object",
+      "properties" : {
+        "settlement_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "last_period_day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "settles_accrual" : {
+                "type" : "boolean"
+              },
+        "pays_at_default_time" : {
+                "type" : "boolean"
+              },
+        "rebates_accrual" : {
+                "type" : "boolean"
+              },
+        "helper_model" : {
+                "$ref" : "#/definitions/quantra_enums_CdsHelperModel"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CreditCurveSpec" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "recovery_rate" : {
+                "type" : "number"
+              },
+        "curve_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "helper_conventions" : {
+                "$ref" : "#/definitions/quantra_CdsHelperConventions"
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CdsQuote"}
+              },
+        "flat_hazard_rate" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["id", "reference_date"],
+      "additionalProperties" : false
+    },
+    "quantra_Pricing" : {
+      "type" : "object",
+      "properties" : {
+        "as_of_date" : {
+                "type" : "string",
+                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL"
+              },
+        "settlement_date" : {
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond"
+              },
+        "indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
+                "description" : "Index definitions. Used by: ALL floating-rate instruments and curve helpers.\nEvery IndexRef in the request must resolve to an IndexDef here."
+              },
+        "swap_indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapIndexDef"},
+                "description" : "Swap index definitions for convention-stable swaption smile ATM computation."
+              },
+        "curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
+                "description" : "Yield curves for discounting/forwarding. Used by: ALL"
+              },
+        "credit_curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CreditCurveSpec"},
+                "description" : "Credit curves for CDS pricing. Used by: CDS"
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
+                "description" : "Market quotes (spot prices, FX rates). Used by: EquityOption (future)"
+              },
+        "vol_surfaces" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSpec"},
+                "description" : "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption"
+              },
+        "models" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ModelSpec"},
+                "description" : "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption"
+              },
+        "bond_pricing_details" : {
+                "type" : "boolean",
+                "description" : "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond"
+              },
+        "bond_pricing_flows" : {
+                "type" : "boolean",
+                "description" : "Include cash flow details. Used by: FixedRateBond, FloatingRateBond"
+              },
+        "swaption_pricing_details" : {
+                "type" : "boolean",
+                "description" : "Include detailed swaption analytics (delta/vega/gamma/theta/DV01)."
+              },
+        "swaption_pricing_rebump" : {
+                "type" : "boolean",
+                "description" : "Include curve-rebump swaption analytics (Bloomberg-style)."
+              },
+        "coupon_pricers" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
+                "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap"
+              }
+      },
+      "required" : ["as_of_date", "curves"],
+      "additionalProperties" : false
+    },
+    "quantra_TenorGrid" : {
+      "type" : "object",
+      "description" : "Tenors relative to a curve reference date.",
+      "properties" : {
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              }
+      },
+      "required" : ["tenors"],
+      "additionalProperties" : false
+    },
+    "quantra_RangeGrid" : {
+      "type" : "object",
+      "description" : "Sample a curve between start/end with a step.",
+      "properties" : {
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "step_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "step_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "business_days_only" : {
+                "type" : "boolean"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              }
+      },
+      "required" : ["end_date"],
+      "additionalProperties" : false
+    },
+    "quantra_DateGridSpec" : {
+      "type" : "object",
+      "properties" : {
+        "grid_type" : {
+                "$ref" : "#/definitions/quantra_DateGrid"
+              },
+        "grid" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_TenorGrid" },{ "$ref" : "#/definitions/quantra_RangeGrid" }]
+              }
+      },
+      "required" : ["grid"],
+      "additionalProperties" : false
+    },
+    "quantra_QueryOptions" : {
+      "type" : "object",
+      "description" : "Generic query options for reusable sampling endpoints.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "max_points" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean"
+              },
+        "strict" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ZeroRateQuery" : {
+      "type" : "object",
+      "properties" : {
+        "use_curve_day_counter" : {
+                "type" : "boolean"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_ForwardRateQuery" : {
+      "type" : "object",
+      "properties" : {
+        "use_curve_day_counter" : {
+                "type" : "boolean"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "forward_type" : {
+                "$ref" : "#/definitions/quantra_ForwardType"
+              },
+        "instantaneous_eps_number" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "instantaneous_eps_time_unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "use_grid_calendar_for_advance" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_CurveQuerySpec" : {
+      "type" : "object",
+      "description" : "Query spec for one curve id within Pricing.curves[].",
+      "properties" : {
+        "curve_id" : {
+                "type" : "string"
+              },
+        "measures" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveMeasure"}
+              },
+        "grid" : {
+                "$ref" : "#/definitions/quantra_DateGridSpec"
+              },
+        "zero" : {
+                "$ref" : "#/definitions/quantra_ZeroRateQuery"
+              },
+        "fwd" : {
+                "$ref" : "#/definitions/quantra_ForwardRateQuery"
+              },
+        "options" : {
+                "$ref" : "#/definitions/quantra_QueryOptions"
+              }
+      },
+      "required" : ["curve_id", "measures", "grid"],
+      "additionalProperties" : false
+    },
+    "quantra_StrikeGrid" : {
+      "type" : "object",
+      "properties" : {
+        "axis" : {
+                "$ref" : "#/definitions/quantra_VolStrikeAxis"
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              }
+      },
+      "required" : ["strikes"],
+      "additionalProperties" : false
+    },
+    "quantra_VolQuerySpec" : {
+      "type" : "object",
+      "properties" : {
+        "vol_id" : {
+                "type" : "string"
+              },
+        "surface_type" : {
+                "$ref" : "#/definitions/quantra_VolSurfaceType"
+              },
+        "expiry_grid" : {
+                "$ref" : "#/definitions/quantra_DateGridSpec"
+              },
+        "tenor_grid" : {
+                "$ref" : "#/definitions/quantra_DateGridSpec"
+              },
+        "strike_grid" : {
+                "$ref" : "#/definitions/quantra_StrikeGrid"
+              },
+        "options" : {
+                "$ref" : "#/definitions/quantra_QueryOptions"
+              },
+        "output_mode" : {
+                "$ref" : "#/definitions/quantra_VolOutputMode"
+              },
+        "swap_index_id" : {
+                "type" : "string"
+              },
+        "slice_expiry_index" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "slice_tenor_index" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "slice_strike" : {
+                "type" : "number"
+              },
+        "slice_strike_is_set" : {
+                "type" : "boolean"
+              },
+        "discounting_curve_id" : {
+                "type" : "string"
+              },
+        "forwarding_curve_id" : {
+                "type" : "string"
+              }
+      },
+      "required" : ["vol_id", "expiry_grid", "strike_grid"],
+      "additionalProperties" : false
+    },
+    "quantra_VolSurfaceSample" : {
+      "type" : "object",
+      "properties" : {
+        "vol_id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "ql_vol_type" : {
+                "$ref" : "#/definitions/quantra_enums_VolatilityType"
+              },
+        "requested_strike_axis" : {
+                "$ref" : "#/definitions/quantra_VolStrikeAxis"
+              },
+        "canonical_strike_kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
+              },
+        "allow_extrapolation_used" : {
+                "type" : "boolean"
+              },
+        "calendar_used" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention_used" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "expiry_kind" : {
+                "$ref" : "#/definitions/quantra_ExpiryKind"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"type" : "string"}
+              },
+        "requested_expiry_grid_points" : {
+                "type" : "array", "items" : {"type" : "string"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "effective_swap_starts" : {
+                "type" : "array", "items" : {"type" : "string"}
+              },
+        "effective_swap_ends" : {
+                "type" : "array", "items" : {"type" : "string"}
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "vols" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "n_expiries" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_tenors" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_strikes" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "atm_levels" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "error" : {
+                "$ref" : "#/definitions/quantra_Error"
+              }
+      },
+      "required" : ["vol_id"],
+      "additionalProperties" : false
+    },
+    "quantra_SampleVolSurfacesRequest" : {
+      "type" : "object",
+      "properties" : {
+        "pricing" : {
+                "$ref" : "#/definitions/quantra_Pricing"
+              },
+        "queries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolQuerySpec"}
+              }
+      },
+      "required" : ["pricing", "queries"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_SampleVolSurfacesRequest"
+}

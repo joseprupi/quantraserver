@@ -53,8 +53,15 @@ class QueryOptions(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
+    # QueryOptions
+    def Strict(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
+
 def QueryOptionsStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     QueryOptionsStart(builder)
@@ -83,6 +90,12 @@ def QueryOptionsAddAllowExtrapolation(builder, allowExtrapolation):
 def AddAllowExtrapolation(builder, allowExtrapolation):
     QueryOptionsAddAllowExtrapolation(builder, allowExtrapolation)
 
+def QueryOptionsAddStrict(builder, strict):
+    builder.PrependBoolSlot(4, strict, 1)
+
+def AddStrict(builder, strict):
+    QueryOptionsAddStrict(builder, strict)
+
 def QueryOptionsEnd(builder):
     return builder.EndObject()
 
@@ -98,6 +111,7 @@ class QueryOptionsT(object):
         self.businessDayConvention = 0  # type: int
         self.maxPoints = 50000  # type: int
         self.allowExtrapolation = True  # type: bool
+        self.strict = True  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -124,6 +138,7 @@ class QueryOptionsT(object):
         self.businessDayConvention = queryOptions.BusinessDayConvention()
         self.maxPoints = queryOptions.MaxPoints()
         self.allowExtrapolation = queryOptions.AllowExtrapolation()
+        self.strict = queryOptions.Strict()
 
     # QueryOptionsT
     def Pack(self, builder):
@@ -132,5 +147,6 @@ class QueryOptionsT(object):
         QueryOptionsAddBusinessDayConvention(builder, self.businessDayConvention)
         QueryOptionsAddMaxPoints(builder, self.maxPoints)
         QueryOptionsAddAllowExtrapolation(builder, self.allowExtrapolation)
+        QueryOptionsAddStrict(builder, self.strict)
         queryOptions = QueryOptionsEnd(builder)
         return queryOptions

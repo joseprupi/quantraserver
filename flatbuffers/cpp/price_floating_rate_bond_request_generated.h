@@ -15,6 +15,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "common_generated.h"
 #include "floating_rate_bond_generated.h"
+#include "pricing_generated.h"
 #include "term_structure_generated.h"
 
 namespace quantra {

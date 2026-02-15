@@ -32,43 +32,40 @@ class SwapHelper(object):
         return 0.0
 
     # SwapHelper
-    def TenorTimeUnit(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
-
-    # SwapHelper
-    def TenorNumber(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # SwapHelper
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # SwapHelper
     def SwFixedLegFrequency(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # SwapHelper
     def SwFixedLegConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # SwapHelper
     def SwFixedLegDayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
@@ -76,7 +73,7 @@ class SwapHelper(object):
     # Reference to an IndexDef by id (e.g., "EUR_6M")
     # SwapHelper
     def FloatIndex(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -87,14 +84,14 @@ class SwapHelper(object):
 
     # SwapHelper
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapHelper
     def FwdStartDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
@@ -102,7 +99,7 @@ class SwapHelper(object):
     # Exogenous discount curve for multi-curve bootstrapping
     # SwapHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -113,13 +110,13 @@ class SwapHelper(object):
 
     # SwapHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def SwapHelperStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(11)
 
 def Start(builder):
     SwapHelperStart(builder)
@@ -130,68 +127,62 @@ def SwapHelperAddRate(builder, rate):
 def AddRate(builder, rate):
     SwapHelperAddRate(builder, rate)
 
-def SwapHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(1, tenorTimeUnit, 0)
+def SwapHelperAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    SwapHelperAddTenorTimeUnit(builder, tenorTimeUnit)
-
-def SwapHelperAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(2, tenorNumber, 0)
-
-def AddTenorNumber(builder, tenorNumber):
-    SwapHelperAddTenorNumber(builder, tenorNumber)
+def AddTenor(builder, tenor):
+    SwapHelperAddTenor(builder, tenor)
 
 def SwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt8Slot(2, calendar, 0)
 
 def AddCalendar(builder, calendar):
     SwapHelperAddCalendar(builder, calendar)
 
 def SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency):
-    builder.PrependInt8Slot(4, swFixedLegFrequency, 0)
+    builder.PrependInt8Slot(3, swFixedLegFrequency, 0)
 
 def AddSwFixedLegFrequency(builder, swFixedLegFrequency):
     SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency)
 
 def SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention):
-    builder.PrependInt8Slot(5, swFixedLegConvention, 0)
+    builder.PrependInt8Slot(4, swFixedLegConvention, 0)
 
 def AddSwFixedLegConvention(builder, swFixedLegConvention):
     SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention)
 
 def SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
-    builder.PrependInt8Slot(6, swFixedLegDayCounter, 0)
+    builder.PrependInt8Slot(5, swFixedLegDayCounter, 0)
 
 def AddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
     SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter)
 
 def SwapHelperAddFloatIndex(builder, floatIndex):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(floatIndex), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(floatIndex), 0)
 
 def AddFloatIndex(builder, floatIndex):
     SwapHelperAddFloatIndex(builder, floatIndex)
 
 def SwapHelperAddSpread(builder, spread):
-    builder.PrependFloat64Slot(8, spread, 0.0)
+    builder.PrependFloat64Slot(7, spread, 0.0)
 
 def AddSpread(builder, spread):
     SwapHelperAddSpread(builder, spread)
 
 def SwapHelperAddFwdStartDays(builder, fwdStartDays):
-    builder.PrependInt32Slot(9, fwdStartDays, 0)
+    builder.PrependInt32Slot(8, fwdStartDays, 0)
 
 def AddFwdStartDays(builder, fwdStartDays):
     SwapHelperAddFwdStartDays(builder, fwdStartDays)
 
 def SwapHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     SwapHelperAddDeps(builder, deps)
 
 def SwapHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     SwapHelperAddQuoteId(builder, quoteId)
@@ -212,8 +203,7 @@ class SwapHelperT(object):
     # SwapHelperT
     def __init__(self):
         self.rate = 0.0  # type: float
-        self.tenorTimeUnit = 0  # type: int
-        self.tenorNumber = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.calendar = 0  # type: int
         self.swFixedLegFrequency = 0  # type: int
         self.swFixedLegConvention = 0  # type: int
@@ -246,8 +236,8 @@ class SwapHelperT(object):
         if swapHelper is None:
             return
         self.rate = swapHelper.Rate()
-        self.tenorTimeUnit = swapHelper.TenorTimeUnit()
-        self.tenorNumber = swapHelper.TenorNumber()
+        if swapHelper.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(swapHelper.Tenor())
         self.calendar = swapHelper.Calendar()
         self.swFixedLegFrequency = swapHelper.SwFixedLegFrequency()
         self.swFixedLegConvention = swapHelper.SwFixedLegConvention()
@@ -262,6 +252,8 @@ class SwapHelperT(object):
 
     # SwapHelperT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.floatIndex is not None:
             floatIndex = self.floatIndex.Pack(builder)
         if self.deps is not None:
@@ -270,8 +262,8 @@ class SwapHelperT(object):
             quoteId = builder.CreateString(self.quoteId)
         SwapHelperStart(builder)
         SwapHelperAddRate(builder, self.rate)
-        SwapHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
-        SwapHelperAddTenorNumber(builder, self.tenorNumber)
+        if self.tenor is not None:
+            SwapHelperAddTenor(builder, tenor)
         SwapHelperAddCalendar(builder, self.calendar)
         SwapHelperAddSwFixedLegFrequency(builder, self.swFixedLegFrequency)
         SwapHelperAddSwFixedLegConvention(builder, self.swFixedLegConvention)

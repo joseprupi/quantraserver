@@ -131,8 +131,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_DepositHelper: {
         auto p = pw->point_as_DepositHelper();
         buf.writeDouble(resolveQuoteValue(p->rate(), p->quote_id(), ctx));
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
-        buf.writeI32(p->tenor_number());
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeI32(p->fixing_days());
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
         buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
@@ -173,8 +173,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_SwapHelper: {
         auto p = pw->point_as_SwapHelper();
         buf.writeDouble(resolveQuoteValue(p->rate(), p->quote_id(), ctx));
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
-        buf.writeI32(p->tenor_number());
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
         buf.writeU8(static_cast<uint8_t>(p->sw_fixed_leg_frequency()));
         buf.writeU8(static_cast<uint8_t>(p->sw_fixed_leg_convention()));
@@ -205,8 +205,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_OISHelper: {
         auto p = pw->point_as_OISHelper();
         buf.writeDouble(resolveQuoteValue(p->rate(), p->quote_id(), ctx));
-        buf.writeI32(p->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         writeIndexRef(buf, p->overnight_index());
         buf.writeI32(p->settlement_days());
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
@@ -235,8 +235,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         auto p = pw->point_as_ZeroRatePoint();
         buf.writeFbString(p->date());
         buf.writeDouble(p->zero_rate());
-        buf.writeI32(p->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
         buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
         buf.writeU8(static_cast<uint8_t>(p->compounding()));
@@ -247,8 +247,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_TenorBasisSwapHelper: {
         auto p = pw->point_as_TenorBasisSwapHelper();
         buf.writeDouble(resolveQuoteValue(p->spread(), p->quote_id(), ctx));
-        buf.writeI32(p->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         writeIndexRef(buf, p->index_short());
         writeIndexRef(buf, p->index_long());
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
@@ -259,8 +259,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_FxSwapHelper: {
         auto p = pw->point_as_FxSwapHelper();
         buf.writeDouble(resolveQuoteValue(p->fx_points(), p->quote_id(), ctx));
-        buf.writeI32(p->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeI32(p->spot_days());
         buf.writeU8(static_cast<uint8_t>(p->calendar_domestic()));
         buf.writeU8(static_cast<uint8_t>(p->calendar_foreign()));
@@ -271,8 +271,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     case quantra::Point_CrossCcyBasisHelper: {
         auto p = pw->point_as_CrossCcyBasisHelper();
         buf.writeDouble(resolveQuoteValue(p->spread(), p->quote_id(), ctx));
-        buf.writeI32(p->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(p->tenor_time_unit()));
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         writeIndexRef(buf, p->index_domestic());
         writeIndexRef(buf, p->index_foreign());
         writeDeps(buf, p->deps());
@@ -347,8 +347,8 @@ void CurveKeyBuilder::writeReferencedIndices(
         buf.writeFbString(def->id());
         buf.writeFbString(def->name());
         buf.writeU8(static_cast<uint8_t>(def->index_type()));
-        buf.writeI32(def->tenor_number());
-        buf.writeU8(static_cast<uint8_t>(def->tenor_time_unit()));
+        buf.writeI32(def->tenor() ? def->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(def->tenor() ? def->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeI32(def->fixing_days());
         buf.writeU8(static_cast<uint8_t>(def->calendar()));
         buf.writeU8(static_cast<uint8_t>(def->business_day_convention()));

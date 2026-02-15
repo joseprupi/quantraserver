@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "common_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -179,32 +180,31 @@ inline ::flatbuffers::Offset<SwapIndexFixedLegSpec> CreateSwapIndexFixedLegSpec(
 
 struct SwapIndexFloatLegSpecT : public ::flatbuffers::NativeTable {
   typedef SwapIndexFloatLegSpec TableType;
-  int32_t float_tenor_number = 6;
-  quantra::enums::TimeUnit float_tenor_time_unit = quantra::enums::TimeUnit_Months;
+  std::unique_ptr<quantra::PeriodT> float_tenor{};
   quantra::enums::Calendar float_calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention float_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::BusinessDayConvention float_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::DateGenerationRule float_date_rule = quantra::enums::DateGenerationRule_Forward;
   bool float_eom = false;
+  SwapIndexFloatLegSpecT() = default;
+  SwapIndexFloatLegSpecT(const SwapIndexFloatLegSpecT &o);
+  SwapIndexFloatLegSpecT(SwapIndexFloatLegSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwapIndexFloatLegSpecT &operator=(SwapIndexFloatLegSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
 struct SwapIndexFloatLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexFloatLegSpecT NativeTableType;
   typedef SwapIndexFloatLegSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_FLOAT_TENOR_NUMBER = 4,
-    VT_FLOAT_TENOR_TIME_UNIT = 6,
-    VT_FLOAT_CALENDAR = 8,
-    VT_FLOAT_BDC = 10,
-    VT_FLOAT_TERM_BDC = 12,
-    VT_FLOAT_DATE_RULE = 14,
-    VT_FLOAT_EOM = 16
+    VT_FLOAT_TENOR = 4,
+    VT_FLOAT_CALENDAR = 6,
+    VT_FLOAT_BDC = 8,
+    VT_FLOAT_TERM_BDC = 10,
+    VT_FLOAT_DATE_RULE = 12,
+    VT_FLOAT_EOM = 14
   };
-  int32_t float_tenor_number() const {
-    return GetField<int32_t>(VT_FLOAT_TENOR_NUMBER, 6);
-  }
-  quantra::enums::TimeUnit float_tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_FLOAT_TENOR_TIME_UNIT, 5));
+  const quantra::Period *float_tenor() const {
+    return GetPointer<const quantra::Period *>(VT_FLOAT_TENOR);
   }
   quantra::enums::Calendar float_calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_FLOAT_CALENDAR, 32));
@@ -223,8 +223,8 @@ struct SwapIndexFloatLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_FLOAT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_FLOAT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_FLOAT_TENOR) &&
+           verifier.VerifyTable(float_tenor()) &&
            VerifyField<int8_t>(verifier, VT_FLOAT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_FLOAT_BDC, 1) &&
            VerifyField<int8_t>(verifier, VT_FLOAT_TERM_BDC, 1) &&
@@ -241,11 +241,8 @@ struct SwapIndexFloatLegSpecBuilder {
   typedef SwapIndexFloatLegSpec Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_float_tenor_number(int32_t float_tenor_number) {
-    fbb_.AddElement<int32_t>(SwapIndexFloatLegSpec::VT_FLOAT_TENOR_NUMBER, float_tenor_number, 6);
-  }
-  void add_float_tenor_time_unit(quantra::enums::TimeUnit float_tenor_time_unit) {
-    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_TENOR_TIME_UNIT, static_cast<int8_t>(float_tenor_time_unit), 5);
+  void add_float_tenor(::flatbuffers::Offset<quantra::Period> float_tenor) {
+    fbb_.AddOffset(SwapIndexFloatLegSpec::VT_FLOAT_TENOR, float_tenor);
   }
   void add_float_calendar(quantra::enums::Calendar float_calendar) {
     fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_CALENDAR, static_cast<int8_t>(float_calendar), 32);
@@ -275,21 +272,19 @@ struct SwapIndexFloatLegSpecBuilder {
 
 inline ::flatbuffers::Offset<SwapIndexFloatLegSpec> CreateSwapIndexFloatLegSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t float_tenor_number = 6,
-    quantra::enums::TimeUnit float_tenor_time_unit = quantra::enums::TimeUnit_Months,
+    ::flatbuffers::Offset<quantra::Period> float_tenor = 0,
     quantra::enums::Calendar float_calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention float_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::BusinessDayConvention float_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DateGenerationRule float_date_rule = quantra::enums::DateGenerationRule_Forward,
     bool float_eom = false) {
   SwapIndexFloatLegSpecBuilder builder_(_fbb);
-  builder_.add_float_tenor_number(float_tenor_number);
+  builder_.add_float_tenor(float_tenor);
   builder_.add_float_eom(float_eom);
   builder_.add_float_date_rule(float_date_rule);
   builder_.add_float_term_bdc(float_term_bdc);
   builder_.add_float_bdc(float_bdc);
   builder_.add_float_calendar(float_calendar);
-  builder_.add_float_tenor_time_unit(float_tenor_time_unit);
   return builder_.Finish();
 }
 
@@ -528,6 +523,25 @@ inline ::flatbuffers::Offset<SwapIndexFixedLegSpec> CreateSwapIndexFixedLegSpec(
       _fixed_eom);
 }
 
+inline SwapIndexFloatLegSpecT::SwapIndexFloatLegSpecT(const SwapIndexFloatLegSpecT &o)
+      : float_tenor((o.float_tenor) ? new quantra::PeriodT(*o.float_tenor) : nullptr),
+        float_calendar(o.float_calendar),
+        float_bdc(o.float_bdc),
+        float_term_bdc(o.float_term_bdc),
+        float_date_rule(o.float_date_rule),
+        float_eom(o.float_eom) {
+}
+
+inline SwapIndexFloatLegSpecT &SwapIndexFloatLegSpecT::operator=(SwapIndexFloatLegSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(float_tenor, o.float_tenor);
+  std::swap(float_calendar, o.float_calendar);
+  std::swap(float_bdc, o.float_bdc);
+  std::swap(float_term_bdc, o.float_term_bdc);
+  std::swap(float_date_rule, o.float_date_rule);
+  std::swap(float_eom, o.float_eom);
+  return *this;
+}
+
 inline SwapIndexFloatLegSpecT *SwapIndexFloatLegSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SwapIndexFloatLegSpecT>(new SwapIndexFloatLegSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -537,8 +551,7 @@ inline SwapIndexFloatLegSpecT *SwapIndexFloatLegSpec::UnPack(const ::flatbuffers
 inline void SwapIndexFloatLegSpec::UnPackTo(SwapIndexFloatLegSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = float_tenor_number(); _o->float_tenor_number = _e; }
-  { auto _e = float_tenor_time_unit(); _o->float_tenor_time_unit = _e; }
+  { auto _e = float_tenor(); if (_e) { if(_o->float_tenor) { _e->UnPackTo(_o->float_tenor.get(), _resolver); } else { _o->float_tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->float_tenor) { _o->float_tenor.reset(); } }
   { auto _e = float_calendar(); _o->float_calendar = _e; }
   { auto _e = float_bdc(); _o->float_bdc = _e; }
   { auto _e = float_term_bdc(); _o->float_term_bdc = _e; }
@@ -554,8 +567,7 @@ inline ::flatbuffers::Offset<SwapIndexFloatLegSpec> CreateSwapIndexFloatLegSpec(
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapIndexFloatLegSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _float_tenor_number = _o->float_tenor_number;
-  auto _float_tenor_time_unit = _o->float_tenor_time_unit;
+  auto _float_tenor = _o->float_tenor ? CreatePeriod(_fbb, _o->float_tenor.get(), _rehasher) : 0;
   auto _float_calendar = _o->float_calendar;
   auto _float_bdc = _o->float_bdc;
   auto _float_term_bdc = _o->float_term_bdc;
@@ -563,8 +575,7 @@ inline ::flatbuffers::Offset<SwapIndexFloatLegSpec> CreateSwapIndexFloatLegSpec(
   auto _float_eom = _o->float_eom;
   return quantra::CreateSwapIndexFloatLegSpec(
       _fbb,
-      _float_tenor_number,
-      _float_tenor_time_unit,
+      _float_tenor,
       _float_calendar,
       _float_bdc,
       _float_term_bdc,

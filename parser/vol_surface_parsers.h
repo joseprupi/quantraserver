@@ -43,6 +43,9 @@ struct OptionletVolEntry {
     double constantVol;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
+    quantra::enums::Calendar calendarFb = quantra::enums::Calendar_NullCalendar;
+    quantra::enums::BusinessDayConvention businessDayConventionFb =
+        quantra::enums::BusinessDayConvention_Following;
     QuantLib::DayCounter dayCounter;
 };
 

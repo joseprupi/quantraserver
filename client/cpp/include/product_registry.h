@@ -61,6 +61,10 @@ inline const std::map<ProductType, ProductSchema>& GetProductSchemas() {
         {ProductType::BootstrapCurves, {
             "bootstrap_curves_request.fbs",
             "bootstrap_curves_response.fbs"
+        }},
+        {ProductType::SampleVolSurfaces, {
+            "sample_vol_surfaces_request.fbs",
+            "sample_vol_surfaces_response.fbs"
         }}
         // ADD NEW PRODUCTS HERE:
         // {ProductType::ExoticOption, {
@@ -85,6 +89,7 @@ inline const char* ProductTypeToString(ProductType type) {
         case ProductType::Swaption:         return "Swaption";
         case ProductType::CDS:              return "CDS";
         case ProductType::BootstrapCurves:  return "BootstrapCurves";
+        case ProductType::SampleVolSurfaces:return "SampleVolSurfaces";
         // ADD NEW PRODUCTS HERE:
         // case ProductType::ExoticOption:  return "ExoticOption";
         default:                            return "Unknown";

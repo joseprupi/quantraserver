@@ -25,15 +25,22 @@ class SwaptionVolSpec(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # SwaptionVolSpec
-    def PayloadType(self):
+    def SwapIndexId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # SwaptionVolSpec
+    def PayloadType(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # SwaptionVolSpec
     def Payload(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -42,19 +49,25 @@ class SwaptionVolSpec(object):
         return None
 
 def SwaptionVolSpecStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     SwaptionVolSpecStart(builder)
 
+def SwaptionVolSpecAddSwapIndexId(builder, swapIndexId):
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(swapIndexId), 0)
+
+def AddSwapIndexId(builder, swapIndexId):
+    SwaptionVolSpecAddSwapIndexId(builder, swapIndexId)
+
 def SwaptionVolSpecAddPayloadType(builder, payloadType):
-    builder.PrependUint8Slot(0, payloadType, 0)
+    builder.PrependUint8Slot(1, payloadType, 0)
 
 def AddPayloadType(builder, payloadType):
     SwaptionVolSpecAddPayloadType(builder, payloadType)
 
 def SwaptionVolSpecAddPayload(builder, payload):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(payload), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(payload), 0)
 
 def AddPayload(builder, payload):
     SwaptionVolSpecAddPayload(builder, payload)
@@ -74,6 +87,7 @@ class SwaptionVolSpecT(object):
 
     # SwaptionVolSpecT
     def __init__(self):
+        self.swapIndexId = None  # type: str
         self.payloadType = 0  # type: int
         self.payload = None  # type: Union[None, SwaptionVolConstantSpecT, SwaptionVolAtmMatrixSpecT, SwaptionVolSmileCubeSpecT, SwaptionSabrParamsSpecT, SwaptionSabrCalibrateSpecT]
 
@@ -98,14 +112,19 @@ class SwaptionVolSpecT(object):
     def _UnPack(self, swaptionVolSpec):
         if swaptionVolSpec is None:
             return
+        self.swapIndexId = swaptionVolSpec.SwapIndexId()
         self.payloadType = swaptionVolSpec.PayloadType()
         self.payload = SwaptionVolPayloadCreator(self.payloadType, swaptionVolSpec.Payload())
 
     # SwaptionVolSpecT
     def Pack(self, builder):
+        if self.swapIndexId is not None:
+            swapIndexId = builder.CreateString(self.swapIndexId)
         if self.payload is not None:
             payload = self.payload.Pack(builder)
         SwaptionVolSpecStart(builder)
+        if self.swapIndexId is not None:
+            SwaptionVolSpecAddSwapIndexId(builder, swapIndexId)
         SwaptionVolSpecAddPayloadType(builder, self.payloadType)
         if self.payload is not None:
             SwaptionVolSpecAddPayload(builder, payload)

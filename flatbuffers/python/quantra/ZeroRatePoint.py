@@ -34,29 +34,26 @@ class ZeroRatePoint(object):
 
     # Alternative: tenor from reference date
     # ZeroRatePoint
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
-
-    # ZeroRatePoint
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # ZeroRatePoint
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # ZeroRatePoint
     def BusinessDayConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
@@ -64,7 +61,7 @@ class ZeroRatePoint(object):
     # Zero rate for this maturity
     # ZeroRatePoint
     def ZeroRate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -72,7 +69,7 @@ class ZeroRatePoint(object):
     # Compounding convention for the zero rate
     # ZeroRatePoint
     def Compounding(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
@@ -80,13 +77,13 @@ class ZeroRatePoint(object):
     # Frequency (used when compounding != Continuous)
     # ZeroRatePoint
     def Frequency(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
 def ZeroRatePointStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     ZeroRatePointStart(builder)
@@ -97,44 +94,38 @@ def ZeroRatePointAddDate(builder, date):
 def AddDate(builder, date):
     ZeroRatePointAddDate(builder, date)
 
-def ZeroRatePointAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(1, tenorNumber, 0)
+def ZeroRatePointAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    ZeroRatePointAddTenorNumber(builder, tenorNumber)
-
-def ZeroRatePointAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(2, tenorTimeUnit, 0)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    ZeroRatePointAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    ZeroRatePointAddTenor(builder, tenor)
 
 def ZeroRatePointAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 32)
+    builder.PrependInt8Slot(2, calendar, 32)
 
 def AddCalendar(builder, calendar):
     ZeroRatePointAddCalendar(builder, calendar)
 
 def ZeroRatePointAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(4, businessDayConvention, 2)
+    builder.PrependInt8Slot(3, businessDayConvention, 2)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     ZeroRatePointAddBusinessDayConvention(builder, businessDayConvention)
 
 def ZeroRatePointAddZeroRate(builder, zeroRate):
-    builder.PrependFloat64Slot(5, zeroRate, 0.0)
+    builder.PrependFloat64Slot(4, zeroRate, 0.0)
 
 def AddZeroRate(builder, zeroRate):
     ZeroRatePointAddZeroRate(builder, zeroRate)
 
 def ZeroRatePointAddCompounding(builder, compounding):
-    builder.PrependInt8Slot(6, compounding, 1)
+    builder.PrependInt8Slot(5, compounding, 1)
 
 def AddCompounding(builder, compounding):
     ZeroRatePointAddCompounding(builder, compounding)
 
 def ZeroRatePointAddFrequency(builder, frequency):
-    builder.PrependInt8Slot(7, frequency, 0)
+    builder.PrependInt8Slot(6, frequency, 0)
 
 def AddFrequency(builder, frequency):
     ZeroRatePointAddFrequency(builder, frequency)
@@ -145,14 +136,17 @@ def ZeroRatePointEnd(builder):
 def End(builder):
     return ZeroRatePointEnd(builder)
 
+try:
+    from typing import Optional
+except:
+    pass
 
 class ZeroRatePointT(object):
 
     # ZeroRatePointT
     def __init__(self):
         self.date = None  # type: str
-        self.tenorNumber = 0  # type: int
-        self.tenorTimeUnit = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.calendar = 32  # type: int
         self.businessDayConvention = 2  # type: int
         self.zeroRate = 0.0  # type: float
@@ -181,8 +175,8 @@ class ZeroRatePointT(object):
         if zeroRatePoint is None:
             return
         self.date = zeroRatePoint.Date()
-        self.tenorNumber = zeroRatePoint.TenorNumber()
-        self.tenorTimeUnit = zeroRatePoint.TenorTimeUnit()
+        if zeroRatePoint.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(zeroRatePoint.Tenor())
         self.calendar = zeroRatePoint.Calendar()
         self.businessDayConvention = zeroRatePoint.BusinessDayConvention()
         self.zeroRate = zeroRatePoint.ZeroRate()
@@ -193,11 +187,13 @@ class ZeroRatePointT(object):
     def Pack(self, builder):
         if self.date is not None:
             date = builder.CreateString(self.date)
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         ZeroRatePointStart(builder)
         if self.date is not None:
             ZeroRatePointAddDate(builder, date)
-        ZeroRatePointAddTenorNumber(builder, self.tenorNumber)
-        ZeroRatePointAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            ZeroRatePointAddTenor(builder, tenor)
         ZeroRatePointAddCalendar(builder, self.calendar)
         ZeroRatePointAddBusinessDayConvention(builder, self.businessDayConvention)
         ZeroRatePointAddZeroRate(builder, self.zeroRate)

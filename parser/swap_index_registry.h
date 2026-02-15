@@ -28,7 +28,9 @@ struct SwapIndexRuntime {
     QuantLib::Frequency fixedFrequency = QuantLib::Annual;
     QuantLib::DayCounter fixedDayCounter = QuantLib::Thirty360(QuantLib::Thirty360::BondBasis);
     QuantLib::Calendar fixedCalendar = QuantLib::TARGET();
+    quantra::enums::Calendar fixedCalendarFb = quantra::enums::Calendar_TARGET;
     QuantLib::BusinessDayConvention fixedBdc = QuantLib::ModifiedFollowing;
+    quantra::enums::BusinessDayConvention fixedBdcFb = quantra::enums::BusinessDayConvention_ModifiedFollowing;
     QuantLib::BusinessDayConvention fixedTermBdc = QuantLib::ModifiedFollowing;
     QuantLib::DateGeneration::Rule fixedDateRule = QuantLib::DateGeneration::Forward;
     bool fixedEom = false;

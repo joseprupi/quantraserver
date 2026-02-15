@@ -42,8 +42,8 @@ class SwaptionSabrCalibrateSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PeriodSpec import PeriodSpec
-            obj = PeriodSpec()
+            from quantra.Period import Period
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -67,7 +67,7 @@ class SwaptionSabrCalibrateSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            obj = PeriodSpec()
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -234,8 +234,8 @@ class SwaptionSabrCalibrateSpecT(object):
     # SwaptionSabrCalibrateSpecT
     def __init__(self):
         self.base = None  # type: Optional[IrVolBaseSpecT]
-        self.expiries = None  # type: List[PeriodSpecT]
-        self.tenors = None  # type: List[PeriodSpecT]
+        self.expiries = None  # type: List[PeriodT]
+        self.tenors = None  # type: List[PeriodT]
         self.strikes = None  # type: List[float]
         self.vols = None  # type: Optional[QuoteTensor3DT]
         self.betaFixed = True  # type: bool
@@ -271,16 +271,16 @@ class SwaptionSabrCalibrateSpecT(object):
                 if swaptionSabrCalibrateSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionSabrCalibrateSpec.Expiries(i))
-                    self.expiries.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionSabrCalibrateSpec.Expiries(i))
+                    self.expiries.append(period_)
         if not swaptionSabrCalibrateSpec.TenorsIsNone():
             self.tenors = []
             for i in range(swaptionSabrCalibrateSpec.TenorsLength()):
                 if swaptionSabrCalibrateSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionSabrCalibrateSpec.Tenors(i))
-                    self.tenors.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionSabrCalibrateSpec.Tenors(i))
+                    self.tenors.append(period_)
         if not swaptionSabrCalibrateSpec.StrikesIsNone():
             if np is None:
                 self.strikes = []

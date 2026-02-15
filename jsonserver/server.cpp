@@ -107,6 +107,12 @@ int main(int argc, char** argv) {
             auto r = client.BootstrapCurvesJSON(req.body);
             return crow::response(r.status_code, r.body);
         });
+
+        CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.SampleVolSurfacesJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
         
         // Print endpoints
         std::cout << "Endpoints:\n"
@@ -118,6 +124,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-swaption\n"
                   << "  POST /price-cds\n"
                   << "  POST /bootstrap-curves\n"
+                  << "  POST /sample-vol-surfaces\n"
                   << "  GET  /health\n\n"
                   << "Starting server...\n";
         

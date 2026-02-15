@@ -180,6 +180,12 @@ JsonResponse QuantraClient::BootstrapCurvesJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::SampleVolSurfacesJSON(const std::string& json) {
+    return impl_->CallJSON<SampleVolSurfacesRequest, SampleVolSurfacesResponse>(
+        ProductType::SampleVolSurfaces, json, &QuantraServer::Stub::SampleVolSurfaces
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -246,6 +252,14 @@ grpc::Status QuantraClient::BootstrapCurves(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->BootstrapCurves(&context, request, response);
+}
+
+grpc::Status QuantraClient::SampleVolSurfaces(
+    const Message<SampleVolSurfacesRequest>& request,
+    Message<SampleVolSurfacesResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->SampleVolSurfaces(&context, request, response);
 }
 
 } // namespace quantra

@@ -1,5 +1,5 @@
 include "enums.fbs";
-include "volatility.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -23,7 +23,7 @@ enum ForwardType : byte {
 
 /// Tenors relative to a curve reference date.
 table TenorGrid {
-    tenors:[PeriodSpec] (required);
+    tenors:[Period] (required);
     calendar:enums.Calendar = NullCalendar;
     business_day_convention:enums.BusinessDayConvention = Following;
 }
@@ -33,7 +33,7 @@ table RangeGrid {
     start_date:string;
     end_date:string (required);
     step_number:int = 1;
-    step_time_unit:enums.TimeUnit = Days;
+    step_time_unit:enums.TimeUnit = Days; // Days/Weeks are literal increments; Months/Years use calendar advance + BDC
     business_days_only:bool = false;
     calendar:enums.Calendar = NullCalendar;
     business_day_convention:enums.BusinessDayConvention = Following;
@@ -47,10 +47,12 @@ table DateGridSpec {
 
 /// Generic query options for reusable sampling endpoints.
 table QueryOptions {
+    // QueryOptions calendar/BDC override grid-level conventions when set.
     calendar:enums.Calendar = NullCalendar;
     business_day_convention:enums.BusinessDayConvention = Following;
     max_points:int = 50000;
     allow_extrapolation:bool = true;
+    strict:bool = true;
 }
 
 table ZeroRateQuery {
@@ -68,8 +70,7 @@ table ForwardRateQuery {
     forward_type:ForwardType = Instantaneous;
     instantaneous_eps_number:int = 1;
     instantaneous_eps_time_unit:enums.TimeUnit = Days;
-    tenor_number:int = 3;
-    tenor_time_unit:enums.TimeUnit = Months;
+    tenor:Period;
     use_grid_calendar_for_advance:bool = true;
 }
 

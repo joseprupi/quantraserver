@@ -42,8 +42,8 @@ class SwaptionVolAtmMatrixSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PeriodSpec import PeriodSpec
-            obj = PeriodSpec()
+            from quantra.Period import Period
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -67,7 +67,7 @@ class SwaptionVolAtmMatrixSpec(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            obj = PeriodSpec()
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -179,8 +179,8 @@ class SwaptionVolAtmMatrixSpecT(object):
     # SwaptionVolAtmMatrixSpecT
     def __init__(self):
         self.base = None  # type: Optional[IrVolBaseSpecT]
-        self.expiries = None  # type: List[PeriodSpecT]
-        self.tenors = None  # type: List[PeriodSpecT]
+        self.expiries = None  # type: List[PeriodT]
+        self.tenors = None  # type: List[PeriodT]
         self.vols = None  # type: Optional[QuoteMatrix2DT]
         self.expiryInterpolator = 2  # type: int
         self.tenorInterpolator = 2  # type: int
@@ -214,16 +214,16 @@ class SwaptionVolAtmMatrixSpecT(object):
                 if swaptionVolAtmMatrixSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionVolAtmMatrixSpec.Expiries(i))
-                    self.expiries.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionVolAtmMatrixSpec.Expiries(i))
+                    self.expiries.append(period_)
         if not swaptionVolAtmMatrixSpec.TenorsIsNone():
             self.tenors = []
             for i in range(swaptionVolAtmMatrixSpec.TenorsLength()):
                 if swaptionVolAtmMatrixSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionVolAtmMatrixSpec.Tenors(i))
-                    self.tenors.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionVolAtmMatrixSpec.Tenors(i))
+                    self.tenors.append(period_)
         if swaptionVolAtmMatrixSpec.Vols() is not None:
             self.vols = QuoteMatrix2DT.InitFromObj(swaptionVolAtmMatrixSpec.Vols())
         self.expiryInterpolator = swaptionVolAtmMatrixSpec.ExpiryInterpolator()

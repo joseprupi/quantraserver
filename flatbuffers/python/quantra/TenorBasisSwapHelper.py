@@ -32,23 +32,20 @@ class TenorBasisSwapHelper(object):
         return 0.0
 
     # TenorBasisSwapHelper
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
-
-    # TenorBasisSwapHelper
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Short tenor index (e.g., "EUR_3M")
     # TenorBasisSwapHelper
     def IndexShort(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -60,7 +57,7 @@ class TenorBasisSwapHelper(object):
     # Long tenor index (e.g., "EUR_6M")
     # TenorBasisSwapHelper
     def IndexLong(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             obj = IndexRef()
@@ -70,14 +67,14 @@ class TenorBasisSwapHelper(object):
 
     # TenorBasisSwapHelper
     def Calendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # TenorBasisSwapHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -88,13 +85,13 @@ class TenorBasisSwapHelper(object):
 
     # TenorBasisSwapHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def TenorBasisSwapHelperStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     TenorBasisSwapHelperStart(builder)
@@ -105,44 +102,38 @@ def TenorBasisSwapHelperAddSpread(builder, spread):
 def AddSpread(builder, spread):
     TenorBasisSwapHelperAddSpread(builder, spread)
 
-def TenorBasisSwapHelperAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(1, tenorNumber, 0)
+def TenorBasisSwapHelperAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    TenorBasisSwapHelperAddTenorNumber(builder, tenorNumber)
-
-def TenorBasisSwapHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(2, tenorTimeUnit, 0)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    TenorBasisSwapHelperAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    TenorBasisSwapHelperAddTenor(builder, tenor)
 
 def TenorBasisSwapHelperAddIndexShort(builder, indexShort):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexShort), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(indexShort), 0)
 
 def AddIndexShort(builder, indexShort):
     TenorBasisSwapHelperAddIndexShort(builder, indexShort)
 
 def TenorBasisSwapHelperAddIndexLong(builder, indexLong):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(indexLong), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexLong), 0)
 
 def AddIndexLong(builder, indexLong):
     TenorBasisSwapHelperAddIndexLong(builder, indexLong)
 
 def TenorBasisSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(5, calendar, 0)
+    builder.PrependInt8Slot(4, calendar, 0)
 
 def AddCalendar(builder, calendar):
     TenorBasisSwapHelperAddCalendar(builder, calendar)
 
 def TenorBasisSwapHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     TenorBasisSwapHelperAddDeps(builder, deps)
 
 def TenorBasisSwapHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     TenorBasisSwapHelperAddQuoteId(builder, quoteId)
@@ -163,8 +154,7 @@ class TenorBasisSwapHelperT(object):
     # TenorBasisSwapHelperT
     def __init__(self):
         self.spread = 0.0  # type: float
-        self.tenorNumber = 0  # type: int
-        self.tenorTimeUnit = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.indexShort = None  # type: Optional[IndexRefT]
         self.indexLong = None  # type: Optional[IndexRefT]
         self.calendar = 0  # type: int
@@ -193,8 +183,8 @@ class TenorBasisSwapHelperT(object):
         if tenorBasisSwapHelper is None:
             return
         self.spread = tenorBasisSwapHelper.Spread()
-        self.tenorNumber = tenorBasisSwapHelper.TenorNumber()
-        self.tenorTimeUnit = tenorBasisSwapHelper.TenorTimeUnit()
+        if tenorBasisSwapHelper.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(tenorBasisSwapHelper.Tenor())
         if tenorBasisSwapHelper.IndexShort() is not None:
             self.indexShort = IndexRefT.InitFromObj(tenorBasisSwapHelper.IndexShort())
         if tenorBasisSwapHelper.IndexLong() is not None:
@@ -206,6 +196,8 @@ class TenorBasisSwapHelperT(object):
 
     # TenorBasisSwapHelperT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.indexShort is not None:
             indexShort = self.indexShort.Pack(builder)
         if self.indexLong is not None:
@@ -216,8 +208,8 @@ class TenorBasisSwapHelperT(object):
             quoteId = builder.CreateString(self.quoteId)
         TenorBasisSwapHelperStart(builder)
         TenorBasisSwapHelperAddSpread(builder, self.spread)
-        TenorBasisSwapHelperAddTenorNumber(builder, self.tenorNumber)
-        TenorBasisSwapHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            TenorBasisSwapHelperAddTenor(builder, tenor)
         if self.indexShort is not None:
             TenorBasisSwapHelperAddIndexShort(builder, indexShort)
         if self.indexLong is not None:

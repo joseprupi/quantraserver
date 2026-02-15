@@ -282,7 +282,7 @@ from quantra.SwaptionVolSmileCubeSpec import SwaptionVolSmileCubeSpecT
 from quantra.SwaptionSabrParamsSpec import SwaptionSabrParamsSpecT
 from quantra.SwaptionSabrCalibrateSpec import SwaptionSabrCalibrateSpecT
 from quantra.SwaptionVolPayload import SwaptionVolPayload
-from quantra.PeriodSpec import PeriodSpecT
+from quantra.Period import PeriodT
 from quantra.QuoteMatrix2D import QuoteMatrix2DT
 from quantra.QuoteTensor3D import QuoteTensor3DT
 from quantra.BlackVolSpec import BlackVolSpecT
@@ -407,7 +407,7 @@ __all__ = [
     'SwaptionSabrParamsSpecT',
     'SwaptionSabrCalibrateSpecT',
     'SwaptionVolPayload',
-    'PeriodSpecT',
+    'PeriodT',
     'QuoteMatrix2DT',
     'QuoteTensor3DT',
     'BlackVolSpecT',

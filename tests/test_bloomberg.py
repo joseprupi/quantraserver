@@ -54,14 +54,17 @@ def tenor_number(tenor: str) -> int:
     return int(tenor[:-1])
 
 
+def period_obj(tenor: str) -> dict:
+    return {"n": tenor_number(tenor), "unit": tenor_unit(tenor)}
+
+
 points = []
 for tenor, rate_pct in curve_data:
     points.append({
         "point_type": "OISHelper",
         "point": {
             "rate": rate_pct / 100.0,
-            "tenor_number": tenor_number(tenor),
-            "tenor_time_unit": tenor_unit(tenor),
+            "tenor": period_obj(tenor),
             "overnight_index": {"id": "USD_SOFR"},
             "settlement_days": 2,
             "calendar": "UnitedStatesGovernmentBond",
@@ -91,6 +94,7 @@ payload = {
                 "id": "usd_sofr_swo_vol",
                 "payload_type": "SwaptionVolSpec",
                 "payload": {
+                    "swap_index_id": "USD_SOFR_OIS",
                     "payload_type": "SwaptionVolConstantSpec",
                     "payload": {
                         "base": {
@@ -119,8 +123,7 @@ payload = {
                 "id": "USD_SOFR",
                 "name": "SOFR",
                 "index_type": "Overnight",
-                "tenor_number": 0,
-                "tenor_time_unit": "Days",
+                "tenor": {"n": 0, "unit": "Days"},
                 "fixing_days": 0,
                 "calendar": "UnitedStatesGovernmentBond",
                 "business_day_convention": "Following",

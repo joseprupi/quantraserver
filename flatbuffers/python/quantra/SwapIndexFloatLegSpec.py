@@ -25,98 +25,89 @@ class SwapIndexFloatLegSpec(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # SwapIndexFloatLegSpec
-    def FloatTenorNumber(self):
+    def FloatTenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 6
-
-    # SwapIndexFloatLegSpec
-    def FloatTenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 5
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # SwapIndexFloatLegSpec
     def FloatCalendar(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
     # SwapIndexFloatLegSpec
     def FloatBdc(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # SwapIndexFloatLegSpec
     def FloatTermBdc(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # SwapIndexFloatLegSpec
     def FloatDateRule(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # SwapIndexFloatLegSpec
     def FloatEom(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
 def SwapIndexFloatLegSpecStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(6)
 
 def Start(builder):
     SwapIndexFloatLegSpecStart(builder)
 
-def SwapIndexFloatLegSpecAddFloatTenorNumber(builder, floatTenorNumber):
-    builder.PrependInt32Slot(0, floatTenorNumber, 6)
+def SwapIndexFloatLegSpecAddFloatTenor(builder, floatTenor):
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(floatTenor), 0)
 
-def AddFloatTenorNumber(builder, floatTenorNumber):
-    SwapIndexFloatLegSpecAddFloatTenorNumber(builder, floatTenorNumber)
-
-def SwapIndexFloatLegSpecAddFloatTenorTimeUnit(builder, floatTenorTimeUnit):
-    builder.PrependInt8Slot(1, floatTenorTimeUnit, 5)
-
-def AddFloatTenorTimeUnit(builder, floatTenorTimeUnit):
-    SwapIndexFloatLegSpecAddFloatTenorTimeUnit(builder, floatTenorTimeUnit)
+def AddFloatTenor(builder, floatTenor):
+    SwapIndexFloatLegSpecAddFloatTenor(builder, floatTenor)
 
 def SwapIndexFloatLegSpecAddFloatCalendar(builder, floatCalendar):
-    builder.PrependInt8Slot(2, floatCalendar, 32)
+    builder.PrependInt8Slot(1, floatCalendar, 32)
 
 def AddFloatCalendar(builder, floatCalendar):
     SwapIndexFloatLegSpecAddFloatCalendar(builder, floatCalendar)
 
 def SwapIndexFloatLegSpecAddFloatBdc(builder, floatBdc):
-    builder.PrependInt8Slot(3, floatBdc, 2)
+    builder.PrependInt8Slot(2, floatBdc, 2)
 
 def AddFloatBdc(builder, floatBdc):
     SwapIndexFloatLegSpecAddFloatBdc(builder, floatBdc)
 
 def SwapIndexFloatLegSpecAddFloatTermBdc(builder, floatTermBdc):
-    builder.PrependInt8Slot(4, floatTermBdc, 2)
+    builder.PrependInt8Slot(3, floatTermBdc, 2)
 
 def AddFloatTermBdc(builder, floatTermBdc):
     SwapIndexFloatLegSpecAddFloatTermBdc(builder, floatTermBdc)
 
 def SwapIndexFloatLegSpecAddFloatDateRule(builder, floatDateRule):
-    builder.PrependInt8Slot(5, floatDateRule, 2)
+    builder.PrependInt8Slot(4, floatDateRule, 2)
 
 def AddFloatDateRule(builder, floatDateRule):
     SwapIndexFloatLegSpecAddFloatDateRule(builder, floatDateRule)
 
 def SwapIndexFloatLegSpecAddFloatEom(builder, floatEom):
-    builder.PrependBoolSlot(6, floatEom, 0)
+    builder.PrependBoolSlot(5, floatEom, 0)
 
 def AddFloatEom(builder, floatEom):
     SwapIndexFloatLegSpecAddFloatEom(builder, floatEom)
@@ -127,13 +118,16 @@ def SwapIndexFloatLegSpecEnd(builder):
 def End(builder):
     return SwapIndexFloatLegSpecEnd(builder)
 
+try:
+    from typing import Optional
+except:
+    pass
 
 class SwapIndexFloatLegSpecT(object):
 
     # SwapIndexFloatLegSpecT
     def __init__(self):
-        self.floatTenorNumber = 6  # type: int
-        self.floatTenorTimeUnit = 5  # type: int
+        self.floatTenor = None  # type: Optional[PeriodT]
         self.floatCalendar = 32  # type: int
         self.floatBdc = 2  # type: int
         self.floatTermBdc = 2  # type: int
@@ -161,8 +155,8 @@ class SwapIndexFloatLegSpecT(object):
     def _UnPack(self, swapIndexFloatLegSpec):
         if swapIndexFloatLegSpec is None:
             return
-        self.floatTenorNumber = swapIndexFloatLegSpec.FloatTenorNumber()
-        self.floatTenorTimeUnit = swapIndexFloatLegSpec.FloatTenorTimeUnit()
+        if swapIndexFloatLegSpec.FloatTenor() is not None:
+            self.floatTenor = PeriodT.InitFromObj(swapIndexFloatLegSpec.FloatTenor())
         self.floatCalendar = swapIndexFloatLegSpec.FloatCalendar()
         self.floatBdc = swapIndexFloatLegSpec.FloatBdc()
         self.floatTermBdc = swapIndexFloatLegSpec.FloatTermBdc()
@@ -171,9 +165,11 @@ class SwapIndexFloatLegSpecT(object):
 
     # SwapIndexFloatLegSpecT
     def Pack(self, builder):
+        if self.floatTenor is not None:
+            floatTenor = self.floatTenor.Pack(builder)
         SwapIndexFloatLegSpecStart(builder)
-        SwapIndexFloatLegSpecAddFloatTenorNumber(builder, self.floatTenorNumber)
-        SwapIndexFloatLegSpecAddFloatTenorTimeUnit(builder, self.floatTenorTimeUnit)
+        if self.floatTenor is not None:
+            SwapIndexFloatLegSpecAddFloatTenor(builder, floatTenor)
         SwapIndexFloatLegSpecAddFloatCalendar(builder, self.floatCalendar)
         SwapIndexFloatLegSpecAddFloatBdc(builder, self.floatBdc)
         SwapIndexFloatLegSpecAddFloatTermBdc(builder, self.floatTermBdc)

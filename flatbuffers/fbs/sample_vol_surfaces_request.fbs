@@ -1,0 +1,12 @@
+include "common.fbs";
+include "pricing.fbs";
+include "vol_query.fbs";
+
+namespace quantra;
+
+table SampleVolSurfacesRequest {
+    pricing:Pricing (required);
+    queries:[VolQuerySpec] (required);
+}
+
+root_type SampleVolSurfacesRequest;

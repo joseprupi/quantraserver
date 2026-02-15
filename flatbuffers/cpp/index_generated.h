@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "common_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -142,8 +143,7 @@ struct IndexDefT : public ::flatbuffers::NativeTable {
   std::string id{};
   std::string name{};
   quantra::IndexType index_type = quantra::IndexType_Ibor;
-  int32_t tenor_number = 3;
-  quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months;
+  std::unique_ptr<quantra::PeriodT> tenor{};
   int32_t fixing_days = 2;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
@@ -165,15 +165,14 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_ID = 4,
     VT_NAME = 6,
     VT_INDEX_TYPE = 8,
-    VT_TENOR_NUMBER = 10,
-    VT_TENOR_TIME_UNIT = 12,
-    VT_FIXING_DAYS = 14,
-    VT_CALENDAR = 16,
-    VT_BUSINESS_DAY_CONVENTION = 18,
-    VT_DAY_COUNTER = 20,
-    VT_END_OF_MONTH = 22,
-    VT_CURRENCY = 24,
-    VT_FIXINGS = 26
+    VT_TENOR = 10,
+    VT_FIXING_DAYS = 12,
+    VT_CALENDAR = 14,
+    VT_BUSINESS_DAY_CONVENTION = 16,
+    VT_DAY_COUNTER = 18,
+    VT_END_OF_MONTH = 20,
+    VT_CURRENCY = 22,
+    VT_FIXINGS = 24
   };
   /// Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
   const ::flatbuffers::String *id() const {
@@ -188,13 +187,9 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::IndexType index_type() const {
     return static_cast<quantra::IndexType>(GetField<int8_t>(VT_INDEX_TYPE, 0));
   }
-  /// Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)
-  /// For overnight indices, set tenor_number=0.
-  int32_t tenor_number() const {
-    return GetField<int32_t>(VT_TENOR_NUMBER, 3);
-  }
-  quantra::enums::TimeUnit tenor_time_unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_TENOR_TIME_UNIT, 5));
+  /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
   }
   /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
   int32_t fixing_days() const {
@@ -233,8 +228,8 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffsetRequired(verifier, VT_NAME) &&
            verifier.VerifyString(name()) &&
            VerifyField<int8_t>(verifier, VT_INDEX_TYPE, 1) &&
-           VerifyField<int32_t>(verifier, VT_TENOR_NUMBER, 4) &&
-           VerifyField<int8_t>(verifier, VT_TENOR_TIME_UNIT, 1) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
            VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
@@ -265,11 +260,8 @@ struct IndexDefBuilder {
   void add_index_type(quantra::IndexType index_type) {
     fbb_.AddElement<int8_t>(IndexDef::VT_INDEX_TYPE, static_cast<int8_t>(index_type), 0);
   }
-  void add_tenor_number(int32_t tenor_number) {
-    fbb_.AddElement<int32_t>(IndexDef::VT_TENOR_NUMBER, tenor_number, 3);
-  }
-  void add_tenor_time_unit(quantra::enums::TimeUnit tenor_time_unit) {
-    fbb_.AddElement<int8_t>(IndexDef::VT_TENOR_TIME_UNIT, static_cast<int8_t>(tenor_time_unit), 5);
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(IndexDef::VT_TENOR, tenor);
   }
   void add_fixing_days(int32_t fixing_days) {
     fbb_.AddElement<int32_t>(IndexDef::VT_FIXING_DAYS, fixing_days, 2);
@@ -310,8 +302,7 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> name = 0,
     quantra::IndexType index_type = quantra::IndexType_Ibor,
-    int32_t tenor_number = 3,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
@@ -323,14 +314,13 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(
   builder_.add_fixings(fixings);
   builder_.add_currency(currency);
   builder_.add_fixing_days(fixing_days);
-  builder_.add_tenor_number(tenor_number);
+  builder_.add_tenor(tenor);
   builder_.add_name(name);
   builder_.add_id(id);
   builder_.add_end_of_month(end_of_month);
   builder_.add_day_counter(day_counter);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
-  builder_.add_tenor_time_unit(tenor_time_unit);
   builder_.add_index_type(index_type);
   return builder_.Finish();
 }
@@ -340,8 +330,7 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDefDirect(
     const char *id = nullptr,
     const char *name = nullptr,
     quantra::IndexType index_type = quantra::IndexType_Ibor,
-    int32_t tenor_number = 3,
-    quantra::enums::TimeUnit tenor_time_unit = quantra::enums::TimeUnit_Months,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 2,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
@@ -358,8 +347,7 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDefDirect(
       id__,
       name__,
       index_type,
-      tenor_number,
-      tenor_time_unit,
+      tenor,
       fixing_days,
       calendar,
       business_day_convention,
@@ -469,8 +457,7 @@ inline IndexDefT::IndexDefT(const IndexDefT &o)
       : id(o.id),
         name(o.name),
         index_type(o.index_type),
-        tenor_number(o.tenor_number),
-        tenor_time_unit(o.tenor_time_unit),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         fixing_days(o.fixing_days),
         calendar(o.calendar),
         business_day_convention(o.business_day_convention),
@@ -485,8 +472,7 @@ inline IndexDefT &IndexDefT::operator=(IndexDefT o) FLATBUFFERS_NOEXCEPT {
   std::swap(id, o.id);
   std::swap(name, o.name);
   std::swap(index_type, o.index_type);
-  std::swap(tenor_number, o.tenor_number);
-  std::swap(tenor_time_unit, o.tenor_time_unit);
+  std::swap(tenor, o.tenor);
   std::swap(fixing_days, o.fixing_days);
   std::swap(calendar, o.calendar);
   std::swap(business_day_convention, o.business_day_convention);
@@ -509,8 +495,7 @@ inline void IndexDef::UnPackTo(IndexDefT *_o, const ::flatbuffers::resolver_func
   { auto _e = id(); if (_e) _o->id = _e->str(); }
   { auto _e = name(); if (_e) _o->name = _e->str(); }
   { auto _e = index_type(); _o->index_type = _e; }
-  { auto _e = tenor_number(); _o->tenor_number = _e; }
-  { auto _e = tenor_time_unit(); _o->tenor_time_unit = _e; }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = fixing_days(); _o->fixing_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
@@ -531,8 +516,7 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(::flatbuffers::FlatBufferB
   auto _id = _fbb.CreateString(_o->id);
   auto _name = _fbb.CreateString(_o->name);
   auto _index_type = _o->index_type;
-  auto _tenor_number = _o->tenor_number;
-  auto _tenor_time_unit = _o->tenor_time_unit;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _fixing_days = _o->fixing_days;
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
@@ -545,8 +529,7 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(::flatbuffers::FlatBufferB
       _id,
       _name,
       _index_type,
-      _tenor_number,
-      _tenor_time_unit,
+      _tenor,
       _fixing_days,
       _calendar,
       _business_day_convention,

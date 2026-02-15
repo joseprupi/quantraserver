@@ -14,6 +14,7 @@ import argparse
 import requests
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
+import copy
 
 try:
     import QuantLib as ql
@@ -51,10 +52,56 @@ class ApiClient:
     
     def price(self, product: str, request: dict) -> dict:
         endpoint = self.ENDPOINTS[product]
-        r = self.session.post(f"{self.base_url}/{endpoint}", json=request)
+        r = self.session.post(
+            f"{self.base_url}/{endpoint}",
+            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+        )
         if r.status_code != 200:
             raise Exception(f"API error ({r.status_code}): {r.text[:200]}")
         return r.json()
+
+
+def _normalize_period_fields_for_api(obj):
+    """Recursively convert legacy *_number/*_time_unit period fields to typed Period objects."""
+    if isinstance(obj, list):
+        return [_normalize_period_fields_for_api(v) for v in obj]
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            out[k] = _normalize_period_fields_for_api(v)
+
+        # Fix accidental wrapper shape {"tenor": {"n": ..., "unit": ...}} in Period arrays.
+        if set(out.keys()) == {"tenor"} and isinstance(out["tenor"], dict):
+            if "n" in out["tenor"] and "unit" in out["tenor"]:
+                return out["tenor"]
+
+        if "tenor_number" in out and "tenor_time_unit" in out and "tenor" not in out:
+            n = out["tenor_number"]
+            u = out["tenor_time_unit"]
+            del out["tenor_number"]
+            del out["tenor_time_unit"]
+            # Pure period object (e.g. TenorGrid points / vol expiries, tenors)
+            if len(out) == 0:
+                return {"n": n, "unit": u}
+            out["tenor"] = {"n": n, "unit": u}
+
+        if "float_tenor_number" in out and "float_tenor_time_unit" in out and "float_tenor" not in out:
+            out["float_tenor"] = {"n": out["float_tenor_number"], "unit": out["float_tenor_time_unit"]}
+            del out["float_tenor_number"]
+            del out["float_tenor_time_unit"]
+
+        return out
+    return obj
+
+
+def _period_n_unit(container: dict, key: str = "tenor", default_n: int = 0, default_unit: str = "Days"):
+    # Canonical Period object
+    if "n" in container and "unit" in container:
+        return int(container.get("n", default_n)), container.get("unit", default_unit)
+    p = container.get(key)
+    if isinstance(p, dict):
+        return int(p.get("n", default_n)), p.get("unit", default_unit)
+    return int(container.get(f"{key}_number", default_n)), container.get(f"{key}_time_unit", default_unit)
 
 
 # =============================================================================
@@ -243,10 +290,8 @@ def get_isda_forwards_in_coupon_period(name: str):
 
 
 def build_ibor_index(idx_def: dict, curve_handle=None):
-    period = ql.Period(
-        idx_def.get("tenor_number", 6),
-        get_time_unit(idx_def.get("tenor_time_unit", "Months")),
-    )
+    tenor_n, tenor_u = _period_n_unit(idx_def, "tenor", 6, "Months")
+    period = ql.Period(tenor_n, get_time_unit(tenor_u))
     fixing_days = idx_def.get("fixing_days", 2)
     calendar = get_calendar(idx_def.get("calendar", "TARGET"))
     bdc = get_convention(idx_def.get("business_day_convention", "ModifiedFollowing"))
@@ -344,8 +389,8 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
             if "date" in point and point["date"]:
                 d = parse_date(point["date"])
             else:
-                tenor_num = point.get("tenor_number", 0)
-                tenor_unit = get_time_unit(point.get("tenor_time_unit", "Days"))
+                tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+                tenor_unit = get_time_unit(tenor_unit_s)
                 cal = get_calendar(point.get("calendar", "TARGET"))
                 bdc = get_convention(point.get("business_day_convention", "ModifiedFollowing"))
                 d = cal.advance(eval_date, ql.Period(tenor_num, tenor_unit), bdc)
@@ -372,8 +417,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
         point = point_wrapper["point"]
         
         if point_type == "DepositHelper":
-            tenor_num = point["tenor_number"]
-            tenor_str = point["tenor_time_unit"]
+            tenor_num, tenor_str = _period_n_unit(point, "tenor", 0, "Days")
             if tenor_str == "Weeks":
                 tenor_unit = ql.Weeks
             elif tenor_str == "Months":
@@ -398,8 +442,8 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 seen_pillars.add(pillar)
         
         elif point_type == "SwapHelper":
-            tenor_num = point["tenor_number"]
-            tenor_unit = ql.Years if point["tenor_time_unit"] == "Years" else ql.Months
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Years")
+            tenor_unit = ql.Years if tenor_unit_s == "Years" else ql.Months
             index = ql.Euribor6M()
             if request_data and point.get("float_index", {}).get("id"):
                 index = resolve_index_from_id(point["float_index"]["id"], request_data)
@@ -421,8 +465,8 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 seen_pillars.add(pillar)
         
         elif point_type == "OISHelper":
-            tenor_num = point["tenor_number"]
-            tenor_unit = get_time_unit(point["tenor_time_unit"])
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            tenor_unit = get_time_unit(tenor_unit_s)
             overnight_idx = None
             if request_data and point.get("overnight_index", {}).get("id"):
                 overnight_idx = resolve_index_from_id(point["overnight_index"]["id"], request_data)
@@ -567,7 +611,7 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     
     # Resolve index from definitions
     idx_def = find_index_def(idx_id, request)
-    period_months = idx_def.get("tenor_number", 6) if idx_def else 6
+    period_months = (_period_n_unit(idx_def, "tenor", 6, "Months")[0] if idx_def else 6)
     
     # Create index with forecasting curve
     if period_months == 3:
@@ -698,7 +742,7 @@ def price_fra_ql(request: dict) -> float:
     # New schema: index is IndexRef with just id
     if isinstance(idx, dict) and "id" in idx:
         idx_def = find_index_def(idx["id"], request)
-        period_months = idx_def.get("tenor_number", 3) if idx_def else 3
+        period_months = (_period_n_unit(idx_def, "tenor", 3, "Months")[0] if idx_def else 3)
     else:
         period_months = idx.get("period_number", 3)
     
@@ -749,7 +793,7 @@ def price_cap_floor_ql(request: dict) -> float:
     # New schema: index is IndexRef with just id
     if isinstance(idx, dict) and "id" in idx:
         idx_def = find_index_def(idx["id"], request)
-        period_months = idx_def.get("tenor_number", 3) if idx_def else 3
+        period_months = (_period_n_unit(idx_def, "tenor", 3, "Months")[0] if idx_def else 3)
     else:
         period_months = idx.get("period_number", 3)
     index = ql.Euribor3M(curve) if period_months == 3 else ql.Euribor6M(curve)
@@ -966,8 +1010,7 @@ def price_swaption_ql(request: dict) -> float:
                 quote_ids = vols.get("quote_ids", [])
 
                 def to_period(p):
-                    unit = p.get("tenor_time_unit", "Months")
-                    num = p.get("tenor_number", 0)
+                    num, unit = _period_n_unit(p, "tenor", 0, "Months")
                     return ql.Period(num, get_time_unit(unit))
 
                 ql_expiries = [to_period(p) for p in expiries]
@@ -1169,7 +1212,8 @@ def price_cds_ql(request: dict) -> float:
 
         helpers = []
         for q in quotes:
-            tenor = ql.Period(q["tenor_number"], get_time_unit(q["tenor_time_unit"]))
+            q_n, q_u = _period_n_unit(q, "tenor", 0, "Days")
+            tenor = ql.Period(q_n, get_time_unit(q_u))
             quote_type = q.get("quote_type", "ParSpread")
             quote_id = q.get("quote_id")
             if quote_id:
@@ -1305,8 +1349,11 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
         # Call API
         response = client.session.post(
             f"{client.base_url}/bootstrap-curves", 
-            json=request
+            json=_normalize_period_fields_for_api(copy.deepcopy(request))
         ).json()
+        if "results" not in response:
+            result["error"] = response.get("error", "bootstrap-curves response missing 'results'")
+            return result
         
         # Build QuantLib curve from request
         pricing = request["pricing"]
@@ -1336,8 +1383,8 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
             point = point_wrapper["point"]
             
             if point_type == "DepositHelper":
-                tenor = ql.Period(point["tenor_number"], 
-                                  get_time_unit(point["tenor_time_unit"]))
+                n, u = _period_n_unit(point, "tenor", 0, "Days")
+                tenor = ql.Period(n, get_time_unit(u))
                 helpers.append(ql.DepositRateHelper(
                     resolve_bootstrap_rate(point), tenor, point.get("fixing_days", 2),
                     get_calendar(point["calendar"]),
@@ -1345,8 +1392,8 @@ def test_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
                     True, get_day_counter(point["day_counter"])
                 ))
             elif point_type == "SwapHelper":
-                tenor = ql.Period(point["tenor_number"],
-                                  get_time_unit(point["tenor_time_unit"]))
+                n, u = _period_n_unit(point, "tenor", 0, "Days")
+                tenor = ql.Period(n, get_time_unit(u))
                 # New schema: float_index is an IndexRef with just an id
                 float_idx = point.get("float_index", {})
                 idx_id = float_idx.get("id", "EUR_6M") if isinstance(float_idx, dict) else "EUR_6M"
@@ -1630,7 +1677,10 @@ def test_bootstrap_curves_multicurve_exogenous(client: ApiClient) -> dict:
 
     try:
         request = _make_multicurve_exogenous_request()
-        resp = client.session.post(f"{client.base_url}/bootstrap-curves", json=request)
+        resp = client.session.post(
+            f"{client.base_url}/bootstrap-curves",
+            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+        )
 
         if resp.status_code != 200:
             result["error"] = f"HTTP {resp.status_code}: {resp.text[:300]}"
@@ -1724,7 +1774,10 @@ def test_bootstrap_curves_missing_dependency_fails(client: ApiClient) -> dict:
         request["pricing"]["curves"] = [request["pricing"]["curves"][1]]
         request["queries"] = [request["queries"][1]]
 
-        resp = client.session.post(f"{client.base_url}/bootstrap-curves", json=request)
+        resp = client.session.post(
+            f"{client.base_url}/bootstrap-curves",
+            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+        )
 
         # Accept either:
         # - HTTP-level failure (4xx) OR

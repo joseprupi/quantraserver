@@ -32,23 +32,20 @@ class CrossCcyBasisHelper(object):
         return 0.0
 
     # CrossCcyBasisHelper
-    def TenorNumber(self):
+    def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
-
-    # CrossCcyBasisHelper
-    def TenorTimeUnit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Domestic leg index
     # CrossCcyBasisHelper
     def IndexDomestic(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -60,7 +57,7 @@ class CrossCcyBasisHelper(object):
     # Foreign leg index
     # CrossCcyBasisHelper
     def IndexForeign(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             obj = IndexRef()
@@ -70,7 +67,7 @@ class CrossCcyBasisHelper(object):
 
     # CrossCcyBasisHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -81,13 +78,13 @@ class CrossCcyBasisHelper(object):
 
     # CrossCcyBasisHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def CrossCcyBasisHelperStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(6)
 
 def Start(builder):
     CrossCcyBasisHelperStart(builder)
@@ -98,38 +95,32 @@ def CrossCcyBasisHelperAddSpread(builder, spread):
 def AddSpread(builder, spread):
     CrossCcyBasisHelperAddSpread(builder, spread)
 
-def CrossCcyBasisHelperAddTenorNumber(builder, tenorNumber):
-    builder.PrependInt32Slot(1, tenorNumber, 0)
+def CrossCcyBasisHelperAddTenor(builder, tenor):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
-def AddTenorNumber(builder, tenorNumber):
-    CrossCcyBasisHelperAddTenorNumber(builder, tenorNumber)
-
-def CrossCcyBasisHelperAddTenorTimeUnit(builder, tenorTimeUnit):
-    builder.PrependInt8Slot(2, tenorTimeUnit, 0)
-
-def AddTenorTimeUnit(builder, tenorTimeUnit):
-    CrossCcyBasisHelperAddTenorTimeUnit(builder, tenorTimeUnit)
+def AddTenor(builder, tenor):
+    CrossCcyBasisHelperAddTenor(builder, tenor)
 
 def CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexDomestic), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(indexDomestic), 0)
 
 def AddIndexDomestic(builder, indexDomestic):
     CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
 
 def CrossCcyBasisHelperAddIndexForeign(builder, indexForeign):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(indexForeign), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexForeign), 0)
 
 def AddIndexForeign(builder, indexForeign):
     CrossCcyBasisHelperAddIndexForeign(builder, indexForeign)
 
 def CrossCcyBasisHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     CrossCcyBasisHelperAddDeps(builder, deps)
 
 def CrossCcyBasisHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     CrossCcyBasisHelperAddQuoteId(builder, quoteId)
@@ -150,8 +141,7 @@ class CrossCcyBasisHelperT(object):
     # CrossCcyBasisHelperT
     def __init__(self):
         self.spread = 0.0  # type: float
-        self.tenorNumber = 0  # type: int
-        self.tenorTimeUnit = 0  # type: int
+        self.tenor = None  # type: Optional[PeriodT]
         self.indexDomestic = None  # type: Optional[IndexRefT]
         self.indexForeign = None  # type: Optional[IndexRefT]
         self.deps = None  # type: Optional[HelperDependenciesT]
@@ -179,8 +169,8 @@ class CrossCcyBasisHelperT(object):
         if crossCcyBasisHelper is None:
             return
         self.spread = crossCcyBasisHelper.Spread()
-        self.tenorNumber = crossCcyBasisHelper.TenorNumber()
-        self.tenorTimeUnit = crossCcyBasisHelper.TenorTimeUnit()
+        if crossCcyBasisHelper.Tenor() is not None:
+            self.tenor = PeriodT.InitFromObj(crossCcyBasisHelper.Tenor())
         if crossCcyBasisHelper.IndexDomestic() is not None:
             self.indexDomestic = IndexRefT.InitFromObj(crossCcyBasisHelper.IndexDomestic())
         if crossCcyBasisHelper.IndexForeign() is not None:
@@ -191,6 +181,8 @@ class CrossCcyBasisHelperT(object):
 
     # CrossCcyBasisHelperT
     def Pack(self, builder):
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
         if self.indexDomestic is not None:
             indexDomestic = self.indexDomestic.Pack(builder)
         if self.indexForeign is not None:
@@ -201,8 +193,8 @@ class CrossCcyBasisHelperT(object):
             quoteId = builder.CreateString(self.quoteId)
         CrossCcyBasisHelperStart(builder)
         CrossCcyBasisHelperAddSpread(builder, self.spread)
-        CrossCcyBasisHelperAddTenorNumber(builder, self.tenorNumber)
-        CrossCcyBasisHelperAddTenorTimeUnit(builder, self.tenorTimeUnit)
+        if self.tenor is not None:
+            CrossCcyBasisHelperAddTenor(builder, tenor)
         if self.indexDomestic is not None:
             CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
         if self.indexForeign is not None:

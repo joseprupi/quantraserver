@@ -6,26 +6,30 @@
         "id": "EUR_6M",
         "name": "Euribor",
         "index_type": "Ibor",
-        "tenor_number": 6,
-        "tenor_time_unit": "Months",
         "fixing_days": 2,
         "calendar": "TARGET",
         "business_day_convention": "ModifiedFollowing",
         "day_counter": "Actual360",
         "end_of_month": true,
-        "currency": "EUR"
+        "currency": "EUR",
+        "tenor": {
+          "n": 6,
+          "unit": "Months"
+        }
       },
       {
         "id": "EUR_ESTR",
         "name": "ESTR",
         "index_type": "Overnight",
-        "tenor_number": 0,
-        "tenor_time_unit": "Days",
         "fixing_days": 0,
         "calendar": "TARGET",
         "business_day_convention": "Following",
         "day_counter": "Actual360",
-        "currency": "EUR"
+        "currency": "EUR",
+        "tenor": {
+          "n": 0,
+          "unit": "Days"
+        }
       }
     ],
     "curves": [
@@ -39,39 +43,53 @@
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.038,
-              "tenor_number": 1,
-              "tenor_time_unit": "Days",
               "fixing_days": 0,
               "calendar": "TARGET",
               "business_day_convention": "Following",
-              "day_counter": "Actual360"
+              "day_counter": "Actual360",
+              "tenor": {
+                "n": 1,
+                "unit": "Days"
+              }
             }
           },
           {
             "point_type": "OISHelper",
             "point": {
               "rate": 0.0385,
-              "tenor_number": 1,
-              "tenor_time_unit": "Years",
-              "overnight_index": { "id": "EUR_ESTR" }
+              "overnight_index": {
+                "id": "EUR_ESTR"
+              },
+              "tenor": {
+                "n": 1,
+                "unit": "Years"
+              }
             }
           },
           {
             "point_type": "OISHelper",
             "point": {
               "rate": 0.035,
-              "tenor_number": 5,
-              "tenor_time_unit": "Years",
-              "overnight_index": { "id": "EUR_ESTR" }
+              "overnight_index": {
+                "id": "EUR_ESTR"
+              },
+              "tenor": {
+                "n": 5,
+                "unit": "Years"
+              }
             }
           },
           {
             "point_type": "OISHelper",
             "point": {
               "rate": 0.033,
-              "tenor_number": 10,
-              "tenor_time_unit": "Years",
-              "overnight_index": { "id": "EUR_ESTR" }
+              "overnight_index": {
+                "id": "EUR_ESTR"
+              },
+              "tenor": {
+                "n": 10,
+                "unit": "Years"
+              }
             }
           }
         ]
@@ -86,27 +104,35 @@
             "point_type": "DepositHelper",
             "point": {
               "rate": 0.039,
-              "tenor_number": 6,
-              "tenor_time_unit": "Months",
               "fixing_days": 2,
               "calendar": "TARGET",
               "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual360"
+              "day_counter": "Actual360",
+              "tenor": {
+                "n": 6,
+                "unit": "Months"
+              }
             }
           },
           {
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.036,
-              "tenor_number": 2,
-              "tenor_time_unit": "Years",
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
               "sw_fixed_leg_day_counter": "Thirty360",
-              "float_index": { "id": "EUR_6M" },
+              "float_index": {
+                "id": "EUR_6M"
+              },
               "deps": {
-                "discount_curve": { "id": "EUR_OIS" }
+                "discount_curve": {
+                  "id": "EUR_OIS"
+                }
+              },
+              "tenor": {
+                "n": 2,
+                "unit": "Years"
               }
             }
           },
@@ -114,15 +140,21 @@
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.034,
-              "tenor_number": 5,
-              "tenor_time_unit": "Years",
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
               "sw_fixed_leg_day_counter": "Thirty360",
-              "float_index": { "id": "EUR_6M" },
+              "float_index": {
+                "id": "EUR_6M"
+              },
               "deps": {
-                "discount_curve": { "id": "EUR_OIS" }
+                "discount_curve": {
+                  "id": "EUR_OIS"
+                }
+              },
+              "tenor": {
+                "n": 5,
+                "unit": "Years"
               }
             }
           },
@@ -130,15 +162,21 @@
             "point_type": "SwapHelper",
             "point": {
               "rate": 0.032,
-              "tenor_number": 10,
-              "tenor_time_unit": "Years",
               "calendar": "TARGET",
               "sw_fixed_leg_frequency": "Annual",
               "sw_fixed_leg_convention": "ModifiedFollowing",
               "sw_fixed_leg_day_counter": "Thirty360",
-              "float_index": { "id": "EUR_6M" },
+              "float_index": {
+                "id": "EUR_6M"
+              },
               "deps": {
-                "discount_curve": { "id": "EUR_OIS" }
+                "discount_curve": {
+                  "id": "EUR_OIS"
+                }
+              },
+              "tenor": {
+                "n": 10,
+                "unit": "Years"
               }
             }
           }
@@ -178,7 +216,9 @@
             "end_of_month": false
           },
           "notional": 10000000,
-          "index": { "id": "EUR_6M" },
+          "index": {
+            "id": "EUR_6M"
+          },
           "spread": 0.0,
           "day_counter": "Actual360",
           "payment_convention": "ModifiedFollowing"

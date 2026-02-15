@@ -15,6 +15,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "cds_generated.h"
 #include "common_generated.h"
+#include "pricing_generated.h"
 
 namespace quantra {
 

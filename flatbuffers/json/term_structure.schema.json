@@ -117,6 +117,10 @@
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
     },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
     "quantra_IndexType" : {
       "type" : "string",
       "enum": ["Ibor", "Overnight"]
@@ -155,6 +159,168 @@
       },
       "additionalProperties" : false
     },
+    "quantra_Period" : {
+      "type" : "object",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterestFloat" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterestFloat" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_Fixing" : {
       "type" : "object",
       "properties" : {
@@ -184,12 +350,9 @@
                 "$ref" : "#/definitions/quantra_IndexType",
                 "description" : "IBOR or Overnight. Determines QuantLib class used."
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 for overnight)\nFor overnight indices, set tenor_number=0."
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)"
               },
         "fixing_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
@@ -272,11 +435,8 @@
         "rate" : {
                 "type" : "number"
               },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
-              },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "fixing_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -368,11 +528,8 @@
         "rate" : {
                 "type" : "number"
               },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
-              },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -453,11 +610,8 @@
         "rate" : {
                 "type" : "number"
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "overnight_index" : {
                 "$ref" : "#/definitions/quantra_IndexRef",
@@ -535,12 +689,9 @@
                 "type" : "string",
                 "description" : "Maturity date for the zero rate (YYYY-MM-DD)"
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
                 "description" : "Alternative: tenor from reference date"
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -569,11 +720,8 @@
         "spread" : {
                 "type" : "number"
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "index_short" : {
                 "$ref" : "#/definitions/quantra_IndexRef",
@@ -602,11 +750,8 @@
         "fx_points" : {
                 "type" : "number"
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "spot_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -632,11 +777,8 @@
         "spread" : {
                 "type" : "number"
               },
-        "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "tenor_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
               },
         "index_domestic" : {
                 "$ref" : "#/definitions/quantra_IndexRef",

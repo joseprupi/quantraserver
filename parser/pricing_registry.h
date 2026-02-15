@@ -12,6 +12,9 @@
 
 #include "vol_surface_parsers.h"
 #include "common_generated.h"
+#include "pricing_generated.h"
+#include "credit_curve_generated.h"
+#include "coupon_pricer_generated.h"
 #include "model_generated.h"
 #include "index_registry.h"
 #include "swap_index_registry.h"

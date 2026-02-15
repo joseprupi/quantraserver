@@ -1,14 +1,7 @@
 include "enums.fbs";
+include "common.fbs";
 
 namespace quantra;
-
-// ============================================================================
-// Period / Tenor
-// ============================================================================
-table PeriodSpec {
-    tenor_number:int;
-    tenor_time_unit:enums.TimeUnit;
-}
 
 // ============================================================================
 // Quote containers (support inline values or quote_ids)
@@ -75,8 +68,8 @@ table SwaptionVolConstantSpec {
 
 table SwaptionVolAtmMatrixSpec {
     base:IrVolBaseSpec;
-    expiries:[PeriodSpec];
-    tenors:[PeriodSpec];
+    expiries:[Period];
+    tenors:[Period];
     vols:QuoteMatrix2D;
     expiry_interpolator:enums.Interpolator = Linear;
     tenor_interpolator:enums.Interpolator = Linear;
@@ -84,10 +77,9 @@ table SwaptionVolAtmMatrixSpec {
 
 table SwaptionVolSmileCubeSpec {
     base:IrVolBaseSpec;
-    swap_index_id:string; // convention anchor (e.g. USD_SOFR / EUR_6M)
     allow_external_atm:bool = false; // require explicit opt-in when client provides atm_forwards
-    expiries:[PeriodSpec];
-    tenors:[PeriodSpec];
+    expiries:[Period];
+    tenors:[Period];
     strikes:[double];
     strike_kind:enums.SwaptionStrikeKind = Absolute;
     atm_forwards:QuoteMatrix2D; // optional for Absolute, required for SpreadFromATM
@@ -99,8 +91,8 @@ table SwaptionVolSmileCubeSpec {
 
 table SwaptionSabrParamsSpec {
     base:IrVolBaseSpec;
-    expiries:[PeriodSpec];
-    tenors:[PeriodSpec];
+    expiries:[Period];
+    tenors:[Period];
     alpha:QuoteMatrix2D;
     beta:QuoteMatrix2D;
     rho:QuoteMatrix2D;
@@ -109,8 +101,8 @@ table SwaptionSabrParamsSpec {
 
 table SwaptionSabrCalibrateSpec {
     base:IrVolBaseSpec;
-    expiries:[PeriodSpec];
-    tenors:[PeriodSpec];
+    expiries:[Period];
+    tenors:[Period];
     strikes:[double];
     vols:QuoteTensor3D;
     beta_fixed:bool = true;
@@ -127,6 +119,7 @@ union SwaptionVolPayload {
 }
 
 table SwaptionVolSpec {
+    swap_index_id:string; // required convention anchor for all swaption vol surfaces
     payload:SwaptionVolPayload;
 }
 

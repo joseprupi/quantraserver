@@ -31,6 +31,9 @@
 #include <ql/math/interpolations/loginterpolation.hpp>
 
 #include "common_generated.h"
+#include "pricing_generated.h"
+#include "term_structure_generated.h"
+#include "coupon_pricer_generated.h"
 #include "enums.h"
 #include "common.h"
 #include "schedule_generated.h"

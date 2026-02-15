@@ -36,71 +36,64 @@ class SwaptionVolSmileCubeSpec(object):
         return None
 
     # SwaptionVolSmileCubeSpec
-    def SwapIndexId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # SwaptionVolSmileCubeSpec
     def AllowExternalAtm(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
     # SwaptionVolSmileCubeSpec
     def Expiries(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PeriodSpec import PeriodSpec
-            obj = PeriodSpec()
+            from quantra.Period import Period
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # SwaptionVolSmileCubeSpec
     def ExpiriesLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # SwaptionVolSmileCubeSpec
     def ExpiriesIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
     # SwaptionVolSmileCubeSpec
     def Tenors(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            obj = PeriodSpec()
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # SwaptionVolSmileCubeSpec
     def TenorsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # SwaptionVolSmileCubeSpec
     def TenorsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
     # SwaptionVolSmileCubeSpec
     def Strikes(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             a = self._tab.Vector(o)
             return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
@@ -108,33 +101,33 @@ class SwaptionVolSmileCubeSpec(object):
 
     # SwaptionVolSmileCubeSpec
     def StrikesAsNumpy(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
         return 0
 
     # SwaptionVolSmileCubeSpec
     def StrikesLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # SwaptionVolSmileCubeSpec
     def StrikesIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
     # SwaptionVolSmileCubeSpec
     def StrikeKind(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
     # SwaptionVolSmileCubeSpec
     def AtmForwards(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.QuoteMatrix2D import QuoteMatrix2D
@@ -145,7 +138,7 @@ class SwaptionVolSmileCubeSpec(object):
 
     # SwaptionVolSmileCubeSpec
     def Vols(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.QuoteTensor3D import QuoteTensor3D
@@ -156,27 +149,27 @@ class SwaptionVolSmileCubeSpec(object):
 
     # SwaptionVolSmileCubeSpec
     def ExpiryInterpolator(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # SwaptionVolSmileCubeSpec
     def TenorInterpolator(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
     # SwaptionVolSmileCubeSpec
     def StrikeInterpolator(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
 def SwaptionVolSmileCubeSpecStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(11)
 
 def Start(builder):
     SwaptionVolSmileCubeSpecStart(builder)
@@ -187,20 +180,14 @@ def SwaptionVolSmileCubeSpecAddBase(builder, base):
 def AddBase(builder, base):
     SwaptionVolSmileCubeSpecAddBase(builder, base)
 
-def SwaptionVolSmileCubeSpecAddSwapIndexId(builder, swapIndexId):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(swapIndexId), 0)
-
-def AddSwapIndexId(builder, swapIndexId):
-    SwaptionVolSmileCubeSpecAddSwapIndexId(builder, swapIndexId)
-
 def SwaptionVolSmileCubeSpecAddAllowExternalAtm(builder, allowExternalAtm):
-    builder.PrependBoolSlot(2, allowExternalAtm, 0)
+    builder.PrependBoolSlot(1, allowExternalAtm, 0)
 
 def AddAllowExternalAtm(builder, allowExternalAtm):
     SwaptionVolSmileCubeSpecAddAllowExternalAtm(builder, allowExternalAtm)
 
 def SwaptionVolSmileCubeSpecAddExpiries(builder, expiries):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(expiries), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(expiries), 0)
 
 def AddExpiries(builder, expiries):
     SwaptionVolSmileCubeSpecAddExpiries(builder, expiries)
@@ -212,7 +199,7 @@ def StartExpiriesVector(builder, numElems):
     return SwaptionVolSmileCubeSpecStartExpiriesVector(builder, numElems)
 
 def SwaptionVolSmileCubeSpecAddTenors(builder, tenors):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(tenors), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(tenors), 0)
 
 def AddTenors(builder, tenors):
     SwaptionVolSmileCubeSpecAddTenors(builder, tenors)
@@ -224,7 +211,7 @@ def StartTenorsVector(builder, numElems):
     return SwaptionVolSmileCubeSpecStartTenorsVector(builder, numElems)
 
 def SwaptionVolSmileCubeSpecAddStrikes(builder, strikes):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(strikes), 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(strikes), 0)
 
 def AddStrikes(builder, strikes):
     SwaptionVolSmileCubeSpecAddStrikes(builder, strikes)
@@ -236,37 +223,37 @@ def StartStrikesVector(builder, numElems):
     return SwaptionVolSmileCubeSpecStartStrikesVector(builder, numElems)
 
 def SwaptionVolSmileCubeSpecAddStrikeKind(builder, strikeKind):
-    builder.PrependInt8Slot(6, strikeKind, 0)
+    builder.PrependInt8Slot(5, strikeKind, 0)
 
 def AddStrikeKind(builder, strikeKind):
     SwaptionVolSmileCubeSpecAddStrikeKind(builder, strikeKind)
 
 def SwaptionVolSmileCubeSpecAddAtmForwards(builder, atmForwards):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(atmForwards), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(atmForwards), 0)
 
 def AddAtmForwards(builder, atmForwards):
     SwaptionVolSmileCubeSpecAddAtmForwards(builder, atmForwards)
 
 def SwaptionVolSmileCubeSpecAddVols(builder, vols):
-    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(vols), 0)
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(vols), 0)
 
 def AddVols(builder, vols):
     SwaptionVolSmileCubeSpecAddVols(builder, vols)
 
 def SwaptionVolSmileCubeSpecAddExpiryInterpolator(builder, expiryInterpolator):
-    builder.PrependInt8Slot(9, expiryInterpolator, 2)
+    builder.PrependInt8Slot(8, expiryInterpolator, 2)
 
 def AddExpiryInterpolator(builder, expiryInterpolator):
     SwaptionVolSmileCubeSpecAddExpiryInterpolator(builder, expiryInterpolator)
 
 def SwaptionVolSmileCubeSpecAddTenorInterpolator(builder, tenorInterpolator):
-    builder.PrependInt8Slot(10, tenorInterpolator, 2)
+    builder.PrependInt8Slot(9, tenorInterpolator, 2)
 
 def AddTenorInterpolator(builder, tenorInterpolator):
     SwaptionVolSmileCubeSpecAddTenorInterpolator(builder, tenorInterpolator)
 
 def SwaptionVolSmileCubeSpecAddStrikeInterpolator(builder, strikeInterpolator):
-    builder.PrependInt8Slot(11, strikeInterpolator, 2)
+    builder.PrependInt8Slot(10, strikeInterpolator, 2)
 
 def AddStrikeInterpolator(builder, strikeInterpolator):
     SwaptionVolSmileCubeSpecAddStrikeInterpolator(builder, strikeInterpolator)
@@ -287,10 +274,9 @@ class SwaptionVolSmileCubeSpecT(object):
     # SwaptionVolSmileCubeSpecT
     def __init__(self):
         self.base = None  # type: Optional[IrVolBaseSpecT]
-        self.swapIndexId = None  # type: str
         self.allowExternalAtm = False  # type: bool
-        self.expiries = None  # type: List[PeriodSpecT]
-        self.tenors = None  # type: List[PeriodSpecT]
+        self.expiries = None  # type: List[PeriodT]
+        self.tenors = None  # type: List[PeriodT]
         self.strikes = None  # type: List[float]
         self.strikeKind = 0  # type: int
         self.atmForwards = None  # type: Optional[QuoteMatrix2DT]
@@ -322,7 +308,6 @@ class SwaptionVolSmileCubeSpecT(object):
             return
         if swaptionVolSmileCubeSpec.Base() is not None:
             self.base = IrVolBaseSpecT.InitFromObj(swaptionVolSmileCubeSpec.Base())
-        self.swapIndexId = swaptionVolSmileCubeSpec.SwapIndexId()
         self.allowExternalAtm = swaptionVolSmileCubeSpec.AllowExternalAtm()
         if not swaptionVolSmileCubeSpec.ExpiriesIsNone():
             self.expiries = []
@@ -330,16 +315,16 @@ class SwaptionVolSmileCubeSpecT(object):
                 if swaptionVolSmileCubeSpec.Expiries(i) is None:
                     self.expiries.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionVolSmileCubeSpec.Expiries(i))
-                    self.expiries.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionVolSmileCubeSpec.Expiries(i))
+                    self.expiries.append(period_)
         if not swaptionVolSmileCubeSpec.TenorsIsNone():
             self.tenors = []
             for i in range(swaptionVolSmileCubeSpec.TenorsLength()):
                 if swaptionVolSmileCubeSpec.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(swaptionVolSmileCubeSpec.Tenors(i))
-                    self.tenors.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(swaptionVolSmileCubeSpec.Tenors(i))
+                    self.tenors.append(period_)
         if not swaptionVolSmileCubeSpec.StrikesIsNone():
             if np is None:
                 self.strikes = []
@@ -360,8 +345,6 @@ class SwaptionVolSmileCubeSpecT(object):
     def Pack(self, builder):
         if self.base is not None:
             base = self.base.Pack(builder)
-        if self.swapIndexId is not None:
-            swapIndexId = builder.CreateString(self.swapIndexId)
         if self.expiries is not None:
             expirieslist = []
             for i in range(len(self.expiries)):
@@ -393,8 +376,6 @@ class SwaptionVolSmileCubeSpecT(object):
         SwaptionVolSmileCubeSpecStart(builder)
         if self.base is not None:
             SwaptionVolSmileCubeSpecAddBase(builder, base)
-        if self.swapIndexId is not None:
-            SwaptionVolSmileCubeSpecAddSwapIndexId(builder, swapIndexId)
         SwaptionVolSmileCubeSpecAddAllowExternalAtm(builder, self.allowExternalAtm)
         if self.expiries is not None:
             SwaptionVolSmileCubeSpecAddExpiries(builder, expiries)

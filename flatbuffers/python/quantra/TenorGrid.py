@@ -32,8 +32,8 @@ class TenorGrid(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.PeriodSpec import PeriodSpec
-            obj = PeriodSpec()
+            from quantra.Period import Period
+            obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -109,7 +109,7 @@ class TenorGridT(object):
 
     # TenorGridT
     def __init__(self):
-        self.tenors = None  # type: List[PeriodSpecT]
+        self.tenors = None  # type: List[PeriodT]
         self.calendar = 21  # type: int
         self.businessDayConvention = 0  # type: int
 
@@ -140,8 +140,8 @@ class TenorGridT(object):
                 if tenorGrid.Tenors(i) is None:
                     self.tenors.append(None)
                 else:
-                    periodSpec_ = PeriodSpecT.InitFromObj(tenorGrid.Tenors(i))
-                    self.tenors.append(periodSpec_)
+                    period_ = PeriodT.InitFromObj(tenorGrid.Tenors(i))
+                    self.tenors.append(period_)
         self.calendar = tenorGrid.Calendar()
         self.businessDayConvention = tenorGrid.BusinessDayConvention()
 

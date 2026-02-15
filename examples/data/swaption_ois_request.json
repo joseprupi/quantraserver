@@ -9,38 +9,582 @@
         "reference_date": "2024-08-14",
         "bootstrap_trait": "Discount",
         "points": [
-          { "point_type": "OISHelper", "point": { "rate": 0.0533410, "tenor_number": 1, "tenor_time_unit": "Weeks", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0533585, "tenor_number": 2, "tenor_time_unit": "Weeks", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0533814, "tenor_number": 3, "tenor_time_unit": "Weeks", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0534261, "tenor_number": 1, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0520565, "tenor_number": 2, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0511385, "tenor_number": 3, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0502265, "tenor_number": 4, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0490300, "tenor_number": 5, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0478850, "tenor_number": 6, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0470850, "tenor_number": 7, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0460968, "tenor_number": 8, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0452458, "tenor_number": 9, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0444082, "tenor_number": 10, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0436380, "tenor_number": 11, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0428710, "tenor_number": 12, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0392930, "tenor_number": 18, "tenor_time_unit": "Months", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0373480, "tenor_number": 2, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0351270, "tenor_number": 3, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0340905, "tenor_number": 4, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0336448, "tenor_number": 5, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0334900, "tenor_number": 6, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0334540, "tenor_number": 7, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0335100, "tenor_number": 8, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0336048, "tenor_number": 9, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0337219, "tenor_number": 10, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0340177, "tenor_number": 12, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0343655, "tenor_number": 15, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0343820, "tenor_number": 20, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0337260, "tenor_number": 25, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0329430, "tenor_number": 30, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0310050, "tenor_number": 40, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } },
-          { "point_type": "OISHelper", "point": { "rate": 0.0290915, "tenor_number": 50, "tenor_time_unit": "Years", "overnight_index": { "id": "USD_SOFR" }, "settlement_days": 2, "calendar": "UnitedStatesGovernmentBond", "fixed_leg_frequency": "Annual", "fixed_leg_convention": "ModifiedFollowing", "fixed_leg_day_counter": "Actual360" } }
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.053341,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 1,
+                "unit": "Weeks"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0533585,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 2,
+                "unit": "Weeks"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0533814,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 3,
+                "unit": "Weeks"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0534261,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 1,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0520565,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 2,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0511385,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 3,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0502265,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 4,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.04903,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 5,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.047885,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 6,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.047085,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 7,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0460968,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 8,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0452458,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 9,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0444082,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 10,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.043638,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 11,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.042871,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 12,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.039293,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 18,
+                "unit": "Months"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.037348,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 2,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.035127,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 3,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0340905,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 4,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0336448,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 5,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.03349,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 6,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.033454,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 7,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.03351,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 8,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0336048,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 9,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0337219,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 10,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0340177,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 12,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0343655,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 15,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.034382,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 20,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.033726,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 25,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.032943,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 30,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.031005,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 40,
+                "unit": "Years"
+              }
+            }
+          },
+          {
+            "point_type": "OISHelper",
+            "point": {
+              "rate": 0.0290915,
+              "overnight_index": {
+                "id": "USD_SOFR"
+              },
+              "settlement_days": 2,
+              "calendar": "UnitedStatesGovernmentBond",
+              "fixed_leg_frequency": "Annual",
+              "fixed_leg_convention": "ModifiedFollowing",
+              "fixed_leg_day_counter": "Actual360",
+              "tenor": {
+                "n": 50,
+                "unit": "Years"
+              }
+            }
+          }
         ]
       }
     ],
@@ -49,6 +593,7 @@
         "id": "usd_sofr_swo_vol",
         "payload_type": "SwaptionVolSpec",
         "payload": {
+          "swap_index_id": "USD_SOFR_OIS",
           "payload_type": "SwaptionVolConstantSpec",
           "payload": {
             "base": {
@@ -79,13 +624,15 @@
         "id": "USD_SOFR",
         "name": "SOFR",
         "index_type": "Overnight",
-        "tenor_number": 0,
-        "tenor_time_unit": "Days",
         "fixing_days": 0,
         "calendar": "UnitedStatesGovernmentBond",
         "business_day_convention": "Following",
         "day_counter": "Actual360",
-        "currency": "USD"
+        "currency": "USD",
+        "tenor": {
+          "n": 0,
+          "unit": "Days"
+        }
       }
     ]
   },
@@ -125,7 +672,9 @@
               "termination_date_convention": "ModifiedFollowing",
               "date_generation_rule": "Forward"
             },
-            "index": { "id": "USD_SOFR" },
+            "index": {
+              "id": "USD_SOFR"
+            },
             "spread": 0.0,
             "day_counter": "Actual360",
             "payment_convention": "ModifiedFollowing",

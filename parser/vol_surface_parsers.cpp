@@ -27,6 +27,8 @@ QuantLib::VolatilityType toQlVolType(quantra::enums::VolatilityType t) {
         case quantra::enums::VolatilityType_Normal:
             return QuantLib::Normal;
             
+        // QuantLib encodes Black lognormal vols under ShiftedLognormal;
+        // pure lognormal is represented by displacement == 0.
         case quantra::enums::VolatilityType_Lognormal:
         case quantra::enums::VolatilityType_ShiftedLognormal:
             return QuantLib::ShiftedLognormal;
@@ -92,12 +94,12 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
     }
 }
 
-QuantLib::Period toQlPeriod(const quantra::PeriodSpec* p) {
+QuantLib::Period toQlPeriod(const quantra::Period* p) {
     if (!p) {
-        QUANTRA_ERROR("PeriodSpec is null");
+        QUANTRA_ERROR("Period is null");
     }
     QuantLib::TimeUnit unit;
-    switch (p->tenor_time_unit()) {
+    switch (p->unit()) {
         case quantra::enums::TimeUnit_Days:
             unit = QuantLib::Days;
             break;
@@ -111,9 +113,9 @@ QuantLib::Period toQlPeriod(const quantra::PeriodSpec* p) {
             unit = QuantLib::Years;
             break;
         default:
-            QUANTRA_ERROR("Unknown TimeUnit for PeriodSpec");
+            QUANTRA_ERROR("Unknown TimeUnit for Period");
     }
-    return QuantLib::Period(p->tenor_number(), unit);
+    return QuantLib::Period(p->n(), unit);
 }
 
 double resolveMatrixValue(
@@ -508,6 +510,8 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     entry.constantVol = vol;
     entry.referenceDate = ref;
     entry.calendar = cal;
+    entry.calendarFb = b->calendar();
+    entry.businessDayConventionFb = b->business_day_convention();
     entry.dayCounter = dc;
     
     return entry;
@@ -526,6 +530,10 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
     auto* wrapper = spec->payload_as_SwaptionVolSpec();
     if (!wrapper) {
         QUANTRA_ERROR("SwaptionVolSpec payload missing for vol id: " + id);
+    }
+    std::string wrapperSwapIndexId = wrapper->swap_index_id() ? wrapper->swap_index_id()->str() : "";
+    if (isBlankString(wrapperSwapIndexId)) {
+        QUANTRA_ERROR("SwaptionVolSpec.swap_index_id is required for vol id: " + id);
     }
 
     switch (wrapper->payload_type()) {
@@ -559,6 +567,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             entry.businessDayConvention = bdc;
             entry.dayCounter = dc;
             entry.volKind = quantra::enums::SwaptionVolKind_Constant;
+            entry.swapIndexId = wrapperSwapIndexId;
             return entry;
         }
 
@@ -640,6 +649,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             entry.volsFlat = flat;
             entry.nExp = nExp;
             entry.nTen = nTen;
+            entry.swapIndexId = wrapperSwapIndexId;
             return entry;
         }
 
@@ -686,10 +696,6 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             for (auto it = payload->strikes()->begin(); it != payload->strikes()->end(); ++it) {
                 strikes.push_back(*it);
             }
-            std::string swapIndexId = payload->swap_index_id() ? payload->swap_index_id()->str() : "";
-            if (isBlankString(swapIndexId)) {
-                swapIndexId.clear();
-            }
             bool allowExternalAtm = payload->allow_external_atm();
             auto strikeKind = payload->strike_kind();
             std::vector<double> atmForwards;
@@ -704,11 +710,6 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 for (int idx = 0; idx < nExp * nTen; ++idx) {
                     atmForwards.push_back(resolveMatrixValue(atm, idx, quotes, id));
                 }
-            }
-            if (strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM &&
-                swapIndexId.empty()) {
-                QUANTRA_ERROR(
-                    "SwaptionVolSmileCubeSpec strike_kind=SpreadFromATM requires swap_index_id for vol id: " + id);
             }
             if (strikeKind == quantra::enums::SwaptionStrikeKind_Absolute && !atmForwards.empty()) {
                 QUANTRA_ERROR(
@@ -746,7 +747,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             entry.expiries = expiries;
             entry.tenors = tenors;
             entry.strikes = strikes;
-            entry.swapIndexId = swapIndexId;
+            entry.swapIndexId = wrapperSwapIndexId;
             entry.strikeKind = strikeKind;
             entry.allowExternalAtm = allowExternalAtm;
             entry.atmForwardsFlat = atmForwards;
