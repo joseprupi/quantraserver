@@ -7,6 +7,7 @@
 #include "product_registry.h"
 
 #include <stdexcept>
+#include <iostream>
 
 namespace quantra {
 
@@ -27,13 +28,38 @@ JsonResponse JsonResponse::ServerError(const std::string& error) {
 }
 
 JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
+    auto codeName = [](grpc::StatusCode code) -> const char* {
+        switch (code) {
+            case grpc::StatusCode::OK: return "OK";
+            case grpc::StatusCode::CANCELLED: return "CANCELLED";
+            case grpc::StatusCode::UNKNOWN: return "UNKNOWN";
+            case grpc::StatusCode::INVALID_ARGUMENT: return "INVALID_ARGUMENT";
+            case grpc::StatusCode::DEADLINE_EXCEEDED: return "DEADLINE_EXCEEDED";
+            case grpc::StatusCode::NOT_FOUND: return "NOT_FOUND";
+            case grpc::StatusCode::ALREADY_EXISTS: return "ALREADY_EXISTS";
+            case grpc::StatusCode::PERMISSION_DENIED: return "PERMISSION_DENIED";
+            case grpc::StatusCode::RESOURCE_EXHAUSTED: return "RESOURCE_EXHAUSTED";
+            case grpc::StatusCode::FAILED_PRECONDITION: return "FAILED_PRECONDITION";
+            case grpc::StatusCode::ABORTED: return "ABORTED";
+            case grpc::StatusCode::OUT_OF_RANGE: return "OUT_OF_RANGE";
+            case grpc::StatusCode::UNIMPLEMENTED: return "UNIMPLEMENTED";
+            case grpc::StatusCode::INTERNAL: return "INTERNAL";
+            case grpc::StatusCode::UNAVAILABLE: return "UNAVAILABLE";
+            case grpc::StatusCode::DATA_LOSS: return "DATA_LOSS";
+            case grpc::StatusCode::UNAUTHENTICATED: return "UNAUTHENTICATED";
+            default: return "UNKNOWN_CODE";
+        }
+    };
+
     std::ostringstream oss;
     std::string details = status.error_details();
     if (details.empty()) {
         details = status.error_message();
     }
+    std::string code_name = codeName(status.error_code());
     oss << R"({"error": "gRPC error", "code": )" << status.error_code()
-        << R"(, "message": ")" << details << R"("})";
+        << R"(, "code_name": ")" << code_name
+        << R"(", "message": ")" << details << R"("})";
     return {false, 500, oss.str()};
 }
 
@@ -44,6 +70,7 @@ JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
 class QuantraClient::Impl {
 public:
     Impl(const std::string& address, bool use_tls) {
+        backend_address_ = address;
         InitChannel(address, use_tls);
         json_parser_ = std::make_unique<JsonParser>();
     }
@@ -74,6 +101,21 @@ public:
             grpc::Status status = (stub_.get()->*rpc)(&context, request, &response);
             
             if (!status.ok()) {
+                std::cerr
+                    << "[QuantraClient] gRPC call failed"
+                    << " product=" << ProductTypeToString(type)
+                    << " backend=" << backend_address_
+                    << " code=" << static_cast<int>(status.error_code())
+                    << " message=\"" << status.error_message() << "\""
+                    << " details=\"" << status.error_details() << "\""
+                    << " debug=\"" << context.debug_error_string() << "\""
+                    << std::endl;
+                if (status.error_code() == grpc::StatusCode::UNIMPLEMENTED) {
+                    std::cerr
+                        << "[QuantraClient] hint: backend does not implement this RPC."
+                        << " Ensure json_server points to the correct sync_server binary/version."
+                        << std::endl;
+                }
                 return JsonResponse::GrpcError(status);
             }
             
@@ -93,6 +135,7 @@ public:
 private:
     std::shared_ptr<QuantraServer::Stub> stub_;
     std::unique_ptr<JsonParser> json_parser_;
+    std::string backend_address_;
     
     void InitChannel(const std::string& address, bool use_tls) {
         grpc::ChannelArguments args;

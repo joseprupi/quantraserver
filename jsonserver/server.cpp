@@ -110,7 +110,17 @@ int main(int argc, char** argv) {
 
         CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
         ([&](const crow::request& req) {
+            std::cout << "[jsonserver] POST /sample-vol-surfaces body_bytes="
+                      << req.body.size() << std::endl;
             auto r = client.SampleVolSurfacesJSON(req.body);
+            if (r.status_code >= 400) {
+                std::cerr << "[jsonserver] /sample-vol-surfaces failed"
+                          << " http_status=" << r.status_code
+                          << " response=" << r.body << std::endl;
+            } else {
+                std::cout << "[jsonserver] /sample-vol-surfaces success"
+                          << " http_status=" << r.status_code << std::endl;
+            }
             return crow::response(r.status_code, r.body);
         });
         

@@ -247,18 +247,54 @@ void checkPointBudget(int64_t points, const QueryOptions* options) {
 flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const SampleVolSurfacesRequest* request) const {
-    if (!request || !request->pricing() || !request->queries()) {
-        QUANTRA_ERROR("SampleVolSurfacesRequest.pricing and queries are required");
-    }
+    auto buildRequestErrorResponse = [&](const std::string& message)
+        -> flatbuffers::Offset<SampleVolSurfacesResponse> {
+        std::vector<flatbuffers::Offset<VolSurfaceSample>> errorResults;
+        if (request && request->queries() && request->queries()->size() > 0) {
+            errorResults.reserve(request->queries()->size());
+            for (flatbuffers::uoffset_t qi = 0; qi < request->queries()->size(); ++qi) {
+                const auto* q = request->queries()->Get(qi);
+                std::string volId = (q && q->vol_id()) ? q->vol_id()->str() : "";
+                auto volIdOffset = builder->CreateString(volId);
+                auto errMsg = builder->CreateString(message);
+                ErrorBuilder eb(*builder);
+                eb.add_error_message(errMsg);
+                auto errOffset = eb.Finish();
+                VolSurfaceSampleBuilder out(*builder);
+                out.add_vol_id(volIdOffset);
+                out.add_error(errOffset);
+                errorResults.push_back(out.Finish());
+            }
+        } else {
+            auto volIdOffset = builder->CreateString("");
+            auto errMsg = builder->CreateString(message);
+            ErrorBuilder eb(*builder);
+            eb.add_error_message(errMsg);
+            auto errOffset = eb.Finish();
+            VolSurfaceSampleBuilder out(*builder);
+            out.add_vol_id(volIdOffset);
+            out.add_error(errOffset);
+            errorResults.push_back(out.Finish());
+        }
+        auto resultsVec = builder->CreateVector(errorResults);
+        SampleVolSurfacesResponseBuilder rb(*builder);
+        rb.add_results(resultsVec);
+        return rb.Finish();
+    };
 
-    PricingRegistry reg = PricingRegistryBuilder().build(request->pricing());
-    const Date asOf = DateToQL(request->pricing()->as_of_date()->str());
-    Settings::instance().evaluationDate() = asOf;
+    try {
+        if (!request || !request->pricing() || !request->queries() || request->queries()->size() == 0) {
+            QUANTRA_ERROR("SampleVolSurfacesRequest.pricing and non-empty queries are required");
+        }
 
-    std::vector<flatbuffers::Offset<VolSurfaceSample>> results;
-    for (flatbuffers::uoffset_t qi = 0; qi < request->queries()->size(); ++qi) {
-        const auto* q = request->queries()->Get(qi);
-        std::string volId = (q && q->vol_id()) ? q->vol_id()->str() : "";
+        PricingRegistry reg = PricingRegistryBuilder().build(request->pricing());
+        const Date asOf = DateToQL(request->pricing()->as_of_date()->str());
+        Settings::instance().evaluationDate() = asOf;
+
+        std::vector<flatbuffers::Offset<VolSurfaceSample>> results;
+        for (flatbuffers::uoffset_t qi = 0; qi < request->queries()->size(); ++qi) {
+            const auto* q = request->queries()->Get(qi);
+            std::string volId = (q && q->vol_id()) ? q->vol_id()->str() : "";
 
         try {
             if (volId.empty()) {
@@ -821,10 +857,17 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
             out.add_error(errOffset);
             results.push_back(out.Finish());
         }
-    }
+        }
 
-    auto resultsVec = builder->CreateVector(results);
-    SampleVolSurfacesResponseBuilder rb(*builder);
-    rb.add_results(resultsVec);
-    return rb.Finish();
+        if (results.empty()) {
+            QUANTRA_ERROR("SampleVolSurfacesRequest produced no results");
+        }
+
+        auto resultsVec = builder->CreateVector(results);
+        SampleVolSurfacesResponseBuilder rb(*builder);
+        rb.add_results(resultsVec);
+        return rb.Finish();
+    } catch (const std::exception& e) {
+        return buildRequestErrorResponse(e.what());
+    }
 }
