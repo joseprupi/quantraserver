@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  full-tests:
+    name: full-tests
+    runs-on: self-hosted
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify deps
+        run: |
+          test -d /opt/quantra-deps/include
+          test -d /opt/quantra-deps/lib
+
+      - name: Build
+        env:
+          DEPS_INSTALL_PREFIX: /opt/quantra-deps
+        run: ./scripts/build.sh Release
+
+      - name: Run all tests
+        env:
+          DEPS_INSTALL_PREFIX: /opt/quantra-deps
+        run: bash tests/run_all_tests.sh
