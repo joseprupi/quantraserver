@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 #include <grpcpp/grpcpp.h>
 #include "flatbuffers/idl.h"
@@ -178,6 +179,9 @@ public:
     // -------------------------------------------------------------------------
     
     std::shared_ptr<QuantraServer::Stub> GetStub();
+    std::string GetGrpcTarget() const;
+    grpc_connectivity_state GetChannelState(bool try_to_connect = false) const;
+    bool WaitForChannelReady(std::chrono::milliseconds timeout) const;
 
 private:
     class Impl;

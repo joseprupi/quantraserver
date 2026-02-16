@@ -142,7 +142,9 @@ def generate_envoy_config(
                     "interval": health_check_interval,
                     "unhealthy_threshold": 2,
                     "healthy_threshold": 1,
-                    "tcp_health_check": {}
+                    "grpc_health_check": {
+                        "service_name": "quantra.QuantraServer"
+                    }
                 }],
                 "load_assignment": {
                     "cluster_name": "quantra_workers",
