@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  full-tests:
+    name: full-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build CI dev image (deps + toolchain)
+        run: docker build --target dev -t quantra-ci:dev .
+
+      - name: Build project + run all tests inside container
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            quantra-ci:dev \
+            bash -lc 'export DEPS_INSTALL_PREFIX=/opt/quantra-deps && ./scripts/build.sh Release && bash tests/run_all_tests.sh'
