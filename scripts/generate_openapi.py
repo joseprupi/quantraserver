@@ -54,6 +54,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Swaption | `/price-swaption` | Price swaptions |
 | CDS | `/price-cds` | Price credit default swaps |
 | Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
+| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |
 
 ### Quick Start
 
