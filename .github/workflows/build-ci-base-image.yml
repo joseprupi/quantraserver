@@ -1,0 +1,45 @@
+name: Build CI Base Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - tools/quantra-manager/requirements.txt
+      - .github/workflows/build-ci-base-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/quantra-ci
+
+jobs:
+  build-and-push:
+    name: build-and-push-ci-base
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push dev-stage image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:deps-v1
+            ${{ env.IMAGE_NAME }}:deps-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

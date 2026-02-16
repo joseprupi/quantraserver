@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  CI_IMAGE: ghcr.io/${{ github.repository_owner }}/quantra-ci:deps-v1
+
+jobs:
+  full-tests:
+    name: full-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull prebuilt CI deps image
+        run: |
+          docker pull "$CI_IMAGE" || {
+            echo "Failed to pull $CI_IMAGE"
+            echo "Build/push it first with workflow: Build CI Base Image"
+            exit 1
+          }
+
+      - name: Build project + run full test suite
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "$CI_IMAGE" \
+            bash -lc 'export DEPS_INSTALL_PREFIX=/opt/quantra-deps && ./scripts/build.sh Release && bash tests/run_all_tests.sh'
