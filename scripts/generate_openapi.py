@@ -49,6 +49,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |
 | Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |
 | Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |
+| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |
+| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |
 | FRA | `/price-fra` | Price forward rate agreements |
 | Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |
 | Swaption | `/price-swaption` | Price swaptions |
@@ -98,6 +100,20 @@ ENDPOINTS = {
         "description": "Calculate NPV and fair rate for fixed-for-floating interest rate swaps.",
         "request_schema": "quantra_PriceVanillaSwapRequest",
         "response_schema": "quantra_PriceVanillaSwapResponse",
+        "tags": ["Interest Rate Derivatives"]
+    },
+    "/price-ois-swap": {
+        "summary": "Price OIS Swap",
+        "description": "Calculate NPV and fair terms for fixed-vs-overnight indexed swaps.",
+        "request_schema": "quantra_PriceOisSwapRequest",
+        "response_schema": "quantra_PriceOisSwapResponse",
+        "tags": ["Interest Rate Derivatives"]
+    },
+    "/price-basis-swap": {
+        "summary": "Price Basis Swap",
+        "description": "Calculate NPV and leg analytics for two-floating-leg basis swaps.",
+        "request_schema": "quantra_PriceBasisSwapRequest",
+        "response_schema": "quantra_PriceBasisSwapResponse",
         "tags": ["Interest Rate Derivatives"]
     },
     "/price-fra": {

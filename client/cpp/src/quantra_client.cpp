@@ -193,6 +193,18 @@ JsonResponse QuantraClient::PriceVanillaSwapJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::PriceOisSwapJSON(const std::string& json) {
+    return impl_->CallJSON<PriceOisSwapRequest, PriceOisSwapResponse>(
+        ProductType::OisSwap, json, &QuantraServer::Stub::PriceOisSwap
+    );
+}
+
+JsonResponse QuantraClient::PriceBasisSwapJSON(const std::string& json) {
+    return impl_->CallJSON<PriceBasisSwapRequest, PriceBasisSwapResponse>(
+        ProductType::BasisSwap, json, &QuantraServer::Stub::PriceBasisSwap
+    );
+}
+
 JsonResponse QuantraClient::PriceFRAJSON(const std::string& json) {
     return impl_->CallJSON<PriceFRARequest, PriceFRAResponse>(
         ProductType::FRA, json, &QuantraServer::Stub::PriceFRA
@@ -255,6 +267,22 @@ grpc::Status QuantraClient::PriceVanillaSwap(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->PriceVanillaSwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceOisSwap(
+    const Message<PriceOisSwapRequest>& request,
+    Message<PriceOisSwapResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->PriceOisSwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceBasisSwap(
+    const Message<PriceBasisSwapRequest>& request,
+    Message<PriceBasisSwapResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->PriceBasisSwap(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceFRA(

@@ -42,6 +42,14 @@ inline const std::map<ProductType, ProductSchema>& GetProductSchemas() {
             "price_vanilla_swap_request.fbs",
             "vanilla_swap_response.fbs"
         }},
+        {ProductType::OisSwap, {
+            "price_ois_swap_request.fbs",
+            "ois_swap_response.fbs"
+        }},
+        {ProductType::BasisSwap, {
+            "price_basis_swap_request.fbs",
+            "basis_swap_response.fbs"
+        }},
         {ProductType::FRA, {
             "price_fra_request.fbs",
             "fra_response.fbs"
@@ -84,6 +92,8 @@ inline const char* ProductTypeToString(ProductType type) {
         case ProductType::FixedRateBond:    return "FixedRateBond";
         case ProductType::FloatingRateBond: return "FloatingRateBond";
         case ProductType::VanillaSwap:      return "VanillaSwap";
+        case ProductType::OisSwap:          return "OisSwap";
+        case ProductType::BasisSwap:        return "BasisSwap";
         case ProductType::FRA:              return "FRA";
         case ProductType::CapFloor:         return "CapFloor";
         case ProductType::Swaption:         return "Swaption";

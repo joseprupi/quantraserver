@@ -19,6 +19,8 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceFixedRateBond",
   "/quantra.QuantraServer/PriceFloatingRateBond",
   "/quantra.QuantraServer/PriceVanillaSwap",
+  "/quantra.QuantraServer/PriceOisSwap",
+  "/quantra.QuantraServer/PriceBasisSwap",
   "/quantra.QuantraServer/PriceFRA",
   "/quantra.QuantraServer/PriceCapFloor",
   "/quantra.QuantraServer/PriceSwaption",
@@ -36,12 +38,14 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   : channel_(channel)  , rpcmethod_PriceFixedRateBond_(QuantraServer_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceFloatingRateBond_(QuantraServer_method_names[1], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceVanillaSwap_(QuantraServer_method_names[2], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceFRA_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCapFloor_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceSwaption_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCDS_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_BootstrapCurves_(QuantraServer_method_names[7], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_SampleVolSurfaces_(QuantraServer_method_names[8], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceOisSwap_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceBasisSwap_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceFRA_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCapFloor_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceSwaption_(QuantraServer_method_names[7], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCDS_(QuantraServer_method_names[8], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_BootstrapCurves_(QuantraServer_method_names[9], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_SampleVolSurfaces_(QuantraServer_method_names[10], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -78,6 +82,30 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
 
 ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceVanillaSwap_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceOisSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceOisSwapRequest>& request, flatbuffers::grpc::Message<PriceOisSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceOisSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceOisSwapResponse>>* QuantraServer::Stub::AsyncPriceOisSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceOisSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceOisSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceOisSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceOisSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceOisSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceOisSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceOisSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceOisSwap_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceBasisSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceBasisSwapRequest>& request, flatbuffers::grpc::Message<PriceBasisSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceBasisSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceBasisSwapResponse>>* QuantraServer::Stub::AsyncPriceBasisSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceBasisSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceBasisSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceBasisSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceBasisSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceBasisSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceBasisSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceBasisSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceBasisSwap_, context, request, false);
 }
 
 ::grpc::Status QuantraServer::Stub::PriceFRA(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFRARequest>& request, flatbuffers::grpc::Message<PriceFRAResponse>* response) {
@@ -171,30 +199,40 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[3],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceOisSwapRequest>, flatbuffers::grpc::Message<PriceOisSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceOisSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[4],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceBasisSwapRequest>, flatbuffers::grpc::Message<PriceBasisSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceBasisSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[5],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFRARequest>, flatbuffers::grpc::Message<PriceFRAResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceFRA), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[4],
+      QuantraServer_method_names[6],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCapFloorRequest>, flatbuffers::grpc::Message<PriceCapFloorResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCapFloor), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[5],
+      QuantraServer_method_names[7],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceSwaptionRequest>, flatbuffers::grpc::Message<PriceSwaptionResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceSwaption), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[6],
+      QuantraServer_method_names[8],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCDSRequest>, flatbuffers::grpc::Message<PriceCDSResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCDS), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[7],
+      QuantraServer_method_names[9],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<BootstrapCurvesRequest>, flatbuffers::grpc::Message<BootstrapCurvesResponse>>(
           std::mem_fn(&QuantraServer::Service::BootstrapCurves), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[8],
+      QuantraServer_method_names[10],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<SampleVolSurfacesRequest>, flatbuffers::grpc::Message<SampleVolSurfacesResponse>>(
           std::mem_fn(&QuantraServer::Service::SampleVolSurfaces), this)));
@@ -212,6 +250,14 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceOisSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceOisSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceOisSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceBasisSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceBasisSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceBasisSwapResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

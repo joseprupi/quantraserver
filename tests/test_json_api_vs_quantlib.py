@@ -32,6 +32,8 @@ class ApiClient:
         "fixed_rate_bond": "price-fixed-rate-bond",
         "floating_rate_bond": "price-floating-rate-bond",
         "vanilla_swap": "price-vanilla-swap",
+        "ois_swap": "price-ois-swap",
+        "basis_swap": "price-basis-swap",
         "fra": "price-fra",
         "cap_floor": "price-cap-floor",
         "swaption": "price-swaption",
@@ -720,6 +722,135 @@ def price_vanilla_swap_ql(request: dict) -> float:
     )
     ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
     
+    return ql_swap.NPV()
+
+
+def _build_overnight_index(idx_def: dict, curve):
+    idx_name = (idx_def or {}).get("name", "ON")
+    fixing_days = int((idx_def or {}).get("fixing_days", 0))
+    ccy = get_currency((idx_def or {}).get("currency", "USD"))
+    cal = get_calendar((idx_def or {}).get("calendar", "TARGET"))
+    dc = get_day_counter((idx_def or {}).get("day_counter", "Actual360"))
+    return ql.OvernightIndex(idx_name, fixing_days, ccy, cal, dc, curve)
+
+
+def price_ois_swap_ql(request: dict) -> float:
+    """Price OIS swap using QuantLib."""
+    pricing = request["pricing"]
+    swap_data = request["swaps"][0]
+    swap = swap_data["ois_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    disc_id = swap_data.get("discounting_curve", "discount")
+    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), pricing["curves"][0])
+    discount_curve = build_curve_from_json(disc_json, eval_date, request)
+
+    fwd_id = swap_data.get("forwarding_curve", disc_id)
+    fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), disc_json)
+    forward_curve = build_curve_from_json(fwd_json, eval_date, request)
+
+    fixed = swap["fixed_leg"]
+    fs = fixed["schedule"]
+    fixed_schedule = ql.Schedule(
+        parse_date(fs["effective_date"]),
+        parse_date(fs["termination_date"]),
+        ql.Period(get_frequency(fs["frequency"])),
+        get_calendar(fs.get("calendar", "TARGET")),
+        get_convention(fs.get("convention", "ModifiedFollowing")),
+        get_convention(fs.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(fs.get("date_generation_rule", "Forward")),
+        False,
+    )
+
+    overnight = swap["overnight_leg"]
+    os = overnight["schedule"]
+    overnight_schedule = ql.Schedule(
+        parse_date(os["effective_date"]),
+        parse_date(os["termination_date"]),
+        ql.Period(get_frequency(os["frequency"])),
+        get_calendar(os.get("calendar", "TARGET")),
+        get_convention(os.get("convention", "ModifiedFollowing")),
+        get_convention(os.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(os.get("date_generation_rule", "Forward")),
+        False,
+    )
+
+    idx_def = find_index_def(overnight["index"]["id"], request)
+    overnight_index = _build_overnight_index(idx_def, forward_curve)
+
+    swap_type = ql.OvernightIndexedSwap.Payer if swap["swap_type"] == "Payer" else ql.OvernightIndexedSwap.Receiver
+    lookback = overnight.get("lookback_days", -1)
+    lookback = 0 if lookback < 0 else int(lookback)
+    # Python bindings in our QuantLib wheel expose the one-schedule overload.
+    # For this request shape fixed and overnight schedules are aligned.
+    ql_swap = ql.OvernightIndexedSwap(
+        swap_type,
+        fixed["notional"],
+        overnight_schedule,
+        fixed["rate"],
+        get_day_counter(fixed.get("day_counter", "Actual360")),
+        overnight_index,
+        overnight.get("spread", 0.0),
+        overnight.get("payment_lag", 0),
+        get_convention(overnight.get("payment_convention", "Following")),
+        get_calendar(overnight.get("payment_calendar", "TARGET")),
+        overnight.get("telescopic_value_dates", False),
+        get_rate_averaging(overnight.get("averaging_method", "Compound")),
+        lookback,
+        overnight.get("lockout_days", 0),
+        overnight.get("apply_observation_shift", False),
+    )
+    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(discount_curve))
+    return ql_swap.NPV()
+
+
+def price_basis_swap_ql(request: dict) -> float:
+    """Price basis swap as two floating legs using QuantLib::Swap."""
+    pricing = request["pricing"]
+    swap_data = request["swaps"][0]
+    swap = swap_data["basis_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    disc_id = swap_data.get("discounting_curve", "discount")
+    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), pricing["curves"][0])
+    discount_curve = build_curve_from_json(disc_json, eval_date, request)
+
+    fwd1_id = swap_data.get("forwarding_curve_leg1", disc_id)
+    fwd2_id = swap_data.get("forwarding_curve_leg2", disc_id)
+    fwd1_json = next((c for c in pricing["curves"] if c["id"] == fwd1_id), disc_json)
+    fwd2_json = next((c for c in pricing["curves"] if c["id"] == fwd2_id), disc_json)
+    fwd1_curve = build_curve_from_json(fwd1_json, eval_date, request)
+    fwd2_curve = build_curve_from_json(fwd2_json, eval_date, request)
+
+    leg1 = swap["leg1"]
+    leg2 = swap["leg2"]
+
+    def _build_leg(leg: dict, curve):
+        sch = leg["schedule"]
+        schedule = ql.Schedule(
+            parse_date(sch["effective_date"]),
+            parse_date(sch["termination_date"]),
+            ql.Period(get_frequency(sch["frequency"])),
+            get_calendar(sch.get("calendar", "TARGET")),
+            get_convention(sch.get("convention", "ModifiedFollowing")),
+            get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+            get_date_generation(sch.get("date_generation_rule", "Forward")),
+            False,
+        )
+        idx_def = find_index_def(leg["index"]["id"], request)
+        n, _ = _period_n_unit(idx_def, "tenor", 6, "Months")
+        index = ql.Euribor3M(curve) if n <= 3 else ql.Euribor6M(curve)
+        return ql.IborLeg([leg["notional"]], schedule, index, get_day_counter(leg.get("day_counter", "Actual360")), get_convention(leg.get("payment_convention", "ModifiedFollowing")), [leg.get("fixing_days", 2)], [1.0], [leg.get("spread", 0.0)], [], [], leg.get("in_arrears", False))
+
+    ql_leg1 = _build_leg(leg1, fwd1_curve)
+    ql_leg2 = _build_leg(leg2, fwd2_curve)
+    payer = [True, False] if swap["swap_type"] == "Payer" else [False, True]
+    ql_swap = ql.Swap([ql_leg1, ql_leg2], payer)
+    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(discount_curve))
     return ql_swap.NPV()
 
 
@@ -1840,6 +1971,10 @@ def test_product(client: ApiClient, product: str, json_file: Path, ql_pricer) ->
             result["quantra_npv"] = response["bonds"][0]["npv"]
         elif product == "vanilla_swap":
             result["quantra_npv"] = response["swaps"][0]["npv"]
+        elif product == "ois_swap":
+            result["quantra_npv"] = response["swaps"][0]["npv"]
+        elif product == "basis_swap":
+            result["quantra_npv"] = response["swaps"][0]["npv"]
         elif product == "fra":
             result["quantra_npv"] = response["fras"][0]["npv"]
         elif product == "cap_floor":
@@ -1889,6 +2024,8 @@ def main():
         ("fixed_rate_bond", "fixed_rate_bond_request.json", price_fixed_rate_bond_ql),
         ("floating_rate_bond", "floating_rate_bond_request.json", price_floating_rate_bond_ql),
         ("vanilla_swap", "vanilla_swap_request.json", price_vanilla_swap_ql),
+        ("ois_swap", "ois_swap_request.json", price_ois_swap_ql),
+        ("basis_swap", "basis_swap_request.json", price_basis_swap_ql),
         ("fra", "fra_request.json", price_fra_ql),
         ("cap_floor", "cap_floor_request.json", price_cap_floor_ql),
         ("swaption", "swaption_request.json", price_swaption_ql),

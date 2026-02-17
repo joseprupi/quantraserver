@@ -9,14 +9,19 @@
 #include <chrono>
 #include <memory>
 #include <iostream>
+#include <cmath>
 
 #include "quantraserver.grpc.fb.h"
 #include "quantraserver_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
+#include "price_ois_swap_request_generated.h"
+#include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "vanilla_swap_response_generated.h"
+#include "ois_swap_response_generated.h"
+#include "basis_swap_response_generated.h"
 #include "cds_response_generated.h"
 #include "index_generated.h"
 
@@ -150,6 +155,45 @@ protected:
         return idb.Finish();
     }
 
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_EUR3M(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("EUR_3M");
+        auto name = b.CreateString("Euribor");
+        auto ccy = b.CreateString("EUR");
+        auto tenor = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Ibor);
+        idb.add_tenor(tenor);
+        idb.add_fixing_days(2);
+        idb.add_calendar(quantra::enums::Calendar_TARGET);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_end_of_month(false);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
+    flatbuffers::Offset<quantra::IndexDef> buildIndexDef_SOFR(
+        flatbuffers::grpc::MessageBuilder& b) {
+        auto id = b.CreateString("USD_SOFR");
+        auto name = b.CreateString("SOFR");
+        auto ccy = b.CreateString("USD");
+        auto tenor = buildPeriod(b, 0, quantra::enums::TimeUnit_Days);
+        quantra::IndexDefBuilder idb(b);
+        idb.add_id(id);
+        idb.add_name(name);
+        idb.add_index_type(quantra::IndexType_Overnight);
+        idb.add_tenor(tenor);
+        idb.add_fixing_days(0);
+        idb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+        idb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+        idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_currency(ccy);
+        return idb.Finish();
+    }
+
     flatbuffers::Offset<quantra::IndexRef> buildIndexRef(
         flatbuffers::grpc::MessageBuilder& b, const std::string& refId) {
         auto sid = b.CreateString(refId);
@@ -161,7 +205,9 @@ protected:
     flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>>
     buildIndicesVector(flatbuffers::grpc::MessageBuilder& b) {
         std::vector<flatbuffers::Offset<quantra::IndexDef>> defs;
+        defs.push_back(buildIndexDef_EUR3M(b));
         defs.push_back(buildIndexDef_EUR6M(b));
+        defs.push_back(buildIndexDef_SOFR(b));
         return b.CreateVector(defs);
     }
     
@@ -356,6 +402,190 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     std::cout << "NPV: " << r->npv() << " | Fair Rate: " << r->fair_rate()*100 << "%" << std::endl;
     EXPECT_NEAR(r->npv(), -22895, 1.0);
     EXPECT_NEAR(r->fair_rate(), 0.03, 0.001);
+}
+
+TEST_F(ServerClientTest, OisSwap_RoundTrip) {
+    std::cout << "\n=== Server-Client: OIS Swap ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double notional = 1000000.0;
+
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_settlement_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    auto pricing = pb.Finish();
+
+    auto eff = b.CreateString("2025-01-17");
+    auto term = b.CreateString("2030-01-17");
+
+    quantra::ScheduleBuilder fsb(b);
+    fsb.add_effective_date(eff);
+    fsb.add_termination_date(term);
+    fsb.add_calendar(quantra::enums::Calendar_TARGET);
+    fsb.add_frequency(quantra::enums::Frequency_Annual);
+    fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto fixedSch = fsb.Finish();
+
+    quantra::SwapFixedLegBuilder fixedB(b);
+    fixedB.add_notional(notional);
+    fixedB.add_schedule(fixedSch);
+    fixedB.add_rate(0.03);
+    fixedB.add_day_counter(quantra::enums::DayCounter_Actual360);
+    fixedB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto fixedLeg = fixedB.Finish();
+
+    quantra::ScheduleBuilder osb(b);
+    osb.add_effective_date(eff);
+    osb.add_termination_date(term);
+    osb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    osb.add_frequency(quantra::enums::Frequency_Annual);
+    osb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    osb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    osb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto overnightSch = osb.Finish();
+
+    auto sofr = buildIndexRef(b, "USD_SOFR");
+    quantra::OisFloatingLegBuilder ob(b);
+    ob.add_notional(notional);
+    ob.add_schedule(overnightSch);
+    ob.add_index(sofr);
+    ob.add_spread(0.0);
+    ob.add_day_counter(quantra::enums::DayCounter_Actual360);
+    ob.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    ob.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    ob.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+    auto overnightLeg = ob.Finish();
+
+    quantra::OisSwapBuilder sb(b);
+    sb.add_swap_type(quantra::enums::SwapType_Payer);
+    sb.add_fixed_leg(fixedLeg);
+    sb.add_overnight_leg(overnightLeg);
+    auto swap = sb.Finish();
+
+    auto discount = b.CreateString("discount");
+    quantra::PriceOisSwapBuilder psb(b);
+    psb.add_ois_swap(swap);
+    psb.add_discounting_curve(discount);
+    psb.add_forwarding_curve(discount);
+    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
+
+    quantra::PriceOisSwapRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaps(swaps);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::PriceOisSwapRequest>();
+    ASSERT_TRUE(request.Verify());
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceOisSwapResponse> response;
+    auto status = stub_->PriceOisSwap(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    auto r = response.GetRoot()->swaps()->Get(0);
+    EXPECT_TRUE(std::isfinite(r->npv()));
+    EXPECT_TRUE(std::isfinite(r->fair_rate()));
+}
+
+TEST_F(ServerClientTest, BasisSwap_RoundTrip) {
+    std::cout << "\n=== Server-Client: Basis Swap ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double notional = 1000000.0;
+
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_settlement_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    auto pricing = pb.Finish();
+
+    auto eff = b.CreateString("2025-01-17");
+    auto term = b.CreateString("2030-01-17");
+
+    quantra::ScheduleBuilder l1b(b);
+    l1b.add_effective_date(eff);
+    l1b.add_termination_date(term);
+    l1b.add_calendar(quantra::enums::Calendar_TARGET);
+    l1b.add_frequency(quantra::enums::Frequency_Quarterly);
+    l1b.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    l1b.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    l1b.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto sch1 = l1b.Finish();
+
+    quantra::ScheduleBuilder l2b(b);
+    l2b.add_effective_date(eff);
+    l2b.add_termination_date(term);
+    l2b.add_calendar(quantra::enums::Calendar_TARGET);
+    l2b.add_frequency(quantra::enums::Frequency_Semiannual);
+    l2b.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    l2b.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    l2b.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto sch2 = l2b.Finish();
+
+    auto eur3m = buildIndexRef(b, "EUR_3M");
+    quantra::SwapFloatingLegBuilder leg1b(b);
+    leg1b.add_notional(notional);
+    leg1b.add_schedule(sch1);
+    leg1b.add_index(eur3m);
+    leg1b.add_spread(0.0);
+    leg1b.add_day_counter(quantra::enums::DayCounter_Actual360);
+    leg1b.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto leg1 = leg1b.Finish();
+
+    auto eur6m = buildIndexRef(b, "EUR_6M");
+    quantra::SwapFloatingLegBuilder leg2b(b);
+    leg2b.add_notional(notional);
+    leg2b.add_schedule(sch2);
+    leg2b.add_index(eur6m);
+    leg2b.add_spread(0.0);
+    leg2b.add_day_counter(quantra::enums::DayCounter_Actual360);
+    leg2b.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto leg2 = leg2b.Finish();
+
+    quantra::BasisSwapBuilder bsb(b);
+    bsb.add_swap_type(quantra::enums::SwapType_Payer);
+    bsb.add_leg1(leg1);
+    bsb.add_leg2(leg2);
+    auto basisSwap = bsb.Finish();
+
+    auto discount = b.CreateString("discount");
+    quantra::PriceBasisSwapBuilder psb(b);
+    psb.add_basis_swap(basisSwap);
+    psb.add_discounting_curve(discount);
+    psb.add_forwarding_curve_leg1(discount);
+    psb.add_forwarding_curve_leg2(discount);
+    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceBasisSwap>>{psb.Finish()});
+
+    quantra::PriceBasisSwapRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaps(swaps);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::PriceBasisSwapRequest>();
+    ASSERT_TRUE(request.Verify());
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceBasisSwapResponse> response;
+    auto status = stub_->PriceBasisSwap(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    auto r = response.GetRoot()->swaps()->Get(0);
+    EXPECT_TRUE(std::isfinite(r->npv()));
+    EXPECT_TRUE(std::isfinite(r->leg1_npv()));
+    EXPECT_TRUE(std::isfinite(r->leg2_npv()));
 }
 
 TEST_F(ServerClientTest, CDS_RoundTrip) {

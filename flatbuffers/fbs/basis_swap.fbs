@@ -1,0 +1,13 @@
+include "enums.fbs";
+include "vanilla_swap.fbs";
+
+namespace quantra;
+
+// Basis swap with two floating legs (e.g., 3M vs 6M)
+table BasisSwap {
+    swap_type:enums.SwapType;
+    leg1:SwapFloatingLeg;
+    leg2:SwapFloatingLeg;
+}
+
+root_type BasisSwap;

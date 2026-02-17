@@ -77,6 +77,18 @@ int main(int argc, char** argv) {
             auto r = client.PriceVanillaSwapJSON(req.body);
             return crow::response(r.status_code, r.body);
         });
+
+        CROW_ROUTE(app, "/price-ois-swap").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.PriceOisSwapJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
+
+        CROW_ROUTE(app, "/price-basis-swap").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.PriceBasisSwapJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
         
         CROW_ROUTE(app, "/price-fra").methods("POST"_method)
         ([&](const crow::request& req) {
@@ -129,6 +141,8 @@ int main(int argc, char** argv) {
                   << "  POST /price-fixed-rate-bond\n"
                   << "  POST /price-floating-rate-bond\n"
                   << "  POST /price-vanilla-swap\n"
+                  << "  POST /price-ois-swap\n"
+                  << "  POST /price-basis-swap\n"
                   << "  POST /price-fra\n"
                   << "  POST /price-cap-floor\n"
                   << "  POST /price-swaption\n"

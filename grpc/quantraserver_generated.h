@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "basis_swap_response_generated.h"
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
 #include "cap_floor_response_generated.h"
@@ -20,11 +21,14 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "fra_response_generated.h"
+#include "ois_swap_response_generated.h"
+#include "price_basis_swap_request_generated.h"
 #include "price_cap_floor_request_generated.h"
 #include "price_cds_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_floating_rate_bond_request_generated.h"
 #include "price_fra_request_generated.h"
+#include "price_ois_swap_request_generated.h"
 #include "price_swaption_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
 #include "sample_vol_surfaces_request_generated.h"
