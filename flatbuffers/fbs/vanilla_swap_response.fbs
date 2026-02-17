@@ -10,11 +10,12 @@ table SwapLegFlow {
     amount:double;
     discount:double;
     present_value:double;
-    // For floating leg
+    // Floating leg metadata (for overnight coupons this is QuantLib indexFixing()
+    // and may not represent the compounded effective coupon rate).
     fixing_date:string;
     index_fixing:double;
     spread:double;
-    // For fixed leg
+    // Coupon rate: fixed-leg rate or effective floating coupon rate.
     rate:double;
 }
 

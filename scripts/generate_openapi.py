@@ -49,12 +49,17 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |
 | Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |
 | Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |
+| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |
+| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |
 | FRA | `/price-fra` | Price forward rate agreements |
 | Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |
 | Swaption | `/price-swaption` | Price swaptions |
 | CDS | `/price-cds` | Price credit default swaps |
 | Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
 | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |
+| Status | `/status` | Runtime health and worker aggregation |
+| Meta | `/meta` | Service/version/build metadata |
+| Health | `/health` | Lightweight liveness check |
 
 ### Quick Start
 
@@ -98,6 +103,20 @@ ENDPOINTS = {
         "description": "Calculate NPV and fair rate for fixed-for-floating interest rate swaps.",
         "request_schema": "quantra_PriceVanillaSwapRequest",
         "response_schema": "quantra_PriceVanillaSwapResponse",
+        "tags": ["Interest Rate Derivatives"]
+    },
+    "/price-ois-swap": {
+        "summary": "Price OIS Swap",
+        "description": "Calculate NPV and fair terms for fixed-vs-overnight indexed swaps.",
+        "request_schema": "quantra_PriceOisSwapRequest",
+        "response_schema": "quantra_PriceOisSwapResponse",
+        "tags": ["Interest Rate Derivatives"]
+    },
+    "/price-basis-swap": {
+        "summary": "Price Basis Swap",
+        "description": "Calculate NPV and leg analytics for two-floating-leg basis swaps.",
+        "request_schema": "quantra_PriceBasisSwapRequest",
+        "response_schema": "quantra_PriceBasisSwapResponse",
         "tags": ["Interest Rate Derivatives"]
     },
     "/price-fra": {
@@ -334,7 +353,7 @@ def generate_openapi() -> Dict[str, Any]:
     for endpoint, config in ENDPOINTS.items():
         paths[endpoint] = build_path_item(config, schemas)
     
-    # Add health endpoint
+    # Add system endpoints
     paths["/health"] = {
         "get": {
             "summary": "Health Check",
@@ -350,6 +369,48 @@ def generate_openapi() -> Dict[str, Any]:
                                 "properties": {
                                     "status": {"type": "string", "example": "ok"}
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    paths["/status"] = {
+        "get": {
+            "summary": "Runtime Status",
+            "description": "Runtime diagnostics including gRPC channel state, uptime, and optional Envoy worker health aggregation.",
+            "tags": ["System"],
+            "responses": {
+                "200": {
+                    "description": "Status response",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": True
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    paths["/meta"] = {
+        "get": {
+            "summary": "Service Metadata",
+            "description": "Service and build metadata including versions, git sha, endpoints, products, and dependency versions.",
+            "tags": ["System"],
+            "responses": {
+                "200": {
+                    "description": "Metadata response",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": True
                             }
                         }
                     }

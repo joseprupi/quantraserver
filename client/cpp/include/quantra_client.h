@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 #include <grpcpp/grpcpp.h>
 #include "flatbuffers/idl.h"
@@ -35,6 +36,8 @@
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "vanilla_swap_response_generated.h"
+#include "ois_swap_response_generated.h"
+#include "basis_swap_response_generated.h"
 #include "fra_response_generated.h"
 #include "cap_floor_response_generated.h"
 #include "swaption_response_generated.h"
@@ -61,6 +64,8 @@ enum class ProductType {
     FixedRateBond,
     FloatingRateBond,
     VanillaSwap,
+    OisSwap,
+    BasisSwap,
     FRA,
     CapFloor,
     Swaption,
@@ -123,6 +128,8 @@ public:
     JsonResponse PriceFixedRateBondJSON(const std::string& json);
     JsonResponse PriceFloatingRateBondJSON(const std::string& json);
     JsonResponse PriceVanillaSwapJSON(const std::string& json);
+    JsonResponse PriceOisSwapJSON(const std::string& json);
+    JsonResponse PriceBasisSwapJSON(const std::string& json);
     JsonResponse PriceFRAJSON(const std::string& json);
     JsonResponse PriceCapFloorJSON(const std::string& json);
     JsonResponse PriceSwaptionJSON(const std::string& json);
@@ -148,6 +155,14 @@ public:
     grpc::Status PriceVanillaSwap(
         const Message<PriceVanillaSwapRequest>& request,
         Message<PriceVanillaSwapResponse>* response);
+
+    grpc::Status PriceOisSwap(
+        const Message<PriceOisSwapRequest>& request,
+        Message<PriceOisSwapResponse>* response);
+
+    grpc::Status PriceBasisSwap(
+        const Message<PriceBasisSwapRequest>& request,
+        Message<PriceBasisSwapResponse>* response);
     
     grpc::Status PriceFRA(
         const Message<PriceFRARequest>& request,
@@ -178,6 +193,9 @@ public:
     // -------------------------------------------------------------------------
     
     std::shared_ptr<QuantraServer::Stub> GetStub();
+    std::string GetGrpcTarget() const;
+    grpc_connectivity_state GetChannelState(bool try_to_connect = false) const;
+    bool WaitForChannelReady(std::chrono::milliseconds timeout) const;
 
 private:
     class Impl;

@@ -7,6 +7,8 @@
 #include "fixed_rate_bond_handler.h"
 #include "floating_rate_bond_handler.h"
 #include "vanilla_swap_handler.h"
+#include "ois_swap_handler.h"
+#include "basis_swap_handler.h"
 #include "fra_handler.h"
 #include "cap_floor_handler.h"
 #include "swaption_handler.h"

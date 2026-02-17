@@ -7,16 +7,19 @@ info:
     \ | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond`\
     \ | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond`\
     \ | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price\
-    \ interest rate swaps |\n| FRA | `/price-fra` | Price forward rate agreements\
-    \ |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n\
-    | Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price\
-    \ credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap\
-    \ yield curves and extract rates |\n| Vol Surface Sampler | `/sample-vol-surfaces`\
-    \ | Sample volatility surfaces on expiry/tenor/strike grids |\n\n### Quick Start\n\
-    \n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed\
-    \ rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H\
-    \ \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n\
-    ```\n"
+    \ interest rate swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed\
+    \ swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps\
+    \ |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor`\
+    \ | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price\
+    \ swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap\
+    \ Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n\
+    | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on\
+    \ expiry/tenor/strike grids |\n| Status | `/status` | Runtime health and worker\
+    \ aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health\
+    \ | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n#\
+    \ Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\n\
+    curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
+    \ application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n"
   version: 1.0.0
   contact:
     name: Quantra API Support
@@ -138,6 +141,84 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/quantra_PriceVanillaSwapResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /price-ois-swap:
+    post:
+      summary: Price OIS Swap
+      description: Calculate NPV and fair terms for fixed-vs-overnight indexed swaps.
+      tags:
+      - Interest Rate Derivatives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceOisSwapRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceOisSwapResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /price-basis-swap:
+    post:
+      summary: Price Basis Swap
+      description: Calculate NPV and leg analytics for two-floating-leg basis swaps.
+      tags:
+      - Interest Rate Derivatives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceBasisSwapRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceBasisSwapResponse'
         '400':
           description: Invalid request
           content:
@@ -412,6 +493,36 @@ paths:
                   status:
                     type: string
                     example: ok
+  /status:
+    get:
+      summary: Runtime Status
+      description: Runtime diagnostics including gRPC channel state, uptime, and optional
+        Envoy worker health aggregation.
+      tags:
+      - System
+      responses:
+        '200':
+          description: Status response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /meta:
+    get:
+      summary: Service Metadata
+      description: Service and build metadata including versions, git sha, endpoints,
+        products, and dependency versions.
+      tags:
+      - System
+      responses:
+        '200':
+          description: Metadata response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
 components:
   schemas:
     quantra_enums_DayCounter:
@@ -675,92 +786,26 @@ components:
       enum:
       - Ibor
       - Overnight
-    quantra_Point:
-      type: string
-      enum:
-      - NONE
-      - DepositHelper
-      - FRAHelper
-      - FutureHelper
-      - SwapHelper
-      - BondHelper
-      - OISHelper
-      - DatedOISHelper
-      - ZeroRatePoint
-      - TenorBasisSwapHelper
-      - FxSwapHelper
-      - CrossCcyBasisHelper
-    quantra_SwaptionVolPayload:
-      type: string
-      enum:
-      - NONE
-      - SwaptionVolConstantSpec
-      - SwaptionVolAtmMatrixSpec
-      - SwaptionVolSmileCubeSpec
-      - SwaptionSabrParamsSpec
-      - SwaptionSabrCalibrateSpec
-    quantra_VolPayload:
-      type: string
-      enum:
-      - NONE
-      - OptionletVolSpec
-      - SwaptionVolSpec
-      - BlackVolSpec
-    quantra_OptionletVolatilityStructure:
-      type: string
-      enum:
-      - NONE
-      - ConstantOptionletVolatility
-    quantra_Pricer:
-      type: string
-      enum:
-      - NONE
-      - BlackIborCouponPricer
-    quantra_QuoteKind:
-      type: string
-      enum:
-      - Rate
-      - Spread
-      - Price
-      - FuturesPrice
-      - FxSpot
-      - FxPoints
-    quantra_QuoteType:
-      type: string
-      enum:
-      - Curve
-      - Volatility
-      - Credit
-    quantra_ModelPayload:
-      type: string
-      enum:
-      - NONE
-      - CapFloorModelSpec
-      - SwaptionModelSpec
-      - CdsModelSpec
-      - EquityVanillaModelSpec
-    quantra_SwapIndexKind:
-      type: string
-      enum:
-      - IborSwapIndex
-      - OisSwapIndex
-    quantra_CurveMeasure:
-      type: string
-      enum:
-      - DF
-      - ZERO
-      - FWD
-    quantra_ForwardType:
-      type: string
-      enum:
-      - Instantaneous
-      - Period
-    quantra_DateGrid:
-      type: string
-      enum:
-      - NONE
-      - TenorGrid
-      - RangeGrid
+    quantra_Schedule:
+      type: object
+      properties:
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        effective_date:
+          type: string
+        termination_date:
+          type: string
+        frequency:
+          $ref: '#/components/schemas/quantra_enums_Frequency'
+        convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        termination_date_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        date_generation_rule:
+          $ref: '#/components/schemas/quantra_enums_DateGenerationRule'
+        end_of_month:
+          type: boolean
+      additionalProperties: false
     quantra_Period:
       type: object
       properties:
@@ -874,26 +919,6 @@ components:
           - $ref: '#/components/schemas/quantra_FlowPastInterest'
           - $ref: '#/components/schemas/quantra_FlowNotional'
       additionalProperties: false
-    quantra_Schedule:
-      type: object
-      properties:
-        calendar:
-          $ref: '#/components/schemas/quantra_enums_Calendar'
-        effective_date:
-          type: string
-        termination_date:
-          type: string
-        frequency:
-          $ref: '#/components/schemas/quantra_enums_Frequency'
-        convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-        termination_date_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-        date_generation_rule:
-          $ref: '#/components/schemas/quantra_enums_DateGenerationRule'
-        end_of_month:
-          type: boolean
-      additionalProperties: false
     quantra_Fixing:
       type: object
       properties:
@@ -963,6 +988,254 @@ components:
       required:
       - id
       additionalProperties: false
+    quantra_SwapFixedLeg:
+      type: object
+      properties:
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        notional:
+          type: number
+        rate:
+          type: number
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      additionalProperties: false
+    quantra_SwapFloatingLeg:
+      type: object
+      properties:
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        notional:
+          type: number
+        index:
+          $ref: '#/components/schemas/quantra_IndexRef'
+        spread:
+          type: number
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        fixing_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        in_arrears:
+          type: boolean
+      required:
+      - index
+      additionalProperties: false
+    quantra_VanillaSwap:
+      type: object
+      properties:
+        swap_type:
+          $ref: '#/components/schemas/quantra_enums_SwapType'
+        fixed_leg:
+          $ref: '#/components/schemas/quantra_SwapFixedLeg'
+        floating_leg:
+          $ref: '#/components/schemas/quantra_SwapFloatingLeg'
+      additionalProperties: false
+    quantra_BasisSwap:
+      type: object
+      properties:
+        swap_type:
+          $ref: '#/components/schemas/quantra_enums_SwapType'
+        leg1:
+          $ref: '#/components/schemas/quantra_SwapFloatingLeg'
+        leg2:
+          $ref: '#/components/schemas/quantra_SwapFloatingLeg'
+      additionalProperties: false
+    quantra_SwapLegFlow:
+      type: object
+      properties:
+        payment_date:
+          type: string
+        accrual_start_date:
+          type: string
+        accrual_end_date:
+          type: string
+        amount:
+          type: number
+        discount:
+          type: number
+        present_value:
+          type: number
+        fixing_date:
+          type: string
+        index_fixing:
+          type: number
+        spread:
+          type: number
+        rate:
+          type: number
+      additionalProperties: false
+    quantra_SwapLegResponse:
+      type: object
+      properties:
+        npv:
+          type: number
+        bps:
+          type: number
+        flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_VanillaSwapResponse:
+      type: object
+      properties:
+        npv:
+          type: number
+        fair_rate:
+          type: number
+        fair_spread:
+          type: number
+        fixed_leg_bps:
+          type: number
+        floating_leg_bps:
+          type: number
+        fixed_leg_npv:
+          type: number
+        floating_leg_npv:
+          type: number
+        fixed_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+        floating_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_PriceVanillaSwapResponse:
+      type: object
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_VanillaSwapResponse'
+      additionalProperties: false
+    quantra_BasisSwapResponse:
+      type: object
+      properties:
+        npv:
+          type: number
+        leg1_bps:
+          type: number
+        leg2_bps:
+          type: number
+        leg1_npv:
+          type: number
+        leg2_npv:
+          type: number
+        fair_spread_leg1:
+          type: number
+        fair_spread_leg2:
+          type: number
+        leg1_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+        leg2_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_PriceBasisSwapResponse:
+      type: object
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_BasisSwapResponse'
+      additionalProperties: false
+    quantra_Point:
+      type: string
+      enum:
+      - NONE
+      - DepositHelper
+      - FRAHelper
+      - FutureHelper
+      - SwapHelper
+      - BondHelper
+      - OISHelper
+      - DatedOISHelper
+      - ZeroRatePoint
+      - TenorBasisSwapHelper
+      - FxSwapHelper
+      - CrossCcyBasisHelper
+    quantra_SwaptionVolPayload:
+      type: string
+      enum:
+      - NONE
+      - SwaptionVolConstantSpec
+      - SwaptionVolAtmMatrixSpec
+      - SwaptionVolSmileCubeSpec
+      - SwaptionSabrParamsSpec
+      - SwaptionSabrCalibrateSpec
+    quantra_VolPayload:
+      type: string
+      enum:
+      - NONE
+      - OptionletVolSpec
+      - SwaptionVolSpec
+      - BlackVolSpec
+    quantra_OptionletVolatilityStructure:
+      type: string
+      enum:
+      - NONE
+      - ConstantOptionletVolatility
+    quantra_Pricer:
+      type: string
+      enum:
+      - NONE
+      - BlackIborCouponPricer
+    quantra_QuoteKind:
+      type: string
+      enum:
+      - Rate
+      - Spread
+      - Price
+      - FuturesPrice
+      - FxSpot
+      - FxPoints
+    quantra_QuoteType:
+      type: string
+      enum:
+      - Curve
+      - Volatility
+      - Credit
+    quantra_ModelPayload:
+      type: string
+      enum:
+      - NONE
+      - CapFloorModelSpec
+      - SwaptionModelSpec
+      - CdsModelSpec
+      - EquityVanillaModelSpec
+    quantra_SwapIndexKind:
+      type: string
+      enum:
+      - IborSwapIndex
+      - OisSwapIndex
+    quantra_CurveMeasure:
+      type: string
+      enum:
+      - DF
+      - ZERO
+      - FWD
+    quantra_ForwardType:
+      type: string
+      enum:
+      - Instantaneous
+      - Period
+    quantra_DateGrid:
+      type: string
+      enum:
+      - NONE
+      - TenorGrid
+      - RangeGrid
     quantra_CurveRef:
       type: object
       properties:
@@ -2321,6 +2594,64 @@ components:
           items:
             $ref: '#/components/schemas/quantra_FRAResponse'
       additionalProperties: false
+    quantra_OisSwapResponse:
+      type: object
+      properties:
+        npv:
+          type: number
+        fair_rate:
+          type: number
+        fair_spread:
+          type: number
+        fixed_leg_bps:
+          type: number
+        overnight_leg_bps:
+          type: number
+        fixed_leg_npv:
+          type: number
+        overnight_leg_npv:
+          type: number
+        fixed_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+        overnight_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_PriceOisSwapResponse:
+      type: object
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_OisSwapResponse'
+      additionalProperties: false
+    quantra_PriceBasisSwap:
+      type: object
+      properties:
+        basis_swap:
+          $ref: '#/components/schemas/quantra_BasisSwap'
+        discounting_curve:
+          type: string
+        forwarding_curve_leg1:
+          type: string
+        forwarding_curve_leg2:
+          type: string
+      additionalProperties: false
+    quantra_PriceBasisSwapRequest:
+      type: object
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceBasisSwap'
+        include_flows:
+          type: boolean
+      additionalProperties: false
     quantra_PriceCapFloor:
       type: object
       properties:
@@ -2433,60 +2764,6 @@ components:
           items:
             $ref: '#/components/schemas/quantra_PriceFRA'
       additionalProperties: false
-    quantra_SwaptionUnderlying:
-      type: string
-      enum:
-      - NONE
-      - VanillaSwap
-      - OisSwap
-    quantra_SwapFixedLeg:
-      type: object
-      properties:
-        schedule:
-          $ref: '#/components/schemas/quantra_Schedule'
-        notional:
-          type: number
-        rate:
-          type: number
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
-        payment_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-      additionalProperties: false
-    quantra_SwapFloatingLeg:
-      type: object
-      properties:
-        schedule:
-          $ref: '#/components/schemas/quantra_Schedule'
-        notional:
-          type: number
-        index:
-          $ref: '#/components/schemas/quantra_IndexRef'
-        spread:
-          type: number
-        day_counter:
-          $ref: '#/components/schemas/quantra_enums_DayCounter'
-        payment_convention:
-          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
-        fixing_days:
-          type: integer
-          minimum: -2147483648
-          maximum: 2147483647
-        in_arrears:
-          type: boolean
-      required:
-      - index
-      additionalProperties: false
-    quantra_VanillaSwap:
-      type: object
-      properties:
-        swap_type:
-          $ref: '#/components/schemas/quantra_enums_SwapType'
-        fixed_leg:
-          $ref: '#/components/schemas/quantra_SwapFixedLeg'
-        floating_leg:
-          $ref: '#/components/schemas/quantra_SwapFloatingLeg'
-      additionalProperties: false
     quantra_OisFloatingLeg:
       type: object
       properties:
@@ -2535,6 +2812,34 @@ components:
         overnight_leg:
           $ref: '#/components/schemas/quantra_OisFloatingLeg'
       additionalProperties: false
+    quantra_PriceOisSwap:
+      type: object
+      properties:
+        ois_swap:
+          $ref: '#/components/schemas/quantra_OisSwap'
+        discounting_curve:
+          type: string
+        forwarding_curve:
+          type: string
+      additionalProperties: false
+    quantra_PriceOisSwapRequest:
+      type: object
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceOisSwap'
+        include_flows:
+          type: boolean
+      additionalProperties: false
+    quantra_SwaptionUnderlying:
+      type: string
+      enum:
+      - NONE
+      - VanillaSwap
+      - OisSwap
     quantra_Swaption:
       type: object
       properties:
@@ -2815,74 +3120,4 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_SwaptionResponse'
-      additionalProperties: false
-    quantra_SwapLegFlow:
-      type: object
-      properties:
-        payment_date:
-          type: string
-        accrual_start_date:
-          type: string
-        accrual_end_date:
-          type: string
-        amount:
-          type: number
-        discount:
-          type: number
-        present_value:
-          type: number
-        fixing_date:
-          type: string
-        index_fixing:
-          type: number
-        spread:
-          type: number
-        rate:
-          type: number
-      additionalProperties: false
-    quantra_SwapLegResponse:
-      type: object
-      properties:
-        npv:
-          type: number
-        bps:
-          type: number
-        flows:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_SwapLegFlow'
-      additionalProperties: false
-    quantra_VanillaSwapResponse:
-      type: object
-      properties:
-        npv:
-          type: number
-        fair_rate:
-          type: number
-        fair_spread:
-          type: number
-        fixed_leg_bps:
-          type: number
-        floating_leg_bps:
-          type: number
-        fixed_leg_npv:
-          type: number
-        floating_leg_npv:
-          type: number
-        fixed_leg_flows:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_SwapLegFlow'
-        floating_leg_flows:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_SwapLegFlow'
-      additionalProperties: false
-    quantra_PriceVanillaSwapResponse:
-      type: object
-      properties:
-        swaps:
-          type: array
-          items:
-            $ref: '#/components/schemas/quantra_VanillaSwapResponse'
       additionalProperties: false

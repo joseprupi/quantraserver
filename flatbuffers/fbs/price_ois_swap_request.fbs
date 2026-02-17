@@ -1,0 +1,18 @@
+include "pricing.fbs";
+include "ois_swap.fbs";
+
+namespace quantra;
+
+table PriceOisSwap {
+    ois_swap:OisSwap;
+    discounting_curve:string;
+    forwarding_curve:string;
+}
+
+table PriceOisSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceOisSwap];
+    include_flows:bool = false;
+}
+
+root_type PriceOisSwapRequest;

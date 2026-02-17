@@ -1,0 +1,19 @@
+include "pricing.fbs";
+include "basis_swap.fbs";
+
+namespace quantra;
+
+table PriceBasisSwap {
+    basis_swap:BasisSwap;
+    discounting_curve:string;
+    forwarding_curve_leg1:string;
+    forwarding_curve_leg2:string;
+}
+
+table PriceBasisSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceBasisSwap];
+    include_flows:bool = false;
+}
+
+root_type PriceBasisSwapRequest;

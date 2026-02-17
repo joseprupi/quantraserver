@@ -1,0 +1,21 @@
+include "vanilla_swap_response.fbs";
+
+namespace quantra;
+
+table OisSwapResponse {
+    npv:double;
+    fair_rate:double;
+    fair_spread:double;
+    fixed_leg_bps:double;
+    overnight_leg_bps:double;
+    fixed_leg_npv:double;
+    overnight_leg_npv:double;
+    fixed_leg_flows:[SwapLegFlow];
+    overnight_leg_flows:[SwapLegFlow];
+}
+
+table PriceOisSwapResponse {
+    swaps:[OisSwapResponse];
+}
+
+root_type PriceOisSwapResponse;
