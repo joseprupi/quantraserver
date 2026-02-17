@@ -14,10 +14,12 @@ info:
     \ swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap\
     \ Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n\
     | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on\
-    \ expiry/tenor/strike grids |\n\n### Quick Start\n\n```bash\n# Health check\n\
-    curl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
-    \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n\
-    ```\n"
+    \ expiry/tenor/strike grids |\n| Status | `/status` | Runtime health and worker\
+    \ aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health\
+    \ | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n#\
+    \ Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\n\
+    curl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type:\
+    \ application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n"
   version: 1.0.0
   contact:
     name: Quantra API Support
@@ -491,6 +493,36 @@ paths:
                   status:
                     type: string
                     example: ok
+  /status:
+    get:
+      summary: Runtime Status
+      description: Runtime diagnostics including gRPC channel state, uptime, and optional
+        Envoy worker health aggregation.
+      tags:
+      - System
+      responses:
+        '200':
+          description: Status response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /meta:
+    get:
+      summary: Service Metadata
+      description: Service and build metadata including versions, git sha, endpoints,
+        products, and dependency versions.
+      tags:
+      - System
+      responses:
+        '200':
+          description: Metadata response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
 components:
   schemas:
     quantra_enums_DayCounter:

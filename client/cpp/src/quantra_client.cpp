@@ -76,6 +76,14 @@ public:
     }
     
     std::shared_ptr<QuantraServer::Stub> GetStub() { return stub_; }
+    std::string GetGrpcTarget() const { return backend_address_; }
+    grpc_connectivity_state GetChannelState(bool try_to_connect) const {
+        return channel_->GetState(try_to_connect);
+    }
+    bool WaitForChannelReady(std::chrono::milliseconds timeout) const {
+        auto deadline = std::chrono::system_clock::now() + timeout;
+        return channel_->WaitForConnected(deadline);
+    }
     JsonParser& GetParser() { return *json_parser_; }
 
     // Generic JSON call handler
@@ -133,6 +141,7 @@ public:
     }
 
 private:
+    std::shared_ptr<grpc::Channel> channel_;
     std::shared_ptr<QuantraServer::Stub> stub_;
     std::unique_ptr<JsonParser> json_parser_;
     std::string backend_address_;
@@ -149,9 +158,8 @@ private:
             creds = grpc::InsecureChannelCredentials();
         }
         
-        stub_ = QuantraServer::NewStub(
-            grpc::CreateCustomChannel(address, creds, args)
-        );
+        channel_ = grpc::CreateCustomChannel(address, creds, args);
+        stub_ = QuantraServer::NewStub(channel_);
     }
 };
 
@@ -169,6 +177,18 @@ QuantraClient::~QuantraClient() = default;
 
 std::shared_ptr<QuantraServer::Stub> QuantraClient::GetStub() {
     return impl_->GetStub();
+}
+
+std::string QuantraClient::GetGrpcTarget() const {
+    return impl_->GetGrpcTarget();
+}
+
+grpc_connectivity_state QuantraClient::GetChannelState(bool try_to_connect) const {
+    return impl_->GetChannelState(try_to_connect);
+}
+
+bool QuantraClient::WaitForChannelReady(std::chrono::milliseconds timeout) const {
+    return impl_->WaitForChannelReady(timeout);
 }
 
 // =============================================================================

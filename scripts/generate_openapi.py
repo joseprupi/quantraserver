@@ -57,6 +57,9 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | CDS | `/price-cds` | Price credit default swaps |
 | Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
 | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |
+| Status | `/status` | Runtime health and worker aggregation |
+| Meta | `/meta` | Service/version/build metadata |
+| Health | `/health` | Lightweight liveness check |
 
 ### Quick Start
 
@@ -350,7 +353,7 @@ def generate_openapi() -> Dict[str, Any]:
     for endpoint, config in ENDPOINTS.items():
         paths[endpoint] = build_path_item(config, schemas)
     
-    # Add health endpoint
+    # Add system endpoints
     paths["/health"] = {
         "get": {
             "summary": "Health Check",
@@ -366,6 +369,48 @@ def generate_openapi() -> Dict[str, Any]:
                                 "properties": {
                                     "status": {"type": "string", "example": "ok"}
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    paths["/status"] = {
+        "get": {
+            "summary": "Runtime Status",
+            "description": "Runtime diagnostics including gRPC channel state, uptime, and optional Envoy worker health aggregation.",
+            "tags": ["System"],
+            "responses": {
+                "200": {
+                    "description": "Status response",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": True
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    paths["/meta"] = {
+        "get": {
+            "summary": "Service Metadata",
+            "description": "Service and build metadata including versions, git sha, endpoints, products, and dependency versions.",
+            "tags": ["System"],
+            "responses": {
+                "200": {
+                    "description": "Metadata response",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": True
                             }
                         }
                     }
