@@ -15,6 +15,7 @@
 #include "sample_vol_surfaces_handler.h"
 
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/health_check_service_interface.h>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -32,6 +33,10 @@ class ServerImpl final
 public:
     ~ServerImpl()
     {
+        if (health_check_service_) {
+            health_check_service_->SetServingStatus("quantra.QuantraServer", false);
+            health_check_service_->SetServingStatus("", false);
+        }
         server_->Shutdown();
         cq_->Shutdown();
     }
@@ -39,6 +44,7 @@ public:
     void Run(std::string port)
     {
         std::string server_address("127.0.0.1:" + port);
+        grpc::EnableDefaultHealthCheckService(true);
 
         grpc::ServerBuilder builder;
         builder.SetMaxMessageSize(INT_MAX);
@@ -47,6 +53,11 @@ public:
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
+        health_check_service_ = server_->GetHealthCheckService();
+        if (health_check_service_) {
+            health_check_service_->SetServingStatus("quantra.QuantraServer", true);
+            health_check_service_->SetServingStatus("", true);
+        }
 
         std::cout << "Server listening on " << server_address << std::endl;
 
@@ -82,6 +93,7 @@ private:
     std::unique_ptr<grpc::ServerCompletionQueue> cq_;
     QuantraServer::AsyncService service_;
     std::unique_ptr<grpc::Server> server_;
+    grpc::HealthCheckServiceInterface* health_check_service_ = nullptr;
 };
 
 int main(int argc, char **argv)

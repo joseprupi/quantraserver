@@ -126,6 +126,22 @@ curl -X POST http://localhost:8080/price/vanilla-swap \
   -d @examples/data/vanilla_swap_request.json
 ```
 
+### Operational Endpoints
+
+The JSON server exposes lightweight operational endpoints:
+
+- `GET /health` - liveness check for the JSON server process.
+- `GET /meta` - build/version/product metadata.
+- `GET /status` - runtime status (gRPC channel state, readiness probe, uptime).
+
+Optional Envoy worker aggregation in `/status`:
+
+- If `QUANTRA_ENVOY_ADMIN=<host:port>` is set, `/status` calls Envoy admin
+  `GET /clusters?format=json`, parses cluster `quantra_workers`, and reports
+  `healthy_workers`, `total_workers`, and `unhealthy_workers`.
+- If Envoy admin is not configured/reachable, `/status` still succeeds and
+  returns a clear `envoy.error` field instead of failing the endpoint.
+
 ## Data Formats
 
 Quantra uses FlatBuffers for efficient serialization. Requests can be built using:

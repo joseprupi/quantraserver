@@ -236,7 +236,9 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                     "interval": "1s",
                     "unhealthy_threshold": 2,
                     "healthy_threshold": 1,
-                    "tcp_health_check": {},
+                    "grpc_health_check": {
+                        "service_name": "quantra.QuantraServer",
+                    },
                 }],
                 "load_assignment": {
                     "cluster_name": "quantra_workers",
