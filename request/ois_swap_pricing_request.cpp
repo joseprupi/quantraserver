@@ -30,6 +30,18 @@ flatbuffers::Offset<SwapLegFlow> BuildLegFlow(
     auto paymentDate = builder.CreateString(osPayment.str());
     auto accrualStart = builder.CreateString(osStart.str());
     auto accrualEnd = builder.CreateString(osEnd.str());
+    flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
+    double indexFixing = 0.0;
+    double spread = 0.0;
+
+    auto frc = std::dynamic_pointer_cast<FloatingRateCoupon>(coupon);
+    if (frc) {
+        std::ostringstream osFix;
+        osFix << QuantLib::io::iso_date(frc->fixingDate());
+        fixingDate = builder.CreateString(osFix.str());
+        indexFixing = frc->indexFixing();
+        spread = frc->spread();
+    }
 
     double discount = discountCurve->discount(coupon->date());
     double amount = coupon->amount();
@@ -42,14 +54,10 @@ flatbuffers::Offset<SwapLegFlow> BuildLegFlow(
     fb.add_discount(discount);
     fb.add_present_value(amount * discount);
     fb.add_rate(coupon->rate());
-
-    auto frc = std::dynamic_pointer_cast<FloatingRateCoupon>(coupon);
     if (frc) {
-        std::ostringstream osFix;
-        osFix << QuantLib::io::iso_date(frc->fixingDate());
-        fb.add_fixing_date(builder.CreateString(osFix.str()));
-        fb.add_index_fixing(frc->indexFixing());
-        fb.add_spread(frc->spread());
+        fb.add_fixing_date(fixingDate);
+        fb.add_index_fixing(indexFixing);
+        fb.add_spread(spread);
     }
     return fb.Finish();
 }
