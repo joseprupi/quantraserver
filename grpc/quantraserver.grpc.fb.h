@@ -111,6 +111,27 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>> PrepareAsyncSampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>>(PrepareAsyncSampleVolSurfacesRaw(context, request, cq));
     }
+    virtual ::grpc::Status CalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>> AsyncCalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>>(AsyncCalendarBusinessDaysRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>> PrepareAsyncCalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>>(PrepareAsyncCalendarBusinessDaysRaw(context, request, cq));
+    }
+    virtual ::grpc::Status CalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, flatbuffers::grpc::Message<CalendarHolidaysResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>> AsyncCalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>>(AsyncCalendarHolidaysRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>> PrepareAsyncCalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>>(PrepareAsyncCalendarHolidaysRaw(context, request, cq));
+    }
+    virtual ::grpc::Status CalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, flatbuffers::grpc::Message<CalendarAdvanceResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>> AsyncCalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>>(AsyncCalendarAdvanceRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>> PrepareAsyncCalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>>(PrepareAsyncCalendarAdvanceRaw(context, request, cq));
+    }
   private:
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* AsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFixedRateBondResponse>>* PrepareAsyncPriceFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
@@ -134,6 +155,12 @@ class QuantraServer final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* AsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* PrepareAsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* AsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* PrepareAsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* AsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* PrepareAsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* AsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* PrepareAsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -215,6 +242,27 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>> PrepareAsyncSampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>>(PrepareAsyncSampleVolSurfacesRaw(context, request, cq));
     }
+    ::grpc::Status CalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>> AsyncCalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>>(AsyncCalendarBusinessDaysRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>> PrepareAsyncCalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>>(PrepareAsyncCalendarBusinessDaysRaw(context, request, cq));
+    }
+    ::grpc::Status CalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, flatbuffers::grpc::Message<CalendarHolidaysResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>> AsyncCalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>>(AsyncCalendarHolidaysRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>> PrepareAsyncCalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>>(PrepareAsyncCalendarHolidaysRaw(context, request, cq));
+    }
+    ::grpc::Status CalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, flatbuffers::grpc::Message<CalendarAdvanceResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>> AsyncCalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>>(AsyncCalendarAdvanceRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>> PrepareAsyncCalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>>(PrepareAsyncCalendarAdvanceRaw(context, request, cq));
+    }
   
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
@@ -240,6 +288,12 @@ class QuantraServer final {
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* AsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* PrepareAsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* AsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* PrepareAsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* AsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* PrepareAsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* AsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* PrepareAsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFixedRateBond_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFloatingRateBond_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceVanillaSwap_;
@@ -251,6 +305,9 @@ class QuantraServer final {
     const ::grpc::internal::RpcMethod rpcmethod_PriceCDS_;
     const ::grpc::internal::RpcMethod rpcmethod_BootstrapCurves_;
     const ::grpc::internal::RpcMethod rpcmethod_SampleVolSurfaces_;
+    const ::grpc::internal::RpcMethod rpcmethod_CalendarBusinessDays_;
+    const ::grpc::internal::RpcMethod rpcmethod_CalendarHolidays_;
+    const ::grpc::internal::RpcMethod rpcmethod_CalendarAdvance_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
   
@@ -269,6 +326,9 @@ class QuantraServer final {
     virtual ::grpc::Status PriceCDS(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>* request, flatbuffers::grpc::Message<PriceCDSResponse>* response);
     virtual ::grpc::Status BootstrapCurves(::grpc::ServerContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response);
     virtual ::grpc::Status SampleVolSurfaces(::grpc::ServerContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>* request, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* response);
+    virtual ::grpc::Status CalendarBusinessDays(::grpc::ServerContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* request, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* response);
+    virtual ::grpc::Status CalendarHolidays(::grpc::ServerContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* request, flatbuffers::grpc::Message<CalendarHolidaysResponse>* response);
+    virtual ::grpc::Status CalendarAdvance(::grpc::ServerContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* request, flatbuffers::grpc::Message<CalendarAdvanceResponse>* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_PriceFixedRateBond : public BaseClass {
@@ -490,7 +550,67 @@ class QuantraServer final {
       ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_SampleVolSurfaces<  Service   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_CalendarBusinessDays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_CalendarBusinessDays() {
+      ::grpc::Service::MarkMethodAsync(11);
+    }
+    ~WithAsyncMethod_CalendarBusinessDays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarBusinessDays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestCalendarBusinessDays(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_CalendarHolidays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_CalendarHolidays() {
+      ::grpc::Service::MarkMethodAsync(12);
+    }
+    ~WithAsyncMethod_CalendarHolidays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarHolidays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarHolidaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestCalendarHolidays(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarHolidaysRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_CalendarAdvance : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_CalendarAdvance() {
+      ::grpc::Service::MarkMethodAsync(13);
+    }
+    ~WithAsyncMethod_CalendarAdvance() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarAdvance(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* /*request*/, flatbuffers::grpc::Message<CalendarAdvanceResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestCalendarAdvance(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarAdvanceRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(13, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_SampleVolSurfaces<  WithAsyncMethod_CalendarBusinessDays<  WithAsyncMethod_CalendarHolidays<  WithAsyncMethod_CalendarAdvance<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
   template <class BaseClass>
   class WithGenericMethod_PriceFixedRateBond : public BaseClass {
    private:
@@ -674,6 +794,57 @@ class QuantraServer final {
     }
     // disable synchronous version of this method
     ::grpc::Status SampleVolSurfaces(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>* /*request*/, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_CalendarBusinessDays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_CalendarBusinessDays() {
+      ::grpc::Service::MarkMethodGeneric(11);
+    }
+    ~WithGenericMethod_CalendarBusinessDays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarBusinessDays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_CalendarHolidays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_CalendarHolidays() {
+      ::grpc::Service::MarkMethodGeneric(12);
+    }
+    ~WithGenericMethod_CalendarHolidays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarHolidays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarHolidaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_CalendarAdvance : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_CalendarAdvance() {
+      ::grpc::Service::MarkMethodGeneric(13);
+    }
+    ~WithGenericMethod_CalendarAdvance() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status CalendarAdvance(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* /*request*/, flatbuffers::grpc::Message<CalendarAdvanceResponse>* /*response*/) final override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -898,9 +1069,69 @@ class QuantraServer final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedSampleVolSurfaces(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<SampleVolSurfacesRequest>,flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* server_unary_streamer) = 0;
   };
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  Service   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_CalendarBusinessDays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_CalendarBusinessDays() {
+      ::grpc::Service::MarkMethodStreamed(11,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarBusinessDaysRequest>, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarBusinessDays<BaseClass>::StreamedCalendarBusinessDays, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_CalendarBusinessDays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status CalendarBusinessDays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedCalendarBusinessDays(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<CalendarBusinessDaysRequest>,flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_CalendarHolidays : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_CalendarHolidays() {
+      ::grpc::Service::MarkMethodStreamed(12,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarHolidaysRequest>, flatbuffers::grpc::Message<CalendarHolidaysResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarHolidays<BaseClass>::StreamedCalendarHolidays, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_CalendarHolidays() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status CalendarHolidays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarHolidaysResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedCalendarHolidays(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<CalendarHolidaysRequest>,flatbuffers::grpc::Message<CalendarHolidaysResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_CalendarAdvance : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_CalendarAdvance() {
+      ::grpc::Service::MarkMethodStreamed(13,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarAdvanceRequest>, flatbuffers::grpc::Message<CalendarAdvanceResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarAdvance<BaseClass>::StreamedCalendarAdvance, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_CalendarAdvance() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status CalendarAdvance(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* /*request*/, flatbuffers::grpc::Message<CalendarAdvanceResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedCalendarAdvance(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<CalendarAdvanceRequest>,flatbuffers::grpc::Message<CalendarAdvanceResponse>>* server_unary_streamer) = 0;
+  };
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
   typedef   Service   SplitStreamedService;
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  Service   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
 };
 
 }  // namespace quantra

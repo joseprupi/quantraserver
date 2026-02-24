@@ -73,6 +73,18 @@ inline const std::map<ProductType, ProductSchema>& GetProductSchemas() {
         {ProductType::SampleVolSurfaces, {
             "sample_vol_surfaces_request.fbs",
             "sample_vol_surfaces_response.fbs"
+        }},
+        {ProductType::CalendarBusinessDays, {
+            "calendar_business_days_request.fbs",
+            "calendar_business_days_response.fbs"
+        }},
+        {ProductType::CalendarHolidays, {
+            "calendar_holidays_request.fbs",
+            "calendar_holidays_response.fbs"
+        }},
+        {ProductType::CalendarAdvance, {
+            "calendar_advance_request.fbs",
+            "calendar_advance_response.fbs"
         }}
         // ADD NEW PRODUCTS HERE:
         // {ProductType::ExoticOption, {
@@ -100,6 +112,9 @@ inline const char* ProductTypeToString(ProductType type) {
         case ProductType::CDS:              return "CDS";
         case ProductType::BootstrapCurves:  return "BootstrapCurves";
         case ProductType::SampleVolSurfaces:return "SampleVolSurfaces";
+        case ProductType::CalendarBusinessDays: return "CalendarBusinessDays";
+        case ProductType::CalendarHolidays: return "CalendarHolidays";
+        case ProductType::CalendarAdvance:  return "CalendarAdvance";
         // ADD NEW PRODUCTS HERE:
         // case ProductType::ExoticOption:  return "ExoticOption";
         default:                            return "Unknown";

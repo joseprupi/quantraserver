@@ -20,6 +20,12 @@ include "../flatbuffers/fbs/bootstrap_curves_request.fbs";
 include "../flatbuffers/fbs/bootstrap_curves_response.fbs";
 include "../flatbuffers/fbs/sample_vol_surfaces_request.fbs";
 include "../flatbuffers/fbs/sample_vol_surfaces_response.fbs";
+include "../flatbuffers/fbs/calendar_business_days_request.fbs";
+include "../flatbuffers/fbs/calendar_business_days_response.fbs";
+include "../flatbuffers/fbs/calendar_holidays_request.fbs";
+include "../flatbuffers/fbs/calendar_holidays_response.fbs";
+include "../flatbuffers/fbs/calendar_advance_request.fbs";
+include "../flatbuffers/fbs/calendar_advance_response.fbs";
 
 namespace quantra;
 
@@ -35,4 +41,7 @@ rpc_service QuantraServer {
   PriceCDS(PriceCDSRequest):PriceCDSResponse;
   BootstrapCurves(BootstrapCurvesRequest):BootstrapCurvesResponse;
   SampleVolSurfaces(SampleVolSurfacesRequest):SampleVolSurfacesResponse;
+  CalendarBusinessDays(CalendarBusinessDaysRequest):CalendarBusinessDaysResponse;
+  CalendarHolidays(CalendarHolidaysRequest):CalendarHolidaysResponse;
+  CalendarAdvance(CalendarAdvanceRequest):CalendarAdvanceResponse;
 }

@@ -23,6 +23,12 @@
 #include "ois_swap_response_generated.h"
 #include "basis_swap_response_generated.h"
 #include "cds_response_generated.h"
+#include "calendar_business_days_request_generated.h"
+#include "calendar_business_days_response_generated.h"
+#include "calendar_holidays_request_generated.h"
+#include "calendar_holidays_response_generated.h"
+#include "calendar_advance_request_generated.h"
+#include "calendar_advance_response_generated.h"
 #include "index_generated.h"
 
 namespace quantra { namespace testing {
@@ -686,6 +692,183 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     std::cout << "NPV: " << r->npv() << " | Fair Spread: " << r->fair_spread()*10000 << " bps" << std::endl;
     EXPECT_NEAR(r->npv(), 86698.9, 1.0);
     EXPECT_NEAR(r->fair_spread(), 0.0118792, 0.0001);
+}
+
+TEST_F(ServerClientTest, CalendarBusinessDays_RoundTrip) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto start = b.CreateString("2025/01/01");
+    auto end = b.CreateString("2025/01/10");
+
+    quantra::CalendarBusinessDaysRequestBuilder rb(b);
+    rb.add_calendar(quantra::enums::Calendar_TARGET);
+    rb.add_start_date(start);
+    rb.add_end_date(end);
+    rb.add_include_start(true);
+    rb.add_include_end(true);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::CalendarBusinessDaysRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::CalendarBusinessDaysResponse> response;
+    auto status = stub_->CalendarBusinessDays(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    auto root = response.GetRoot();
+    ASSERT_NE(root, nullptr);
+    ASSERT_NE(root->dates(), nullptr);
+    EXPECT_GT(root->count(), 0u);
+
+    bool hasJan1 = false;
+    bool hasJan2 = false;
+    for (flatbuffers::uoffset_t i = 0; i < root->dates()->size(); ++i) {
+        const std::string d = root->dates()->Get(i)->str();
+        if (d == "2025-01-01") hasJan1 = true;
+        if (d == "2025-01-02") hasJan2 = true;
+    }
+    EXPECT_FALSE(hasJan1);
+    EXPECT_TRUE(hasJan2);
+}
+
+TEST_F(ServerClientTest, CalendarHolidays_ExcludeAndIncludeWeekends) {
+    // Excluding weekends: this range has weekend-only non-business days for TARGET.
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto start = b.CreateString("2025/01/03");
+        auto end = b.CreateString("2025/01/06");
+
+        quantra::CalendarHolidaysRequestBuilder rb(b);
+        rb.add_calendar(quantra::enums::Calendar_TARGET);
+        rb.add_start_date(start);
+        rb.add_end_date(end);
+        rb.add_include_weekends(false);
+        b.Finish(rb.Finish());
+
+        auto request = b.ReleaseMessage<quantra::CalendarHolidaysRequest>();
+        ASSERT_TRUE(request.Verify());
+
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::CalendarHolidaysResponse> response;
+        auto status = stub_->CalendarHolidays(&context, request, &response);
+
+        ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+        auto root = response.GetRoot();
+        ASSERT_NE(root, nullptr);
+        EXPECT_EQ(root->count(), 0u);
+    }
+
+    // Including weekends: should return Saturday and Sunday.
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto start = b.CreateString("2025/01/03");
+        auto end = b.CreateString("2025/01/06");
+
+        quantra::CalendarHolidaysRequestBuilder rb(b);
+        rb.add_calendar(quantra::enums::Calendar_TARGET);
+        rb.add_start_date(start);
+        rb.add_end_date(end);
+        rb.add_include_weekends(true);
+        b.Finish(rb.Finish());
+
+        auto request = b.ReleaseMessage<quantra::CalendarHolidaysRequest>();
+        ASSERT_TRUE(request.Verify());
+
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::CalendarHolidaysResponse> response;
+        auto status = stub_->CalendarHolidays(&context, request, &response);
+
+        ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+        auto root = response.GetRoot();
+        ASSERT_NE(root, nullptr);
+        ASSERT_NE(root->dates(), nullptr);
+        EXPECT_EQ(root->count(), 2u);
+    }
+}
+
+TEST_F(ServerClientTest, CalendarAdvance_PositiveAndNegativeDays) {
+    // +3 business days from Friday 2025-01-03 -> Wednesday 2025-01-08
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto date = b.CreateString("2025/01/03");
+
+        quantra::CalendarAdvanceRequestBuilder rb(b);
+        rb.add_calendar(quantra::enums::Calendar_TARGET);
+        rb.add_date(date);
+        rb.add_tenor_number(3);
+        rb.add_tenor_unit(quantra::enums::TimeUnit_Days);
+        rb.add_convention(quantra::enums::BusinessDayConvention_Following);
+        rb.add_end_of_month(false);
+        b.Finish(rb.Finish());
+
+        auto request = b.ReleaseMessage<quantra::CalendarAdvanceRequest>();
+        ASSERT_TRUE(request.Verify());
+
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::CalendarAdvanceResponse> response;
+        auto status = stub_->CalendarAdvance(&context, request, &response);
+
+        ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+        auto root = response.GetRoot();
+        ASSERT_NE(root, nullptr);
+        ASSERT_NE(root->advanced_date(), nullptr);
+        EXPECT_EQ(root->advanced_date()->str(), "2025-01-08");
+    }
+
+    // -2 business days from Monday 2025-01-06 -> Thursday 2025-01-02
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto date = b.CreateString("2025/01/06");
+
+        quantra::CalendarAdvanceRequestBuilder rb(b);
+        rb.add_calendar(quantra::enums::Calendar_TARGET);
+        rb.add_date(date);
+        rb.add_tenor_number(-2);
+        rb.add_tenor_unit(quantra::enums::TimeUnit_Days);
+        rb.add_convention(quantra::enums::BusinessDayConvention_Following);
+        rb.add_end_of_month(false);
+        b.Finish(rb.Finish());
+
+        auto request = b.ReleaseMessage<quantra::CalendarAdvanceRequest>();
+        ASSERT_TRUE(request.Verify());
+
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::CalendarAdvanceResponse> response;
+        auto status = stub_->CalendarAdvance(&context, request, &response);
+
+        ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+        auto root = response.GetRoot();
+        ASSERT_NE(root, nullptr);
+        ASSERT_NE(root->advanced_date(), nullptr);
+        EXPECT_EQ(root->advanced_date()->str(), "2025-01-02");
+    }
+}
+
+TEST_F(ServerClientTest, CalendarBusinessDays_InvalidRangeFails) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto start = b.CreateString("2025/01/10");
+    auto end = b.CreateString("2025/01/01");
+
+    quantra::CalendarBusinessDaysRequestBuilder rb(b);
+    rb.add_calendar(quantra::enums::Calendar_TARGET);
+    rb.add_start_date(start);
+    rb.add_end_date(end);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::CalendarBusinessDaysRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::CalendarBusinessDaysResponse> response;
+    auto status = stub_->CalendarBusinessDays(&context, request, &response);
+
+    EXPECT_FALSE(status.ok());
 }
 
 TEST_F(ServerClientTest, Latency_MultipleRequests) {

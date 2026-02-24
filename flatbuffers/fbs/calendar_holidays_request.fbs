@@ -1,0 +1,13 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Request holidays/vacations between two dates for a calendar.
+table CalendarHolidaysRequest {
+    calendar:enums.Calendar = TARGET;
+    start_date:string (required);  // YYYY/MM/DD
+    end_date:string (required);    // YYYY/MM/DD
+    include_weekends:bool = false;
+}
+
+root_type CalendarHolidaysRequest;

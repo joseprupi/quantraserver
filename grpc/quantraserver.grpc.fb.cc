@@ -27,6 +27,9 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceCDS",
   "/quantra.QuantraServer/BootstrapCurves",
   "/quantra.QuantraServer/SampleVolSurfaces",
+  "/quantra.QuantraServer/CalendarBusinessDays",
+  "/quantra.QuantraServer/CalendarHolidays",
+  "/quantra.QuantraServer/CalendarAdvance",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -46,6 +49,9 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_PriceCDS_(QuantraServer_method_names[8], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_BootstrapCurves_(QuantraServer_method_names[9], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_SampleVolSurfaces_(QuantraServer_method_names[10], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarBusinessDays_(QuantraServer_method_names[11], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarHolidays_(QuantraServer_method_names[12], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarAdvance_(QuantraServer_method_names[13], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -180,6 +186,42 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>::Create(channel_.get(), cq, rpcmethod_SampleVolSurfaces_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::CalendarBusinessDays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CalendarBusinessDays_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* QuantraServer::Stub::AsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarBusinessDays_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* QuantraServer::Stub::PrepareAsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarBusinessDays_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::CalendarHolidays(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, flatbuffers::grpc::Message<CalendarHolidaysResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CalendarHolidays_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* QuantraServer::Stub::AsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarHolidaysResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarHolidays_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* QuantraServer::Stub::PrepareAsyncCalendarHolidaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarHolidaysResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarHolidays_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::CalendarAdvance(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, flatbuffers::grpc::Message<CalendarAdvanceResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CalendarAdvance_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* QuantraServer::Stub::AsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarAdvanceResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarAdvance_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* QuantraServer::Stub::PrepareAsyncCalendarAdvanceRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarAdvanceRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarAdvanceResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarAdvance_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -236,6 +278,21 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<SampleVolSurfacesRequest>, flatbuffers::grpc::Message<SampleVolSurfacesResponse>>(
           std::mem_fn(&QuantraServer::Service::SampleVolSurfaces), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[11],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarBusinessDaysRequest>, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>(
+          std::mem_fn(&QuantraServer::Service::CalendarBusinessDays), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[12],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarHolidaysRequest>, flatbuffers::grpc::Message<CalendarHolidaysResponse>>(
+          std::mem_fn(&QuantraServer::Service::CalendarHolidays), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[13],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarAdvanceRequest>, flatbuffers::grpc::Message<CalendarAdvanceResponse>>(
+          std::mem_fn(&QuantraServer::Service::CalendarAdvance), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -282,6 +339,18 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::SampleVolSurfaces(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>* /*request*/, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::CalendarBusinessDays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::CalendarHolidays(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* /*request*/, flatbuffers::grpc::Message<CalendarHolidaysResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::CalendarAdvance(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* /*request*/, flatbuffers::grpc::Message<CalendarAdvanceResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

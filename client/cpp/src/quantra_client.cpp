@@ -261,6 +261,24 @@ JsonResponse QuantraClient::SampleVolSurfacesJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::CalendarBusinessDaysJSON(const std::string& json) {
+    return impl_->CallJSON<CalendarBusinessDaysRequest, CalendarBusinessDaysResponse>(
+        ProductType::CalendarBusinessDays, json, &QuantraServer::Stub::CalendarBusinessDays
+    );
+}
+
+JsonResponse QuantraClient::CalendarHolidaysJSON(const std::string& json) {
+    return impl_->CallJSON<CalendarHolidaysRequest, CalendarHolidaysResponse>(
+        ProductType::CalendarHolidays, json, &QuantraServer::Stub::CalendarHolidays
+    );
+}
+
+JsonResponse QuantraClient::CalendarAdvanceJSON(const std::string& json) {
+    return impl_->CallJSON<CalendarAdvanceRequest, CalendarAdvanceResponse>(
+        ProductType::CalendarAdvance, json, &QuantraServer::Stub::CalendarAdvance
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -351,6 +369,30 @@ grpc::Status QuantraClient::SampleVolSurfaces(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->SampleVolSurfaces(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalendarBusinessDays(
+    const Message<CalendarBusinessDaysRequest>& request,
+    Message<CalendarBusinessDaysResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->CalendarBusinessDays(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalendarHolidays(
+    const Message<CalendarHolidaysRequest>& request,
+    Message<CalendarHolidaysResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->CalendarHolidays(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalendarAdvance(
+    const Message<CalendarAdvanceRequest>& request,
+    Message<CalendarAdvanceResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->CalendarAdvance(&context, request, response);
 }
 
 } // namespace quantra
