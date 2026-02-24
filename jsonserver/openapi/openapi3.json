@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
     "version": "1.0.0",
     "contact": {
       "name": "Quantra API Support",
@@ -35,6 +35,10 @@
     {
       "name": "Volatility",
       "description": "Volatility surface creation and sampling"
+    },
+    {
+      "name": "Calendars",
+      "description": "Calendar business-day, holiday, and date-advance utilities"
     },
     {
       "name": "System",
@@ -696,6 +700,195 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/quantra_SampleVolSurfacesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar-business-days": {
+      "post": {
+        "summary": "List Calendar Business Days",
+        "description": "Return business/market dates between start_date and end_date for a QuantLib calendar.",
+        "tags": [
+          "Calendars"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalendarBusinessDaysRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalendarBusinessDaysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar-holidays": {
+      "post": {
+        "summary": "List Calendar Holidays",
+        "description": "Return holidays (and optionally weekends) between start_date and end_date for a QuantLib calendar.",
+        "tags": [
+          "Calendars"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalendarHolidaysRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalendarHolidaysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar-advance": {
+      "post": {
+        "summary": "Advance Calendar Date",
+        "description": "Advance one date by tenor_number/tenor_unit using QuantLib calendar and business-day convention.",
+        "tags": [
+          "Calendars"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalendarAdvanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalendarAdvanceResponse"
                 }
               }
             }
@@ -3350,6 +3543,161 @@
         },
         "required": [
           "results"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalendarAdvanceRequest": {
+        "type": "object",
+        "description": "Request date advance by calendar-aware period.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "date": {
+            "type": "string"
+          },
+          "tenor_number": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "tenor_unit": {
+            "$ref": "#/components/schemas/quantra_enums_TimeUnit"
+          },
+          "convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "end_of_month": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalendarAdvanceResponse": {
+        "type": "object",
+        "description": "Response containing advanced date.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "input_date": {
+            "type": "string"
+          },
+          "advanced_date": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_CalendarBusinessDaysRequest": {
+        "type": "object",
+        "description": "Request business/market dates between two dates for a calendar.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "include_start": {
+            "type": "boolean"
+          },
+          "include_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalendarBusinessDaysResponse": {
+        "type": "object",
+        "description": "Business/market dates for a calendar date range.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "dates"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalendarHolidaysRequest": {
+        "type": "object",
+        "description": "Request holidays/vacations between two dates for a calendar.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "include_weekends": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalendarHolidaysResponse": {
+        "type": "object",
+        "description": "Holidays/vacations for a calendar date range.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "dates"
         ],
         "additionalProperties": false
       },

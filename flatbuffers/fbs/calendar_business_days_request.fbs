@@ -1,0 +1,14 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Request business/market dates between two dates for a calendar.
+table CalendarBusinessDaysRequest {
+    calendar:enums.Calendar = TARGET;
+    start_date:string (required);  // YYYY/MM/DD
+    end_date:string (required);    // YYYY/MM/DD
+    include_start:bool = true;
+    include_end:bool = true;
+}
+
+root_type CalendarBusinessDaysRequest;

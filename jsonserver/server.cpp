@@ -261,6 +261,9 @@ int main(int argc, char** argv) {
         "POST /price-cds",
         "POST /bootstrap-curves",
         "POST /sample-vol-surfaces",
+        "POST /calendar-business-days",
+        "POST /calendar-holidays",
+        "POST /calendar-advance",
         "GET /status",
         "GET /meta",
         "GET /health"
@@ -420,6 +423,24 @@ int main(int argc, char** argv) {
             }
             return crow::response(r.status_code, r.body);
         });
+
+        CROW_ROUTE(app, "/calendar-business-days").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.CalendarBusinessDaysJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
+
+        CROW_ROUTE(app, "/calendar-holidays").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.CalendarHolidaysJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
+
+        CROW_ROUTE(app, "/calendar-advance").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.CalendarAdvanceJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
         
         // Print endpoints
         std::cout << "Endpoints:\n"
@@ -434,6 +455,9 @@ int main(int argc, char** argv) {
                   << "  POST /price-cds\n"
                   << "  POST /bootstrap-curves\n"
                   << "  POST /sample-vol-surfaces\n"
+                  << "  POST /calendar-business-days\n"
+                  << "  POST /calendar-holidays\n"
+                  << "  POST /calendar-advance\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"

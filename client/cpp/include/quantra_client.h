@@ -44,6 +44,9 @@
 #include "cds_response_generated.h"
 #include "bootstrap_curves_response_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
+#include "calendar_business_days_response_generated.h"
+#include "calendar_holidays_response_generated.h"
+#include "calendar_advance_response_generated.h"
 
 namespace quantra {
 
@@ -71,7 +74,10 @@ enum class ProductType {
     Swaption,
     CDS,
     BootstrapCurves,
-    SampleVolSurfaces
+    SampleVolSurfaces,
+    CalendarBusinessDays,
+    CalendarHolidays,
+    CalendarAdvance
 };
 
 const char* ProductTypeToString(ProductType type);
@@ -136,6 +142,9 @@ public:
     JsonResponse PriceCDSJSON(const std::string& json);
     JsonResponse BootstrapCurvesJSON(const std::string& json);
     JsonResponse SampleVolSurfacesJSON(const std::string& json);
+    JsonResponse CalendarBusinessDaysJSON(const std::string& json);
+    JsonResponse CalendarHolidaysJSON(const std::string& json);
+    JsonResponse CalendarAdvanceJSON(const std::string& json);
     
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance
@@ -187,6 +196,18 @@ public:
     grpc::Status SampleVolSurfaces(
         const Message<SampleVolSurfacesRequest>& request,
         Message<SampleVolSurfacesResponse>* response);
+
+    grpc::Status CalendarBusinessDays(
+        const Message<CalendarBusinessDaysRequest>& request,
+        Message<CalendarBusinessDaysResponse>* response);
+
+    grpc::Status CalendarHolidays(
+        const Message<CalendarHolidaysRequest>& request,
+        Message<CalendarHolidaysResponse>* response);
+
+    grpc::Status CalendarAdvance(
+        const Message<CalendarAdvanceRequest>& request,
+        Message<CalendarAdvanceResponse>* response);
     
     // -------------------------------------------------------------------------
     // Accessors

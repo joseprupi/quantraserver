@@ -1,0 +1,14 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Business/market dates for a calendar date range.
+table CalendarBusinessDaysResponse {
+    calendar:enums.Calendar = TARGET;
+    start_date:string;
+    end_date:string;
+    dates:[string] (required);
+    count:uint;
+}
+
+root_type CalendarBusinessDaysResponse;

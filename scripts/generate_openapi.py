@@ -57,6 +57,9 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | CDS | `/price-cds` | Price credit default swaps |
 | Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
 | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |
+| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |
+| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |
+| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -160,6 +163,27 @@ ENDPOINTS = {
         "request_schema": "quantra_SampleVolSurfacesRequest",
         "response_schema": "quantra_SampleVolSurfacesResponse",
         "tags": ["Volatility"]
+    },
+    "/calendar-business-days": {
+        "summary": "List Calendar Business Days",
+        "description": "Return business/market dates between start_date and end_date for a QuantLib calendar.",
+        "request_schema": "quantra_CalendarBusinessDaysRequest",
+        "response_schema": "quantra_CalendarBusinessDaysResponse",
+        "tags": ["Calendars"]
+    },
+    "/calendar-holidays": {
+        "summary": "List Calendar Holidays",
+        "description": "Return holidays (and optionally weekends) between start_date and end_date for a QuantLib calendar.",
+        "request_schema": "quantra_CalendarHolidaysRequest",
+        "response_schema": "quantra_CalendarHolidaysResponse",
+        "tags": ["Calendars"]
+    },
+    "/calendar-advance": {
+        "summary": "Advance Calendar Date",
+        "description": "Advance one date by tenor_number/tenor_unit using QuantLib calendar and business-day convention.",
+        "request_schema": "quantra_CalendarAdvanceRequest",
+        "response_schema": "quantra_CalendarAdvanceResponse",
+        "tags": ["Calendars"]
     }
 }
 
@@ -432,6 +456,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},
+            {"name": "Calendars", "description": "Calendar business-day, holiday, and date-advance utilities"},
             {"name": "System", "description": "System endpoints"}
         ],
         "paths": paths,

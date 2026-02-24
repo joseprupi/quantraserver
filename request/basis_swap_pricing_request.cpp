@@ -28,26 +28,37 @@ flatbuffers::Offset<SwapLegFlow> BuildFloatingFlow(
     osPayment << QuantLib::io::iso_date(coupon->date());
     osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
     osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
-
-    double discount = discountCurve->discount(coupon->date());
-    double amount = coupon->amount();
-
-    SwapLegFlowBuilder fb(builder);
-    fb.add_payment_date(builder.CreateString(osPayment.str()));
-    fb.add_accrual_start_date(builder.CreateString(osStart.str()));
-    fb.add_accrual_end_date(builder.CreateString(osEnd.str()));
-    fb.add_amount(amount);
-    fb.add_discount(discount);
-    fb.add_present_value(amount * discount);
-    fb.add_rate(coupon->rate());
+    auto paymentDate = builder.CreateString(osPayment.str());
+    auto accrualStart = builder.CreateString(osStart.str());
+    auto accrualEnd = builder.CreateString(osEnd.str());
+    flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
+    double indexFixing = 0.0;
+    double spread = 0.0;
 
     auto frc = std::dynamic_pointer_cast<FloatingRateCoupon>(coupon);
     if (frc) {
         std::ostringstream osFix;
         osFix << QuantLib::io::iso_date(frc->fixingDate());
-        fb.add_fixing_date(builder.CreateString(osFix.str()));
-        fb.add_index_fixing(frc->indexFixing());
-        fb.add_spread(frc->spread());
+        fixingDate = builder.CreateString(osFix.str());
+        indexFixing = frc->indexFixing();
+        spread = frc->spread();
+    }
+
+    double discount = discountCurve->discount(coupon->date());
+    double amount = coupon->amount();
+
+    SwapLegFlowBuilder fb(builder);
+    fb.add_payment_date(paymentDate);
+    fb.add_accrual_start_date(accrualStart);
+    fb.add_accrual_end_date(accrualEnd);
+    fb.add_amount(amount);
+    fb.add_discount(discount);
+    fb.add_present_value(amount * discount);
+    fb.add_rate(coupon->rate());
+    if (frc) {
+        fb.add_fixing_date(fixingDate);
+        fb.add_index_fixing(indexFixing);
+        fb.add_spread(spread);
     }
     return fb.Finish();
 }
