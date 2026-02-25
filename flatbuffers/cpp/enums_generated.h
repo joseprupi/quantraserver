@@ -1139,31 +1139,34 @@ enum IrModelType : int8_t {
   IrModelType_Black = 0,
   IrModelType_ShiftedBlack = 1,
   IrModelType_Bachelier = 2,
+  IrModelType_HullWhiteLattice = 3,
   IrModelType_MIN = IrModelType_Black,
-  IrModelType_MAX = IrModelType_Bachelier
+  IrModelType_MAX = IrModelType_HullWhiteLattice
 };
 
-inline const IrModelType (&EnumValuesIrModelType())[3] {
+inline const IrModelType (&EnumValuesIrModelType())[4] {
   static const IrModelType values[] = {
     IrModelType_Black,
     IrModelType_ShiftedBlack,
-    IrModelType_Bachelier
+    IrModelType_Bachelier,
+    IrModelType_HullWhiteLattice
   };
   return values;
 }
 
 inline const char * const *EnumNamesIrModelType() {
-  static const char * const names[4] = {
+  static const char * const names[5] = {
     "Black",
     "ShiftedBlack",
     "Bachelier",
+    "HullWhiteLattice",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameIrModelType(IrModelType e) {
-  if (::flatbuffers::IsOutRange(e, IrModelType_Black, IrModelType_Bachelier)) return "";
+  if (::flatbuffers::IsOutRange(e, IrModelType_Black, IrModelType_HullWhiteLattice)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesIrModelType()[index];
 }

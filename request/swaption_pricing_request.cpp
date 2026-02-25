@@ -77,6 +77,22 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         auto mIt = reg.models.find(it->model()->str());
         if (mIt == reg.models.end())
             QUANTRA_ERROR("Model not found: " + it->model()->str());
+        if (mIt->second->payload_type() != quantra::ModelPayload_SwaptionModelSpec) {
+            QUANTRA_ERROR("Model '" + it->model()->str() + "' is not a SwaptionModelSpec");
+        }
+        auto* swaptionModelSpec = mIt->second->payload_as_SwaptionModelSpec();
+        if (!swaptionModelSpec) {
+            QUANTRA_ERROR("Model '" + it->model()->str() + "' has null SwaptionModelSpec payload");
+        }
+        const auto modelType = swaptionModelSpec->model_type();
+        const auto exerciseType = it->swaption()->exercise_type();
+        if ((exerciseType == quantra::enums::ExerciseType_Bermudan ||
+             exerciseType == quantra::enums::ExerciseType_American) &&
+            (modelType == quantra::enums::IrModelType_Black ||
+             modelType == quantra::enums::IrModelType_Bachelier ||
+             modelType == quantra::enums::IrModelType_ShiftedBlack)) {
+            QUANTRA_ERROR("Swaption exercise type Bermudan/American requires HullWhiteLattice model");
+        }
 
         swaption_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto swaption = swaption_parser.parse(it->swaption(), reg.indices);

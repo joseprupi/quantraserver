@@ -53,8 +53,28 @@ class Swaption(object):
         return None
 
     # Swaption
-    def UnderlyingSwap(self):
+    def ExerciseDates(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.String(a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 4))
+        return ""
+
+    # Swaption
+    def ExerciseDatesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Swaption
+    def ExerciseDatesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        return o == 0
+
+    # Swaption
+    def UnderlyingSwap(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.VanillaSwap import VanillaSwap
@@ -65,14 +85,14 @@ class Swaption(object):
 
     # Swaption
     def UnderlyingType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # Swaption
     def Underlying(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -81,7 +101,7 @@ class Swaption(object):
         return None
 
 def SwaptionStart(builder):
-    builder.StartObject(7)
+    builder.StartObject(8)
 
 def Start(builder):
     SwaptionStart(builder)
@@ -110,20 +130,32 @@ def SwaptionAddExerciseDate(builder, exerciseDate):
 def AddExerciseDate(builder, exerciseDate):
     SwaptionAddExerciseDate(builder, exerciseDate)
 
+def SwaptionAddExerciseDates(builder, exerciseDates):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(exerciseDates), 0)
+
+def AddExerciseDates(builder, exerciseDates):
+    SwaptionAddExerciseDates(builder, exerciseDates)
+
+def SwaptionStartExerciseDatesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartExerciseDatesVector(builder, numElems):
+    return SwaptionStartExerciseDatesVector(builder, numElems)
+
 def SwaptionAddUnderlyingSwap(builder, underlyingSwap):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingSwap), 0)
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingSwap), 0)
 
 def AddUnderlyingSwap(builder, underlyingSwap):
     SwaptionAddUnderlyingSwap(builder, underlyingSwap)
 
 def SwaptionAddUnderlyingType(builder, underlyingType):
-    builder.PrependUint8Slot(5, underlyingType, 0)
+    builder.PrependUint8Slot(6, underlyingType, 0)
 
 def AddUnderlyingType(builder, underlyingType):
     SwaptionAddUnderlyingType(builder, underlyingType)
 
 def SwaptionAddUnderlying(builder, underlying):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(underlying), 0)
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(underlying), 0)
 
 def AddUnderlying(builder, underlying):
     SwaptionAddUnderlying(builder, underlying)
@@ -135,7 +167,7 @@ def End(builder):
     return SwaptionEnd(builder)
 
 try:
-    from typing import Optional, Union
+    from typing import List, Optional, Union
 except:
     pass
 
@@ -147,6 +179,7 @@ class SwaptionT(object):
         self.settlementType = 0  # type: int
         self.settlementMethod = 0  # type: int
         self.exerciseDate = None  # type: str
+        self.exerciseDates = None  # type: List[str]
         self.underlyingSwap = None  # type: Optional[VanillaSwapT]
         self.underlyingType = 0  # type: int
         self.underlying = None  # type: Union[None, VanillaSwapT, OisSwapT]
@@ -176,6 +209,10 @@ class SwaptionT(object):
         self.settlementType = swaption.SettlementType()
         self.settlementMethod = swaption.SettlementMethod()
         self.exerciseDate = swaption.ExerciseDate()
+        if not swaption.ExerciseDatesIsNone():
+            self.exerciseDates = []
+            for i in range(swaption.ExerciseDatesLength()):
+                self.exerciseDates.append(swaption.ExerciseDates(i))
         if swaption.UnderlyingSwap() is not None:
             self.underlyingSwap = VanillaSwapT.InitFromObj(swaption.UnderlyingSwap())
         self.underlyingType = swaption.UnderlyingType()
@@ -185,6 +222,14 @@ class SwaptionT(object):
     def Pack(self, builder):
         if self.exerciseDate is not None:
             exerciseDate = builder.CreateString(self.exerciseDate)
+        if self.exerciseDates is not None:
+            exerciseDateslist = []
+            for i in range(len(self.exerciseDates)):
+                exerciseDateslist.append(builder.CreateString(self.exerciseDates[i]))
+            SwaptionStartExerciseDatesVector(builder, len(self.exerciseDates))
+            for i in reversed(range(len(self.exerciseDates))):
+                builder.PrependUOffsetTRelative(exerciseDateslist[i])
+            exerciseDates = builder.EndVector()
         if self.underlyingSwap is not None:
             underlyingSwap = self.underlyingSwap.Pack(builder)
         if self.underlying is not None:
@@ -195,6 +240,8 @@ class SwaptionT(object):
         SwaptionAddSettlementMethod(builder, self.settlementMethod)
         if self.exerciseDate is not None:
             SwaptionAddExerciseDate(builder, exerciseDate)
+        if self.exerciseDates is not None:
+            SwaptionAddExerciseDates(builder, exerciseDates)
         if self.underlyingSwap is not None:
             SwaptionAddUnderlyingSwap(builder, underlyingSwap)
         SwaptionAddUnderlyingType(builder, self.underlyingType)

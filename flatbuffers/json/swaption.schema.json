@@ -111,7 +111,7 @@
     },
     "quantra_enums_IrModelType" : {
       "type" : "string",
-      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
     },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
@@ -543,6 +543,9 @@
               },
         "exercise_date" : {
                 "type" : "string"
+              },
+        "exercise_dates" : {
+                "type" : "array", "items" : {"type" : "string"}
               },
         "underlying_swap" : {
                 "$ref" : "#/definitions/quantra_VanillaSwap"

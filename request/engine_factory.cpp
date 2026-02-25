@@ -9,6 +9,8 @@
 #include <ql/pricingengines/capfloor/bacheliercapfloorengine.hpp>
 #include <ql/pricingengines/capfloor/blackcapfloorengine.hpp>
 #include <ql/pricingengines/swaption/blackswaptionengine.hpp>
+#include <ql/pricingengines/swaption/treeswaptionengine.hpp>
+#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/version.hpp>
 
 // BachelierSwaptionEngine is defined in blackswaptionengine.hpp for the
@@ -142,6 +144,17 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeSwaptionEngine(
             // (baked into ConstantSwaptionVolatility). Do NOT pass displacement to engine.
             return std::make_shared<QuantLib::BlackSwaptionEngine>(
                 discountCurve, volEntry.handle);
+
+        case quantra::enums::IrModelType_HullWhiteLattice: {
+            const double a = spec->hw_a();
+            const double sigma = spec->hw_sigma();
+            const int latticeSteps = spec->lattice_steps();
+            if (latticeSteps <= 0) {
+                QUANTRA_ERROR("Model '" + modelId + "': lattice_steps must be > 0 for HullWhiteLattice");
+            }
+            auto hwModel = std::make_shared<QuantLib::HullWhite>(discountCurve, a, sigma);
+            return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, latticeSteps);
+        }
 
         default:
             QUANTRA_ERROR("Model '" + modelId + "': Unknown IrModelType value "

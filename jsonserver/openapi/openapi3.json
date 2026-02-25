@@ -1299,7 +1299,8 @@
         "enum": [
           "Black",
           "ShiftedBlack",
-          "Bachelier"
+          "Bachelier",
+          "HullWhiteLattice"
         ]
       },
       "quantra_enums_EquityModelType": {
@@ -2915,6 +2916,17 @@
         "properties": {
           "model_type": {
             "$ref": "#/components/schemas/quantra_enums_IrModelType"
+          },
+          "hw_a": {
+            "type": "number"
+          },
+          "hw_sigma": {
+            "type": "number"
+          },
+          "lattice_steps": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
           }
         },
         "additionalProperties": false
@@ -4514,6 +4526,12 @@
           },
           "exercise_date": {
             "type": "string"
+          },
+          "exercise_dates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "underlying_swap": {
             "$ref": "#/components/schemas/quantra_VanillaSwap"
