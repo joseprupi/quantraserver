@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of pricer types.
 class Pricer(object):
     NONE = 0
     BlackIborCouponPricer = 1

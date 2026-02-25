@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Response wrapper for multiple fixed-rate bonds.
 class PriceFixedRateBondResponse(object):
     __slots__ = ['_tab']
 

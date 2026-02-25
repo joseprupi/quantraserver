@@ -37,6 +37,7 @@ struct PriceOisSwapT : public ::flatbuffers::NativeTable {
   PriceOisSwapT &operator=(PriceOisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single OIS swap pricing context with curve references.
 struct PriceOisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapT NativeTableType;
   typedef PriceOisSwapBuilder Builder;
@@ -132,6 +133,7 @@ struct PriceOisSwapRequestT : public ::flatbuffers::NativeTable {
   PriceOisSwapRequestT &operator=(PriceOisSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more OIS swaps.
 struct PriceOisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapRequestT NativeTableType;
   typedef PriceOisSwapRequestBuilder Builder;

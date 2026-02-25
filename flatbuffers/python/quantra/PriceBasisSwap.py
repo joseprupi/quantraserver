@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Single basis swap pricing context with curve references.
 class PriceBasisSwap(object):
     __slots__ = ['_tab']
 

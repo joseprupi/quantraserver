@@ -33,6 +33,7 @@ struct CalibrateSwaptionModelRequestT : public ::flatbuffers::NativeTable {
   CalibrateSwaptionModelRequestT &operator=(CalibrateSwaptionModelRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to calibrate a Hull-White swaption model.
 struct CalibrateSwaptionModelRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CalibrateSwaptionModelRequestT NativeTableType;
   typedef CalibrateSwaptionModelRequestBuilder Builder;
@@ -41,12 +42,15 @@ struct CalibrateSwaptionModelRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuf
     VT_MODEL_ID = 6,
     VT_CALIBRATION = 8
   };
+  /// Full pricing context (as_of, curves, indices, vols, models, quotes).
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
   }
+  /// Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice.
   const ::flatbuffers::String *model_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL_ID);
   }
+  /// Optional override for calibration settings. If omitted, server uses model.hw_calibration from the referenced model.
   const quantra::SwaptionHwCalibrationSpec *calibration() const {
     return GetPointer<const quantra::SwaptionHwCalibrationSpec *>(VT_CALIBRATION);
   }

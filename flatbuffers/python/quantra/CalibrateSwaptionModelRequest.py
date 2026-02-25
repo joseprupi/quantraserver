@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Request to calibrate a Hull-White swaption model.
 class CalibrateSwaptionModelRequest(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class CalibrateSwaptionModelRequest(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Full pricing context (as_of, curves, indices, vols, models, quotes).
     # CalibrateSwaptionModelRequest
     def Pricing(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -35,6 +37,7 @@ class CalibrateSwaptionModelRequest(object):
             return obj
         return None
 
+    # Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice.
     # CalibrateSwaptionModelRequest
     def ModelId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -42,6 +45,7 @@ class CalibrateSwaptionModelRequest(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Optional override for calibration settings. If omitted, server uses model.hw_calibration from the referenced model.
     # CalibrateSwaptionModelRequest
     def Calibration(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

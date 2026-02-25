@@ -2,17 +2,21 @@ include "common.fbs";
 
 namespace quantra;
 
-// CDS pricing results
+/// CDS pricing results.
 table CDSValues {
     npv:double;
-    fair_spread:double;         // Par spread in decimal
-    fair_upfront:double;        // Upfront for par spread
-    default_leg_npv:double;     // NPV of protection leg
-    premium_leg_npv:double;     // NPV of premium leg
+    /// Par spread in decimal.
+    fair_spread:double;
+    /// Upfront for par spread.
+    fair_upfront:double;
+    /// NPV of protection leg.
+    default_leg_npv:double;
+    /// NPV of premium leg.
+    premium_leg_npv:double;
     error:Error;
 }
 
-// Batch CDS pricing response
+/// Batch CDS pricing response.
 table PriceCDSResponse {
     cds_list:[CDSValues];
 }

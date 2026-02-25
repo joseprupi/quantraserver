@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Swaption pricing response with NPV, Greeks, and diagnostics.
 class SwaptionResponse(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class SwaptionResponse(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Present value of the swaption under the selected model and market inputs.
     # SwaptionResponse
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -31,6 +33,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
     # SwaptionResponse
     def ImpliedVolatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +41,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # ATM forward swap rate used for pricing diagnostics.
     # SwaptionResponse
     def AtmForward(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +49,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Underlying swap annuity (PV01-style quantity).
     # SwaptionResponse
     def Annuity(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +57,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Option delta from pricing details/rebump logic.
     # SwaptionResponse
     def Delta(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -59,6 +65,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Option vega from pricing details/rebump logic.
     # SwaptionResponse
     def Vega(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -66,6 +73,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Option gamma from pricing details/rebump logic.
     # SwaptionResponse
     def Gamma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -73,6 +81,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Option theta from pricing details/rebump logic.
     # SwaptionResponse
     def Theta(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -80,6 +89,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
     # SwaptionResponse
     def Dv01(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -87,6 +97,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Volatility actually queried from the resolved vol surface.
     # SwaptionResponse
     def UsedVolatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -94,6 +105,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Option expiry date used by surface lookup (ISO date).
     # SwaptionResponse
     def UsedOptionExpiry(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -101,6 +113,7 @@ class SwaptionResponse(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Swap tenor descriptor used by lookup (e.g., date range).
     # SwaptionResponse
     def UsedSwapTenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -108,6 +121,7 @@ class SwaptionResponse(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Strike used to query the volatility structure.
     # SwaptionResponse
     def UsedStrike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
@@ -115,6 +129,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # ATM forward used when smile conventions need ATM anchoring.
     # SwaptionResponse
     def UsedAtmForward(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
@@ -122,6 +137,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Strike convention used by the source swaption vol surface.
     # SwaptionResponse
     def UsedStrikeKind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
@@ -129,6 +145,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Difference between used strike and cube ATM level when spread-from-ATM is active.
     # SwaptionResponse
     def UsedSpreadFromAtm(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
@@ -136,6 +153,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # ATM level retrieved from cube node when available.
     # SwaptionResponse
     def UsedCubeNodeAtm(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
@@ -143,6 +161,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Resolved swaption volatility kind used by pricing.
     # SwaptionResponse
     def VolKind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
@@ -150,6 +169,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Effective model parameter mode used by the swaption engine.
     # SwaptionResponse
     def UsedModelParamMode(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
@@ -157,6 +177,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
     # SwaptionResponse
     def UsedHwA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
@@ -164,6 +185,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return -1.0
 
+    # Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
     # SwaptionResponse
     def UsedHwSigma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
@@ -171,6 +193,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return -1.0
 
+    # Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
     # SwaptionResponse
     def UsedHwRmse(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
@@ -178,6 +201,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return -1.0
 
+    # Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
     # SwaptionResponse
     def UsedHwNumHelpers(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
@@ -185,6 +209,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return -1
 
+    # Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
     # SwaptionResponse
     def UsedHwGridRows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
@@ -192,6 +217,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return -1
 
+    # Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
     # SwaptionResponse
     def UsedHwGridCols(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
@@ -199,6 +225,7 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return -1
 
+    # Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
     # SwaptionResponse
     def UsedHwGridPoints(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(54))

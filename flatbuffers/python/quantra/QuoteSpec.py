@@ -6,8 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Market quote (spot price, FX rate, etc.)
-# Used by: Pricing.quotes[], helper quote_id references
+# Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.
 class QuoteSpec(object):
     __slots__ = ['_tab']
 

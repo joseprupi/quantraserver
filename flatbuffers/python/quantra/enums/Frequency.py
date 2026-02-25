@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Frequency for periodic schedules.
 class Frequency(object):
     Annual = 0
     Bimonthly = 1

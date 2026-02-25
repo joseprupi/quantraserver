@@ -48,11 +48,11 @@ struct CurveQuerySpecT;
 
 /// What output you want sampled from a curve.
 enum CurveMeasure : int8_t {
-  /// Discount factor P(t)
+  /// Discount factor P(t).
   CurveMeasure_DF = 0,
-  /// Zero rate z(t)
+  /// Zero rate z(t).
   CurveMeasure_ZERO = 1,
-  /// Forward rate f(t) or F(d1,d2)
+  /// Forward rate f(t) or F(d1,d2).
   CurveMeasure_FWD = 2,
   CurveMeasure_MIN = CurveMeasure_DF,
   CurveMeasure_MAX = CurveMeasure_FWD
@@ -85,9 +85,9 @@ inline const char *EnumNameCurveMeasure(CurveMeasure e) {
 
 /// Forward rate definition.
 enum ForwardType : int8_t {
-  /// Approximated instantaneous forward around d
+  /// Approximated instantaneous forward around d.
   ForwardType_Instantaneous = 0,
-  /// Forward over [d, d + tenor]
+  /// Forward over [d, d + tenor].
   ForwardType_Period = 1,
   ForwardType_MIN = ForwardType_Instantaneous,
   ForwardType_MAX = ForwardType_Period
@@ -116,6 +116,7 @@ inline const char *EnumNameForwardType(ForwardType e) {
   return EnumNamesForwardType()[index];
 }
 
+/// Union of date grid types.
 enum DateGrid : uint8_t {
   DateGrid_NONE = 0,
   DateGrid_TenorGrid = 1,
@@ -352,6 +353,7 @@ struct RangeGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t step_number() const {
     return GetField<int32_t>(VT_STEP_NUMBER, 1);
   }
+  /// Days/Weeks are literal increments; Months/Years use calendar advance + BDC.
   quantra::enums::TimeUnit step_time_unit() const {
     return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_STEP_TIME_UNIT, 0));
   }
@@ -468,6 +470,7 @@ struct DateGridSpecT : public ::flatbuffers::NativeTable {
   quantra::DateGridUnion grid{};
 };
 
+/// Date grid specification for curve/vol sampling.
 struct DateGridSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef DateGridSpecT NativeTableType;
   typedef DateGridSpecBuilder Builder;
@@ -562,9 +565,11 @@ struct QueryOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_ALLOW_EXTRAPOLATION = 10,
     VT_STRICT = 12
   };
+  /// Calendar override when set.
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
   }
+  /// Business day convention override when set.
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
   }
@@ -647,6 +652,7 @@ struct ZeroRateQueryT : public ::flatbuffers::NativeTable {
   quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
 };
 
+/// Zero rate query parameters.
 struct ZeroRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ZeroRateQueryT NativeTableType;
   typedef ZeroRateQueryBuilder Builder;
@@ -741,6 +747,7 @@ struct ForwardRateQueryT : public ::flatbuffers::NativeTable {
   ForwardRateQueryT &operator=(ForwardRateQueryT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Forward rate query parameters.
 struct ForwardRateQuery FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ForwardRateQueryT NativeTableType;
   typedef ForwardRateQueryBuilder Builder;

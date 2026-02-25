@@ -51,6 +51,7 @@ struct PricingT : public ::flatbuffers::NativeTable {
   PricingT &operator=(PricingT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Central pricing configuration. Indices, curves, volatility surfaces, and models are defined here and referenced by id.
 struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PricingT NativeTableType;
   typedef PricingBuilder Builder;
@@ -70,16 +71,15 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_SWAPTION_PRICING_REBUMP = 28,
     VT_COUPON_PRICERS = 30
   };
-  /// Valuation date (YYYY-MM-DD). Used by: ALL
+  /// Valuation date (YYYY-MM-DD). Used by: ALL.
   const ::flatbuffers::String *as_of_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
   }
-  /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond
+  /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond.
   const ::flatbuffers::String *settlement_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
   }
   /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
-  /// Every IndexRef in the request must resolve to an IndexDef here.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *indices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *>(VT_INDICES);
   }
@@ -87,31 +87,31 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *>(VT_SWAP_INDICES);
   }
-  /// Yield curves for discounting/forwarding. Used by: ALL
+  /// Yield curves for discounting/forwarding. Used by: ALL.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *>(VT_CURVES);
   }
-  /// Credit curves for CDS pricing. Used by: CDS
+  /// Credit curves for CDS pricing. Used by: CDS.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *credit_curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *>(VT_CREDIT_CURVES);
   }
-  /// Market quotes (spot prices, FX rates). Used by: EquityOption (future)
+  /// Market quotes (spot prices, FX rates). Used by: EquityOption (future).
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *>(VT_QUOTES);
   }
-  /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption
+  /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *>(VT_VOL_SURFACES);
   }
-  /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption
+  /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *models() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *>(VT_MODELS);
   }
-  /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
+  /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond.
   bool bond_pricing_details() const {
     return GetField<uint8_t>(VT_BOND_PRICING_DETAILS, 0) != 0;
   }
-  /// Include cash flow details. Used by: FixedRateBond, FloatingRateBond
+  /// Include cash flow details. Used by: FixedRateBond, FloatingRateBond.
   bool bond_pricing_flows() const {
     return GetField<uint8_t>(VT_BOND_PRICING_FLOWS, 0) != 0;
   }
@@ -123,7 +123,7 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool swaption_pricing_rebump() const {
     return GetField<uint8_t>(VT_SWAPTION_PRICING_REBUMP, 0) != 0;
   }
-  /// Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
+  /// Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *>(VT_COUPON_PRICERS);
   }

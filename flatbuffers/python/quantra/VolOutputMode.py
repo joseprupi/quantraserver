@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Output structure for vol sampling.
 class VolOutputMode(object):
     Cube = 0
     SmileSlice = 1

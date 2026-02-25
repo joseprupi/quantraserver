@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS market quote type.
 class CdsQuoteType(object):
     ParSpread = 0
     Upfront = 1

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Constant optionlet volatility for coupon pricer.
 class ConstantOptionletVolatility(object):
     __slots__ = ['_tab']
 

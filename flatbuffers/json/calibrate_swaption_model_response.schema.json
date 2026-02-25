@@ -3,30 +3,39 @@
   "definitions": {
     "quantra_CalibrateSwaptionModelResponse" : {
       "type" : "object",
+      "description" : "Response from Hull-White swaption model calibration.",
       "properties" : {
         "model_id" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Model id requested for calibration."
               },
         "hw_a" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Calibrated Hull-White mean reversion parameter \"a\"."
               },
         "hw_sigma" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Calibrated Hull-White volatility parameter \"sigma\"."
               },
         "rmse" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Root-mean-square error computed from calibration helper errors."
               },
         "num_helpers" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of calibration helpers used (typically rows * cols)."
               },
         "grid_rows" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of expiry rows in the calibration grid."
               },
         "grid_cols" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of tenor columns in the calibration grid."
               },
         "grid_points" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Total number of grid points in the calibration grid."
               }
       },
       "required" : ["model_id"],

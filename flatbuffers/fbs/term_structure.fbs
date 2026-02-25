@@ -5,45 +5,24 @@ include "common.fbs";
 
 namespace quantra;
 
-// ============================================================================
-// Exogenous curve references (multi-curve bootstrapping)
-// ============================================================================
-
+/// Exogenous curve reference for multi-curve bootstrapping.
 table CurveRef {
     id:string (required);
 }
 
+/// Exogenous curve dependencies for dual-curve bootstrapping.
 table HelperDependencies {
     /// Exogenous discount curve for dual-curve bootstrapping.
-    /// Supported by: SwapHelper, OISHelper, DatedOISHelper,
-    /// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
     discount_curve:CurveRef;
-
-    /// Exogenous projection/forwarding curve.
-    ///
-    /// ⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.
-    /// QuantLib's SwapRateHelper/OISRateHelper override the index forwarding
-    /// handle via index->clone(termStructureHandle_) during bootstrapping.
-    /// The projection curve is ALWAYS the curve being bootstrapped for these
-    /// helpers. Setting this field on Swap/OIS helpers will produce a hard
-    /// error at parse time.
-    ///
-    /// Supported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper
-    /// (and future custom helpers that genuinely encode projection relationships).
+    /// Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
     projection_curve:CurveRef;
-
-    /// Second projection curve for basis/XCCY helpers (e.g. the "other leg").
-    /// Same restrictions as projection_curve above.
+    /// Second projection curve for basis/XCCY helpers.
     projection_curve_2:CurveRef;
-
     /// FX spot quote reference for FX-implied curve helpers.
     fx_spot_quote_id:string;
 }
 
-// ============================================================================
-// Money market helpers
-// ============================================================================
-
+/// Money market deposit helper.
 table DepositHelper {
     rate:double;
     tenor:Period;
@@ -51,23 +30,23 @@ table DepositHelper {
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
     day_counter:enums.DayCounter;
-
-    /// Optional: reference a shared quote by id instead of inline rate
+    /// Optional: reference a shared quote by id instead of inline rate.
     quote_id:string;
 }
 
+/// FRA helper for curve bootstrap.
 table FRAHelper {
     rate:double;
-    months_to_start:int; 
-    months_to_end:int; 
+    months_to_start:int;
+    months_to_end:int;
     fixing_days:int;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
     day_counter:enums.DayCounter;
-
     quote_id:string;
 }
 
+/// Futures helper for curve bootstrap.
 table FutureHelper {
     rate:double;
     future_start_date:string;
@@ -75,20 +54,14 @@ table FutureHelper {
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
     day_counter:enums.DayCounter;
-
-    /// Futures price (e.g. 95.25); if set, rate is ignored
+    /// Futures price (e.g., 95.25); if set, rate is ignored.
     futures_price:double;
-    /// Convexity adjustment added to implied rate
+    /// Convexity adjustment added to implied rate.
     convexity_adjustment:double = 0.0;
-
     quote_id:string;
 }
 
-// ============================================================================
-// Vanilla IBOR swap helper
-// Now uses IndexRef to reference an IndexDef from the request's indices[]
-// ============================================================================
-
+/// Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.
 table SwapHelper {
     rate:double;
     tenor:Period;
@@ -96,23 +69,16 @@ table SwapHelper {
     sw_fixed_leg_frequency:enums.Frequency;
     sw_fixed_leg_convention:enums.BusinessDayConvention;
     sw_fixed_leg_day_counter:enums.DayCounter;
-
-    /// Reference to an IndexDef by id (e.g., "EUR_6M")
+    /// Reference to an IndexDef by id (e.g., "EUR_6M").
     float_index:IndexRef (required);
-
     spread:double;
-    fwd_start_days:int; 
-
-    /// Exogenous discount curve for multi-curve bootstrapping
+    fwd_start_days:int;
+    /// Exogenous discount curve for multi-curve bootstrapping.
     deps:HelperDependencies;
-
     quote_id:string;
 }
 
-// ============================================================================
-// Bond helper
-// ============================================================================
-
+/// Bond helper for curve bootstrap.
 table BondHelper {
     rate:double;
     settlement_days:int;
@@ -122,124 +88,97 @@ table BondHelper {
     day_counter:enums.DayCounter;
     business_day_convention:enums.BusinessDayConvention;
     redemption:double;
-    issue_date:string; 
-
-    /// Bond price (preferred over rate for clarity)
+    issue_date:string;
+    /// Bond price (preferred over rate for clarity).
     price:double;
-
     quote_id:string;
 }
 
-// ============================================================================
-// OIS helpers (overnight indexed swaps)
-// Now uses IndexRef to reference an IndexDef (overnight type)
-// ============================================================================
-
+/// OIS helper. Uses IndexRef to reference an overnight IndexDef.
 table OISHelper {
     rate:double;
     tenor:Period;
-
-    /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+    /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     overnight_index:IndexRef (required);
-
     settlement_days:int = 2;
     calendar:enums.Calendar = TARGET;
     fixed_leg_frequency:enums.Frequency = Annual;
     fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
     fixed_leg_day_counter:enums.DayCounter = Actual360;
-
-    /// Exogenous discount curve for dual-curve OIS bootstrapping
+    /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;
-
     quote_id:string;
 }
 
+/// Dated OIS helper with explicit start/end dates.
 table DatedOISHelper {
     rate:double;
-
     start_date:string (required);
     end_date:string (required);
-
-    /// Reference to an overnight IndexDef by id
+    /// Reference to an overnight IndexDef by id.
     overnight_index:IndexRef (required);
-
     settlement_days:int = 2;
     calendar:enums.Calendar = TARGET;
     fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
     fixed_leg_day_counter:enums.DayCounter = Actual360;
-
-    /// Exogenous discount curve for dual-curve OIS bootstrapping
+    /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;
-
     quote_id:string;
 }
 
-// ============================================================================
-// Zero-rate points (direct curve construction, no bootstrapping)
-// ============================================================================
-
+/// Zero rate point for direct curve construction (no bootstrapping).
 table ZeroRatePoint {
-    /// Maturity date for the zero rate (YYYY-MM-DD)
+    /// Maturity date for the zero rate (YYYY-MM-DD).
     date:string;
-    /// Alternative: tenor from reference date
+    /// Alternative: tenor from reference date.
     tenor:Period;
     calendar:enums.Calendar = TARGET;
     business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    /// Zero rate for this maturity
+    /// Zero rate for this maturity.
     zero_rate:double;
-    /// Compounding convention for the zero rate
+    /// Compounding convention for the zero rate.
     compounding:enums.Compounding = Continuous;
-    /// Frequency (used when compounding != Continuous)
+    /// Frequency (used when compounding != Continuous).
     frequency:enums.Frequency = Annual;
 }
 
-// ============================================================================
-// Basis / FX / XCCY helpers (all use IndexRef now)
-// ============================================================================
-
+/// Tenor basis swap helper.
 table TenorBasisSwapHelper {
     spread:double;
     tenor:Period;
-
-    /// Short tenor index (e.g., "EUR_3M")
+    /// Short tenor index (e.g., "EUR_3M").
     index_short:IndexRef (required);
-    /// Long tenor index (e.g., "EUR_6M")
+    /// Long tenor index (e.g., "EUR_6M").
     index_long:IndexRef (required);
-
     calendar:enums.Calendar;
     deps:HelperDependencies;
     quote_id:string;
 }
 
+/// FX swap helper.
 table FxSwapHelper {
     fx_points:double;
     tenor:Period;
-
     spot_days:int = 2;
     calendar_domestic:enums.Calendar = TARGET;
     calendar_foreign:enums.Calendar = TARGET;
-
     deps:HelperDependencies;
     quote_id:string;
 }
 
+/// Cross-currency basis swap helper.
 table CrossCcyBasisHelper {
     spread:double;
     tenor:Period;
-
-    /// Domestic leg index
+    /// Domestic leg index.
     index_domestic:IndexRef (required);
-    /// Foreign leg index
+    /// Foreign leg index.
     index_foreign:IndexRef (required);
-
     deps:HelperDependencies;
     quote_id:string;
 }
 
-// ============================================================================
-// Union of all supported point types
-// ============================================================================
-
+/// Union of all supported curve point types.
 union Point {
     DepositHelper,
     FRAHelper,
@@ -254,10 +193,12 @@ union Point {
     CrossCcyBasisHelper
 }
 
+/// Wrapper for a single curve point.
 table PointsWrapper {
     point:Point;
 }
 
+/// Term structure (yield curve) definition.
 table TermStructure {
     id:string;
     day_counter:enums.DayCounter;

@@ -40,6 +40,7 @@ struct PriceSwaptionT : public ::flatbuffers::NativeTable {
   PriceSwaptionT &operator=(PriceSwaptionT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single swaption pricing request with curve/vol/model references.
 struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceSwaptionT NativeTableType;
   typedef PriceSwaptionBuilder Builder;
@@ -53,15 +54,19 @@ struct PriceSwaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Swaption *swaption() const {
     return GetPointer<const quantra::Swaption *>(VT_SWAPTION);
   }
+  /// Reference to curve in Pricing.curves by id.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
+  /// Reference to curve for forward rates by id.
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
+  /// Reference to volatility in Pricing.vol_surfaces by id.
   const ::flatbuffers::String *volatility() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOLATILITY);
   }
+  /// Reference to model in Pricing.models by id.
   const ::flatbuffers::String *model() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }
@@ -162,6 +167,7 @@ struct PriceSwaptionRequestT : public ::flatbuffers::NativeTable {
   PriceSwaptionRequestT &operator=(PriceSwaptionRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more swaptions.
 struct PriceSwaptionRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceSwaptionRequestT NativeTableType;
   typedef PriceSwaptionRequestBuilder Builder;

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Swaption instrument definition.
 class Swaption(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class Swaption(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Exercise style: European, Bermudan, or American.
     # Swaption
     def ExerciseType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -31,6 +33,7 @@ class Swaption(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Settlement type for swaption payoff handling.
     # Swaption
     def SettlementType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +41,7 @@ class Swaption(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Settlement method (physical/other) per market convention.
     # Swaption
     def SettlementMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +49,7 @@ class Swaption(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Single exercise date (ISO date string). Required for European and American.
     # Swaption
     def ExerciseDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +57,7 @@ class Swaption(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates.
     # Swaption
     def ExerciseDates(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -72,6 +78,7 @@ class Swaption(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
+    # Legacy field: vanilla swap only (kept for backward compatibility).
     # Swaption
     def UnderlyingSwap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -90,6 +97,7 @@ class Swaption(object):
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
+    # New union-based underlying (VanillaSwap or OisSwap).
     # Swaption
     def Underlying(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

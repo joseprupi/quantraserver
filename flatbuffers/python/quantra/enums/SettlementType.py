@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swaption settlement: physical (deliver swap) or cash.
 class SettlementType(object):
     Physical = 0
     Cash = 1

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Canonical period type used across APIs.
 class Period(object):
     __slots__ = ['_tab']
 

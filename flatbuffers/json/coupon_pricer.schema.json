@@ -131,6 +131,7 @@
     },
     "quantra_ConstantOptionletVolatility" : {
       "type" : "object",
+      "description" : "Constant optionlet volatility for coupon pricer.",
       "properties" : {
         "settlement_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -152,6 +153,7 @@
     },
     "quantra_BlackIborCouponPricer" : {
       "type" : "object",
+      "description" : "Black Ibor coupon pricer with optionlet volatility.",
       "properties" : {
         "optionlet_volatility_structure_type" : {
                 "$ref" : "#/definitions/quantra_OptionletVolatilityStructure"
@@ -164,6 +166,7 @@
     },
     "quantra_CouponPricer" : {
       "type" : "object",
+      "description" : "Coupon pricer specification referenced by id.",
       "properties" : {
         "id" : {
                 "type" : "string"

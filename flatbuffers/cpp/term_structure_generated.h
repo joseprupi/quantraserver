@@ -80,6 +80,7 @@ struct TermStructure;
 struct TermStructureBuilder;
 struct TermStructureT;
 
+/// Union of all supported curve point types.
 enum Point : uint8_t {
   Point_NONE = 0,
   Point_DepositHelper = 1,
@@ -364,6 +365,7 @@ struct CurveRefT : public ::flatbuffers::NativeTable {
   std::string id{};
 };
 
+/// Exogenous curve reference for multi-curve bootstrapping.
 struct CurveRef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CurveRefT NativeTableType;
   typedef CurveRefBuilder Builder;
@@ -434,6 +436,7 @@ struct HelperDependenciesT : public ::flatbuffers::NativeTable {
   HelperDependenciesT &operator=(HelperDependenciesT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Exogenous curve dependencies for dual-curve bootstrapping.
 struct HelperDependencies FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef HelperDependenciesT NativeTableType;
   typedef HelperDependenciesBuilder Builder;
@@ -444,27 +447,14 @@ struct HelperDependencies FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
     VT_FX_SPOT_QUOTE_ID = 10
   };
   /// Exogenous discount curve for dual-curve bootstrapping.
-  /// Supported by: SwapHelper, OISHelper, DatedOISHelper,
-  /// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
   const quantra::CurveRef *discount_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_DISCOUNT_CURVE);
   }
-  /// Exogenous projection/forwarding curve.
-  ///
-  /// ⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.
-  /// QuantLib's SwapRateHelper/OISRateHelper override the index forwarding
-  /// handle via index->clone(termStructureHandle_) during bootstrapping.
-  /// The projection curve is ALWAYS the curve being bootstrapped for these
-  /// helpers. Setting this field on Swap/OIS helpers will produce a hard
-  /// error at parse time.
-  ///
-  /// Supported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper
-  /// (and future custom helpers that genuinely encode projection relationships).
+  /// Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
   const quantra::CurveRef *projection_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE);
   }
-  /// Second projection curve for basis/XCCY helpers (e.g. the "other leg").
-  /// Same restrictions as projection_curve above.
+  /// Second projection curve for basis/XCCY helpers.
   const quantra::CurveRef *projection_curve_2() const {
     return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE_2);
   }
@@ -562,6 +552,7 @@ struct DepositHelperT : public ::flatbuffers::NativeTable {
   DepositHelperT &operator=(DepositHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Money market deposit helper.
 struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef DepositHelperT NativeTableType;
   typedef DepositHelperBuilder Builder;
@@ -592,7 +583,7 @@ struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  /// Optional: reference a shared quote by id instead of inline rate
+  /// Optional: reference a shared quote by id instead of inline rate.
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
@@ -705,6 +696,7 @@ struct FRAHelperT : public ::flatbuffers::NativeTable {
   std::string quote_id{};
 };
 
+/// FRA helper for curve bootstrap.
 struct FRAHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FRAHelperT NativeTableType;
   typedef FRAHelperBuilder Builder;
@@ -859,6 +851,7 @@ struct FutureHelperT : public ::flatbuffers::NativeTable {
   std::string quote_id{};
 };
 
+/// Futures helper for curve bootstrap.
 struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FutureHelperT NativeTableType;
   typedef FutureHelperBuilder Builder;
@@ -891,11 +884,11 @@ struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  /// Futures price (e.g. 95.25); if set, rate is ignored
+  /// Futures price (e.g., 95.25); if set, rate is ignored.
   double futures_price() const {
     return GetField<double>(VT_FUTURES_PRICE, 0.0);
   }
-  /// Convexity adjustment added to implied rate
+  /// Convexity adjustment added to implied rate.
   double convexity_adjustment() const {
     return GetField<double>(VT_CONVEXITY_ADJUSTMENT, 0.0);
   }
@@ -1035,6 +1028,7 @@ struct SwapHelperT : public ::flatbuffers::NativeTable {
   SwapHelperT &operator=(SwapHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.
 struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapHelperT NativeTableType;
   typedef SwapHelperBuilder Builder;
@@ -1069,7 +1063,7 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter sw_fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_SW_FIXED_LEG_DAY_COUNTER, 0));
   }
-  /// Reference to an IndexDef by id (e.g., "EUR_6M")
+  /// Reference to an IndexDef by id (e.g., "EUR_6M").
   const quantra::IndexRef *float_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_FLOAT_INDEX);
   }
@@ -1079,7 +1073,7 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t fwd_start_days() const {
     return GetField<int32_t>(VT_FWD_START_DAYS, 0);
   }
-  /// Exogenous discount curve for multi-curve bootstrapping
+  /// Exogenous discount curve for multi-curve bootstrapping.
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
   }
@@ -1237,6 +1231,7 @@ struct BondHelperT : public ::flatbuffers::NativeTable {
   BondHelperT &operator=(BondHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Bond helper for curve bootstrap.
 struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BondHelperT NativeTableType;
   typedef BondHelperBuilder Builder;
@@ -1280,7 +1275,7 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *issue_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ISSUE_DATE);
   }
-  /// Bond price (preferred over rate for clarity)
+  /// Bond price (preferred over rate for clarity).
   double price() const {
     return GetField<double>(VT_PRICE, 0.0);
   }
@@ -1436,6 +1431,7 @@ struct OISHelperT : public ::flatbuffers::NativeTable {
   OISHelperT &operator=(OISHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// OIS helper. Uses IndexRef to reference an overnight IndexDef.
 struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OISHelperT NativeTableType;
   typedef OISHelperBuilder Builder;
@@ -1457,7 +1453,7 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
   const quantra::IndexRef *overnight_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
@@ -1476,7 +1472,7 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
   }
-  /// Exogenous discount curve for dual-curve OIS bootstrapping
+  /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
   }
@@ -1625,6 +1621,7 @@ struct DatedOISHelperT : public ::flatbuffers::NativeTable {
   DatedOISHelperT &operator=(DatedOISHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Dated OIS helper with explicit start/end dates.
 struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef DatedOISHelperT NativeTableType;
   typedef DatedOISHelperBuilder Builder;
@@ -1649,7 +1646,7 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }
-  /// Reference to an overnight IndexDef by id
+  /// Reference to an overnight IndexDef by id.
   const quantra::IndexRef *overnight_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
@@ -1665,7 +1662,7 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter fixed_leg_day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
   }
-  /// Exogenous discount curve for dual-curve OIS bootstrapping
+  /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
   }
@@ -1816,6 +1813,7 @@ struct ZeroRatePointT : public ::flatbuffers::NativeTable {
   ZeroRatePointT &operator=(ZeroRatePointT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Zero rate point for direct curve construction (no bootstrapping).
 struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ZeroRatePointT NativeTableType;
   typedef ZeroRatePointBuilder Builder;
@@ -1828,11 +1826,11 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_COMPOUNDING = 14,
     VT_FREQUENCY = 16
   };
-  /// Maturity date for the zero rate (YYYY-MM-DD)
+  /// Maturity date for the zero rate (YYYY-MM-DD).
   const ::flatbuffers::String *date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DATE);
   }
-  /// Alternative: tenor from reference date
+  /// Alternative: tenor from reference date.
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
@@ -1842,15 +1840,15 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
   }
-  /// Zero rate for this maturity
+  /// Zero rate for this maturity.
   double zero_rate() const {
     return GetField<double>(VT_ZERO_RATE, 0.0);
   }
-  /// Compounding convention for the zero rate
+  /// Compounding convention for the zero rate.
   quantra::enums::Compounding compounding() const {
     return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 1));
   }
-  /// Frequency (used when compounding != Continuous)
+  /// Frequency (used when compounding != Continuous).
   quantra::enums::Frequency frequency() const {
     return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
   }
@@ -1966,6 +1964,7 @@ struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   TenorBasisSwapHelperT &operator=(TenorBasisSwapHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Tenor basis swap helper.
 struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef TenorBasisSwapHelperT NativeTableType;
   typedef TenorBasisSwapHelperBuilder Builder;
@@ -1984,11 +1983,11 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Short tenor index (e.g., "EUR_3M")
+  /// Short tenor index (e.g., "EUR_3M").
   const quantra::IndexRef *index_short() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX_SHORT);
   }
-  /// Long tenor index (e.g., "EUR_6M")
+  /// Long tenor index (e.g., "EUR_6M").
   const quantra::IndexRef *index_long() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX_LONG);
   }
@@ -2118,6 +2117,7 @@ struct FxSwapHelperT : public ::flatbuffers::NativeTable {
   FxSwapHelperT &operator=(FxSwapHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// FX swap helper.
 struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FxSwapHelperT NativeTableType;
   typedef FxSwapHelperBuilder Builder;
@@ -2263,6 +2263,7 @@ struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   CrossCcyBasisHelperT &operator=(CrossCcyBasisHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Cross-currency basis swap helper.
 struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CrossCcyBasisHelperT NativeTableType;
   typedef CrossCcyBasisHelperBuilder Builder;
@@ -2280,11 +2281,11 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Domestic leg index
+  /// Domestic leg index.
   const quantra::IndexRef *index_domestic() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX_DOMESTIC);
   }
-  /// Foreign leg index
+  /// Foreign leg index.
   const quantra::IndexRef *index_foreign() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX_FOREIGN);
   }
@@ -2393,6 +2394,7 @@ struct PointsWrapperT : public ::flatbuffers::NativeTable {
   quantra::PointUnion point{};
 };
 
+/// Wrapper for a single curve point.
 struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PointsWrapperT NativeTableType;
   typedef PointsWrapperBuilder Builder;
@@ -2543,6 +2545,7 @@ struct TermStructureT : public ::flatbuffers::NativeTable {
   TermStructureT &operator=(TermStructureT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Term structure (yield curve) definition.
 struct TermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef TermStructureT NativeTableType;
   typedef TermStructureBuilder Builder;

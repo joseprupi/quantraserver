@@ -70,6 +70,7 @@ struct VolSurfaceSpec;
 struct VolSurfaceSpecBuilder;
 struct VolSurfaceSpecT;
 
+/// Union of swaption vol payload types.
 enum SwaptionVolPayload : uint8_t {
   SwaptionVolPayload_NONE = 0,
   SwaptionVolPayload_SwaptionVolConstantSpec = 1,
@@ -235,7 +236,7 @@ struct SwaptionVolPayloadUnion {
 bool VerifySwaptionVolPayload(::flatbuffers::Verifier &verifier, const void *obj, SwaptionVolPayload type);
 bool VerifySwaptionVolPayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
-/// Union of all volatility types
+/// Union of all volatility types.
 enum VolPayload : uint8_t {
   VolPayload_NONE = 0,
   VolPayload_OptionletVolSpec = 1,
@@ -371,6 +372,7 @@ struct QuoteMatrix2DT : public ::flatbuffers::NativeTable {
   std::vector<std::string> quote_ids{};
 };
 
+/// 2D quote matrix (expiries x tenors).
 struct QuoteMatrix2D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuoteMatrix2DT NativeTableType;
   typedef QuoteMatrix2DBuilder Builder;
@@ -386,9 +388,11 @@ struct QuoteMatrix2D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t n_cols() const {
     return GetField<int32_t>(VT_N_COLS, 0);
   }
+  /// Row-major, length = n_rows*n_cols.
   const ::flatbuffers::Vector<double> *values() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VALUES);
   }
+  /// Optional, length = values. Empty => inline values.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_QUOTE_IDS);
   }
@@ -476,6 +480,7 @@ struct QuoteTensor3DT : public ::flatbuffers::NativeTable {
   std::vector<std::string> quote_ids{};
 };
 
+/// 3D quote tensor (expiries x tenors x strikes).
 struct QuoteTensor3D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuoteTensor3DT NativeTableType;
   typedef QuoteTensor3DBuilder Builder;
@@ -495,9 +500,11 @@ struct QuoteTensor3D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t n_3() const {
     return GetField<int32_t>(VT_N_3, 0);
   }
+  /// Row-major, length = n_1*n_2*n_3.
   const ::flatbuffers::Vector<double> *values() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VALUES);
   }
+  /// Optional, length = values. Empty => inline values.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *quote_ids() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_QUOTE_IDS);
   }
@@ -597,6 +604,7 @@ struct IrVolBaseSpecT : public ::flatbuffers::NativeTable {
   std::string quote_id{};
 };
 
+/// IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.
 struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef IrVolBaseSpecT NativeTableType;
   typedef IrVolBaseSpecBuilder Builder;
@@ -629,12 +637,14 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::VolatilityType volatility_type() const {
     return static_cast<quantra::enums::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
   }
+  /// Only meaningful for ShiftedLognormal.
   double displacement() const {
     return GetField<double>(VT_DISPLACEMENT, 0.0);
   }
   double constant_vol() const {
     return GetField<double>(VT_CONSTANT_VOL, 0.0);
   }
+  /// Optional: resolve constant_vol from pricing.quotes.
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
@@ -763,6 +773,7 @@ struct BlackVolBaseSpecT : public ::flatbuffers::NativeTable {
   std::string quote_id{};
 };
 
+/// Equity/FX volatility base (always lognormal, no displacement).
 struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BlackVolBaseSpecT NativeTableType;
   typedef BlackVolBaseSpecBuilder Builder;
@@ -793,6 +804,7 @@ struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double constant_vol() const {
     return GetField<double>(VT_CONSTANT_VOL, 0.0);
   }
+  /// Optional: resolve constant_vol from pricing.quotes.
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
@@ -903,7 +915,7 @@ struct OptionletVolSpecT : public ::flatbuffers::NativeTable {
   OptionletVolSpecT &operator=(OptionletVolSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Optionlet volatility for Caps/Floors
+/// Optionlet volatility for caps/floors.
 struct OptionletVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OptionletVolSpecT NativeTableType;
   typedef OptionletVolSpecBuilder Builder;
@@ -961,7 +973,7 @@ struct SwaptionVolConstantSpecT : public ::flatbuffers::NativeTable {
   SwaptionVolConstantSpecT &operator=(SwaptionVolConstantSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Swaption volatility (constant, matrix, smile cube, SABR)
+/// Constant swaption volatility.
 struct SwaptionVolConstantSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionVolConstantSpecT NativeTableType;
   typedef SwaptionVolConstantSpecBuilder Builder;
@@ -1024,6 +1036,7 @@ struct SwaptionVolAtmMatrixSpecT : public ::flatbuffers::NativeTable {
   SwaptionVolAtmMatrixSpecT &operator=(SwaptionVolAtmMatrixSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// ATM matrix swaption volatility (expiry x tenor).
 struct SwaptionVolAtmMatrixSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionVolAtmMatrixSpecT NativeTableType;
   typedef SwaptionVolAtmMatrixSpecBuilder Builder;
@@ -1166,6 +1179,7 @@ struct SwaptionVolSmileCubeSpecT : public ::flatbuffers::NativeTable {
   SwaptionVolSmileCubeSpecT &operator=(SwaptionVolSmileCubeSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Smile cube swaption volatility (expiry x tenor x strike).
 struct SwaptionVolSmileCubeSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionVolSmileCubeSpecT NativeTableType;
   typedef SwaptionVolSmileCubeSpecBuilder Builder;
@@ -1185,6 +1199,7 @@ struct SwaptionVolSmileCubeSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
   const quantra::IrVolBaseSpec *base() const {
     return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
   }
+  /// Require explicit opt-in when client provides atm_forwards.
   bool allow_external_atm() const {
     return GetField<uint8_t>(VT_ALLOW_EXTERNAL_ATM, 0) != 0;
   }
@@ -1200,6 +1215,7 @@ struct SwaptionVolSmileCubeSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
   quantra::enums::SwaptionStrikeKind strike_kind() const {
     return static_cast<quantra::enums::SwaptionStrikeKind>(GetField<int8_t>(VT_STRIKE_KIND, 0));
   }
+  /// Optional for Absolute, required for SpreadFromATM.
   const quantra::QuoteMatrix2D *atm_forwards() const {
     return GetPointer<const quantra::QuoteMatrix2D *>(VT_ATM_FORWARDS);
   }
@@ -1367,6 +1383,7 @@ struct SwaptionSabrParamsSpecT : public ::flatbuffers::NativeTable {
   SwaptionSabrParamsSpecT &operator=(SwaptionSabrParamsSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// SABR parameter grid swaption volatility.
 struct SwaptionSabrParamsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionSabrParamsSpecT NativeTableType;
   typedef SwaptionSabrParamsSpecBuilder Builder;
@@ -1521,6 +1538,7 @@ struct SwaptionSabrCalibrateSpecT : public ::flatbuffers::NativeTable {
   SwaptionSabrCalibrateSpecT &operator=(SwaptionSabrCalibrateSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// SABR calibrate swaption volatility.
 struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionSabrCalibrateSpecT NativeTableType;
   typedef SwaptionSabrCalibrateSpecBuilder Builder;
@@ -1677,6 +1695,7 @@ struct SwaptionVolSpecT : public ::flatbuffers::NativeTable {
   quantra::SwaptionVolPayloadUnion payload{};
 };
 
+/// Swaption volatility specification.
 struct SwaptionVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionVolSpecT NativeTableType;
   typedef SwaptionVolSpecBuilder Builder;
@@ -1685,6 +1704,7 @@ struct SwaptionVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_PAYLOAD_TYPE = 6,
     VT_PAYLOAD = 8
   };
+  /// Required convention anchor for all swaption vol surfaces.
   const ::flatbuffers::String *swap_index_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
   }
@@ -1804,7 +1824,7 @@ struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   BlackVolSpecT &operator=(BlackVolSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Black volatility for Equity/FX/Commodity options
+/// Black volatility for equity/FX/commodity options.
 struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BlackVolSpecT NativeTableType;
   typedef BlackVolSpecBuilder Builder;
@@ -1859,7 +1879,7 @@ struct VolSurfaceSpecT : public ::flatbuffers::NativeTable {
   quantra::VolPayloadUnion payload{};
 };
 
-/// Volatility surface specification - referenced by id in trade requests
+/// Volatility surface specification referenced by id in trade requests.
 struct VolSurfaceSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VolSurfaceSpecT NativeTableType;
   typedef VolSurfaceSpecBuilder Builder;

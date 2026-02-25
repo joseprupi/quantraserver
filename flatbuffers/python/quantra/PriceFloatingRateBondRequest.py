@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Request to price one or more floating-rate bonds.
 class PriceFloatingRateBondRequest(object):
     __slots__ = ['_tab']
 

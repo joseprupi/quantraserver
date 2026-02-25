@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Equity vanilla option pricing model specification (future)
+# Equity vanilla option pricing model specification (future).
 class EquityVanillaModelSpec(object):
     __slots__ = ['_tab']
 

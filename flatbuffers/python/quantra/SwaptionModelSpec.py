@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Swaption pricing model specification.
 class SwaptionModelSpec(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class SwaptionModelSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Swaption pricing model type.
     # SwaptionModelSpec
     def ModelType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -31,6 +33,7 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Explicit Hull-White "a" used when param_mode=Explicit.
     # SwaptionModelSpec
     def HwA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +41,7 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.03
 
+    # Explicit Hull-White "sigma" used when param_mode=Explicit.
     # SwaptionModelSpec
     def HwSigma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +49,7 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.01
 
+    # Number of time steps for TreeSwaptionEngine lattice.
     # SwaptionModelSpec
     def LatticeSteps(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +57,7 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 50
 
+    # Parameter source: Explicit values from this model or Calibrate from hw_calibration.
     # SwaptionModelSpec
     def ParamMode(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -59,6 +65,7 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Calibration configuration used when param_mode=Calibrate.
     # SwaptionModelSpec
     def HwCalibration(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))

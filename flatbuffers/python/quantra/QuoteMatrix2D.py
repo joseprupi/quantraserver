@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# 2D quote matrix (expiries x tenors).
 class QuoteMatrix2D(object):
     __slots__ = ['_tab']
 
@@ -38,6 +39,7 @@ class QuoteMatrix2D(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Row-major, length = n_rows*n_cols.
     # QuoteMatrix2D
     def Values(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -65,6 +67,7 @@ class QuoteMatrix2D(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
+    # Optional, length = values. Empty => inline values.
     # QuoteMatrix2D
     def QuoteIds(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

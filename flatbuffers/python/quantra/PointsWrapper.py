@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Wrapper for a single curve point.
 class PointsWrapper(object):
     __slots__ = ['_tab']
 

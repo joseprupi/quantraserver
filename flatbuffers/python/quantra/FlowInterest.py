@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Interest cash flow with fixing and accrual metadata.
 class FlowInterest(object):
     __slots__ = ['_tab']
 

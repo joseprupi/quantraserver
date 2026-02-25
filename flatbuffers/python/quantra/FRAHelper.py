@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# FRA helper for curve bootstrap.
 class FRAHelper(object):
     __slots__ = ['_tab']
 

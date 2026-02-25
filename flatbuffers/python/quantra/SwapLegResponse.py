@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Response for a single swap leg.
 class SwapLegResponse(object):
     __slots__ = ['_tab']
 

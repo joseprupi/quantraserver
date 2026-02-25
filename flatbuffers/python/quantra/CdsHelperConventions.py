@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# CDS helper conventions for curve building.
 class CdsHelperConventions(object):
     __slots__ = ['_tab']
 

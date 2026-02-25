@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# 3D quote tensor (expiries x tenors x strikes).
 class QuoteTensor3D(object):
     __slots__ = ['_tab']
 
@@ -45,6 +46,7 @@ class QuoteTensor3D(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Row-major, length = n_1*n_2*n_3.
     # QuoteTensor3D
     def Values(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -72,6 +74,7 @@ class QuoteTensor3D(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
+    # Optional, length = values. Empty => inline values.
     # QuoteTensor3D
     def QuoteIds(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

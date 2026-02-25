@@ -2,6 +2,7 @@ include "vanilla_swap_response.fbs";
 
 namespace quantra;
 
+/// OIS swap pricing response (fixed vs compounded overnight leg).
 table OisSwapResponse {
     npv:double;
     fair_rate:double;
@@ -14,6 +15,7 @@ table OisSwapResponse {
     overnight_leg_flows:[SwapLegFlow];
 }
 
+/// Response wrapper for multiple OIS swaps.
 table PriceOisSwapResponse {
     swaps:[OisSwapResponse];
 }

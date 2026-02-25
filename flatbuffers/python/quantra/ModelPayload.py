@@ -2,7 +2,7 @@
 
 # namespace: quantra
 
-# Union of all model types
+# Union of all model payload types.
 class ModelPayload(object):
     NONE = 0
     CapFloorModelSpec = 1

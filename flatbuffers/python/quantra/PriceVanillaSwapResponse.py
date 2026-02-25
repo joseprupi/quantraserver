@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Response wrapper for multiple vanilla swaps.
 class PriceVanillaSwapResponse(object):
     __slots__ = ['_tab']
 

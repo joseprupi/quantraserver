@@ -4,7 +4,7 @@
 
 # Forward rate definition.
 class ForwardType(object):
-    # Approximated instantaneous forward around d
+    # Approximated instantaneous forward around d.
     Instantaneous = 0
-    # Forward over [d, d + tenor]
+    # Forward over [d, d + tenor].
     Period = 1

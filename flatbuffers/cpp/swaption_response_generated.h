@@ -55,6 +55,7 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   int32_t used_hw_grid_points = -1;
 };
 
+/// Swaption pricing response with NPV, Greeks, and diagnostics.
 struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionResponseT NativeTableType;
   typedef SwaptionResponseBuilder Builder;
@@ -86,81 +87,107 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_USED_HW_GRID_COLS = 52,
     VT_USED_HW_GRID_POINTS = 54
   };
+  /// Present value of the swaption under the selected model and market inputs.
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
+  /// Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
   double implied_volatility() const {
     return GetField<double>(VT_IMPLIED_VOLATILITY, 0.0);
   }
+  /// ATM forward swap rate used for pricing diagnostics.
   double atm_forward() const {
     return GetField<double>(VT_ATM_FORWARD, 0.0);
   }
+  /// Underlying swap annuity (PV01-style quantity).
   double annuity() const {
     return GetField<double>(VT_ANNUITY, 0.0);
   }
+  /// Option delta from pricing details/rebump logic.
   double delta() const {
     return GetField<double>(VT_DELTA, 0.0);
   }
+  /// Option vega from pricing details/rebump logic.
   double vega() const {
     return GetField<double>(VT_VEGA, 0.0);
   }
+  /// Option gamma from pricing details/rebump logic.
   double gamma() const {
     return GetField<double>(VT_GAMMA, 0.0);
   }
+  /// Option theta from pricing details/rebump logic.
   double theta() const {
     return GetField<double>(VT_THETA, 0.0);
   }
+  /// 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
   double dv01() const {
     return GetField<double>(VT_DV01, 0.0);
   }
+  /// Volatility actually queried from the resolved vol surface.
   double used_volatility() const {
     return GetField<double>(VT_USED_VOLATILITY, 0.0);
   }
+  /// Option expiry date used by surface lookup (ISO date).
   const ::flatbuffers::String *used_option_expiry() const {
     return GetPointer<const ::flatbuffers::String *>(VT_USED_OPTION_EXPIRY);
   }
+  /// Swap tenor descriptor used by lookup (e.g., date range).
   const ::flatbuffers::String *used_swap_tenor() const {
     return GetPointer<const ::flatbuffers::String *>(VT_USED_SWAP_TENOR);
   }
+  /// Strike used to query the volatility structure.
   double used_strike() const {
     return GetField<double>(VT_USED_STRIKE, 0.0);
   }
+  /// ATM forward used when smile conventions need ATM anchoring.
   double used_atm_forward() const {
     return GetField<double>(VT_USED_ATM_FORWARD, 0.0);
   }
+  /// Strike convention used by the source swaption vol surface.
   quantra::enums::SwaptionStrikeKind used_strike_kind() const {
     return static_cast<quantra::enums::SwaptionStrikeKind>(GetField<int8_t>(VT_USED_STRIKE_KIND, 0));
   }
+  /// Difference between used strike and cube ATM level when spread-from-ATM is active.
   double used_spread_from_atm() const {
     return GetField<double>(VT_USED_SPREAD_FROM_ATM, 0.0);
   }
+  /// ATM level retrieved from cube node when available.
   double used_cube_node_atm() const {
     return GetField<double>(VT_USED_CUBE_NODE_ATM, 0.0);
   }
+  /// Resolved swaption volatility kind used by pricing.
   quantra::enums::SwaptionVolKind vol_kind() const {
     return static_cast<quantra::enums::SwaptionVolKind>(GetField<int8_t>(VT_VOL_KIND, 0));
   }
+  /// Effective model parameter mode used by the swaption engine.
   quantra::enums::ModelParamMode used_model_param_mode() const {
     return static_cast<quantra::enums::ModelParamMode>(GetField<int8_t>(VT_USED_MODEL_PARAM_MODE, 0));
   }
+  /// Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
   double used_hw_a() const {
     return GetField<double>(VT_USED_HW_A, -1.0);
   }
+  /// Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
   double used_hw_sigma() const {
     return GetField<double>(VT_USED_HW_SIGMA, -1.0);
   }
+  /// Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
   double used_hw_rmse() const {
     return GetField<double>(VT_USED_HW_RMSE, -1.0);
   }
+  /// Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
   int32_t used_hw_num_helpers() const {
     return GetField<int32_t>(VT_USED_HW_NUM_HELPERS, -1);
   }
+  /// Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
   int32_t used_hw_grid_rows() const {
     return GetField<int32_t>(VT_USED_HW_GRID_ROWS, -1);
   }
+  /// Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
   int32_t used_hw_grid_cols() const {
     return GetField<int32_t>(VT_USED_HW_GRID_COLS, -1);
   }
+  /// Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
   int32_t used_hw_grid_points() const {
     return GetField<int32_t>(VT_USED_HW_GRID_POINTS, -1);
   }
@@ -423,6 +450,7 @@ struct PriceSwaptionResponseT : public ::flatbuffers::NativeTable {
   PriceSwaptionResponseT &operator=(PriceSwaptionResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple swaptions.
 struct PriceSwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceSwaptionResponseT NativeTableType;
   typedef PriceSwaptionResponseBuilder Builder;

@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Expiry date semantics for vol sampling.
 class ExpiryKind(object):
     ExerciseDate = 0
     GridDate = 1

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Coupon pricer specification referenced by id.
 class CouponPricer(object):
     __slots__ = ['_tab']
 

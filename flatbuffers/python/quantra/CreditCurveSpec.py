@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Default probability curve specification for CDS pricing.
 class CreditCurveSpec(object):
     __slots__ = ['_tab']
 
@@ -77,6 +78,7 @@ class CreditCurveSpec(object):
             return obj
         return None
 
+    # Build from CDS market quotes.
     # CreditCurveSpec
     def Quotes(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -102,6 +104,7 @@ class CreditCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
+    # OR: use flat hazard rate.
     # CreditCurveSpec
     def FlatHazardRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))

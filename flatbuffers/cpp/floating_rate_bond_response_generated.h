@@ -44,6 +44,7 @@ struct FloatingRateBondResponseT : public ::flatbuffers::NativeTable {
   FloatingRateBondResponseT &operator=(FloatingRateBondResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Floating-rate bond pricing response.
 struct FloatingRateBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FloatingRateBondResponseT NativeTableType;
   typedef FloatingRateBondResponseBuilder Builder;
@@ -231,6 +232,7 @@ struct PriceFloatingRateBondResponseT : public ::flatbuffers::NativeTable {
   PriceFloatingRateBondResponseT &operator=(PriceFloatingRateBondResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple floating-rate bonds.
 struct PriceFloatingRateBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFloatingRateBondResponseT NativeTableType;
   typedef PriceFloatingRateBondResponseBuilder Builder;

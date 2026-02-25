@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# CDS market quote specification.
 class CdsQuote(object):
     __slots__ = ['_tab']
 
@@ -42,6 +43,7 @@ class CdsQuote(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Optional; resolves from Pricing.quotes (QuoteType=Credit).
     # CdsQuote
     def QuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -49,6 +51,7 @@ class CdsQuote(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Used when quote_type=ParSpread (decimal, 0.01=100bps).
     # CdsQuote
     def QuotedParSpread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -56,6 +59,7 @@ class CdsQuote(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Used when quote_type=Upfront (decimal, 0.01=1%).
     # CdsQuote
     def QuotedUpfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -63,6 +67,7 @@ class CdsQuote(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Running coupon for upfront quotes (decimal).
     # CdsQuote
     def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))

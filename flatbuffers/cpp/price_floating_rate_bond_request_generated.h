@@ -41,6 +41,7 @@ struct PriceFloatingRateBondT : public ::flatbuffers::NativeTable {
   PriceFloatingRateBondT &operator=(PriceFloatingRateBondT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single floating-rate bond pricing context.
 struct PriceFloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFloatingRateBondT NativeTableType;
   typedef PriceFloatingRateBondBuilder Builder;
@@ -162,6 +163,7 @@ struct PriceFloatingRateBondRequestT : public ::flatbuffers::NativeTable {
   PriceFloatingRateBondRequestT &operator=(PriceFloatingRateBondRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more floating-rate bonds.
 struct PriceFloatingRateBondRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFloatingRateBondRequestT NativeTableType;
   typedef PriceFloatingRateBondRequestBuilder Builder;

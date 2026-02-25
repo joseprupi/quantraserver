@@ -3,24 +3,29 @@
   "definitions": {
     "quantra_FRAResponse" : {
       "type" : "object",
+      "description" : "FRA pricing response.",
       "properties" : {
         "npv" : {
                 "type" : "number"
               },
         "forward_rate" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "The implied forward rate from the curve."
               },
         "spot_value" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Value at settlement."
               },
         "settlement_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "When the FRA settles."
               }
       },
       "additionalProperties" : false
     },
     "quantra_PriceFRAResponse" : {
       "type" : "object",
+      "description" : "Response wrapper for multiple FRAs.",
       "properties" : {
         "fras" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FRAResponse"}

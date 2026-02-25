@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 class ExerciseType(object):
     European = 0
     Bermudan = 1

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Basis swap pricing response (two floating legs).
 class BasisSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -59,6 +60,7 @@ class BasisSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Par spread for leg1 keeping leg2 spread fixed.
     # BasisSwapResponse
     def FairSpreadLeg1(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -66,6 +68,7 @@ class BasisSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Par spread for leg2 keeping leg1 spread fixed.
     # BasisSwapResponse
     def FairSpreadLeg2(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

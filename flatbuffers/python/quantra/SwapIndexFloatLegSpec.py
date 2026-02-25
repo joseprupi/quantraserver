@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Floating leg conventions for swap index.
 class SwapIndexFloatLegSpec(object):
     __slots__ = ['_tab']
 

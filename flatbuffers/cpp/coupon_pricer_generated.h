@@ -29,6 +29,7 @@ struct CouponPricer;
 struct CouponPricerBuilder;
 struct CouponPricerT;
 
+/// Union of optionlet volatility structure types.
 enum OptionletVolatilityStructure : uint8_t {
   OptionletVolatilityStructure_NONE = 0,
   OptionletVolatilityStructure_ConstantOptionletVolatility = 1,
@@ -118,6 +119,7 @@ struct OptionletVolatilityStructureUnion {
 bool VerifyOptionletVolatilityStructure(::flatbuffers::Verifier &verifier, const void *obj, OptionletVolatilityStructure type);
 bool VerifyOptionletVolatilityStructureVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
+/// Union of pricer types.
 enum Pricer : uint8_t {
   Pricer_NONE = 0,
   Pricer_BlackIborCouponPricer = 1,
@@ -216,6 +218,7 @@ struct ConstantOptionletVolatilityT : public ::flatbuffers::NativeTable {
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
 };
 
+/// Constant optionlet volatility for coupon pricer.
 struct ConstantOptionletVolatility FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ConstantOptionletVolatilityT NativeTableType;
   typedef ConstantOptionletVolatilityBuilder Builder;
@@ -308,6 +311,7 @@ struct BlackIborCouponPricerT : public ::flatbuffers::NativeTable {
   quantra::OptionletVolatilityStructureUnion optionlet_volatility_structure{};
 };
 
+/// Black Ibor coupon pricer with optionlet volatility.
 struct BlackIborCouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BlackIborCouponPricerT NativeTableType;
   typedef BlackIborCouponPricerBuilder Builder;
@@ -380,6 +384,7 @@ struct CouponPricerT : public ::flatbuffers::NativeTable {
   quantra::PricerUnion pricer{};
 };
 
+/// Coupon pricer specification referenced by id.
 struct CouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CouponPricerT NativeTableType;
   typedef CouponPricerBuilder Builder;

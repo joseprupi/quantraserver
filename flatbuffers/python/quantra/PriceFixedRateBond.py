@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Single fixed-rate bond pricing context.
 class PriceFixedRateBond(object):
     __slots__ = ['_tab']
 

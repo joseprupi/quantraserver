@@ -2,7 +2,7 @@
 
 # namespace: quantra
 
-# Union of all volatility types
+# Union of all volatility types.
 class VolPayload(object):
     NONE = 0
     OptionletVolSpec = 1

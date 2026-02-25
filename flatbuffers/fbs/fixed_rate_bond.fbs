@@ -3,6 +3,7 @@ include "schedule.fbs";
 
 namespace quantra;
 
+/// Fixed-rate bond instrument.
 table FixedRateBond {
     settlement_days:int;
     face_amount:double;

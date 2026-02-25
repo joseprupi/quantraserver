@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Term structure (yield curve) definition.
 class TermStructure(object):
     __slots__ = ['_tab']
 

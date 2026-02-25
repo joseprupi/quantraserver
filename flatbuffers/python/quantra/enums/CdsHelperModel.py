@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS helper model convention.
 class CdsHelperModel(object):
     MidPoint = 0
     ISDA = 1

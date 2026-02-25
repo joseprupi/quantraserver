@@ -2,11 +2,13 @@ include "enums.fbs";
 
 namespace quantra;
 
-/// Request date advance by calendar-aware period.
+/// Request to advance a date by a calendar-aware period.
 table CalendarAdvanceRequest {
     calendar:enums.Calendar = TARGET;
-    date:string (required);  // YYYY/MM/DD
-    tenor_number:int;        // can be negative for back-shift
+    /// Date in YYYY-MM-DD format.
+    date:string (required);
+    /// Number of units; can be negative for back-shift.
+    tenor_number:int;
     tenor_unit:enums.TimeUnit = Days;
     convention:enums.BusinessDayConvention = Following;
     end_of_month:bool = false;

@@ -42,6 +42,7 @@ struct OisSwapResponseT : public ::flatbuffers::NativeTable {
   OisSwapResponseT &operator=(OisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// OIS swap pricing response (fixed vs compounded overnight leg).
 struct OisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OisSwapResponseT NativeTableType;
   typedef OisSwapResponseBuilder Builder;
@@ -208,6 +209,7 @@ struct PriceOisSwapResponseT : public ::flatbuffers::NativeTable {
   PriceOisSwapResponseT &operator=(PriceOisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple OIS swaps.
 struct PriceOisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceOisSwapResponseT NativeTableType;
   typedef PriceOisSwapResponseBuilder Builder;

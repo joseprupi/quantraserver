@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Cross-currency basis swap helper.
 class CrossCcyBasisHelper(object):
     __slots__ = ['_tab']
 
@@ -42,7 +43,7 @@ class CrossCcyBasisHelper(object):
             return obj
         return None
 
-    # Domestic leg index
+    # Domestic leg index.
     # CrossCcyBasisHelper
     def IndexDomestic(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -54,7 +55,7 @@ class CrossCcyBasisHelper(object):
             return obj
         return None
 
-    # Foreign leg index
+    # Foreign leg index.
     # CrossCcyBasisHelper
     def IndexForeign(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

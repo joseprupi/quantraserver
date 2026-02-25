@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Date generation rule for schedule construction.
 class DateGenerationRule(object):
     Backward = 0
     CDS = 1

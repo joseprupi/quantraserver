@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Compounding convention for rates.
 class Compounding(object):
     Compounded = 0
     Continuous = 1

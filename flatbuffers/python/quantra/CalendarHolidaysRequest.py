@@ -32,6 +32,7 @@ class CalendarHolidaysRequest(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
+    # Start date in YYYY-MM-DD format.
     # CalendarHolidaysRequest
     def StartDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -39,6 +40,7 @@ class CalendarHolidaysRequest(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # End date in YYYY-MM-DD format.
     # CalendarHolidaysRequest
     def EndDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

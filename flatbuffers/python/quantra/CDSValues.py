@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# CDS pricing results.
 class CDSValues(object):
     __slots__ = ['_tab']
 
@@ -31,6 +32,7 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Par spread in decimal.
     # CDSValues
     def FairSpread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +40,7 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Upfront for par spread.
     # CDSValues
     def FairUpfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +48,7 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # NPV of protection leg.
     # CDSValues
     def DefaultLegNpv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +56,7 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # NPV of premium leg.
     # CDSValues
     def PremiumLegNpv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

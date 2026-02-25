@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Equity option model type.
 class EquityModelType(object):
     BlackScholesAnalytic = 0
     BinomialCRR = 1

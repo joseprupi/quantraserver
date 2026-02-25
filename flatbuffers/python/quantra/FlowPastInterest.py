@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Past fixed interest cash flow.
 class FlowPastInterest(object):
     __slots__ = ['_tab']
 

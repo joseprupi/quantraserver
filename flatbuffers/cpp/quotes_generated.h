@@ -21,7 +21,7 @@ struct QuoteSpec;
 struct QuoteSpecBuilder;
 struct QuoteSpecT;
 
-/// Market quote kind
+/// Market quote kind.
 enum QuoteKind : int8_t {
   QuoteKind_Rate = 0,
   QuoteKind_Spread = 1,
@@ -64,7 +64,7 @@ inline const char *EnumNameQuoteKind(QuoteKind e) {
   return EnumNamesQuoteKind()[index];
 }
 
-/// High-level quote type (usage)
+/// High-level quote type (usage).
 enum QuoteType : int8_t {
   QuoteType_Curve = 0,
   QuoteType_Volatility = 1,
@@ -106,8 +106,7 @@ struct QuoteSpecT : public ::flatbuffers::NativeTable {
   quantra::QuoteType quote_type = quantra::QuoteType_Curve;
 };
 
-/// Market quote (spot price, FX rate, etc.)
-/// Used by: Pricing.quotes[], helper quote_id references
+/// Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.
 struct QuoteSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuoteSpecT NativeTableType;
   typedef QuoteSpecBuilder Builder;

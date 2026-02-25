@@ -44,6 +44,7 @@ struct CdsQuoteT : public ::flatbuffers::NativeTable {
   CdsQuoteT &operator=(CdsQuoteT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// CDS market quote specification.
 struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CdsQuoteT NativeTableType;
   typedef CdsQuoteBuilder Builder;
@@ -61,15 +62,19 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::CdsQuoteType quote_type() const {
     return static_cast<quantra::enums::CdsQuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
   }
+  /// Optional; resolves from Pricing.quotes (QuoteType=Credit).
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
+  /// Used when quote_type=ParSpread (decimal, 0.01=100bps).
   double quoted_par_spread() const {
     return GetField<double>(VT_QUOTED_PAR_SPREAD, 0.0);
   }
+  /// Used when quote_type=Upfront (decimal, 0.01=1%).
   double quoted_upfront() const {
     return GetField<double>(VT_QUOTED_UPFRONT, 0.0);
   }
+  /// Running coupon for upfront quotes (decimal).
   double running_coupon() const {
     return GetField<double>(VT_RUNNING_COUPON, 0.0);
   }
@@ -175,6 +180,7 @@ struct CdsHelperConventionsT : public ::flatbuffers::NativeTable {
   quantra::enums::CdsHelperModel helper_model = quantra::enums::CdsHelperModel_MidPoint;
 };
 
+/// CDS helper conventions for curve building.
 struct CdsHelperConventions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CdsHelperConventionsT NativeTableType;
   typedef CdsHelperConventionsBuilder Builder;
@@ -319,6 +325,7 @@ struct CreditCurveSpecT : public ::flatbuffers::NativeTable {
   CreditCurveSpecT &operator=(CreditCurveSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Default probability curve specification for CDS pricing.
 struct CreditCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CreditCurveSpecT NativeTableType;
   typedef CreditCurveSpecBuilder Builder;
@@ -354,9 +361,11 @@ struct CreditCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CdsHelperConventions *helper_conventions() const {
     return GetPointer<const quantra::CdsHelperConventions *>(VT_HELPER_CONVENTIONS);
   }
+  /// Build from CDS market quotes.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *>(VT_QUOTES);
   }
+  /// OR: use flat hazard rate.
   double flat_hazard_rate() const {
     return GetField<double>(VT_FLAT_HAZARD_RATE, 0.0);
   }

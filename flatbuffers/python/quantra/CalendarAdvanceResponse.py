@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Response containing advanced date.
+# Response containing the advanced date.
 class CalendarAdvanceResponse(object):
     __slots__ = ['_tab']
 

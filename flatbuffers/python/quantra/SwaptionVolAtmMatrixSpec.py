@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# ATM matrix swaption volatility (expiry x tenor).
 class SwaptionVolAtmMatrixSpec(object):
     __slots__ = ['_tab']
 

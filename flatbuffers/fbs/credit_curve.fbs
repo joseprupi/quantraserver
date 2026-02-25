@@ -3,20 +3,21 @@ include "common.fbs";
 
 namespace quantra;
 
-// =============================================================================
-// CREDIT CURVE
-// =============================================================================
-// Default probability curve specification for CDS pricing.
-
+/// CDS market quote specification.
 table CdsQuote {
     tenor:Period;
     quote_type:enums.CdsQuoteType;
-    quote_id:string;          // Optional; resolves from Pricing.quotes (QuoteType=Credit)
-    quoted_par_spread:double; // Used when quote_type = ParSpread (decimal, 0.01 = 100bps)
-    quoted_upfront:double;    // Used when quote_type = Upfront (decimal, 0.01 = 1%)
-    running_coupon:double;    // Running coupon for upfront quotes (decimal)
+    /// Optional; resolves from Pricing.quotes (QuoteType=Credit).
+    quote_id:string;
+    /// Used when quote_type=ParSpread (decimal, 0.01=100bps).
+    quoted_par_spread:double;
+    /// Used when quote_type=Upfront (decimal, 0.01=1%).
+    quoted_upfront:double;
+    /// Running coupon for upfront quotes (decimal).
+    running_coupon:double;
 }
 
+/// CDS helper conventions for curve building.
 table CdsHelperConventions {
     settlement_days:int = 0;
     frequency:enums.Frequency = Quarterly;
@@ -29,6 +30,7 @@ table CdsHelperConventions {
     helper_model:enums.CdsHelperModel = MidPoint;
 }
 
+/// Default probability curve specification for CDS pricing.
 table CreditCurveSpec {
     id:string (required);
     reference_date:string (required);
@@ -36,12 +38,9 @@ table CreditCurveSpec {
     day_counter:enums.DayCounter = Actual365Fixed;
     recovery_rate:double = 0.4;
     curve_interpolator:enums.Interpolator = LogLinear;
-
     helper_conventions:CdsHelperConventions;
-
-    // Build from CDS market quotes
+    /// Build from CDS market quotes.
     quotes:[CdsQuote];
-
-    // OR: use flat hazard rate
+    /// OR: use flat hazard rate.
     flat_hazard_rate:double;
 }

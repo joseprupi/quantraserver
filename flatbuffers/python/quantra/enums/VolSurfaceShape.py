@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Volatility surface shape (dimensions and structure).
 class VolSurfaceShape(object):
     Constant = 0
     AtmMatrix2D = 1

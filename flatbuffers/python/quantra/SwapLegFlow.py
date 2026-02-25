@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Cashflow for a swap leg.
 class SwapLegFlow(object):
     __slots__ = ['_tab']
 
@@ -66,6 +67,7 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
     # SwapLegFlow
     def FixingDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -87,6 +89,7 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Coupon rate: fixed-leg rate or effective floating coupon rate.
     # SwapLegFlow
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))

@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swaption settlement method when settlement_type is Cash.
 class SettlementMethod(object):
     PhysicalOTC = 0
     PhysicalCleared = 1

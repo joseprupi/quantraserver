@@ -30,6 +30,7 @@ struct SwapIndexDef;
 struct SwapIndexDefBuilder;
 struct SwapIndexDefT;
 
+/// Swap index kind: IBOR or OIS.
 enum SwapIndexKind : int8_t {
   SwapIndexKind_IborSwapIndex = 0,
   SwapIndexKind_OisSwapIndex = 1,
@@ -71,6 +72,7 @@ struct SwapIndexFixedLegSpecT : public ::flatbuffers::NativeTable {
   bool fixed_eom = false;
 };
 
+/// Fixed leg conventions for swap index.
 struct SwapIndexFixedLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexFixedLegSpecT NativeTableType;
   typedef SwapIndexFixedLegSpecBuilder Builder;
@@ -192,6 +194,7 @@ struct SwapIndexFloatLegSpecT : public ::flatbuffers::NativeTable {
   SwapIndexFloatLegSpecT &operator=(SwapIndexFloatLegSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Floating leg conventions for swap index.
 struct SwapIndexFloatLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexFloatLegSpecT NativeTableType;
   typedef SwapIndexFloatLegSpecBuilder Builder;
@@ -308,6 +311,7 @@ struct SwapIndexDefT : public ::flatbuffers::NativeTable {
   SwapIndexDefT &operator=(SwapIndexDefT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Swap index definition for swaption smile conventions.
 struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexDefT NativeTableType;
   typedef SwapIndexDefBuilder Builder;
@@ -329,21 +333,26 @@ struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::SwapIndexKind kind() const {
     return static_cast<quantra::SwapIndexKind>(GetField<int8_t>(VT_KIND, 0));
   }
+  /// Spot/effective-date lag used for exercise-to-swap-start advancement.
   int32_t spot_days() const {
     return GetField<int32_t>(VT_SPOT_DAYS, 2);
   }
+  /// Metadata only; pricing uses fixed_leg/float_leg conventions.
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
   }
+  /// Metadata only; pricing uses fixed_leg/float_leg conventions.
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
   }
+  /// Metadata only; pricing uses fixed_leg/float_leg conventions.
   bool end_of_month() const {
     return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
   }
   const quantra::SwapIndexFixedLegSpec *fixed_leg() const {
     return GetPointer<const quantra::SwapIndexFixedLegSpec *>(VT_FIXED_LEG);
   }
+  /// Reference to IndexDef by id.
   const ::flatbuffers::String *float_index_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FLOAT_INDEX_ID);
   }

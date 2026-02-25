@@ -33,6 +33,7 @@ struct ScheduleT : public ::flatbuffers::NativeTable {
   bool end_of_month = false;
 };
 
+/// Date schedule definition for payment and accrual dates.
 struct Schedule FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ScheduleT NativeTableType;
   typedef ScheduleBuilder Builder;

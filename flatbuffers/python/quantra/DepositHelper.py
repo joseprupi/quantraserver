@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Money market deposit helper.
 class DepositHelper(object):
     __slots__ = ['_tab']
 
@@ -70,7 +71,7 @@ class DepositHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Optional: reference a shared quote by id instead of inline rate
+    # Optional: reference a shared quote by id instead of inline rate.
     # DepositHelper
     def QuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

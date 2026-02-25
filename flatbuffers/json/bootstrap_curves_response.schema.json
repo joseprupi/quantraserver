@@ -139,6 +139,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
+      "description" : "Canonical period type used across APIs.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -151,6 +152,7 @@
     },
     "quantra_Yield" : {
       "type" : "object",
+      "description" : "Yield/compounding convention specification.",
       "properties" : {
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -166,6 +168,7 @@
     },
     "quantra_Error" : {
       "type" : "object",
+      "description" : "Error message container.",
       "properties" : {
         "error_message" : {
                 "type" : "string"
@@ -175,6 +178,7 @@
     },
     "quantra_FlowInterest" : {
       "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -202,6 +206,7 @@
     },
     "quantra_FlowInterestFloat" : {
       "type" : "object",
+      "description" : "Floating-rate interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -229,6 +234,7 @@
     },
     "quantra_FlowPastInterestFloat" : {
       "type" : "object",
+      "description" : "Past floating-rate interest for seasoned instruments.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -250,6 +256,7 @@
     },
     "quantra_FlowPastInterest" : {
       "type" : "object",
+      "description" : "Past fixed interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -271,6 +278,7 @@
     },
     "quantra_FlowNotional" : {
       "type" : "object",
+      "description" : "Notional exchange cash flow.",
       "properties" : {
         "date" : {
                 "type" : "string"
@@ -289,6 +297,7 @@
     },
     "quantra_FlowsWrapper" : {
       "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
       "properties" : {
         "flow_type" : {
                 "$ref" : "#/definitions/quantra_Flow"
@@ -330,7 +339,8 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "step_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+                "$ref" : "#/definitions/quantra_enums_TimeUnit",
+                "description" : "Days/Weeks are literal increments; Months/Years use calendar advance + BDC."
               },
         "business_days_only" : {
                 "type" : "boolean"
@@ -347,6 +357,7 @@
     },
     "quantra_DateGridSpec" : {
       "type" : "object",
+      "description" : "Date grid specification for curve/vol sampling.",
       "properties" : {
         "grid_type" : {
                 "$ref" : "#/definitions/quantra_DateGrid"
@@ -363,10 +374,12 @@
       "description" : "Generic query options for reusable sampling endpoints.",
       "properties" : {
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar override when set."
               },
         "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business day convention override when set."
               },
         "max_points" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -382,6 +395,7 @@
     },
     "quantra_ZeroRateQuery" : {
       "type" : "object",
+      "description" : "Zero rate query parameters.",
       "properties" : {
         "use_curve_day_counter" : {
                 "type" : "boolean"
@@ -400,6 +414,7 @@
     },
     "quantra_ForwardRateQuery" : {
       "type" : "object",
+      "description" : "Forward rate query parameters.",
       "properties" : {
         "use_curve_day_counter" : {
                 "type" : "boolean"

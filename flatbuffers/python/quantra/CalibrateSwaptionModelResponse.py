@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Response from Hull-White swaption model calibration.
 class CalibrateSwaptionModelResponse(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class CalibrateSwaptionModelResponse(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Model id requested for calibration.
     # CalibrateSwaptionModelResponse
     def ModelId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -31,6 +33,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Calibrated Hull-White mean reversion parameter "a".
     # CalibrateSwaptionModelResponse
     def HwA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +41,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Calibrated Hull-White volatility parameter "sigma".
     # CalibrateSwaptionModelResponse
     def HwSigma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +49,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Root-mean-square error computed from calibration helper errors.
     # CalibrateSwaptionModelResponse
     def Rmse(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +57,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Number of calibration helpers used (typically rows * cols).
     # CalibrateSwaptionModelResponse
     def NumHelpers(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -59,6 +65,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Number of expiry rows in the calibration grid.
     # CalibrateSwaptionModelResponse
     def GridRows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -66,6 +73,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Number of tenor columns in the calibration grid.
     # CalibrateSwaptionModelResponse
     def GridCols(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -73,6 +81,7 @@ class CalibrateSwaptionModelResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Total number of grid points in the calibration grid.
     # CalibrateSwaptionModelResponse
     def GridPoints(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

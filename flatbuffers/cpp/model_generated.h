@@ -42,7 +42,7 @@ struct ModelSpec;
 struct ModelSpecBuilder;
 struct ModelSpecT;
 
-/// Union of all model types
+/// Union of all model payload types.
 enum ModelPayload : uint8_t {
   ModelPayload_NONE = 0,
   ModelPayload_CapFloorModelSpec = 1,
@@ -194,7 +194,7 @@ struct CapFloorModelSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black;
 };
 
-/// Cap/Floor pricing model specification
+/// Cap/Floor pricing model specification.
 struct CapFloorModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorModelSpecT NativeTableType;
   typedef CapFloorModelSpecBuilder Builder;
@@ -263,7 +263,7 @@ struct SwaptionHwCalibrationSpecT : public ::flatbuffers::NativeTable {
   SwaptionHwCalibrationSpecT &operator=(SwaptionHwCalibrationSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Swaption pricing model specification
+/// Swaption Hull-White calibration specification.
 struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionHwCalibrationSpecT NativeTableType;
   typedef SwaptionHwCalibrationSpecBuilder Builder;
@@ -282,42 +282,55 @@ struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
     VT_FUNCTION_EVALUATIONS = 26,
     VT_END_CRITERIA_EPS = 28
   };
+  /// Swaption volatility surface id used as calibration target.
   const ::flatbuffers::String *swaption_vol_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SWAPTION_VOL_ID);
   }
+  /// Discount curve id used by both helper pricing and model dynamics.
   const ::flatbuffers::String *discount_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNT_CURVE_ID);
   }
+  /// Forwarding curve id used to build the floating index in calibration helpers.
   const ::flatbuffers::String *forwarding_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE_ID);
   }
+  /// Swap index id defining fixed/float leg conventions for calibration helpers.
   const ::flatbuffers::String *swap_index_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
   }
+  /// Optional expiry grid override. If omitted, server falls back to ATM matrix expiries.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *expiries() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_EXPIRIES);
   }
+  /// Optional tenor grid override. If omitted, server falls back to ATM matrix tenors.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *tenors() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_TENORS);
   }
+  /// Whether to calibrate Hull-White parameter "a".
   bool calibrate_a() const {
     return GetField<uint8_t>(VT_CALIBRATE_A, 1) != 0;
   }
+  /// Whether to calibrate Hull-White parameter "sigma".
   bool calibrate_sigma() const {
     return GetField<uint8_t>(VT_CALIBRATE_SIGMA, 1) != 0;
   }
+  /// Initial guess for Hull-White "a".
   double a_init() const {
     return GetField<double>(VT_A_INIT, 0.03);
   }
+  /// Initial guess for Hull-White "sigma".
   double sigma_init() const {
     return GetField<double>(VT_SIGMA_INIT, 0.01);
   }
+  /// EndCriteria max stationarity iterations.
   int32_t max_iterations() const {
     return GetField<int32_t>(VT_MAX_ITERATIONS, 200);
   }
+  /// EndCriteria max function evaluations.
   int32_t function_evaluations() const {
     return GetField<int32_t>(VT_FUNCTION_EVALUATIONS, 1000);
   }
+  /// EndCriteria eps for root/function/gradient checks.
   double end_criteria_eps() const {
     return GetField<double>(VT_END_CRITERIA_EPS, 1.0e-8);
   }
@@ -495,6 +508,7 @@ struct SwaptionModelSpecT : public ::flatbuffers::NativeTable {
   SwaptionModelSpecT &operator=(SwaptionModelSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Swaption pricing model specification.
 struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionModelSpecT NativeTableType;
   typedef SwaptionModelSpecBuilder Builder;
@@ -506,21 +520,27 @@ struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
     VT_PARAM_MODE = 12,
     VT_HW_CALIBRATION = 14
   };
+  /// Swaption pricing model type.
   quantra::enums::IrModelType model_type() const {
     return static_cast<quantra::enums::IrModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
   }
+  /// Explicit Hull-White "a" used when param_mode=Explicit.
   double hw_a() const {
     return GetField<double>(VT_HW_A, 0.03);
   }
+  /// Explicit Hull-White "sigma" used when param_mode=Explicit.
   double hw_sigma() const {
     return GetField<double>(VT_HW_SIGMA, 0.01);
   }
+  /// Number of time steps for TreeSwaptionEngine lattice.
   int32_t lattice_steps() const {
     return GetField<int32_t>(VT_LATTICE_STEPS, 50);
   }
+  /// Parameter source: Explicit values from this model or Calibrate from hw_calibration.
   quantra::enums::ModelParamMode param_mode() const {
     return static_cast<quantra::enums::ModelParamMode>(GetField<int8_t>(VT_PARAM_MODE, 0));
   }
+  /// Calibration configuration used when param_mode=Calibrate.
   const quantra::SwaptionHwCalibrationSpec *hw_calibration() const {
     return GetPointer<const quantra::SwaptionHwCalibrationSpec *>(VT_HW_CALIBRATION);
   }
@@ -602,7 +622,7 @@ struct CdsModelSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::CdsIsdaForwardsInCouponPeriod isda_forwards_in_coupon_period = quantra::enums::CdsIsdaForwardsInCouponPeriod_Piecewise;
 };
 
-/// CDS pricing model specification
+/// CDS pricing model specification.
 struct CdsModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CdsModelSpecT NativeTableType;
   typedef CdsModelSpecBuilder Builder;
@@ -696,7 +716,7 @@ struct EquityVanillaModelSpecT : public ::flatbuffers::NativeTable {
   int32_t binomial_steps = 500;
 };
 
-/// Equity vanilla option pricing model specification (future)
+/// Equity vanilla option pricing model specification (future).
 struct EquityVanillaModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef EquityVanillaModelSpecT NativeTableType;
   typedef EquityVanillaModelSpecBuilder Builder;
@@ -760,7 +780,7 @@ struct ModelSpecT : public ::flatbuffers::NativeTable {
   quantra::ModelPayloadUnion payload{};
 };
 
-/// Model specification - references by id in trade requests
+/// Model specification referenced by id in trade requests.
 struct ModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ModelSpecT NativeTableType;
   typedef ModelSpecBuilder Builder;

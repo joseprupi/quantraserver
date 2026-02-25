@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Curve interpolation methods.
 class Interpolator(object):
     BackwardFlat = 0
     ForwardFlat = 1

@@ -4,15 +4,18 @@ include "cds.fbs";
 
 namespace quantra;
 
-// Single CDS pricing request
+/// Single CDS pricing request with curve/credit/model references.
 table PriceCDS {
     cds:CDS;
-    discounting_curve:string;   // Reference to yield curve in Pricing
-    credit_curve_id:string;     // Reference to credit curve in Pricing.credit_curves
-    model:string;               // Reference to model in Pricing.models
+    /// Reference to yield curve in Pricing.curves.
+    discounting_curve:string;
+    /// Reference to credit curve in Pricing.credit_curves.
+    credit_curve_id:string;
+    /// Reference to model in Pricing.models.
+    model:string;
 }
 
-// Batch CDS pricing request
+/// Batch CDS pricing request.
 table PriceCDSRequest {
     pricing:Pricing;
     cds_list:[PriceCDS];

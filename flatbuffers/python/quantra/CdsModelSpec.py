@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# CDS pricing model specification
+# CDS pricing model specification.
 class CdsModelSpec(object):
     __slots__ = ['_tab']
 

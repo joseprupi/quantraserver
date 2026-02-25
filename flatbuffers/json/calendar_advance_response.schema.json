@@ -123,7 +123,7 @@
     },
     "quantra_CalendarAdvanceResponse" : {
       "type" : "object",
-      "description" : "Response containing advanced date.",
+      "description" : "Response containing the advanced date.",
       "properties" : {
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"

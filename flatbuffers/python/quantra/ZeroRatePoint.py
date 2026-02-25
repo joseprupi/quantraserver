@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Zero rate point for direct curve construction (no bootstrapping).
 class ZeroRatePoint(object):
     __slots__ = ['_tab']
 
@@ -24,7 +25,7 @@ class ZeroRatePoint(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Maturity date for the zero rate (YYYY-MM-DD)
+    # Maturity date for the zero rate (YYYY-MM-DD).
     # ZeroRatePoint
     def Date(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,7 +33,7 @@ class ZeroRatePoint(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Alternative: tenor from reference date
+    # Alternative: tenor from reference date.
     # ZeroRatePoint
     def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -58,7 +59,7 @@ class ZeroRatePoint(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
-    # Zero rate for this maturity
+    # Zero rate for this maturity.
     # ZeroRatePoint
     def ZeroRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -66,7 +67,7 @@ class ZeroRatePoint(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Compounding convention for the zero rate
+    # Compounding convention for the zero rate.
     # ZeroRatePoint
     def Compounding(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -74,7 +75,7 @@ class ZeroRatePoint(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
 
-    # Frequency (used when compounding != Continuous)
+    # Frequency (used when compounding != Continuous).
     # ZeroRatePoint
     def Frequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

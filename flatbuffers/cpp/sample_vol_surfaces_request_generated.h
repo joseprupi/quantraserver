@@ -33,6 +33,7 @@ struct SampleVolSurfacesRequestT : public ::flatbuffers::NativeTable {
   SampleVolSurfacesRequestT &operator=(SampleVolSurfacesRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to sample volatility surfaces according to query specs.
 struct SampleVolSurfacesRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SampleVolSurfacesRequestT NativeTableType;
   typedef SampleVolSurfacesRequestBuilder Builder;

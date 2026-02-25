@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Historical index fixing for seasoned instruments.
 class Fixing(object):
     __slots__ = ['_tab']
 

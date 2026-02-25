@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Single vanilla swap pricing context with curve references.
 class PriceVanillaSwap(object):
     __slots__ = ['_tab']
 
@@ -35,6 +36,7 @@ class PriceVanillaSwap(object):
             return obj
         return None
 
+    # Reference to curve in Pricing.curves.
     # PriceVanillaSwap
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -42,6 +44,7 @@ class PriceVanillaSwap(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Reference to curve for forward rates (can be same as discounting).
     # PriceVanillaSwap
     def ForwardingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

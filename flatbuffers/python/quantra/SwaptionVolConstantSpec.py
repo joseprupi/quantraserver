@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Swaption volatility (constant, matrix, smile cube, SABR)
+# Constant swaption volatility.
 class SwaptionVolConstantSpec(object):
     __slots__ = ['_tab']
 

@@ -31,6 +31,7 @@ struct VolSurfaceSample;
 struct VolSurfaceSampleBuilder;
 struct VolSurfaceSampleT;
 
+/// Volatility surface type: Swaption or Optionlet.
 enum VolSurfaceType : int8_t {
   VolSurfaceType_Swaption = 0,
   VolSurfaceType_Optionlet = 1,
@@ -61,6 +62,7 @@ inline const char *EnumNameVolSurfaceType(VolSurfaceType e) {
   return EnumNamesVolSurfaceType()[index];
 }
 
+/// Strike axis convention.
 enum VolStrikeAxis : int8_t {
   VolStrikeAxis_AbsoluteStrike = 0,
   VolStrikeAxis_SpreadFromATM = 1,
@@ -91,6 +93,7 @@ inline const char *EnumNameVolStrikeAxis(VolStrikeAxis e) {
   return EnumNamesVolStrikeAxis()[index];
 }
 
+/// Output structure for vol sampling.
 enum VolOutputMode : int8_t {
   VolOutputMode_Cube = 0,
   VolOutputMode_SmileSlice = 1,
@@ -127,6 +130,7 @@ inline const char *EnumNameVolOutputMode(VolOutputMode e) {
   return EnumNamesVolOutputMode()[index];
 }
 
+/// Expiry date semantics for vol sampling.
 enum ExpiryKind : int8_t {
   ExpiryKind_ExerciseDate = 0,
   ExpiryKind_GridDate = 1,
@@ -163,6 +167,7 @@ struct StrikeGridT : public ::flatbuffers::NativeTable {
   std::vector<double> strikes{};
 };
 
+/// Strike grid for vol surface sampling.
 struct StrikeGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef StrikeGridT NativeTableType;
   typedef StrikeGridBuilder Builder;
@@ -173,6 +178,7 @@ struct StrikeGrid FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::VolStrikeAxis axis() const {
     return static_cast<quantra::VolStrikeAxis>(GetField<int8_t>(VT_AXIS, 0));
   }
+  /// If axis=SpreadFromATM these are spreads.
   const ::flatbuffers::Vector<double> *strikes() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
   }
@@ -255,6 +261,7 @@ struct VolQuerySpecT : public ::flatbuffers::NativeTable {
   VolQuerySpecT &operator=(VolQuerySpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Volatility surface query specification.
 struct VolQuerySpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VolQuerySpecT NativeTableType;
   typedef VolQuerySpecBuilder Builder;
@@ -274,6 +281,7 @@ struct VolQuerySpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DISCOUNTING_CURVE_ID = 28,
     VT_FORWARDING_CURVE_ID = 30
   };
+  /// References Pricing.vol_surfaces[].id.
   const ::flatbuffers::String *vol_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOL_ID);
   }
@@ -283,6 +291,7 @@ struct VolQuerySpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::DateGridSpec *expiry_grid() const {
     return GetPointer<const quantra::DateGridSpec *>(VT_EXPIRY_GRID);
   }
+  /// Required for swaption, ignored for optionlet.
   const quantra::DateGridSpec *tenor_grid() const {
     return GetPointer<const quantra::DateGridSpec *>(VT_TENOR_GRID);
   }
@@ -295,9 +304,11 @@ struct VolQuerySpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::VolOutputMode output_mode() const {
     return static_cast<quantra::VolOutputMode>(GetField<int8_t>(VT_OUTPUT_MODE, 0));
   }
+  /// Optional override; must match surface swap_index_id if provided.
   const ::flatbuffers::String *swap_index_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
   }
+  /// Slice selectors (only used by slice modes). -1 means "not set".
   int32_t slice_expiry_index() const {
     return GetField<int32_t>(VT_SLICE_EXPIRY_INDEX, -1);
   }
@@ -307,9 +318,11 @@ struct VolQuerySpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double slice_strike() const {
     return GetField<double>(VT_SLICE_STRIKE, 0.0);
   }
+  /// Strict mode requires true for slice modes using slice_strike.
   bool slice_strike_is_set() const {
     return GetField<uint8_t>(VT_SLICE_STRIKE_IS_SET, 0) != 0;
   }
+  /// Required for SpreadFromATM swaption surfaces to compute ATM forwards.
   const ::flatbuffers::String *discounting_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE_ID);
   }
@@ -510,6 +523,7 @@ struct VolSurfaceSampleT : public ::flatbuffers::NativeTable {
   VolSurfaceSampleT &operator=(VolSurfaceSampleT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Sampled volatility surface output.
 struct VolSurfaceSample FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VolSurfaceSampleT NativeTableType;
   typedef VolSurfaceSampleBuilder Builder;
@@ -539,6 +553,7 @@ struct VolSurfaceSample FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *vol_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOL_ID);
   }
+  /// Vol surface reference date.
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
@@ -560,18 +575,22 @@ struct VolSurfaceSample FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::BusinessDayConvention business_day_convention_used() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION_USED, 0));
   }
+  /// Swaption: ExerciseDate and expiries are effective exercise dates. Optionlet: GridDate and expiries are grid dates.
   quantra::ExpiryKind expiry_kind() const {
     return static_cast<quantra::ExpiryKind>(GetField<int8_t>(VT_EXPIRY_KIND, 1));
   }
+  /// Sampled expiry dates (ISO).
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *expiries() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_EXPIRIES);
   }
+  /// Optional grid points after grid conventions.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *requested_expiry_grid_points() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_REQUESTED_EXPIRY_GRID_POINTS);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *tenors() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_TENORS);
   }
+  /// Swaptions flattened i_expiry major then j_tenor.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *effective_swap_starts() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_EFFECTIVE_SWAP_STARTS);
   }
@@ -581,6 +600,7 @@ struct VolSurfaceSample FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<double> *strikes() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
   }
+  /// Flattening: swaptions Cube i_expiry major, j_tenor, k_strike; optionlets Cube i_expiry major, k_strike.
   const ::flatbuffers::Vector<double> *vols() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_VOLS);
   }
@@ -593,6 +613,7 @@ struct VolSurfaceSample FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t n_strikes() const {
     return GetField<int32_t>(VT_N_STRIKES, 0);
   }
+  /// Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor. Populated when strike kind is SpreadFromATM.
   const ::flatbuffers::Vector<double> *atm_levels() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_ATM_LEVELS);
   }

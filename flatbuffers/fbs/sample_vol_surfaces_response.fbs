@@ -3,6 +3,7 @@ include "vol_query.fbs";
 
 namespace quantra;
 
+/// Response from volatility surface sampling request.
 table SampleVolSurfacesResponse {
     results:[VolSurfaceSample] (required);
 }

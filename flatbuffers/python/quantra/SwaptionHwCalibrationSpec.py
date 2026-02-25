@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Swaption pricing model specification
+# Swaption Hull-White calibration specification.
 class SwaptionHwCalibrationSpec(object):
     __slots__ = ['_tab']
 
@@ -25,6 +25,7 @@ class SwaptionHwCalibrationSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Swaption volatility surface id used as calibration target.
     # SwaptionHwCalibrationSpec
     def SwaptionVolId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,6 +33,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Discount curve id used by both helper pricing and model dynamics.
     # SwaptionHwCalibrationSpec
     def DiscountCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -39,6 +41,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Forwarding curve id used to build the floating index in calibration helpers.
     # SwaptionHwCalibrationSpec
     def ForwardingCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -46,6 +49,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Swap index id defining fixed/float leg conventions for calibration helpers.
     # SwaptionHwCalibrationSpec
     def SwapIndexId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -53,6 +57,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Optional expiry grid override. If omitted, server falls back to ATM matrix expiries.
     # SwaptionHwCalibrationSpec
     def Expiries(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -78,6 +83,7 @@ class SwaptionHwCalibrationSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
+    # Optional tenor grid override. If omitted, server falls back to ATM matrix tenors.
     # SwaptionHwCalibrationSpec
     def Tenors(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -102,6 +108,7 @@ class SwaptionHwCalibrationSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         return o == 0
 
+    # Whether to calibrate Hull-White parameter "a".
     # SwaptionHwCalibrationSpec
     def CalibrateA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -109,6 +116,7 @@ class SwaptionHwCalibrationSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
+    # Whether to calibrate Hull-White parameter "sigma".
     # SwaptionHwCalibrationSpec
     def CalibrateSigma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -116,6 +124,7 @@ class SwaptionHwCalibrationSpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
+    # Initial guess for Hull-White "a".
     # SwaptionHwCalibrationSpec
     def AInit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -123,6 +132,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.03
 
+    # Initial guess for Hull-White "sigma".
     # SwaptionHwCalibrationSpec
     def SigmaInit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -130,6 +140,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.01
 
+    # EndCriteria max stationarity iterations.
     # SwaptionHwCalibrationSpec
     def MaxIterations(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -137,6 +148,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 200
 
+    # EndCriteria max function evaluations.
     # SwaptionHwCalibrationSpec
     def FunctionEvaluations(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -144,6 +156,7 @@ class SwaptionHwCalibrationSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 1000
 
+    # EndCriteria eps for root/function/gradient checks.
     # SwaptionHwCalibrationSpec
     def EndCriteriaEps(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))

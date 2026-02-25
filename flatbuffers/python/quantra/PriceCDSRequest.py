@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Batch CDS pricing request.
 class PriceCDSRequest(object):
     __slots__ = ['_tab']
 

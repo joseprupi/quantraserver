@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Equity/FX volatility base (always lognormal, no displacement).
 class BlackVolBaseSpec(object):
     __slots__ = ['_tab']
 
@@ -66,6 +67,7 @@ class BlackVolBaseSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional: resolve constant_vol from pricing.quotes.
     # BlackVolBaseSpec
     def QuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

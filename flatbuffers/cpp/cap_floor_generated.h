@@ -38,6 +38,7 @@ struct CapFloorT : public ::flatbuffers::NativeTable {
   CapFloorT &operator=(CapFloorT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Cap or Floor instrument.
 struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorT NativeTableType;
   typedef CapFloorBuilder Builder;
@@ -56,13 +57,14 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
+  /// Strike rate (e.g., 0.04 for 4%).
   double strike() const {
     return GetField<double>(VT_STRIKE, 0.0);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  /// Reference to an IndexDef by id (e.g., "EUR_3M")
+  /// Reference to an IndexDef by id (e.g., "EUR_3M").
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }

@@ -2,7 +2,7 @@ include "enums.fbs";
 
 namespace quantra;
 
-/// Market quote kind
+/// Market quote kind.
 enum QuoteKind : byte {
     Rate = 0,
     Spread = 1,
@@ -12,15 +12,14 @@ enum QuoteKind : byte {
     FxPoints = 5
 }
 
-/// High-level quote type (usage)
+/// High-level quote type (usage).
 enum QuoteType : byte {
     Curve = 0,
     Volatility = 1,
     Credit = 2
 }
 
-/// Market quote (spot price, FX rate, etc.)
-/// Used by: Pricing.quotes[], helper quote_id references
+/// Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.
 table QuoteSpec {
     id:string (required);
     kind:QuoteKind = Rate;

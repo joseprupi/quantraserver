@@ -2,7 +2,8 @@ include "common.fbs";
 
 namespace quantra;
 
-table FloatingRateBondResponse{
+/// Floating-rate bond pricing response.
+table FloatingRateBondResponse {
     npv:double;
     clean_price:double;
     dirty_price:double;
@@ -16,7 +17,8 @@ table FloatingRateBondResponse{
     flows:[FlowsWrapper];
 }
 
-table PriceFloatingRateBondResponse{
+/// Response wrapper for multiple floating-rate bonds.
+table PriceFloatingRateBondResponse {
     bonds:[FloatingRateBondResponse];
 }
 

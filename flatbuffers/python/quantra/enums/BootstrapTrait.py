@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Bootstrap trait for curve construction.
 class BootstrapTrait(object):
     Discount = 0
     FwdRate = 1

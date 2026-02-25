@@ -49,6 +49,7 @@ struct OisFloatingLegT : public ::flatbuffers::NativeTable {
   OisFloatingLegT &operator=(OisFloatingLegT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Floating leg for OIS swaps (compounded overnight).
 struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OisFloatingLegT NativeTableType;
   typedef OisFloatingLegBuilder Builder;
@@ -73,7 +74,7 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
-  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+  /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
@@ -86,14 +87,14 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::BusinessDayConvention payment_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
   }
-  /// Payment adjustments
+  /// Payment adjustments.
   quantra::enums::Calendar payment_calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_PAYMENT_CALENDAR, 32));
   }
   int32_t payment_lag() const {
     return GetField<int32_t>(VT_PAYMENT_LAG, 0);
   }
-  /// Overnight accrual conventions
+  /// Overnight accrual conventions.
   quantra::enums::RateAveragingType averaging_method() const {
     return static_cast<quantra::enums::RateAveragingType>(GetField<int8_t>(VT_AVERAGING_METHOD, 0));
   }
@@ -233,6 +234,7 @@ struct OisSwapT : public ::flatbuffers::NativeTable {
   OisSwapT &operator=(OisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Overnight indexed swap: fixed vs compounded overnight.
 struct OisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef OisSwapT NativeTableType;
   typedef OisSwapBuilder Builder;

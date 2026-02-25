@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Swap index definition for swaption smile conventions.
 class SwapIndexDef(object):
     __slots__ = ['_tab']
 
@@ -38,6 +39,7 @@ class SwapIndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Spot/effective-date lag used for exercise-to-swap-start advancement.
     # SwapIndexDef
     def SpotDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +47,7 @@ class SwapIndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
+    # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +55,7 @@ class SwapIndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
+    # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -59,6 +63,7 @@ class SwapIndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
+    # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
     def EndOfMonth(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -77,6 +82,7 @@ class SwapIndexDef(object):
             return obj
         return None
 
+    # Reference to IndexDef by id.
     # SwapIndexDef
     def FloatIndexId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

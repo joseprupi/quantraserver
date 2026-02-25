@@ -7,7 +7,6 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # Reference to an IndexDef by its id.
-# Used by helpers and instruments to point to a registered index.
 class IndexRef(object):
     __slots__ = ['_tab']
 

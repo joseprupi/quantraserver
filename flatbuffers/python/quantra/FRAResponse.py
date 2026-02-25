@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# FRA pricing response.
 class FRAResponse(object):
     __slots__ = ['_tab']
 
@@ -31,6 +32,7 @@ class FRAResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # The implied forward rate from the curve.
     # FRAResponse
     def ForwardRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +40,7 @@ class FRAResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Value at settlement.
     # FRAResponse
     def SpotValue(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +48,7 @@ class FRAResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # When the FRA settles.
     # FRAResponse
     def SettlementDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

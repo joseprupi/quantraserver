@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Forward Rate Agreement instrument.
 class FRA(object):
     __slots__ = ['_tab']
 
@@ -38,6 +39,7 @@ class FRA(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # When the FRA period starts.
     # FRA
     def StartDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -45,6 +47,7 @@ class FRA(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # When the FRA period ends.
     # FRA
     def MaturityDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -52,6 +55,7 @@ class FRA(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # The agreed forward rate (e.g., 0.035 for 3.5%).
     # FRA
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -59,7 +63,7 @@ class FRA(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Reference to an IndexDef by id (e.g., "EUR_3M")
+    # Reference to an IndexDef by id (e.g., "EUR_3M").
     # FRA
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))

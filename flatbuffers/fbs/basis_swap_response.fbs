@@ -2,20 +2,22 @@ include "vanilla_swap_response.fbs";
 
 namespace quantra;
 
+/// Basis swap pricing response (two floating legs).
 table BasisSwapResponse {
     npv:double;
     leg1_bps:double;
     leg2_bps:double;
     leg1_npv:double;
     leg2_npv:double;
-    // Par spread for leg1 keeping leg2 spread fixed.
+    /// Par spread for leg1 keeping leg2 spread fixed.
     fair_spread_leg1:double;
-    // Par spread for leg2 keeping leg1 spread fixed.
+    /// Par spread for leg2 keeping leg1 spread fixed.
     fair_spread_leg2:double;
     leg1_flows:[SwapLegFlow];
     leg2_flows:[SwapLegFlow];
 }
 
+/// Response wrapper for multiple basis swaps.
 table PriceBasisSwapResponse {
     swaps:[BasisSwapResponse];
 }

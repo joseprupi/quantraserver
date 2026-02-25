@@ -4,29 +4,26 @@ include "ois_swap.fbs";
 
 namespace quantra;
 
-// Underlying swap type
+/// Underlying swap type: VanillaSwap or OisSwap.
 union SwaptionUnderlying { VanillaSwap, OisSwap }
 
-// Swaption instrument
-// ExerciseType and SettlementType enums now in enums.fbs
+/// Swaption instrument definition.
 table Swaption {
-    // Exercise style: European, Bermudan, or American.
+    /// Exercise style: European, Bermudan, or American.
     exercise_type:enums.ExerciseType;
-    // Settlement type for swaption payoff handling.
+    /// Settlement type for swaption payoff handling.
     settlement_type:enums.SettlementType;
-    // Settlement method (physical/other) per market convention.
+    /// Settlement method (physical/other) per market convention.
     settlement_method:enums.SettlementMethod = PhysicalOTC;
-    // Single exercise date (ISO date string).
-    // Required for European and American exercises.
+    /// Single exercise date (ISO date string). Required for European and American.
     exercise_date:string;
-    // Bermudan exercise date set (ISO date strings).
-    // Required for Bermudan exercise and must contain at least 2 dates.
+    /// Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates.
     exercise_dates:[string];
 
-    // Legacy field: vanilla swap only (kept for backward compatibility)
+    /// Legacy field: vanilla swap only (kept for backward compatibility).
     underlying_swap:VanillaSwap;
 
-    // New union-based underlying (VanillaSwap or OisSwap).
+    /// New union-based underlying (VanillaSwap or OisSwap).
     underlying:SwaptionUnderlying;
 }
 

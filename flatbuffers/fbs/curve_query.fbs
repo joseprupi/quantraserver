@@ -5,19 +5,19 @@ namespace quantra;
 
 /// What output you want sampled from a curve.
 enum CurveMeasure : byte {
-    /// Discount factor P(t)
+    /// Discount factor P(t).
     DF = 0,
-    /// Zero rate z(t)
+    /// Zero rate z(t).
     ZERO = 1,
-    /// Forward rate f(t) or F(d1,d2)
+    /// Forward rate f(t) or F(d1,d2).
     FWD = 2
 }
 
 /// Forward rate definition.
 enum ForwardType : byte {
-    /// Approximated instantaneous forward around d
+    /// Approximated instantaneous forward around d.
     Instantaneous = 0,
-    /// Forward over [d, d + tenor]
+    /// Forward over [d, d + tenor].
     Period = 1
 }
 
@@ -33,28 +33,33 @@ table RangeGrid {
     start_date:string;
     end_date:string (required);
     step_number:int = 1;
-    step_time_unit:enums.TimeUnit = Days; // Days/Weeks are literal increments; Months/Years use calendar advance + BDC
+    /// Days/Weeks are literal increments; Months/Years use calendar advance + BDC.
+    step_time_unit:enums.TimeUnit = Days;
     business_days_only:bool = false;
     calendar:enums.Calendar = NullCalendar;
     business_day_convention:enums.BusinessDayConvention = Following;
 }
 
+/// Union of date grid types.
 union DateGrid { TenorGrid, RangeGrid }
 
+/// Date grid specification for curve/vol sampling.
 table DateGridSpec {
     grid:DateGrid (required);
 }
 
 /// Generic query options for reusable sampling endpoints.
 table QueryOptions {
-    // QueryOptions calendar/BDC override grid-level conventions when set.
+    /// Calendar override when set.
     calendar:enums.Calendar = NullCalendar;
+    /// Business day convention override when set.
     business_day_convention:enums.BusinessDayConvention = Following;
     max_points:int = 50000;
     allow_extrapolation:bool = true;
     strict:bool = true;
 }
 
+/// Zero rate query parameters.
 table ZeroRateQuery {
     use_curve_day_counter:bool = true;
     day_counter:enums.DayCounter = Actual365Fixed;
@@ -62,6 +67,7 @@ table ZeroRateQuery {
     frequency:enums.Frequency = Annual;
 }
 
+/// Forward rate query parameters.
 table ForwardRateQuery {
     use_curve_day_counter:bool = true;
     day_counter:enums.DayCounter = Actual365Fixed;

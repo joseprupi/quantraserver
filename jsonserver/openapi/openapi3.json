@@ -1398,6 +1398,7 @@
       },
       "quantra_Schedule": {
         "type": "object",
+        "description": "Date schedule definition for payment and accrual dates.",
         "properties": {
           "calendar": {
             "$ref": "#/components/schemas/quantra_enums_Calendar"
@@ -1428,6 +1429,7 @@
       },
       "quantra_Period": {
         "type": "object",
+        "description": "Canonical period type used across APIs.",
         "properties": {
           "n": {
             "type": "integer",
@@ -1442,6 +1444,7 @@
       },
       "quantra_Yield": {
         "type": "object",
+        "description": "Yield/compounding convention specification.",
         "properties": {
           "day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
@@ -1457,6 +1460,7 @@
       },
       "quantra_Error": {
         "type": "object",
+        "description": "Error message container.",
         "properties": {
           "error_message": {
             "type": "string"
@@ -1466,6 +1470,7 @@
       },
       "quantra_FlowInterest": {
         "type": "object",
+        "description": "Interest cash flow with fixing and accrual metadata.",
         "properties": {
           "amount": {
             "type": "number"
@@ -1493,6 +1498,7 @@
       },
       "quantra_FlowInterestFloat": {
         "type": "object",
+        "description": "Floating-rate interest cash flow.",
         "properties": {
           "amount": {
             "type": "number"
@@ -1520,6 +1526,7 @@
       },
       "quantra_FlowPastInterestFloat": {
         "type": "object",
+        "description": "Past floating-rate interest for seasoned instruments.",
         "properties": {
           "amount": {
             "type": "number"
@@ -1541,6 +1548,7 @@
       },
       "quantra_FlowPastInterest": {
         "type": "object",
+        "description": "Past fixed interest cash flow.",
         "properties": {
           "amount": {
             "type": "number"
@@ -1562,6 +1570,7 @@
       },
       "quantra_FlowNotional": {
         "type": "object",
+        "description": "Notional exchange cash flow.",
         "properties": {
           "date": {
             "type": "string"
@@ -1580,6 +1589,7 @@
       },
       "quantra_FlowsWrapper": {
         "type": "object",
+        "description": "Wrapper for a single flow in a collection.",
         "properties": {
           "flow_type": {
             "$ref": "#/components/schemas/quantra_Flow"
@@ -1602,6 +1612,7 @@
       },
       "quantra_Fixing": {
         "type": "object",
+        "description": "Historical index fixing for seasoned instruments.",
         "properties": {
           "date": {
             "type": "string"
@@ -1621,11 +1632,11 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")"
+            "description": "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")."
           },
           "name": {
             "type": "string",
-            "description": "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\", \"MyBank3M\")\nUsed as the QuantLib index familyName. No financial logic depends on this."
+            "description": "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\")."
           },
           "index_type": {
             "$ref": "#/components/schemas/quantra_IndexType"
@@ -1635,7 +1646,7 @@
           },
           "fixing_days": {
             "type": "integer",
-            "description": "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)",
+            "description": "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -1650,15 +1661,15 @@
           },
           "end_of_month": {
             "type": "boolean",
-            "description": "End of month rule (IBOR only, ignored for overnight)"
+            "description": "End of month rule (IBOR only, ignored for overnight)."
           },
           "currency": {
             "type": "string",
-            "description": "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")\nMapped to QuantLib Currency objects. Required."
+            "description": "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")."
           },
           "fixings": {
             "type": "array",
-            "description": "Past fixings needed for seasoned instruments.\nApplied via index->addFixing() before pricing.",
+            "description": "Past fixings needed for seasoned instruments.",
             "items": {
               "$ref": "#/components/schemas/quantra_Fixing"
             }
@@ -1672,7 +1683,7 @@
       },
       "quantra_IndexRef": {
         "type": "object",
-        "description": "Reference to an IndexDef by its id.\nUsed by helpers and instruments to point to a registered index.",
+        "description": "Reference to an IndexDef by its id.",
         "properties": {
           "id": {
             "type": "string"
@@ -1685,6 +1696,7 @@
       },
       "quantra_SwapFixedLeg": {
         "type": "object",
+        "description": "Fixed leg of a swap.",
         "properties": {
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
@@ -1706,6 +1718,7 @@
       },
       "quantra_SwapFloatingLeg": {
         "type": "object",
+        "description": "Floating leg of a swap.",
         "properties": {
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
@@ -1741,6 +1754,7 @@
       },
       "quantra_VanillaSwap": {
         "type": "object",
+        "description": "Vanilla interest rate swap (fixed vs floating).",
         "properties": {
           "swap_type": {
             "$ref": "#/components/schemas/quantra_enums_SwapType"
@@ -1756,6 +1770,7 @@
       },
       "quantra_BasisSwap": {
         "type": "object",
+        "description": "Basis swap with two floating legs (e.g., 3M vs 6M).",
         "properties": {
           "swap_type": {
             "$ref": "#/components/schemas/quantra_enums_SwapType"
@@ -1771,6 +1786,7 @@
       },
       "quantra_SwapLegFlow": {
         "type": "object",
+        "description": "Cashflow for a swap leg.",
         "properties": {
           "payment_date": {
             "type": "string"
@@ -1791,7 +1807,8 @@
             "type": "number"
           },
           "fixing_date": {
-            "type": "string"
+            "type": "string",
+            "description": "Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate."
           },
           "index_fixing": {
             "type": "number"
@@ -1800,13 +1817,15 @@
             "type": "number"
           },
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "Coupon rate: fixed-leg rate or effective floating coupon rate."
           }
         },
         "additionalProperties": false
       },
       "quantra_SwapLegResponse": {
         "type": "object",
+        "description": "Response for a single swap leg.",
         "properties": {
           "npv": {
             "type": "number"
@@ -1825,6 +1844,7 @@
       },
       "quantra_VanillaSwapResponse": {
         "type": "object",
+        "description": "Full vanilla swap pricing response.",
         "properties": {
           "npv": {
             "type": "number"
@@ -1849,6 +1869,7 @@
           },
           "fixed_leg_flows": {
             "type": "array",
+            "description": "Optional detailed flows per leg.",
             "items": {
               "$ref": "#/components/schemas/quantra_SwapLegFlow"
             }
@@ -1864,6 +1885,7 @@
       },
       "quantra_PriceVanillaSwapResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple vanilla swaps.",
         "properties": {
           "swaps": {
             "type": "array",
@@ -1876,6 +1898,7 @@
       },
       "quantra_BasisSwapResponse": {
         "type": "object",
+        "description": "Basis swap pricing response (two floating legs).",
         "properties": {
           "npv": {
             "type": "number"
@@ -1893,10 +1916,12 @@
             "type": "number"
           },
           "fair_spread_leg1": {
-            "type": "number"
+            "type": "number",
+            "description": "Par spread for leg1 keeping leg2 spread fixed."
           },
           "fair_spread_leg2": {
-            "type": "number"
+            "type": "number",
+            "description": "Par spread for leg2 keeping leg1 spread fixed."
           },
           "leg1_flows": {
             "type": "array",
@@ -1915,6 +1940,7 @@
       },
       "quantra_PriceBasisSwapResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple basis swaps.",
         "properties": {
           "swaps": {
             "type": "array",
@@ -2037,6 +2063,7 @@
       },
       "quantra_CurveRef": {
         "type": "object",
+        "description": "Exogenous curve reference for multi-curve bootstrapping.",
         "properties": {
           "id": {
             "type": "string"
@@ -2049,6 +2076,7 @@
       },
       "quantra_HelperDependencies": {
         "type": "object",
+        "description": "Exogenous curve dependencies for dual-curve bootstrapping.",
         "properties": {
           "discount_curve": {
             "$ref": "#/components/schemas/quantra_CurveRef"
@@ -2068,6 +2096,7 @@
       },
       "quantra_DepositHelper": {
         "type": "object",
+        "description": "Money market deposit helper.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2091,13 +2120,14 @@
           },
           "quote_id": {
             "type": "string",
-            "description": "Optional: reference a shared quote by id instead of inline rate"
+            "description": "Optional: reference a shared quote by id instead of inline rate."
           }
         },
         "additionalProperties": false
       },
       "quantra_FRAHelper": {
         "type": "object",
+        "description": "FRA helper for curve bootstrap.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2134,6 +2164,7 @@
       },
       "quantra_FutureHelper": {
         "type": "object",
+        "description": "Futures helper for curve bootstrap.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2157,11 +2188,11 @@
           },
           "futures_price": {
             "type": "number",
-            "description": "Futures price (e.g. 95.25); if set, rate is ignored"
+            "description": "Futures price (e.g., 95.25); if set, rate is ignored."
           },
           "convexity_adjustment": {
             "type": "number",
-            "description": "Convexity adjustment added to implied rate"
+            "description": "Convexity adjustment added to implied rate."
           },
           "quote_id": {
             "type": "string"
@@ -2171,6 +2202,7 @@
       },
       "quantra_SwapHelper": {
         "type": "object",
+        "description": "Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2215,6 +2247,7 @@
       },
       "quantra_BondHelper": {
         "type": "object",
+        "description": "Bond helper for curve bootstrap.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2247,7 +2280,7 @@
           },
           "price": {
             "type": "number",
-            "description": "Bond price (preferred over rate for clarity)"
+            "description": "Bond price (preferred over rate for clarity)."
           },
           "quote_id": {
             "type": "string"
@@ -2257,6 +2290,7 @@
       },
       "quantra_OISHelper": {
         "type": "object",
+        "description": "OIS helper. Uses IndexRef to reference an overnight IndexDef.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2298,6 +2332,7 @@
       },
       "quantra_DatedOISHelper": {
         "type": "object",
+        "description": "Dated OIS helper with explicit start/end dates.",
         "properties": {
           "rate": {
             "type": "number"
@@ -2341,10 +2376,11 @@
       },
       "quantra_ZeroRatePoint": {
         "type": "object",
+        "description": "Zero rate point for direct curve construction (no bootstrapping).",
         "properties": {
           "date": {
             "type": "string",
-            "description": "Maturity date for the zero rate (YYYY-MM-DD)"
+            "description": "Maturity date for the zero rate (YYYY-MM-DD)."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2357,7 +2393,7 @@
           },
           "zero_rate": {
             "type": "number",
-            "description": "Zero rate for this maturity"
+            "description": "Zero rate for this maturity."
           },
           "compounding": {
             "$ref": "#/components/schemas/quantra_enums_Compounding"
@@ -2370,6 +2406,7 @@
       },
       "quantra_TenorBasisSwapHelper": {
         "type": "object",
+        "description": "Tenor basis swap helper.",
         "properties": {
           "spread": {
             "type": "number"
@@ -2401,6 +2438,7 @@
       },
       "quantra_FxSwapHelper": {
         "type": "object",
+        "description": "FX swap helper.",
         "properties": {
           "fx_points": {
             "type": "number"
@@ -2430,6 +2468,7 @@
       },
       "quantra_CrossCcyBasisHelper": {
         "type": "object",
+        "description": "Cross-currency basis swap helper.",
         "properties": {
           "spread": {
             "type": "number"
@@ -2458,6 +2497,7 @@
       },
       "quantra_PointsWrapper": {
         "type": "object",
+        "description": "Wrapper for a single curve point.",
         "properties": {
           "point_type": {
             "$ref": "#/components/schemas/quantra_Point"
@@ -2504,6 +2544,7 @@
       },
       "quantra_TermStructure": {
         "type": "object",
+        "description": "Term structure (yield curve) definition.",
         "properties": {
           "id": {
             "type": "string"
@@ -2531,6 +2572,7 @@
       },
       "quantra_QuoteMatrix2D": {
         "type": "object",
+        "description": "2D quote matrix (expiries x tenors).",
         "properties": {
           "n_rows": {
             "type": "integer",
@@ -2544,12 +2586,14 @@
           },
           "values": {
             "type": "array",
+            "description": "Row-major, length = n_rows*n_cols.",
             "items": {
               "type": "number"
             }
           },
           "quote_ids": {
             "type": "array",
+            "description": "Optional, length = values. Empty => inline values.",
             "items": {
               "type": "string"
             }
@@ -2559,6 +2603,7 @@
       },
       "quantra_QuoteTensor3D": {
         "type": "object",
+        "description": "3D quote tensor (expiries x tenors x strikes).",
         "properties": {
           "n_1": {
             "type": "integer",
@@ -2577,12 +2622,14 @@
           },
           "values": {
             "type": "array",
+            "description": "Row-major, length = n_1*n_2*n_3.",
             "items": {
               "type": "number"
             }
           },
           "quote_ids": {
             "type": "array",
+            "description": "Optional, length = values. Empty => inline values.",
             "items": {
               "type": "string"
             }
@@ -2592,6 +2639,7 @@
       },
       "quantra_IrVolBaseSpec": {
         "type": "object",
+        "description": "IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.",
         "properties": {
           "reference_date": {
             "type": "string"
@@ -2612,19 +2660,22 @@
             "$ref": "#/components/schemas/quantra_enums_VolatilityType"
           },
           "displacement": {
-            "type": "number"
+            "type": "number",
+            "description": "Only meaningful for ShiftedLognormal."
           },
           "constant_vol": {
             "type": "number"
           },
           "quote_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional: resolve constant_vol from pricing.quotes."
           }
         },
         "additionalProperties": false
       },
       "quantra_BlackVolBaseSpec": {
         "type": "object",
+        "description": "Equity/FX volatility base (always lognormal, no displacement).",
         "properties": {
           "reference_date": {
             "type": "string"
@@ -2645,14 +2696,15 @@
             "type": "number"
           },
           "quote_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional: resolve constant_vol from pricing.quotes."
           }
         },
         "additionalProperties": false
       },
       "quantra_OptionletVolSpec": {
         "type": "object",
-        "description": "Optionlet volatility for Caps/Floors",
+        "description": "Optionlet volatility for caps/floors.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -2662,7 +2714,7 @@
       },
       "quantra_SwaptionVolConstantSpec": {
         "type": "object",
-        "description": "Swaption volatility (constant, matrix, smile cube, SABR)",
+        "description": "Constant swaption volatility.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -2672,6 +2724,7 @@
       },
       "quantra_SwaptionVolAtmMatrixSpec": {
         "type": "object",
+        "description": "ATM matrix swaption volatility (expiry x tenor).",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -2702,12 +2755,14 @@
       },
       "quantra_SwaptionVolSmileCubeSpec": {
         "type": "object",
+        "description": "Smile cube swaption volatility (expiry x tenor x strike).",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
           },
           "allow_external_atm": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Require explicit opt-in when client provides atm_forwards."
           },
           "expiries": {
             "type": "array",
@@ -2750,6 +2805,7 @@
       },
       "quantra_SwaptionSabrParamsSpec": {
         "type": "object",
+        "description": "SABR parameter grid swaption volatility.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -2783,6 +2839,7 @@
       },
       "quantra_SwaptionSabrCalibrateSpec": {
         "type": "object",
+        "description": "SABR calibrate swaption volatility.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -2822,9 +2879,11 @@
       },
       "quantra_SwaptionVolSpec": {
         "type": "object",
+        "description": "Swaption volatility specification.",
         "properties": {
           "swap_index_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Required convention anchor for all swaption vol surfaces."
           },
           "payload_type": {
             "$ref": "#/components/schemas/quantra_SwaptionVolPayload"
@@ -2853,7 +2912,7 @@
       },
       "quantra_BlackVolSpec": {
         "type": "object",
-        "description": "Black volatility for Equity/FX/Commodity options",
+        "description": "Black volatility for equity/FX/commodity options.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_BlackVolBaseSpec"
@@ -2863,7 +2922,7 @@
       },
       "quantra_VolSurfaceSpec": {
         "type": "object",
-        "description": "Volatility surface specification - referenced by id in trade requests",
+        "description": "Volatility surface specification referenced by id in trade requests.",
         "properties": {
           "id": {
             "type": "string"
@@ -2892,6 +2951,7 @@
       },
       "quantra_ConstantOptionletVolatility": {
         "type": "object",
+        "description": "Constant optionlet volatility for coupon pricer.",
         "properties": {
           "settlement_days": {
             "type": "integer",
@@ -2915,6 +2975,7 @@
       },
       "quantra_BlackIborCouponPricer": {
         "type": "object",
+        "description": "Black Ibor coupon pricer with optionlet volatility.",
         "properties": {
           "optionlet_volatility_structure_type": {
             "$ref": "#/components/schemas/quantra_OptionletVolatilityStructure"
@@ -2931,6 +2992,7 @@
       },
       "quantra_CouponPricer": {
         "type": "object",
+        "description": "Coupon pricer specification referenced by id.",
         "properties": {
           "id": {
             "type": "string"
@@ -2950,7 +3012,7 @@
       },
       "quantra_QuoteSpec": {
         "type": "object",
-        "description": "Market quote (spot price, FX rate, etc.)\nUsed by: Pricing.quotes[], helper quote_id references",
+        "description": "Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.",
         "properties": {
           "id": {
             "type": "string"
@@ -2972,7 +3034,7 @@
       },
       "quantra_CapFloorModelSpec": {
         "type": "object",
-        "description": "Cap/Floor pricing model specification",
+        "description": "Cap/Floor pricing model specification.",
         "properties": {
           "model_type": {
             "$ref": "#/components/schemas/quantra_enums_IrModelType"
@@ -2982,56 +3044,69 @@
       },
       "quantra_SwaptionHwCalibrationSpec": {
         "type": "object",
-        "description": "Swaption pricing model specification",
+        "description": "Swaption Hull-White calibration specification.",
         "properties": {
           "swaption_vol_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Swaption volatility surface id used as calibration target."
           },
           "discount_curve_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Discount curve id used by both helper pricing and model dynamics."
           },
           "forwarding_curve_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Forwarding curve id used to build the floating index in calibration helpers."
           },
           "swap_index_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Swap index id defining fixed/float leg conventions for calibration helpers."
           },
           "expiries": {
             "type": "array",
+            "description": "Optional expiry grid override. If omitted, server falls back to ATM matrix expiries.",
             "items": {
               "$ref": "#/components/schemas/quantra_Period"
             }
           },
           "tenors": {
             "type": "array",
+            "description": "Optional tenor grid override. If omitted, server falls back to ATM matrix tenors.",
             "items": {
               "$ref": "#/components/schemas/quantra_Period"
             }
           },
           "calibrate_a": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether to calibrate Hull-White parameter \"a\"."
           },
           "calibrate_sigma": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether to calibrate Hull-White parameter \"sigma\"."
           },
           "a_init": {
-            "type": "number"
+            "type": "number",
+            "description": "Initial guess for Hull-White \"a\"."
           },
           "sigma_init": {
-            "type": "number"
+            "type": "number",
+            "description": "Initial guess for Hull-White \"sigma\"."
           },
           "max_iterations": {
             "type": "integer",
+            "description": "EndCriteria max stationarity iterations.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "function_evaluations": {
             "type": "integer",
+            "description": "EndCriteria max function evaluations.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "end_criteria_eps": {
-            "type": "number"
+            "type": "number",
+            "description": "EndCriteria eps for root/function/gradient checks."
           }
         },
         "required": [
@@ -3044,18 +3119,22 @@
       },
       "quantra_SwaptionModelSpec": {
         "type": "object",
+        "description": "Swaption pricing model specification.",
         "properties": {
           "model_type": {
             "$ref": "#/components/schemas/quantra_enums_IrModelType"
           },
           "hw_a": {
-            "type": "number"
+            "type": "number",
+            "description": "Explicit Hull-White \"a\" used when param_mode=Explicit."
           },
           "hw_sigma": {
-            "type": "number"
+            "type": "number",
+            "description": "Explicit Hull-White \"sigma\" used when param_mode=Explicit."
           },
           "lattice_steps": {
             "type": "integer",
+            "description": "Number of time steps for TreeSwaptionEngine lattice.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -3070,7 +3149,7 @@
       },
       "quantra_CdsModelSpec": {
         "type": "object",
-        "description": "CDS pricing model specification",
+        "description": "CDS pricing model specification.",
         "properties": {
           "engine_type": {
             "$ref": "#/components/schemas/quantra_enums_CdsEngineType"
@@ -3092,7 +3171,7 @@
       },
       "quantra_EquityVanillaModelSpec": {
         "type": "object",
-        "description": "Equity vanilla option pricing model specification (future)",
+        "description": "Equity vanilla option pricing model specification (future).",
         "properties": {
           "model_type": {
             "$ref": "#/components/schemas/quantra_enums_EquityModelType"
@@ -3107,7 +3186,7 @@
       },
       "quantra_ModelSpec": {
         "type": "object",
-        "description": "Model specification - references by id in trade requests",
+        "description": "Model specification referenced by id in trade requests.",
         "properties": {
           "id": {
             "type": "string"
@@ -3139,6 +3218,7 @@
       },
       "quantra_SwapIndexFixedLegSpec": {
         "type": "object",
+        "description": "Fixed leg conventions for swap index.",
         "properties": {
           "fixed_frequency": {
             "$ref": "#/components/schemas/quantra_enums_Frequency"
@@ -3166,6 +3246,7 @@
       },
       "quantra_SwapIndexFloatLegSpec": {
         "type": "object",
+        "description": "Floating leg conventions for swap index.",
         "properties": {
           "float_tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -3190,6 +3271,7 @@
       },
       "quantra_SwapIndexDef": {
         "type": "object",
+        "description": "Swap index definition for swaption smile conventions.",
         "properties": {
           "id": {
             "type": "string"
@@ -3199,6 +3281,7 @@
           },
           "spot_days": {
             "type": "integer",
+            "description": "Spot/effective-date lag used for exercise-to-swap-start advancement.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -3209,13 +3292,15 @@
             "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           },
           "end_of_month": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Metadata only; pricing uses fixed_leg/float_leg conventions."
           },
           "fixed_leg": {
             "$ref": "#/components/schemas/quantra_SwapIndexFixedLegSpec"
           },
           "float_index_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to IndexDef by id."
           },
           "float_leg": {
             "$ref": "#/components/schemas/quantra_SwapIndexFloatLegSpec"
@@ -3232,6 +3317,7 @@
       },
       "quantra_CdsQuote": {
         "type": "object",
+        "description": "CDS market quote specification.",
         "properties": {
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -3240,22 +3326,27 @@
             "$ref": "#/components/schemas/quantra_enums_CdsQuoteType"
           },
           "quote_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional; resolves from Pricing.quotes (QuoteType=Credit)."
           },
           "quoted_par_spread": {
-            "type": "number"
+            "type": "number",
+            "description": "Used when quote_type=ParSpread (decimal, 0.01=100bps)."
           },
           "quoted_upfront": {
-            "type": "number"
+            "type": "number",
+            "description": "Used when quote_type=Upfront (decimal, 0.01=1%)."
           },
           "running_coupon": {
-            "type": "number"
+            "type": "number",
+            "description": "Running coupon for upfront quotes (decimal)."
           }
         },
         "additionalProperties": false
       },
       "quantra_CdsHelperConventions": {
         "type": "object",
+        "description": "CDS helper conventions for curve building.",
         "properties": {
           "settlement_days": {
             "type": "integer",
@@ -3291,6 +3382,7 @@
       },
       "quantra_CreditCurveSpec": {
         "type": "object",
+        "description": "Default probability curve specification for CDS pricing.",
         "properties": {
           "id": {
             "type": "string"
@@ -3315,12 +3407,14 @@
           },
           "quotes": {
             "type": "array",
+            "description": "Build from CDS market quotes.",
             "items": {
               "$ref": "#/components/schemas/quantra_CdsQuote"
             }
           },
           "flat_hazard_rate": {
-            "type": "number"
+            "type": "number",
+            "description": "OR: use flat hazard rate."
           }
         },
         "required": [
@@ -3331,18 +3425,19 @@
       },
       "quantra_Pricing": {
         "type": "object",
+        "description": "Central pricing configuration. Indices, curves, volatility surfaces, and models are defined here and referenced by id.",
         "properties": {
           "as_of_date": {
             "type": "string",
-            "description": "Valuation date (YYYY-MM-DD). Used by: ALL"
+            "description": "Valuation date (YYYY-MM-DD). Used by: ALL."
           },
           "settlement_date": {
             "type": "string",
-            "description": "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond"
+            "description": "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond."
           },
           "indices": {
             "type": "array",
-            "description": "Index definitions. Used by: ALL floating-rate instruments and curve helpers.\nEvery IndexRef in the request must resolve to an IndexDef here.",
+            "description": "Index definitions. Used by: ALL floating-rate instruments and curve helpers.",
             "items": {
               "$ref": "#/components/schemas/quantra_IndexDef"
             }
@@ -3356,46 +3451,46 @@
           },
           "curves": {
             "type": "array",
-            "description": "Yield curves for discounting/forwarding. Used by: ALL",
+            "description": "Yield curves for discounting/forwarding. Used by: ALL.",
             "items": {
               "$ref": "#/components/schemas/quantra_TermStructure"
             }
           },
           "credit_curves": {
             "type": "array",
-            "description": "Credit curves for CDS pricing. Used by: CDS",
+            "description": "Credit curves for CDS pricing. Used by: CDS.",
             "items": {
               "$ref": "#/components/schemas/quantra_CreditCurveSpec"
             }
           },
           "quotes": {
             "type": "array",
-            "description": "Market quotes (spot prices, FX rates). Used by: EquityOption (future)",
+            "description": "Market quotes (spot prices, FX rates). Used by: EquityOption (future).",
             "items": {
               "$ref": "#/components/schemas/quantra_QuoteSpec"
             }
           },
           "vol_surfaces": {
             "type": "array",
-            "description": "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption",
+            "description": "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption.",
             "items": {
               "$ref": "#/components/schemas/quantra_VolSurfaceSpec"
             }
           },
           "models": {
             "type": "array",
-            "description": "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption",
+            "description": "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption.",
             "items": {
               "$ref": "#/components/schemas/quantra_ModelSpec"
             }
           },
           "bond_pricing_details": {
             "type": "boolean",
-            "description": "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond"
+            "description": "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond."
           },
           "bond_pricing_flows": {
             "type": "boolean",
-            "description": "Include cash flow details. Used by: FixedRateBond, FloatingRateBond"
+            "description": "Include cash flow details. Used by: FixedRateBond, FloatingRateBond."
           },
           "swaption_pricing_details": {
             "type": "boolean",
@@ -3407,7 +3502,7 @@
           },
           "coupon_pricers": {
             "type": "array",
-            "description": "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap",
+            "description": "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap.",
             "items": {
               "$ref": "#/components/schemas/quantra_CouponPricer"
             }
@@ -3476,6 +3571,7 @@
       },
       "quantra_DateGridSpec": {
         "type": "object",
+        "description": "Date grid specification for curve/vol sampling.",
         "properties": {
           "grid_type": {
             "$ref": "#/components/schemas/quantra_DateGrid"
@@ -3522,6 +3618,7 @@
       },
       "quantra_ZeroRateQuery": {
         "type": "object",
+        "description": "Zero rate query parameters.",
         "properties": {
           "use_curve_day_counter": {
             "type": "boolean"
@@ -3540,6 +3637,7 @@
       },
       "quantra_ForwardRateQuery": {
         "type": "object",
+        "description": "Forward rate query parameters.",
         "properties": {
           "use_curve_day_counter": {
             "type": "boolean"
@@ -3697,16 +3795,18 @@
       },
       "quantra_CalendarAdvanceRequest": {
         "type": "object",
-        "description": "Request date advance by calendar-aware period.",
+        "description": "Request to advance a date by a calendar-aware period.",
         "properties": {
           "calendar": {
             "$ref": "#/components/schemas/quantra_enums_Calendar"
           },
           "date": {
-            "type": "string"
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format."
           },
           "tenor_number": {
             "type": "integer",
+            "description": "Number of units; can be negative for back-shift.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -3727,7 +3827,7 @@
       },
       "quantra_CalendarAdvanceResponse": {
         "type": "object",
-        "description": "Response containing advanced date.",
+        "description": "Response containing the advanced date.",
         "properties": {
           "calendar": {
             "$ref": "#/components/schemas/quantra_enums_Calendar"
@@ -3749,10 +3849,12 @@
             "$ref": "#/components/schemas/quantra_enums_Calendar"
           },
           "start_date": {
-            "type": "string"
+            "type": "string",
+            "description": "Start date in YYYY-MM-DD format."
           },
           "end_date": {
-            "type": "string"
+            "type": "string",
+            "description": "End date in YYYY-MM-DD format."
           },
           "include_start": {
             "type": "boolean"
@@ -3805,10 +3907,12 @@
             "$ref": "#/components/schemas/quantra_enums_Calendar"
           },
           "start_date": {
-            "type": "string"
+            "type": "string",
+            "description": "Start date in YYYY-MM-DD format."
           },
           "end_date": {
-            "type": "string"
+            "type": "string",
+            "description": "End date in YYYY-MM-DD format."
           },
           "include_weekends": {
             "type": "boolean"
@@ -3852,12 +3956,14 @@
       },
       "quantra_CalibrateSwaptionModelRequest": {
         "type": "object",
+        "description": "Request to calibrate a Hull-White swaption model.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
           },
           "model_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice."
           },
           "calibration": {
             "$ref": "#/components/schemas/quantra_SwaptionHwCalibrationSpec"
@@ -3871,36 +3977,45 @@
       },
       "quantra_CalibrateSwaptionModelResponse": {
         "type": "object",
+        "description": "Response from Hull-White swaption model calibration.",
         "properties": {
           "model_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Model id requested for calibration."
           },
           "hw_a": {
-            "type": "number"
+            "type": "number",
+            "description": "Calibrated Hull-White mean reversion parameter \"a\"."
           },
           "hw_sigma": {
-            "type": "number"
+            "type": "number",
+            "description": "Calibrated Hull-White volatility parameter \"sigma\"."
           },
           "rmse": {
-            "type": "number"
+            "type": "number",
+            "description": "Root-mean-square error computed from calibration helper errors."
           },
           "num_helpers": {
             "type": "integer",
+            "description": "Number of calibration helpers used (typically rows * cols).",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "grid_rows": {
             "type": "integer",
+            "description": "Number of expiry rows in the calibration grid.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "grid_cols": {
             "type": "integer",
+            "description": "Number of tenor columns in the calibration grid.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "grid_points": {
             "type": "integer",
+            "description": "Total number of grid points in the calibration grid.",
             "minimum": -2147483648,
             "maximum": 2147483647
           }
@@ -3912,6 +4027,7 @@
       },
       "quantra_CapFloor": {
         "type": "object",
+        "description": "Cap or Floor instrument.",
         "properties": {
           "cap_floor_type": {
             "$ref": "#/components/schemas/quantra_enums_CapFloorType"
@@ -3920,7 +4036,8 @@
             "type": "number"
           },
           "strike": {
-            "type": "number"
+            "type": "number",
+            "description": "Strike rate (e.g., 0.04 for 4%)."
           },
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
@@ -3942,6 +4059,7 @@
       },
       "quantra_CapFloorLet": {
         "type": "object",
+        "description": "Individual caplet/floorlet detail.",
         "properties": {
           "payment_date": {
             "type": "string"
@@ -3965,22 +4083,26 @@
             "type": "number"
           },
           "price": {
-            "type": "number"
+            "type": "number",
+            "description": "Individual caplet/floorlet price."
           }
         },
         "additionalProperties": false
       },
       "quantra_CapFloorResponse": {
         "type": "object",
+        "description": "Cap/Floor pricing response.",
         "properties": {
           "npv": {
             "type": "number"
           },
           "atm_rate": {
-            "type": "number"
+            "type": "number",
+            "description": "At-the-money rate."
           },
           "implied_volatility": {
-            "type": "number"
+            "type": "number",
+            "description": "Implied volatility if priced from market price."
           },
           "cap_floor_lets": {
             "type": "array",
@@ -3993,6 +4115,7 @@
       },
       "quantra_PriceCapFloorResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple caps/floors.",
         "properties": {
           "cap_floors": {
             "type": "array",
@@ -4005,6 +4128,7 @@
       },
       "quantra_CDS": {
         "type": "object",
+        "description": "Credit Default Swap instrument.",
         "properties": {
           "side": {
             "$ref": "#/components/schemas/quantra_enums_ProtectionSide"
@@ -4013,13 +4137,15 @@
             "type": "number"
           },
           "running_coupon": {
-            "type": "number"
+            "type": "number",
+            "description": "Running coupon in decimal (0.01 = 100bps)."
           },
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
           },
           "upfront": {
-            "type": "number"
+            "type": "number",
+            "description": "Upfront payment (can be 0)."
           },
           "day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
@@ -4058,21 +4184,26 @@
       },
       "quantra_CDSValues": {
         "type": "object",
+        "description": "CDS pricing results.",
         "properties": {
           "npv": {
             "type": "number"
           },
           "fair_spread": {
-            "type": "number"
+            "type": "number",
+            "description": "Par spread in decimal."
           },
           "fair_upfront": {
-            "type": "number"
+            "type": "number",
+            "description": "Upfront for par spread."
           },
           "default_leg_npv": {
-            "type": "number"
+            "type": "number",
+            "description": "NPV of protection leg."
           },
           "premium_leg_npv": {
-            "type": "number"
+            "type": "number",
+            "description": "NPV of premium leg."
           },
           "error": {
             "$ref": "#/components/schemas/quantra_Error"
@@ -4082,6 +4213,7 @@
       },
       "quantra_PriceCDSResponse": {
         "type": "object",
+        "description": "Batch CDS pricing response.",
         "properties": {
           "cds_list": {
             "type": "array",
@@ -4094,6 +4226,7 @@
       },
       "quantra_FixedRateBond": {
         "type": "object",
+        "description": "Fixed-rate bond instrument.",
         "properties": {
           "settlement_days": {
             "type": "integer",
@@ -4126,6 +4259,7 @@
       },
       "quantra_FixedRateBondResponse": {
         "type": "object",
+        "description": "Fixed-rate bond pricing response.",
         "properties": {
           "npv": {
             "type": "number"
@@ -4168,6 +4302,7 @@
       },
       "quantra_PriceFixedRateBondResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple fixed-rate bonds.",
         "properties": {
           "bonds": {
             "type": "array",
@@ -4180,6 +4315,7 @@
       },
       "quantra_FloatingRateBond": {
         "type": "object",
+        "description": "Floating-rate bond instrument.",
         "properties": {
           "settlement_days": {
             "type": "integer",
@@ -4226,6 +4362,7 @@
       },
       "quantra_FloatingRateBondResponse": {
         "type": "object",
+        "description": "Floating-rate bond pricing response.",
         "properties": {
           "npv": {
             "type": "number"
@@ -4268,6 +4405,7 @@
       },
       "quantra_PriceFloatingRateBondResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple floating-rate bonds.",
         "properties": {
           "bonds": {
             "type": "array",
@@ -4280,6 +4418,7 @@
       },
       "quantra_FRA": {
         "type": "object",
+        "description": "Forward Rate Agreement instrument.",
         "properties": {
           "fra_type": {
             "$ref": "#/components/schemas/quantra_enums_FRAType"
@@ -4288,13 +4427,16 @@
             "type": "number"
           },
           "start_date": {
-            "type": "string"
+            "type": "string",
+            "description": "When the FRA period starts."
           },
           "maturity_date": {
-            "type": "string"
+            "type": "string",
+            "description": "When the FRA period ends."
           },
           "strike": {
-            "type": "number"
+            "type": "number",
+            "description": "The agreed forward rate (e.g., 0.035 for 3.5%)."
           },
           "index": {
             "$ref": "#/components/schemas/quantra_IndexRef"
@@ -4316,24 +4458,29 @@
       },
       "quantra_FRAResponse": {
         "type": "object",
+        "description": "FRA pricing response.",
         "properties": {
           "npv": {
             "type": "number"
           },
           "forward_rate": {
-            "type": "number"
+            "type": "number",
+            "description": "The implied forward rate from the curve."
           },
           "spot_value": {
-            "type": "number"
+            "type": "number",
+            "description": "Value at settlement."
           },
           "settlement_date": {
-            "type": "string"
+            "type": "string",
+            "description": "When the FRA settles."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceFRAResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple FRAs.",
         "properties": {
           "fras": {
             "type": "array",
@@ -4346,6 +4493,7 @@
       },
       "quantra_OisSwapResponse": {
         "type": "object",
+        "description": "OIS swap pricing response (fixed vs compounded overnight leg).",
         "properties": {
           "npv": {
             "type": "number"
@@ -4385,6 +4533,7 @@
       },
       "quantra_PriceOisSwapResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple OIS swaps.",
         "properties": {
           "swaps": {
             "type": "array",
@@ -4397,6 +4546,7 @@
       },
       "quantra_PriceBasisSwap": {
         "type": "object",
+        "description": "Single basis swap pricing context with curve references.",
         "properties": {
           "basis_swap": {
             "$ref": "#/components/schemas/quantra_BasisSwap"
@@ -4415,6 +4565,7 @@
       },
       "quantra_PriceBasisSwapRequest": {
         "type": "object",
+        "description": "Request to price one or more basis swaps.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4433,30 +4584,37 @@
       },
       "quantra_PriceCapFloor": {
         "type": "object",
+        "description": "Single cap/floor pricing request with curve/vol/model references.",
         "properties": {
           "cap_floor": {
             "$ref": "#/components/schemas/quantra_CapFloor"
           },
           "discounting_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve in Pricing.curves by id."
           },
           "forwarding_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve for forward rates by id."
           },
           "volatility": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to volatility in Pricing.vol_surfaces by id."
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to model in Pricing.models by id."
           },
           "include_details": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include caplet/floorlet breakdown."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceCapFloorRequest": {
         "type": "object",
+        "description": "Request to price one or more caps/floors.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4472,24 +4630,29 @@
       },
       "quantra_PriceCDS": {
         "type": "object",
+        "description": "Single CDS pricing request with curve/credit/model references.",
         "properties": {
           "cds": {
             "$ref": "#/components/schemas/quantra_CDS"
           },
           "discounting_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to yield curve in Pricing.curves."
           },
           "credit_curve_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to credit curve in Pricing.credit_curves."
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to model in Pricing.models."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceCDSRequest": {
         "type": "object",
+        "description": "Batch CDS pricing request.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4505,6 +4668,7 @@
       },
       "quantra_PriceFixedRateBond": {
         "type": "object",
+        "description": "Single fixed-rate bond pricing context.",
         "properties": {
           "fixed_rate_bond": {
             "$ref": "#/components/schemas/quantra_FixedRateBond"
@@ -4520,6 +4684,7 @@
       },
       "quantra_PriceFixedRateBondRequest": {
         "type": "object",
+        "description": "Request to price one or more fixed-rate bonds.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4535,6 +4700,7 @@
       },
       "quantra_PriceFloatingRateBond": {
         "type": "object",
+        "description": "Single floating-rate bond pricing context.",
         "properties": {
           "floating_rate_bond": {
             "$ref": "#/components/schemas/quantra_FloatingRateBond"
@@ -4556,6 +4722,7 @@
       },
       "quantra_PriceFloatingRateBondRequest": {
         "type": "object",
+        "description": "Request to price one or more floating-rate bonds.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4571,21 +4738,25 @@
       },
       "quantra_PriceFRA": {
         "type": "object",
+        "description": "Single FRA pricing request with curve references.",
         "properties": {
           "fra": {
             "$ref": "#/components/schemas/quantra_FRA"
           },
           "discounting_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve in Pricing.curves."
           },
           "forwarding_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve for forward rates."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceFRARequest": {
         "type": "object",
+        "description": "Request to price one or more FRAs.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4601,6 +4772,7 @@
       },
       "quantra_OisFloatingLeg": {
         "type": "object",
+        "description": "Floating leg for OIS swaps (compounded overnight).",
         "properties": {
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"
@@ -4655,6 +4827,7 @@
       },
       "quantra_OisSwap": {
         "type": "object",
+        "description": "Overnight indexed swap: fixed vs compounded overnight.",
         "properties": {
           "swap_type": {
             "$ref": "#/components/schemas/quantra_enums_SwapType"
@@ -4670,6 +4843,7 @@
       },
       "quantra_PriceOisSwap": {
         "type": "object",
+        "description": "Single OIS swap pricing context with curve references.",
         "properties": {
           "ois_swap": {
             "$ref": "#/components/schemas/quantra_OisSwap"
@@ -4685,6 +4859,7 @@
       },
       "quantra_PriceOisSwapRequest": {
         "type": "object",
+        "description": "Request to price one or more OIS swaps.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4711,6 +4886,7 @@
       },
       "quantra_Swaption": {
         "type": "object",
+        "description": "Swaption instrument definition.",
         "properties": {
           "exercise_type": {
             "$ref": "#/components/schemas/quantra_enums_ExerciseType"
@@ -4722,10 +4898,12 @@
             "$ref": "#/components/schemas/quantra_enums_SettlementMethod"
           },
           "exercise_date": {
-            "type": "string"
+            "type": "string",
+            "description": "Single exercise date (ISO date string). Required for European and American."
           },
           "exercise_dates": {
             "type": "array",
+            "description": "Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates.",
             "items": {
               "type": "string"
             }
@@ -4737,6 +4915,7 @@
             "$ref": "#/components/schemas/quantra_SwaptionUnderlying"
           },
           "underlying": {
+            "description": "New union-based underlying (VanillaSwap or OisSwap).",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/quantra_VanillaSwap"
@@ -4751,27 +4930,33 @@
       },
       "quantra_PriceSwaption": {
         "type": "object",
+        "description": "Single swaption pricing request with curve/vol/model references.",
         "properties": {
           "swaption": {
             "$ref": "#/components/schemas/quantra_Swaption"
           },
           "discounting_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve in Pricing.curves by id."
           },
           "forwarding_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve for forward rates by id."
           },
           "volatility": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to volatility in Pricing.vol_surfaces by id."
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to model in Pricing.models by id."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceSwaptionRequest": {
         "type": "object",
+        "description": "Request to price one or more swaptions.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4787,21 +4972,25 @@
       },
       "quantra_PriceVanillaSwap": {
         "type": "object",
+        "description": "Single vanilla swap pricing context with curve references.",
         "properties": {
           "vanilla_swap": {
             "$ref": "#/components/schemas/quantra_VanillaSwap"
           },
           "discounting_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve in Pricing.curves."
           },
           "forwarding_curve": {
-            "type": "string"
+            "type": "string",
+            "description": "Reference to curve for forward rates (can be same as discounting)."
           }
         },
         "additionalProperties": false
       },
       "quantra_PriceVanillaSwapRequest": {
         "type": "object",
+        "description": "Request to price one or more vanilla swaps.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -4813,7 +5002,8 @@
             }
           },
           "include_flows": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include detailed cashflows in response."
           }
         },
         "additionalProperties": false
@@ -4850,12 +5040,14 @@
       },
       "quantra_StrikeGrid": {
         "type": "object",
+        "description": "Strike grid for vol surface sampling.",
         "properties": {
           "axis": {
             "$ref": "#/components/schemas/quantra_VolStrikeAxis"
           },
           "strikes": {
             "type": "array",
+            "description": "If axis=SpreadFromATM these are spreads.",
             "items": {
               "type": "number"
             }
@@ -4868,9 +5060,11 @@
       },
       "quantra_VolQuerySpec": {
         "type": "object",
+        "description": "Volatility surface query specification.",
         "properties": {
           "vol_id": {
-            "type": "string"
+            "type": "string",
+            "description": "References Pricing.vol_surfaces[].id."
           },
           "surface_type": {
             "$ref": "#/components/schemas/quantra_VolSurfaceType"
@@ -4891,10 +5085,12 @@
             "$ref": "#/components/schemas/quantra_VolOutputMode"
           },
           "swap_index_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional override; must match surface swap_index_id if provided."
           },
           "slice_expiry_index": {
             "type": "integer",
+            "description": "Slice selectors (only used by slice modes). -1 means \"not set\".",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -4907,10 +5103,12 @@
             "type": "number"
           },
           "slice_strike_is_set": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Strict mode requires true for slice modes using slice_strike."
           },
           "discounting_curve_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Required for SpreadFromATM swaption surfaces to compute ATM forwards."
           },
           "forwarding_curve_id": {
             "type": "string"
@@ -4925,12 +5123,14 @@
       },
       "quantra_VolSurfaceSample": {
         "type": "object",
+        "description": "Sampled volatility surface output.",
         "properties": {
           "vol_id": {
             "type": "string"
           },
           "reference_date": {
-            "type": "string"
+            "type": "string",
+            "description": "Vol surface reference date."
           },
           "ql_vol_type": {
             "$ref": "#/components/schemas/quantra_enums_VolatilityType"
@@ -4955,12 +5155,14 @@
           },
           "expiries": {
             "type": "array",
+            "description": "Sampled expiry dates (ISO).",
             "items": {
               "type": "string"
             }
           },
           "requested_expiry_grid_points": {
             "type": "array",
+            "description": "Optional grid points after grid conventions.",
             "items": {
               "type": "string"
             }
@@ -4973,6 +5175,7 @@
           },
           "effective_swap_starts": {
             "type": "array",
+            "description": "Swaptions flattened i_expiry major then j_tenor.",
             "items": {
               "type": "string"
             }
@@ -4991,6 +5194,7 @@
           },
           "vols": {
             "type": "array",
+            "description": "Flattening: swaptions Cube i_expiry major, j_tenor, k_strike; optionlets Cube i_expiry major, k_strike.",
             "items": {
               "type": "number"
             }
@@ -5012,6 +5216,7 @@
           },
           "atm_levels": {
             "type": "array",
+            "description": "Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor. Populated when strike kind is SpreadFromATM.",
             "items": {
               "type": "number"
             }
@@ -5027,6 +5232,7 @@
       },
       "quantra_SampleVolSurfacesRequest": {
         "type": "object",
+        "description": "Request to sample volatility surfaces according to query specs.",
         "properties": {
           "pricing": {
             "$ref": "#/components/schemas/quantra_Pricing"
@@ -5046,6 +5252,7 @@
       },
       "quantra_SampleVolSurfacesResponse": {
         "type": "object",
+        "description": "Response from volatility surface sampling request.",
         "properties": {
           "results": {
             "type": "array",
@@ -5061,57 +5268,74 @@
       },
       "quantra_SwaptionResponse": {
         "type": "object",
+        "description": "Swaption pricing response with NPV, Greeks, and diagnostics.",
         "properties": {
           "npv": {
-            "type": "number"
+            "type": "number",
+            "description": "Present value of the swaption under the selected model and market inputs."
           },
           "implied_volatility": {
-            "type": "number"
+            "type": "number",
+            "description": "Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value."
           },
           "atm_forward": {
-            "type": "number"
+            "type": "number",
+            "description": "ATM forward swap rate used for pricing diagnostics."
           },
           "annuity": {
-            "type": "number"
+            "type": "number",
+            "description": "Underlying swap annuity (PV01-style quantity)."
           },
           "delta": {
-            "type": "number"
+            "type": "number",
+            "description": "Option delta from pricing details/rebump logic."
           },
           "vega": {
-            "type": "number"
+            "type": "number",
+            "description": "Option vega from pricing details/rebump logic."
           },
           "gamma": {
-            "type": "number"
+            "type": "number",
+            "description": "Option gamma from pricing details/rebump logic."
           },
           "theta": {
-            "type": "number"
+            "type": "number",
+            "description": "Option theta from pricing details/rebump logic."
           },
           "dv01": {
-            "type": "number"
+            "type": "number",
+            "description": "1bp rate sensitivity. May be analytic or rebump-based depending on request flags."
           },
           "used_volatility": {
-            "type": "number"
+            "type": "number",
+            "description": "Volatility actually queried from the resolved vol surface."
           },
           "used_option_expiry": {
-            "type": "string"
+            "type": "string",
+            "description": "Option expiry date used by surface lookup (ISO date)."
           },
           "used_swap_tenor": {
-            "type": "string"
+            "type": "string",
+            "description": "Swap tenor descriptor used by lookup (e.g., date range)."
           },
           "used_strike": {
-            "type": "number"
+            "type": "number",
+            "description": "Strike used to query the volatility structure."
           },
           "used_atm_forward": {
-            "type": "number"
+            "type": "number",
+            "description": "ATM forward used when smile conventions need ATM anchoring."
           },
           "used_strike_kind": {
             "$ref": "#/components/schemas/quantra_enums_SwaptionStrikeKind"
           },
           "used_spread_from_atm": {
-            "type": "number"
+            "type": "number",
+            "description": "Difference between used strike and cube ATM level when spread-from-ATM is active."
           },
           "used_cube_node_atm": {
-            "type": "number"
+            "type": "number",
+            "description": "ATM level retrieved from cube node when available."
           },
           "vol_kind": {
             "$ref": "#/components/schemas/quantra_enums_SwaptionVolKind"
@@ -5120,31 +5344,38 @@
             "$ref": "#/components/schemas/quantra_enums_ModelParamMode"
           },
           "used_hw_a": {
-            "type": "number"
+            "type": "number",
+            "description": "Effective Hull-White mean reversion \"a\" used by pricing. -1.0 when model is not HullWhiteLattice."
           },
           "used_hw_sigma": {
-            "type": "number"
+            "type": "number",
+            "description": "Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice."
           },
           "used_hw_rmse": {
-            "type": "number"
+            "type": "number",
+            "description": "Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration."
           },
           "used_hw_num_helpers": {
             "type": "integer",
+            "description": "Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_rows": {
             "type": "integer",
+            "description": "Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_cols": {
             "type": "integer",
+            "description": "Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_points": {
             "type": "integer",
+            "description": "Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           }
@@ -5153,6 +5384,7 @@
       },
       "quantra_PriceSwaptionResponse": {
         "type": "object",
+        "description": "Response wrapper for multiple swaptions.",
         "properties": {
           "swaptions": {
             "type": "array",

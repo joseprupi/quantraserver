@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Fixed leg of a swap.
 class SwapFixedLeg(object):
     __slots__ = ['_tab']
 

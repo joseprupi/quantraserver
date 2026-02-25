@@ -2,7 +2,8 @@ include "enums.fbs";
 
 namespace quantra;
 
-table ConstantOptionletVolatility{
+/// Constant optionlet volatility for coupon pricer.
+table ConstantOptionletVolatility {
     settlement_days:int;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
@@ -10,18 +11,21 @@ table ConstantOptionletVolatility{
     day_counter:enums.DayCounter;
 }
 
-union OptionletVolatilityStructure {ConstantOptionletVolatility}
+/// Union of optionlet volatility structure types.
+union OptionletVolatilityStructure { ConstantOptionletVolatility }
 
-table BlackIborCouponPricer{
+/// Black Ibor coupon pricer with optionlet volatility.
+table BlackIborCouponPricer {
     optionlet_volatility_structure:OptionletVolatilityStructure;
 }
 
-union Pricer {BlackIborCouponPricer}
+/// Union of pricer types.
+union Pricer { BlackIborCouponPricer }
 
+/// Coupon pricer specification referenced by id.
 table CouponPricer {
     id:string;
     pricer:Pricer;
 }
 
-root_type CouponPricer; 
-
+root_type CouponPricer;
