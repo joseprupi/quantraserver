@@ -7,6 +7,7 @@
 #include "curve_bootstrapper.h"
 #include "index_registry_builder.h"
 #include "swaption_vol_runtime.h"
+#include "swaption_model_calibration.h"
 
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
@@ -20,6 +21,7 @@
 #include <ql/instruments/overnightindexedswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <limits>
+#include <unordered_map>
 
 using namespace QuantLib;
 using namespace quantra;
@@ -48,6 +50,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
     auto swaption_pricings = request->swaptions();
     std::vector<flatbuffers::Offset<SwaptionResponse>> swaptions_vector;
+    std::unordered_map<std::string, HwCalibResult> hwCalibrationCache;
 
     for (auto it = swaption_pricings->begin(); it != swaption_pricings->end(); it++)
     {
@@ -77,6 +80,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         auto mIt = reg.models.find(it->model()->str());
         if (mIt == reg.models.end())
             QUANTRA_ERROR("Model not found: " + it->model()->str());
+        const std::string modelId = it->model()->str();
         if (mIt->second->payload_type() != quantra::ModelPayload_SwaptionModelSpec) {
             QUANTRA_ERROR("Model '" + it->model()->str() + "' is not a SwaptionModelSpec");
         }
@@ -93,6 +97,61 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
              modelType == quantra::enums::IrModelType_ShiftedBlack)) {
             QUANTRA_ERROR("Swaption exercise type Bermudan/American requires HullWhiteLattice model");
         }
+        if (modelType == quantra::enums::IrModelType_HullWhiteLattice &&
+            swaptionModelSpec->param_mode() == quantra::enums::ModelParamMode_Calibrate) {
+            const auto* calibSpec = swaptionModelSpec->hw_calibration();
+            if (!calibSpec) {
+                QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+            }
+            if (!calibSpec->discount_curve_id() || !calibSpec->forwarding_curve_id() ||
+                !calibSpec->swaption_vol_id() || !calibSpec->swap_index_id()) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration must include discount_curve_id, forwarding_curve_id, "
+                    "swaption_vol_id, and swap_index_id");
+            }
+            if (calibSpec->discount_curve_id()->str() != it->discounting_curve()->str()) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration.discount_curve_id must match trade discounting_curve");
+            }
+            if (calibSpec->forwarding_curve_id()->str() != it->forwarding_curve()->str()) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration.forwarding_curve_id must match trade forwarding_curve");
+            }
+            if (calibSpec->swaption_vol_id()->str() != it->volatility()->str()) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration.swaption_vol_id must match trade volatility");
+            }
+            const std::string calibSwapIndexId = calibSpec->swap_index_id()->str();
+            if (!reg.swapIndices.has(calibSwapIndexId)) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration.swap_index_id not found in pricing.swap_indices");
+            }
+            std::string tradeFloatIndexId;
+            const auto* sw = it->swaption();
+            if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
+                const auto* u = sw->underlying_as_VanillaSwap();
+                if (u && u->floating_leg() && u->floating_leg()->index() && u->floating_leg()->index()->id()) {
+                    tradeFloatIndexId = u->floating_leg()->index()->id()->str();
+                }
+            } else if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
+            } else if (sw->underlying_swap() && sw->underlying_swap()->floating_leg() &&
+                       sw->underlying_swap()->floating_leg()->index() &&
+                       sw->underlying_swap()->floating_leg()->index()->id()) {
+                tradeFloatIndexId = sw->underlying_swap()->floating_leg()->index()->id()->str();
+            }
+            if (tradeFloatIndexId.empty()) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' param_mode=Calibrate requires trade floating index id for compatibility checks");
+            }
+            const auto& sidx = reg.swapIndices.get(calibSwapIndexId);
+            if (sidx.floatIndexId != tradeFloatIndexId) {
+                QUANTRA_ERROR(
+                    "Model '" + modelId + "' hw_calibration.swap_index_id float_index_id does not match "
+                    "trade floating index");
+            }
+        }
 
         swaption_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto swaption = swaption_parser.parse(it->swaption(), reg.indices);
@@ -105,8 +164,32 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             Handle<YieldTermStructure>(fIt->second->currentLink()),
             false);
 
+        auto makeEngine = [&](const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
+                              const SwaptionVolEntry& entryForEngine) {
+            if (modelType == quantra::enums::IrModelType_HullWhiteLattice &&
+                swaptionModelSpec->param_mode() == quantra::enums::ModelParamMode_Calibrate) {
+                const auto* calibSpec = swaptionModelSpec->hw_calibration();
+                if (!calibSpec) {
+                    QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+                }
+                // Rebump greeks keep model parameters fixed: calibration is done once per model_id
+                // and reused for bumped/rolled evaluations within the same request.
+                auto cIt = hwCalibrationCache.find(modelId);
+                if (cIt == hwCalibrationCache.end()) {
+                    HwCalibResult res = calibrateHullWhiteFromSwaptionVol(reg, calibSpec, asOf);
+                    cIt = hwCalibrationCache.emplace(modelId, res).first;
+                }
+                return engineFactory.makeHullWhiteLatticeSwaptionEngine(
+                    discountCurve,
+                    cIt->second.a,
+                    cIt->second.sigma,
+                    swaptionModelSpec->lattice_steps());
+            }
+            return engineFactory.makeSwaptionEngine(mIt->second, discountCurve, entryForEngine);
+        };
+
         Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
-        auto engine = engineFactory.makeSwaptionEngine(mIt->second, discountCurve, volEntry);
+        auto engine = makeEngine(discountCurve, volEntry);
         swaption->setPricingEngine(engine);
 
         double npv = swaption->NPV();
@@ -141,6 +224,43 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         std::string usedTenor;
         auto volKind = volEntry.volKind;
         auto usedStrikeKind = volEntry.strikeKind;
+        auto usedModelParamMode = swaptionModelSpec->param_mode();
+        double usedHwA = -1.0;
+        double usedHwSigma = -1.0;
+        double usedHwRmse = -1.0;
+        int usedHwNumHelpers = -1;
+        int usedHwGridRows = -1;
+        int usedHwGridCols = -1;
+        int usedHwGridPoints = -1;
+
+        auto resolveCalibratedHw = [&]() -> const HwCalibResult& {
+            const auto* calibSpec = swaptionModelSpec->hw_calibration();
+            if (!calibSpec) {
+                QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+            }
+            // Reuse calibrated params for all valuations in this request (including rebump/theta).
+            auto cIt = hwCalibrationCache.find(modelId);
+            if (cIt == hwCalibrationCache.end()) {
+                HwCalibResult res = calibrateHullWhiteFromSwaptionVol(reg, calibSpec, asOf);
+                cIt = hwCalibrationCache.emplace(modelId, res).first;
+            }
+            return cIt->second;
+        };
+        if (modelType == quantra::enums::IrModelType_HullWhiteLattice) {
+            if (usedModelParamMode == quantra::enums::ModelParamMode_Calibrate) {
+                const auto& calibrated = resolveCalibratedHw();
+                usedHwA = calibrated.a;
+                usedHwSigma = calibrated.sigma;
+                usedHwRmse = calibrated.rmse;
+                usedHwNumHelpers = calibrated.numHelpers;
+                usedHwGridRows = calibrated.gridRows;
+                usedHwGridCols = calibrated.gridCols;
+                usedHwGridPoints = calibrated.gridPoints;
+            } else {
+                usedHwA = swaptionModelSpec->hw_a();
+                usedHwSigma = swaptionModelSpec->hw_sigma();
+            }
+        }
 
         auto priceWithRebump = [&](double curveBump, double volBump, int rollDays) {
             EvalDateGuard evalGuard;
@@ -184,7 +304,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 forceAtmRecompute);
 
             Handle<YieldTermStructure> discountCurve(dItB->second->currentLink());
-            auto bumpEngine = engineFactory.makeSwaptionEngine(mIt->second, discountCurve, volEntryBumped);
+            auto bumpEngine = makeEngine(discountCurve, volEntryBumped);
             bumpSwaption->setPricingEngine(bumpEngine);
             return bumpSwaption->NPV();
         };
@@ -312,6 +432,14 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         response_builder.add_used_spread_from_atm(usedSpreadFromAtm);
         response_builder.add_used_cube_node_atm(usedCubeNodeAtm);
         response_builder.add_vol_kind(volKind);
+        response_builder.add_used_model_param_mode(usedModelParamMode);
+        response_builder.add_used_hw_a(usedHwA);
+        response_builder.add_used_hw_sigma(usedHwSigma);
+        response_builder.add_used_hw_rmse(usedHwRmse);
+        response_builder.add_used_hw_num_helpers(usedHwNumHelpers);
+        response_builder.add_used_hw_grid_rows(usedHwGridRows);
+        response_builder.add_used_hw_grid_cols(usedHwGridCols);
+        response_builder.add_used_hw_grid_points(usedHwGridPoints);
 
         swaptions_vector.push_back(response_builder.Finish());
     }

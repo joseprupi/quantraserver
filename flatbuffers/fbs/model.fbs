@@ -1,4 +1,5 @@
 include "enums.fbs";
+include "common.fbs";
 
 namespace quantra;
 
@@ -8,11 +9,54 @@ table CapFloorModelSpec {
 }
 
 /// Swaption pricing model specification
+table SwaptionHwCalibrationSpec {
+    // Swaption volatility surface id used as calibration target.
+    swaption_vol_id:string (required);
+    // Discount curve id used by both helper pricing and model dynamics.
+    discount_curve_id:string (required);
+    // Forwarding curve id used to build the floating index in calibration helpers.
+    forwarding_curve_id:string (required);
+    // Swap index id defining fixed/float leg conventions for calibration helpers.
+    swap_index_id:string (required);
+
+    // Optional expiry grid override.
+    // If omitted, server falls back to the ATM matrix expiries (when available).
+    expiries:[Period];
+    // Optional tenor grid override.
+    // If omitted, server falls back to the ATM matrix tenors (when available).
+    tenors:[Period];
+
+    // Whether to calibrate Hull-White parameter "a".
+    calibrate_a:bool = true;
+    // Whether to calibrate Hull-White parameter "sigma".
+    calibrate_sigma:bool = true;
+
+    // Initial guess for Hull-White "a".
+    a_init:double = 0.03;
+    // Initial guess for Hull-White "sigma".
+    sigma_init:double = 0.01;
+
+    // EndCriteria max stationarity iterations.
+    max_iterations:int = 200;
+    // EndCriteria max function evaluations.
+    function_evaluations:int = 1000;
+    // EndCriteria eps for root/function/gradient checks.
+    end_criteria_eps:double = 1.0e-8;
+}
+
 table SwaptionModelSpec {
+    // Swaption pricing model type.
     model_type:enums.IrModelType;
+    // Explicit Hull-White "a" used when param_mode=Explicit.
     hw_a:double = 0.03;
+    // Explicit Hull-White "sigma" used when param_mode=Explicit.
     hw_sigma:double = 0.01;
+    // Number of time steps for TreeSwaptionEngine lattice.
     lattice_steps:int = 50;
+    // Parameter source: Explicit values from this model or Calibrate from hw_calibration.
+    param_mode:enums.ModelParamMode = Explicit;
+    // Calibration configuration used when param_mode=Calibrate.
+    hw_calibration:SwaptionHwCalibrationSpec;
 }
 
 /// CDS pricing model specification

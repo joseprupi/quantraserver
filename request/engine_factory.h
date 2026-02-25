@@ -57,6 +57,12 @@ public:
         const quantra::ModelSpec* model,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
         const SwaptionVolEntry& volEntry) const;
+
+    std::shared_ptr<QuantLib::PricingEngine> makeHullWhiteLatticeSwaptionEngine(
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
+        double hwA,
+        double hwSigma,
+        int latticeSteps) const;
         
     // Future: makeEquityEngine for equity options
     // std::shared_ptr<QuantLib::PricingEngine> makeEquityEngine(

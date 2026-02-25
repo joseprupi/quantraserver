@@ -279,6 +279,12 @@ JsonResponse QuantraClient::CalendarAdvanceJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::CalibrateSwaptionModelJSON(const std::string& json) {
+    return impl_->CallJSON<CalibrateSwaptionModelRequest, CalibrateSwaptionModelResponse>(
+        ProductType::CalibrateSwaptionModel, json, &QuantraServer::Stub::CalibrateSwaptionModel
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -393,6 +399,14 @@ grpc::Status QuantraClient::CalendarAdvance(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->CalendarAdvance(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalibrateSwaptionModel(
+    const Message<CalibrateSwaptionModelRequest>& request,
+    Message<CalibrateSwaptionModelResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->CalibrateSwaptionModel(&context, request, response);
 }
 
 } // namespace quantra

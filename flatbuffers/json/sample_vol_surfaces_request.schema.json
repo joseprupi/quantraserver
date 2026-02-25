@@ -113,6 +113,10 @@
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
     },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
@@ -1253,9 +1257,55 @@
       },
       "additionalProperties" : false
     },
-    "quantra_SwaptionModelSpec" : {
+    "quantra_SwaptionHwCalibrationSpec" : {
       "type" : "object",
       "description" : "Swaption pricing model specification",
+      "properties" : {
+        "swaption_vol_id" : {
+                "type" : "string"
+              },
+        "discount_curve_id" : {
+                "type" : "string"
+              },
+        "forwarding_curve_id" : {
+                "type" : "string"
+              },
+        "swap_index_id" : {
+                "type" : "string"
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "calibrate_a" : {
+                "type" : "boolean"
+              },
+        "calibrate_sigma" : {
+                "type" : "boolean"
+              },
+        "a_init" : {
+                "type" : "number"
+              },
+        "sigma_init" : {
+                "type" : "number"
+              },
+        "max_iterations" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "function_evaluations" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "end_criteria_eps" : {
+                "type" : "number"
+              }
+      },
+      "required" : ["swaption_vol_id", "discount_curve_id", "forwarding_curve_id", "swap_index_id"],
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionModelSpec" : {
+      "type" : "object",
       "properties" : {
         "model_type" : {
                 "$ref" : "#/definitions/quantra_enums_IrModelType"
@@ -1268,6 +1318,12 @@
               },
         "lattice_steps" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "param_mode" : {
+                "$ref" : "#/definitions/quantra_enums_ModelParamMode"
+              },
+        "hw_calibration" : {
+                "$ref" : "#/definitions/quantra_SwaptionHwCalibrationSpec"
               }
       },
       "additionalProperties" : false

@@ -113,6 +113,10 @@
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
     },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]

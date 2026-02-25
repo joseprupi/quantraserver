@@ -6,7 +6,6 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Swaption pricing model specification
 class SwaptionModelSpec(object):
     __slots__ = ['_tab']
 
@@ -53,8 +52,26 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 50
 
+    # SwaptionModelSpec
+    def ParamMode(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # SwaptionModelSpec
+    def HwCalibration(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SwaptionHwCalibrationSpec import SwaptionHwCalibrationSpec
+            obj = SwaptionHwCalibrationSpec()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def SwaptionModelSpecStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(6)
 
 def Start(builder):
     SwaptionModelSpecStart(builder)
@@ -83,12 +100,28 @@ def SwaptionModelSpecAddLatticeSteps(builder, latticeSteps):
 def AddLatticeSteps(builder, latticeSteps):
     SwaptionModelSpecAddLatticeSteps(builder, latticeSteps)
 
+def SwaptionModelSpecAddParamMode(builder, paramMode):
+    builder.PrependInt8Slot(4, paramMode, 0)
+
+def AddParamMode(builder, paramMode):
+    SwaptionModelSpecAddParamMode(builder, paramMode)
+
+def SwaptionModelSpecAddHwCalibration(builder, hwCalibration):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(hwCalibration), 0)
+
+def AddHwCalibration(builder, hwCalibration):
+    SwaptionModelSpecAddHwCalibration(builder, hwCalibration)
+
 def SwaptionModelSpecEnd(builder):
     return builder.EndObject()
 
 def End(builder):
     return SwaptionModelSpecEnd(builder)
 
+try:
+    from typing import Optional
+except:
+    pass
 
 class SwaptionModelSpecT(object):
 
@@ -98,6 +131,8 @@ class SwaptionModelSpecT(object):
         self.hwA = 0.03  # type: float
         self.hwSigma = 0.01  # type: float
         self.latticeSteps = 50  # type: int
+        self.paramMode = 0  # type: int
+        self.hwCalibration = None  # type: Optional[SwaptionHwCalibrationSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -124,13 +159,21 @@ class SwaptionModelSpecT(object):
         self.hwA = swaptionModelSpec.HwA()
         self.hwSigma = swaptionModelSpec.HwSigma()
         self.latticeSteps = swaptionModelSpec.LatticeSteps()
+        self.paramMode = swaptionModelSpec.ParamMode()
+        if swaptionModelSpec.HwCalibration() is not None:
+            self.hwCalibration = SwaptionHwCalibrationSpecT.InitFromObj(swaptionModelSpec.HwCalibration())
 
     # SwaptionModelSpecT
     def Pack(self, builder):
+        if self.hwCalibration is not None:
+            hwCalibration = self.hwCalibration.Pack(builder)
         SwaptionModelSpecStart(builder)
         SwaptionModelSpecAddModelType(builder, self.modelType)
         SwaptionModelSpecAddHwA(builder, self.hwA)
         SwaptionModelSpecAddHwSigma(builder, self.hwSigma)
         SwaptionModelSpecAddLatticeSteps(builder, self.latticeSteps)
+        SwaptionModelSpecAddParamMode(builder, self.paramMode)
+        if self.hwCalibration is not None:
+            SwaptionModelSpecAddHwCalibration(builder, hwCalibration)
         swaptionModelSpec = SwaptionModelSpecEnd(builder)
         return swaptionModelSpec

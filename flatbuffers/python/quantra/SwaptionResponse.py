@@ -150,8 +150,64 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # SwaptionResponse
+    def UsedModelParamMode(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # SwaptionResponse
+    def UsedHwA(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return -1.0
+
+    # SwaptionResponse
+    def UsedHwSigma(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return -1.0
+
+    # SwaptionResponse
+    def UsedHwRmse(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return -1.0
+
+    # SwaptionResponse
+    def UsedHwNumHelpers(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return -1
+
+    # SwaptionResponse
+    def UsedHwGridRows(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return -1
+
+    # SwaptionResponse
+    def UsedHwGridCols(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return -1
+
+    # SwaptionResponse
+    def UsedHwGridPoints(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(54))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return -1
+
 def SwaptionResponseStart(builder):
-    builder.StartObject(18)
+    builder.StartObject(26)
 
 def Start(builder):
     SwaptionResponseStart(builder)
@@ -264,6 +320,54 @@ def SwaptionResponseAddVolKind(builder, volKind):
 def AddVolKind(builder, volKind):
     SwaptionResponseAddVolKind(builder, volKind)
 
+def SwaptionResponseAddUsedModelParamMode(builder, usedModelParamMode):
+    builder.PrependInt8Slot(18, usedModelParamMode, 0)
+
+def AddUsedModelParamMode(builder, usedModelParamMode):
+    SwaptionResponseAddUsedModelParamMode(builder, usedModelParamMode)
+
+def SwaptionResponseAddUsedHwA(builder, usedHwA):
+    builder.PrependFloat64Slot(19, usedHwA, -1.0)
+
+def AddUsedHwA(builder, usedHwA):
+    SwaptionResponseAddUsedHwA(builder, usedHwA)
+
+def SwaptionResponseAddUsedHwSigma(builder, usedHwSigma):
+    builder.PrependFloat64Slot(20, usedHwSigma, -1.0)
+
+def AddUsedHwSigma(builder, usedHwSigma):
+    SwaptionResponseAddUsedHwSigma(builder, usedHwSigma)
+
+def SwaptionResponseAddUsedHwRmse(builder, usedHwRmse):
+    builder.PrependFloat64Slot(21, usedHwRmse, -1.0)
+
+def AddUsedHwRmse(builder, usedHwRmse):
+    SwaptionResponseAddUsedHwRmse(builder, usedHwRmse)
+
+def SwaptionResponseAddUsedHwNumHelpers(builder, usedHwNumHelpers):
+    builder.PrependInt32Slot(22, usedHwNumHelpers, -1)
+
+def AddUsedHwNumHelpers(builder, usedHwNumHelpers):
+    SwaptionResponseAddUsedHwNumHelpers(builder, usedHwNumHelpers)
+
+def SwaptionResponseAddUsedHwGridRows(builder, usedHwGridRows):
+    builder.PrependInt32Slot(23, usedHwGridRows, -1)
+
+def AddUsedHwGridRows(builder, usedHwGridRows):
+    SwaptionResponseAddUsedHwGridRows(builder, usedHwGridRows)
+
+def SwaptionResponseAddUsedHwGridCols(builder, usedHwGridCols):
+    builder.PrependInt32Slot(24, usedHwGridCols, -1)
+
+def AddUsedHwGridCols(builder, usedHwGridCols):
+    SwaptionResponseAddUsedHwGridCols(builder, usedHwGridCols)
+
+def SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints):
+    builder.PrependInt32Slot(25, usedHwGridPoints, -1)
+
+def AddUsedHwGridPoints(builder, usedHwGridPoints):
+    SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints)
+
 def SwaptionResponseEnd(builder):
     return builder.EndObject()
 
@@ -293,6 +397,14 @@ class SwaptionResponseT(object):
         self.usedSpreadFromAtm = 0.0  # type: float
         self.usedCubeNodeAtm = 0.0  # type: float
         self.volKind = 0  # type: int
+        self.usedModelParamMode = 0  # type: int
+        self.usedHwA = -1.0  # type: float
+        self.usedHwSigma = -1.0  # type: float
+        self.usedHwRmse = -1.0  # type: float
+        self.usedHwNumHelpers = -1  # type: int
+        self.usedHwGridRows = -1  # type: int
+        self.usedHwGridCols = -1  # type: int
+        self.usedHwGridPoints = -1  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -333,6 +445,14 @@ class SwaptionResponseT(object):
         self.usedSpreadFromAtm = swaptionResponse.UsedSpreadFromAtm()
         self.usedCubeNodeAtm = swaptionResponse.UsedCubeNodeAtm()
         self.volKind = swaptionResponse.VolKind()
+        self.usedModelParamMode = swaptionResponse.UsedModelParamMode()
+        self.usedHwA = swaptionResponse.UsedHwA()
+        self.usedHwSigma = swaptionResponse.UsedHwSigma()
+        self.usedHwRmse = swaptionResponse.UsedHwRmse()
+        self.usedHwNumHelpers = swaptionResponse.UsedHwNumHelpers()
+        self.usedHwGridRows = swaptionResponse.UsedHwGridRows()
+        self.usedHwGridCols = swaptionResponse.UsedHwGridCols()
+        self.usedHwGridPoints = swaptionResponse.UsedHwGridPoints()
 
     # SwaptionResponseT
     def Pack(self, builder):
@@ -361,5 +481,13 @@ class SwaptionResponseT(object):
         SwaptionResponseAddUsedSpreadFromAtm(builder, self.usedSpreadFromAtm)
         SwaptionResponseAddUsedCubeNodeAtm(builder, self.usedCubeNodeAtm)
         SwaptionResponseAddVolKind(builder, self.volKind)
+        SwaptionResponseAddUsedModelParamMode(builder, self.usedModelParamMode)
+        SwaptionResponseAddUsedHwA(builder, self.usedHwA)
+        SwaptionResponseAddUsedHwSigma(builder, self.usedHwSigma)
+        SwaptionResponseAddUsedHwRmse(builder, self.usedHwRmse)
+        SwaptionResponseAddUsedHwNumHelpers(builder, self.usedHwNumHelpers)
+        SwaptionResponseAddUsedHwGridRows(builder, self.usedHwGridRows)
+        SwaptionResponseAddUsedHwGridCols(builder, self.usedHwGridCols)
+        SwaptionResponseAddUsedHwGridPoints(builder, self.usedHwGridPoints)
         swaptionResponse = SwaptionResponseEnd(builder)
         return swaptionResponse

@@ -45,6 +45,14 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   double used_spread_from_atm = 0.0;
   double used_cube_node_atm = 0.0;
   quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant;
+  quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit;
+  double used_hw_a = -1.0;
+  double used_hw_sigma = -1.0;
+  double used_hw_rmse = -1.0;
+  int32_t used_hw_num_helpers = -1;
+  int32_t used_hw_grid_rows = -1;
+  int32_t used_hw_grid_cols = -1;
+  int32_t used_hw_grid_points = -1;
 };
 
 struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -68,7 +76,15 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_USED_STRIKE_KIND = 32,
     VT_USED_SPREAD_FROM_ATM = 34,
     VT_USED_CUBE_NODE_ATM = 36,
-    VT_VOL_KIND = 38
+    VT_VOL_KIND = 38,
+    VT_USED_MODEL_PARAM_MODE = 40,
+    VT_USED_HW_A = 42,
+    VT_USED_HW_SIGMA = 44,
+    VT_USED_HW_RMSE = 46,
+    VT_USED_HW_NUM_HELPERS = 48,
+    VT_USED_HW_GRID_ROWS = 50,
+    VT_USED_HW_GRID_COLS = 52,
+    VT_USED_HW_GRID_POINTS = 54
   };
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
@@ -124,6 +140,30 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::SwaptionVolKind vol_kind() const {
     return static_cast<quantra::enums::SwaptionVolKind>(GetField<int8_t>(VT_VOL_KIND, 0));
   }
+  quantra::enums::ModelParamMode used_model_param_mode() const {
+    return static_cast<quantra::enums::ModelParamMode>(GetField<int8_t>(VT_USED_MODEL_PARAM_MODE, 0));
+  }
+  double used_hw_a() const {
+    return GetField<double>(VT_USED_HW_A, -1.0);
+  }
+  double used_hw_sigma() const {
+    return GetField<double>(VT_USED_HW_SIGMA, -1.0);
+  }
+  double used_hw_rmse() const {
+    return GetField<double>(VT_USED_HW_RMSE, -1.0);
+  }
+  int32_t used_hw_num_helpers() const {
+    return GetField<int32_t>(VT_USED_HW_NUM_HELPERS, -1);
+  }
+  int32_t used_hw_grid_rows() const {
+    return GetField<int32_t>(VT_USED_HW_GRID_ROWS, -1);
+  }
+  int32_t used_hw_grid_cols() const {
+    return GetField<int32_t>(VT_USED_HW_GRID_COLS, -1);
+  }
+  int32_t used_hw_grid_points() const {
+    return GetField<int32_t>(VT_USED_HW_GRID_POINTS, -1);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
@@ -146,6 +186,14 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_USED_SPREAD_FROM_ATM, 8) &&
            VerifyField<double>(verifier, VT_USED_CUBE_NODE_ATM, 8) &&
            VerifyField<int8_t>(verifier, VT_VOL_KIND, 1) &&
+           VerifyField<int8_t>(verifier, VT_USED_MODEL_PARAM_MODE, 1) &&
+           VerifyField<double>(verifier, VT_USED_HW_A, 8) &&
+           VerifyField<double>(verifier, VT_USED_HW_SIGMA, 8) &&
+           VerifyField<double>(verifier, VT_USED_HW_RMSE, 8) &&
+           VerifyField<int32_t>(verifier, VT_USED_HW_NUM_HELPERS, 4) &&
+           VerifyField<int32_t>(verifier, VT_USED_HW_GRID_ROWS, 4) &&
+           VerifyField<int32_t>(verifier, VT_USED_HW_GRID_COLS, 4) &&
+           VerifyField<int32_t>(verifier, VT_USED_HW_GRID_POINTS, 4) &&
            verifier.EndTable();
   }
   SwaptionResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -211,6 +259,30 @@ struct SwaptionResponseBuilder {
   void add_vol_kind(quantra::enums::SwaptionVolKind vol_kind) {
     fbb_.AddElement<int8_t>(SwaptionResponse::VT_VOL_KIND, static_cast<int8_t>(vol_kind), 0);
   }
+  void add_used_model_param_mode(quantra::enums::ModelParamMode used_model_param_mode) {
+    fbb_.AddElement<int8_t>(SwaptionResponse::VT_USED_MODEL_PARAM_MODE, static_cast<int8_t>(used_model_param_mode), 0);
+  }
+  void add_used_hw_a(double used_hw_a) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_A, used_hw_a, -1.0);
+  }
+  void add_used_hw_sigma(double used_hw_sigma) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_SIGMA, used_hw_sigma, -1.0);
+  }
+  void add_used_hw_rmse(double used_hw_rmse) {
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_RMSE, used_hw_rmse, -1.0);
+  }
+  void add_used_hw_num_helpers(int32_t used_hw_num_helpers) {
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_NUM_HELPERS, used_hw_num_helpers, -1);
+  }
+  void add_used_hw_grid_rows(int32_t used_hw_grid_rows) {
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_ROWS, used_hw_grid_rows, -1);
+  }
+  void add_used_hw_grid_cols(int32_t used_hw_grid_cols) {
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_COLS, used_hw_grid_cols, -1);
+  }
+  void add_used_hw_grid_points(int32_t used_hw_grid_points) {
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_POINTS, used_hw_grid_points, -1);
+  }
   explicit SwaptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -241,8 +313,19 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
     double used_spread_from_atm = 0.0,
     double used_cube_node_atm = 0.0,
-    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant) {
+    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
+    quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
+    double used_hw_a = -1.0,
+    double used_hw_sigma = -1.0,
+    double used_hw_rmse = -1.0,
+    int32_t used_hw_num_helpers = -1,
+    int32_t used_hw_grid_rows = -1,
+    int32_t used_hw_grid_cols = -1,
+    int32_t used_hw_grid_points = -1) {
   SwaptionResponseBuilder builder_(_fbb);
+  builder_.add_used_hw_rmse(used_hw_rmse);
+  builder_.add_used_hw_sigma(used_hw_sigma);
+  builder_.add_used_hw_a(used_hw_a);
   builder_.add_used_cube_node_atm(used_cube_node_atm);
   builder_.add_used_spread_from_atm(used_spread_from_atm);
   builder_.add_used_atm_forward(used_atm_forward);
@@ -257,8 +340,13 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   builder_.add_atm_forward(atm_forward);
   builder_.add_implied_volatility(implied_volatility);
   builder_.add_npv(npv);
+  builder_.add_used_hw_grid_points(used_hw_grid_points);
+  builder_.add_used_hw_grid_cols(used_hw_grid_cols);
+  builder_.add_used_hw_grid_rows(used_hw_grid_rows);
+  builder_.add_used_hw_num_helpers(used_hw_num_helpers);
   builder_.add_used_swap_tenor(used_swap_tenor);
   builder_.add_used_option_expiry(used_option_expiry);
+  builder_.add_used_model_param_mode(used_model_param_mode);
   builder_.add_vol_kind(vol_kind);
   builder_.add_used_strike_kind(used_strike_kind);
   return builder_.Finish();
@@ -283,7 +371,15 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
     quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
     double used_spread_from_atm = 0.0,
     double used_cube_node_atm = 0.0,
-    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant) {
+    quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
+    quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
+    double used_hw_a = -1.0,
+    double used_hw_sigma = -1.0,
+    double used_hw_rmse = -1.0,
+    int32_t used_hw_num_helpers = -1,
+    int32_t used_hw_grid_rows = -1,
+    int32_t used_hw_grid_cols = -1,
+    int32_t used_hw_grid_points = -1) {
   auto used_option_expiry__ = used_option_expiry ? _fbb.CreateString(used_option_expiry) : 0;
   auto used_swap_tenor__ = used_swap_tenor ? _fbb.CreateString(used_swap_tenor) : 0;
   return quantra::CreateSwaptionResponse(
@@ -305,7 +401,15 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
       used_strike_kind,
       used_spread_from_atm,
       used_cube_node_atm,
-      vol_kind);
+      vol_kind,
+      used_model_param_mode,
+      used_hw_a,
+      used_hw_sigma,
+      used_hw_rmse,
+      used_hw_num_helpers,
+      used_hw_grid_rows,
+      used_hw_grid_cols,
+      used_hw_grid_points);
 }
 
 ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -404,6 +508,14 @@ inline void SwaptionResponse::UnPackTo(SwaptionResponseT *_o, const ::flatbuffer
   { auto _e = used_spread_from_atm(); _o->used_spread_from_atm = _e; }
   { auto _e = used_cube_node_atm(); _o->used_cube_node_atm = _e; }
   { auto _e = vol_kind(); _o->vol_kind = _e; }
+  { auto _e = used_model_param_mode(); _o->used_model_param_mode = _e; }
+  { auto _e = used_hw_a(); _o->used_hw_a = _e; }
+  { auto _e = used_hw_sigma(); _o->used_hw_sigma = _e; }
+  { auto _e = used_hw_rmse(); _o->used_hw_rmse = _e; }
+  { auto _e = used_hw_num_helpers(); _o->used_hw_num_helpers = _e; }
+  { auto _e = used_hw_grid_rows(); _o->used_hw_grid_rows = _e; }
+  { auto _e = used_hw_grid_cols(); _o->used_hw_grid_cols = _e; }
+  { auto _e = used_hw_grid_points(); _o->used_hw_grid_points = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionResponse> SwaptionResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -432,6 +544,14 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
   auto _used_spread_from_atm = _o->used_spread_from_atm;
   auto _used_cube_node_atm = _o->used_cube_node_atm;
   auto _vol_kind = _o->vol_kind;
+  auto _used_model_param_mode = _o->used_model_param_mode;
+  auto _used_hw_a = _o->used_hw_a;
+  auto _used_hw_sigma = _o->used_hw_sigma;
+  auto _used_hw_rmse = _o->used_hw_rmse;
+  auto _used_hw_num_helpers = _o->used_hw_num_helpers;
+  auto _used_hw_grid_rows = _o->used_hw_grid_rows;
+  auto _used_hw_grid_cols = _o->used_hw_grid_cols;
+  auto _used_hw_grid_points = _o->used_hw_grid_points;
   return quantra::CreateSwaptionResponse(
       _fbb,
       _npv,
@@ -451,7 +571,15 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(::flatbuff
       _used_strike_kind,
       _used_spread_from_atm,
       _used_cube_node_atm,
-      _vol_kind);
+      _vol_kind,
+      _used_model_param_mode,
+      _used_hw_a,
+      _used_hw_sigma,
+      _used_hw_rmse,
+      _used_hw_num_helpers,
+      _used_hw_grid_rows,
+      _used_hw_grid_cols,
+      _used_hw_grid_points);
 }
 
 inline PriceSwaptionResponseT::PriceSwaptionResponseT(const PriceSwaptionResponseT &o) {

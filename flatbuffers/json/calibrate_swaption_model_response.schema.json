@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_CalibrateSwaptionModelResponse" : {
+      "type" : "object",
+      "properties" : {
+        "model_id" : {
+                "type" : "string"
+              },
+        "hw_a" : {
+                "type" : "number"
+              },
+        "hw_sigma" : {
+                "type" : "number"
+              },
+        "rmse" : {
+                "type" : "number"
+              },
+        "num_helpers" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "grid_rows" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "grid_cols" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "grid_points" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              }
+      },
+      "required" : ["model_id"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_CalibrateSwaptionModelResponse"
+}

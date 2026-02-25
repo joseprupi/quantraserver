@@ -1,0 +1,24 @@
+namespace quantra;
+
+table CalibrateSwaptionModelResponse {
+    // Model id requested for calibration.
+    model_id:string (required);
+    // Calibrated Hull-White mean reversion parameter "a".
+    hw_a:double;
+    // Calibrated Hull-White volatility parameter "sigma".
+    hw_sigma:double;
+    // Root-mean-square error computed from calibration helper errors.
+    // Units depend on helper error type selected by calibration logic
+    // (price error for Normal vols, implied-vol error for Black/ShiftedBlack).
+    rmse:double;
+    // Number of calibration helpers used (typically rows * cols).
+    num_helpers:int;
+    // Number of expiry rows in the calibration grid.
+    grid_rows:int;
+    // Number of tenor columns in the calibration grid.
+    grid_cols:int;
+    // Total number of grid points in the calibration grid.
+    grid_points:int;
+}
+
+root_type CalibrateSwaptionModelResponse;

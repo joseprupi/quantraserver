@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "common_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -20,6 +21,10 @@ namespace quantra {
 struct CapFloorModelSpec;
 struct CapFloorModelSpecBuilder;
 struct CapFloorModelSpecT;
+
+struct SwaptionHwCalibrationSpec;
+struct SwaptionHwCalibrationSpecBuilder;
+struct SwaptionHwCalibrationSpecT;
 
 struct SwaptionModelSpec;
 struct SwaptionModelSpecBuilder;
@@ -237,15 +242,259 @@ inline ::flatbuffers::Offset<CapFloorModelSpec> CreateCapFloorModelSpec(
 
 ::flatbuffers::Offset<CapFloorModelSpec> CreateCapFloorModelSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CapFloorModelSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct SwaptionHwCalibrationSpecT : public ::flatbuffers::NativeTable {
+  typedef SwaptionHwCalibrationSpec TableType;
+  std::string swaption_vol_id{};
+  std::string discount_curve_id{};
+  std::string forwarding_curve_id{};
+  std::string swap_index_id{};
+  std::vector<std::unique_ptr<quantra::PeriodT>> expiries{};
+  std::vector<std::unique_ptr<quantra::PeriodT>> tenors{};
+  bool calibrate_a = true;
+  bool calibrate_sigma = true;
+  double a_init = 0.03;
+  double sigma_init = 0.01;
+  int32_t max_iterations = 200;
+  int32_t function_evaluations = 1000;
+  double end_criteria_eps = 1.0e-8;
+  SwaptionHwCalibrationSpecT() = default;
+  SwaptionHwCalibrationSpecT(const SwaptionHwCalibrationSpecT &o);
+  SwaptionHwCalibrationSpecT(SwaptionHwCalibrationSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionHwCalibrationSpecT &operator=(SwaptionHwCalibrationSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Swaption pricing model specification
+struct SwaptionHwCalibrationSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwaptionHwCalibrationSpecT NativeTableType;
+  typedef SwaptionHwCalibrationSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SWAPTION_VOL_ID = 4,
+    VT_DISCOUNT_CURVE_ID = 6,
+    VT_FORWARDING_CURVE_ID = 8,
+    VT_SWAP_INDEX_ID = 10,
+    VT_EXPIRIES = 12,
+    VT_TENORS = 14,
+    VT_CALIBRATE_A = 16,
+    VT_CALIBRATE_SIGMA = 18,
+    VT_A_INIT = 20,
+    VT_SIGMA_INIT = 22,
+    VT_MAX_ITERATIONS = 24,
+    VT_FUNCTION_EVALUATIONS = 26,
+    VT_END_CRITERIA_EPS = 28
+  };
+  const ::flatbuffers::String *swaption_vol_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SWAPTION_VOL_ID);
+  }
+  const ::flatbuffers::String *discount_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNT_CURVE_ID);
+  }
+  const ::flatbuffers::String *forwarding_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE_ID);
+  }
+  const ::flatbuffers::String *swap_index_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_EXPIRIES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *tenors() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_TENORS);
+  }
+  bool calibrate_a() const {
+    return GetField<uint8_t>(VT_CALIBRATE_A, 1) != 0;
+  }
+  bool calibrate_sigma() const {
+    return GetField<uint8_t>(VT_CALIBRATE_SIGMA, 1) != 0;
+  }
+  double a_init() const {
+    return GetField<double>(VT_A_INIT, 0.03);
+  }
+  double sigma_init() const {
+    return GetField<double>(VT_SIGMA_INIT, 0.01);
+  }
+  int32_t max_iterations() const {
+    return GetField<int32_t>(VT_MAX_ITERATIONS, 200);
+  }
+  int32_t function_evaluations() const {
+    return GetField<int32_t>(VT_FUNCTION_EVALUATIONS, 1000);
+  }
+  double end_criteria_eps() const {
+    return GetField<double>(VT_END_CRITERIA_EPS, 1.0e-8);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffsetRequired(verifier, VT_SWAPTION_VOL_ID) &&
+           verifier.VerifyString(swaption_vol_id()) &&
+           VerifyOffsetRequired(verifier, VT_DISCOUNT_CURVE_ID) &&
+           verifier.VerifyString(discount_curve_id()) &&
+           VerifyOffsetRequired(verifier, VT_FORWARDING_CURVE_ID) &&
+           verifier.VerifyString(forwarding_curve_id()) &&
+           VerifyOffsetRequired(verifier, VT_SWAP_INDEX_ID) &&
+           verifier.VerifyString(swap_index_id()) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_TENORS) &&
+           verifier.VerifyVector(tenors()) &&
+           verifier.VerifyVectorOfTables(tenors()) &&
+           VerifyField<uint8_t>(verifier, VT_CALIBRATE_A, 1) &&
+           VerifyField<uint8_t>(verifier, VT_CALIBRATE_SIGMA, 1) &&
+           VerifyField<double>(verifier, VT_A_INIT, 8) &&
+           VerifyField<double>(verifier, VT_SIGMA_INIT, 8) &&
+           VerifyField<int32_t>(verifier, VT_MAX_ITERATIONS, 4) &&
+           VerifyField<int32_t>(verifier, VT_FUNCTION_EVALUATIONS, 4) &&
+           VerifyField<double>(verifier, VT_END_CRITERIA_EPS, 8) &&
+           verifier.EndTable();
+  }
+  SwaptionHwCalibrationSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwaptionHwCalibrationSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwaptionHwCalibrationSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionHwCalibrationSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwaptionHwCalibrationSpecBuilder {
+  typedef SwaptionHwCalibrationSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_swaption_vol_id(::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_SWAPTION_VOL_ID, swaption_vol_id);
+  }
+  void add_discount_curve_id(::flatbuffers::Offset<::flatbuffers::String> discount_curve_id) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_DISCOUNT_CURVE_ID, discount_curve_id);
+  }
+  void add_forwarding_curve_id(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_id) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_FORWARDING_CURVE_ID, forwarding_curve_id);
+  }
+  void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_SWAP_INDEX_ID, swap_index_id);
+  }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> expiries) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_EXPIRIES, expiries);
+  }
+  void add_tenors(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> tenors) {
+    fbb_.AddOffset(SwaptionHwCalibrationSpec::VT_TENORS, tenors);
+  }
+  void add_calibrate_a(bool calibrate_a) {
+    fbb_.AddElement<uint8_t>(SwaptionHwCalibrationSpec::VT_CALIBRATE_A, static_cast<uint8_t>(calibrate_a), 1);
+  }
+  void add_calibrate_sigma(bool calibrate_sigma) {
+    fbb_.AddElement<uint8_t>(SwaptionHwCalibrationSpec::VT_CALIBRATE_SIGMA, static_cast<uint8_t>(calibrate_sigma), 1);
+  }
+  void add_a_init(double a_init) {
+    fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_A_INIT, a_init, 0.03);
+  }
+  void add_sigma_init(double sigma_init) {
+    fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_SIGMA_INIT, sigma_init, 0.01);
+  }
+  void add_max_iterations(int32_t max_iterations) {
+    fbb_.AddElement<int32_t>(SwaptionHwCalibrationSpec::VT_MAX_ITERATIONS, max_iterations, 200);
+  }
+  void add_function_evaluations(int32_t function_evaluations) {
+    fbb_.AddElement<int32_t>(SwaptionHwCalibrationSpec::VT_FUNCTION_EVALUATIONS, function_evaluations, 1000);
+  }
+  void add_end_criteria_eps(double end_criteria_eps) {
+    fbb_.AddElement<double>(SwaptionHwCalibrationSpec::VT_END_CRITERIA_EPS, end_criteria_eps, 1.0e-8);
+  }
+  explicit SwaptionHwCalibrationSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwaptionHwCalibrationSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwaptionHwCalibrationSpec>(end);
+    fbb_.Required(o, SwaptionHwCalibrationSpec::VT_SWAPTION_VOL_ID);
+    fbb_.Required(o, SwaptionHwCalibrationSpec::VT_DISCOUNT_CURVE_ID);
+    fbb_.Required(o, SwaptionHwCalibrationSpec::VT_FORWARDING_CURVE_ID);
+    fbb_.Required(o, SwaptionHwCalibrationSpec::VT_SWAP_INDEX_ID);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrationSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> discount_curve_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> swap_index_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> tenors = 0,
+    bool calibrate_a = true,
+    bool calibrate_sigma = true,
+    double a_init = 0.03,
+    double sigma_init = 0.01,
+    int32_t max_iterations = 200,
+    int32_t function_evaluations = 1000,
+    double end_criteria_eps = 1.0e-8) {
+  SwaptionHwCalibrationSpecBuilder builder_(_fbb);
+  builder_.add_end_criteria_eps(end_criteria_eps);
+  builder_.add_sigma_init(sigma_init);
+  builder_.add_a_init(a_init);
+  builder_.add_function_evaluations(function_evaluations);
+  builder_.add_max_iterations(max_iterations);
+  builder_.add_tenors(tenors);
+  builder_.add_expiries(expiries);
+  builder_.add_swap_index_id(swap_index_id);
+  builder_.add_forwarding_curve_id(forwarding_curve_id);
+  builder_.add_discount_curve_id(discount_curve_id);
+  builder_.add_swaption_vol_id(swaption_vol_id);
+  builder_.add_calibrate_sigma(calibrate_sigma);
+  builder_.add_calibrate_a(calibrate_a);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrationSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *swaption_vol_id = nullptr,
+    const char *discount_curve_id = nullptr,
+    const char *forwarding_curve_id = nullptr,
+    const char *swap_index_id = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::Period>> *expiries = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::Period>> *tenors = nullptr,
+    bool calibrate_a = true,
+    bool calibrate_sigma = true,
+    double a_init = 0.03,
+    double sigma_init = 0.01,
+    int32_t max_iterations = 200,
+    int32_t function_evaluations = 1000,
+    double end_criteria_eps = 1.0e-8) {
+  auto swaption_vol_id__ = swaption_vol_id ? _fbb.CreateString(swaption_vol_id) : 0;
+  auto discount_curve_id__ = discount_curve_id ? _fbb.CreateString(discount_curve_id) : 0;
+  auto forwarding_curve_id__ = forwarding_curve_id ? _fbb.CreateString(forwarding_curve_id) : 0;
+  auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
+  auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*tenors) : 0;
+  return quantra::CreateSwaptionHwCalibrationSpec(
+      _fbb,
+      swaption_vol_id__,
+      discount_curve_id__,
+      forwarding_curve_id__,
+      swap_index_id__,
+      expiries__,
+      tenors__,
+      calibrate_a,
+      calibrate_sigma,
+      a_init,
+      sigma_init,
+      max_iterations,
+      function_evaluations,
+      end_criteria_eps);
+}
+
+::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrationSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionHwCalibrationSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct SwaptionModelSpecT : public ::flatbuffers::NativeTable {
   typedef SwaptionModelSpec TableType;
   quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black;
   double hw_a = 0.03;
   double hw_sigma = 0.01;
   int32_t lattice_steps = 50;
+  quantra::enums::ModelParamMode param_mode = quantra::enums::ModelParamMode_Explicit;
+  std::unique_ptr<quantra::SwaptionHwCalibrationSpecT> hw_calibration{};
+  SwaptionModelSpecT() = default;
+  SwaptionModelSpecT(const SwaptionModelSpecT &o);
+  SwaptionModelSpecT(SwaptionModelSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwaptionModelSpecT &operator=(SwaptionModelSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Swaption pricing model specification
 struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionModelSpecT NativeTableType;
   typedef SwaptionModelSpecBuilder Builder;
@@ -253,7 +502,9 @@ struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
     VT_MODEL_TYPE = 4,
     VT_HW_A = 6,
     VT_HW_SIGMA = 8,
-    VT_LATTICE_STEPS = 10
+    VT_LATTICE_STEPS = 10,
+    VT_PARAM_MODE = 12,
+    VT_HW_CALIBRATION = 14
   };
   quantra::enums::IrModelType model_type() const {
     return static_cast<quantra::enums::IrModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
@@ -267,12 +518,21 @@ struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
   int32_t lattice_steps() const {
     return GetField<int32_t>(VT_LATTICE_STEPS, 50);
   }
+  quantra::enums::ModelParamMode param_mode() const {
+    return static_cast<quantra::enums::ModelParamMode>(GetField<int8_t>(VT_PARAM_MODE, 0));
+  }
+  const quantra::SwaptionHwCalibrationSpec *hw_calibration() const {
+    return GetPointer<const quantra::SwaptionHwCalibrationSpec *>(VT_HW_CALIBRATION);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_MODEL_TYPE, 1) &&
            VerifyField<double>(verifier, VT_HW_A, 8) &&
            VerifyField<double>(verifier, VT_HW_SIGMA, 8) &&
            VerifyField<int32_t>(verifier, VT_LATTICE_STEPS, 4) &&
+           VerifyField<int8_t>(verifier, VT_PARAM_MODE, 1) &&
+           VerifyOffset(verifier, VT_HW_CALIBRATION) &&
+           verifier.VerifyTable(hw_calibration()) &&
            verifier.EndTable();
   }
   SwaptionModelSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -296,6 +556,12 @@ struct SwaptionModelSpecBuilder {
   void add_lattice_steps(int32_t lattice_steps) {
     fbb_.AddElement<int32_t>(SwaptionModelSpec::VT_LATTICE_STEPS, lattice_steps, 50);
   }
+  void add_param_mode(quantra::enums::ModelParamMode param_mode) {
+    fbb_.AddElement<int8_t>(SwaptionModelSpec::VT_PARAM_MODE, static_cast<int8_t>(param_mode), 0);
+  }
+  void add_hw_calibration(::flatbuffers::Offset<quantra::SwaptionHwCalibrationSpec> hw_calibration) {
+    fbb_.AddOffset(SwaptionModelSpec::VT_HW_CALIBRATION, hw_calibration);
+  }
   explicit SwaptionModelSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -312,11 +578,15 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(
     quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black,
     double hw_a = 0.03,
     double hw_sigma = 0.01,
-    int32_t lattice_steps = 50) {
+    int32_t lattice_steps = 50,
+    quantra::enums::ModelParamMode param_mode = quantra::enums::ModelParamMode_Explicit,
+    ::flatbuffers::Offset<quantra::SwaptionHwCalibrationSpec> hw_calibration = 0) {
   SwaptionModelSpecBuilder builder_(_fbb);
   builder_.add_hw_sigma(hw_sigma);
   builder_.add_hw_a(hw_a);
+  builder_.add_hw_calibration(hw_calibration);
   builder_.add_lattice_steps(lattice_steps);
+  builder_.add_param_mode(param_mode);
   builder_.add_model_type(model_type);
   return builder_.Finish();
 }
@@ -629,6 +899,122 @@ inline ::flatbuffers::Offset<CapFloorModelSpec> CreateCapFloorModelSpec(::flatbu
       _model_type);
 }
 
+inline SwaptionHwCalibrationSpecT::SwaptionHwCalibrationSpecT(const SwaptionHwCalibrationSpecT &o)
+      : swaption_vol_id(o.swaption_vol_id),
+        discount_curve_id(o.discount_curve_id),
+        forwarding_curve_id(o.forwarding_curve_id),
+        swap_index_id(o.swap_index_id),
+        calibrate_a(o.calibrate_a),
+        calibrate_sigma(o.calibrate_sigma),
+        a_init(o.a_init),
+        sigma_init(o.sigma_init),
+        max_iterations(o.max_iterations),
+        function_evaluations(o.function_evaluations),
+        end_criteria_eps(o.end_criteria_eps) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodT(*expiries_) : nullptr); }
+  tenors.reserve(o.tenors.size());
+  for (const auto &tenors_ : o.tenors) { tenors.emplace_back((tenors_) ? new quantra::PeriodT(*tenors_) : nullptr); }
+}
+
+inline SwaptionHwCalibrationSpecT &SwaptionHwCalibrationSpecT::operator=(SwaptionHwCalibrationSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(swaption_vol_id, o.swaption_vol_id);
+  std::swap(discount_curve_id, o.discount_curve_id);
+  std::swap(forwarding_curve_id, o.forwarding_curve_id);
+  std::swap(swap_index_id, o.swap_index_id);
+  std::swap(expiries, o.expiries);
+  std::swap(tenors, o.tenors);
+  std::swap(calibrate_a, o.calibrate_a);
+  std::swap(calibrate_sigma, o.calibrate_sigma);
+  std::swap(a_init, o.a_init);
+  std::swap(sigma_init, o.sigma_init);
+  std::swap(max_iterations, o.max_iterations);
+  std::swap(function_evaluations, o.function_evaluations);
+  std::swap(end_criteria_eps, o.end_criteria_eps);
+  return *this;
+}
+
+inline SwaptionHwCalibrationSpecT *SwaptionHwCalibrationSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwaptionHwCalibrationSpecT>(new SwaptionHwCalibrationSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwaptionHwCalibrationSpec::UnPackTo(SwaptionHwCalibrationSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = swaption_vol_id(); if (_e) _o->swaption_vol_id = _e->str(); }
+  { auto _e = discount_curve_id(); if (_e) _o->discount_curve_id = _e->str(); }
+  { auto _e = forwarding_curve_id(); if (_e) _o->forwarding_curve_id = _e->str(); }
+  { auto _e = swap_index_id(); if (_e) _o->swap_index_id = _e->str(); }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = tenors(); if (_e) { _o->tenors.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->tenors[_i]) { _e->Get(_i)->UnPackTo(_o->tenors[_i].get(), _resolver); } else { _o->tenors[_i] = std::unique_ptr<quantra::PeriodT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->tenors.resize(0); } }
+  { auto _e = calibrate_a(); _o->calibrate_a = _e; }
+  { auto _e = calibrate_sigma(); _o->calibrate_sigma = _e; }
+  { auto _e = a_init(); _o->a_init = _e; }
+  { auto _e = sigma_init(); _o->sigma_init = _e; }
+  { auto _e = max_iterations(); _o->max_iterations = _e; }
+  { auto _e = function_evaluations(); _o->function_evaluations = _e; }
+  { auto _e = end_criteria_eps(); _o->end_criteria_eps = _e; }
+}
+
+inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> SwaptionHwCalibrationSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionHwCalibrationSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwaptionHwCalibrationSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrationSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionHwCalibrationSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionHwCalibrationSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _swaption_vol_id = _fbb.CreateString(_o->swaption_vol_id);
+  auto _discount_curve_id = _fbb.CreateString(_o->discount_curve_id);
+  auto _forwarding_curve_id = _fbb.CreateString(_o->forwarding_curve_id);
+  auto _swap_index_id = _fbb.CreateString(_o->swap_index_id);
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriod(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _tenors = _o->tenors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>> (_o->tenors.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriod(*__va->__fbb, __va->__o->tenors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _calibrate_a = _o->calibrate_a;
+  auto _calibrate_sigma = _o->calibrate_sigma;
+  auto _a_init = _o->a_init;
+  auto _sigma_init = _o->sigma_init;
+  auto _max_iterations = _o->max_iterations;
+  auto _function_evaluations = _o->function_evaluations;
+  auto _end_criteria_eps = _o->end_criteria_eps;
+  return quantra::CreateSwaptionHwCalibrationSpec(
+      _fbb,
+      _swaption_vol_id,
+      _discount_curve_id,
+      _forwarding_curve_id,
+      _swap_index_id,
+      _expiries,
+      _tenors,
+      _calibrate_a,
+      _calibrate_sigma,
+      _a_init,
+      _sigma_init,
+      _max_iterations,
+      _function_evaluations,
+      _end_criteria_eps);
+}
+
+inline SwaptionModelSpecT::SwaptionModelSpecT(const SwaptionModelSpecT &o)
+      : model_type(o.model_type),
+        hw_a(o.hw_a),
+        hw_sigma(o.hw_sigma),
+        lattice_steps(o.lattice_steps),
+        param_mode(o.param_mode),
+        hw_calibration((o.hw_calibration) ? new quantra::SwaptionHwCalibrationSpecT(*o.hw_calibration) : nullptr) {
+}
+
+inline SwaptionModelSpecT &SwaptionModelSpecT::operator=(SwaptionModelSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(model_type, o.model_type);
+  std::swap(hw_a, o.hw_a);
+  std::swap(hw_sigma, o.hw_sigma);
+  std::swap(lattice_steps, o.lattice_steps);
+  std::swap(param_mode, o.param_mode);
+  std::swap(hw_calibration, o.hw_calibration);
+  return *this;
+}
+
 inline SwaptionModelSpecT *SwaptionModelSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<SwaptionModelSpecT>(new SwaptionModelSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -642,6 +1028,8 @@ inline void SwaptionModelSpec::UnPackTo(SwaptionModelSpecT *_o, const ::flatbuff
   { auto _e = hw_a(); _o->hw_a = _e; }
   { auto _e = hw_sigma(); _o->hw_sigma = _e; }
   { auto _e = lattice_steps(); _o->lattice_steps = _e; }
+  { auto _e = param_mode(); _o->param_mode = _e; }
+  { auto _e = hw_calibration(); if (_e) { if(_o->hw_calibration) { _e->UnPackTo(_o->hw_calibration.get(), _resolver); } else { _o->hw_calibration = std::unique_ptr<quantra::SwaptionHwCalibrationSpecT>(_e->UnPack(_resolver)); } } else if (_o->hw_calibration) { _o->hw_calibration.reset(); } }
 }
 
 inline ::flatbuffers::Offset<SwaptionModelSpec> SwaptionModelSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionModelSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -656,12 +1044,16 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(::flatbu
   auto _hw_a = _o->hw_a;
   auto _hw_sigma = _o->hw_sigma;
   auto _lattice_steps = _o->lattice_steps;
+  auto _param_mode = _o->param_mode;
+  auto _hw_calibration = _o->hw_calibration ? CreateSwaptionHwCalibrationSpec(_fbb, _o->hw_calibration.get(), _rehasher) : 0;
   return quantra::CreateSwaptionModelSpec(
       _fbb,
       _model_type,
       _hw_a,
       _hw_sigma,
-      _lattice_steps);
+      _lattice_steps,
+      _param_mode,
+      _hw_calibration);
 }
 
 inline CdsModelSpecT *CdsModelSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

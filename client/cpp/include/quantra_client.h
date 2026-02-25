@@ -47,6 +47,7 @@
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_response_generated.h"
 #include "calendar_advance_response_generated.h"
+#include "calibrate_swaption_model_response_generated.h"
 
 namespace quantra {
 
@@ -77,7 +78,8 @@ enum class ProductType {
     SampleVolSurfaces,
     CalendarBusinessDays,
     CalendarHolidays,
-    CalendarAdvance
+    CalendarAdvance,
+    CalibrateSwaptionModel
 };
 
 const char* ProductTypeToString(ProductType type);
@@ -145,6 +147,7 @@ public:
     JsonResponse CalendarBusinessDaysJSON(const std::string& json);
     JsonResponse CalendarHolidaysJSON(const std::string& json);
     JsonResponse CalendarAdvanceJSON(const std::string& json);
+    JsonResponse CalibrateSwaptionModelJSON(const std::string& json);
     
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance
@@ -208,6 +211,10 @@ public:
     grpc::Status CalendarAdvance(
         const Message<CalendarAdvanceRequest>& request,
         Message<CalendarAdvanceResponse>* response);
+
+    grpc::Status CalibrateSwaptionModel(
+        const Message<CalibrateSwaptionModelRequest>& request,
+        Message<CalibrateSwaptionModelResponse>* response);
     
     // -------------------------------------------------------------------------
     // Accessors
