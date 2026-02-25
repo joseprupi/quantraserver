@@ -1171,6 +1171,36 @@ inline const char *EnumNameIrModelType(IrModelType e) {
   return EnumNamesIrModelType()[index];
 }
 
+enum ModelParamMode : int8_t {
+  ModelParamMode_Explicit = 0,
+  ModelParamMode_Calibrate = 1,
+  ModelParamMode_MIN = ModelParamMode_Explicit,
+  ModelParamMode_MAX = ModelParamMode_Calibrate
+};
+
+inline const ModelParamMode (&EnumValuesModelParamMode())[2] {
+  static const ModelParamMode values[] = {
+    ModelParamMode_Explicit,
+    ModelParamMode_Calibrate
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesModelParamMode() {
+  static const char * const names[3] = {
+    "Explicit",
+    "Calibrate",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameModelParamMode(ModelParamMode e) {
+  if (::flatbuffers::IsOutRange(e, ModelParamMode_Explicit, ModelParamMode_Calibrate)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesModelParamMode()[index];
+}
+
 enum EquityModelType : int8_t {
   EquityModelType_BlackScholesAnalytic = 0,
   EquityModelType_BinomialCRR = 1,

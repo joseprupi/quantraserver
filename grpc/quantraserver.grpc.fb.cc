@@ -30,6 +30,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalendarBusinessDays",
   "/quantra.QuantraServer/CalendarHolidays",
   "/quantra.QuantraServer/CalendarAdvance",
+  "/quantra.QuantraServer/CalibrateSwaptionModel",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -52,6 +53,7 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalendarBusinessDays_(QuantraServer_method_names[11], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalendarHolidays_(QuantraServer_method_names[12], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalendarAdvance_(QuantraServer_method_names[13], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[14], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -222,6 +224,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalendarAdvanceResponse>>::Create(channel_.get(), cq, rpcmethod_CalendarAdvance_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::CalibrateSwaptionModel(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>& request, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CalibrateSwaptionModel_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>* QuantraServer::Stub::AsyncCalibrateSwaptionModelRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateSwaptionModel_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>* QuantraServer::Stub::PrepareAsyncCalibrateSwaptionModelRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateSwaptionModel_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -293,6 +307,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarAdvanceRequest>, flatbuffers::grpc::Message<CalendarAdvanceResponse>>(
           std::mem_fn(&QuantraServer::Service::CalendarAdvance), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[14],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>(
+          std::mem_fn(&QuantraServer::Service::CalibrateSwaptionModel), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -351,6 +370,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::CalendarAdvance(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalendarAdvanceRequest>* /*request*/, flatbuffers::grpc::Message<CalendarAdvanceResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::CalibrateSwaptionModel(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>* /*request*/, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

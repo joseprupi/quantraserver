@@ -23,6 +23,18 @@
 
 namespace quantra {
 
+std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeHullWhiteLatticeSwaptionEngine(
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
+    double hwA,
+    double hwSigma,
+    int latticeSteps) const {
+    if (latticeSteps <= 0) {
+        QUANTRA_ERROR("HullWhiteLattice requires lattice_steps > 0");
+    }
+    auto hwModel = std::make_shared<QuantLib::HullWhite>(discountCurve, hwA, hwSigma);
+    return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, latticeSteps);
+}
+
 std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeCapFloorEngine(
     const quantra::ModelSpec* model,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
@@ -149,11 +161,7 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeSwaptionEngine(
             const double a = spec->hw_a();
             const double sigma = spec->hw_sigma();
             const int latticeSteps = spec->lattice_steps();
-            if (latticeSteps <= 0) {
-                QUANTRA_ERROR("Model '" + modelId + "': lattice_steps must be > 0 for HullWhiteLattice");
-            }
-            auto hwModel = std::make_shared<QuantLib::HullWhite>(discountCurve, a, sigma);
-            return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, latticeSteps);
+            return makeHullWhiteLatticeSwaptionEngine(discountCurve, a, sigma, latticeSteps);
         }
 
         default:

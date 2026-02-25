@@ -36,6 +36,8 @@
 #include "cap_floor_response_generated.h"
 #include "price_swaption_request_generated.h"
 #include "swaption_response_generated.h"
+#include "calibrate_swaption_model_request_generated.h"
+#include "calibrate_swaption_model_response_generated.h"
 #include "ois_swap_generated.h"
 #include "price_cds_request_generated.h"
 #include "cds_response_generated.h"
@@ -49,6 +51,9 @@
 #include "index_generated.h"
 #include "swap_index_generated.h"
 #include "quotes_generated.h"
+#include "calibrate_swaption_model_pricing_request.h"
+#include "swaption_model_calibration.h"
+#include "pricing_registry.h"
 
 namespace quantra { namespace testing {
 
@@ -724,13 +729,36 @@ protected:
         quantra::enums::IrModelType modelType = quantra::enums::IrModelType_Black,
         double hwA = 0.03,
         double hwSigma = 0.01,
-        int latticeSteps = 50) {
-        
+        int latticeSteps = 50,
+        quantra::enums::ModelParamMode paramMode = quantra::enums::ModelParamMode_Explicit,
+        const std::string& calibVolId = "",
+        const std::string& calibCurveId = "",
+        const std::string& calibSwapIndexId = "",
+        const std::string& calibForwardCurveId = "") {
+        flatbuffers::Offset<quantra::SwaptionHwCalibrationSpec> calibSpec;
+        if (!calibVolId.empty() && !calibCurveId.empty() && !calibSwapIndexId.empty() &&
+            !calibForwardCurveId.empty()) {
+            auto volId = b.CreateString(calibVolId);
+            auto curveId = b.CreateString(calibCurveId);
+            auto swapIndexId = b.CreateString(calibSwapIndexId);
+            auto fwdCurveId = b.CreateString(calibForwardCurveId);
+            quantra::SwaptionHwCalibrationSpecBuilder cb(b);
+            cb.add_swaption_vol_id(volId);
+            cb.add_discount_curve_id(curveId);
+            cb.add_forwarding_curve_id(fwdCurveId);
+            cb.add_swap_index_id(swapIndexId);
+            calibSpec = cb.Finish();
+        }
+
         quantra::SwaptionModelSpecBuilder smBuilder(b);
         smBuilder.add_model_type(modelType);
         smBuilder.add_hw_a(hwA);
         smBuilder.add_hw_sigma(hwSigma);
         smBuilder.add_lattice_steps(latticeSteps);
+        smBuilder.add_param_mode(paramMode);
+        if (calibSpec.o != 0) {
+            smBuilder.add_hw_calibration(calibSpec);
+        }
         auto smPayload = smBuilder.Finish();
         
         auto model_id = b.CreateString(id);
@@ -1373,6 +1401,472 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
 
     std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.05);
+}
+
+TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_ReturnsReasonableParams) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+
+    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
+    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+    auto volSurface = buildSwaptionVolAtmMatrixSurface(
+        b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
+    auto model = buildSwaptionModel(
+        b, "hw_cal_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_swap_indices(swapIndices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
+    auto pricing = pb.Finish();
+
+    auto modelId = b.CreateString("hw_cal_model");
+    quantra::CalibrateSwaptionModelRequestBuilder cb(b);
+    cb.add_pricing(pricing);
+    cb.add_model_id(modelId);
+    b.Finish(cb.Finish());
+
+    CalibrateSwaptionModelPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+    respB->Finish(resp);
+    auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+
+    EXPECT_GT(out->hw_a(), 0.0);
+    EXPECT_GT(out->hw_sigma(), 0.0);
+    EXPECT_TRUE(std::isfinite(out->rmse()));
+    EXPECT_GT(out->num_helpers(), 0);
+}
+
+TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibration) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+
+    std::vector<QuantLib::Period> expiries = {
+        QuantLib::Period(1, QuantLib::Years),
+        QuantLib::Period(2, QuantLib::Years)
+    };
+    std::vector<QuantLib::Period> tenors = {
+        QuantLib::Period(5, QuantLib::Years),
+        QuantLib::Period(7, QuantLib::Years)
+    };
+    std::vector<double> volsFlat = {0.20, 0.21, 0.22, 0.23};
+    auto volSurface = buildSwaptionVolAtmMatrixSurface(b, "swaption_atm", expiries, tenors, volsFlat);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
+    auto model = buildSwaptionModel(
+        b, "hw_cal_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_swap_indices(swapIndices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
+    auto pricing = pb.Finish();
+
+    auto modelId = b.CreateString("hw_cal_model");
+    quantra::CalibrateSwaptionModelRequestBuilder cb(b);
+    cb.add_pricing(pricing);
+    cb.add_model_id(modelId);
+    b.Finish(cb.Finish());
+
+    CalibrateSwaptionModelPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+    respB->Finish(resp);
+    auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+
+    auto reqRoot = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer());
+    quantra::PricingRegistryBuilder regBuilder;
+    quantra::PricingRegistry reg = regBuilder.build(reqRoot->pricing());
+    auto dIt = reg.curves.find("discount");
+    auto fIt = reg.curves.find("discount");
+    ASSERT_TRUE(dIt != reg.curves.end() && fIt != reg.curves.end());
+    QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve(dIt->second->currentLink());
+    QuantLib::Handle<QuantLib::YieldTermStructure> forwardingCurve(fIt->second->currentLink());
+
+    auto vIt = reg.swaptionVols.find("swaption_atm");
+    ASSERT_TRUE(vIt != reg.swaptionVols.end());
+    const auto& volEntry = vIt->second;
+    ASSERT_TRUE(reg.swapIndices.has("EUR_SWAP_6M"));
+    const auto& sidx = reg.swapIndices.get("EUR_SWAP_6M");
+    auto ibor = reg.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
+
+    const QuantLib::Period fixedLegTenor(sidx.fixedFrequency);
+    const QuantLib::DayCounter fixedDc = sidx.fixedDayCounter;
+    const QuantLib::DayCounter floatDc = ibor->dayCounter();
+    const auto errorType =
+        (volEntry.qlVolType == QuantLib::Normal)
+            ? QuantLib::BlackCalibrationHelper::PriceError
+            : QuantLib::BlackCalibrationHelper::ImpliedVolError;
+    const QuantLib::Natural settlementDays = static_cast<QuantLib::Natural>(sidx.spotDays);
+
+    std::vector<QuantLib::ext::shared_ptr<QuantLib::CalibrationHelper>> helpers;
+    helpers.reserve(expiries.size() * tenors.size());
+    for (const auto& exp : expiries) {
+        for (const auto& ten : tenors) {
+            const double marketVol = volEntry.handle->volatility(exp, ten, 0.0, true);
+            auto volQuote = QuantLib::Handle<QuantLib::Quote>(
+                QuantLib::ext::make_shared<QuantLib::SimpleQuote>(marketVol));
+            auto helper = QuantLib::ext::make_shared<QuantLib::SwaptionHelper>(
+                exp,
+                ten,
+                volQuote,
+                ibor,
+                fixedLegTenor,
+                fixedDc,
+                floatDc,
+                discountCurve,
+                errorType,
+                QuantLib::Null<QuantLib::Real>(),
+                1.0,
+                volEntry.qlVolType,
+                volEntry.displacement,
+                settlementDays);
+            helpers.push_back(helper);
+        }
+    }
+
+    auto hwModel = QuantLib::ext::make_shared<QuantLib::HullWhite>(discountCurve, 0.03, 0.01);
+    auto engine = QuantLib::ext::make_shared<QuantLib::JamshidianSwaptionEngine>(hwModel);
+    for (auto& h : helpers) {
+        auto blackHelper = QuantLib::ext::dynamic_pointer_cast<QuantLib::BlackCalibrationHelper>(h);
+        ASSERT_TRUE(static_cast<bool>(blackHelper));
+        blackHelper->setPricingEngine(engine);
+    }
+
+    QuantLib::LevenbergMarquardt lm;
+    QuantLib::EndCriteria endCriteria(1000, 200, 1.0e-8, 1.0e-8, 1.0e-8);
+    std::vector<bool> fixParams = {false, false};
+    hwModel->calibrate(helpers, lm, endCriteria, QuantLib::NoConstraint(), std::vector<double>(), fixParams);
+    const auto params = hwModel->params();
+    ASSERT_GE(params.size(), 2u);
+
+    double err2 = 0.0;
+    for (const auto& h : helpers) {
+        const double e = h->calibrationError();
+        err2 += e * e;
+    }
+    const double qlRmse = std::sqrt(err2 / static_cast<double>(helpers.size()));
+
+    EXPECT_NEAR(out->hw_a(), params[0], 1.0e-10);
+    EXPECT_NEAR(out->hw_sigma(), params[1], 1.0e-10);
+    EXPECT_NEAR(out->rmse(), qlRmse, 1.0e-10);
+    EXPECT_EQ(out->num_helpers(), static_cast<int>(helpers.size()));
+    EXPECT_EQ(out->grid_rows(), static_cast<int>(expiries.size()));
+    EXPECT_EQ(out->grid_cols(), static_cast<int>(tenors.size()));
+    EXPECT_EQ(out->grid_points(), static_cast<int>(expiries.size() * tenors.size()));
+}
+
+TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
+    const double notional = 1000000.0;
+    const double strike = 0.035;
+
+    auto buildPricing = [&](flatbuffers::grpc::MessageBuilder& b, bool calibrateMode, double hwA, double hwSigma, const std::string& modelId) {
+        auto ts = buildCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
+        std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+        auto volSurface = buildSwaptionVolAtmMatrixSurface(
+            b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
+        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        auto model = buildSwaptionModel(
+            b, modelId, quantra::enums::IrModelType_HullWhiteLattice, hwA, hwSigma, 50,
+            calibrateMode ? quantra::enums::ModelParamMode_Calibrate : quantra::enums::ModelParamMode_Explicit,
+            "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+        auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+        auto indices = buildIndicesVector(b);
+        auto swapIndices = buildSwapIndicesVector(b);
+        auto asof = b.CreateString("2025-01-15");
+        quantra::PricingBuilder pb(b);
+        pb.add_as_of_date(asof);
+        pb.add_indices(indices);
+        pb.add_swap_indices(swapIndices);
+        pb.add_curves(curves);
+        pb.add_vol_surfaces(vols);
+        pb.add_models(models);
+        return pb.Finish();
+    };
+
+    auto buildBermudanTrade = [&](flatbuffers::grpc::MessageBuilder& b, const std::string& modelId) {
+        auto feff = b.CreateString("2026-01-17");
+        auto fterm = b.CreateString("2031-01-17");
+        quantra::ScheduleBuilder fsb(b);
+        fsb.add_effective_date(feff);
+        fsb.add_termination_date(fterm);
+        fsb.add_calendar(quantra::enums::Calendar_TARGET);
+        fsb.add_frequency(quantra::enums::Frequency_Annual);
+        fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        auto fixedSch = fsb.Finish();
+
+        quantra::SwapFixedLegBuilder flb(b);
+        flb.add_notional(notional);
+        flb.add_schedule(fixedSch);
+        flb.add_rate(strike);
+        flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
+        flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto fixedLeg = flb.Finish();
+
+        auto fleff = b.CreateString("2026-01-17");
+        auto flterm = b.CreateString("2031-01-17");
+        quantra::ScheduleBuilder flsb(b);
+        flsb.add_effective_date(fleff);
+        flsb.add_termination_date(flterm);
+        flsb.add_calendar(quantra::enums::Calendar_TARGET);
+        flsb.add_frequency(quantra::enums::Frequency_Semiannual);
+        flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        auto floatSch = flsb.Finish();
+
+        auto idx6m = buildIndexRef(b, "EUR_6M");
+        quantra::SwapFloatingLegBuilder flgb(b);
+        flgb.add_notional(notional);
+        flgb.add_schedule(floatSch);
+        flgb.add_index(idx6m);
+        flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        flgb.add_spread(0.0);
+        flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto floatLeg = flgb.Finish();
+
+        quantra::VanillaSwapBuilder vsb(b);
+        vsb.add_swap_type(quantra::enums::SwapType_Payer);
+        vsb.add_fixed_leg(fixedLeg);
+        vsb.add_floating_leg(floatLeg);
+        auto uswap = vsb.Finish();
+
+        std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
+            b.CreateString("2026-01-15"),
+            b.CreateString("2027-01-15"),
+            b.CreateString("2028-01-15")
+        };
+        auto exDatesVec = b.CreateVector(exDateStrs);
+
+        quantra::SwaptionBuilder swb(b);
+        swb.add_underlying_swap(uswap);
+        swb.add_exercise_type(quantra::enums::ExerciseType_Bermudan);
+        swb.add_settlement_type(quantra::enums::SettlementType_Physical);
+        swb.add_exercise_dates(exDatesVec);
+        auto swaption = swb.Finish();
+
+        auto dc = b.CreateString("discount");
+        auto vol_id = b.CreateString("swaption_atm");
+        auto model_id = b.CreateString(modelId);
+        quantra::PriceSwaptionBuilder psb(b);
+        psb.add_swaption(swaption);
+        psb.add_discounting_curve(dc);
+        psb.add_forwarding_curve(dc);
+        psb.add_volatility(vol_id);
+        psb.add_model(model_id);
+        return psb.Finish();
+    };
+
+    // Endpoint calibration first
+    double aStar = 0.0;
+    double sigmaStar = 0.0;
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto pricing = buildPricing(b, true, 0.03, 0.01, "hw_inline_model");
+        auto modelId = b.CreateString("hw_inline_model");
+        quantra::CalibrateSwaptionModelRequestBuilder cb(b);
+        cb.add_pricing(pricing);
+        cb.add_model_id(modelId);
+        b.Finish(cb.Finish());
+
+        CalibrateSwaptionModelPricingRequest req;
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+        aStar = out->hw_a();
+        sigmaStar = out->hw_sigma();
+    }
+
+    // Inline calibration pricing
+    double npvInline = 0.0;
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto pricing = buildPricing(b, true, 0.03, 0.01, "hw_inline_model");
+        auto ps = buildBermudanTrade(b, "hw_inline_model");
+        auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
+        quantra::PriceSwaptionRequestBuilder rb(b);
+        rb.add_pricing(pricing);
+        rb.add_swaptions(swaptions);
+        b.Finish(rb.Finish());
+
+        SwaptionPricingRequest req;
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        npvInline = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    }
+
+    // Explicit pricing with calibrated params
+    double npvExplicit = 0.0;
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto pricing = buildPricing(b, false, aStar, sigmaStar, "hw_explicit_model");
+        auto ps = buildBermudanTrade(b, "hw_explicit_model");
+        auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
+        quantra::PriceSwaptionRequestBuilder rb(b);
+        rb.add_pricing(pricing);
+        rb.add_swaptions(swaptions);
+        b.Finish(rb.Finish());
+
+        SwaptionPricingRequest req;
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+        respB->Finish(resp);
+        npvExplicit = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    }
+
+    EXPECT_NEAR(npvInline, npvExplicit, 1.0e-8);
+}
+
+TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
+    quantra::resetHwCalibrationCallCount();
+
+    const double notional = 1000000.0;
+    const double strike = 0.035;
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
+    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+    auto volSurface = buildSwaptionVolAtmMatrixSurface(
+        b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto model = buildSwaptionModel(
+        b, "hw_inline_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_swap_indices(swapIndices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(vols);
+    pb.add_models(models);
+    auto pricing = pb.Finish();
+
+    auto feff = b.CreateString("2026-01-17");
+    auto fterm = b.CreateString("2031-01-17");
+    quantra::ScheduleBuilder fsb(b);
+    fsb.add_effective_date(feff);
+    fsb.add_termination_date(fterm);
+    fsb.add_calendar(quantra::enums::Calendar_TARGET);
+    fsb.add_frequency(quantra::enums::Frequency_Annual);
+    fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto fixedSch = fsb.Finish();
+
+    quantra::SwapFixedLegBuilder flb(b);
+    flb.add_notional(notional);
+    flb.add_schedule(fixedSch);
+    flb.add_rate(strike);
+    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
+    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto fixedLeg = flb.Finish();
+
+    auto fleff = b.CreateString("2026-01-17");
+    auto flterm = b.CreateString("2031-01-17");
+    quantra::ScheduleBuilder flsb(b);
+    flsb.add_effective_date(fleff);
+    flsb.add_termination_date(flterm);
+    flsb.add_calendar(quantra::enums::Calendar_TARGET);
+    flsb.add_frequency(quantra::enums::Frequency_Semiannual);
+    flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto floatSch = flsb.Finish();
+
+    auto idx6m = buildIndexRef(b, "EUR_6M");
+    quantra::SwapFloatingLegBuilder flgb(b);
+    flgb.add_notional(notional);
+    flgb.add_schedule(floatSch);
+    flgb.add_index(idx6m);
+    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
+    flgb.add_spread(0.0);
+    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto floatLeg = flgb.Finish();
+
+    quantra::VanillaSwapBuilder vsb(b);
+    vsb.add_swap_type(quantra::enums::SwapType_Payer);
+    vsb.add_fixed_leg(fixedLeg);
+    vsb.add_floating_leg(floatLeg);
+    auto uswap = vsb.Finish();
+
+    std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
+        b.CreateString("2026-01-15"),
+        b.CreateString("2027-01-15")
+    };
+    auto exDatesVec = b.CreateVector(exDateStrs);
+
+    quantra::SwaptionBuilder swb(b);
+    swb.add_underlying_swap(uswap);
+    swb.add_exercise_type(quantra::enums::ExerciseType_Bermudan);
+    swb.add_settlement_type(quantra::enums::SettlementType_Physical);
+    swb.add_exercise_dates(exDatesVec);
+    auto swaption = swb.Finish();
+
+    auto dc = b.CreateString("discount");
+    auto vol_id = b.CreateString("swaption_atm");
+    auto model_id = b.CreateString("hw_inline_model");
+    quantra::PriceSwaptionBuilder psb1(b);
+    psb1.add_swaption(swaption);
+    psb1.add_discounting_curve(dc);
+    psb1.add_forwarding_curve(dc);
+    psb1.add_volatility(vol_id);
+    psb1.add_model(model_id);
+    auto ps1 = psb1.Finish();
+
+    quantra::PriceSwaptionBuilder psb2(b);
+    psb2.add_swaption(swaption);
+    psb2.add_discounting_curve(dc);
+    psb2.add_forwarding_curve(dc);
+    psb2.add_volatility(vol_id);
+    psb2.add_model(model_id);
+    auto ps2 = psb2.Finish();
+
+    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps1, ps2});
+    quantra::PriceSwaptionRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaptions(swaptions);
+    b.Finish(rb.Finish());
+
+    SwaptionPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    respB->Finish(resp);
+
+    EXPECT_EQ(quantra::getHwCalibrationCallCount(), 1);
 }
 
 TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {

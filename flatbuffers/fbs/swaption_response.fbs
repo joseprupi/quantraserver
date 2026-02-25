@@ -4,24 +4,68 @@ namespace quantra;
 
 // Swaption pricing response
 table SwaptionResponse {
+    // Present value of the swaption under the selected model and market inputs.
     npv:double;
-    implied_volatility:double;      // If priced from market
-    atm_forward:double;             // ATM forward swap rate
-    annuity:double;                 // PV01 of underlying swap
-    delta:double;                   // Option delta
-    vega:double;                    // Sensitivity to vol
-    gamma:double;                   // Option gamma
-    theta:double;                   // Sensitivity to time
-    dv01:double;                    // 1bp sensitivity (approx)
-    used_volatility:double;         // Vol used for this trade
-    used_option_expiry:string;      // ISO date
-    used_swap_tenor:string;         // e.g. 10Y
-    used_strike:double;             // strike used to query vol
-    used_atm_forward:double;        // ATM forward used by smile conventions
+    // Implied volatility reported by the engine/details path.
+    // For non-constant vol setups this may be a best-effort value.
+    implied_volatility:double;
+    // ATM forward swap rate used for pricing diagnostics.
+    atm_forward:double;
+    // Underlying swap annuity (PV01-style quantity).
+    annuity:double;
+    // Option delta from pricing details/rebump logic.
+    delta:double;
+    // Option vega from pricing details/rebump logic.
+    vega:double;
+    // Option gamma from pricing details/rebump logic.
+    gamma:double;
+    // Option theta from pricing details/rebump logic.
+    theta:double;
+    // 1bp rate sensitivity.
+    // Depending on request flags this can be analytic-style or rebump-based.
+    dv01:double;
+    // Volatility actually queried from the resolved vol surface.
+    used_volatility:double;
+    // Option expiry date used by surface lookup (ISO date).
+    used_option_expiry:string;
+    // Swap tenor descriptor used by lookup (for example, date range).
+    used_swap_tenor:string;
+    // Strike used to query the volatility structure.
+    used_strike:double;
+    // ATM forward used when smile conventions need ATM anchoring.
+    used_atm_forward:double;
+    // Strike convention used by the source swaption vol surface.
     used_strike_kind:enums.SwaptionStrikeKind = Absolute;
-    used_spread_from_atm:double;    // used_strike - used_cube_node_atm (when applicable)
-    used_cube_node_atm:double;      // ATM level from smile node/interpolated section when available
-    vol_kind:enums.SwaptionVolKind; // Constant/Matrix/Cube/SABR
+    // Difference between used strike and cube ATM level when spread-from-ATM is active.
+    used_spread_from_atm:double;
+    // ATM level retrieved from cube node/interpolated smile section when available.
+    used_cube_node_atm:double;
+    // Resolved swaption volatility kind used by pricing.
+    vol_kind:enums.SwaptionVolKind;
+    // Effective model parameter mode used by the swaption engine.
+    // For calibrated mode, rebump greeks keep calibrated parameters fixed.
+    used_model_param_mode:enums.ModelParamMode = Explicit;
+    // Effective Hull-White mean reversion "a" used by pricing.
+    // Set to -1.0 when model is not HullWhiteLattice.
+    used_hw_a:double = -1.0;
+    // Effective Hull-White sigma used by pricing.
+    // Set to -1.0 when model is not HullWhiteLattice.
+    used_hw_sigma:double = -1.0;
+    // Calibration RMSE used for inline-calibrated Hull-White runs.
+    // Set to -1.0 when no inline calibration is performed.
+    used_hw_rmse:double = -1.0;
+    // Number of calibration helpers used for inline-calibrated Hull-White runs.
+    // Set to -1 when no inline calibration is performed.
+    used_hw_num_helpers:int = -1;
+    // Calibration grid rows used for inline-calibrated Hull-White runs.
+    // Set to -1 when no inline calibration is performed.
+    used_hw_grid_rows:int = -1;
+    // Calibration grid columns used for inline-calibrated Hull-White runs.
+    // Set to -1 when no inline calibration is performed.
+    used_hw_grid_cols:int = -1;
+    // Calibration grid points used for inline-calibrated Hull-White runs.
+    // Set to -1 when no inline calibration is performed.
+    used_hw_grid_points:int = -1;
 }
 
 // Response wrapper for multiple swaptions

@@ -85,6 +85,10 @@ inline const std::map<ProductType, ProductSchema>& GetProductSchemas() {
         {ProductType::CalendarAdvance, {
             "calendar_advance_request.fbs",
             "calendar_advance_response.fbs"
+        }},
+        {ProductType::CalibrateSwaptionModel, {
+            "calibrate_swaption_model_request.fbs",
+            "calibrate_swaption_model_response.fbs"
         }}
         // ADD NEW PRODUCTS HERE:
         // {ProductType::ExoticOption, {
@@ -115,6 +119,7 @@ inline const char* ProductTypeToString(ProductType type) {
         case ProductType::CalendarBusinessDays: return "CalendarBusinessDays";
         case ProductType::CalendarHolidays: return "CalendarHolidays";
         case ProductType::CalendarAdvance:  return "CalendarAdvance";
+        case ProductType::CalibrateSwaptionModel: return "CalibrateSwaptionModel";
         // ADD NEW PRODUCTS HERE:
         // case ProductType::ExoticOption:  return "ExoticOption";
         default:                            return "Unknown";

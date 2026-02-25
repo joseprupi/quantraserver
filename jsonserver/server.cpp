@@ -264,6 +264,7 @@ int main(int argc, char** argv) {
         "POST /calendar-business-days",
         "POST /calendar-holidays",
         "POST /calendar-advance",
+        "POST /calibrate-swaption-model",
         "GET /status",
         "GET /meta",
         "GET /health"
@@ -441,6 +442,12 @@ int main(int argc, char** argv) {
             auto r = client.CalendarAdvanceJSON(req.body);
             return crow::response(r.status_code, r.body);
         });
+
+        CROW_ROUTE(app, "/calibrate-swaption-model").methods("POST"_method)
+        ([&](const crow::request& req) {
+            auto r = client.CalibrateSwaptionModelJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
         
         // Print endpoints
         std::cout << "Endpoints:\n"
@@ -458,6 +465,7 @@ int main(int argc, char** argv) {
                   << "  POST /calendar-business-days\n"
                   << "  POST /calendar-holidays\n"
                   << "  POST /calendar-advance\n"
+                  << "  POST /calibrate-swaption-model\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"

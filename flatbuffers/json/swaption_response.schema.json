@@ -113,6 +113,10 @@
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
     },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
@@ -173,6 +177,30 @@
               },
         "vol_kind" : {
                 "$ref" : "#/definitions/quantra_enums_SwaptionVolKind"
+              },
+        "used_model_param_mode" : {
+                "$ref" : "#/definitions/quantra_enums_ModelParamMode"
+              },
+        "used_hw_a" : {
+                "type" : "number"
+              },
+        "used_hw_sigma" : {
+                "type" : "number"
+              },
+        "used_hw_rmse" : {
+                "type" : "number"
+              },
+        "used_hw_num_helpers" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "used_hw_grid_rows" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "used_hw_grid_cols" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "used_hw_grid_points" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               }
       },
       "additionalProperties" : false

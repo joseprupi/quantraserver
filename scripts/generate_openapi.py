@@ -60,6 +60,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |
 | Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |
 | Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |
+| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -184,6 +185,13 @@ ENDPOINTS = {
         "request_schema": "quantra_CalendarAdvanceRequest",
         "response_schema": "quantra_CalendarAdvanceResponse",
         "tags": ["Calendars"]
+    },
+    "/calibrate-swaption-model": {
+        "summary": "Calibrate Swaption Hull-White Model",
+        "description": "Calibrate Hull-White parameters from swaption volatility nodes using configured market data in pricing.",
+        "request_schema": "quantra_CalibrateSwaptionModelRequest",
+        "response_schema": "quantra_CalibrateSwaptionModelResponse",
+        "tags": ["Interest Rate Derivatives"]
     }
 }
 

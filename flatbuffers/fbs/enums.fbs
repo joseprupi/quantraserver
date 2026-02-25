@@ -292,6 +292,11 @@ enum IrModelType : byte {
     HullWhiteLattice    // One-factor HW short-rate lattice model
 }
 
+enum ModelParamMode : byte {
+    Explicit = 0,
+    Calibrate = 1
+}
+
 enum EquityModelType : byte {
     BlackScholesAnalytic,   // Closed-form Black-Scholes
     BinomialCRR             // Cox-Ross-Rubinstein binomial tree

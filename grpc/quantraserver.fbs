@@ -26,6 +26,8 @@ include "../flatbuffers/fbs/calendar_holidays_request.fbs";
 include "../flatbuffers/fbs/calendar_holidays_response.fbs";
 include "../flatbuffers/fbs/calendar_advance_request.fbs";
 include "../flatbuffers/fbs/calendar_advance_response.fbs";
+include "../flatbuffers/fbs/calibrate_swaption_model_request.fbs";
+include "../flatbuffers/fbs/calibrate_swaption_model_response.fbs";
 
 namespace quantra;
 
@@ -44,4 +46,5 @@ rpc_service QuantraServer {
   CalendarBusinessDays(CalendarBusinessDaysRequest):CalendarBusinessDaysResponse;
   CalendarHolidays(CalendarHolidaysRequest):CalendarHolidaysResponse;
   CalendarAdvance(CalendarAdvanceRequest):CalendarAdvanceResponse;
+  CalibrateSwaptionModel(CalibrateSwaptionModelRequest):CalibrateSwaptionModelResponse;
 }
