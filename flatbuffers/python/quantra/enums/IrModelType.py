@@ -6,3 +6,4 @@ class IrModelType(object):
     Black = 0
     ShiftedBlack = 1
     Bachelier = 2
+    HullWhiteLattice = 3

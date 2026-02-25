@@ -240,6 +240,9 @@ inline ::flatbuffers::Offset<CapFloorModelSpec> CreateCapFloorModelSpec(
 struct SwaptionModelSpecT : public ::flatbuffers::NativeTable {
   typedef SwaptionModelSpec TableType;
   quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black;
+  double hw_a = 0.03;
+  double hw_sigma = 0.01;
+  int32_t lattice_steps = 50;
 };
 
 /// Swaption pricing model specification
@@ -247,14 +250,29 @@ struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
   typedef SwaptionModelSpecT NativeTableType;
   typedef SwaptionModelSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_MODEL_TYPE = 4
+    VT_MODEL_TYPE = 4,
+    VT_HW_A = 6,
+    VT_HW_SIGMA = 8,
+    VT_LATTICE_STEPS = 10
   };
   quantra::enums::IrModelType model_type() const {
     return static_cast<quantra::enums::IrModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
   }
+  double hw_a() const {
+    return GetField<double>(VT_HW_A, 0.03);
+  }
+  double hw_sigma() const {
+    return GetField<double>(VT_HW_SIGMA, 0.01);
+  }
+  int32_t lattice_steps() const {
+    return GetField<int32_t>(VT_LATTICE_STEPS, 50);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_MODEL_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_HW_A, 8) &&
+           VerifyField<double>(verifier, VT_HW_SIGMA, 8) &&
+           VerifyField<int32_t>(verifier, VT_LATTICE_STEPS, 4) &&
            verifier.EndTable();
   }
   SwaptionModelSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -269,6 +287,15 @@ struct SwaptionModelSpecBuilder {
   void add_model_type(quantra::enums::IrModelType model_type) {
     fbb_.AddElement<int8_t>(SwaptionModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type), 0);
   }
+  void add_hw_a(double hw_a) {
+    fbb_.AddElement<double>(SwaptionModelSpec::VT_HW_A, hw_a, 0.03);
+  }
+  void add_hw_sigma(double hw_sigma) {
+    fbb_.AddElement<double>(SwaptionModelSpec::VT_HW_SIGMA, hw_sigma, 0.01);
+  }
+  void add_lattice_steps(int32_t lattice_steps) {
+    fbb_.AddElement<int32_t>(SwaptionModelSpec::VT_LATTICE_STEPS, lattice_steps, 50);
+  }
   explicit SwaptionModelSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -282,8 +309,14 @@ struct SwaptionModelSpecBuilder {
 
 inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black) {
+    quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black,
+    double hw_a = 0.03,
+    double hw_sigma = 0.01,
+    int32_t lattice_steps = 50) {
   SwaptionModelSpecBuilder builder_(_fbb);
+  builder_.add_hw_sigma(hw_sigma);
+  builder_.add_hw_a(hw_a);
+  builder_.add_lattice_steps(lattice_steps);
   builder_.add_model_type(model_type);
   return builder_.Finish();
 }
@@ -606,6 +639,9 @@ inline void SwaptionModelSpec::UnPackTo(SwaptionModelSpecT *_o, const ::flatbuff
   (void)_o;
   (void)_resolver;
   { auto _e = model_type(); _o->model_type = _e; }
+  { auto _e = hw_a(); _o->hw_a = _e; }
+  { auto _e = hw_sigma(); _o->hw_sigma = _e; }
+  { auto _e = lattice_steps(); _o->lattice_steps = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionModelSpec> SwaptionModelSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionModelSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -617,9 +653,15 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(::flatbu
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwaptionModelSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _model_type = _o->model_type;
+  auto _hw_a = _o->hw_a;
+  auto _hw_sigma = _o->hw_sigma;
+  auto _lattice_steps = _o->lattice_steps;
   return quantra::CreateSwaptionModelSpec(
       _fbb,
-      _model_type);
+      _model_type,
+      _hw_a,
+      _hw_sigma,
+      _lattice_steps);
 }
 
 inline CdsModelSpecT *CdsModelSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

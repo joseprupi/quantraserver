@@ -10,6 +10,9 @@ table CapFloorModelSpec {
 /// Swaption pricing model specification
 table SwaptionModelSpec {
     model_type:enums.IrModelType;
+    hw_a:double = 0.03;
+    hw_sigma:double = 0.01;
+    lattice_steps:int = 50;
 }
 
 /// CDS pricing model specification

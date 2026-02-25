@@ -14,6 +14,7 @@ table Swaption {
     settlement_type:enums.SettlementType;
     settlement_method:enums.SettlementMethod = PhysicalOTC;
     exercise_date:string;           // When option can be exercised
+    exercise_dates:[string];        // Bermudan exercise date set (ISO date strings)
 
     // Legacy field: vanilla swap only (kept for backward compatibility)
     underlying_swap:VanillaSwap;

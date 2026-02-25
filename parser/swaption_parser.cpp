@@ -1,5 +1,7 @@
 #include "swaption_parser.h"
 
+#include <vector>
+
 std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
     const quantra::Swaption *swaption,
     const quantra::IndexRegistry& indices)
@@ -7,11 +9,51 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
     if (swaption == NULL)
         QUANTRA_ERROR("Swaption not found");
 
-    if (swaption->exercise_date() == NULL)
+    const auto exerciseType = swaption->exercise_type();
+    const bool needsSingleExerciseDate =
+        (exerciseType == quantra::enums::ExerciseType_European ||
+         exerciseType == quantra::enums::ExerciseType_American);
+    const bool needsExerciseDateSet =
+        (exerciseType == quantra::enums::ExerciseType_Bermudan);
+
+    if (needsSingleExerciseDate && swaption->exercise_date() == NULL)
         QUANTRA_ERROR("Swaption exercise_date not found");
 
-    // Parse exercise date
-    QuantLib::Date exerciseDate = DateToQL(swaption->exercise_date()->str());
+    if (needsExerciseDateSet) {
+        if (swaption->exercise_dates() == NULL || swaption->exercise_dates()->size() < 2) {
+            QUANTRA_ERROR("Swaption Bermudan requires exercise_dates with at least 2 dates");
+        }
+    }
+
+    // Parse exercise date(s)
+    QuantLib::Date exerciseDate;
+    if (swaption->exercise_date() != NULL) {
+        exerciseDate = DateToQL(swaption->exercise_date()->str());
+    }
+    std::vector<QuantLib::Date> bermudanExerciseDates;
+    if (swaption->exercise_dates() != NULL) {
+        bermudanExerciseDates.reserve(swaption->exercise_dates()->size());
+        for (flatbuffers::uoffset_t i = 0; i < swaption->exercise_dates()->size(); ++i) {
+            auto* exDate = swaption->exercise_dates()->Get(i);
+            if (!exDate) {
+                QUANTRA_ERROR("Swaption exercise_dates contains null entry");
+            }
+            bermudanExerciseDates.push_back(DateToQL(exDate->str()));
+        }
+    }
+    if (needsExerciseDateSet) {
+        const QuantLib::Date evalDate = QuantLib::Settings::instance().evaluationDate();
+        for (size_t i = 1; i < bermudanExerciseDates.size(); ++i) {
+            if (bermudanExerciseDates[i] <= bermudanExerciseDates[i - 1]) {
+                QUANTRA_ERROR("Swaption Bermudan exercise_dates must be strictly increasing");
+            }
+        }
+        for (const auto& d : bermudanExerciseDates) {
+            if (d < evalDate) {
+                QUANTRA_ERROR("Swaption Bermudan exercise_dates must be on/after evaluation date");
+            }
+        }
+    }
 
     // Parse underlying swap (passing indices for floating leg resolution)
     std::shared_ptr<QuantLib::FixedVsFloatingSwap> underlyingSwap;
@@ -52,7 +94,7 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
             exercise = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
             break;
         case quantra::enums::ExerciseType_Bermudan:
-            exercise = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
+            exercise = std::make_shared<QuantLib::BermudanExercise>(bermudanExerciseDates);
             break;
         case quantra::enums::ExerciseType_American:
             exercise = std::make_shared<QuantLib::AmericanExercise>(

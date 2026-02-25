@@ -32,8 +32,29 @@ class SwaptionModelSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # SwaptionModelSpec
+    def HwA(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.03
+
+    # SwaptionModelSpec
+    def HwSigma(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.01
+
+    # SwaptionModelSpec
+    def LatticeSteps(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return 50
+
 def SwaptionModelSpecStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(4)
 
 def Start(builder):
     SwaptionModelSpecStart(builder)
@@ -43,6 +64,24 @@ def SwaptionModelSpecAddModelType(builder, modelType):
 
 def AddModelType(builder, modelType):
     SwaptionModelSpecAddModelType(builder, modelType)
+
+def SwaptionModelSpecAddHwA(builder, hwA):
+    builder.PrependFloat64Slot(1, hwA, 0.03)
+
+def AddHwA(builder, hwA):
+    SwaptionModelSpecAddHwA(builder, hwA)
+
+def SwaptionModelSpecAddHwSigma(builder, hwSigma):
+    builder.PrependFloat64Slot(2, hwSigma, 0.01)
+
+def AddHwSigma(builder, hwSigma):
+    SwaptionModelSpecAddHwSigma(builder, hwSigma)
+
+def SwaptionModelSpecAddLatticeSteps(builder, latticeSteps):
+    builder.PrependInt32Slot(3, latticeSteps, 50)
+
+def AddLatticeSteps(builder, latticeSteps):
+    SwaptionModelSpecAddLatticeSteps(builder, latticeSteps)
 
 def SwaptionModelSpecEnd(builder):
     return builder.EndObject()
@@ -56,6 +95,9 @@ class SwaptionModelSpecT(object):
     # SwaptionModelSpecT
     def __init__(self):
         self.modelType = 0  # type: int
+        self.hwA = 0.03  # type: float
+        self.hwSigma = 0.01  # type: float
+        self.latticeSteps = 50  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -79,10 +121,16 @@ class SwaptionModelSpecT(object):
         if swaptionModelSpec is None:
             return
         self.modelType = swaptionModelSpec.ModelType()
+        self.hwA = swaptionModelSpec.HwA()
+        self.hwSigma = swaptionModelSpec.HwSigma()
+        self.latticeSteps = swaptionModelSpec.LatticeSteps()
 
     # SwaptionModelSpecT
     def Pack(self, builder):
         SwaptionModelSpecStart(builder)
         SwaptionModelSpecAddModelType(builder, self.modelType)
+        SwaptionModelSpecAddHwA(builder, self.hwA)
+        SwaptionModelSpecAddHwSigma(builder, self.hwSigma)
+        SwaptionModelSpecAddLatticeSteps(builder, self.latticeSteps)
         swaptionModelSpec = SwaptionModelSpecEnd(builder)
         return swaptionModelSpec

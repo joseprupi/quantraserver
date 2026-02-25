@@ -111,7 +111,7 @@
     },
     "quantra_enums_IrModelType" : {
       "type" : "string",
-      "enum": ["Black", "ShiftedBlack", "Bachelier"]
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
     },
     "quantra_enums_EquityModelType" : {
       "type" : "string",

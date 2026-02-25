@@ -895,6 +895,7 @@ components:
       - Black
       - ShiftedBlack
       - Bachelier
+      - HullWhiteLattice
     quantra_enums_EquityModelType:
       type: string
       enum:
@@ -1993,6 +1994,14 @@ components:
       properties:
         model_type:
           $ref: '#/components/schemas/quantra_enums_IrModelType'
+        hw_a:
+          type: number
+        hw_sigma:
+          type: number
+        lattice_steps:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
       additionalProperties: false
     quantra_CdsModelSpec:
       type: object
@@ -3085,6 +3094,10 @@ components:
           $ref: '#/components/schemas/quantra_enums_SettlementMethod'
         exercise_date:
           type: string
+        exercise_dates:
+          type: array
+          items:
+            type: string
         underlying_swap:
           $ref: '#/components/schemas/quantra_VanillaSwap'
         underlying_type:

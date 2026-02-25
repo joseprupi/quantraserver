@@ -288,7 +288,8 @@ enum SwaptionStrikeKind : byte {
 enum IrModelType : byte {
     Black,              // Black-76 model (lognormal)
     ShiftedBlack,       // Displaced Black model
-    Bachelier           // Normal/Bachelier model
+    Bachelier,          // Normal/Bachelier model
+    HullWhiteLattice    // One-factor HW short-rate lattice model
 }
 
 enum EquityModelType : byte {

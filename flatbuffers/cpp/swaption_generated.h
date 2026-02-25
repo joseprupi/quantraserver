@@ -137,6 +137,7 @@ struct SwaptionT : public ::flatbuffers::NativeTable {
   quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical;
   quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC;
   std::string exercise_date{};
+  std::vector<std::string> exercise_dates{};
   std::unique_ptr<quantra::VanillaSwapT> underlying_swap{};
   quantra::SwaptionUnderlyingUnion underlying{};
   SwaptionT() = default;
@@ -153,9 +154,10 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_SETTLEMENT_TYPE = 6,
     VT_SETTLEMENT_METHOD = 8,
     VT_EXERCISE_DATE = 10,
-    VT_UNDERLYING_SWAP = 12,
-    VT_UNDERLYING_TYPE = 14,
-    VT_UNDERLYING = 16
+    VT_EXERCISE_DATES = 12,
+    VT_UNDERLYING_SWAP = 14,
+    VT_UNDERLYING_TYPE = 16,
+    VT_UNDERLYING = 18
   };
   quantra::enums::ExerciseType exercise_type() const {
     return static_cast<quantra::enums::ExerciseType>(GetField<int8_t>(VT_EXERCISE_TYPE, 0));
@@ -168,6 +170,9 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   const ::flatbuffers::String *exercise_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_EXERCISE_DATE);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *exercise_dates() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_EXERCISE_DATES);
   }
   const quantra::VanillaSwap *underlying_swap() const {
     return GetPointer<const quantra::VanillaSwap *>(VT_UNDERLYING_SWAP);
@@ -192,6 +197,9 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_SETTLEMENT_METHOD, 1) &&
            VerifyOffset(verifier, VT_EXERCISE_DATE) &&
            verifier.VerifyString(exercise_date()) &&
+           VerifyOffset(verifier, VT_EXERCISE_DATES) &&
+           verifier.VerifyVector(exercise_dates()) &&
+           verifier.VerifyVectorOfStrings(exercise_dates()) &&
            VerifyOffset(verifier, VT_UNDERLYING_SWAP) &&
            verifier.VerifyTable(underlying_swap()) &&
            VerifyField<uint8_t>(verifier, VT_UNDERLYING_TYPE, 1) &&
@@ -228,6 +236,9 @@ struct SwaptionBuilder {
   void add_exercise_date(::flatbuffers::Offset<::flatbuffers::String> exercise_date) {
     fbb_.AddOffset(Swaption::VT_EXERCISE_DATE, exercise_date);
   }
+  void add_exercise_dates(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> exercise_dates) {
+    fbb_.AddOffset(Swaption::VT_EXERCISE_DATES, exercise_dates);
+  }
   void add_underlying_swap(::flatbuffers::Offset<quantra::VanillaSwap> underlying_swap) {
     fbb_.AddOffset(Swaption::VT_UNDERLYING_SWAP, underlying_swap);
   }
@@ -254,12 +265,14 @@ inline ::flatbuffers::Offset<Swaption> CreateSwaption(
     quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical,
     quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC,
     ::flatbuffers::Offset<::flatbuffers::String> exercise_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> exercise_dates = 0,
     ::flatbuffers::Offset<quantra::VanillaSwap> underlying_swap = 0,
     quantra::SwaptionUnderlying underlying_type = quantra::SwaptionUnderlying_NONE,
     ::flatbuffers::Offset<void> underlying = 0) {
   SwaptionBuilder builder_(_fbb);
   builder_.add_underlying(underlying);
   builder_.add_underlying_swap(underlying_swap);
+  builder_.add_exercise_dates(exercise_dates);
   builder_.add_exercise_date(exercise_date);
   builder_.add_underlying_type(underlying_type);
   builder_.add_settlement_method(settlement_method);
@@ -274,16 +287,19 @@ inline ::flatbuffers::Offset<Swaption> CreateSwaptionDirect(
     quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical,
     quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC,
     const char *exercise_date = nullptr,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *exercise_dates = nullptr,
     ::flatbuffers::Offset<quantra::VanillaSwap> underlying_swap = 0,
     quantra::SwaptionUnderlying underlying_type = quantra::SwaptionUnderlying_NONE,
     ::flatbuffers::Offset<void> underlying = 0) {
   auto exercise_date__ = exercise_date ? _fbb.CreateString(exercise_date) : 0;
+  auto exercise_dates__ = exercise_dates ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*exercise_dates) : 0;
   return quantra::CreateSwaption(
       _fbb,
       exercise_type,
       settlement_type,
       settlement_method,
       exercise_date__,
+      exercise_dates__,
       underlying_swap,
       underlying_type,
       underlying);
@@ -296,6 +312,7 @@ inline SwaptionT::SwaptionT(const SwaptionT &o)
         settlement_type(o.settlement_type),
         settlement_method(o.settlement_method),
         exercise_date(o.exercise_date),
+        exercise_dates(o.exercise_dates),
         underlying_swap((o.underlying_swap) ? new quantra::VanillaSwapT(*o.underlying_swap) : nullptr),
         underlying(o.underlying) {
 }
@@ -305,6 +322,7 @@ inline SwaptionT &SwaptionT::operator=(SwaptionT o) FLATBUFFERS_NOEXCEPT {
   std::swap(settlement_type, o.settlement_type);
   std::swap(settlement_method, o.settlement_method);
   std::swap(exercise_date, o.exercise_date);
+  std::swap(exercise_dates, o.exercise_dates);
   std::swap(underlying_swap, o.underlying_swap);
   std::swap(underlying, o.underlying);
   return *this;
@@ -323,6 +341,7 @@ inline void Swaption::UnPackTo(SwaptionT *_o, const ::flatbuffers::resolver_func
   { auto _e = settlement_type(); _o->settlement_type = _e; }
   { auto _e = settlement_method(); _o->settlement_method = _e; }
   { auto _e = exercise_date(); if (_e) _o->exercise_date = _e->str(); }
+  { auto _e = exercise_dates(); if (_e) { _o->exercise_dates.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->exercise_dates[_i] = _e->Get(_i)->str(); } } else { _o->exercise_dates.resize(0); } }
   { auto _e = underlying_swap(); if (_e) { if(_o->underlying_swap) { _e->UnPackTo(_o->underlying_swap.get(), _resolver); } else { _o->underlying_swap = std::unique_ptr<quantra::VanillaSwapT>(_e->UnPack(_resolver)); } } else if (_o->underlying_swap) { _o->underlying_swap.reset(); } }
   { auto _e = underlying_type(); _o->underlying.type = _e; }
   { auto _e = underlying(); if (_e) _o->underlying.value = quantra::SwaptionUnderlyingUnion::UnPack(_e, underlying_type(), _resolver); }
@@ -340,6 +359,7 @@ inline ::flatbuffers::Offset<Swaption> CreateSwaption(::flatbuffers::FlatBufferB
   auto _settlement_type = _o->settlement_type;
   auto _settlement_method = _o->settlement_method;
   auto _exercise_date = _o->exercise_date.empty() ? 0 : _fbb.CreateString(_o->exercise_date);
+  auto _exercise_dates = _o->exercise_dates.size() ? _fbb.CreateVectorOfStrings(_o->exercise_dates) : 0;
   auto _underlying_swap = _o->underlying_swap ? CreateVanillaSwap(_fbb, _o->underlying_swap.get(), _rehasher) : 0;
   auto _underlying_type = _o->underlying.type;
   auto _underlying = _o->underlying.Pack(_fbb);
@@ -349,6 +369,7 @@ inline ::flatbuffers::Offset<Swaption> CreateSwaption(::flatbuffers::FlatBufferB
       _settlement_type,
       _settlement_method,
       _exercise_date,
+      _exercise_dates,
       _underlying_swap,
       _underlying_type,
       _underlying);
