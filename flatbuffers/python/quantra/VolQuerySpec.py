@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Volatility surface query specification.
 class VolQuerySpec(object):
     __slots__ = ['_tab']
 
@@ -24,6 +25,7 @@ class VolQuerySpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # References Pricing.vol_surfaces[].id.
     # VolQuerySpec
     def VolId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -49,6 +51,7 @@ class VolQuerySpec(object):
             return obj
         return None
 
+    # Required for swaption, ignored for optionlet.
     # VolQuerySpec
     def TenorGrid(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -88,6 +91,7 @@ class VolQuerySpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Optional override; must match surface swap_index_id if provided.
     # VolQuerySpec
     def SwapIndexId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -95,6 +99,7 @@ class VolQuerySpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Slice selectors (only used by slice modes). -1 means "not set".
     # VolQuerySpec
     def SliceExpiryIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -116,6 +121,7 @@ class VolQuerySpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Strict mode requires true for slice modes using slice_strike.
     # VolQuerySpec
     def SliceStrikeIsSet(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -123,6 +129,7 @@ class VolQuerySpec(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Required for SpreadFromATM swaption surfaces to compute ATM forwards.
     # VolQuerySpec
     def DiscountingCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))

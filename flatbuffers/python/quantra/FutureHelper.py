@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Futures helper for curve bootstrap.
 class FutureHelper(object):
     __slots__ = ['_tab']
 
@@ -66,7 +67,7 @@ class FutureHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Futures price (e.g. 95.25); if set, rate is ignored
+    # Futures price (e.g., 95.25); if set, rate is ignored.
     # FutureHelper
     def FuturesPrice(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -74,7 +75,7 @@ class FutureHelper(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Convexity adjustment added to implied rate
+    # Convexity adjustment added to implied rate.
     # FutureHelper
     def ConvexityAdjustment(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

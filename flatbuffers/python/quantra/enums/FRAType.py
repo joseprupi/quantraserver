@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 class FRAType(object):
     Long = 0
     Short = 1

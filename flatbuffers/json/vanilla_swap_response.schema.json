@@ -127,6 +127,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
+      "description" : "Canonical period type used across APIs.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -139,6 +140,7 @@
     },
     "quantra_Yield" : {
       "type" : "object",
+      "description" : "Yield/compounding convention specification.",
       "properties" : {
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -154,6 +156,7 @@
     },
     "quantra_Error" : {
       "type" : "object",
+      "description" : "Error message container.",
       "properties" : {
         "error_message" : {
                 "type" : "string"
@@ -163,6 +166,7 @@
     },
     "quantra_FlowInterest" : {
       "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -190,6 +194,7 @@
     },
     "quantra_FlowInterestFloat" : {
       "type" : "object",
+      "description" : "Floating-rate interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -217,6 +222,7 @@
     },
     "quantra_FlowPastInterestFloat" : {
       "type" : "object",
+      "description" : "Past floating-rate interest for seasoned instruments.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -238,6 +244,7 @@
     },
     "quantra_FlowPastInterest" : {
       "type" : "object",
+      "description" : "Past fixed interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -259,6 +266,7 @@
     },
     "quantra_FlowNotional" : {
       "type" : "object",
+      "description" : "Notional exchange cash flow.",
       "properties" : {
         "date" : {
                 "type" : "string"
@@ -277,6 +285,7 @@
     },
     "quantra_FlowsWrapper" : {
       "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
       "properties" : {
         "flow_type" : {
                 "$ref" : "#/definitions/quantra_Flow"
@@ -289,6 +298,7 @@
     },
     "quantra_SwapLegFlow" : {
       "type" : "object",
+      "description" : "Cashflow for a swap leg.",
       "properties" : {
         "payment_date" : {
                 "type" : "string"
@@ -309,7 +319,8 @@
                 "type" : "number"
               },
         "fixing_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate."
               },
         "index_fixing" : {
                 "type" : "number"
@@ -318,13 +329,15 @@
                 "type" : "number"
               },
         "rate" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Coupon rate: fixed-leg rate or effective floating coupon rate."
               }
       },
       "additionalProperties" : false
     },
     "quantra_SwapLegResponse" : {
       "type" : "object",
+      "description" : "Response for a single swap leg.",
       "properties" : {
         "npv" : {
                 "type" : "number"
@@ -340,6 +353,7 @@
     },
     "quantra_VanillaSwapResponse" : {
       "type" : "object",
+      "description" : "Full vanilla swap pricing response.",
       "properties" : {
         "npv" : {
                 "type" : "number"
@@ -363,7 +377,8 @@
                 "type" : "number"
               },
         "fixed_leg_flows" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"},
+                "description" : "Optional detailed flows per leg."
               },
         "floating_leg_flows" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
@@ -373,6 +388,7 @@
     },
     "quantra_PriceVanillaSwapResponse" : {
       "type" : "object",
+      "description" : "Response wrapper for multiple vanilla swaps.",
       "properties" : {
         "swaps" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VanillaSwapResponse"}

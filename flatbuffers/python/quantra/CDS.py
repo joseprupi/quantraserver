@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Credit Default Swap instrument.
 class CDS(object):
     __slots__ = ['_tab']
 
@@ -38,6 +39,7 @@ class CDS(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Running coupon in decimal (0.01 = 100bps).
     # CDS
     def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -56,6 +58,7 @@ class CDS(object):
             return obj
         return None
 
+    # Upfront payment (can be 0).
     # CDS
     def Upfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

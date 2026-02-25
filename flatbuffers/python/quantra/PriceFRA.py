@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Single FRA pricing request with curve references.
 class PriceFRA(object):
     __slots__ = ['_tab']
 
@@ -35,6 +36,7 @@ class PriceFRA(object):
             return obj
         return None
 
+    # Reference to curve in Pricing.curves.
     # PriceFRA
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -42,6 +44,7 @@ class PriceFRA(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Reference to curve for forward rates.
     # PriceFRA
     def ForwardingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

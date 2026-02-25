@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Exogenous curve dependencies for dual-curve bootstrapping.
 class HelperDependencies(object):
     __slots__ = ['_tab']
 
@@ -25,8 +26,6 @@ class HelperDependencies(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Exogenous discount curve for dual-curve bootstrapping.
-    # Supported by: SwapHelper, OISHelper, DatedOISHelper,
-    # TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
     # HelperDependencies
     def DiscountCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -38,17 +37,7 @@ class HelperDependencies(object):
             return obj
         return None
 
-    # Exogenous projection/forwarding curve.
-    #
-    # ⚠️  NOT SUPPORTED for SwapHelper, OISHelper, DatedOISHelper.
-    # QuantLib's SwapRateHelper/OISRateHelper override the index forwarding
-    # handle via index->clone(termStructureHandle_) during bootstrapping.
-    # The projection curve is ALWAYS the curve being bootstrapped for these
-    # helpers. Setting this field on Swap/OIS helpers will produce a hard
-    # error at parse time.
-    #
-    # Supported by: TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper
-    # (and future custom helpers that genuinely encode projection relationships).
+    # Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
     # HelperDependencies
     def ProjectionCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -59,8 +48,7 @@ class HelperDependencies(object):
             return obj
         return None
 
-    # Second projection curve for basis/XCCY helpers (e.g. the "other leg").
-    # Same restrictions as projection_curve above.
+    # Second projection curve for basis/XCCY helpers.
     # HelperDependencies
     def ProjectionCurve2(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

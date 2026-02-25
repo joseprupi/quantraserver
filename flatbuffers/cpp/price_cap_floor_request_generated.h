@@ -41,6 +41,7 @@ struct PriceCapFloorT : public ::flatbuffers::NativeTable {
   PriceCapFloorT &operator=(PriceCapFloorT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single cap/floor pricing request with curve/vol/model references.
 struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCapFloorT NativeTableType;
   typedef PriceCapFloorBuilder Builder;
@@ -55,18 +56,23 @@ struct PriceCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CapFloor *cap_floor() const {
     return GetPointer<const quantra::CapFloor *>(VT_CAP_FLOOR);
   }
+  /// Reference to curve in Pricing.curves by id.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
+  /// Reference to curve for forward rates by id.
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
+  /// Reference to volatility in Pricing.vol_surfaces by id.
   const ::flatbuffers::String *volatility() const {
     return GetPointer<const ::flatbuffers::String *>(VT_VOLATILITY);
   }
+  /// Reference to model in Pricing.models by id.
   const ::flatbuffers::String *model() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }
+  /// Include caplet/floorlet breakdown.
   bool include_details() const {
     return GetField<uint8_t>(VT_INCLUDE_DETAILS, 0) != 0;
   }
@@ -175,6 +181,7 @@ struct PriceCapFloorRequestT : public ::flatbuffers::NativeTable {
   PriceCapFloorRequestT &operator=(PriceCapFloorRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more caps/floors.
 struct PriceCapFloorRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCapFloorRequestT NativeTableType;
   typedef PriceCapFloorRequestBuilder Builder;

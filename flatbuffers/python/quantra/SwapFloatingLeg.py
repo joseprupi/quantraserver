@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Floating leg of a swap.
 class SwapFloatingLeg(object):
     __slots__ = ['_tab']
 
@@ -42,7 +43,7 @@ class SwapFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Reference to an IndexDef by id (e.g., "EUR_6M")
+    # Reference to an IndexDef by id (e.g., "EUR_6M").
     # SwapFloatingLeg
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

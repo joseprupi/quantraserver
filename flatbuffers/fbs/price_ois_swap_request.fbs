@@ -3,12 +3,14 @@ include "ois_swap.fbs";
 
 namespace quantra;
 
+/// Single OIS swap pricing context with curve references.
 table PriceOisSwap {
     ois_swap:OisSwap;
     discounting_curve:string;
     forwarding_curve:string;
 }
 
+/// Request to price one or more OIS swaps.
 table PriceOisSwapRequest {
     pricing:Pricing;
     swaps:[PriceOisSwap];

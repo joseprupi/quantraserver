@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Model specification - references by id in trade requests
+# Model specification referenced by id in trade requests.
 class ModelSpec(object):
     __slots__ = ['_tab']
 

@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of optionlet volatility structure types.
 class OptionletVolatilityStructure(object):
     NONE = 0
     ConstantOptionletVolatility = 1

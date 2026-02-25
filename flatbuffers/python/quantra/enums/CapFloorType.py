@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Cap/Floor instrument type: cap, floor, or collar.
 class CapFloorType(object):
     Cap = 0
     Floor = 1

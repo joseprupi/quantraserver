@@ -28,7 +28,7 @@ struct CalendarAdvanceResponseT : public ::flatbuffers::NativeTable {
   std::string advanced_date{};
 };
 
-/// Response containing advanced date.
+/// Response containing the advanced date.
 struct CalendarAdvanceResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CalendarAdvanceResponseT NativeTableType;
   typedef CalendarAdvanceResponseBuilder Builder;

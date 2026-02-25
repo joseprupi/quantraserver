@@ -2,7 +2,7 @@
 
 # namespace: quantra
 
-# Market quote kind
+# Market quote kind.
 class QuoteKind(object):
     Rate = 0
     Spread = 1

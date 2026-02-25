@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Tenor basis swap helper.
 class TenorBasisSwapHelper(object):
     __slots__ = ['_tab']
 
@@ -42,7 +43,7 @@ class TenorBasisSwapHelper(object):
             return obj
         return None
 
-    # Short tenor index (e.g., "EUR_3M")
+    # Short tenor index (e.g., "EUR_3M").
     # TenorBasisSwapHelper
     def IndexShort(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -54,7 +55,7 @@ class TenorBasisSwapHelper(object):
             return obj
         return None
 
-    # Long tenor index (e.g., "EUR_6M")
+    # Long tenor index (e.g., "EUR_6M").
     # TenorBasisSwapHelper
     def IndexLong(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

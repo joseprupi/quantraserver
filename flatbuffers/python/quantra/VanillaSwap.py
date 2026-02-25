@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Vanilla interest rate swap (fixed vs floating).
 class VanillaSwap(object):
     __slots__ = ['_tab']
 

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Yield/compounding convention specification.
 class Yield(object):
     __slots__ = ['_tab']
 

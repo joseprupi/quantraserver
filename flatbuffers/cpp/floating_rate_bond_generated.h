@@ -42,6 +42,7 @@ struct FloatingRateBondT : public ::flatbuffers::NativeTable {
   FloatingRateBondT &operator=(FloatingRateBondT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Floating-rate bond instrument.
 struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FloatingRateBondT NativeTableType;
   typedef FloatingRateBondBuilder Builder;
@@ -67,7 +68,7 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  /// Reference to an IndexDef by id (e.g., "EUR_6M")
+  /// Reference to an IndexDef by id (e.g., "EUR_6M").
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }

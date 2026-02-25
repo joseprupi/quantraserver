@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Bond helper for curve bootstrap.
 class BondHelper(object):
     __slots__ = ['_tab']
 
@@ -91,7 +92,7 @@ class BondHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Bond price (preferred over rate for clarity)
+    # Bond price (preferred over rate for clarity).
     # BondHelper
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))

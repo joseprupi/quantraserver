@@ -53,6 +53,7 @@ struct FlowsWrapper;
 struct FlowsWrapperBuilder;
 struct FlowsWrapperT;
 
+/// Union of cash flow types.
 enum Flow : uint8_t {
   Flow_NONE = 0,
   Flow_FlowInterest = 1,
@@ -186,6 +187,7 @@ struct PeriodT : public ::flatbuffers::NativeTable {
   quantra::enums::TimeUnit unit = quantra::enums::TimeUnit_Months;
 };
 
+/// Canonical period type used across APIs.
 struct Period FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PeriodT NativeTableType;
   typedef PeriodBuilder Builder;
@@ -250,6 +252,7 @@ struct YieldT : public ::flatbuffers::NativeTable {
   quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
 };
 
+/// Yield/compounding convention specification.
 struct Yield FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef YieldT NativeTableType;
   typedef YieldBuilder Builder;
@@ -322,6 +325,7 @@ struct ErrorT : public ::flatbuffers::NativeTable {
   std::string error_message{};
 };
 
+/// Error message container.
 struct Error FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ErrorT NativeTableType;
   typedef ErrorBuilder Builder;
@@ -390,6 +394,7 @@ struct FlowInterestT : public ::flatbuffers::NativeTable {
   float price = 0.0f;
 };
 
+/// Interest cash flow with fixing and accrual metadata.
 struct FlowInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowInterestT NativeTableType;
   typedef FlowInterestBuilder Builder;
@@ -534,6 +539,7 @@ struct FlowInterestFloatT : public ::flatbuffers::NativeTable {
   float price = 0.0f;
 };
 
+/// Floating-rate interest cash flow.
 struct FlowInterestFloat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowInterestFloatT NativeTableType;
   typedef FlowInterestFloatBuilder Builder;
@@ -676,6 +682,7 @@ struct FlowPastInterestFloatT : public ::flatbuffers::NativeTable {
   float rate = 0.0f;
 };
 
+/// Past floating-rate interest for seasoned instruments.
 struct FlowPastInterestFloat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowPastInterestFloatT NativeTableType;
   typedef FlowPastInterestFloatBuilder Builder;
@@ -794,6 +801,7 @@ struct FlowPastInterestT : public ::flatbuffers::NativeTable {
   float rate = 0.0f;
 };
 
+/// Past fixed interest cash flow.
 struct FlowPastInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowPastInterestT NativeTableType;
   typedef FlowPastInterestBuilder Builder;
@@ -911,6 +919,7 @@ struct FlowNotionalT : public ::flatbuffers::NativeTable {
   float price = 0.0f;
 };
 
+/// Notional exchange cash flow.
 struct FlowNotional FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowNotionalT NativeTableType;
   typedef FlowNotionalBuilder Builder;
@@ -1009,6 +1018,7 @@ struct FlowsWrapperT : public ::flatbuffers::NativeTable {
   quantra::FlowUnion flow{};
 };
 
+/// Wrapper for a single flow in a collection.
 struct FlowsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FlowsWrapperT NativeTableType;
   typedef FlowsWrapperBuilder Builder;

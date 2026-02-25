@@ -129,10 +129,12 @@
                 "$ref" : "#/definitions/quantra_enums_Calendar"
               },
         "start_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Start date in YYYY-MM-DD format."
               },
         "end_date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "End date in YYYY-MM-DD format."
               },
         "include_weekends" : {
                 "type" : "boolean"

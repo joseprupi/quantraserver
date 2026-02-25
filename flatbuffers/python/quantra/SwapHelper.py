@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.
 class SwapHelper(object):
     __slots__ = ['_tab']
 
@@ -70,7 +71,7 @@ class SwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Reference to an IndexDef by id (e.g., "EUR_6M")
+    # Reference to an IndexDef by id (e.g., "EUR_6M").
     # SwapHelper
     def FloatIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -96,7 +97,7 @@ class SwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # Exogenous discount curve for multi-curve bootstrapping
+    # Exogenous discount curve for multi-curve bootstrapping.
     # SwapHelper
     def Deps(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))

@@ -2,73 +2,63 @@ include "enums.fbs";
 
 namespace quantra;
 
-// Swaption pricing response
+/// Swaption pricing response with NPV, Greeks, and diagnostics.
 table SwaptionResponse {
-    // Present value of the swaption under the selected model and market inputs.
+    /// Present value of the swaption under the selected model and market inputs.
     npv:double;
-    // Implied volatility reported by the engine/details path.
-    // For non-constant vol setups this may be a best-effort value.
+    /// Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
     implied_volatility:double;
-    // ATM forward swap rate used for pricing diagnostics.
+    /// ATM forward swap rate used for pricing diagnostics.
     atm_forward:double;
-    // Underlying swap annuity (PV01-style quantity).
+    /// Underlying swap annuity (PV01-style quantity).
     annuity:double;
-    // Option delta from pricing details/rebump logic.
+    /// Option delta from pricing details/rebump logic.
     delta:double;
-    // Option vega from pricing details/rebump logic.
+    /// Option vega from pricing details/rebump logic.
     vega:double;
-    // Option gamma from pricing details/rebump logic.
+    /// Option gamma from pricing details/rebump logic.
     gamma:double;
-    // Option theta from pricing details/rebump logic.
+    /// Option theta from pricing details/rebump logic.
     theta:double;
-    // 1bp rate sensitivity.
-    // Depending on request flags this can be analytic-style or rebump-based.
+    /// 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
     dv01:double;
-    // Volatility actually queried from the resolved vol surface.
+    /// Volatility actually queried from the resolved vol surface.
     used_volatility:double;
-    // Option expiry date used by surface lookup (ISO date).
+    /// Option expiry date used by surface lookup (ISO date).
     used_option_expiry:string;
-    // Swap tenor descriptor used by lookup (for example, date range).
+    /// Swap tenor descriptor used by lookup (e.g., date range).
     used_swap_tenor:string;
-    // Strike used to query the volatility structure.
+    /// Strike used to query the volatility structure.
     used_strike:double;
-    // ATM forward used when smile conventions need ATM anchoring.
+    /// ATM forward used when smile conventions need ATM anchoring.
     used_atm_forward:double;
-    // Strike convention used by the source swaption vol surface.
+    /// Strike convention used by the source swaption vol surface.
     used_strike_kind:enums.SwaptionStrikeKind = Absolute;
-    // Difference between used strike and cube ATM level when spread-from-ATM is active.
+    /// Difference between used strike and cube ATM level when spread-from-ATM is active.
     used_spread_from_atm:double;
-    // ATM level retrieved from cube node/interpolated smile section when available.
+    /// ATM level retrieved from cube node when available.
     used_cube_node_atm:double;
-    // Resolved swaption volatility kind used by pricing.
+    /// Resolved swaption volatility kind used by pricing.
     vol_kind:enums.SwaptionVolKind;
-    // Effective model parameter mode used by the swaption engine.
-    // For calibrated mode, rebump greeks keep calibrated parameters fixed.
+    /// Effective model parameter mode used by the swaption engine.
     used_model_param_mode:enums.ModelParamMode = Explicit;
-    // Effective Hull-White mean reversion "a" used by pricing.
-    // Set to -1.0 when model is not HullWhiteLattice.
+    /// Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
     used_hw_a:double = -1.0;
-    // Effective Hull-White sigma used by pricing.
-    // Set to -1.0 when model is not HullWhiteLattice.
+    /// Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
     used_hw_sigma:double = -1.0;
-    // Calibration RMSE used for inline-calibrated Hull-White runs.
-    // Set to -1.0 when no inline calibration is performed.
+    /// Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
     used_hw_rmse:double = -1.0;
-    // Number of calibration helpers used for inline-calibrated Hull-White runs.
-    // Set to -1 when no inline calibration is performed.
+    /// Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
     used_hw_num_helpers:int = -1;
-    // Calibration grid rows used for inline-calibrated Hull-White runs.
-    // Set to -1 when no inline calibration is performed.
+    /// Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
     used_hw_grid_rows:int = -1;
-    // Calibration grid columns used for inline-calibrated Hull-White runs.
-    // Set to -1 when no inline calibration is performed.
+    /// Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
     used_hw_grid_cols:int = -1;
-    // Calibration grid points used for inline-calibrated Hull-White runs.
-    // Set to -1 when no inline calibration is performed.
+    /// Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
     used_hw_grid_points:int = -1;
 }
 
-// Response wrapper for multiple swaptions
+/// Response wrapper for multiple swaptions.
 table PriceSwaptionResponse {
     swaptions:[SwaptionResponse];
 }

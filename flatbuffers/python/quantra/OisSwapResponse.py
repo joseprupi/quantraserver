@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# OIS swap pricing response (fixed vs compounded overnight leg).
 class OisSwapResponse(object):
     __slots__ = ['_tab']
 

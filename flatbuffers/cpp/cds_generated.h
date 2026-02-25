@@ -45,6 +45,7 @@ struct CDST : public ::flatbuffers::NativeTable {
   CDST &operator=(CDST o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Credit Default Swap instrument.
 struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CDST NativeTableType;
   typedef CDSBuilder Builder;
@@ -71,12 +72,14 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
+  /// Running coupon in decimal (0.01 = 100bps).
   double running_coupon() const {
     return GetField<double>(VT_RUNNING_COUPON, 0.0);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
+  /// Upfront payment (can be 0).
   double upfront() const {
     return GetField<double>(VT_UPFRONT, 0.0);
   }

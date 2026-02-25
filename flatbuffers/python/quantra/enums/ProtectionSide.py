@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS protection side: buyer or seller.
 class ProtectionSide(object):
     Buyer = 0
     Seller = 1

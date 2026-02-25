@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Sampled volatility surface output.
 class VolSurfaceSample(object):
     __slots__ = ['_tab']
 
@@ -31,6 +32,7 @@ class VolSurfaceSample(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Vol surface reference date.
     # VolSurfaceSample
     def ReferenceDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -80,6 +82,7 @@ class VolSurfaceSample(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Swaption: ExerciseDate and expiries are effective exercise dates. Optionlet: GridDate and expiries are grid dates.
     # VolSurfaceSample
     def ExpiryKind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -87,6 +90,7 @@ class VolSurfaceSample(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 1
 
+    # Sampled expiry dates (ISO).
     # VolSurfaceSample
     def Expiries(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -107,6 +111,7 @@ class VolSurfaceSample(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         return o == 0
 
+    # Optional grid points after grid conventions.
     # VolSurfaceSample
     def RequestedExpiryGridPoints(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -152,6 +157,7 @@ class VolSurfaceSample(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         return o == 0
 
+    # Swaptions flattened i_expiry major then j_tenor.
     # VolSurfaceSample
     def EffectiveSwapStarts(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
@@ -219,6 +225,7 @@ class VolSurfaceSample(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         return o == 0
 
+    # Flattening: swaptions Cube i_expiry major, j_tenor, k_strike; optionlets Cube i_expiry major, k_strike.
     # VolSurfaceSample
     def Vols(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
@@ -267,6 +274,7 @@ class VolSurfaceSample(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor. Populated when strike kind is SpreadFromATM.
     # VolSurfaceSample
     def AtmLevels(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))

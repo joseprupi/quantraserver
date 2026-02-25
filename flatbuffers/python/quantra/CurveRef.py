@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Exogenous curve reference for multi-curve bootstrapping.
 class CurveRef(object):
     __slots__ = ['_tab']
 

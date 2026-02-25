@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Dated OIS helper with explicit start/end dates.
 class DatedOISHelper(object):
     __slots__ = ['_tab']
 
@@ -45,7 +46,7 @@ class DatedOISHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to an overnight IndexDef by id
+    # Reference to an overnight IndexDef by id.
     # DatedOISHelper
     def OvernightIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -85,7 +86,7 @@ class DatedOISHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Exogenous discount curve for dual-curve OIS bootstrapping
+    # Exogenous discount curve for dual-curve OIS bootstrapping.
     # DatedOISHelper
     def Deps(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))

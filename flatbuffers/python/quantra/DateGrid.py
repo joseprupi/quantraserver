@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of date grid types.
 class DateGrid(object):
     NONE = 0
     TenorGrid = 1

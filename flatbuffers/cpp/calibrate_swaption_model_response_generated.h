@@ -31,6 +31,7 @@ struct CalibrateSwaptionModelResponseT : public ::flatbuffers::NativeTable {
   int32_t grid_points = 0;
 };
 
+/// Response from Hull-White swaption model calibration.
 struct CalibrateSwaptionModelResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CalibrateSwaptionModelResponseT NativeTableType;
   typedef CalibrateSwaptionModelResponseBuilder Builder;
@@ -44,27 +45,35 @@ struct CalibrateSwaptionModelResponse FLATBUFFERS_FINAL_CLASS : private ::flatbu
     VT_GRID_COLS = 16,
     VT_GRID_POINTS = 18
   };
+  /// Model id requested for calibration.
   const ::flatbuffers::String *model_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL_ID);
   }
+  /// Calibrated Hull-White mean reversion parameter "a".
   double hw_a() const {
     return GetField<double>(VT_HW_A, 0.0);
   }
+  /// Calibrated Hull-White volatility parameter "sigma".
   double hw_sigma() const {
     return GetField<double>(VT_HW_SIGMA, 0.0);
   }
+  /// Root-mean-square error computed from calibration helper errors.
   double rmse() const {
     return GetField<double>(VT_RMSE, 0.0);
   }
+  /// Number of calibration helpers used (typically rows * cols).
   int32_t num_helpers() const {
     return GetField<int32_t>(VT_NUM_HELPERS, 0);
   }
+  /// Number of expiry rows in the calibration grid.
   int32_t grid_rows() const {
     return GetField<int32_t>(VT_GRID_ROWS, 0);
   }
+  /// Number of tenor columns in the calibration grid.
   int32_t grid_cols() const {
     return GetField<int32_t>(VT_GRID_COLS, 0);
   }
+  /// Total number of grid points in the calibration grid.
   int32_t grid_points() const {
     return GetField<int32_t>(VT_GRID_POINTS, 0);
   }

@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swap direction: payer (pay fixed, receive floating) or receiver (receive fixed, pay floating).
 class SwapType(object):
     Payer = 0
     Receiver = 1

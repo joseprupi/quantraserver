@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Individual caplet/floorlet detail.
 class CapFloorLet(object):
     __slots__ = ['_tab']
 
@@ -73,6 +74,7 @@ class CapFloorLet(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Individual caplet/floorlet price.
     # CapFloorLet
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

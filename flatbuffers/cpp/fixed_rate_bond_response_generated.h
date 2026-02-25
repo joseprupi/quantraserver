@@ -44,6 +44,7 @@ struct FixedRateBondResponseT : public ::flatbuffers::NativeTable {
   FixedRateBondResponseT &operator=(FixedRateBondResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Fixed-rate bond pricing response.
 struct FixedRateBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FixedRateBondResponseT NativeTableType;
   typedef FixedRateBondResponseBuilder Builder;
@@ -231,6 +232,7 @@ struct PriceFixedRateBondResponseT : public ::flatbuffers::NativeTable {
   PriceFixedRateBondResponseT &operator=(PriceFixedRateBondResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple fixed-rate bonds.
 struct PriceFixedRateBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFixedRateBondResponseT NativeTableType;
   typedef PriceFixedRateBondResponseBuilder Builder;

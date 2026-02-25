@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Cap/Floor pricing model specification
+# Cap/Floor pricing model specification.
 class CapFloorModelSpec(object):
     __slots__ = ['_tab']
 

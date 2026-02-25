@@ -39,6 +39,7 @@ struct CapFloorLetT : public ::flatbuffers::NativeTable {
   double price = 0.0;
 };
 
+/// Individual caplet/floorlet detail.
 struct CapFloorLet FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorLetT NativeTableType;
   typedef CapFloorLetBuilder Builder;
@@ -73,6 +74,7 @@ struct CapFloorLet FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double discount() const {
     return GetField<double>(VT_DISCOUNT, 0.0);
   }
+  /// Individual caplet/floorlet price.
   double price() const {
     return GetField<double>(VT_PRICE, 0.0);
   }
@@ -198,6 +200,7 @@ struct CapFloorResponseT : public ::flatbuffers::NativeTable {
   CapFloorResponseT &operator=(CapFloorResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Cap/Floor pricing response.
 struct CapFloorResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CapFloorResponseT NativeTableType;
   typedef CapFloorResponseBuilder Builder;
@@ -210,9 +213,11 @@ struct CapFloorResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
+  /// At-the-money rate.
   double atm_rate() const {
     return GetField<double>(VT_ATM_RATE, 0.0);
   }
+  /// Implied volatility if priced from market price.
   double implied_volatility() const {
     return GetField<double>(VT_IMPLIED_VOLATILITY, 0.0);
   }
@@ -301,6 +306,7 @@ struct PriceCapFloorResponseT : public ::flatbuffers::NativeTable {
   PriceCapFloorResponseT &operator=(PriceCapFloorResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple caps/floors.
 struct PriceCapFloorResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCapFloorResponseT NativeTableType;
   typedef PriceCapFloorResponseBuilder Builder;

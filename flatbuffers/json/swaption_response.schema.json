@@ -123,90 +123,118 @@
     },
     "quantra_SwaptionResponse" : {
       "type" : "object",
+      "description" : "Swaption pricing response with NPV, Greeks, and diagnostics.",
       "properties" : {
         "npv" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Present value of the swaption under the selected model and market inputs."
               },
         "implied_volatility" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value."
               },
         "atm_forward" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "ATM forward swap rate used for pricing diagnostics."
               },
         "annuity" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Underlying swap annuity (PV01-style quantity)."
               },
         "delta" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Option delta from pricing details/rebump logic."
               },
         "vega" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Option vega from pricing details/rebump logic."
               },
         "gamma" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Option gamma from pricing details/rebump logic."
               },
         "theta" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Option theta from pricing details/rebump logic."
               },
         "dv01" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "1bp rate sensitivity. May be analytic or rebump-based depending on request flags."
               },
         "used_volatility" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Volatility actually queried from the resolved vol surface."
               },
         "used_option_expiry" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Option expiry date used by surface lookup (ISO date)."
               },
         "used_swap_tenor" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Swap tenor descriptor used by lookup (e.g., date range)."
               },
         "used_strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike used to query the volatility structure."
               },
         "used_atm_forward" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "ATM forward used when smile conventions need ATM anchoring."
               },
         "used_strike_kind" : {
-                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
+                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind",
+                "description" : "Strike convention used by the source swaption vol surface."
               },
         "used_spread_from_atm" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Difference between used strike and cube ATM level when spread-from-ATM is active."
               },
         "used_cube_node_atm" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "ATM level retrieved from cube node when available."
               },
         "vol_kind" : {
-                "$ref" : "#/definitions/quantra_enums_SwaptionVolKind"
+                "$ref" : "#/definitions/quantra_enums_SwaptionVolKind",
+                "description" : "Resolved swaption volatility kind used by pricing."
               },
         "used_model_param_mode" : {
-                "$ref" : "#/definitions/quantra_enums_ModelParamMode"
+                "$ref" : "#/definitions/quantra_enums_ModelParamMode",
+                "description" : "Effective model parameter mode used by the swaption engine."
               },
         "used_hw_a" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Effective Hull-White mean reversion \"a\" used by pricing. -1.0 when model is not HullWhiteLattice."
               },
         "used_hw_sigma" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice."
               },
         "used_hw_rmse" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration."
               },
         "used_hw_num_helpers" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration."
               },
         "used_hw_grid_rows" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration."
               },
         "used_hw_grid_cols" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration."
               },
         "used_hw_grid_points" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration."
               }
       },
       "additionalProperties" : false
     },
     "quantra_PriceSwaptionResponse" : {
       "type" : "object",
+      "description" : "Response wrapper for multiple swaptions.",
       "properties" : {
         "swaptions" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwaptionResponse"}

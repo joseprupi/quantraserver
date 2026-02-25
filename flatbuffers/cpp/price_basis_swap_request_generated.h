@@ -38,6 +38,7 @@ struct PriceBasisSwapT : public ::flatbuffers::NativeTable {
   PriceBasisSwapT &operator=(PriceBasisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single basis swap pricing context with curve references.
 struct PriceBasisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapT NativeTableType;
   typedef PriceBasisSwapBuilder Builder;
@@ -147,6 +148,7 @@ struct PriceBasisSwapRequestT : public ::flatbuffers::NativeTable {
   PriceBasisSwapRequestT &operator=(PriceBasisSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more basis swaps.
 struct PriceBasisSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapRequestT NativeTableType;
   typedef PriceBasisSwapRequestBuilder Builder;

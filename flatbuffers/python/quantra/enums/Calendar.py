@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Calendar for business-day and holiday rules.
 class Calendar(object):
     Argentina = 0
     Australia = 1

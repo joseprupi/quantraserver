@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of swaption vol payload types.
 class SwaptionVolPayload(object):
     NONE = 0
     SwaptionVolConstantSpec = 1

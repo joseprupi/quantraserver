@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# OIS helper. Uses IndexRef to reference an overnight IndexDef.
 class OISHelper(object):
     __slots__ = ['_tab']
 
@@ -42,7 +43,7 @@ class OISHelper(object):
             return obj
         return None
 
-    # Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+    # Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     # OISHelper
     def OvernightIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -89,7 +90,7 @@ class OISHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Exogenous discount curve for dual-curve OIS bootstrapping
+    # Exogenous discount curve for dual-curve OIS bootstrapping.
     # OISHelper
     def Deps(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))

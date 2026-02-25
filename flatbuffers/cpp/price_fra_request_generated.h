@@ -38,6 +38,7 @@ struct PriceFRAT : public ::flatbuffers::NativeTable {
   PriceFRAT &operator=(PriceFRAT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single FRA pricing request with curve references.
 struct PriceFRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFRAT NativeTableType;
   typedef PriceFRABuilder Builder;
@@ -49,9 +50,11 @@ struct PriceFRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::FRA *fra() const {
     return GetPointer<const quantra::FRA *>(VT_FRA);
   }
+  /// Reference to curve in Pricing.curves.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
+  /// Reference to curve for forward rates.
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
@@ -132,6 +135,7 @@ struct PriceFRARequestT : public ::flatbuffers::NativeTable {
   PriceFRARequestT &operator=(PriceFRARequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more FRAs.
 struct PriceFRARequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFRARequestT NativeTableType;
   typedef PriceFRARequestBuilder Builder;

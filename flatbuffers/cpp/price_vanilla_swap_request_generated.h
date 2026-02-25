@@ -38,6 +38,7 @@ struct PriceVanillaSwapT : public ::flatbuffers::NativeTable {
   PriceVanillaSwapT &operator=(PriceVanillaSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single vanilla swap pricing context with curve references.
 struct PriceVanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceVanillaSwapT NativeTableType;
   typedef PriceVanillaSwapBuilder Builder;
@@ -49,9 +50,11 @@ struct PriceVanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::VanillaSwap *vanilla_swap() const {
     return GetPointer<const quantra::VanillaSwap *>(VT_VANILLA_SWAP);
   }
+  /// Reference to curve in Pricing.curves.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
+  /// Reference to curve for forward rates (can be same as discounting).
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
@@ -133,6 +136,7 @@ struct PriceVanillaSwapRequestT : public ::flatbuffers::NativeTable {
   PriceVanillaSwapRequestT &operator=(PriceVanillaSwapRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Request to price one or more vanilla swaps.
 struct PriceVanillaSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceVanillaSwapRequestT NativeTableType;
   typedef PriceVanillaSwapRequestBuilder Builder;
@@ -147,6 +151,7 @@ struct PriceVanillaSwapRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceVanillaSwap>> *swaps() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceVanillaSwap>> *>(VT_SWAPS);
   }
+  /// Include detailed cashflows in response.
   bool include_flows() const {
     return GetField<uint8_t>(VT_INCLUDE_FLOWS, 0) != 0;
   }

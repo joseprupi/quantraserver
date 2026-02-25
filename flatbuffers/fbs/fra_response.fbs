@@ -1,14 +1,17 @@
 namespace quantra;
 
-// FRA pricing response
+/// FRA pricing response.
 table FRAResponse {
     npv:double;
-    forward_rate:double;        // The implied forward rate from the curve
-    spot_value:double;          // Value at settlement
-    settlement_date:string;     // When the FRA settles
+    /// The implied forward rate from the curve.
+    forward_rate:double;
+    /// Value at settlement.
+    spot_value:double;
+    /// When the FRA settles.
+    settlement_date:string;
 }
 
-// Response wrapper for multiple FRAs
+/// Response wrapper for multiple FRAs.
 table PriceFRAResponse {
     fras:[FRAResponse];
 }

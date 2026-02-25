@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS pricing engine type.
 class CdsEngineType(object):
     MidPoint = 0
     ISDA = 1

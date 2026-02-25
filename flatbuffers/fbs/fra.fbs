@@ -3,17 +3,18 @@ include "index.fbs";
 
 namespace quantra;
 
-// Forward Rate Agreement
+/// Forward Rate Agreement instrument.
 table FRA {
     fra_type:enums.FRAType;
     notional:double;
-    start_date:string;              // When the FRA period starts
-    maturity_date:string;           // When the FRA period ends
-    strike:double;                  // The agreed forward rate (e.g., 0.035 for 3.5%)
-
-    /// Reference to an IndexDef by id (e.g., "EUR_3M")
+    /// When the FRA period starts.
+    start_date:string;
+    /// When the FRA period ends.
+    maturity_date:string;
+    /// The agreed forward rate (e.g., 0.035 for 3.5%).
+    strike:double;
+    /// Reference to an IndexDef by id (e.g., "EUR_3M").
     index:IndexRef (required);
-
     day_counter:enums.DayCounter;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;

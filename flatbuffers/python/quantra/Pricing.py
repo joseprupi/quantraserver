@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Central pricing configuration. Indices, curves, volatility surfaces, and models are defined here and referenced by id.
 class Pricing(object):
     __slots__ = ['_tab']
 
@@ -24,7 +25,7 @@ class Pricing(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Valuation date (YYYY-MM-DD). Used by: ALL
+    # Valuation date (YYYY-MM-DD). Used by: ALL.
     # Pricing
     def AsOfDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,7 +33,7 @@ class Pricing(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond
+    # Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond.
     # Pricing
     def SettlementDate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -41,7 +42,6 @@ class Pricing(object):
         return None
 
     # Index definitions. Used by: ALL floating-rate instruments and curve helpers.
-    # Every IndexRef in the request must resolve to an IndexDef here.
     # Pricing
     def Indices(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -93,7 +93,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
-    # Yield curves for discounting/forwarding. Used by: ALL
+    # Yield curves for discounting/forwarding. Used by: ALL.
     # Pricing
     def Curves(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -119,7 +119,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
-    # Credit curves for CDS pricing. Used by: CDS
+    # Credit curves for CDS pricing. Used by: CDS.
     # Pricing
     def CreditCurves(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -145,7 +145,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         return o == 0
 
-    # Market quotes (spot prices, FX rates). Used by: EquityOption (future)
+    # Market quotes (spot prices, FX rates). Used by: EquityOption (future).
     # Pricing
     def Quotes(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -171,7 +171,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         return o == 0
 
-    # Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption
+    # Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption.
     # Pricing
     def VolSurfaces(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -197,7 +197,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
-    # Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption
+    # Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption.
     # Pricing
     def Models(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -223,7 +223,7 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         return o == 0
 
-    # Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond
+    # Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond.
     # Pricing
     def BondPricingDetails(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -231,7 +231,7 @@ class Pricing(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Include cash flow details. Used by: FixedRateBond, FloatingRateBond
+    # Include cash flow details. Used by: FixedRateBond, FloatingRateBond.
     # Pricing
     def BondPricingFlows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -255,7 +255,7 @@ class Pricing(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap
+    # Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap.
     # Pricing
     def CouponPricers(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))

@@ -5,8 +5,10 @@ namespace quantra;
 /// Request holidays/vacations between two dates for a calendar.
 table CalendarHolidaysRequest {
     calendar:enums.Calendar = TARGET;
-    start_date:string (required);  // YYYY/MM/DD
-    end_date:string (required);    // YYYY/MM/DD
+    /// Start date in YYYY-MM-DD format.
+    start_date:string (required);
+    /// End date in YYYY-MM-DD format.
+    end_date:string (required);
     include_weekends:bool = false;
 }
 

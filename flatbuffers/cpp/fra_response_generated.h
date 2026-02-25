@@ -31,6 +31,7 @@ struct FRAResponseT : public ::flatbuffers::NativeTable {
   std::string settlement_date{};
 };
 
+/// FRA pricing response.
 struct FRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FRAResponseT NativeTableType;
   typedef FRAResponseBuilder Builder;
@@ -43,12 +44,15 @@ struct FRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
+  /// The implied forward rate from the curve.
   double forward_rate() const {
     return GetField<double>(VT_FORWARD_RATE, 0.0);
   }
+  /// Value at settlement.
   double spot_value() const {
     return GetField<double>(VT_SPOT_VALUE, 0.0);
   }
+  /// When the FRA settles.
   const ::flatbuffers::String *settlement_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
   }
@@ -133,6 +137,7 @@ struct PriceFRAResponseT : public ::flatbuffers::NativeTable {
   PriceFRAResponseT &operator=(PriceFRAResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple FRAs.
 struct PriceFRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceFRAResponseT NativeTableType;
   typedef PriceFRAResponseBuilder Builder;

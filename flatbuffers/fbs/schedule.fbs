@@ -2,7 +2,8 @@ include "enums.fbs";
 
 namespace quantra;
 
-table Schedule{
+/// Date schedule definition for payment and accrual dates.
+table Schedule {
     calendar:enums.Calendar;
     effective_date:string;
     termination_date:string;

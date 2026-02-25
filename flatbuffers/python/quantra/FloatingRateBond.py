@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Floating-rate bond instrument.
 class FloatingRateBond(object):
     __slots__ = ['_tab']
 
@@ -49,7 +50,7 @@ class FloatingRateBond(object):
             return obj
         return None
 
-    # Reference to an IndexDef by id (e.g., "EUR_6M")
+    # Reference to an IndexDef by id (e.g., "EUR_6M").
     # FloatingRateBond
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

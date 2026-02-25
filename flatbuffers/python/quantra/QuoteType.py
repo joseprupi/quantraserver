@@ -2,7 +2,7 @@
 
 # namespace: quantra
 
-# High-level quote type (usage)
+# High-level quote type (usage).
 class QuoteType(object):
     Curve = 0
     Volatility = 1

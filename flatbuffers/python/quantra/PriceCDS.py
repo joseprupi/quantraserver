@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Single CDS pricing request with curve/credit/model references.
 class PriceCDS(object):
     __slots__ = ['_tab']
 
@@ -35,6 +36,7 @@ class PriceCDS(object):
             return obj
         return None
 
+    # Reference to yield curve in Pricing.curves.
     # PriceCDS
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -42,6 +44,7 @@ class PriceCDS(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Reference to credit curve in Pricing.credit_curves.
     # PriceCDS
     def CreditCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -49,6 +52,7 @@ class PriceCDS(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Reference to model in Pricing.models.
     # PriceCDS
     def Model(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

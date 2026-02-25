@@ -39,6 +39,7 @@ struct FRAT : public ::flatbuffers::NativeTable {
   FRAT &operator=(FRAT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Forward Rate Agreement instrument.
 struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FRAT NativeTableType;
   typedef FRABuilder Builder;
@@ -59,16 +60,19 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
+  /// When the FRA period starts.
   const ::flatbuffers::String *start_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
   }
+  /// When the FRA period ends.
   const ::flatbuffers::String *maturity_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MATURITY_DATE);
   }
+  /// The agreed forward rate (e.g., 0.035 for 3.5%).
   double strike() const {
     return GetField<double>(VT_STRIKE, 0.0);
   }
-  /// Reference to an IndexDef by id (e.g., "EUR_3M")
+  /// Reference to an IndexDef by id (e.g., "EUR_3M").
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }

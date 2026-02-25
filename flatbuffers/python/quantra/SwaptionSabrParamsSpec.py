@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# SABR parameter grid swaption volatility.
 class SwaptionSabrParamsSpec(object):
     __slots__ = ['_tab']
 

@@ -1,9 +1,7 @@
 namespace quantra.enums;
 
-// ============================================================================
-// Day Count Conventions
-// ============================================================================
-enum DayCounter : byte { 
+/// Day count conventions for accrual and discounting.
+enum DayCounter : byte {
     Actual360,
     Actual365Fixed,
     Actual365NoLeap,
@@ -21,10 +19,8 @@ enum DayCounter : byte {
     Thirty360,
 }
 
-// ============================================================================
-// Curve Interpolation
-// ============================================================================
-enum Interpolator : byte { 
+/// Curve interpolation methods.
+enum Interpolator : byte {
     BackwardFlat,
     ForwardFlat,
     Linear,
@@ -32,19 +28,18 @@ enum Interpolator : byte {
     LogLinear,
 }
 
-enum BootstrapTrait : byte { 
+/// Bootstrap trait for curve construction.
+enum BootstrapTrait : byte {
     Discount,
     FwdRate,
     InterpolatedDiscount,
     InterpolatedFwd,
     InterpolatedZero,
-    ZeroRate 
+    ZeroRate
 }
 
-// ============================================================================
-// Time & Calendar
-// ============================================================================
-enum TimeUnit : byte { 
+/// Time unit for period definitions.
+enum TimeUnit : byte {
     Days,
     Hours,
     Microseconds,
@@ -56,7 +51,8 @@ enum TimeUnit : byte {
     Years,
 }
 
-enum Calendar : byte { 
+/// Calendar for business-day and holiday rules.
+enum Calendar : byte {
     Argentina,
     Australia,
     BespokeCalendar,
@@ -102,6 +98,7 @@ enum Calendar : byte {
     WeekendsOnly,
 }
 
+/// Business day convention for date adjustments.
 enum BusinessDayConvention : byte {
     Following,
     HalfMonthModifiedFollowing,
@@ -110,8 +107,9 @@ enum BusinessDayConvention : byte {
     Nearest,
     Preceding,
     Unadjusted,
-} 
+}
 
+/// Frequency for periodic schedules.
 enum Frequency : byte {
     Annual,
     Bimonthly,
@@ -128,6 +126,7 @@ enum Frequency : byte {
     Weekly
 }
 
+/// Date generation rule for schedule construction.
 enum DateGenerationRule : byte {
     Backward,
     CDS,
@@ -139,56 +138,43 @@ enum DateGenerationRule : byte {
     Zero
 }
 
-// ============================================================================
-// CDS / Credit Curve Enums
-// ============================================================================
-
+/// CDS pricing engine type.
 enum CdsEngineType : byte {
     MidPoint,
     ISDA
 }
 
+/// CDS helper model convention.
 enum CdsHelperModel : byte {
     MidPoint,
     ISDA
 }
 
+/// CDS market quote type.
 enum CdsQuoteType : byte {
     ParSpread,
     Upfront
 }
 
+/// CDS ISDA numerical fix convention.
 enum CdsIsdaNumericalFix : byte {
     None,
     Taylor
 }
 
+/// CDS ISDA accrual bias convention.
 enum CdsIsdaAccrualBias : byte {
     HalfDayBias,
     NoBias
 }
 
+/// CDS ISDA forwards-in-coupon-period convention.
 enum CdsIsdaForwardsInCouponPeriod : byte {
     Flat,
     Piecewise
 }
 
-// ============================================================================
-// REMOVED: Interest Rate Index Enums
-// ============================================================================
-// The following enums have been REMOVED in favor of data-driven IndexDef:
-//   - Ibor (Euribor3M, Euribor6M, etc.)
-//   - OvernightIndex (SOFR, ESTR, SONIA, FedFunds, EONIA)
-//   - IborFamily (Euribor, USDLibor, GBPLibor, JPYLibor, Tibor)
-//
-// All indices are now defined via IndexDef in index.fbs.
-// Presets (e.g., "Euribor 6M with standard conventions") live in the
-// portal UI, not in the API type system.
-// ============================================================================
-
-// ============================================================================
-// Compounding
-// ============================================================================
+/// Compounding convention for rates.
 enum Compounding : byte {
     Compounded,
     Continuous,
@@ -196,49 +182,45 @@ enum Compounding : byte {
     SimpleThenCompounded
 }
 
-// Overnight rate averaging
+/// Overnight rate averaging method.
 enum RateAveragingType : byte {
     Compound,
     Simple
 }
 
-// ============================================================================
-// Product-Specific Enums
-// ============================================================================
-
-// Swap direction
+/// Swap direction: payer (pay fixed, receive floating) or receiver (receive fixed, pay floating).
 enum SwapType : byte {
-    Payer,      // Pay fixed, receive floating
-    Receiver    // Receive fixed, pay floating
+    Payer,
+    Receiver
 }
 
-// FRA position
+/// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : byte {
-    Long,       // Receive fixed, pay floating (benefit if rates rise)
-    Short       // Pay fixed, receive floating (benefit if rates fall)
+    Long,
+    Short
 }
 
-// Cap/Floor type
+/// Cap/Floor instrument type: cap, floor, or collar.
 enum CapFloorType : byte {
     Cap,
     Floor,
-    Collar      // Long cap + short floor
+    Collar
 }
 
-// Swaption exercise style
+/// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 enum ExerciseType : byte {
-    European,   // Exercise only at expiry
-    Bermudan,   // Exercise on specific dates
-    American    // Exercise any time
+    European,
+    Bermudan,
+    American
 }
 
-// Swaption settlement
+/// Swaption settlement: physical (deliver swap) or cash.
 enum SettlementType : byte {
-    Physical,   // Deliver the swap
-    Cash        // Cash settle the value
+    Physical,
+    Cash
 }
 
-// Swaption settlement method (used when settlement_type = Cash)
+/// Swaption settlement method when settlement_type is Cash.
 enum SettlementMethod : byte {
     PhysicalOTC,
     PhysicalCleared,
@@ -246,29 +228,29 @@ enum SettlementMethod : byte {
     ParYieldCurve
 }
 
-// CDS protection side
+/// CDS protection side: buyer or seller.
 enum ProtectionSide : byte {
     Buyer,
     Seller
 }
 
-// ============================================================================
-// Volatility
-// ============================================================================
+/// Volatility quote type: Normal, Lognormal, or ShiftedLognormal.
 enum VolatilityType : byte {
-    Normal,             // Bachelier/Normal volatility (basis points)
-    Lognormal,          // Black volatility (percentage)
-    ShiftedLognormal    // Displaced Black volatility
+    Normal,
+    Lognormal,
+    ShiftedLognormal
 }
 
+/// Volatility surface shape (dimensions and structure).
 enum VolSurfaceShape : byte {
-    Constant,           // Flat volatility
-    AtmMatrix2D,        // Expiry x Tenor
-    SmileCube3D,        // Expiry x Tenor x Strike
-    SabrParams,         // SABR parameter grids
-    SabrCalibrate       // SABR calibration from smile quotes
+    Constant,
+    AtmMatrix2D,
+    SmileCube3D,
+    SabrParams,
+    SabrCalibrate
 }
 
+/// Swaption volatility surface shape.
 enum SwaptionVolKind : byte {
     Constant,
     AtmMatrix2D,
@@ -277,27 +259,28 @@ enum SwaptionVolKind : byte {
     SabrCalibrate
 }
 
+/// Swaption strike convention: absolute or spread from ATM.
 enum SwaptionStrikeKind : byte {
     Absolute,
     SpreadFromATM
 }
 
-// ============================================================================
-// Pricing Models
-// ============================================================================
+/// Interest rate model type.
 enum IrModelType : byte {
-    Black,              // Black-76 model (lognormal)
-    ShiftedBlack,       // Displaced Black model
-    Bachelier,          // Normal/Bachelier model
-    HullWhiteLattice    // One-factor HW short-rate lattice model
+    Black,
+    ShiftedBlack,
+    Bachelier,
+    HullWhiteLattice
 }
 
+/// Model parameter source: explicit values or calibrate from helpers.
 enum ModelParamMode : byte {
     Explicit = 0,
     Calibrate = 1
 }
 
+/// Equity option model type.
 enum EquityModelType : byte {
-    BlackScholesAnalytic,   // Closed-form Black-Scholes
-    BinomialCRR             // Cox-Ross-Rubinstein binomial tree
+    BlackScholesAnalytic,
+    BinomialCRR
 }

@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS ISDA numerical fix convention.
 class CdsIsdaNumericalFix(object):
     None_ = 0
     Taylor = 1

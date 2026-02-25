@@ -39,6 +39,7 @@ struct PriceCDST : public ::flatbuffers::NativeTable {
   PriceCDST &operator=(PriceCDST o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Single CDS pricing request with curve/credit/model references.
 struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCDST NativeTableType;
   typedef PriceCDSBuilder Builder;
@@ -51,12 +52,15 @@ struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CDS *cds() const {
     return GetPointer<const quantra::CDS *>(VT_CDS);
   }
+  /// Reference to yield curve in Pricing.curves.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
+  /// Reference to credit curve in Pricing.credit_curves.
   const ::flatbuffers::String *credit_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CREDIT_CURVE_ID);
   }
+  /// Reference to model in Pricing.models.
   const ::flatbuffers::String *model() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }
@@ -147,6 +151,7 @@ struct PriceCDSRequestT : public ::flatbuffers::NativeTable {
   PriceCDSRequestT &operator=(PriceCDSRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Batch CDS pricing request.
 struct PriceCDSRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCDSRequestT NativeTableType;
   typedef PriceCDSRequestBuilder Builder;

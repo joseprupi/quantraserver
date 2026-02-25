@@ -3,7 +3,6 @@
 # namespace: quantra
 
 # Whether this is an IBOR (term) or Overnight index.
-# This determines which QuantLib base class to use.
 class IndexType(object):
     Ibor = 0
     Overnight = 1

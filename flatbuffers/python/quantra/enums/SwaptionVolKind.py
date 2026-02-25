@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swaption volatility surface shape.
 class SwaptionVolKind(object):
     Constant = 0
     AtmMatrix2D = 1

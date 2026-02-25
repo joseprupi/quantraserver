@@ -31,7 +31,7 @@ struct CalendarAdvanceRequestT : public ::flatbuffers::NativeTable {
   bool end_of_month = false;
 };
 
-/// Request date advance by calendar-aware period.
+/// Request to advance a date by a calendar-aware period.
 struct CalendarAdvanceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CalendarAdvanceRequestT NativeTableType;
   typedef CalendarAdvanceRequestBuilder Builder;
@@ -46,9 +46,11 @@ struct CalendarAdvanceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
   }
+  /// Date in YYYY-MM-DD format.
   const ::flatbuffers::String *date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DATE);
   }
+  /// Number of units; can be negative for back-shift.
   int32_t tenor_number() const {
     return GetField<int32_t>(VT_TENOR_NUMBER, 0);
   }

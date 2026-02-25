@@ -5,7 +5,8 @@ include "term_structure.fbs";
 
 namespace quantra;
 
-table PriceFloatingRateBond{
+/// Single floating-rate bond pricing context.
+table PriceFloatingRateBond {
     floating_rate_bond:FloatingRateBond;
     discounting_curve:string;
     forecasting_curve:string;
@@ -13,7 +14,8 @@ table PriceFloatingRateBond{
     yield:Yield;
 }
 
-table PriceFloatingRateBondRequest{
+/// Request to price one or more floating-rate bonds.
+table PriceFloatingRateBondRequest {
     pricing:Pricing;
     bonds:[PriceFloatingRateBond];
 }

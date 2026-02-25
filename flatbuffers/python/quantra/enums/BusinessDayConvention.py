@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Business day convention for date adjustments.
 class BusinessDayConvention(object):
     Following = 0
     HalfMonthModifiedFollowing = 1

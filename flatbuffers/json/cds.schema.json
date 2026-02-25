@@ -123,6 +123,7 @@
     },
     "quantra_Schedule" : {
       "type" : "object",
+      "description" : "Date schedule definition for payment and accrual dates.",
       "properties" : {
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -153,6 +154,7 @@
     },
     "quantra_CDS" : {
       "type" : "object",
+      "description" : "Credit Default Swap instrument.",
       "properties" : {
         "side" : {
                 "$ref" : "#/definitions/quantra_enums_ProtectionSide"
@@ -161,13 +163,15 @@
                 "type" : "number"
               },
         "running_coupon" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Running coupon in decimal (0.01 = 100bps)."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "upfront" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Upfront payment (can be 0)."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"

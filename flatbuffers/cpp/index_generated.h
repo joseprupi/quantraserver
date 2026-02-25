@@ -31,7 +31,6 @@ struct IndexRefBuilder;
 struct IndexRefT;
 
 /// Whether this is an IBOR (term) or Overnight index.
-/// This determines which QuantLib base class to use.
 enum IndexType : int8_t {
   IndexType_Ibor = 0,
   IndexType_Overnight = 1,
@@ -68,6 +67,7 @@ struct FixingT : public ::flatbuffers::NativeTable {
   double value = 0.0;
 };
 
+/// Historical index fixing for seasoned instruments.
 struct Fixing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FixingT NativeTableType;
   typedef FixingBuilder Builder;
@@ -174,12 +174,11 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CURRENCY = 22,
     VT_FIXINGS = 24
   };
-  /// Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
+  /// Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M").
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
   }
-  /// Human-readable name / family label (e.g., "Euribor", "SOFR", "MyBank3M")
-  /// Used as the QuantLib index familyName. No financial logic depends on this.
+  /// Human-readable name / family label (e.g., "Euribor", "SOFR").
   const ::flatbuffers::String *name() const {
     return GetPointer<const ::flatbuffers::String *>(VT_NAME);
   }
@@ -187,37 +186,35 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::IndexType index_type() const {
     return static_cast<quantra::IndexType>(GetField<int8_t>(VT_INDEX_TYPE, 0));
   }
-  /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)
+  /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight).
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
+  /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).
   int32_t fixing_days() const {
     return GetField<int32_t>(VT_FIXING_DAYS, 2);
   }
-  /// Calendar for fixing/payment dates
+  /// Calendar for fixing/payment dates.
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
   }
-  /// Business day convention
+  /// Business day convention.
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
   }
-  /// Day count convention
+  /// Day count convention.
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  /// End of month rule (IBOR only, ignored for overnight)
+  /// End of month rule (IBOR only, ignored for overnight).
   bool end_of_month() const {
     return GetField<uint8_t>(VT_END_OF_MONTH, 1) != 0;
   }
-  /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY")
-  /// Mapped to QuantLib Currency objects. Required.
+  /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY").
   const ::flatbuffers::String *currency() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CURRENCY);
   }
   /// Past fixings needed for seasoned instruments.
-  /// Applied via index->addFixing() before pricing.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *fixings() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *>(VT_FIXINGS);
   }
@@ -365,7 +362,6 @@ struct IndexRefT : public ::flatbuffers::NativeTable {
 };
 
 /// Reference to an IndexDef by its id.
-/// Used by helpers and instruments to point to a registered index.
 struct IndexRef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef IndexRefT NativeTableType;
   typedef IndexRefBuilder Builder;

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Cap/Floor pricing response.
 class CapFloorResponse(object):
     __slots__ = ['_tab']
 
@@ -31,6 +32,7 @@ class CapFloorResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # At-the-money rate.
     # CapFloorResponse
     def AtmRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -38,6 +40,7 @@ class CapFloorResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Implied volatility if priced from market price.
     # CapFloorResponse
     def ImpliedVolatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

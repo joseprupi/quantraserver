@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Swaption strike convention: absolute or spread from ATM.
 class SwaptionStrikeKind(object):
     Absolute = 0
     SpreadFromATM = 1

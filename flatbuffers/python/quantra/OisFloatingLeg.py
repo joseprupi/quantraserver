@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Floating leg for OIS swaps (compounded overnight).
 class OisFloatingLeg(object):
     __slots__ = ['_tab']
 
@@ -42,7 +43,7 @@ class OisFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Reference to an overnight IndexDef by id (e.g., "USD_SOFR")
+    # Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     # OisFloatingLeg
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -75,7 +76,7 @@ class OisFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Payment adjustments
+    # Payment adjustments.
     # OisFloatingLeg
     def PaymentCalendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -90,7 +91,7 @@ class OisFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # Overnight accrual conventions
+    # Overnight accrual conventions.
     # OisFloatingLeg
     def AveragingMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))

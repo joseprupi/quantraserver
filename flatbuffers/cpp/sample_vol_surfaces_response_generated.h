@@ -31,6 +31,7 @@ struct SampleVolSurfacesResponseT : public ::flatbuffers::NativeTable {
   SampleVolSurfacesResponseT &operator=(SampleVolSurfacesResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response from volatility surface sampling request.
 struct SampleVolSurfacesResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SampleVolSurfacesResponseT NativeTableType;
   typedef SampleVolSurfacesResponseBuilder Builder;

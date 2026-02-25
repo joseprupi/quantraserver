@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of all supported curve point types.
 class Point(object):
     NONE = 0
     DepositHelper = 1

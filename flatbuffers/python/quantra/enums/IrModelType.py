@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Interest rate model type.
 class IrModelType(object):
     Black = 0
     ShiftedBlack = 1

@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Strike axis convention.
 class VolStrikeAxis(object):
     AbsoluteStrike = 0
     SpreadFromATM = 1

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Smile cube swaption volatility (expiry x tenor x strike).
 class SwaptionVolSmileCubeSpec(object):
     __slots__ = ['_tab']
 
@@ -35,6 +36,7 @@ class SwaptionVolSmileCubeSpec(object):
             return obj
         return None
 
+    # Require explicit opt-in when client provides atm_forwards.
     # SwaptionVolSmileCubeSpec
     def AllowExternalAtm(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -125,6 +127,7 @@ class SwaptionVolSmileCubeSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Optional for Absolute, required for SpreadFromATM.
     # SwaptionVolSmileCubeSpec
     def AtmForwards(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

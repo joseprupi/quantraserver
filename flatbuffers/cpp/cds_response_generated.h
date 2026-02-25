@@ -39,6 +39,7 @@ struct CDSValuesT : public ::flatbuffers::NativeTable {
   CDSValuesT &operator=(CDSValuesT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// CDS pricing results.
 struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CDSValuesT NativeTableType;
   typedef CDSValuesBuilder Builder;
@@ -53,15 +54,19 @@ struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
+  /// Par spread in decimal.
   double fair_spread() const {
     return GetField<double>(VT_FAIR_SPREAD, 0.0);
   }
+  /// Upfront for par spread.
   double fair_upfront() const {
     return GetField<double>(VT_FAIR_UPFRONT, 0.0);
   }
+  /// NPV of protection leg.
   double default_leg_npv() const {
     return GetField<double>(VT_DEFAULT_LEG_NPV, 0.0);
   }
+  /// NPV of premium leg.
   double premium_leg_npv() const {
     return GetField<double>(VT_PREMIUM_LEG_NPV, 0.0);
   }
@@ -146,6 +151,7 @@ struct PriceCDSResponseT : public ::flatbuffers::NativeTable {
   PriceCDSResponseT &operator=(PriceCDSResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Batch CDS pricing response.
 struct PriceCDSResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCDSResponseT NativeTableType;
   typedef PriceCDSResponseBuilder Builder;

@@ -5,8 +5,10 @@ namespace quantra;
 /// Request business/market dates between two dates for a calendar.
 table CalendarBusinessDaysRequest {
     calendar:enums.Calendar = TARGET;
-    start_date:string (required);  // YYYY/MM/DD
-    end_date:string (required);    // YYYY/MM/DD
+    /// Start date in YYYY-MM-DD format.
+    start_date:string (required);
+    /// End date in YYYY-MM-DD format.
+    end_date:string (required);
     include_start:bool = true;
     include_end:bool = true;
 }

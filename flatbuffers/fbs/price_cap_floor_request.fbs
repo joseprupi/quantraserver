@@ -4,17 +4,22 @@ include "cap_floor.fbs";
 
 namespace quantra;
 
-// Single Cap/Floor pricing request
+/// Single cap/floor pricing request with curve/vol/model references.
 table PriceCapFloor {
     cap_floor:CapFloor;
-    discounting_curve:string;        // Reference to curve in Pricing.curves by id
-    forwarding_curve:string;         // Reference to curve for forward rates by id
-    volatility:string;               // Reference to volatility in Pricing.vol_surfaces by id
-    model:string;                    // Reference to model in Pricing.models by id
-    include_details:bool = false;    // Include caplet/floorlet breakdown
+    /// Reference to curve in Pricing.curves by id.
+    discounting_curve:string;
+    /// Reference to curve for forward rates by id.
+    forwarding_curve:string;
+    /// Reference to volatility in Pricing.vol_surfaces by id.
+    volatility:string;
+    /// Reference to model in Pricing.models by id.
+    model:string;
+    /// Include caplet/floorlet breakdown.
+    include_details:bool = false;
 }
 
-// Request to price one or more Caps/Floors
+/// Request to price one or more caps/floors.
 table PriceCapFloorRequest {
     pricing:Pricing;
     cap_floors:[PriceCapFloor];

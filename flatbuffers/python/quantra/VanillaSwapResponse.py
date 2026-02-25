@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Full vanilla swap pricing response.
 class VanillaSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -73,6 +74,7 @@ class VanillaSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional detailed flows per leg.
     # VanillaSwapResponse
     def FixedLegFlows(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))

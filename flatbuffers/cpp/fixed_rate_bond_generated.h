@@ -38,6 +38,7 @@ struct FixedRateBondT : public ::flatbuffers::NativeTable {
   FixedRateBondT &operator=(FixedRateBondT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Fixed-rate bond instrument.
 struct FixedRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FixedRateBondT NativeTableType;
   typedef FixedRateBondBuilder Builder;

@@ -127,6 +127,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
+      "description" : "Canonical period type used across APIs.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -139,6 +140,7 @@
     },
     "quantra_Yield" : {
       "type" : "object",
+      "description" : "Yield/compounding convention specification.",
       "properties" : {
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -154,6 +156,7 @@
     },
     "quantra_Error" : {
       "type" : "object",
+      "description" : "Error message container.",
       "properties" : {
         "error_message" : {
                 "type" : "string"
@@ -163,6 +166,7 @@
     },
     "quantra_FlowInterest" : {
       "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -190,6 +194,7 @@
     },
     "quantra_FlowInterestFloat" : {
       "type" : "object",
+      "description" : "Floating-rate interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -217,6 +222,7 @@
     },
     "quantra_FlowPastInterestFloat" : {
       "type" : "object",
+      "description" : "Past floating-rate interest for seasoned instruments.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -238,6 +244,7 @@
     },
     "quantra_FlowPastInterest" : {
       "type" : "object",
+      "description" : "Past fixed interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -259,6 +266,7 @@
     },
     "quantra_FlowNotional" : {
       "type" : "object",
+      "description" : "Notional exchange cash flow.",
       "properties" : {
         "date" : {
                 "type" : "string"
@@ -277,6 +285,7 @@
     },
     "quantra_FlowsWrapper" : {
       "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
       "properties" : {
         "flow_type" : {
                 "$ref" : "#/definitions/quantra_Flow"
@@ -289,6 +298,7 @@
     },
     "quantra_FixedRateBondResponse" : {
       "type" : "object",
+      "description" : "Fixed-rate bond pricing response.",
       "properties" : {
         "npv" : {
                 "type" : "number"
@@ -328,6 +338,7 @@
     },
     "quantra_PriceFixedRateBondResponse" : {
       "type" : "object",
+      "description" : "Response wrapper for multiple fixed-rate bonds.",
       "properties" : {
         "bonds" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FixedRateBondResponse"}

@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Volatility quote type: Normal, Lognormal, or ShiftedLognormal.
 class VolatilityType(object):
     Normal = 0
     Lognormal = 1

@@ -47,6 +47,7 @@ struct SwapLegFlowT : public ::flatbuffers::NativeTable {
   double rate = 0.0;
 };
 
+/// Cashflow for a swap leg.
 struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapLegFlowT NativeTableType;
   typedef SwapLegFlowBuilder Builder;
@@ -80,6 +81,7 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double present_value() const {
     return GetField<double>(VT_PRESENT_VALUE, 0.0);
   }
+  /// Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
   const ::flatbuffers::String *fixing_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FIXING_DATE);
   }
@@ -89,6 +91,7 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
+  /// Coupon rate: fixed-leg rate or effective floating coupon rate.
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
@@ -229,6 +232,7 @@ struct SwapLegResponseT : public ::flatbuffers::NativeTable {
   SwapLegResponseT &operator=(SwapLegResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response for a single swap leg.
 struct SwapLegResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapLegResponseT NativeTableType;
   typedef SwapLegResponseBuilder Builder;
@@ -328,6 +332,7 @@ struct VanillaSwapResponseT : public ::flatbuffers::NativeTable {
   VanillaSwapResponseT &operator=(VanillaSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Full vanilla swap pricing response.
 struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VanillaSwapResponseT NativeTableType;
   typedef VanillaSwapResponseBuilder Builder;
@@ -363,6 +368,7 @@ struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   double floating_leg_npv() const {
     return GetField<double>(VT_FLOATING_LEG_NPV, 0.0);
   }
+  /// Optional detailed flows per leg.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *fixed_leg_flows() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_FIXED_LEG_FLOWS);
   }
@@ -494,6 +500,7 @@ struct PriceVanillaSwapResponseT : public ::flatbuffers::NativeTable {
   PriceVanillaSwapResponseT &operator=(PriceVanillaSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple vanilla swaps.
 struct PriceVanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceVanillaSwapResponseT NativeTableType;
   typedef PriceVanillaSwapResponseBuilder Builder;

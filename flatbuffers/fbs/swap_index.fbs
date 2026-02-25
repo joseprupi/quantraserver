@@ -3,11 +3,13 @@ include "common.fbs";
 
 namespace quantra;
 
+/// Swap index kind: IBOR or OIS.
 enum SwapIndexKind : byte {
     IborSwapIndex,
     OisSwapIndex
 }
 
+/// Fixed leg conventions for swap index.
 table SwapIndexFixedLegSpec {
     fixed_frequency:enums.Frequency = Annual;
     fixed_day_counter:enums.DayCounter = Thirty360;
@@ -18,6 +20,7 @@ table SwapIndexFixedLegSpec {
     fixed_eom:bool = false;
 }
 
+/// Floating leg conventions for swap index.
 table SwapIndexFloatLegSpec {
     float_tenor:Period;
     float_calendar:enums.Calendar = TARGET;
@@ -27,20 +30,21 @@ table SwapIndexFloatLegSpec {
     float_eom:bool = false;
 }
 
+/// Swap index definition for swaption smile conventions.
 table SwapIndexDef {
     id:string (required);
     kind:SwapIndexKind = IborSwapIndex;
-    // Spot/effective-date lag used for exercise->swap-start advancement.
+    /// Spot/effective-date lag used for exercise-to-swap-start advancement.
     spot_days:int = 2;
-    // Metadata only; pricing logic uses fixed_leg/float_leg conventions.
+    /// Metadata only; pricing uses fixed_leg/float_leg conventions.
     calendar:enums.Calendar = TARGET;
-    // Metadata only; pricing logic uses fixed_leg/float_leg conventions.
+    /// Metadata only; pricing uses fixed_leg/float_leg conventions.
     business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    // Metadata only; pricing logic uses fixed_leg/float_leg conventions.
+    /// Metadata only; pricing uses fixed_leg/float_leg conventions.
     end_of_month:bool = false;
     fixed_leg:SwapIndexFixedLegSpec;
+    /// Reference to IndexDef by id.
     float_index_id:string (required);
     float_leg:SwapIndexFloatLegSpec;
     allow_override_from_trade:bool = false;
 }
-

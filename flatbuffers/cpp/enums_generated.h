@@ -16,6 +16,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 namespace quantra {
 namespace enums {
 
+/// Day count conventions for accrual and discounting.
 enum DayCounter : int8_t {
   DayCounter_Actual360 = 0,
   DayCounter_Actual365Fixed = 1,
@@ -85,6 +86,7 @@ inline const char *EnumNameDayCounter(DayCounter e) {
   return EnumNamesDayCounter()[index];
 }
 
+/// Curve interpolation methods.
 enum Interpolator : int8_t {
   Interpolator_BackwardFlat = 0,
   Interpolator_ForwardFlat = 1,
@@ -124,6 +126,7 @@ inline const char *EnumNameInterpolator(Interpolator e) {
   return EnumNamesInterpolator()[index];
 }
 
+/// Bootstrap trait for curve construction.
 enum BootstrapTrait : int8_t {
   BootstrapTrait_Discount = 0,
   BootstrapTrait_FwdRate = 1,
@@ -166,6 +169,7 @@ inline const char *EnumNameBootstrapTrait(BootstrapTrait e) {
   return EnumNamesBootstrapTrait()[index];
 }
 
+/// Time unit for period definitions.
 enum TimeUnit : int8_t {
   TimeUnit_Days = 0,
   TimeUnit_Hours = 1,
@@ -217,6 +221,7 @@ inline const char *EnumNameTimeUnit(TimeUnit e) {
   return EnumNamesTimeUnit()[index];
 }
 
+/// Calendar for business-day and holiday rules.
 enum Calendar : int8_t {
   Calendar_Argentina = 0,
   Calendar_Australia = 1,
@@ -370,6 +375,7 @@ inline const char *EnumNameCalendar(Calendar e) {
   return EnumNamesCalendar()[index];
 }
 
+/// Business day convention for date adjustments.
 enum BusinessDayConvention : int8_t {
   BusinessDayConvention_Following = 0,
   BusinessDayConvention_HalfMonthModifiedFollowing = 1,
@@ -415,6 +421,7 @@ inline const char *EnumNameBusinessDayConvention(BusinessDayConvention e) {
   return EnumNamesBusinessDayConvention()[index];
 }
 
+/// Frequency for periodic schedules.
 enum Frequency : int8_t {
   Frequency_Annual = 0,
   Frequency_Bimonthly = 1,
@@ -478,6 +485,7 @@ inline const char *EnumNameFrequency(Frequency e) {
   return EnumNamesFrequency()[index];
 }
 
+/// Date generation rule for schedule construction.
 enum DateGenerationRule : int8_t {
   DateGenerationRule_Backward = 0,
   DateGenerationRule_CDS = 1,
@@ -526,6 +534,7 @@ inline const char *EnumNameDateGenerationRule(DateGenerationRule e) {
   return EnumNamesDateGenerationRule()[index];
 }
 
+/// CDS pricing engine type.
 enum CdsEngineType : int8_t {
   CdsEngineType_MidPoint = 0,
   CdsEngineType_ISDA = 1,
@@ -556,6 +565,7 @@ inline const char *EnumNameCdsEngineType(CdsEngineType e) {
   return EnumNamesCdsEngineType()[index];
 }
 
+/// CDS helper model convention.
 enum CdsHelperModel : int8_t {
   CdsHelperModel_MidPoint = 0,
   CdsHelperModel_ISDA = 1,
@@ -586,6 +596,7 @@ inline const char *EnumNameCdsHelperModel(CdsHelperModel e) {
   return EnumNamesCdsHelperModel()[index];
 }
 
+/// CDS market quote type.
 enum CdsQuoteType : int8_t {
   CdsQuoteType_ParSpread = 0,
   CdsQuoteType_Upfront = 1,
@@ -616,6 +627,7 @@ inline const char *EnumNameCdsQuoteType(CdsQuoteType e) {
   return EnumNamesCdsQuoteType()[index];
 }
 
+/// CDS ISDA numerical fix convention.
 enum CdsIsdaNumericalFix : int8_t {
   CdsIsdaNumericalFix_None = 0,
   CdsIsdaNumericalFix_Taylor = 1,
@@ -646,6 +658,7 @@ inline const char *EnumNameCdsIsdaNumericalFix(CdsIsdaNumericalFix e) {
   return EnumNamesCdsIsdaNumericalFix()[index];
 }
 
+/// CDS ISDA accrual bias convention.
 enum CdsIsdaAccrualBias : int8_t {
   CdsIsdaAccrualBias_HalfDayBias = 0,
   CdsIsdaAccrualBias_NoBias = 1,
@@ -676,6 +689,7 @@ inline const char *EnumNameCdsIsdaAccrualBias(CdsIsdaAccrualBias e) {
   return EnumNamesCdsIsdaAccrualBias()[index];
 }
 
+/// CDS ISDA forwards-in-coupon-period convention.
 enum CdsIsdaForwardsInCouponPeriod : int8_t {
   CdsIsdaForwardsInCouponPeriod_Flat = 0,
   CdsIsdaForwardsInCouponPeriod_Piecewise = 1,
@@ -706,6 +720,7 @@ inline const char *EnumNameCdsIsdaForwardsInCouponPeriod(CdsIsdaForwardsInCoupon
   return EnumNamesCdsIsdaForwardsInCouponPeriod()[index];
 }
 
+/// Compounding convention for rates.
 enum Compounding : int8_t {
   Compounding_Compounded = 0,
   Compounding_Continuous = 1,
@@ -742,6 +757,7 @@ inline const char *EnumNameCompounding(Compounding e) {
   return EnumNamesCompounding()[index];
 }
 
+/// Overnight rate averaging method.
 enum RateAveragingType : int8_t {
   RateAveragingType_Compound = 0,
   RateAveragingType_Simple = 1,
@@ -772,6 +788,7 @@ inline const char *EnumNameRateAveragingType(RateAveragingType e) {
   return EnumNamesRateAveragingType()[index];
 }
 
+/// Swap direction: payer (pay fixed, receive floating) or receiver (receive fixed, pay floating).
 enum SwapType : int8_t {
   SwapType_Payer = 0,
   SwapType_Receiver = 1,
@@ -802,6 +819,7 @@ inline const char *EnumNameSwapType(SwapType e) {
   return EnumNamesSwapType()[index];
 }
 
+/// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : int8_t {
   FRAType_Long = 0,
   FRAType_Short = 1,
@@ -832,6 +850,7 @@ inline const char *EnumNameFRAType(FRAType e) {
   return EnumNamesFRAType()[index];
 }
 
+/// Cap/Floor instrument type: cap, floor, or collar.
 enum CapFloorType : int8_t {
   CapFloorType_Cap = 0,
   CapFloorType_Floor = 1,
@@ -865,6 +884,7 @@ inline const char *EnumNameCapFloorType(CapFloorType e) {
   return EnumNamesCapFloorType()[index];
 }
 
+/// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 enum ExerciseType : int8_t {
   ExerciseType_European = 0,
   ExerciseType_Bermudan = 1,
@@ -898,6 +918,7 @@ inline const char *EnumNameExerciseType(ExerciseType e) {
   return EnumNamesExerciseType()[index];
 }
 
+/// Swaption settlement: physical (deliver swap) or cash.
 enum SettlementType : int8_t {
   SettlementType_Physical = 0,
   SettlementType_Cash = 1,
@@ -928,6 +949,7 @@ inline const char *EnumNameSettlementType(SettlementType e) {
   return EnumNamesSettlementType()[index];
 }
 
+/// Swaption settlement method when settlement_type is Cash.
 enum SettlementMethod : int8_t {
   SettlementMethod_PhysicalOTC = 0,
   SettlementMethod_PhysicalCleared = 1,
@@ -964,6 +986,7 @@ inline const char *EnumNameSettlementMethod(SettlementMethod e) {
   return EnumNamesSettlementMethod()[index];
 }
 
+/// CDS protection side: buyer or seller.
 enum ProtectionSide : int8_t {
   ProtectionSide_Buyer = 0,
   ProtectionSide_Seller = 1,
@@ -994,6 +1017,7 @@ inline const char *EnumNameProtectionSide(ProtectionSide e) {
   return EnumNamesProtectionSide()[index];
 }
 
+/// Volatility quote type: Normal, Lognormal, or ShiftedLognormal.
 enum VolatilityType : int8_t {
   VolatilityType_Normal = 0,
   VolatilityType_Lognormal = 1,
@@ -1027,6 +1051,7 @@ inline const char *EnumNameVolatilityType(VolatilityType e) {
   return EnumNamesVolatilityType()[index];
 }
 
+/// Volatility surface shape (dimensions and structure).
 enum VolSurfaceShape : int8_t {
   VolSurfaceShape_Constant = 0,
   VolSurfaceShape_AtmMatrix2D = 1,
@@ -1066,6 +1091,7 @@ inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
   return EnumNamesVolSurfaceShape()[index];
 }
 
+/// Swaption volatility surface shape.
 enum SwaptionVolKind : int8_t {
   SwaptionVolKind_Constant = 0,
   SwaptionVolKind_AtmMatrix2D = 1,
@@ -1105,6 +1131,7 @@ inline const char *EnumNameSwaptionVolKind(SwaptionVolKind e) {
   return EnumNamesSwaptionVolKind()[index];
 }
 
+/// Swaption strike convention: absolute or spread from ATM.
 enum SwaptionStrikeKind : int8_t {
   SwaptionStrikeKind_Absolute = 0,
   SwaptionStrikeKind_SpreadFromATM = 1,
@@ -1135,6 +1162,7 @@ inline const char *EnumNameSwaptionStrikeKind(SwaptionStrikeKind e) {
   return EnumNamesSwaptionStrikeKind()[index];
 }
 
+/// Interest rate model type.
 enum IrModelType : int8_t {
   IrModelType_Black = 0,
   IrModelType_ShiftedBlack = 1,
@@ -1171,6 +1199,7 @@ inline const char *EnumNameIrModelType(IrModelType e) {
   return EnumNamesIrModelType()[index];
 }
 
+/// Model parameter source: explicit values or calibrate from helpers.
 enum ModelParamMode : int8_t {
   ModelParamMode_Explicit = 0,
   ModelParamMode_Calibrate = 1,
@@ -1201,6 +1230,7 @@ inline const char *EnumNameModelParamMode(ModelParamMode e) {
   return EnumNamesModelParamMode()[index];
 }
 
+/// Equity option model type.
 enum EquityModelType : int8_t {
   EquityModelType_BlackScholesAnalytic = 0,
   EquityModelType_BinomialCRR = 1,

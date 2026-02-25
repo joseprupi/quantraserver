@@ -33,6 +33,7 @@ struct BasisSwapT : public ::flatbuffers::NativeTable {
   BasisSwapT &operator=(BasisSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Basis swap with two floating legs (e.g., 3M vs 6M).
 struct BasisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BasisSwapT NativeTableType;
   typedef BasisSwapBuilder Builder;

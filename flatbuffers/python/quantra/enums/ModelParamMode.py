@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Model parameter source: explicit values or calibrate from helpers.
 class ModelParamMode(object):
     Explicit = 0
     Calibrate = 1

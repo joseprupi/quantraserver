@@ -25,7 +25,7 @@ class IndexDef(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M")
+    # Unique identifier (e.g., "EUR_6M", "USD_SOFR", "MY_CUSTOM_3M").
     # IndexDef
     def Id(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,8 +33,7 @@ class IndexDef(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Human-readable name / family label (e.g., "Euribor", "SOFR", "MyBank3M")
-    # Used as the QuantLib index familyName. No financial logic depends on this.
+    # Human-readable name / family label (e.g., "Euribor", "SOFR").
     # IndexDef
     def Name(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -50,7 +49,7 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)
+    # Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight).
     # IndexDef
     def Tenor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -62,7 +61,7 @@ class IndexDef(object):
             return obj
         return None
 
-    # Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)
+    # Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).
     # IndexDef
     def FixingDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -70,7 +69,7 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
-    # Calendar for fixing/payment dates
+    # Calendar for fixing/payment dates.
     # IndexDef
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -78,7 +77,7 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 32
 
-    # Business day convention
+    # Business day convention.
     # IndexDef
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -86,7 +85,7 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
-    # Day count convention
+    # Day count convention.
     # IndexDef
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -94,7 +93,7 @@ class IndexDef(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # End of month rule (IBOR only, ignored for overnight)
+    # End of month rule (IBOR only, ignored for overnight).
     # IndexDef
     def EndOfMonth(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -102,8 +101,7 @@ class IndexDef(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # ISO currency code (e.g., "EUR", "USD", "GBP", "JPY")
-    # Mapped to QuantLib Currency objects. Required.
+    # ISO currency code (e.g., "EUR", "USD", "GBP", "JPY").
     # IndexDef
     def Currency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -112,7 +110,6 @@ class IndexDef(object):
         return None
 
     # Past fixings needed for seasoned instruments.
-    # Applied via index->addFixing() before pricing.
     # IndexDef
     def Fixings(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))

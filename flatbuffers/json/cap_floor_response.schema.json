@@ -3,6 +3,7 @@
   "definitions": {
     "quantra_CapFloorLet" : {
       "type" : "object",
+      "description" : "Individual caplet/floorlet detail.",
       "properties" : {
         "payment_date" : {
                 "type" : "string"
@@ -26,22 +27,26 @@
                 "type" : "number"
               },
         "price" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Individual caplet/floorlet price."
               }
       },
       "additionalProperties" : false
     },
     "quantra_CapFloorResponse" : {
       "type" : "object",
+      "description" : "Cap/Floor pricing response.",
       "properties" : {
         "npv" : {
                 "type" : "number"
               },
         "atm_rate" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "At-the-money rate."
               },
         "implied_volatility" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Implied volatility if priced from market price."
               },
         "cap_floor_lets" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CapFloorLet"}
@@ -51,6 +56,7 @@
     },
     "quantra_PriceCapFloorResponse" : {
       "type" : "object",
+      "description" : "Response wrapper for multiple caps/floors.",
       "properties" : {
         "cap_floors" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CapFloorResponse"}

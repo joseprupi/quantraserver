@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Black volatility for Equity/FX/Commodity options
+# Black volatility for equity/FX/commodity options.
 class BlackVolSpec(object):
     __slots__ = ['_tab']
 

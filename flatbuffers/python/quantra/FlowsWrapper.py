@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Wrapper for a single flow in a collection.
 class FlowsWrapper(object):
     __slots__ = ['_tab']
 

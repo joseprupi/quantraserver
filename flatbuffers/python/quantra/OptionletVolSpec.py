@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Optionlet volatility for Caps/Floors
+# Optionlet volatility for caps/floors.
 class OptionletVolSpec(object):
     __slots__ = ['_tab']
 

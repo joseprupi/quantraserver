@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS ISDA accrual bias convention.
 class CdsIsdaAccrualBias(object):
     HalfDayBias = 0
     NoBias = 1

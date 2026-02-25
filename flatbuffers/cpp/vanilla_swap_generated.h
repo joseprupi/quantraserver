@@ -44,6 +44,7 @@ struct SwapFixedLegT : public ::flatbuffers::NativeTable {
   SwapFixedLegT &operator=(SwapFixedLegT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Fixed leg of a swap.
 struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapFixedLegT NativeTableType;
   typedef SwapFixedLegBuilder Builder;
@@ -148,6 +149,7 @@ struct SwapFloatingLegT : public ::flatbuffers::NativeTable {
   SwapFloatingLegT &operator=(SwapFloatingLegT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Floating leg of a swap.
 struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapFloatingLegT NativeTableType;
   typedef SwapFloatingLegBuilder Builder;
@@ -167,7 +169,7 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
   }
-  /// Reference to an IndexDef by id (e.g., "EUR_6M")
+  /// Reference to an IndexDef by id (e.g., "EUR_6M").
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
@@ -280,6 +282,7 @@ struct VanillaSwapT : public ::flatbuffers::NativeTable {
   VanillaSwapT &operator=(VanillaSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Vanilla interest rate swap (fixed vs floating).
 struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VanillaSwapT NativeTableType;
   typedef VanillaSwapBuilder Builder;

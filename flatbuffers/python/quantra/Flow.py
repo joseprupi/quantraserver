@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Union of cash flow types.
 class Flow(object):
     NONE = 0
     FlowInterest = 1

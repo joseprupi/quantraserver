@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Day count conventions for accrual and discounting.
 class DayCounter(object):
     Actual360 = 0
     Actual365Fixed = 1

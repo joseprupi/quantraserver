@@ -2,7 +2,7 @@ include "common.fbs";
 
 namespace quantra;
 
-// Cashflow for a swap leg
+/// Cashflow for a swap leg.
 table SwapLegFlow {
     payment_date:string;
     accrual_start_date:string;
@@ -10,23 +10,22 @@ table SwapLegFlow {
     amount:double;
     discount:double;
     present_value:double;
-    // Floating leg metadata (for overnight coupons this is QuantLib indexFixing()
-    // and may not represent the compounded effective coupon rate).
+    /// Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
     fixing_date:string;
     index_fixing:double;
     spread:double;
-    // Coupon rate: fixed-leg rate or effective floating coupon rate.
+    /// Coupon rate: fixed-leg rate or effective floating coupon rate.
     rate:double;
 }
 
-// Response for a single leg
+/// Response for a single swap leg.
 table SwapLegResponse {
     npv:double;
     bps:double;
     flows:[SwapLegFlow];
 }
 
-// Full swap response
+/// Full vanilla swap pricing response.
 table VanillaSwapResponse {
     npv:double;
     fair_rate:double;
@@ -35,12 +34,12 @@ table VanillaSwapResponse {
     floating_leg_bps:double;
     fixed_leg_npv:double;
     floating_leg_npv:double;
-    // Optional detailed flows
+    /// Optional detailed flows per leg.
     fixed_leg_flows:[SwapLegFlow];
     floating_leg_flows:[SwapLegFlow];
 }
 
-// Response wrapper for multiple swaps
+/// Response wrapper for multiple vanilla swaps.
 table PriceVanillaSwapResponse {
     swaps:[VanillaSwapResponse];
 }

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Batch CDS pricing response.
 class PriceCDSResponse(object):
     __slots__ = ['_tab']
 

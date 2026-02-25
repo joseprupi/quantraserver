@@ -123,6 +123,7 @@
     },
     "quantra_Schedule" : {
       "type" : "object",
+      "description" : "Date schedule definition for payment and accrual dates.",
       "properties" : {
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -153,6 +154,7 @@
     },
     "quantra_FixedRateBond" : {
       "type" : "object",
+      "description" : "Fixed-rate bond instrument.",
       "properties" : {
         "settlement_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647

@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Strike grid for vol surface sampling.
 class StrikeGrid(object):
     __slots__ = ['_tab']
 
@@ -31,6 +32,7 @@ class StrikeGrid(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # If axis=SpreadFromATM these are spreads.
     # StrikeGrid
     def Strikes(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))

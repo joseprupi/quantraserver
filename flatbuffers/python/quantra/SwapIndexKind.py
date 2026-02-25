@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Swap index kind: IBOR or OIS.
 class SwapIndexKind(object):
     IborSwapIndex = 0
     OisSwapIndex = 1

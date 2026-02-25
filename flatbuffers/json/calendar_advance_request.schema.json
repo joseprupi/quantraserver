@@ -123,16 +123,18 @@
     },
     "quantra_CalendarAdvanceRequest" : {
       "type" : "object",
-      "description" : "Request date advance by calendar-aware period.",
+      "description" : "Request to advance a date by a calendar-aware period.",
       "properties" : {
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
               },
         "date" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Date in YYYY-MM-DD format."
               },
         "tenor_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Number of units; can be negative for back-shift."
               },
         "tenor_unit" : {
                 "$ref" : "#/definitions/quantra_enums_TimeUnit"

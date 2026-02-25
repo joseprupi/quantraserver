@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Volatility surface type: Swaption or Optionlet.
 class VolSurfaceType(object):
     Swaption = 0
     Optionlet = 1

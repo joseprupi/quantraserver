@@ -2,25 +2,25 @@ include "enums.fbs";
 
 namespace quantra;
 
-// Canonical period type used across APIs.
+/// Canonical period type used across APIs.
 table Period {
     n:int;
     unit:enums.TimeUnit = Months;
 }
 
+/// Yield/compounding convention specification.
 table Yield {
     day_counter:enums.DayCounter;
     compounding:enums.Compounding;
     frequency:enums.Frequency;
 }
 
+/// Error message container.
 table Error {
     error_message:string;
 }
 
-// ============================================================================
-// Cash Flow Types
-// ============================================================================
+/// Interest cash flow with fixing and accrual metadata.
 table FlowInterest {
     amount:double;
     fixing_date:string;
@@ -31,6 +31,7 @@ table FlowInterest {
     price:float;
 }
 
+/// Floating-rate interest cash flow.
 table FlowInterestFloat {
     amount:double;
     fixing_date:string;
@@ -41,6 +42,7 @@ table FlowInterestFloat {
     price:float;
 }
 
+/// Past floating-rate interest for seasoned instruments.
 table FlowPastInterestFloat {
     amount:double;
     fixing_date:string;
@@ -49,6 +51,7 @@ table FlowPastInterestFloat {
     rate:float;
 }
 
+/// Past fixed interest cash flow.
 table FlowPastInterest {
     amount:double;
     fixing_date:string;
@@ -57,6 +60,7 @@ table FlowPastInterest {
     rate:float;
 }
 
+/// Notional exchange cash flow.
 table FlowNotional {
     date:string;
     amount:double;
@@ -64,8 +68,10 @@ table FlowNotional {
     price:float;
 }
 
+/// Union of cash flow types.
 union Flow { FlowInterest, FlowPastInterest, FlowNotional }
 
+/// Wrapper for a single flow in a collection.
 table FlowsWrapper {
     flow:Flow;
 }

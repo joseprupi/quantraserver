@@ -2,6 +2,7 @@
 
 # namespace: quantra
 
+# Underlying swap type: VanillaSwap or OisSwap.
 class SwaptionUnderlying(object):
     NONE = 0
     VanillaSwap = 1

@@ -42,6 +42,7 @@ struct BasisSwapResponseT : public ::flatbuffers::NativeTable {
   BasisSwapResponseT &operator=(BasisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Basis swap pricing response (two floating legs).
 struct BasisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BasisSwapResponseT NativeTableType;
   typedef BasisSwapResponseBuilder Builder;
@@ -71,9 +72,11 @@ struct BasisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
   double leg2_npv() const {
     return GetField<double>(VT_LEG2_NPV, 0.0);
   }
+  /// Par spread for leg1 keeping leg2 spread fixed.
   double fair_spread_leg1() const {
     return GetField<double>(VT_FAIR_SPREAD_LEG1, 0.0);
   }
+  /// Par spread for leg2 keeping leg1 spread fixed.
   double fair_spread_leg2() const {
     return GetField<double>(VT_FAIR_SPREAD_LEG2, 0.0);
   }
@@ -208,6 +211,7 @@ struct PriceBasisSwapResponseT : public ::flatbuffers::NativeTable {
   PriceBasisSwapResponseT &operator=(PriceBasisSwapResponseT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Response wrapper for multiple basis swaps.
 struct PriceBasisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceBasisSwapResponseT NativeTableType;
   typedef PriceBasisSwapResponseBuilder Builder;

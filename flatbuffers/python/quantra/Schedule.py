@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Date schedule definition for payment and accrual dates.
 class Schedule(object):
     __slots__ = ['_tab']
 

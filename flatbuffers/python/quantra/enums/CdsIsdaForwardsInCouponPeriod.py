@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# CDS ISDA forwards-in-coupon-period convention.
 class CdsIsdaForwardsInCouponPeriod(object):
     Flat = 0
     Piecewise = 1

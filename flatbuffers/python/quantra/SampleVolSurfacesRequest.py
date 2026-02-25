@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Request to sample volatility surfaces according to query specs.
 class SampleVolSurfacesRequest(object):
     __slots__ = ['_tab']
 

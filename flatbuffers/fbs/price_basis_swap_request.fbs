@@ -3,6 +3,7 @@ include "basis_swap.fbs";
 
 namespace quantra;
 
+/// Single basis swap pricing context with curve references.
 table PriceBasisSwap {
     basis_swap:BasisSwap;
     discounting_curve:string;
@@ -10,6 +11,7 @@ table PriceBasisSwap {
     forwarding_curve_leg2:string;
 }
 
+/// Request to price one or more basis swaps.
 table PriceBasisSwapRequest {
     pricing:Pricing;
     swaps:[PriceBasisSwap];

@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Overnight rate averaging method.
 class RateAveragingType(object):
     Compound = 0
     Simple = 1

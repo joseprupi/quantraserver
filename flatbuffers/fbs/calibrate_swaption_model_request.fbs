@@ -3,14 +3,13 @@ include "model.fbs";
 
 namespace quantra;
 
+/// Request to calibrate a Hull-White swaption model.
 table CalibrateSwaptionModelRequest {
-    // Full pricing context (as_of, curves, indices, vols, models, quotes).
+    /// Full pricing context (as_of, curves, indices, vols, models, quotes).
     pricing:Pricing (required);
-    // Model id inside pricing.models to calibrate.
-    // Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice.
+    /// Model id inside pricing.models to calibrate. Must refer to a SwaptionModelSpec with model_type=HullWhiteLattice.
     model_id:string (required);
-    // Optional override for calibration settings.
-    // If omitted, server uses model.hw_calibration from the referenced model.
+    /// Optional override for calibration settings. If omitted, server uses model.hw_calibration from the referenced model.
     calibration:SwaptionHwCalibrationSpec;
 }
 

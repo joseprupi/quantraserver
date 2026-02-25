@@ -2,7 +2,7 @@ include "enums.fbs";
 
 namespace quantra;
 
-/// Response containing advanced date.
+/// Response containing the advanced date.
 table CalendarAdvanceResponse {
     calendar:enums.Calendar = TARGET;
     input_date:string;

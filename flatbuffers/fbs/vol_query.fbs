@@ -4,16 +4,19 @@ include "enums.fbs";
 
 namespace quantra;
 
+/// Volatility surface type: Swaption or Optionlet.
 enum VolSurfaceType : byte {
     Swaption = 0,
     Optionlet = 1
 }
 
+/// Strike axis convention.
 enum VolStrikeAxis : byte {
     AbsoluteStrike = 0,
     SpreadFromATM = 1
 }
 
+/// Output structure for vol sampling.
 enum VolOutputMode : byte {
     Cube = 0,
     SmileSlice = 1,
@@ -21,73 +24,76 @@ enum VolOutputMode : byte {
     ExpirySlice = 3
 }
 
+/// Strike grid for vol surface sampling.
 table StrikeGrid {
     axis:VolStrikeAxis = AbsoluteStrike;
-    strikes:[double] (required); // if axis=SpreadFromATM these are spreads
+    /// If axis=SpreadFromATM these are spreads.
+    strikes:[double] (required);
 }
 
+/// Volatility surface query specification.
 table VolQuerySpec {
-    vol_id:string (required);              // references Pricing.vol_surfaces[].id
+    /// References Pricing.vol_surfaces[].id.
+    vol_id:string (required);
     surface_type:VolSurfaceType = Swaption;
     expiry_grid:DateGridSpec (required);
-    tenor_grid:DateGridSpec;               // required for swaption, ignored for optionlet
+    /// Required for swaption, ignored for optionlet.
+    tenor_grid:DateGridSpec;
     strike_grid:StrikeGrid (required);
     options:QueryOptions;
     output_mode:VolOutputMode = Cube;
-    swap_index_id:string;                  // optional override; must match surface swap_index_id if provided
+    /// Optional override; must match surface swap_index_id if provided.
+    swap_index_id:string;
 
-    // Slice selectors (only used by slice modes). -1 means "not set".
-    slice_expiry_index:int = -1;           // index into sampled expiries
-    slice_tenor_index:int = -1;            // index into sampled tenors
-    slice_strike:double;                   // strike/spread depending on strike_grid.axis
-    slice_strike_is_set:bool = false;      // strict mode requires true for slice modes using slice_strike
+    /// Slice selectors (only used by slice modes). -1 means "not set".
+    slice_expiry_index:int = -1;
+    slice_tenor_index:int = -1;
+    slice_strike:double;
+    /// Strict mode requires true for slice modes using slice_strike.
+    slice_strike_is_set:bool = false;
 
-    // Required for SpreadFromATM swaption surfaces to compute ATM forwards.
+    /// Required for SpreadFromATM swaption surfaces to compute ATM forwards.
     discounting_curve_id:string;
     forwarding_curve_id:string;
 }
 
+/// Expiry date semantics for vol sampling.
 enum ExpiryKind : byte {
     ExerciseDate = 0,
     GridDate = 1
 }
 
+/// Sampled volatility surface output.
 table VolSurfaceSample {
     vol_id:string (required);
-    reference_date:string;                 // vol surface reference date
-    ql_vol_type:enums.VolatilityType;      // Black vs Normal
+    /// Vol surface reference date.
+    reference_date:string;
+    ql_vol_type:enums.VolatilityType;
     requested_strike_axis:VolStrikeAxis;
     canonical_strike_kind:enums.SwaptionStrikeKind;
     allow_extrapolation_used:bool;
     calendar_used:enums.Calendar;
     business_day_convention_used:enums.BusinessDayConvention;
 
-    // Semantics:
-    // - Swaption: expiry_kind=ExerciseDate and expiries are effective exercise dates.
-    // - Optionlet: expiry_kind=GridDate and expiries are requested grid dates.
+    /// Swaption: ExerciseDate and expiries are effective exercise dates. Optionlet: GridDate and expiries are grid dates.
     expiry_kind:ExpiryKind = GridDate;
-    expiries:[string];                     // sampled expiry dates (ISO)
-    requested_expiry_grid_points:[string]; // optional grid points after grid conventions, before surface-specific normalization
-    tenors:[Period];                       // swaption tenors, optionlet: empty
-    effective_swap_starts:[string];        // swaptions flattened i_expiry major then j_tenor
-    effective_swap_ends:[string];          // swaptions flattened i_expiry major then j_tenor
+    /// Sampled expiry dates (ISO).
+    expiries:[string];
+    /// Optional grid points after grid conventions.
+    requested_expiry_grid_points:[string];
+    tenors:[Period];
+    /// Swaptions flattened i_expiry major then j_tenor.
+    effective_swap_starts:[string];
+    effective_swap_ends:[string];
     strikes:[double];
 
-    // Flattening order:
-    //   - swaptions Cube: i_expiry major, then j_tenor, then k_strike
-    //   - optionlets Cube: i_expiry major, then k_strike
-    // Invariants:
-    //   - len(effective_swap_starts) == n_expiries * n_tenors (swaptions)
-    //   - len(effective_swap_ends)   == n_expiries * n_tenors (swaptions)
-    //   - len(vols)                  == n_expiries * max(1,n_tenors) * n_strikes
-    //   - len(atm_levels)            == 0 or n_expiries * n_tenors
+    /// Flattening: swaptions Cube i_expiry major, j_tenor, k_strike; optionlets Cube i_expiry major, k_strike.
     vols:[double];
     n_expiries:int;
     n_tenors:int;
     n_strikes:int;
 
-    // Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor.
-    // Populated when the canonical surface strike kind is SpreadFromATM.
+    /// Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor. Populated when strike kind is SpreadFromATM.
     atm_levels:[double];
 
     error:Error;

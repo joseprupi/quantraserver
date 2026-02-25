@@ -3,28 +3,28 @@ include "common.fbs";
 
 namespace quantra;
 
-// ============================================================================
-// Quote containers (support inline values or quote_ids)
-// ============================================================================
+/// 2D quote matrix (expiries x tenors).
 table QuoteMatrix2D {
-    n_rows:int;                 // expiries
-    n_cols:int;                 // tenors
-    values:[double];            // row-major length = n_rows*n_cols
-    quote_ids:[string];         // optional, length = values, empty => inline
+    n_rows:int;
+    n_cols:int;
+    /// Row-major, length = n_rows*n_cols.
+    values:[double];
+    /// Optional, length = values. Empty => inline values.
+    quote_ids:[string];
 }
 
+/// 3D quote tensor (expiries x tenors x strikes).
 table QuoteTensor3D {
-    n_1:int;                    // expiries
-    n_2:int;                    // tenors
-    n_3:int;                    // strikes
-    values:[double];            // row-major length = n_1*n_2*n_3
-    quote_ids:[string];         // optional, length = values, empty => inline
+    n_1:int;
+    n_2:int;
+    n_3:int;
+    /// Row-major, length = n_1*n_2*n_3.
+    values:[double];
+    /// Optional, length = values. Empty => inline values.
+    quote_ids:[string];
 }
 
-// ============================================================================
-// IR Volatility Base (for Caps/Floors and Swaptions)
-// Supports Normal, Lognormal, and ShiftedLognormal
-// ============================================================================
+/// IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.
 table IrVolBaseSpec {
     reference_date:string;
     calendar:enums.Calendar;
@@ -32,14 +32,14 @@ table IrVolBaseSpec {
     day_counter:enums.DayCounter;
     shape:enums.VolSurfaceShape = Constant;
     volatility_type:enums.VolatilityType;
-    displacement:double = 0.0;   // Only meaningful for ShiftedLognormal
-    constant_vol:double;         // Used when shape=Constant
-    quote_id:string;             // Optional: resolve constant_vol from pricing.quotes
+    /// Only meaningful for ShiftedLognormal.
+    displacement:double = 0.0;
+    constant_vol:double;
+    /// Optional: resolve constant_vol from pricing.quotes.
+    quote_id:string;
 }
 
-// ============================================================================
-// Equity/FX Volatility Base (always lognormal, no displacement)
-// ============================================================================
+/// Equity/FX volatility base (always lognormal, no displacement).
 table BlackVolBaseSpec {
     reference_date:string;
     calendar:enums.Calendar;
@@ -47,25 +47,21 @@ table BlackVolBaseSpec {
     day_counter:enums.DayCounter;
     shape:enums.VolSurfaceShape = Constant;
     constant_vol:double;
-    quote_id:string;             // Optional: resolve constant_vol from pricing.quotes
-    // NO volatility_type - always lognormal
-    // NO displacement - always 0
+    /// Optional: resolve constant_vol from pricing.quotes.
+    quote_id:string;
 }
 
-// ============================================================================
-// Product-specific volatility specs
-// ============================================================================
-
-/// Optionlet volatility for Caps/Floors
-table OptionletVolSpec { 
-    base:IrVolBaseSpec; 
+/// Optionlet volatility for caps/floors.
+table OptionletVolSpec {
+    base:IrVolBaseSpec;
 }
 
-/// Swaption volatility (constant, matrix, smile cube, SABR)
+/// Constant swaption volatility.
 table SwaptionVolConstantSpec {
     base:IrVolBaseSpec;
 }
 
+/// ATM matrix swaption volatility (expiry x tenor).
 table SwaptionVolAtmMatrixSpec {
     base:IrVolBaseSpec;
     expiries:[Period];
@@ -75,20 +71,24 @@ table SwaptionVolAtmMatrixSpec {
     tenor_interpolator:enums.Interpolator = Linear;
 }
 
+/// Smile cube swaption volatility (expiry x tenor x strike).
 table SwaptionVolSmileCubeSpec {
     base:IrVolBaseSpec;
-    allow_external_atm:bool = false; // require explicit opt-in when client provides atm_forwards
+    /// Require explicit opt-in when client provides atm_forwards.
+    allow_external_atm:bool = false;
     expiries:[Period];
     tenors:[Period];
     strikes:[double];
     strike_kind:enums.SwaptionStrikeKind = Absolute;
-    atm_forwards:QuoteMatrix2D; // optional for Absolute, required for SpreadFromATM
+    /// Optional for Absolute, required for SpreadFromATM.
+    atm_forwards:QuoteMatrix2D;
     vols:QuoteTensor3D;
     expiry_interpolator:enums.Interpolator = Linear;
     tenor_interpolator:enums.Interpolator = Linear;
     strike_interpolator:enums.Interpolator = Linear;
 }
 
+/// SABR parameter grid swaption volatility.
 table SwaptionSabrParamsSpec {
     base:IrVolBaseSpec;
     expiries:[Period];
@@ -99,6 +99,7 @@ table SwaptionSabrParamsSpec {
     nu:QuoteMatrix2D;
 }
 
+/// SABR calibrate swaption volatility.
 table SwaptionSabrCalibrateSpec {
     base:IrVolBaseSpec;
     expiries:[Period];
@@ -110,6 +111,7 @@ table SwaptionSabrCalibrateSpec {
     weights:QuoteTensor3D;
 }
 
+/// Union of swaption vol payload types.
 union SwaptionVolPayload {
     SwaptionVolConstantSpec,
     SwaptionVolAtmMatrixSpec,
@@ -118,20 +120,22 @@ union SwaptionVolPayload {
     SwaptionSabrCalibrateSpec
 }
 
+/// Swaption volatility specification.
 table SwaptionVolSpec {
-    swap_index_id:string; // required convention anchor for all swaption vol surfaces
+    /// Required convention anchor for all swaption vol surfaces.
+    swap_index_id:string;
     payload:SwaptionVolPayload;
 }
 
-/// Black volatility for Equity/FX/Commodity options
-table BlackVolSpec { 
-    base:BlackVolBaseSpec; 
+/// Black volatility for equity/FX/commodity options.
+table BlackVolSpec {
+    base:BlackVolBaseSpec;
 }
 
-/// Union of all volatility types
+/// Union of all volatility types.
 union VolPayload { OptionletVolSpec, SwaptionVolSpec, BlackVolSpec }
 
-/// Volatility surface specification - referenced by id in trade requests
+/// Volatility surface specification referenced by id in trade requests.
 table VolSurfaceSpec {
     id:string (required);
     payload:VolPayload;

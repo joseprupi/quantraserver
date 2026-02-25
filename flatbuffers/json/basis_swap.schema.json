@@ -131,6 +131,7 @@
     },
     "quantra_Schedule" : {
       "type" : "object",
+      "description" : "Date schedule definition for payment and accrual dates.",
       "properties" : {
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"
@@ -161,6 +162,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
+      "description" : "Canonical period type used across APIs.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -173,6 +175,7 @@
     },
     "quantra_Yield" : {
       "type" : "object",
+      "description" : "Yield/compounding convention specification.",
       "properties" : {
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -188,6 +191,7 @@
     },
     "quantra_Error" : {
       "type" : "object",
+      "description" : "Error message container.",
       "properties" : {
         "error_message" : {
                 "type" : "string"
@@ -197,6 +201,7 @@
     },
     "quantra_FlowInterest" : {
       "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -224,6 +229,7 @@
     },
     "quantra_FlowInterestFloat" : {
       "type" : "object",
+      "description" : "Floating-rate interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -251,6 +257,7 @@
     },
     "quantra_FlowPastInterestFloat" : {
       "type" : "object",
+      "description" : "Past floating-rate interest for seasoned instruments.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -272,6 +279,7 @@
     },
     "quantra_FlowPastInterest" : {
       "type" : "object",
+      "description" : "Past fixed interest cash flow.",
       "properties" : {
         "amount" : {
                 "type" : "number"
@@ -293,6 +301,7 @@
     },
     "quantra_FlowNotional" : {
       "type" : "object",
+      "description" : "Notional exchange cash flow.",
       "properties" : {
         "date" : {
                 "type" : "string"
@@ -311,6 +320,7 @@
     },
     "quantra_FlowsWrapper" : {
       "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
       "properties" : {
         "flow_type" : {
                 "$ref" : "#/definitions/quantra_Flow"
@@ -323,6 +333,7 @@
     },
     "quantra_Fixing" : {
       "type" : "object",
+      "description" : "Historical index fixing for seasoned instruments.",
       "properties" : {
         "date" : {
                 "type" : "string"
@@ -340,11 +351,11 @@
       "properties" : {
         "id" : {
                 "type" : "string",
-                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")"
+                "description" : "Unique identifier (e.g., \"EUR_6M\", \"USD_SOFR\", \"MY_CUSTOM_3M\")."
               },
         "name" : {
                 "type" : "string",
-                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\", \"MyBank3M\")\nUsed as the QuantLib index familyName. No financial logic depends on this."
+                "description" : "Human-readable name / family label (e.g., \"Euribor\", \"SOFR\")."
               },
         "index_type" : {
                 "$ref" : "#/definitions/quantra_IndexType",
@@ -352,35 +363,35 @@
               },
         "tenor" : {
                 "$ref" : "#/definitions/quantra_Period",
-                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)"
+                "description" : "Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight)."
               },
         "fixing_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)"
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)."
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar for fixing/payment dates"
+                "description" : "Calendar for fixing/payment dates."
               },
         "business_day_convention" : {
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention"
+                "description" : "Business day convention."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter",
-                "description" : "Day count convention"
+                "description" : "Day count convention."
               },
         "end_of_month" : {
                 "type" : "boolean",
-                "description" : "End of month rule (IBOR only, ignored for overnight)"
+                "description" : "End of month rule (IBOR only, ignored for overnight)."
               },
         "currency" : {
                 "type" : "string",
-                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")\nMapped to QuantLib Currency objects. Required."
+                "description" : "ISO currency code (e.g., \"EUR\", \"USD\", \"GBP\", \"JPY\")."
               },
         "fixings" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
-                "description" : "Past fixings needed for seasoned instruments.\nApplied via index->addFixing() before pricing."
+                "description" : "Past fixings needed for seasoned instruments."
               }
       },
       "required" : ["id", "name"],
@@ -388,7 +399,7 @@
     },
     "quantra_IndexRef" : {
       "type" : "object",
-      "description" : "Reference to an IndexDef by its id.\nUsed by helpers and instruments to point to a registered index.",
+      "description" : "Reference to an IndexDef by its id.",
       "properties" : {
         "id" : {
                 "type" : "string"
@@ -399,6 +410,7 @@
     },
     "quantra_SwapFixedLeg" : {
       "type" : "object",
+      "description" : "Fixed leg of a swap.",
       "properties" : {
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
@@ -420,6 +432,7 @@
     },
     "quantra_SwapFloatingLeg" : {
       "type" : "object",
+      "description" : "Floating leg of a swap.",
       "properties" : {
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
@@ -429,7 +442,7 @@
               },
         "index" : {
                 "$ref" : "#/definitions/quantra_IndexRef",
-                "description" : "Reference to an IndexDef by id (e.g., \"EUR_6M\")"
+                "description" : "Reference to an IndexDef by id (e.g., \"EUR_6M\")."
               },
         "spread" : {
                 "type" : "number"
@@ -452,6 +465,7 @@
     },
     "quantra_VanillaSwap" : {
       "type" : "object",
+      "description" : "Vanilla interest rate swap (fixed vs floating).",
       "properties" : {
         "swap_type" : {
                 "$ref" : "#/definitions/quantra_enums_SwapType"
@@ -467,6 +481,7 @@
     },
     "quantra_BasisSwap" : {
       "type" : "object",
+      "description" : "Basis swap with two floating legs (e.g., 3M vs 6M).",
       "properties" : {
         "swap_type" : {
                 "$ref" : "#/definitions/quantra_enums_SwapType"

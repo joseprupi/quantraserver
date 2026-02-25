@@ -4,9 +4,9 @@
 
 # What output you want sampled from a curve.
 class CurveMeasure(object):
-    # Discount factor P(t)
+    # Discount factor P(t).
     DF = 0
-    # Zero rate z(t)
+    # Zero rate z(t).
     ZERO = 1
-    # Forward rate f(t) or F(d1,d2)
+    # Forward rate f(t) or F(d1,d2).
     FWD = 2

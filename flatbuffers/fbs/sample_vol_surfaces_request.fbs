@@ -4,6 +4,7 @@ include "vol_query.fbs";
 
 namespace quantra;
 
+/// Request to sample volatility surfaces according to query specs.
 table SampleVolSurfacesRequest {
     pricing:Pricing (required);
     queries:[VolQuerySpec] (required);

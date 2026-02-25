@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# Past floating-rate interest for seasoned instruments.
 class FlowPastInterestFloat(object):
     __slots__ = ['_tab']
 

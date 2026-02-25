@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Volatility surface specification - referenced by id in trade requests
+# Volatility surface specification referenced by id in trade requests.
 class VolSurfaceSpec(object):
     __slots__ = ['_tab']
 

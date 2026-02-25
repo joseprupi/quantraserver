@@ -2,6 +2,7 @@
 
 # namespace: enums
 
+# Time unit for period definitions.
 class TimeUnit(object):
     Days = 0
     Hours = 1

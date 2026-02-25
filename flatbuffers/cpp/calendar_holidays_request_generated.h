@@ -42,9 +42,11 @@ struct CalendarHolidaysRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
   }
+  /// Start date in YYYY-MM-DD format.
   const ::flatbuffers::String *start_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
   }
+  /// End date in YYYY-MM-DD format.
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }

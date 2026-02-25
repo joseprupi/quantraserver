@@ -6,6 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
+# IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.
 class IrVolBaseSpec(object):
     __slots__ = ['_tab']
 
@@ -66,6 +67,7 @@ class IrVolBaseSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Only meaningful for ShiftedLognormal.
     # IrVolBaseSpec
     def Displacement(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -80,6 +82,7 @@ class IrVolBaseSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional: resolve constant_vol from pricing.quotes.
     # IrVolBaseSpec
     def QuoteId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))

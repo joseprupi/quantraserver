@@ -23,6 +23,7 @@ struct Swaption;
 struct SwaptionBuilder;
 struct SwaptionT;
 
+/// Underlying swap type: VanillaSwap or OisSwap.
 enum SwaptionUnderlying : uint8_t {
   SwaptionUnderlying_NONE = 0,
   SwaptionUnderlying_VanillaSwap = 1,
@@ -146,6 +147,7 @@ struct SwaptionT : public ::flatbuffers::NativeTable {
   SwaptionT &operator=(SwaptionT o) FLATBUFFERS_NOEXCEPT;
 };
 
+/// Swaption instrument definition.
 struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionT NativeTableType;
   typedef SwaptionBuilder Builder;
@@ -159,27 +161,34 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_UNDERLYING_TYPE = 16,
     VT_UNDERLYING = 18
   };
+  /// Exercise style: European, Bermudan, or American.
   quantra::enums::ExerciseType exercise_type() const {
     return static_cast<quantra::enums::ExerciseType>(GetField<int8_t>(VT_EXERCISE_TYPE, 0));
   }
+  /// Settlement type for swaption payoff handling.
   quantra::enums::SettlementType settlement_type() const {
     return static_cast<quantra::enums::SettlementType>(GetField<int8_t>(VT_SETTLEMENT_TYPE, 0));
   }
+  /// Settlement method (physical/other) per market convention.
   quantra::enums::SettlementMethod settlement_method() const {
     return static_cast<quantra::enums::SettlementMethod>(GetField<int8_t>(VT_SETTLEMENT_METHOD, 0));
   }
+  /// Single exercise date (ISO date string). Required for European and American.
   const ::flatbuffers::String *exercise_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_EXERCISE_DATE);
   }
+  /// Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates.
   const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *exercise_dates() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_EXERCISE_DATES);
   }
+  /// Legacy field: vanilla swap only (kept for backward compatibility).
   const quantra::VanillaSwap *underlying_swap() const {
     return GetPointer<const quantra::VanillaSwap *>(VT_UNDERLYING_SWAP);
   }
   quantra::SwaptionUnderlying underlying_type() const {
     return static_cast<quantra::SwaptionUnderlying>(GetField<uint8_t>(VT_UNDERLYING_TYPE, 0));
   }
+  /// New union-based underlying (VanillaSwap or OisSwap).
   const void *underlying() const {
     return GetPointer<const void *>(VT_UNDERLYING);
   }
