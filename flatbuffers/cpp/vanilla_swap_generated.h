@@ -27,6 +27,14 @@ struct SwapFloatingLeg;
 struct SwapFloatingLegBuilder;
 struct SwapFloatingLegT;
 
+struct CmsPricerSpec;
+struct CmsPricerSpecBuilder;
+struct CmsPricerSpecT;
+
+struct SwapCmsLeg;
+struct SwapCmsLegBuilder;
+struct SwapCmsLegT;
+
 struct VanillaSwap;
 struct VanillaSwapBuilder;
 struct VanillaSwapT;
@@ -271,11 +279,386 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
 
 ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFloatingLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct CmsPricerSpecT : public ::flatbuffers::NativeTable {
+  typedef CmsPricerSpec TableType;
+  quantra::enums::CmsPricerType pricer_type = quantra::enums::CmsPricerType_LinearTsr;
+  quantra::enums::CmsYieldCurveModel yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard;
+  double mean_reversion = 0.03;
+  double hagan_lower_limit = 0.0;
+  double hagan_upper_limit = 1.0;
+  double hagan_precision = 1.0e-6;
+  double hagan_hard_upper_limit = -1.0;
+};
+
+/// CMS leg of a swap.
+/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
+struct CmsPricerSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CmsPricerSpecT NativeTableType;
+  typedef CmsPricerSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PRICER_TYPE = 4,
+    VT_YIELD_CURVE_MODEL = 6,
+    VT_MEAN_REVERSION = 8,
+    VT_HAGAN_LOWER_LIMIT = 10,
+    VT_HAGAN_UPPER_LIMIT = 12,
+    VT_HAGAN_PRECISION = 14,
+    VT_HAGAN_HARD_UPPER_LIMIT = 16
+  };
+  /// CMS coupon pricer implementation.
+  quantra::enums::CmsPricerType pricer_type() const {
+    return static_cast<quantra::enums::CmsPricerType>(GetField<int8_t>(VT_PRICER_TYPE, 0));
+  }
+  /// Yield-curve model used by Hagan-family pricers.
+  quantra::enums::CmsYieldCurveModel yield_curve_model() const {
+    return static_cast<quantra::enums::CmsYieldCurveModel>(GetField<int8_t>(VT_YIELD_CURVE_MODEL, 0));
+  }
+  /// Mean reversion parameter used by TSR/Hagan-family pricers.
+  double mean_reversion() const {
+    return GetField<double>(VT_MEAN_REVERSION, 0.03);
+  }
+  /// Numeric Hagan lower integration limit.
+  double hagan_lower_limit() const {
+    return GetField<double>(VT_HAGAN_LOWER_LIMIT, 0.0);
+  }
+  /// Numeric Hagan upper integration limit.
+  double hagan_upper_limit() const {
+    return GetField<double>(VT_HAGAN_UPPER_LIMIT, 1.0);
+  }
+  /// Numeric Hagan integration precision.
+  double hagan_precision() const {
+    return GetField<double>(VT_HAGAN_PRECISION, 1.0e-6);
+  }
+  /// Numeric Hagan hard upper integration limit.
+  /// If <= 0.0, QuantLib default hard upper limit is used.
+  double hagan_hard_upper_limit() const {
+    return GetField<double>(VT_HAGAN_HARD_UPPER_LIMIT, -1.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_PRICER_TYPE, 1) &&
+           VerifyField<int8_t>(verifier, VT_YIELD_CURVE_MODEL, 1) &&
+           VerifyField<double>(verifier, VT_MEAN_REVERSION, 8) &&
+           VerifyField<double>(verifier, VT_HAGAN_LOWER_LIMIT, 8) &&
+           VerifyField<double>(verifier, VT_HAGAN_UPPER_LIMIT, 8) &&
+           VerifyField<double>(verifier, VT_HAGAN_PRECISION, 8) &&
+           VerifyField<double>(verifier, VT_HAGAN_HARD_UPPER_LIMIT, 8) &&
+           verifier.EndTable();
+  }
+  CmsPricerSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CmsPricerSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CmsPricerSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CmsPricerSpecBuilder {
+  typedef CmsPricerSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_pricer_type(quantra::enums::CmsPricerType pricer_type) {
+    fbb_.AddElement<int8_t>(CmsPricerSpec::VT_PRICER_TYPE, static_cast<int8_t>(pricer_type), 0);
+  }
+  void add_yield_curve_model(quantra::enums::CmsYieldCurveModel yield_curve_model) {
+    fbb_.AddElement<int8_t>(CmsPricerSpec::VT_YIELD_CURVE_MODEL, static_cast<int8_t>(yield_curve_model), 0);
+  }
+  void add_mean_reversion(double mean_reversion) {
+    fbb_.AddElement<double>(CmsPricerSpec::VT_MEAN_REVERSION, mean_reversion, 0.03);
+  }
+  void add_hagan_lower_limit(double hagan_lower_limit) {
+    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_LOWER_LIMIT, hagan_lower_limit, 0.0);
+  }
+  void add_hagan_upper_limit(double hagan_upper_limit) {
+    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_UPPER_LIMIT, hagan_upper_limit, 1.0);
+  }
+  void add_hagan_precision(double hagan_precision) {
+    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_PRECISION, hagan_precision, 1.0e-6);
+  }
+  void add_hagan_hard_upper_limit(double hagan_hard_upper_limit) {
+    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_HARD_UPPER_LIMIT, hagan_hard_upper_limit, -1.0);
+  }
+  explicit CmsPricerSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CmsPricerSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CmsPricerSpec>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::CmsPricerType pricer_type = quantra::enums::CmsPricerType_LinearTsr,
+    quantra::enums::CmsYieldCurveModel yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard,
+    double mean_reversion = 0.03,
+    double hagan_lower_limit = 0.0,
+    double hagan_upper_limit = 1.0,
+    double hagan_precision = 1.0e-6,
+    double hagan_hard_upper_limit = -1.0) {
+  CmsPricerSpecBuilder builder_(_fbb);
+  builder_.add_hagan_hard_upper_limit(hagan_hard_upper_limit);
+  builder_.add_hagan_precision(hagan_precision);
+  builder_.add_hagan_upper_limit(hagan_upper_limit);
+  builder_.add_hagan_lower_limit(hagan_lower_limit);
+  builder_.add_mean_reversion(mean_reversion);
+  builder_.add_yield_curve_model(yield_curve_model);
+  builder_.add_pricer_type(pricer_type);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SwapCmsLegT : public ::flatbuffers::NativeTable {
+  typedef SwapCmsLeg TableType;
+  std::unique_ptr<quantra::ScheduleT> schedule{};
+  double notional = 0.0;
+  std::string swap_index_id{};
+  std::unique_ptr<quantra::PeriodT> swap_tenor{};
+  std::string swaption_vol_id{};
+  int32_t fixing_days = -1;
+  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
+  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
+  double gear = 1.0;
+  double spread = 0.0;
+  std::unique_ptr<quantra::CmsPricerSpecT> pricer{};
+  double cap = -1.0;
+  double floor = -1.0;
+  SwapCmsLegT() = default;
+  SwapCmsLegT(const SwapCmsLegT &o);
+  SwapCmsLegT(SwapCmsLegT&&) FLATBUFFERS_NOEXCEPT = default;
+  SwapCmsLegT &operator=(SwapCmsLegT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// CMS leg of a swap.
+/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
+struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SwapCmsLegT NativeTableType;
+  typedef SwapCmsLegBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SCHEDULE = 4,
+    VT_NOTIONAL = 6,
+    VT_SWAP_INDEX_ID = 8,
+    VT_SWAP_TENOR = 10,
+    VT_SWAPTION_VOL_ID = 12,
+    VT_FIXING_DAYS = 14,
+    VT_DAY_COUNTER = 16,
+    VT_PAYMENT_CONVENTION = 18,
+    VT_GEAR = 20,
+    VT_SPREAD = 22,
+    VT_PRICER = 24,
+    VT_CAP = 26,
+    VT_FLOOR = 28
+  };
+  /// Coupon/payment schedule.
+  const quantra::Schedule *schedule() const {
+    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
+  }
+  /// Coupon notional.
+  double notional() const {
+    return GetField<double>(VT_NOTIONAL, 0.0);
+  }
+  /// Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
+  const ::flatbuffers::String *swap_index_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
+  }
+  /// Constant maturity tenor for CMS fixing (e.g. 10Y).
+  const quantra::Period *swap_tenor() const {
+    return GetPointer<const quantra::Period *>(VT_SWAP_TENOR);
+  }
+  /// Swaption volatility surface id from Pricing.vol_surfaces used by CMS pricer.
+  const ::flatbuffers::String *swaption_vol_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SWAPTION_VOL_ID);
+  }
+  /// Optional fixing days override; if negative, uses swap index spot_days.
+  int32_t fixing_days() const {
+    return GetField<int32_t>(VT_FIXING_DAYS, -1);
+  }
+  /// Coupon accrual day-count convention.
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  }
+  /// Payment business-day convention.
+  quantra::enums::BusinessDayConvention payment_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  }
+  /// Coupon gearing multiplier.
+  double gear() const {
+    return GetField<double>(VT_GEAR, 1.0);
+  }
+  /// Coupon additive spread.
+  double spread() const {
+    return GetField<double>(VT_SPREAD, 0.0);
+  }
+  /// Optional CMS coupon pricer configuration.
+  /// If null, defaults are used (LinearTsr with mean_reversion=0.03).
+  const quantra::CmsPricerSpec *pricer() const {
+    return GetPointer<const quantra::CmsPricerSpec *>(VT_PRICER);
+  }
+  /// Optional cap level (v1 unsupported; if set >= 0 request is rejected).
+  double cap() const {
+    return GetField<double>(VT_CAP, -1.0);
+  }
+  /// Optional floor level (v1 unsupported; if set >= 0 request is rejected).
+  double floor() const {
+    return GetField<double>(VT_FLOOR, -1.0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_SCHEDULE) &&
+           verifier.VerifyTable(schedule()) &&
+           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
+           VerifyOffsetRequired(verifier, VT_SWAP_INDEX_ID) &&
+           verifier.VerifyString(swap_index_id()) &&
+           VerifyOffsetRequired(verifier, VT_SWAP_TENOR) &&
+           verifier.VerifyTable(swap_tenor()) &&
+           VerifyOffsetRequired(verifier, VT_SWAPTION_VOL_ID) &&
+           verifier.VerifyString(swaption_vol_id()) &&
+           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_GEAR, 8) &&
+           VerifyField<double>(verifier, VT_SPREAD, 8) &&
+           VerifyOffset(verifier, VT_PRICER) &&
+           verifier.VerifyTable(pricer()) &&
+           VerifyField<double>(verifier, VT_CAP, 8) &&
+           VerifyField<double>(verifier, VT_FLOOR, 8) &&
+           verifier.EndTable();
+  }
+  SwapCmsLegT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SwapCmsLegT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<SwapCmsLeg> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SwapCmsLegBuilder {
+  typedef SwapCmsLeg Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
+    fbb_.AddOffset(SwapCmsLeg::VT_SCHEDULE, schedule);
+  }
+  void add_notional(double notional) {
+    fbb_.AddElement<double>(SwapCmsLeg::VT_NOTIONAL, notional, 0.0);
+  }
+  void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
+    fbb_.AddOffset(SwapCmsLeg::VT_SWAP_INDEX_ID, swap_index_id);
+  }
+  void add_swap_tenor(::flatbuffers::Offset<quantra::Period> swap_tenor) {
+    fbb_.AddOffset(SwapCmsLeg::VT_SWAP_TENOR, swap_tenor);
+  }
+  void add_swaption_vol_id(::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id) {
+    fbb_.AddOffset(SwapCmsLeg::VT_SWAPTION_VOL_ID, swaption_vol_id);
+  }
+  void add_fixing_days(int32_t fixing_days) {
+    fbb_.AddElement<int32_t>(SwapCmsLeg::VT_FIXING_DAYS, fixing_days, -1);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+  }
+  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
+    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+  }
+  void add_gear(double gear) {
+    fbb_.AddElement<double>(SwapCmsLeg::VT_GEAR, gear, 1.0);
+  }
+  void add_spread(double spread) {
+    fbb_.AddElement<double>(SwapCmsLeg::VT_SPREAD, spread, 0.0);
+  }
+  void add_pricer(::flatbuffers::Offset<quantra::CmsPricerSpec> pricer) {
+    fbb_.AddOffset(SwapCmsLeg::VT_PRICER, pricer);
+  }
+  void add_cap(double cap) {
+    fbb_.AddElement<double>(SwapCmsLeg::VT_CAP, cap, -1.0);
+  }
+  void add_floor(double floor) {
+    fbb_.AddElement<double>(SwapCmsLeg::VT_FLOOR, floor, -1.0);
+  }
+  explicit SwapCmsLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<SwapCmsLeg> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<SwapCmsLeg>(end);
+    fbb_.Required(o, SwapCmsLeg::VT_SWAP_INDEX_ID);
+    fbb_.Required(o, SwapCmsLeg::VT_SWAP_TENOR);
+    fbb_.Required(o, SwapCmsLeg::VT_SWAPTION_VOL_ID);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    double notional = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> swap_index_id = 0,
+    ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id = 0,
+    int32_t fixing_days = -1,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    double gear = 1.0,
+    double spread = 0.0,
+    ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
+    double cap = -1.0,
+    double floor = -1.0) {
+  SwapCmsLegBuilder builder_(_fbb);
+  builder_.add_floor(floor);
+  builder_.add_cap(cap);
+  builder_.add_spread(spread);
+  builder_.add_gear(gear);
+  builder_.add_notional(notional);
+  builder_.add_pricer(pricer);
+  builder_.add_fixing_days(fixing_days);
+  builder_.add_swaption_vol_id(swaption_vol_id);
+  builder_.add_swap_tenor(swap_tenor);
+  builder_.add_swap_index_id(swap_index_id);
+  builder_.add_schedule(schedule);
+  builder_.add_payment_convention(payment_convention);
+  builder_.add_day_counter(day_counter);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
+    double notional = 0.0,
+    const char *swap_index_id = nullptr,
+    ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
+    const char *swaption_vol_id = nullptr,
+    int32_t fixing_days = -1,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    double gear = 1.0,
+    double spread = 0.0,
+    ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
+    double cap = -1.0,
+    double floor = -1.0) {
+  auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
+  auto swaption_vol_id__ = swaption_vol_id ? _fbb.CreateString(swaption_vol_id) : 0;
+  return quantra::CreateSwapCmsLeg(
+      _fbb,
+      schedule,
+      notional,
+      swap_index_id__,
+      swap_tenor,
+      swaption_vol_id__,
+      fixing_days,
+      day_counter,
+      payment_convention,
+      gear,
+      spread,
+      pricer,
+      cap,
+      floor);
+}
+
+::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct VanillaSwapT : public ::flatbuffers::NativeTable {
   typedef VanillaSwap TableType;
   quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer;
   std::unique_ptr<quantra::SwapFixedLegT> fixed_leg{};
   std::unique_ptr<quantra::SwapFloatingLegT> floating_leg{};
+  std::unique_ptr<quantra::SwapCmsLegT> cms_leg{};
   VanillaSwapT() = default;
   VanillaSwapT(const VanillaSwapT &o);
   VanillaSwapT(VanillaSwapT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -289,7 +672,8 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SWAP_TYPE = 4,
     VT_FIXED_LEG = 6,
-    VT_FLOATING_LEG = 8
+    VT_FLOATING_LEG = 8,
+    VT_CMS_LEG = 10
   };
   quantra::enums::SwapType swap_type() const {
     return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
@@ -297,8 +681,14 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::SwapFixedLeg *fixed_leg() const {
     return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
   }
+  /// Standard IBOR floating leg path.
   const quantra::SwapFloatingLeg *floating_leg() const {
     return GetPointer<const quantra::SwapFloatingLeg *>(VT_FLOATING_LEG);
+  }
+  /// Optional CMS floating leg path.
+  /// Exactly one of floating_leg or cms_leg must be provided.
+  const quantra::SwapCmsLeg *cms_leg() const {
+    return GetPointer<const quantra::SwapCmsLeg *>(VT_CMS_LEG);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -307,6 +697,8 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyTable(fixed_leg()) &&
            VerifyOffset(verifier, VT_FLOATING_LEG) &&
            verifier.VerifyTable(floating_leg()) &&
+           VerifyOffset(verifier, VT_CMS_LEG) &&
+           verifier.VerifyTable(cms_leg()) &&
            verifier.EndTable();
   }
   VanillaSwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -327,6 +719,9 @@ struct VanillaSwapBuilder {
   void add_floating_leg(::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FLOATING_LEG, floating_leg);
   }
+  void add_cms_leg(::flatbuffers::Offset<quantra::SwapCmsLeg> cms_leg) {
+    fbb_.AddOffset(VanillaSwap::VT_CMS_LEG, cms_leg);
+  }
   explicit VanillaSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -342,8 +737,10 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
     ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
-    ::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg = 0) {
+    ::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg = 0,
+    ::flatbuffers::Offset<quantra::SwapCmsLeg> cms_leg = 0) {
   VanillaSwapBuilder builder_(_fbb);
+  builder_.add_cms_leg(cms_leg);
   builder_.add_floating_leg(floating_leg);
   builder_.add_fixed_leg(fixed_leg);
   builder_.add_swap_type(swap_type);
@@ -477,16 +874,157 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(::flatbuffer
       _in_arrears);
 }
 
+inline CmsPricerSpecT *CmsPricerSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CmsPricerSpecT>(new CmsPricerSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CmsPricerSpec::UnPackTo(CmsPricerSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = pricer_type(); _o->pricer_type = _e; }
+  { auto _e = yield_curve_model(); _o->yield_curve_model = _e; }
+  { auto _e = mean_reversion(); _o->mean_reversion = _e; }
+  { auto _e = hagan_lower_limit(); _o->hagan_lower_limit = _e; }
+  { auto _e = hagan_upper_limit(); _o->hagan_upper_limit = _e; }
+  { auto _e = hagan_precision(); _o->hagan_precision = _e; }
+  { auto _e = hagan_hard_upper_limit(); _o->hagan_hard_upper_limit = _e; }
+}
+
+inline ::flatbuffers::Offset<CmsPricerSpec> CmsPricerSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCmsPricerSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CmsPricerSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _pricer_type = _o->pricer_type;
+  auto _yield_curve_model = _o->yield_curve_model;
+  auto _mean_reversion = _o->mean_reversion;
+  auto _hagan_lower_limit = _o->hagan_lower_limit;
+  auto _hagan_upper_limit = _o->hagan_upper_limit;
+  auto _hagan_precision = _o->hagan_precision;
+  auto _hagan_hard_upper_limit = _o->hagan_hard_upper_limit;
+  return quantra::CreateCmsPricerSpec(
+      _fbb,
+      _pricer_type,
+      _yield_curve_model,
+      _mean_reversion,
+      _hagan_lower_limit,
+      _hagan_upper_limit,
+      _hagan_precision,
+      _hagan_hard_upper_limit);
+}
+
+inline SwapCmsLegT::SwapCmsLegT(const SwapCmsLegT &o)
+      : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
+        notional(o.notional),
+        swap_index_id(o.swap_index_id),
+        swap_tenor((o.swap_tenor) ? new quantra::PeriodT(*o.swap_tenor) : nullptr),
+        swaption_vol_id(o.swaption_vol_id),
+        fixing_days(o.fixing_days),
+        day_counter(o.day_counter),
+        payment_convention(o.payment_convention),
+        gear(o.gear),
+        spread(o.spread),
+        pricer((o.pricer) ? new quantra::CmsPricerSpecT(*o.pricer) : nullptr),
+        cap(o.cap),
+        floor(o.floor) {
+}
+
+inline SwapCmsLegT &SwapCmsLegT::operator=(SwapCmsLegT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(schedule, o.schedule);
+  std::swap(notional, o.notional);
+  std::swap(swap_index_id, o.swap_index_id);
+  std::swap(swap_tenor, o.swap_tenor);
+  std::swap(swaption_vol_id, o.swaption_vol_id);
+  std::swap(fixing_days, o.fixing_days);
+  std::swap(day_counter, o.day_counter);
+  std::swap(payment_convention, o.payment_convention);
+  std::swap(gear, o.gear);
+  std::swap(spread, o.spread);
+  std::swap(pricer, o.pricer);
+  std::swap(cap, o.cap);
+  std::swap(floor, o.floor);
+  return *this;
+}
+
+inline SwapCmsLegT *SwapCmsLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<SwapCmsLegT>(new SwapCmsLegT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void SwapCmsLeg::UnPackTo(SwapCmsLegT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
+  { auto _e = notional(); _o->notional = _e; }
+  { auto _e = swap_index_id(); if (_e) _o->swap_index_id = _e->str(); }
+  { auto _e = swap_tenor(); if (_e) { if(_o->swap_tenor) { _e->UnPackTo(_o->swap_tenor.get(), _resolver); } else { _o->swap_tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->swap_tenor) { _o->swap_tenor.reset(); } }
+  { auto _e = swaption_vol_id(); if (_e) _o->swaption_vol_id = _e->str(); }
+  { auto _e = fixing_days(); _o->fixing_days = _e; }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = payment_convention(); _o->payment_convention = _e; }
+  { auto _e = gear(); _o->gear = _e; }
+  { auto _e = spread(); _o->spread = _e; }
+  { auto _e = pricer(); if (_e) { if(_o->pricer) { _e->UnPackTo(_o->pricer.get(), _resolver); } else { _o->pricer = std::unique_ptr<quantra::CmsPricerSpecT>(_e->UnPack(_resolver)); } } else if (_o->pricer) { _o->pricer.reset(); } }
+  { auto _e = cap(); _o->cap = _e; }
+  { auto _e = floor(); _o->floor = _e; }
+}
+
+inline ::flatbuffers::Offset<SwapCmsLeg> SwapCmsLeg::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSwapCmsLeg(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapCmsLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
+  auto _notional = _o->notional;
+  auto _swap_index_id = _fbb.CreateString(_o->swap_index_id);
+  auto _swap_tenor = _o->swap_tenor ? CreatePeriod(_fbb, _o->swap_tenor.get(), _rehasher) : 0;
+  auto _swaption_vol_id = _fbb.CreateString(_o->swaption_vol_id);
+  auto _fixing_days = _o->fixing_days;
+  auto _day_counter = _o->day_counter;
+  auto _payment_convention = _o->payment_convention;
+  auto _gear = _o->gear;
+  auto _spread = _o->spread;
+  auto _pricer = _o->pricer ? CreateCmsPricerSpec(_fbb, _o->pricer.get(), _rehasher) : 0;
+  auto _cap = _o->cap;
+  auto _floor = _o->floor;
+  return quantra::CreateSwapCmsLeg(
+      _fbb,
+      _schedule,
+      _notional,
+      _swap_index_id,
+      _swap_tenor,
+      _swaption_vol_id,
+      _fixing_days,
+      _day_counter,
+      _payment_convention,
+      _gear,
+      _spread,
+      _pricer,
+      _cap,
+      _floor);
+}
+
 inline VanillaSwapT::VanillaSwapT(const VanillaSwapT &o)
       : swap_type(o.swap_type),
         fixed_leg((o.fixed_leg) ? new quantra::SwapFixedLegT(*o.fixed_leg) : nullptr),
-        floating_leg((o.floating_leg) ? new quantra::SwapFloatingLegT(*o.floating_leg) : nullptr) {
+        floating_leg((o.floating_leg) ? new quantra::SwapFloatingLegT(*o.floating_leg) : nullptr),
+        cms_leg((o.cms_leg) ? new quantra::SwapCmsLegT(*o.cms_leg) : nullptr) {
 }
 
 inline VanillaSwapT &VanillaSwapT::operator=(VanillaSwapT o) FLATBUFFERS_NOEXCEPT {
   std::swap(swap_type, o.swap_type);
   std::swap(fixed_leg, o.fixed_leg);
   std::swap(floating_leg, o.floating_leg);
+  std::swap(cms_leg, o.cms_leg);
   return *this;
 }
 
@@ -502,6 +1040,7 @@ inline void VanillaSwap::UnPackTo(VanillaSwapT *_o, const ::flatbuffers::resolve
   { auto _e = swap_type(); _o->swap_type = _e; }
   { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapFixedLegT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
   { auto _e = floating_leg(); if (_e) { if(_o->floating_leg) { _e->UnPackTo(_o->floating_leg.get(), _resolver); } else { _o->floating_leg = std::unique_ptr<quantra::SwapFloatingLegT>(_e->UnPack(_resolver)); } } else if (_o->floating_leg) { _o->floating_leg.reset(); } }
+  { auto _e = cms_leg(); if (_e) { if(_o->cms_leg) { _e->UnPackTo(_o->cms_leg.get(), _resolver); } else { _o->cms_leg = std::unique_ptr<quantra::SwapCmsLegT>(_e->UnPack(_resolver)); } } else if (_o->cms_leg) { _o->cms_leg.reset(); } }
 }
 
 inline ::flatbuffers::Offset<VanillaSwap> VanillaSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VanillaSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -515,11 +1054,13 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(::flatbuffers::FlatB
   auto _swap_type = _o->swap_type;
   auto _fixed_leg = _o->fixed_leg ? CreateSwapFixedLeg(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
   auto _floating_leg = _o->floating_leg ? CreateSwapFloatingLeg(_fbb, _o->floating_leg.get(), _rehasher) : 0;
+  auto _cms_leg = _o->cms_leg ? CreateSwapCmsLeg(_fbb, _o->cms_leg.get(), _rehasher) : 0;
   return quantra::CreateVanillaSwap(
       _fbb,
       _swap_type,
       _fixed_leg,
-      _floating_leg);
+      _floating_leg,
+      _cms_leg);
 }
 
 inline const quantra::VanillaSwap *GetVanillaSwap(const void *buf) {

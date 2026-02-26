@@ -117,6 +117,14 @@
       "type" : "string",
       "enum": ["Explicit", "Calibrate"]
     },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
@@ -312,6 +320,14 @@
         "amount" : {
                 "type" : "number"
               },
+        "accrual_year_fraction" : {
+                "type" : "number",
+                "description" : "Accrual year fraction used by the coupon."
+              },
+        "gearing" : {
+                "type" : "number",
+                "description" : "Coupon gearing multiplier (1.0 for fixed coupons)."
+              },
         "discount" : {
                 "type" : "number"
               },
@@ -323,7 +339,16 @@
                 "description" : "Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate."
               },
         "index_fixing" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing."
+              },
+        "has_cms_swap_rate" : {
+                "type" : "boolean",
+                "description" : "True when cms_swap_rate is populated for a CMS coupon."
+              },
+        "cms_swap_rate" : {
+                "type" : "number",
+                "description" : "CMS swap-rate fixing when has_cms_swap_rate is true."
               },
         "spread" : {
                 "type" : "number"
@@ -382,6 +407,34 @@
               },
         "floating_leg_flows" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
+              },
+        "used_cms_pricer_type" : {
+                "$ref" : "#/definitions/quantra_enums_CmsPricerType",
+                "description" : "Effective CMS pricer type used for CMS leg valuation."
+              },
+        "used_cms_yield_curve_model" : {
+                "$ref" : "#/definitions/quantra_enums_CmsYieldCurveModel",
+                "description" : "Effective yield-curve model used by CMS Hagan-family pricers."
+              },
+        "used_cms_mean_reversion" : {
+                "type" : "number",
+                "description" : "Effective CMS mean reversion used by pricer (-1.0 when no CMS leg)."
+              },
+        "used_cms_hagan_lower_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan lower integration limit (-1.0 when not applicable)."
+              },
+        "used_cms_hagan_upper_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan upper integration limit (-1.0 when not applicable)."
+              },
+        "used_cms_hagan_precision" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan integration precision (-1.0 when not applicable)."
+              },
+        "used_cms_hagan_hard_upper_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan hard upper integration limit (-1.0 when not applicable)."
               }
       },
       "additionalProperties" : false

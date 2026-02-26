@@ -43,6 +43,7 @@ class VanillaSwap(object):
             return obj
         return None
 
+    # Standard IBOR floating leg path.
     # VanillaSwap
     def FloatingLeg(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -54,8 +55,21 @@ class VanillaSwap(object):
             return obj
         return None
 
+    # Optional CMS floating leg path.
+    # Exactly one of floating_leg or cms_leg must be provided.
+    # VanillaSwap
+    def CmsLeg(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.SwapCmsLeg import SwapCmsLeg
+            obj = SwapCmsLeg()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def VanillaSwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     VanillaSwapStart(builder)
@@ -78,6 +92,12 @@ def VanillaSwapAddFloatingLeg(builder, floatingLeg):
 def AddFloatingLeg(builder, floatingLeg):
     VanillaSwapAddFloatingLeg(builder, floatingLeg)
 
+def VanillaSwapAddCmsLeg(builder, cmsLeg):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(cmsLeg), 0)
+
+def AddCmsLeg(builder, cmsLeg):
+    VanillaSwapAddCmsLeg(builder, cmsLeg)
+
 def VanillaSwapEnd(builder):
     return builder.EndObject()
 
@@ -96,6 +116,7 @@ class VanillaSwapT(object):
         self.swapType = 0  # type: int
         self.fixedLeg = None  # type: Optional[SwapFixedLegT]
         self.floatingLeg = None  # type: Optional[SwapFloatingLegT]
+        self.cmsLeg = None  # type: Optional[SwapCmsLegT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -123,6 +144,8 @@ class VanillaSwapT(object):
             self.fixedLeg = SwapFixedLegT.InitFromObj(vanillaSwap.FixedLeg())
         if vanillaSwap.FloatingLeg() is not None:
             self.floatingLeg = SwapFloatingLegT.InitFromObj(vanillaSwap.FloatingLeg())
+        if vanillaSwap.CmsLeg() is not None:
+            self.cmsLeg = SwapCmsLegT.InitFromObj(vanillaSwap.CmsLeg())
 
     # VanillaSwapT
     def Pack(self, builder):
@@ -130,11 +153,15 @@ class VanillaSwapT(object):
             fixedLeg = self.fixedLeg.Pack(builder)
         if self.floatingLeg is not None:
             floatingLeg = self.floatingLeg.Pack(builder)
+        if self.cmsLeg is not None:
+            cmsLeg = self.cmsLeg.Pack(builder)
         VanillaSwapStart(builder)
         VanillaSwapAddSwapType(builder, self.swapType)
         if self.fixedLeg is not None:
             VanillaSwapAddFixedLeg(builder, fixedLeg)
         if self.floatingLeg is not None:
             VanillaSwapAddFloatingLeg(builder, floatingLeg)
+        if self.cmsLeg is not None:
+            VanillaSwapAddCmsLeg(builder, cmsLeg)
         vanillaSwap = VanillaSwapEnd(builder)
         return vanillaSwap

@@ -10,6 +10,9 @@
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/dategenerationrule.hpp>
 #include <ql/time/frequency.hpp>
+#include <ql/indexes/swapindex.hpp>
+#include <ql/handle.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
 #include "swap_index_generated.h"
 #include "index_registry.h"
@@ -56,6 +59,13 @@ public:
         }
         return it->second;
     }
+
+    std::shared_ptr<QuantLib::SwapIndex> getIborSwapIndexWithCurves(
+        const std::string& id,
+        const QuantLib::Period& tenor,
+        const IndexRegistry& indices,
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const;
 private:
     std::unordered_map<std::string, SwapIndexRuntime> data_;
 };
