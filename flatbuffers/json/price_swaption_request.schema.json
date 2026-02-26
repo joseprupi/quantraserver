@@ -117,6 +117,14 @@
       "type" : "string",
       "enum": ["Explicit", "Calibrate"]
     },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
     "quantra_enums_EquityModelType" : {
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
@@ -1739,6 +1747,101 @@
       "required" : ["index"],
       "additionalProperties" : false
     },
+    "quantra_CmsPricerSpec" : {
+      "type" : "object",
+      "description" : "CMS leg of a swap.\nCoupon formula: notional * accrual * (gear * CMSRate + spread).",
+      "properties" : {
+        "pricer_type" : {
+                "$ref" : "#/definitions/quantra_enums_CmsPricerType",
+                "description" : "CMS coupon pricer implementation."
+              },
+        "yield_curve_model" : {
+                "$ref" : "#/definitions/quantra_enums_CmsYieldCurveModel",
+                "description" : "Yield-curve model used by Hagan-family pricers."
+              },
+        "mean_reversion" : {
+                "type" : "number",
+                "description" : "Mean reversion parameter used by TSR/Hagan-family pricers."
+              },
+        "hagan_lower_limit" : {
+                "type" : "number",
+                "description" : "Numeric Hagan lower integration limit."
+              },
+        "hagan_upper_limit" : {
+                "type" : "number",
+                "description" : "Numeric Hagan upper integration limit."
+              },
+        "hagan_precision" : {
+                "type" : "number",
+                "description" : "Numeric Hagan integration precision."
+              },
+        "hagan_hard_upper_limit" : {
+                "type" : "number",
+                "description" : "Numeric Hagan hard upper integration limit.\nIf <= 0.0, QuantLib default hard upper limit is used."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapCmsLeg" : {
+      "type" : "object",
+      "description" : "CMS leg of a swap.\nCoupon formula: notional * accrual * (gear * CMSRate + spread).",
+      "properties" : {
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule",
+                "description" : "Coupon/payment schedule."
+              },
+        "notional" : {
+                "type" : "number",
+                "description" : "Coupon notional."
+              },
+        "swap_index_id" : {
+                "type" : "string",
+                "description" : "Swap index conventions id from Pricing.swap_indices (e.g. \"EUR_SWAP_6M\")."
+              },
+        "swap_tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Constant maturity tenor for CMS fixing (e.g. 10Y)."
+              },
+        "swaption_vol_id" : {
+                "type" : "string",
+                "description" : "Swaption volatility surface id from Pricing.vol_surfaces used by CMS pricer."
+              },
+        "fixing_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Optional fixing days override; if negative, uses swap index spot_days."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Coupon accrual day-count convention."
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Payment business-day convention."
+              },
+        "gear" : {
+                "type" : "number",
+                "description" : "Coupon gearing multiplier."
+              },
+        "spread" : {
+                "type" : "number",
+                "description" : "Coupon additive spread."
+              },
+        "pricer" : {
+                "$ref" : "#/definitions/quantra_CmsPricerSpec",
+                "description" : "Optional CMS coupon pricer configuration.\nIf null, defaults are used (LinearTsr with mean_reversion=0.03)."
+              },
+        "cap" : {
+                "type" : "number",
+                "description" : "Optional cap level (v1 unsupported; if set >= 0 request is rejected)."
+              },
+        "floor" : {
+                "type" : "number",
+                "description" : "Optional floor level (v1 unsupported; if set >= 0 request is rejected)."
+              }
+      },
+      "required" : ["swap_index_id", "swap_tenor", "swaption_vol_id"],
+      "additionalProperties" : false
+    },
     "quantra_VanillaSwap" : {
       "type" : "object",
       "description" : "Vanilla interest rate swap (fixed vs floating).",
@@ -1750,7 +1853,12 @@
                 "$ref" : "#/definitions/quantra_SwapFixedLeg"
               },
         "floating_leg" : {
-                "$ref" : "#/definitions/quantra_SwapFloatingLeg"
+                "$ref" : "#/definitions/quantra_SwapFloatingLeg",
+                "description" : "Standard IBOR floating leg path."
+              },
+        "cms_leg" : {
+                "$ref" : "#/definitions/quantra_SwapCmsLeg",
+                "description" : "Optional CMS floating leg path.\nExactly one of floating_leg or cms_leg must be provided."
               }
       },
       "additionalProperties" : false

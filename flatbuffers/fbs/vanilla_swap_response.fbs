@@ -1,4 +1,5 @@
 include "common.fbs";
+include "enums.fbs";
 
 namespace quantra;
 
@@ -8,11 +9,20 @@ table SwapLegFlow {
     accrual_start_date:string;
     accrual_end_date:string;
     amount:double;
+    /// Accrual year fraction used by the coupon.
+    accrual_year_fraction:double;
+    /// Coupon gearing multiplier (1.0 for fixed coupons).
+    gearing:double = 1.0;
     discount:double;
     present_value:double;
     /// Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
     fixing_date:string;
+    /// Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing.
     index_fixing:double;
+    /// True when cms_swap_rate is populated for a CMS coupon.
+    has_cms_swap_rate:bool = false;
+    /// CMS swap-rate fixing when has_cms_swap_rate is true.
+    cms_swap_rate:double;
     spread:double;
     /// Coupon rate: fixed-leg rate or effective floating coupon rate.
     rate:double;
@@ -37,6 +47,20 @@ table VanillaSwapResponse {
     /// Optional detailed flows per leg.
     fixed_leg_flows:[SwapLegFlow];
     floating_leg_flows:[SwapLegFlow];
+    /// Effective CMS pricer type used for CMS leg valuation.
+    used_cms_pricer_type:enums.CmsPricerType = LinearTsr;
+    /// Effective yield-curve model used by CMS Hagan-family pricers.
+    used_cms_yield_curve_model:enums.CmsYieldCurveModel = Standard;
+    /// Effective CMS mean reversion used by pricer (-1.0 when no CMS leg).
+    used_cms_mean_reversion:double = -1.0;
+    /// Effective Numeric Hagan lower integration limit (-1.0 when not applicable).
+    used_cms_hagan_lower_limit:double = -1.0;
+    /// Effective Numeric Hagan upper integration limit (-1.0 when not applicable).
+    used_cms_hagan_upper_limit:double = -1.0;
+    /// Effective Numeric Hagan integration precision (-1.0 when not applicable).
+    used_cms_hagan_precision:double = -1.0;
+    /// Effective Numeric Hagan hard upper integration limit (-1.0 when not applicable).
+    used_cms_hagan_hard_upper_limit:double = -1.0;
 }
 
 /// Response wrapper for multiple vanilla swaps.

@@ -26,11 +26,67 @@ table SwapFloatingLeg {
     in_arrears:bool = false;
 }
 
+/// CMS leg of a swap.
+/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
+table CmsPricerSpec {
+    /// CMS coupon pricer implementation.
+    pricer_type:enums.CmsPricerType = LinearTsr;
+    /// Yield-curve model used by Hagan-family pricers.
+    yield_curve_model:enums.CmsYieldCurveModel = Standard;
+    /// Mean reversion parameter used by TSR/Hagan-family pricers.
+    mean_reversion:double = 0.03;
+    /// Numeric Hagan lower integration limit.
+    hagan_lower_limit:double = 0.0;
+    /// Numeric Hagan upper integration limit.
+    hagan_upper_limit:double = 1.0;
+    /// Numeric Hagan integration precision.
+    hagan_precision:double = 1.0e-6;
+    /// Numeric Hagan hard upper integration limit.
+    /// If <= 0.0, QuantLib default hard upper limit is used.
+    hagan_hard_upper_limit:double = -1.0;
+}
+
+/// CMS leg of a swap.
+/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
+table SwapCmsLeg {
+    /// Coupon/payment schedule.
+    schedule:Schedule;
+    /// Coupon notional.
+    notional:double;
+    /// Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
+    swap_index_id:string (required);
+    /// Constant maturity tenor for CMS fixing (e.g. 10Y).
+    swap_tenor:Period (required);
+    /// Swaption volatility surface id from Pricing.vol_surfaces used by CMS pricer.
+    swaption_vol_id:string (required);
+    /// Optional fixing days override; if negative, uses swap index spot_days.
+    fixing_days:int = -1;
+    /// Coupon accrual day-count convention.
+    day_counter:enums.DayCounter;
+    /// Payment business-day convention.
+    payment_convention:enums.BusinessDayConvention;
+    /// Coupon gearing multiplier.
+    gear:double = 1.0;
+    /// Coupon additive spread.
+    spread:double = 0.0;
+    /// Optional CMS coupon pricer configuration.
+    /// If null, defaults are used (LinearTsr with mean_reversion=0.03).
+    pricer:CmsPricerSpec;
+    /// Optional cap level (v1 unsupported; if set >= 0 request is rejected).
+    cap:double = -1.0;
+    /// Optional floor level (v1 unsupported; if set >= 0 request is rejected).
+    floor:double = -1.0;
+}
+
 /// Vanilla interest rate swap (fixed vs floating).
 table VanillaSwap {
     swap_type:enums.SwapType;
     fixed_leg:SwapFixedLeg;
+    /// Standard IBOR floating leg path.
     floating_leg:SwapFloatingLeg;
+    /// Optional CMS floating leg path.
+    /// Exactly one of floating_leg or cms_leg must be provided.
+    cms_leg:SwapCmsLeg;
 }
 
 root_type VanillaSwap;

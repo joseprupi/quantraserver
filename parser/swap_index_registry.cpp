@@ -2,6 +2,52 @@
 
 namespace quantra {
 
+namespace {
+
+QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
+    switch (f) {
+        case QuantLib::Annual: return QuantLib::Period(1, QuantLib::Years);
+        case QuantLib::Semiannual: return QuantLib::Period(6, QuantLib::Months);
+        case QuantLib::Quarterly: return QuantLib::Period(3, QuantLib::Months);
+        case QuantLib::Monthly: return QuantLib::Period(1, QuantLib::Months);
+        case QuantLib::Bimonthly: return QuantLib::Period(2, QuantLib::Months);
+        case QuantLib::EveryFourthMonth: return QuantLib::Period(4, QuantLib::Months);
+        default: return QuantLib::Period(1, QuantLib::Years);
+    }
+}
+
+} // namespace
+
+std::shared_ptr<QuantLib::SwapIndex> SwapIndexRegistry::getIborSwapIndexWithCurves(
+    const std::string& id,
+    const QuantLib::Period& tenor,
+    const IndexRegistry& indices,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const {
+    const auto& sidx = get(id);
+    if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
+        QUANTRA_ERROR("Swap index '" + id + "' is not an Ibor swap index");
+    }
+    if (tenor.length() <= 0) {
+        QUANTRA_ERROR("CMS swap_tenor must be positive for swap index '" + id + "'");
+    }
+
+    auto ibor = indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
+    QuantLib::Period fixedLegTenor = frequencyToPeriod(sidx.fixedFrequency);
+
+    return std::make_shared<QuantLib::SwapIndex>(
+        id,
+        tenor,
+        static_cast<QuantLib::Natural>(sidx.spotDays),
+        ibor->currency(),
+        sidx.fixedCalendar,
+        fixedLegTenor,
+        sidx.fixedBdc,
+        sidx.fixedDayCounter,
+        ibor,
+        discountCurve);
+}
+
 SwapIndexRegistry SwapIndexRegistryBuilder::build(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::SwapIndexDef>>* defs,
     const IndexRegistry& indices) const {

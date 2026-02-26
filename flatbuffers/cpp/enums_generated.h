@@ -1230,6 +1230,77 @@ inline const char *EnumNameModelParamMode(ModelParamMode e) {
   return EnumNamesModelParamMode()[index];
 }
 
+/// CMS coupon pricer selection.
+enum CmsPricerType : int8_t {
+  CmsPricerType_LinearTsr = 0,
+  CmsPricerType_HaganAnalytic = 1,
+  CmsPricerType_HaganNumeric = 2,
+  CmsPricerType_MIN = CmsPricerType_LinearTsr,
+  CmsPricerType_MAX = CmsPricerType_HaganNumeric
+};
+
+inline const CmsPricerType (&EnumValuesCmsPricerType())[3] {
+  static const CmsPricerType values[] = {
+    CmsPricerType_LinearTsr,
+    CmsPricerType_HaganAnalytic,
+    CmsPricerType_HaganNumeric
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCmsPricerType() {
+  static const char * const names[4] = {
+    "LinearTsr",
+    "HaganAnalytic",
+    "HaganNumeric",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCmsPricerType(CmsPricerType e) {
+  if (::flatbuffers::IsOutRange(e, CmsPricerType_LinearTsr, CmsPricerType_HaganNumeric)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCmsPricerType()[index];
+}
+
+/// Yield-curve model used by CMS Hagan-family pricers.
+enum CmsYieldCurveModel : int8_t {
+  CmsYieldCurveModel_Standard = 0,
+  CmsYieldCurveModel_ExactYield = 1,
+  CmsYieldCurveModel_ParallelShifts = 2,
+  CmsYieldCurveModel_NonParallelShifts = 3,
+  CmsYieldCurveModel_MIN = CmsYieldCurveModel_Standard,
+  CmsYieldCurveModel_MAX = CmsYieldCurveModel_NonParallelShifts
+};
+
+inline const CmsYieldCurveModel (&EnumValuesCmsYieldCurveModel())[4] {
+  static const CmsYieldCurveModel values[] = {
+    CmsYieldCurveModel_Standard,
+    CmsYieldCurveModel_ExactYield,
+    CmsYieldCurveModel_ParallelShifts,
+    CmsYieldCurveModel_NonParallelShifts
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCmsYieldCurveModel() {
+  static const char * const names[5] = {
+    "Standard",
+    "ExactYield",
+    "ParallelShifts",
+    "NonParallelShifts",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCmsYieldCurveModel(CmsYieldCurveModel e) {
+  if (::flatbuffers::IsOutRange(e, CmsYieldCurveModel_Standard, CmsYieldCurveModel_NonParallelShifts)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCmsYieldCurveModel()[index];
+}
+
 /// Equity option model type.
 enum EquityModelType : int8_t {
   EquityModelType_BlackScholesAnalytic = 0,

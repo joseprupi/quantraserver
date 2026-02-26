@@ -279,6 +279,21 @@ enum ModelParamMode : byte {
     Calibrate = 1
 }
 
+/// CMS coupon pricer selection.
+enum CmsPricerType : byte {
+    LinearTsr = 0,
+    HaganAnalytic = 1,
+    HaganNumeric = 2
+}
+
+/// Yield-curve model used by CMS Hagan-family pricers.
+enum CmsYieldCurveModel : byte {
+    Standard = 0,
+    ExactYield = 1,
+    ParallelShifts = 2,
+    NonParallelShifts = 3
+}
+
 /// Equity option model type.
 enum EquityModelType : byte {
     BlackScholesAnalytic,

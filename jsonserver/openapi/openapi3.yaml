@@ -943,6 +943,19 @@ components:
       enum:
       - Explicit
       - Calibrate
+    quantra_enums_CmsPricerType:
+      type: string
+      enum:
+      - LinearTsr
+      - HaganAnalytic
+      - HaganNumeric
+    quantra_enums_CmsYieldCurveModel:
+      type: string
+      enum:
+      - Standard
+      - ExactYield
+      - ParallelShifts
+      - NonParallelShifts
     quantra_enums_EquityModelType:
       type: string
       enum:
@@ -1204,6 +1217,85 @@ components:
       required:
       - index
       additionalProperties: false
+    quantra_CmsPricerSpec:
+      type: object
+      description: 'CMS leg of a swap.
+
+        Coupon formula: notional * accrual * (gear * CMSRate + spread).'
+      properties:
+        pricer_type:
+          $ref: '#/components/schemas/quantra_enums_CmsPricerType'
+        yield_curve_model:
+          $ref: '#/components/schemas/quantra_enums_CmsYieldCurveModel'
+        mean_reversion:
+          type: number
+          description: Mean reversion parameter used by TSR/Hagan-family pricers.
+        hagan_lower_limit:
+          type: number
+          description: Numeric Hagan lower integration limit.
+        hagan_upper_limit:
+          type: number
+          description: Numeric Hagan upper integration limit.
+        hagan_precision:
+          type: number
+          description: Numeric Hagan integration precision.
+        hagan_hard_upper_limit:
+          type: number
+          description: 'Numeric Hagan hard upper integration limit.
+
+            If <= 0.0, QuantLib default hard upper limit is used.'
+      additionalProperties: false
+    quantra_SwapCmsLeg:
+      type: object
+      description: 'CMS leg of a swap.
+
+        Coupon formula: notional * accrual * (gear * CMSRate + spread).'
+      properties:
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        notional:
+          type: number
+          description: Coupon notional.
+        swap_index_id:
+          type: string
+          description: Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
+        swap_tenor:
+          $ref: '#/components/schemas/quantra_Period'
+        swaption_vol_id:
+          type: string
+          description: Swaption volatility surface id from Pricing.vol_surfaces used
+            by CMS pricer.
+        fixing_days:
+          type: integer
+          description: Optional fixing days override; if negative, uses swap index
+            spot_days.
+          minimum: -2147483648
+          maximum: 2147483647
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        gear:
+          type: number
+          description: Coupon gearing multiplier.
+        spread:
+          type: number
+          description: Coupon additive spread.
+        pricer:
+          $ref: '#/components/schemas/quantra_CmsPricerSpec'
+        cap:
+          type: number
+          description: Optional cap level (v1 unsupported; if set >= 0 request is
+            rejected).
+        floor:
+          type: number
+          description: Optional floor level (v1 unsupported; if set >= 0 request is
+            rejected).
+      required:
+      - swap_index_id
+      - swap_tenor
+      - swaption_vol_id
+      additionalProperties: false
     quantra_VanillaSwap:
       type: object
       description: Vanilla interest rate swap (fixed vs floating).
@@ -1214,6 +1306,8 @@ components:
           $ref: '#/components/schemas/quantra_SwapFixedLeg'
         floating_leg:
           $ref: '#/components/schemas/quantra_SwapFloatingLeg'
+        cms_leg:
+          $ref: '#/components/schemas/quantra_SwapCmsLeg'
       additionalProperties: false
     quantra_BasisSwap:
       type: object
@@ -1238,6 +1332,12 @@ components:
           type: string
         amount:
           type: number
+        accrual_year_fraction:
+          type: number
+          description: Accrual year fraction used by the coupon.
+        gearing:
+          type: number
+          description: Coupon gearing multiplier (1.0 for fixed coupons).
         discount:
           type: number
         present_value:
@@ -1248,6 +1348,14 @@ components:
             the compounded effective coupon rate.
         index_fixing:
           type: number
+          description: Underlying index fixing. For CMS coupons this is the CMS swap-rate
+            fixing.
+        has_cms_swap_rate:
+          type: boolean
+          description: True when cms_swap_rate is populated for a CMS coupon.
+        cms_swap_rate:
+          type: number
+          description: CMS swap-rate fixing when has_cms_swap_rate is true.
         spread:
           type: number
         rate:
@@ -1294,6 +1402,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_SwapLegFlow'
+        used_cms_pricer_type:
+          $ref: '#/components/schemas/quantra_enums_CmsPricerType'
+        used_cms_yield_curve_model:
+          $ref: '#/components/schemas/quantra_enums_CmsYieldCurveModel'
+        used_cms_mean_reversion:
+          type: number
+          description: Effective CMS mean reversion used by pricer (-1.0 when no CMS
+            leg).
+        used_cms_hagan_lower_limit:
+          type: number
+          description: Effective Numeric Hagan lower integration limit (-1.0 when
+            not applicable).
+        used_cms_hagan_upper_limit:
+          type: number
+          description: Effective Numeric Hagan upper integration limit (-1.0 when
+            not applicable).
+        used_cms_hagan_precision:
+          type: number
+          description: Effective Numeric Hagan integration precision (-1.0 when not
+            applicable).
+        used_cms_hagan_hard_upper_limit:
+          type: number
+          description: Effective Numeric Hagan hard upper integration limit (-1.0
+            when not applicable).
       additionalProperties: false
     quantra_PriceVanillaSwapResponse:
       type: object

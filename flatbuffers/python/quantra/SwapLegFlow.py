@@ -53,16 +53,32 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Accrual year fraction used by the coupon.
+    # SwapLegFlow
+    def AccrualYearFraction(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Coupon gearing multiplier (1.0 for fixed coupons).
+    # SwapLegFlow
+    def Gearing(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 1.0
+
     # SwapLegFlow
     def Discount(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapLegFlow
     def PresentValue(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -70,21 +86,38 @@ class SwapLegFlow(object):
     # Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate.
     # SwapLegFlow
     def FixingDate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing.
     # SwapLegFlow
     def IndexFixing(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # True when cms_swap_rate is populated for a CMS coupon.
+    # SwapLegFlow
+    def HasCmsSwapRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # CMS swap-rate fixing when has_cms_swap_rate is true.
+    # SwapLegFlow
+    def CmsSwapRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapLegFlow
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -92,13 +125,13 @@ class SwapLegFlow(object):
     # Coupon rate: fixed-leg rate or effective floating coupon rate.
     # SwapLegFlow
     def Rate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def SwapLegFlowStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(14)
 
 def Start(builder):
     SwapLegFlowStart(builder)
@@ -127,38 +160,62 @@ def SwapLegFlowAddAmount(builder, amount):
 def AddAmount(builder, amount):
     SwapLegFlowAddAmount(builder, amount)
 
+def SwapLegFlowAddAccrualYearFraction(builder, accrualYearFraction):
+    builder.PrependFloat64Slot(4, accrualYearFraction, 0.0)
+
+def AddAccrualYearFraction(builder, accrualYearFraction):
+    SwapLegFlowAddAccrualYearFraction(builder, accrualYearFraction)
+
+def SwapLegFlowAddGearing(builder, gearing):
+    builder.PrependFloat64Slot(5, gearing, 1.0)
+
+def AddGearing(builder, gearing):
+    SwapLegFlowAddGearing(builder, gearing)
+
 def SwapLegFlowAddDiscount(builder, discount):
-    builder.PrependFloat64Slot(4, discount, 0.0)
+    builder.PrependFloat64Slot(6, discount, 0.0)
 
 def AddDiscount(builder, discount):
     SwapLegFlowAddDiscount(builder, discount)
 
 def SwapLegFlowAddPresentValue(builder, presentValue):
-    builder.PrependFloat64Slot(5, presentValue, 0.0)
+    builder.PrependFloat64Slot(7, presentValue, 0.0)
 
 def AddPresentValue(builder, presentValue):
     SwapLegFlowAddPresentValue(builder, presentValue)
 
 def SwapLegFlowAddFixingDate(builder, fixingDate):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(fixingDate), 0)
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(fixingDate), 0)
 
 def AddFixingDate(builder, fixingDate):
     SwapLegFlowAddFixingDate(builder, fixingDate)
 
 def SwapLegFlowAddIndexFixing(builder, indexFixing):
-    builder.PrependFloat64Slot(7, indexFixing, 0.0)
+    builder.PrependFloat64Slot(9, indexFixing, 0.0)
 
 def AddIndexFixing(builder, indexFixing):
     SwapLegFlowAddIndexFixing(builder, indexFixing)
 
+def SwapLegFlowAddHasCmsSwapRate(builder, hasCmsSwapRate):
+    builder.PrependBoolSlot(10, hasCmsSwapRate, 0)
+
+def AddHasCmsSwapRate(builder, hasCmsSwapRate):
+    SwapLegFlowAddHasCmsSwapRate(builder, hasCmsSwapRate)
+
+def SwapLegFlowAddCmsSwapRate(builder, cmsSwapRate):
+    builder.PrependFloat64Slot(11, cmsSwapRate, 0.0)
+
+def AddCmsSwapRate(builder, cmsSwapRate):
+    SwapLegFlowAddCmsSwapRate(builder, cmsSwapRate)
+
 def SwapLegFlowAddSpread(builder, spread):
-    builder.PrependFloat64Slot(8, spread, 0.0)
+    builder.PrependFloat64Slot(12, spread, 0.0)
 
 def AddSpread(builder, spread):
     SwapLegFlowAddSpread(builder, spread)
 
 def SwapLegFlowAddRate(builder, rate):
-    builder.PrependFloat64Slot(9, rate, 0.0)
+    builder.PrependFloat64Slot(13, rate, 0.0)
 
 def AddRate(builder, rate):
     SwapLegFlowAddRate(builder, rate)
@@ -178,10 +235,14 @@ class SwapLegFlowT(object):
         self.accrualStartDate = None  # type: str
         self.accrualEndDate = None  # type: str
         self.amount = 0.0  # type: float
+        self.accrualYearFraction = 0.0  # type: float
+        self.gearing = 1.0  # type: float
         self.discount = 0.0  # type: float
         self.presentValue = 0.0  # type: float
         self.fixingDate = None  # type: str
         self.indexFixing = 0.0  # type: float
+        self.hasCmsSwapRate = False  # type: bool
+        self.cmsSwapRate = 0.0  # type: float
         self.spread = 0.0  # type: float
         self.rate = 0.0  # type: float
 
@@ -210,10 +271,14 @@ class SwapLegFlowT(object):
         self.accrualStartDate = swapLegFlow.AccrualStartDate()
         self.accrualEndDate = swapLegFlow.AccrualEndDate()
         self.amount = swapLegFlow.Amount()
+        self.accrualYearFraction = swapLegFlow.AccrualYearFraction()
+        self.gearing = swapLegFlow.Gearing()
         self.discount = swapLegFlow.Discount()
         self.presentValue = swapLegFlow.PresentValue()
         self.fixingDate = swapLegFlow.FixingDate()
         self.indexFixing = swapLegFlow.IndexFixing()
+        self.hasCmsSwapRate = swapLegFlow.HasCmsSwapRate()
+        self.cmsSwapRate = swapLegFlow.CmsSwapRate()
         self.spread = swapLegFlow.Spread()
         self.rate = swapLegFlow.Rate()
 
@@ -235,11 +300,15 @@ class SwapLegFlowT(object):
         if self.accrualEndDate is not None:
             SwapLegFlowAddAccrualEndDate(builder, accrualEndDate)
         SwapLegFlowAddAmount(builder, self.amount)
+        SwapLegFlowAddAccrualYearFraction(builder, self.accrualYearFraction)
+        SwapLegFlowAddGearing(builder, self.gearing)
         SwapLegFlowAddDiscount(builder, self.discount)
         SwapLegFlowAddPresentValue(builder, self.presentValue)
         if self.fixingDate is not None:
             SwapLegFlowAddFixingDate(builder, fixingDate)
         SwapLegFlowAddIndexFixing(builder, self.indexFixing)
+        SwapLegFlowAddHasCmsSwapRate(builder, self.hasCmsSwapRate)
+        SwapLegFlowAddCmsSwapRate(builder, self.cmsSwapRate)
         SwapLegFlowAddSpread(builder, self.spread)
         SwapLegFlowAddRate(builder, self.rate)
         swapLegFlow = SwapLegFlowEnd(builder)
