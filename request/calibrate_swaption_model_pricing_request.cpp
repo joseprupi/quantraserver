@@ -6,6 +6,7 @@
 #include "error.h"
 #include "pricing_registry.h"
 #include "swaption_model_calibration.h"
+#include "swaption_model_parser.h"
 
 flatbuffers::Offset<quantra::CalibrateSwaptionModelResponse>
 CalibrateSwaptionModelPricingRequest::request(
@@ -21,18 +22,12 @@ CalibrateSwaptionModelPricingRequest::request(
     QuantLib::Settings::instance().evaluationDate() = asOf;
 
     const std::string modelId = request->model_id()->str();
+    quantra::SwaptionModelParser modelParser;
     auto mIt = reg.models.find(modelId);
     if (mIt == reg.models.end()) {
         QUANTRA_ERROR("Model not found: " + modelId);
     }
-    const auto* model = mIt->second;
-    if (model->payload_type() != quantra::ModelPayload_SwaptionModelSpec) {
-        QUANTRA_ERROR("Model '" + modelId + "' is not a SwaptionModelSpec");
-    }
-    const auto* spec = model->payload_as_SwaptionModelSpec();
-    if (!spec) {
-        QUANTRA_ERROR("Model '" + modelId + "' has null SwaptionModelSpec payload");
-    }
+    const auto* spec = modelParser.parse(mIt->second, modelId);
     if (spec->model_type() != quantra::enums::IrModelType_HullWhiteLattice) {
         QUANTRA_ERROR("Model '" + modelId + "' must be HullWhiteLattice for calibration");
     }

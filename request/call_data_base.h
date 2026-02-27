@@ -73,7 +73,7 @@ public:
                 error_msg.append(e.what());
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "QuantLib error", error_msg);
-                responder_.Finish(reply_, status, this);
+                responder_.FinishWithError(status, this);
             }
             catch (QuantraError &e)
             {
@@ -82,7 +82,7 @@ public:
                 std::cout << "Quantra error:  " << error_msg << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "Quantra error", error_msg);
-                responder_.Finish(reply_, status, this);
+                responder_.FinishWithError(status, this);
             }
             catch (std::exception &e)
             {
@@ -91,11 +91,14 @@ public:
                 std::cout << "Unknown error:  " << error_msg << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error", error_msg);
-                responder_.Finish(reply_, status, this);
+                responder_.FinishWithError(status, this);
             }
             catch (...)
             {
                 std::cout << "Unknown error exception:  " << std::endl;
+                status_ = FINISH;
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error", "Unknown exception");
+                responder_.FinishWithError(status, this);
             }
         }
         else

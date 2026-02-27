@@ -1,5 +1,6 @@
 #include "fixed_rate_bond_pricing_request.h"
 
+#include "bond_flow_builder.h"
 #include "pricing_registry.h"
 
 using namespace QuantLib;
@@ -41,89 +42,50 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
 
         if (reg.bondPricingFlows)
         {
-            const Leg &cashflows = bond->cashflows();
+            flows_vector = buildFixedBondFlows(
+                bond->cashflows(),
+                term_structure->second->currentLink(),
+                builder,
+                as_of_date);
+        }
 
-            for (auto cf_it = cashflows.begin(); cf_it != cashflows.end(); ++cf_it)
-            {
-                auto coupon = std::dynamic_pointer_cast<FixedRateCoupon>(*cf_it);
-                if (coupon)
-                {
-                    if (!coupon->hasOccurred(as_of_date))
-                    {
-                        std::ostringstream os_start_date;
-                        os_start_date << QuantLib::io::iso_date(coupon->accrualStartDate());
-                        auto accrual_start_date = builder->CreateString(os_start_date.str());
+        const double npv = bond->NPV();
+        bool hasDetails = reg.bondPricingDetails;
+        double cleanPrice = 0.0;
+        double dirtyPrice = 0.0;
+        double accruedAmount = 0.0;
+        double yield = 0.0;
+        uint32_t accruedDays = 0;
+        double modifiedDuration = 0.0;
+        double macaulayDuration = 0.0;
+        double convexity = 0.0;
+        double bps = 0.0;
 
-                        std::ostringstream os_end_date;
-                        os_end_date << QuantLib::io::iso_date(coupon->accrualEndDate());
-                        auto accrual_end_date = builder->CreateString(os_end_date.str());
+        if (hasDetails)
+        {
+            YieldParser yield_parser;
+            auto yield_struct = yield_parser.parse(it->yield());
 
-                        auto flow_interest_builder = FlowInterestBuilder(*builder);
-                        flow_interest_builder.add_amount(coupon->amount());
-                        flow_interest_builder.add_accrual_start_date(accrual_start_date);
-                        flow_interest_builder.add_accrual_end_date(accrual_end_date);
-                        flow_interest_builder.add_rate(coupon->rate());
-                        flow_interest_builder.add_discount(term_structure->second->currentLink()->discount(coupon->date()));
-                        flow_interest_builder.add_price(coupon->amount() *
-                                                        term_structure->second->currentLink()->discount(coupon->date()));
-                        auto flow_interest = flow_interest_builder.Finish();
+            yield = bond->yield(
+                yield_struct->day_counter,
+                yield_struct->compounding,
+                yield_struct->frequency);
 
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowInterest);
-                        flows_wrapper_builder.add_flow(flow_interest.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                    else
-                    {
-                        std::ostringstream os_start_date;
-                        os_start_date << QuantLib::io::iso_date(coupon->accrualStartDate());
-                        auto accrual_start_date = builder->CreateString(os_start_date.str());
+            cleanPrice = bond->cleanPrice();
+            dirtyPrice = bond->dirtyPrice();
+            accruedAmount = bond->accruedAmount();
+            accruedDays = BondFunctions::accruedDays(*bond);
 
-                        std::ostringstream os_end_date;
-                        os_end_date << QuantLib::io::iso_date(coupon->accrualEndDate());
-                        auto accrual_end_date = builder->CreateString(os_end_date.str());
+            InterestRate interest_rate(
+                yield,
+                DayCounterToQL(it->yield()->day_counter()),
+                CompoundingToQL(it->yield()->compounding()),
+                FrequencyToQL(it->yield()->frequency()));
 
-                        auto flow_past_interest_builder = FlowInterestBuilder(*builder);
-                        flow_past_interest_builder.add_amount(coupon->amount());
-                        flow_past_interest_builder.add_accrual_start_date(accrual_start_date);
-                        flow_past_interest_builder.add_accrual_end_date(accrual_end_date);
-                        flow_past_interest_builder.add_rate(coupon->rate());
-                        auto flow_past_interest = flow_past_interest_builder.Finish();
-
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowPastInterest);
-                        flows_wrapper_builder.add_flow(flow_past_interest.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                }
-                else
-                {
-                    auto cashflow = std::dynamic_pointer_cast<CashFlow>(*cf_it);
-
-                    if (!cashflow->hasOccurred(as_of_date))
-                    {
-                        std::ostringstream os;
-                        os << QuantLib::io::iso_date(cashflow->date());
-                        auto date = builder->CreateString(os.str());
-
-                        auto flow_notional_builder = FlowNotionalBuilder(*builder);
-                        flow_notional_builder.add_amount(cashflow->amount());
-                        flow_notional_builder.add_date(date);
-                        flow_notional_builder.add_discount(term_structure->second->currentLink()->discount(cashflow->date()));
-                        flow_notional_builder.add_price(cashflow->amount() *
-                                                        term_structure->second->currentLink()->discount(cashflow->date()));
-                        auto flow_notional = flow_notional_builder.Finish();
-
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowNotional);
-                        flows_wrapper_builder.add_flow(flow_notional.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                }
-            }
+            modifiedDuration = BondFunctions::duration(*bond, interest_rate, Duration::Modified, settlement_date);
+            macaulayDuration = BondFunctions::duration(*bond, interest_rate, Duration::Macaulay, settlement_date);
+            convexity = BondFunctions::convexity(*bond, interest_rate, settlement_date);
+            bps = BondFunctions::bps(*bond, *term_structure->second->currentLink(), settlement_date);
         }
 
         auto flows = builder->CreateVector(flows_vector);
@@ -131,32 +93,19 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
         FixedRateBondResponseBuilder response_builder(*builder);
 
         response_builder.add_flows(flows);
-        response_builder.add_npv(bond->NPV());
+        response_builder.add_npv(npv);
 
-        if (reg.bondPricingDetails)
+        if (hasDetails)
         {
-            YieldParser yield_parser;
-            auto yield_struct = yield_parser.parse(it->yield());
-
-            auto yield = bond->yield(yield_struct->day_counter, yield_struct->compounding,
-                                     yield_struct->frequency);
-
-            response_builder.add_clean_price(bond->cleanPrice());
-            response_builder.add_dirty_price(bond->dirtyPrice());
-            response_builder.add_accrued_amount(bond->accruedAmount());
+            response_builder.add_clean_price(cleanPrice);
+            response_builder.add_dirty_price(dirtyPrice);
+            response_builder.add_accrued_amount(accruedAmount);
             response_builder.add_yield(yield);
-            response_builder.add_accrued_days(BondFunctions::accruedDays(*bond));
-
-            InterestRate interest_rate(yield, DayCounterToQL(it->yield()->day_counter()),
-                                       CompoundingToQL(it->yield()->compounding()),
-                                       FrequencyToQL(it->yield()->frequency()));
-
-            response_builder.add_modified_duration(BondFunctions::duration(*bond, interest_rate,
-                                                                           Duration::Modified, settlement_date));
-            response_builder.add_macaulay_duration(BondFunctions::duration(*bond, interest_rate,
-                                                                           Duration::Macaulay, settlement_date));
-            response_builder.add_convexity(BondFunctions::convexity(*bond, interest_rate, settlement_date));
-            response_builder.add_bps(BondFunctions::bps(*bond, *term_structure->second->currentLink(), settlement_date));
+            response_builder.add_accrued_days(accruedDays);
+            response_builder.add_modified_duration(modifiedDuration);
+            response_builder.add_macaulay_duration(macaulayDuration);
+            response_builder.add_convexity(convexity);
+            response_builder.add_bps(bps);
         }
 
         auto bond_response = response_builder.Finish();

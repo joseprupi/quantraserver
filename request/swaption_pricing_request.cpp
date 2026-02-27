@@ -8,6 +8,8 @@
 #include "index_registry_builder.h"
 #include "swaption_vol_runtime.h"
 #include "swaption_model_calibration.h"
+#include "swaption_pricing_service.h"
+#include "swaption_model_parser.h"
 
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
@@ -47,6 +49,8 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
     SwaptionParser swaption_parser;
     EngineFactory engineFactory;
+    SwaptionPricingService pricingServices;
+    SwaptionModelParser modelParser;
 
     auto swaption_pricings = request->swaptions();
     std::vector<flatbuffers::Offset<SwaptionResponse>> swaptions_vector;
@@ -81,13 +85,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         if (mIt == reg.models.end())
             QUANTRA_ERROR("Model not found: " + it->model()->str());
         const std::string modelId = it->model()->str();
-        if (mIt->second->payload_type() != quantra::ModelPayload_SwaptionModelSpec) {
-            QUANTRA_ERROR("Model '" + it->model()->str() + "' is not a SwaptionModelSpec");
-        }
-        auto* swaptionModelSpec = mIt->second->payload_as_SwaptionModelSpec();
-        if (!swaptionModelSpec) {
-            QUANTRA_ERROR("Model '" + it->model()->str() + "' has null SwaptionModelSpec payload");
-        }
+        const auto* swaptionModelSpec = modelParser.parse(mIt->second, it->model()->str());
         const auto modelType = swaptionModelSpec->model_type();
         const auto exerciseType = it->swaption()->exercise_type();
         if ((exerciseType == quantra::enums::ExerciseType_Bermudan ||
@@ -126,21 +124,12 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' hw_calibration.swap_index_id not found in pricing.swap_indices");
             }
-            std::string tradeFloatIndexId;
             const auto* sw = it->swaption();
-            if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
-                const auto* u = sw->underlying_as_VanillaSwap();
-                if (u && u->floating_leg() && u->floating_leg()->index() && u->floating_leg()->index()->id()) {
-                    tradeFloatIndexId = u->floating_leg()->index()->id()->str();
-                }
-            } else if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
+            if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
-            } else if (sw->underlying_swap() && sw->underlying_swap()->floating_leg() &&
-                       sw->underlying_swap()->floating_leg()->index() &&
-                       sw->underlying_swap()->floating_leg()->index()->id()) {
-                tradeFloatIndexId = sw->underlying_swap()->floating_leg()->index()->id()->str();
             }
+            std::string tradeFloatIndexId = modelParser.extractTradeFloatIndexId(sw);
             if (tradeFloatIndexId.empty()) {
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' param_mode=Calibrate requires trade floating index id for compatibility checks");
@@ -156,7 +145,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         swaption_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto swaption = swaption_parser.parse(it->swaption(), reg.indices);
 
-        SwaptionVolEntry volEntry = finalizeSwaptionVolEntryForPricing(
+        SwaptionVolEntry volEntry = pricingServices.resolveVolEntry(
             vIt->second,
             *it,
             reg,
@@ -166,6 +155,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
         auto makeEngine = [&](const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
                               const SwaptionVolEntry& entryForEngine) {
+            const HwCalibResult* calibrated = nullptr;
             if (modelType == quantra::enums::IrModelType_HullWhiteLattice &&
                 swaptionModelSpec->param_mode() == quantra::enums::ModelParamMode_Calibrate) {
                 const auto* calibSpec = swaptionModelSpec->hw_calibration();
@@ -174,18 +164,18 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 }
                 // Rebump greeks keep model parameters fixed: calibration is done once per model_id
                 // and reused for bumped/rolled evaluations within the same request.
-                auto cIt = hwCalibrationCache.find(modelId);
-                if (cIt == hwCalibrationCache.end()) {
-                    HwCalibResult res = calibrateHullWhiteFromSwaptionVol(reg, calibSpec, asOf);
-                    cIt = hwCalibrationCache.emplace(modelId, res).first;
-                }
-                return engineFactory.makeHullWhiteLatticeSwaptionEngine(
-                    discountCurve,
-                    cIt->second.a,
-                    cIt->second.sigma,
-                    swaptionModelSpec->lattice_steps());
+                HwCalibResult res = pricingServices.calibrateHullWhite(
+                    reg, calibSpec, asOf, hwCalibrationCache, modelId);
+                hwCalibrationCache[modelId] = res;
+                calibrated = &hwCalibrationCache[modelId];
             }
-            return engineFactory.makeSwaptionEngine(mIt->second, discountCurve, entryForEngine);
+            return pricingServices.makeEngine(
+                engineFactory,
+                mIt->second,
+                swaptionModelSpec,
+                discountCurve,
+                entryForEngine,
+                calibrated);
         };
 
         Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
@@ -239,12 +229,10 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
             }
             // Reuse calibrated params for all valuations in this request (including rebump/theta).
-            auto cIt = hwCalibrationCache.find(modelId);
-            if (cIt == hwCalibrationCache.end()) {
-                HwCalibResult res = calibrateHullWhiteFromSwaptionVol(reg, calibSpec, asOf);
-                cIt = hwCalibrationCache.emplace(modelId, res).first;
-            }
-            return cIt->second;
+            HwCalibResult res = pricingServices.calibrateHullWhite(
+                reg, calibSpec, asOf, hwCalibrationCache, modelId);
+            hwCalibrationCache[modelId] = res;
+            return hwCalibrationCache[modelId];
         };
         if (modelType == quantra::enums::IrModelType_HullWhiteLattice) {
             if (usedModelParamMode == quantra::enums::ModelParamMode_Calibrate) {
@@ -295,7 +283,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
             SwaptionVolEntry volEntryBumped = bumpSwaptionVolEntry(volEntry, volBump);
             const bool forceAtmRecompute = (curveBump != 0.0) || (rollDays != 0);
-            volEntryBumped = finalizeSwaptionVolEntryForPricing(
+            volEntryBumped = pricingServices.resolveVolEntry(
                 volEntryBumped,
                 *it,
                 reg,
