@@ -961,6 +961,28 @@ components:
       enum:
       - BlackScholesAnalytic
       - BinomialCRR
+    quantra_enums_EquityOptionType:
+      type: string
+      enum:
+      - Call
+      - Put
+    quantra_enums_EquitySettlementType:
+      type: string
+      enum:
+      - Physical
+      - Cash
+    quantra_enums_EquityBarrierType:
+      type: string
+      enum:
+      - DownIn
+      - UpIn
+      - DownOut
+      - UpOut
+    quantra_enums_EquityBarrierMonitoring:
+      type: string
+      enum:
+      - Continuous
+      - Discrete
     quantra_Flow:
       type: string
       enum:
@@ -1543,6 +1565,20 @@ components:
       enum:
       - IborSwapIndex
       - OisSwapIndex
+    quantra_EquityExercise:
+      type: string
+      enum:
+      - NONE
+      - EquityEuropeanExercise
+      - EquityAmericanExercise
+      - EquityBermudanExercise
+    quantra_EquityPayoff:
+      type: string
+      enum:
+      - NONE
+      - EquityPlainVanillaPayoff
+      - EquityCashOrNothingPayoff
+      - EquityAssetOrNothingPayoff
     quantra_CurveMeasure:
       type: string
       enum:
@@ -2142,6 +2178,24 @@ components:
       properties:
         base:
           $ref: '#/components/schemas/quantra_BlackVolBaseSpec'
+        expiries:
+          type: array
+          description: Term/surface expiry pillars from base.reference_date.
+          items:
+            $ref: '#/components/schemas/quantra_Period'
+        strikes:
+          type: array
+          description: Surface strike axis (required only for shape=SmileCube3D).
+          items:
+            type: number
+        term_vols:
+          $ref: '#/components/schemas/quantra_QuoteMatrix2D'
+        surface_vols:
+          $ref: '#/components/schemas/quantra_QuoteMatrix2D'
+        expiry_interpolator:
+          $ref: '#/components/schemas/quantra_enums_Interpolator'
+        strike_interpolator:
+          $ref: '#/components/schemas/quantra_enums_Interpolator'
       additionalProperties: false
     quantra_VolSurfaceSpec:
       type: object
@@ -2492,6 +2546,139 @@ components:
       - id
       - reference_date
       additionalProperties: false
+    quantra_DiscreteDividend:
+      type: object
+      description: Discrete cash dividend for equity underlyings.
+      properties:
+        ex_date:
+          type: string
+        amount:
+          type: number
+      additionalProperties: false
+    quantra_EquityUnderlyingSpec:
+      type: object
+      description: Shared equity underlying specification referenced by option trades.
+      properties:
+        id:
+          type: string
+        currency:
+          type: string
+        spot_quote_id:
+          type: string
+        dividend_yield_curve_id:
+          type: string
+        discrete_dividends:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_DiscreteDividend'
+      required:
+      - id
+      - spot_quote_id
+      - dividend_yield_curve_id
+      additionalProperties: false
+    quantra_EquityEuropeanExercise:
+      type: object
+      description: European exercise (single expiry date).
+      properties:
+        expiry_date:
+          type: string
+      additionalProperties: false
+    quantra_EquityAmericanExercise:
+      type: object
+      description: American exercise (start and end dates).
+      properties:
+        start_date:
+          type: string
+        end_date:
+          type: string
+      additionalProperties: false
+    quantra_EquityBermudanExercise:
+      type: object
+      description: Bermudan exercise with explicit exercise dates.
+      properties:
+        exercise_dates:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    quantra_EquityPlainVanillaPayoff:
+      type: object
+      description: Plain vanilla payoff.
+      properties:
+        option_type:
+          $ref: '#/components/schemas/quantra_enums_EquityOptionType'
+        strike:
+          type: number
+      additionalProperties: false
+    quantra_EquityCashOrNothingPayoff:
+      type: object
+      description: Cash-or-nothing digital payoff.
+      properties:
+        option_type:
+          $ref: '#/components/schemas/quantra_enums_EquityOptionType'
+        strike:
+          type: number
+        cash:
+          type: number
+      additionalProperties: false
+    quantra_EquityAssetOrNothingPayoff:
+      type: object
+      description: Asset-or-nothing digital payoff.
+      properties:
+        option_type:
+          $ref: '#/components/schemas/quantra_enums_EquityOptionType'
+        strike:
+          type: number
+      additionalProperties: false
+    quantra_EquityBarrierFeature:
+      type: object
+      description: Optional barrier feature.
+      properties:
+        barrier_type:
+          $ref: '#/components/schemas/quantra_enums_EquityBarrierType'
+        level:
+          type: number
+        rebate:
+          type: number
+        monitoring:
+          $ref: '#/components/schemas/quantra_enums_EquityBarrierMonitoring'
+        monitoring_dates:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    quantra_EquityOption:
+      type: object
+      description: Equity option trade definition.
+      properties:
+        trade_id:
+          type: string
+        underlying_id:
+          type: string
+        quantity:
+          type: number
+        settlement:
+          $ref: '#/components/schemas/quantra_enums_EquitySettlementType'
+        payoff_type:
+          $ref: '#/components/schemas/quantra_EquityPayoff'
+        payoff:
+          anyOf:
+          - $ref: '#/components/schemas/quantra_EquityPlainVanillaPayoff'
+          - $ref: '#/components/schemas/quantra_EquityCashOrNothingPayoff'
+          - $ref: '#/components/schemas/quantra_EquityAssetOrNothingPayoff'
+        exercise_type:
+          $ref: '#/components/schemas/quantra_EquityExercise'
+        exercise:
+          anyOf:
+          - $ref: '#/components/schemas/quantra_EquityEuropeanExercise'
+          - $ref: '#/components/schemas/quantra_EquityAmericanExercise'
+          - $ref: '#/components/schemas/quantra_EquityBermudanExercise'
+        barrier:
+          $ref: '#/components/schemas/quantra_EquityBarrierFeature'
+      required:
+      - trade_id
+      - underlying_id
+      additionalProperties: false
     quantra_Pricing:
       type: object
       description: Central pricing configuration. Indices, curves, volatility surfaces,
@@ -2531,6 +2718,11 @@ components:
             (future).'
           items:
             $ref: '#/components/schemas/quantra_QuoteSpec'
+        equity_underlyings:
+          type: array
+          description: Equity underlyings referenced by equity option trades.
+          items:
+            $ref: '#/components/schemas/quantra_EquityUnderlyingSpec'
         vol_surfaces:
           type: array
           description: 'Volatility surfaces (typed by product family). Used by: CapFloor,
@@ -3064,6 +3256,42 @@ components:
           items:
             $ref: '#/components/schemas/quantra_CDSValues'
       additionalProperties: false
+    quantra_EquityOptionResponse:
+      type: object
+      description: Equity option pricing result.
+      properties:
+        trade_id:
+          type: string
+        npv:
+          type: number
+        delta:
+          type: number
+        gamma:
+          type: number
+        vega:
+          type: number
+        theta:
+          type: number
+        rho:
+          type: number
+        implied_volatility:
+          type: number
+        used_spot:
+          type: number
+        used_strike:
+          type: number
+        used_settlement:
+          $ref: '#/components/schemas/quantra_enums_EquitySettlementType'
+      additionalProperties: false
+    quantra_PriceEquityOptionResponse:
+      type: object
+      description: Response wrapper for equity option pricing.
+      properties:
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_EquityOptionResponse'
+      additionalProperties: false
     quantra_FixedRateBond:
       type: object
       description: Fixed-rate bond instrument.
@@ -3371,6 +3599,34 @@ components:
           items:
             $ref: '#/components/schemas/quantra_PriceCDS'
       additionalProperties: false
+    quantra_PriceEquityOption:
+      type: object
+      description: Single equity option pricing request with curve/vol/model references.
+      properties:
+        option:
+          $ref: '#/components/schemas/quantra_EquityOption'
+        discounting_curve:
+          type: string
+          description: Reference to risk-free discounting curve in Pricing.curves
+            by id.
+        volatility:
+          type: string
+          description: Reference to volatility in Pricing.vol_surfaces by id.
+        model:
+          type: string
+          description: Reference to model in Pricing.models by id.
+      additionalProperties: false
+    quantra_PriceEquityOptionRequest:
+      type: object
+      description: Request to price one or more equity options.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceEquityOption'
+      additionalProperties: false
     quantra_PriceFixedRateBond:
       type: object
       description: Single fixed-rate bond pricing context.
@@ -3615,6 +3871,7 @@ components:
       enum:
       - Swaption
       - Optionlet
+      - EquityBlack
     quantra_VolStrikeAxis:
       type: string
       enum:

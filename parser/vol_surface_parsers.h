@@ -81,6 +81,7 @@ struct BlackVolEntry {
     double constantVol;
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
+    quantra::enums::Calendar calendarFb = quantra::enums::Calendar_NullCalendar;
     QuantLib::DayCounter dayCounter;
 };
 

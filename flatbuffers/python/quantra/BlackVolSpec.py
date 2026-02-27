@@ -36,8 +36,101 @@ class BlackVolSpec(object):
             return obj
         return None
 
+    # Term/surface expiry pillars from base.reference_date.
+    # BlackVolSpec
+    def Expiries(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # BlackVolSpec
+    def ExpiriesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def ExpiriesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
+    # Surface strike axis (required only for shape=SmileCube3D).
+    # BlackVolSpec
+    def Strikes(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def StrikesAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def StrikesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def StrikesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
+    # Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major.
+    # BlackVolSpec
+    def TermVols(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
+            obj = QuoteMatrix2D()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
+    # BlackVolSpec
+    def SurfaceVols(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = QuoteMatrix2D()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Interpolator across expiry dimension for non-constant shapes (Linear only in v1).
+    # BlackVolSpec
+    def ExpiryInterpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
+    # Interpolator across strike dimension for shape=SmileCube3D (Linear only in v1).
+    # BlackVolSpec
+    def StrikeInterpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(7)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -48,6 +141,54 @@ def BlackVolSpecAddBase(builder, base):
 def AddBase(builder, base):
     BlackVolSpecAddBase(builder, base)
 
+def BlackVolSpecAddExpiries(builder, expiries):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(expiries), 0)
+
+def AddExpiries(builder, expiries):
+    BlackVolSpecAddExpiries(builder, expiries)
+
+def BlackVolSpecStartExpiriesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartExpiriesVector(builder, numElems):
+    return BlackVolSpecStartExpiriesVector(builder, numElems)
+
+def BlackVolSpecAddStrikes(builder, strikes):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(strikes), 0)
+
+def AddStrikes(builder, strikes):
+    BlackVolSpecAddStrikes(builder, strikes)
+
+def BlackVolSpecStartStrikesVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartStrikesVector(builder, numElems):
+    return BlackVolSpecStartStrikesVector(builder, numElems)
+
+def BlackVolSpecAddTermVols(builder, termVols):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(termVols), 0)
+
+def AddTermVols(builder, termVols):
+    BlackVolSpecAddTermVols(builder, termVols)
+
+def BlackVolSpecAddSurfaceVols(builder, surfaceVols):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(surfaceVols), 0)
+
+def AddSurfaceVols(builder, surfaceVols):
+    BlackVolSpecAddSurfaceVols(builder, surfaceVols)
+
+def BlackVolSpecAddExpiryInterpolator(builder, expiryInterpolator):
+    builder.PrependInt8Slot(5, expiryInterpolator, 2)
+
+def AddExpiryInterpolator(builder, expiryInterpolator):
+    BlackVolSpecAddExpiryInterpolator(builder, expiryInterpolator)
+
+def BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator):
+    builder.PrependInt8Slot(6, strikeInterpolator, 2)
+
+def AddStrikeInterpolator(builder, strikeInterpolator):
+    BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -55,7 +196,7 @@ def End(builder):
     return BlackVolSpecEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -64,6 +205,12 @@ class BlackVolSpecT(object):
     # BlackVolSpecT
     def __init__(self):
         self.base = None  # type: Optional[BlackVolBaseSpecT]
+        self.expiries = None  # type: List[PeriodT]
+        self.strikes = None  # type: List[float]
+        self.termVols = None  # type: Optional[QuoteMatrix2DT]
+        self.surfaceVols = None  # type: Optional[QuoteMatrix2DT]
+        self.expiryInterpolator = 2  # type: int
+        self.strikeInterpolator = 2  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -88,13 +235,64 @@ class BlackVolSpecT(object):
             return
         if blackVolSpec.Base() is not None:
             self.base = BlackVolBaseSpecT.InitFromObj(blackVolSpec.Base())
+        if not blackVolSpec.ExpiriesIsNone():
+            self.expiries = []
+            for i in range(blackVolSpec.ExpiriesLength()):
+                if blackVolSpec.Expiries(i) is None:
+                    self.expiries.append(None)
+                else:
+                    period_ = PeriodT.InitFromObj(blackVolSpec.Expiries(i))
+                    self.expiries.append(period_)
+        if not blackVolSpec.StrikesIsNone():
+            if np is None:
+                self.strikes = []
+                for i in range(blackVolSpec.StrikesLength()):
+                    self.strikes.append(blackVolSpec.Strikes(i))
+            else:
+                self.strikes = blackVolSpec.StrikesAsNumpy()
+        if blackVolSpec.TermVols() is not None:
+            self.termVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.TermVols())
+        if blackVolSpec.SurfaceVols() is not None:
+            self.surfaceVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.SurfaceVols())
+        self.expiryInterpolator = blackVolSpec.ExpiryInterpolator()
+        self.strikeInterpolator = blackVolSpec.StrikeInterpolator()
 
     # BlackVolSpecT
     def Pack(self, builder):
         if self.base is not None:
             base = self.base.Pack(builder)
+        if self.expiries is not None:
+            expirieslist = []
+            for i in range(len(self.expiries)):
+                expirieslist.append(self.expiries[i].Pack(builder))
+            BlackVolSpecStartExpiriesVector(builder, len(self.expiries))
+            for i in reversed(range(len(self.expiries))):
+                builder.PrependUOffsetTRelative(expirieslist[i])
+            expiries = builder.EndVector()
+        if self.strikes is not None:
+            if np is not None and type(self.strikes) is np.ndarray:
+                strikes = builder.CreateNumpyVector(self.strikes)
+            else:
+                BlackVolSpecStartStrikesVector(builder, len(self.strikes))
+                for i in reversed(range(len(self.strikes))):
+                    builder.PrependFloat64(self.strikes[i])
+                strikes = builder.EndVector()
+        if self.termVols is not None:
+            termVols = self.termVols.Pack(builder)
+        if self.surfaceVols is not None:
+            surfaceVols = self.surfaceVols.Pack(builder)
         BlackVolSpecStart(builder)
         if self.base is not None:
             BlackVolSpecAddBase(builder, base)
+        if self.expiries is not None:
+            BlackVolSpecAddExpiries(builder, expiries)
+        if self.strikes is not None:
+            BlackVolSpecAddStrikes(builder, strikes)
+        if self.termVols is not None:
+            BlackVolSpecAddTermVols(builder, termVols)
+        if self.surfaceVols is not None:
+            BlackVolSpecAddSurfaceVols(builder, surfaceVols)
+        BlackVolSpecAddExpiryInterpolator(builder, self.expiryInterpolator)
+        BlackVolSpecAddStrikeInterpolator(builder, self.strikeInterpolator)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

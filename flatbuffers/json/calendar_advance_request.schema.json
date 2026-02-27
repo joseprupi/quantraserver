@@ -129,6 +129,22 @@
       "type" : "string",
       "enum": ["BlackScholesAnalytic", "BinomialCRR"]
     },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
     "quantra_CalendarAdvanceRequest" : {
       "type" : "object",
       "description" : "Request to advance a date by a calendar-aware period.",

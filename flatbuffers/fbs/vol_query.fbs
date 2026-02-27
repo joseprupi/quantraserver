@@ -4,10 +4,11 @@ include "enums.fbs";
 
 namespace quantra;
 
-/// Volatility surface type: Swaption or Optionlet.
+/// Volatility surface type: Swaption, Optionlet, or EquityBlack.
 enum VolSurfaceType : byte {
     Swaption = 0,
-    Optionlet = 1
+    Optionlet = 1,
+    EquityBlack = 2
 }
 
 /// Strike axis convention.

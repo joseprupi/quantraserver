@@ -1332,6 +1332,136 @@ inline const char *EnumNameEquityModelType(EquityModelType e) {
   return EnumNamesEquityModelType()[index];
 }
 
+/// Equity option payoff type.
+enum EquityOptionType : int8_t {
+  EquityOptionType_Call = 0,
+  EquityOptionType_Put = 1,
+  EquityOptionType_MIN = EquityOptionType_Call,
+  EquityOptionType_MAX = EquityOptionType_Put
+};
+
+inline const EquityOptionType (&EnumValuesEquityOptionType())[2] {
+  static const EquityOptionType values[] = {
+    EquityOptionType_Call,
+    EquityOptionType_Put
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityOptionType() {
+  static const char * const names[3] = {
+    "Call",
+    "Put",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityOptionType(EquityOptionType e) {
+  if (::flatbuffers::IsOutRange(e, EquityOptionType_Call, EquityOptionType_Put)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityOptionType()[index];
+}
+
+/// Equity option settlement type.
+enum EquitySettlementType : int8_t {
+  EquitySettlementType_Physical = 0,
+  EquitySettlementType_Cash = 1,
+  EquitySettlementType_MIN = EquitySettlementType_Physical,
+  EquitySettlementType_MAX = EquitySettlementType_Cash
+};
+
+inline const EquitySettlementType (&EnumValuesEquitySettlementType())[2] {
+  static const EquitySettlementType values[] = {
+    EquitySettlementType_Physical,
+    EquitySettlementType_Cash
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquitySettlementType() {
+  static const char * const names[3] = {
+    "Physical",
+    "Cash",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquitySettlementType(EquitySettlementType e) {
+  if (::flatbuffers::IsOutRange(e, EquitySettlementType_Physical, EquitySettlementType_Cash)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquitySettlementType()[index];
+}
+
+/// Barrier direction/style for barrier options.
+enum EquityBarrierType : int8_t {
+  EquityBarrierType_DownIn = 0,
+  EquityBarrierType_UpIn = 1,
+  EquityBarrierType_DownOut = 2,
+  EquityBarrierType_UpOut = 3,
+  EquityBarrierType_MIN = EquityBarrierType_DownIn,
+  EquityBarrierType_MAX = EquityBarrierType_UpOut
+};
+
+inline const EquityBarrierType (&EnumValuesEquityBarrierType())[4] {
+  static const EquityBarrierType values[] = {
+    EquityBarrierType_DownIn,
+    EquityBarrierType_UpIn,
+    EquityBarrierType_DownOut,
+    EquityBarrierType_UpOut
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityBarrierType() {
+  static const char * const names[5] = {
+    "DownIn",
+    "UpIn",
+    "DownOut",
+    "UpOut",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityBarrierType(EquityBarrierType e) {
+  if (::flatbuffers::IsOutRange(e, EquityBarrierType_DownIn, EquityBarrierType_UpOut)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityBarrierType()[index];
+}
+
+/// Barrier monitoring type.
+enum EquityBarrierMonitoring : int8_t {
+  EquityBarrierMonitoring_Continuous = 0,
+  EquityBarrierMonitoring_Discrete = 1,
+  EquityBarrierMonitoring_MIN = EquityBarrierMonitoring_Continuous,
+  EquityBarrierMonitoring_MAX = EquityBarrierMonitoring_Discrete
+};
+
+inline const EquityBarrierMonitoring (&EnumValuesEquityBarrierMonitoring())[2] {
+  static const EquityBarrierMonitoring values[] = {
+    EquityBarrierMonitoring_Continuous,
+    EquityBarrierMonitoring_Discrete
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityBarrierMonitoring() {
+  static const char * const names[3] = {
+    "Continuous",
+    "Discrete",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityBarrierMonitoring(EquityBarrierMonitoring e) {
+  if (::flatbuffers::IsOutRange(e, EquityBarrierMonitoring_Continuous, EquityBarrierMonitoring_Discrete)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityBarrierMonitoring()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

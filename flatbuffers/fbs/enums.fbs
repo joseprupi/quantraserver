@@ -299,3 +299,29 @@ enum EquityModelType : byte {
     BlackScholesAnalytic,
     BinomialCRR
 }
+
+/// Equity option payoff type.
+enum EquityOptionType : byte {
+    Call = 0,
+    Put = 1
+}
+
+/// Equity option settlement type.
+enum EquitySettlementType : byte {
+    Physical = 0,
+    Cash = 1
+}
+
+/// Barrier direction/style for barrier options.
+enum EquityBarrierType : byte {
+    DownIn = 0,
+    UpIn = 1,
+    DownOut = 2,
+    UpOut = 3
+}
+
+/// Barrier monitoring type.
+enum EquityBarrierMonitoring : byte {
+    Continuous = 0,
+    Discrete = 1
+}

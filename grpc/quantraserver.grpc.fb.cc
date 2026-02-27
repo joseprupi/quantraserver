@@ -31,6 +31,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalendarHolidays",
   "/quantra.QuantraServer/CalendarAdvance",
   "/quantra.QuantraServer/CalibrateSwaptionModel",
+  "/quantra.QuantraServer/PriceEquityOption",
 };
 
 std::unique_ptr< QuantraServer::Stub> QuantraServer::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& /*options*/) {
@@ -54,6 +55,7 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalendarHolidays_(QuantraServer_method_names[12], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalendarAdvance_(QuantraServer_method_names[13], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[14], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceEquityOption_(QuantraServer_method_names[15], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -236,6 +238,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>::Create(channel_.get(), cq, rpcmethod_CalibrateSwaptionModel_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceEquityOption(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceEquityOptionRequest>& request, flatbuffers::grpc::Message<PriceEquityOptionResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceEquityOption_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceEquityOptionResponse>>* QuantraServer::Stub::AsyncPriceEquityOptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceEquityOptionRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceEquityOptionResponse>>::Create(channel_.get(), cq, rpcmethod_PriceEquityOption_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceEquityOptionResponse>>* QuantraServer::Stub::PrepareAsyncPriceEquityOptionRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceEquityOptionRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceEquityOptionResponse>>::Create(channel_.get(), cq, rpcmethod_PriceEquityOption_, context, request, false);
+}
+
 QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[0],
@@ -312,6 +326,11 @@ QuantraServer::Service::Service() {
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>(
           std::mem_fn(&QuantraServer::Service::CalibrateSwaptionModel), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[15],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceEquityOptionRequest>, flatbuffers::grpc::Message<PriceEquityOptionResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceEquityOption), this)));
 }
 
 QuantraServer::Service::~Service() {
@@ -374,6 +393,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::CalibrateSwaptionModel(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>* /*request*/, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceEquityOption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceEquityOptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceEquityOptionResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

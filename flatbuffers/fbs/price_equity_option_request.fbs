@@ -1,0 +1,23 @@
+include "pricing.fbs";
+include "equity_option.fbs";
+
+namespace quantra;
+
+/// Single equity option pricing request with curve/vol/model references.
+table PriceEquityOption {
+    option:EquityOption;
+    /// Reference to risk-free discounting curve in Pricing.curves by id.
+    discounting_curve:string;
+    /// Reference to volatility in Pricing.vol_surfaces by id.
+    volatility:string;
+    /// Reference to model in Pricing.models by id.
+    model:string;
+}
+
+/// Request to price one or more equity options.
+table PriceEquityOptionRequest {
+    pricing:Pricing;
+    options:[PriceEquityOption];
+}
+
+root_type PriceEquityOptionRequest;

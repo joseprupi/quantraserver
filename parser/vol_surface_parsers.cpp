@@ -7,8 +7,11 @@
 #include "vol_surface_parsers.h"
 
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
+#include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -89,8 +92,14 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
     if (!b->reference_date()) {
         QUANTRA_ERROR("reference_date required for vol id: " + id);
     }
-    if (b->constant_vol() <= 0.0) {
-        QUANTRA_ERROR("constant_vol must be > 0 for vol id: " + id);
+    switch (b->shape()) {
+        case quantra::enums::VolSurfaceShape_Constant:
+        case quantra::enums::VolSurfaceShape_AtmMatrix2D:
+        case quantra::enums::VolSurfaceShape_SmileCube3D:
+            break;
+        default:
+            QUANTRA_ERROR(
+                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D for vol id: " + id);
     }
 }
 
@@ -800,18 +809,121 @@ BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec, const QuoteRegi
 
     QuantLib::Date ref = DateToQL(b->reference_date()->str());
     QuantLib::Calendar cal = CalendarToQL(b->calendar());
+    QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
-    double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
-
-    auto qlVol = std::make_shared<QuantLib::BlackConstantVol>(ref, cal, vol, dc);
 
     BlackVolEntry entry;
-    entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol);
-    entry.constantVol = vol;
     entry.referenceDate = ref;
     entry.calendar = cal;
+    entry.calendarFb = b->calendar();
     entry.dayCounter = dc;
-    
+
+    switch (b->shape()) {
+        case quantra::enums::VolSurfaceShape_Constant: {
+            double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
+            auto qlVol = std::make_shared<QuantLib::BlackConstantVol>(ref, cal, vol, dc);
+            entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol);
+            entry.constantVol = vol;
+            return entry;
+        }
+
+        case quantra::enums::VolSurfaceShape_AtmMatrix2D: {
+            validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
+            if (!payload->expiries() || payload->expiries()->size() == 0) {
+                QUANTRA_ERROR("BlackVolSpec.expiries is required for shape=AtmMatrix2D, vol id: " + id);
+            }
+            const int nExp = static_cast<int>(payload->expiries()->size());
+            const auto* termVols = payload->term_vols();
+            validateMatrix2D(termVols, nExp, 1, id);
+
+            std::vector<QuantLib::Date> dates;
+            dates.reserve(nExp);
+            std::vector<QuantLib::Volatility> vols;
+            vols.reserve(nExp);
+
+            for (int i = 0; i < nExp; ++i) {
+                QuantLib::Period p = toQlPeriod(payload->expiries()->Get(i));
+                QuantLib::Date d = cal.advance(ref, p, bdc);
+                if (d <= ref) {
+                    QUANTRA_ERROR("BlackVolSpec.expiries must be after reference_date for vol id: " + id);
+                }
+                if (!dates.empty() && d <= dates.back()) {
+                    QUANTRA_ERROR("BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
+                }
+                double v = resolveMatrixValue(termVols, i, quotes, id);
+                if (v <= 0.0) {
+                    QUANTRA_ERROR("BlackVolSpec term vol must be > 0 for vol id: " + id);
+                }
+                dates.push_back(d);
+                vols.push_back(v);
+            }
+
+            auto qlVol = std::make_shared<QuantLib::BlackVarianceCurve>(ref, dates, vols, dc, true);
+            entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol);
+            entry.constantVol = std::numeric_limits<double>::quiet_NaN();
+            return entry;
+        }
+
+        case quantra::enums::VolSurfaceShape_SmileCube3D: {
+            validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
+            validateSupportedInterpolator(payload->strike_interpolator(), "strike_interpolator", id);
+            if (!payload->expiries() || payload->expiries()->size() == 0) {
+                QUANTRA_ERROR("BlackVolSpec.expiries is required for shape=SmileCube3D, vol id: " + id);
+            }
+            if (!payload->strikes() || payload->strikes()->size() == 0) {
+                QUANTRA_ERROR("BlackVolSpec.strikes is required for shape=SmileCube3D, vol id: " + id);
+            }
+            const int nExp = static_cast<int>(payload->expiries()->size());
+            const int nStr = static_cast<int>(payload->strikes()->size());
+            const auto* surfaceVols = payload->surface_vols();
+            validateMatrix2D(surfaceVols, nExp, nStr, id);
+
+            std::vector<QuantLib::Date> dates;
+            dates.reserve(nExp);
+            for (int i = 0; i < nExp; ++i) {
+                QuantLib::Period p = toQlPeriod(payload->expiries()->Get(i));
+                QuantLib::Date d = cal.advance(ref, p, bdc);
+                if (d <= ref) {
+                    QUANTRA_ERROR("BlackVolSpec.expiries must be after reference_date for vol id: " + id);
+                }
+                if (!dates.empty() && d <= dates.back()) {
+                    QUANTRA_ERROR("BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
+                }
+                dates.push_back(d);
+            }
+
+            std::vector<QuantLib::Real> strikes;
+            strikes.reserve(nStr);
+            for (int j = 0; j < nStr; ++j) {
+                strikes.push_back(payload->strikes()->Get(j));
+                if (j > 0 && !(strikes[j] > strikes[j - 1])) {
+                    QUANTRA_ERROR("BlackVolSpec.strikes must be strictly increasing for vol id: " + id);
+                }
+            }
+
+            QuantLib::Matrix blackVolMatrix(nStr, nExp);
+            for (int i = 0; i < nExp; ++i) {
+                for (int j = 0; j < nStr; ++j) {
+                    const int idx = i * nStr + j;
+                    const double v = resolveMatrixValue(surfaceVols, idx, quotes, id);
+                    if (v <= 0.0) {
+                        QUANTRA_ERROR("BlackVolSpec surface vol must be > 0 for vol id: " + id);
+                    }
+                    blackVolMatrix[j][i] = v;
+                }
+            }
+
+            auto qlVol = std::make_shared<QuantLib::BlackVarianceSurface>(ref, cal, dates, strikes, blackVolMatrix, dc);
+            qlVol->setInterpolation<QuantLib::Bilinear>();
+            entry.handle = QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol);
+            entry.constantVol = std::numeric_limits<double>::quiet_NaN();
+            return entry;
+        }
+
+        default:
+            QUANTRA_ERROR("Unsupported BlackVolSpec shape for vol id: " + id);
+    }
+
     return entry;
 }
 

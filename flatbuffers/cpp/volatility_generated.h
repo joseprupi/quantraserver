@@ -1818,6 +1818,12 @@ inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpecDirect(
 struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   typedef BlackVolSpec TableType;
   std::unique_ptr<quantra::BlackVolBaseSpecT> base{};
+  std::vector<std::unique_ptr<quantra::PeriodT>> expiries{};
+  std::vector<double> strikes{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> term_vols{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> surface_vols{};
+  quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
+  quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear;
   BlackVolSpecT() = default;
   BlackVolSpecT(const BlackVolSpecT &o);
   BlackVolSpecT(BlackVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1829,15 +1835,56 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef BlackVolSpecT NativeTableType;
   typedef BlackVolSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BASE = 4
+    VT_BASE = 4,
+    VT_EXPIRIES = 6,
+    VT_STRIKES = 8,
+    VT_TERM_VOLS = 10,
+    VT_SURFACE_VOLS = 12,
+    VT_EXPIRY_INTERPOLATOR = 14,
+    VT_STRIKE_INTERPOLATOR = 16
   };
   const quantra::BlackVolBaseSpec *base() const {
     return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
+  }
+  /// Term/surface expiry pillars from base.reference_date.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>> *>(VT_EXPIRIES);
+  }
+  /// Surface strike axis (required only for shape=SmileCube3D).
+  const ::flatbuffers::Vector<double> *strikes() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_STRIKES);
+  }
+  /// Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major.
+  const quantra::QuoteMatrix2D *term_vols() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_TERM_VOLS);
+  }
+  /// Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
+  const quantra::QuoteMatrix2D *surface_vols() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_SURFACE_VOLS);
+  }
+  /// Interpolator across expiry dimension for non-constant shapes (Linear only in v1).
+  quantra::enums::Interpolator expiry_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_EXPIRY_INTERPOLATOR, 2));
+  }
+  /// Interpolator across strike dimension for shape=SmileCube3D (Linear only in v1).
+  quantra::enums::Interpolator strike_interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_STRIKE_INTERPOLATOR, 2));
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_BASE) &&
            verifier.VerifyTable(base()) &&
+           VerifyOffset(verifier, VT_EXPIRIES) &&
+           verifier.VerifyVector(expiries()) &&
+           verifier.VerifyVectorOfTables(expiries()) &&
+           VerifyOffset(verifier, VT_STRIKES) &&
+           verifier.VerifyVector(strikes()) &&
+           VerifyOffset(verifier, VT_TERM_VOLS) &&
+           verifier.VerifyTable(term_vols()) &&
+           VerifyOffset(verifier, VT_SURFACE_VOLS) &&
+           verifier.VerifyTable(surface_vols()) &&
+           VerifyField<int8_t>(verifier, VT_EXPIRY_INTERPOLATOR, 1) &&
+           VerifyField<int8_t>(verifier, VT_STRIKE_INTERPOLATOR, 1) &&
            verifier.EndTable();
   }
   BlackVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1852,6 +1899,24 @@ struct BlackVolSpecBuilder {
   void add_base(::flatbuffers::Offset<quantra::BlackVolBaseSpec> base) {
     fbb_.AddOffset(BlackVolSpec::VT_BASE, base);
   }
+  void add_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> expiries) {
+    fbb_.AddOffset(BlackVolSpec::VT_EXPIRIES, expiries);
+  }
+  void add_strikes(::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes) {
+    fbb_.AddOffset(BlackVolSpec::VT_STRIKES, strikes);
+  }
+  void add_term_vols(::flatbuffers::Offset<quantra::QuoteMatrix2D> term_vols) {
+    fbb_.AddOffset(BlackVolSpec::VT_TERM_VOLS, term_vols);
+  }
+  void add_surface_vols(::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols) {
+    fbb_.AddOffset(BlackVolSpec::VT_SURFACE_VOLS, surface_vols);
+  }
+  void add_expiry_interpolator(quantra::enums::Interpolator expiry_interpolator) {
+    fbb_.AddElement<int8_t>(BlackVolSpec::VT_EXPIRY_INTERPOLATOR, static_cast<int8_t>(expiry_interpolator), 2);
+  }
+  void add_strike_interpolator(quantra::enums::Interpolator strike_interpolator) {
+    fbb_.AddElement<int8_t>(BlackVolSpec::VT_STRIKE_INTERPOLATOR, static_cast<int8_t>(strike_interpolator), 2);
+  }
   explicit BlackVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1865,10 +1930,44 @@ struct BlackVolSpecBuilder {
 
 inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0) {
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Period>>> expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> term_vols = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
   BlackVolSpecBuilder builder_(_fbb);
+  builder_.add_surface_vols(surface_vols);
+  builder_.add_term_vols(term_vols);
+  builder_.add_strikes(strikes);
+  builder_.add_expiries(expiries);
   builder_.add_base(base);
+  builder_.add_strike_interpolator(strike_interpolator);
+  builder_.add_expiry_interpolator(expiry_interpolator);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<quantra::BlackVolBaseSpec> base = 0,
+    const std::vector<::flatbuffers::Offset<quantra::Period>> *expiries = nullptr,
+    const std::vector<double> *strikes = nullptr,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> term_vols = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols = 0,
+    quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
+    quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
+  auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
+  auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
+  return quantra::CreateBlackVolSpec(
+      _fbb,
+      base,
+      expiries__,
+      strikes__,
+      term_vols,
+      surface_vols,
+      expiry_interpolator,
+      strike_interpolator);
 }
 
 ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2543,11 +2642,24 @@ inline ::flatbuffers::Offset<SwaptionVolSpec> CreateSwaptionVolSpec(::flatbuffer
 }
 
 inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
-      : base((o.base) ? new quantra::BlackVolBaseSpecT(*o.base) : nullptr) {
+      : base((o.base) ? new quantra::BlackVolBaseSpecT(*o.base) : nullptr),
+        strikes(o.strikes),
+        term_vols((o.term_vols) ? new quantra::QuoteMatrix2DT(*o.term_vols) : nullptr),
+        surface_vols((o.surface_vols) ? new quantra::QuoteMatrix2DT(*o.surface_vols) : nullptr),
+        expiry_interpolator(o.expiry_interpolator),
+        strike_interpolator(o.strike_interpolator) {
+  expiries.reserve(o.expiries.size());
+  for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodT(*expiries_) : nullptr); }
 }
 
 inline BlackVolSpecT &BlackVolSpecT::operator=(BlackVolSpecT o) FLATBUFFERS_NOEXCEPT {
   std::swap(base, o.base);
+  std::swap(expiries, o.expiries);
+  std::swap(strikes, o.strikes);
+  std::swap(term_vols, o.term_vols);
+  std::swap(surface_vols, o.surface_vols);
+  std::swap(expiry_interpolator, o.expiry_interpolator);
+  std::swap(strike_interpolator, o.strike_interpolator);
   return *this;
 }
 
@@ -2561,6 +2673,12 @@ inline void BlackVolSpec::UnPackTo(BlackVolSpecT *_o, const ::flatbuffers::resol
   (void)_o;
   (void)_resolver;
   { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::BlackVolBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
+  { auto _e = expiries(); if (_e) { _o->expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->expiries[_i]) { _e->Get(_i)->UnPackTo(_o->expiries[_i].get(), _resolver); } else { _o->expiries[_i] = std::unique_ptr<quantra::PeriodT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->expiries.resize(0); } }
+  { auto _e = strikes(); if (_e) { _o->strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->strikes[_i] = _e->Get(_i); } } else { _o->strikes.resize(0); } }
+  { auto _e = term_vols(); if (_e) { if(_o->term_vols) { _e->UnPackTo(_o->term_vols.get(), _resolver); } else { _o->term_vols = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->term_vols) { _o->term_vols.reset(); } }
+  { auto _e = surface_vols(); if (_e) { if(_o->surface_vols) { _e->UnPackTo(_o->surface_vols.get(), _resolver); } else { _o->surface_vols = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->surface_vols) { _o->surface_vols.reset(); } }
+  { auto _e = expiry_interpolator(); _o->expiry_interpolator = _e; }
+  { auto _e = strike_interpolator(); _o->strike_interpolator = _e; }
 }
 
 inline ::flatbuffers::Offset<BlackVolSpec> BlackVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -2572,9 +2690,21 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BlackVolSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _base = _o->base ? CreateBlackVolBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
+  auto _expiries = _o->expiries.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>> (_o->expiries.size(), [](size_t i, _VectorArgs *__va) { return CreatePeriod(*__va->__fbb, __va->__o->expiries[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _strikes = _o->strikes.size() ? _fbb.CreateVector(_o->strikes) : 0;
+  auto _term_vols = _o->term_vols ? CreateQuoteMatrix2D(_fbb, _o->term_vols.get(), _rehasher) : 0;
+  auto _surface_vols = _o->surface_vols ? CreateQuoteMatrix2D(_fbb, _o->surface_vols.get(), _rehasher) : 0;
+  auto _expiry_interpolator = _o->expiry_interpolator;
+  auto _strike_interpolator = _o->strike_interpolator;
   return quantra::CreateBlackVolSpec(
       _fbb,
-      _base);
+      _base,
+      _expiries,
+      _strikes,
+      _term_vols,
+      _surface_vols,
+      _expiry_interpolator,
+      _strike_interpolator);
 }
 
 inline VolSurfaceSpecT *VolSurfaceSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

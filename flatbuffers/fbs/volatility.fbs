@@ -130,6 +130,18 @@ table SwaptionVolSpec {
 /// Black volatility for equity/FX/commodity options.
 table BlackVolSpec {
     base:BlackVolBaseSpec;
+    /// Term/surface expiry pillars from base.reference_date.
+    expiries:[Period];
+    /// Surface strike axis (required only for shape=SmileCube3D).
+    strikes:[double];
+    /// Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major.
+    term_vols:QuoteMatrix2D;
+    /// Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
+    surface_vols:QuoteMatrix2D;
+    /// Interpolator across expiry dimension for non-constant shapes (Linear only in v1).
+    expiry_interpolator:enums.Interpolator = Linear;
+    /// Interpolator across strike dimension for shape=SmileCube3D (Linear only in v1).
+    strike_interpolator:enums.Interpolator = Linear;
 }
 
 /// Union of all volatility types.

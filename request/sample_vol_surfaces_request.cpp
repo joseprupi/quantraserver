@@ -740,6 +740,94 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 }
 
                 volTypeOut = fromQlVolType(volEntry.qlVolType, volEntry.displacement);
+            } else if (q->surface_type() == VolSurfaceType_EquityBlack) {
+                auto vIt = reg.blackVols.find(volId);
+                if (vIt == reg.blackVols.end()) {
+                    QUANTRA_ERROR("Black vol not found: " + volId);
+                }
+                const BlackVolEntry& volEntry = vIt->second;
+
+                if (!q->expiry_grid()) {
+                    QUANTRA_ERROR("VolQuerySpec.expiry_grid is required for equity black sampling");
+                }
+                if (q->output_mode() != VolOutputMode_Cube) {
+                    QUANTRA_ERROR("EquityBlack sampling supports Cube output_mode only");
+                }
+                if (q->strike_grid()->axis() == VolStrikeAxis_SpreadFromATM) {
+                    QUANTRA_ERROR("EquityBlack sampling supports AbsoluteStrike axis only");
+                }
+                if (q->tenor_grid()) {
+                    QUANTRA_ERROR("tenor_grid is not valid for equity black sampling");
+                }
+                if (q->swap_index_id() && !q->swap_index_id()->str().empty()) {
+                    QUANTRA_ERROR("swap_index_id is not valid for equity black sampling");
+                }
+                if ((q->discounting_curve_id() && !q->discounting_curve_id()->str().empty()) ||
+                    (q->forwarding_curve_id() && !q->forwarding_curve_id()->str().empty())) {
+                    QUANTRA_ERROR(
+                        "discounting_curve_id/forwarding_curve_id are not valid for equity black sampling");
+                }
+                if (q->slice_expiry_index() >= 0 || q->slice_tenor_index() >= 0 || q->slice_strike_is_set()) {
+                    QUANTRA_ERROR("EquityBlack query does not support slice selectors");
+                }
+
+                if (volEntry.referenceDate != asOf) {
+                    std::ostringstream err;
+                    err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
+                        << ") must equal equity black vol referenceDate ("
+                        << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                    QUANTRA_ERROR(err.str());
+                }
+                sampleReferenceDate = volEntry.referenceDate;
+
+                const auto* options = q->options();
+                const bool allowExtrapolation = !options || options->allow_extrapolation();
+                allowExtrapolationUsed = allowExtrapolation;
+                canonicalStrikeKind = enums::SwaptionStrikeKind_Absolute;
+                expiryKindOut = ExpiryKind_GridDate;
+                volTypeOut = enums::VolatilityType_Lognormal;
+
+                GridConventions gc = resolveGridConventions(
+                    q->expiry_grid(), options, volEntry.calendar, volEntry.calendarFb);
+                usedCalendar = gc.fbCalendar;
+                usedBdc = gc.fbBdc;
+
+                if (allowExtrapolation) volEntry.handle->enableExtrapolation();
+                else volEntry.handle->disableExtrapolation();
+
+                std::vector<Date> expiries = buildDateGrid(
+                    q->expiry_grid(), sampleReferenceDate, asOf, options,
+                    volEntry.calendar, gc.fbCalendar);
+                validateStrictlyIncreasingDates(expiries, "expiry_grid");
+                for (const auto& d : expiries) {
+                    expiriesOut.push_back(builder->CreateString(toIso(d)));
+                }
+
+                for (flatbuffers::uoffset_t i = 0; i < q->strike_grid()->strikes()->size(); ++i) {
+                    strikesOut.push_back(q->strike_grid()->strikes()->Get(i));
+                }
+                validateStrictlyIncreasingStrikes(strikesOut);
+
+                checkPointBudget(
+                    static_cast<int64_t>(expiries.size()) * static_cast<int64_t>(strikesOut.size()),
+                    options);
+                for (const auto& d : expiries) {
+                    for (double strike : strikesOut) {
+                        if (!allowExtrapolation && d > volEntry.handle->maxDate()) {
+                            QUANTRA_ERROR("Expiry is outside equity black vol support");
+                        }
+                        if (!allowExtrapolation) {
+                            // Strike support bounds are term-structure dependent in QuantLib implementations.
+                            if (strike < volEntry.handle->minStrike() || strike > volEntry.handle->maxStrike()) {
+                                QUANTRA_ERROR("Strike is outside equity black vol support");
+                            }
+                        }
+                        volsOut.push_back(volEntry.handle->blackVol(d, strike));
+                    }
+                }
+                nExpOut = static_cast<int>(expiries.size());
+                nTenOut = 0;
+                nStrOut = static_cast<int>(strikesOut.size());
             } else if (q->surface_type() == VolSurfaceType_Optionlet) {
                 auto vIt = reg.optionletVols.find(volId);
                 if (vIt == reg.optionletVols.end()) {

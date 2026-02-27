@@ -285,6 +285,12 @@ JsonResponse QuantraClient::CalibrateSwaptionModelJSON(const std::string& json) 
     );
 }
 
+JsonResponse QuantraClient::PriceEquityOptionJSON(const std::string& json) {
+    return impl_->CallJSON<PriceEquityOptionRequest, PriceEquityOptionResponse>(
+        ProductType::EquityOption, json, &QuantraServer::Stub::PriceEquityOption
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -407,6 +413,14 @@ grpc::Status QuantraClient::CalibrateSwaptionModel(
 ) {
     grpc::ClientContext context;
     return impl_->GetStub()->CalibrateSwaptionModel(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceEquityOption(
+    const Message<PriceEquityOptionRequest>& request,
+    Message<PriceEquityOptionResponse>* response
+) {
+    grpc::ClientContext context;
+    return impl_->GetStub()->PriceEquityOption(&context, request, response);
 }
 
 } // namespace quantra

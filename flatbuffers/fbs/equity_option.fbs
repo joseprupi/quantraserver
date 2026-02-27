@@ -1,0 +1,89 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Discrete cash dividend for equity underlyings.
+table DiscreteDividend {
+    ex_date:string;
+    amount:double;
+}
+
+/// Shared equity underlying specification referenced by option trades.
+table EquityUnderlyingSpec {
+    id:string (required);
+    currency:string;
+    spot_quote_id:string (required);
+    dividend_yield_curve_id:string (required);
+    discrete_dividends:[DiscreteDividend];
+}
+
+/// European exercise (single expiry date).
+table EquityEuropeanExercise {
+    expiry_date:string;
+}
+
+/// American exercise (start and end dates).
+table EquityAmericanExercise {
+    start_date:string;
+    end_date:string;
+}
+
+/// Bermudan exercise with explicit exercise dates.
+table EquityBermudanExercise {
+    exercise_dates:[string];
+}
+
+/// Equity exercise style payload.
+union EquityExercise {
+    EquityEuropeanExercise,
+    EquityAmericanExercise,
+    EquityBermudanExercise
+}
+
+/// Plain vanilla payoff.
+table EquityPlainVanillaPayoff {
+    option_type:enums.EquityOptionType = Call;
+    strike:double;
+}
+
+/// Cash-or-nothing digital payoff.
+table EquityCashOrNothingPayoff {
+    option_type:enums.EquityOptionType = Call;
+    strike:double;
+    cash:double;
+}
+
+/// Asset-or-nothing digital payoff.
+table EquityAssetOrNothingPayoff {
+    option_type:enums.EquityOptionType = Call;
+    strike:double;
+}
+
+/// Equity payoff payload.
+union EquityPayoff {
+    EquityPlainVanillaPayoff,
+    EquityCashOrNothingPayoff,
+    EquityAssetOrNothingPayoff
+}
+
+/// Optional barrier feature.
+table EquityBarrierFeature {
+    barrier_type:enums.EquityBarrierType = DownOut;
+    level:double;
+    rebate:double = 0.0;
+    monitoring:enums.EquityBarrierMonitoring = Continuous;
+    monitoring_dates:[string];
+}
+
+/// Equity option trade definition.
+table EquityOption {
+    trade_id:string (required);
+    underlying_id:string (required);
+    quantity:double = 1.0;
+    settlement:enums.EquitySettlementType = Physical;
+    payoff:EquityPayoff;
+    exercise:EquityExercise;
+    barrier:EquityBarrierFeature;
+}
+
+root_type EquityOption;
