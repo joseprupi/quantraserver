@@ -29,10 +29,12 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFixedBondFlows(
         auto coupon = std::dynamic_pointer_cast<QuantLib::FixedRateCoupon>(cf);
         if (coupon) {
             if (!coupon->hasOccurred(asOf)) {
+                auto accrualStartDate = makeDate(builder, coupon->accrualStartDate());
+                auto accrualEndDate = makeDate(builder, coupon->accrualEndDate());
                 auto flowInterestBuilder = quantra::FlowInterestBuilder(*builder);
                 flowInterestBuilder.add_amount(coupon->amount());
-                flowInterestBuilder.add_accrual_start_date(makeDate(builder, coupon->accrualStartDate()));
-                flowInterestBuilder.add_accrual_end_date(makeDate(builder, coupon->accrualEndDate()));
+                flowInterestBuilder.add_accrual_start_date(accrualStartDate);
+                flowInterestBuilder.add_accrual_end_date(accrualEndDate);
                 flowInterestBuilder.add_rate(coupon->rate());
                 flowInterestBuilder.add_discount(discountCurve->discount(coupon->date()));
                 flowInterestBuilder.add_price(coupon->amount() * discountCurve->discount(coupon->date()));
@@ -42,10 +44,12 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFixedBondFlows(
                 fb.add_flow(flow.Union());
                 flows.push_back(fb.Finish());
             } else {
+                auto accrualStartDate = makeDate(builder, coupon->accrualStartDate());
+                auto accrualEndDate = makeDate(builder, coupon->accrualEndDate());
                 auto flowPastBuilder = quantra::FlowInterestBuilder(*builder);
                 flowPastBuilder.add_amount(coupon->amount());
-                flowPastBuilder.add_accrual_start_date(makeDate(builder, coupon->accrualStartDate()));
-                flowPastBuilder.add_accrual_end_date(makeDate(builder, coupon->accrualEndDate()));
+                flowPastBuilder.add_accrual_start_date(accrualStartDate);
+                flowPastBuilder.add_accrual_end_date(accrualEndDate);
                 flowPastBuilder.add_rate(coupon->rate());
                 auto flow = flowPastBuilder.Finish();
                 quantra::FlowsWrapperBuilder fb(*builder);
@@ -58,9 +62,10 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFixedBondFlows(
 
         auto cash = std::dynamic_pointer_cast<QuantLib::CashFlow>(cf);
         if (cash && !cash->hasOccurred(asOf)) {
+            auto paymentDate = makeDate(builder, cash->date());
             auto flowNotionalBuilder = quantra::FlowNotionalBuilder(*builder);
             flowNotionalBuilder.add_amount(cash->amount());
-            flowNotionalBuilder.add_date(makeDate(builder, cash->date()));
+            flowNotionalBuilder.add_date(paymentDate);
             flowNotionalBuilder.add_discount(discountCurve->discount(cash->date()));
             flowNotionalBuilder.add_price(cash->amount() * discountCurve->discount(cash->date()));
             auto flow = flowNotionalBuilder.Finish();
@@ -83,11 +88,13 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFloatingBondFlows(
         auto coupon = std::dynamic_pointer_cast<QuantLib::FloatingRateCoupon>(cf);
         if (coupon) {
             if (!coupon->hasOccurred(asOf)) {
+                auto accrualStartDate = makeDate(builder, coupon->accrualStartDate());
+                auto accrualEndDate = makeDate(builder, coupon->accrualEndDate());
                 auto flowInterestBuilder = quantra::FlowInterestBuilder(*builder);
                 flowInterestBuilder.add_amount(coupon->amount());
                 flowInterestBuilder.add_fixing_date(coupon->indexFixing());
-                flowInterestBuilder.add_accrual_start_date(makeDate(builder, coupon->accrualStartDate()));
-                flowInterestBuilder.add_accrual_end_date(makeDate(builder, coupon->accrualEndDate()));
+                flowInterestBuilder.add_accrual_start_date(accrualStartDate);
+                flowInterestBuilder.add_accrual_end_date(accrualEndDate);
                 flowInterestBuilder.add_rate(coupon->rate());
                 flowInterestBuilder.add_discount(discountCurve->discount(coupon->date()));
                 flowInterestBuilder.add_price(coupon->amount() * discountCurve->discount(coupon->date()));
@@ -97,11 +104,13 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFloatingBondFlows(
                 fb.add_flow(flow.Union());
                 flows.push_back(fb.Finish());
             } else {
+                auto accrualStartDate = makeDate(builder, coupon->accrualStartDate());
+                auto accrualEndDate = makeDate(builder, coupon->accrualEndDate());
                 auto flowPastBuilder = quantra::FlowPastInterestBuilder(*builder);
                 flowPastBuilder.add_amount(coupon->amount());
                 flowPastBuilder.add_fixing_date(coupon->indexFixing());
-                flowPastBuilder.add_accrual_start_date(makeDate(builder, coupon->accrualStartDate()));
-                flowPastBuilder.add_accrual_end_date(makeDate(builder, coupon->accrualEndDate()));
+                flowPastBuilder.add_accrual_start_date(accrualStartDate);
+                flowPastBuilder.add_accrual_end_date(accrualEndDate);
                 flowPastBuilder.add_rate(coupon->rate());
                 auto flow = flowPastBuilder.Finish();
                 quantra::FlowsWrapperBuilder fb(*builder);
@@ -114,9 +123,10 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFloatingBondFlows(
 
         auto cash = std::dynamic_pointer_cast<QuantLib::CashFlow>(cf);
         if (cash && !cash->hasOccurred(asOf)) {
+            auto paymentDate = makeDate(builder, cash->date());
             auto flowNotionalBuilder = quantra::FlowNotionalBuilder(*builder);
             flowNotionalBuilder.add_amount(cash->amount());
-            flowNotionalBuilder.add_date(makeDate(builder, cash->date()));
+            flowNotionalBuilder.add_date(paymentDate);
             flowNotionalBuilder.add_discount(discountCurve->discount(cash->date()));
             flowNotionalBuilder.add_price(cash->amount() * discountCurve->discount(cash->date()));
             auto flow = flowNotionalBuilder.Finish();
