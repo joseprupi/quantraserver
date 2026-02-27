@@ -1,5 +1,6 @@
 #include "fixed_rate_bond_pricing_request.h"
 
+#include "bond_flow_builder.h"
 #include "pricing_registry.h"
 
 using namespace QuantLib;
@@ -41,89 +42,11 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
 
         if (reg.bondPricingFlows)
         {
-            const Leg &cashflows = bond->cashflows();
-
-            for (auto cf_it = cashflows.begin(); cf_it != cashflows.end(); ++cf_it)
-            {
-                auto coupon = std::dynamic_pointer_cast<FixedRateCoupon>(*cf_it);
-                if (coupon)
-                {
-                    if (!coupon->hasOccurred(as_of_date))
-                    {
-                        std::ostringstream os_start_date;
-                        os_start_date << QuantLib::io::iso_date(coupon->accrualStartDate());
-                        auto accrual_start_date = builder->CreateString(os_start_date.str());
-
-                        std::ostringstream os_end_date;
-                        os_end_date << QuantLib::io::iso_date(coupon->accrualEndDate());
-                        auto accrual_end_date = builder->CreateString(os_end_date.str());
-
-                        auto flow_interest_builder = FlowInterestBuilder(*builder);
-                        flow_interest_builder.add_amount(coupon->amount());
-                        flow_interest_builder.add_accrual_start_date(accrual_start_date);
-                        flow_interest_builder.add_accrual_end_date(accrual_end_date);
-                        flow_interest_builder.add_rate(coupon->rate());
-                        flow_interest_builder.add_discount(term_structure->second->currentLink()->discount(coupon->date()));
-                        flow_interest_builder.add_price(coupon->amount() *
-                                                        term_structure->second->currentLink()->discount(coupon->date()));
-                        auto flow_interest = flow_interest_builder.Finish();
-
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowInterest);
-                        flows_wrapper_builder.add_flow(flow_interest.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                    else
-                    {
-                        std::ostringstream os_start_date;
-                        os_start_date << QuantLib::io::iso_date(coupon->accrualStartDate());
-                        auto accrual_start_date = builder->CreateString(os_start_date.str());
-
-                        std::ostringstream os_end_date;
-                        os_end_date << QuantLib::io::iso_date(coupon->accrualEndDate());
-                        auto accrual_end_date = builder->CreateString(os_end_date.str());
-
-                        auto flow_past_interest_builder = FlowInterestBuilder(*builder);
-                        flow_past_interest_builder.add_amount(coupon->amount());
-                        flow_past_interest_builder.add_accrual_start_date(accrual_start_date);
-                        flow_past_interest_builder.add_accrual_end_date(accrual_end_date);
-                        flow_past_interest_builder.add_rate(coupon->rate());
-                        auto flow_past_interest = flow_past_interest_builder.Finish();
-
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowPastInterest);
-                        flows_wrapper_builder.add_flow(flow_past_interest.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                }
-                else
-                {
-                    auto cashflow = std::dynamic_pointer_cast<CashFlow>(*cf_it);
-
-                    if (!cashflow->hasOccurred(as_of_date))
-                    {
-                        std::ostringstream os;
-                        os << QuantLib::io::iso_date(cashflow->date());
-                        auto date = builder->CreateString(os.str());
-
-                        auto flow_notional_builder = FlowNotionalBuilder(*builder);
-                        flow_notional_builder.add_amount(cashflow->amount());
-                        flow_notional_builder.add_date(date);
-                        flow_notional_builder.add_discount(term_structure->second->currentLink()->discount(cashflow->date()));
-                        flow_notional_builder.add_price(cashflow->amount() *
-                                                        term_structure->second->currentLink()->discount(cashflow->date()));
-                        auto flow_notional = flow_notional_builder.Finish();
-
-                        auto flows_wrapper_builder = quantra::FlowsWrapperBuilder(*builder);
-                        flows_wrapper_builder.add_flow_type(quantra::Flow_FlowNotional);
-                        flows_wrapper_builder.add_flow(flow_notional.Union());
-                        auto flow = flows_wrapper_builder.Finish();
-                        flows_vector.push_back(flow);
-                    }
-                }
-            }
+            flows_vector = buildFixedBondFlows(
+                bond->cashflows(),
+                term_structure->second->currentLink(),
+                builder,
+                as_of_date);
         }
 
         auto flows = builder->CreateVector(flows_vector);

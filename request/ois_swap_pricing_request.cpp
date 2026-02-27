@@ -7,61 +7,10 @@
 
 #include "pricing_registry.h"
 #include "ois_swap_parser.h"
+#include "swap_leg_flow_builder.h"
 
 using namespace QuantLib;
 using namespace quantra;
-
-namespace {
-flatbuffers::Offset<SwapLegFlow> BuildLegFlow(
-    const std::shared_ptr<CashFlow>& cf,
-    const std::shared_ptr<YieldTermStructure>& discountCurve,
-    flatbuffers::grpc::MessageBuilder& builder,
-    Date asOf) {
-    auto coupon = std::dynamic_pointer_cast<Coupon>(cf);
-    if (!coupon || coupon->hasOccurred(asOf)) {
-        return 0;
-    }
-
-    std::ostringstream osPayment, osStart, osEnd;
-    osPayment << QuantLib::io::iso_date(coupon->date());
-    osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-    osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
-
-    auto paymentDate = builder.CreateString(osPayment.str());
-    auto accrualStart = builder.CreateString(osStart.str());
-    auto accrualEnd = builder.CreateString(osEnd.str());
-    flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
-    double indexFixing = 0.0;
-    double spread = 0.0;
-
-    auto frc = std::dynamic_pointer_cast<FloatingRateCoupon>(coupon);
-    if (frc) {
-        std::ostringstream osFix;
-        osFix << QuantLib::io::iso_date(frc->fixingDate());
-        fixingDate = builder.CreateString(osFix.str());
-        indexFixing = frc->indexFixing();
-        spread = frc->spread();
-    }
-
-    double discount = discountCurve->discount(coupon->date());
-    double amount = coupon->amount();
-
-    SwapLegFlowBuilder fb(builder);
-    fb.add_payment_date(paymentDate);
-    fb.add_accrual_start_date(accrualStart);
-    fb.add_accrual_end_date(accrualEnd);
-    fb.add_amount(amount);
-    fb.add_discount(discount);
-    fb.add_present_value(amount * discount);
-    fb.add_rate(coupon->rate());
-    if (frc) {
-        fb.add_fixing_date(fixingDate);
-        fb.add_index_fixing(indexFixing);
-        fb.add_spread(spread);
-    }
-    return fb.Finish();
-}
-} // namespace
 
 flatbuffers::Offset<PriceOisSwapResponse> OisSwapPricingRequest::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
@@ -95,11 +44,11 @@ flatbuffers::Offset<PriceOisSwapResponse> OisSwapPricingRequest::request(
         if (includeFlows) {
             auto discountCurve = discIt->second->currentLink();
             for (const auto& cf : swap->fixedLeg()) {
-                auto flow = BuildLegFlow(cf, discountCurve, *builder, asOf);
+                auto flow = buildSwapLegFlow(cf, discountCurve, *builder, asOf);
                 if (flow.o) fixedFlows.push_back(flow);
             }
             for (const auto& cf : swap->overnightLeg()) {
-                auto flow = BuildLegFlow(cf, discountCurve, *builder, asOf);
+                auto flow = buildSwapLegFlow(cf, discountCurve, *builder, asOf);
                 if (flow.o) overnightFlows.push_back(flow);
             }
             fixedFlowsOff = builder->CreateVector(fixedFlows);

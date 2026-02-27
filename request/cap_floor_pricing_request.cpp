@@ -1,6 +1,6 @@
 #include "cap_floor_pricing_request.h"
-#include <ql/cashflows/iborcoupon.hpp>
 
+#include "cap_floor_flow_builder.h"
 #include "pricing_registry.h"
 #include "vol_surface_parsers.h"
 #include "engine_factory.h"
@@ -55,41 +55,12 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
         std::cout << "CapFloor NPV: " << npv << ", ATM Rate: " << atmRate * 100 << "%" << std::endl;
 
         std::vector<flatbuffers::Offset<CapFloorLet>> capfloorlets_vector;
-
-        if (it->include_details())
-        {
-            const Leg& leg = capFloor->floatingLeg();
-            auto discountCurvePtr = dIt->second->currentLink();
-
-            for (size_t i = 0; i < leg.size(); i++)
-            {
-                auto coupon = std::dynamic_pointer_cast<IborCoupon>(leg[i]);
-                if (coupon && !coupon->hasOccurred(as_of_date))
-                {
-                    std::ostringstream os_payment, os_start, os_end, os_fixing;
-                    os_payment << QuantLib::io::iso_date(coupon->date());
-                    os_start << QuantLib::io::iso_date(coupon->accrualStartDate());
-                    os_end << QuantLib::io::iso_date(coupon->accrualEndDate());
-                    os_fixing << QuantLib::io::iso_date(coupon->fixingDate());
-
-                    auto payment_date = builder->CreateString(os_payment.str());
-                    auto accrual_start = builder->CreateString(os_start.str());
-                    auto accrual_end = builder->CreateString(os_end.str());
-                    auto fixing_date = builder->CreateString(os_fixing.str());
-
-                    double discount = discountCurvePtr->discount(coupon->date());
-
-                    CapFloorLetBuilder let_builder(*builder);
-                    let_builder.add_payment_date(payment_date);
-                    let_builder.add_accrual_start_date(accrual_start);
-                    let_builder.add_accrual_end_date(accrual_end);
-                    let_builder.add_fixing_date(fixing_date);
-                    let_builder.add_forward_rate(coupon->indexFixing());
-                    let_builder.add_discount(discount);
-
-                    capfloorlets_vector.push_back(let_builder.Finish());
-                }
-            }
+        if (it->include_details()) {
+            capfloorlets_vector = buildCapFloorDetails(
+                capFloor->floatingLeg(),
+                dIt->second->currentLink(),
+                builder,
+                as_of_date);
         }
 
         auto capfloorlets = builder->CreateVector(capfloorlets_vector);
