@@ -7,6 +7,7 @@
 #include <ql/exercise.hpp>
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/option.hpp>
+#include <ql/payoff.hpp>
 
 #include "equity_option_generated.h"
 
@@ -18,8 +19,10 @@ struct ParsedEquityOption {
     double quantity = 1.0;
     quantra::enums::EquitySettlementType settlement = quantra::enums::EquitySettlementType_Physical;
 
+    // Cached for diagnostics/reporting; payoff drives pricing.
     QuantLib::Option::Type optionType = QuantLib::Option::Call;
     double strike = 0.0;
+    std::shared_ptr<QuantLib::Payoff> payoff;
     std::shared_ptr<QuantLib::Exercise> exercise;
 
     bool hasBarrier = false;

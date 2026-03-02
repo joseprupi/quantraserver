@@ -8,6 +8,7 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/payoff.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
+#include <ql/pricingengines/barrier/binomialbarrierengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
@@ -83,7 +84,10 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
         const auto* model = modelParser.parse(mIt->second, p->model()->str());
         const auto& underlying = uIt->second;
 
-        auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(opt.optionType, opt.strike);
+        if (!opt.payoff) {
+            QUANTRA_ERROR("EquityOption payoff is required");
+        }
+        auto payoff = opt.payoff;
         auto spot = underlying.spot;
         Handle<YieldTermStructure> riskFree(dIt->second->currentLink());
         Handle<YieldTermStructure> dividend(underlying.dividend);
@@ -93,21 +97,40 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
         std::shared_ptr<QuantLib::Instrument> instrument;
         std::shared_ptr<QuantLib::OneAssetOption> oneAssetOption;
         if (opt.hasBarrier) {
-            if (model->model_type() != quantra::enums::EquityModelType_BlackScholesAnalytic) {
-                QUANTRA_ERROR("Equity barrier option currently requires model_type=BlackScholesAnalytic");
-            }
             auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
                 opt.barrierType,
                 opt.barrierLevel,
                 opt.rebate,
                 payoff,
                 opt.exercise);
-            barrierOption->setPricingEngine(std::make_shared<QuantLib::AnalyticBarrierEngine>(process));
+            if (model->model_type() == quantra::enums::EquityModelType_BlackScholesAnalytic) {
+                // Analytic barrier engine is intended for European-style exercise.
+                if (dynamic_cast<QuantLib::EuropeanExercise*>(opt.exercise.get()) == nullptr) {
+                    QUANTRA_ERROR("AnalyticBarrierEngine requires EquityEuropeanExercise. Use BinomialCRR for non-European barrier exercise.");
+                }
+                barrierOption->setPricingEngine(std::make_shared<QuantLib::AnalyticBarrierEngine>(process));
+            } else if (model->model_type() == quantra::enums::EquityModelType_BinomialCRR) {
+                int steps = model->binomial_steps();
+                if (steps <= 0) {
+                    QUANTRA_ERROR("EquityVanillaModelSpec.binomial_steps must be > 0");
+                }
+                barrierOption->setPricingEngine(
+                    std::make_shared<QuantLib::BinomialBarrierEngine<QuantLib::CoxRossRubinstein>>(process, steps));
+            } else {
+                QUANTRA_ERROR("Unsupported EquityModelType");
+            }
             instrument = barrierOption;
             oneAssetOption = barrierOption;
         } else {
             auto vanilla = std::make_shared<QuantLib::VanillaOption>(payoff, opt.exercise);
             if (model->model_type() == quantra::enums::EquityModelType_BlackScholesAnalytic) {
+                // Restrict analytic engine to European plain-vanilla payoff.
+                if (dynamic_cast<QuantLib::EuropeanExercise*>(opt.exercise.get()) == nullptr) {
+                    QUANTRA_ERROR("BlackScholesAnalytic currently supports only EquityEuropeanExercise. Use BinomialCRR for American/Bermudan.");
+                }
+                if (dynamic_cast<QuantLib::PlainVanillaPayoff*>(payoff.get()) == nullptr) {
+                    QUANTRA_ERROR("BlackScholesAnalytic currently supports only EquityPlainVanillaPayoff. Use BinomialCRR for digital payoffs.");
+                }
                 vanilla->setPricingEngine(std::make_shared<QuantLib::AnalyticEuropeanEngine>(process));
             } else if (model->model_type() == quantra::enums::EquityModelType_BinomialCRR) {
                 int steps = model->binomial_steps();
@@ -138,6 +161,8 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
         double impliedVol = std::numeric_limits<double>::quiet_NaN();
         if (!opt.hasBarrier) {
             if (auto vanilla = std::dynamic_pointer_cast<QuantLib::VanillaOption>(instrument)) {
+                // Without an explicit market price in the request, this is a self-consistency diagnostic:
+                // impliedVol(instrument NPV) should return the surface vol used by process (up to tolerance).
                 impliedVol = safeGreek([&]() { return vanilla->impliedVolatility(npv, process); });
             }
         }
