@@ -89,6 +89,10 @@ inline const std::map<ProductType, ProductSchema>& GetProductSchemas() {
         {ProductType::CalibrateSwaptionModel, {
             "calibrate_swaption_model_request.fbs",
             "calibrate_swaption_model_response.fbs"
+        }},
+        {ProductType::EquityOption, {
+            "price_equity_option_request.fbs",
+            "equity_option_response.fbs"
         }}
         // ADD NEW PRODUCTS HERE:
         // {ProductType::ExoticOption, {
@@ -120,6 +124,7 @@ inline const char* ProductTypeToString(ProductType type) {
         case ProductType::CalendarHolidays: return "CalendarHolidays";
         case ProductType::CalendarAdvance:  return "CalendarAdvance";
         case ProductType::CalibrateSwaptionModel: return "CalibrateSwaptionModel";
+        case ProductType::EquityOption:     return "EquityOption";
         // ADD NEW PRODUCTS HERE:
         // case ProductType::ExoticOption:  return "ExoticOption";
         default:                            return "Unknown";

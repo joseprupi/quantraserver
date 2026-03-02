@@ -31,33 +31,36 @@ struct VolSurfaceSample;
 struct VolSurfaceSampleBuilder;
 struct VolSurfaceSampleT;
 
-/// Volatility surface type: Swaption or Optionlet.
+/// Volatility surface type: Swaption, Optionlet, or EquityBlack.
 enum VolSurfaceType : int8_t {
   VolSurfaceType_Swaption = 0,
   VolSurfaceType_Optionlet = 1,
+  VolSurfaceType_EquityBlack = 2,
   VolSurfaceType_MIN = VolSurfaceType_Swaption,
-  VolSurfaceType_MAX = VolSurfaceType_Optionlet
+  VolSurfaceType_MAX = VolSurfaceType_EquityBlack
 };
 
-inline const VolSurfaceType (&EnumValuesVolSurfaceType())[2] {
+inline const VolSurfaceType (&EnumValuesVolSurfaceType())[3] {
   static const VolSurfaceType values[] = {
     VolSurfaceType_Swaption,
-    VolSurfaceType_Optionlet
+    VolSurfaceType_Optionlet,
+    VolSurfaceType_EquityBlack
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolSurfaceType() {
-  static const char * const names[3] = {
+  static const char * const names[4] = {
     "Swaption",
     "Optionlet",
+    "EquityBlack",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolSurfaceType(VolSurfaceType e) {
-  if (::flatbuffers::IsOutRange(e, VolSurfaceType_Swaption, VolSurfaceType_Optionlet)) return "";
+  if (::flatbuffers::IsOutRange(e, VolSurfaceType_Swaption, VolSurfaceType_EquityBlack)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolSurfaceType()[index];
 }

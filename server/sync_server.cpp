@@ -19,6 +19,7 @@
 #include "calendar_holidays_handler.h"
 #include "calendar_advance_handler.h"
 #include "calibrate_swaption_model_handler.h"
+#include "equity_option_handler.h"
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>

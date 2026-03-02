@@ -36,8 +36,252 @@ class BlackVolSpec(object):
             return obj
         return None
 
+    # Term/surface expiry pillars from base.reference_date.
+    # BlackVolSpec
+    def Expiries(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.Period import Period
+            obj = Period()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # BlackVolSpec
+    def ExpiriesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def ExpiriesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
+    # Surface strike axis (required only for shape=SmileCube3D).
+    # BlackVolSpec
+    def Strikes(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def StrikesAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def StrikesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def StrikesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
+    # Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major.
+    # BlackVolSpec
+    def TermVols(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.QuoteMatrix2D import QuoteMatrix2D
+            obj = QuoteMatrix2D()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
+    # BlackVolSpec
+    def SurfaceVols(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = QuoteMatrix2D()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Surface prices as QuoteMatrix2D with dims (n_price_expiries x n_price_strikes), row-major by expiry then strike.
+    # Used only when base.shape=SurfaceFromPrices.
+    # BlackVolSpec
+    def SurfacePrices(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = QuoteMatrix2D()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Absolute expiry dates (YYYY-MM-DD). Used only when base.shape=SurfaceFromPrices.
+    # BlackVolSpec
+    def PriceExpiries(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.String(a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 4))
+        return ""
+
+    # BlackVolSpec
+    def PriceExpiriesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def PriceExpiriesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        return o == 0
+
+    # Surface strike axis for prices matrix. Used only when base.shape=SurfaceFromPrices.
+    # BlackVolSpec
+    def PriceStrikes(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # BlackVolSpec
+    def PriceStrikesAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # BlackVolSpec
+    def PriceStrikesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # BlackVolSpec
+    def PriceStrikesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        return o == 0
+
+    # Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices.
+    # BlackVolSpec
+    def PriceOptionType(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+    # BlackVolSpec
+    def Spot(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Optional: resolve spot from pricing.quotes.
+    # BlackVolSpec
+    def SpotQuoteId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Discount curve id in pricing.curves used for implied-vol inversion.
+    # BlackVolSpec
+    def DiscountCurveId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # If true and discount_curve_id is empty, use flat_discount_rate.
+    # BlackVolSpec
+    def UseFlatDiscountRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true.
+    # BlackVolSpec
+    def FlatDiscountRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Dividend yield curve id in pricing.curves used for implied-vol inversion.
+    # BlackVolSpec
+    def DividendCurveId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # If true and dividend_curve_id is empty, use flat_dividend_rate.
+    # BlackVolSpec
+    def UseFlatDividendRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # Continuously-compounded flat dividend yield used when use_flat_dividend_rate=true.
+    # BlackVolSpec
+    def FlatDividendRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Default extrapolation mode for this surface when consumed by pricing endpoints.
+    # BlackVolSpec
+    def AllowExtrapolation(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(38))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # 2D surface interpolator for strike/expiry surfaces.
+    # BlackVolSpec
+    def SurfaceInterpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(40))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+    # Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    # BlackVolSpec
+    def ExpiryInterpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
+    # Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+    # Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    # BlackVolSpec
+    def StrikeInterpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
 def BlackVolSpecStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(21)
 
 def Start(builder):
     BlackVolSpecStart(builder)
@@ -48,6 +292,150 @@ def BlackVolSpecAddBase(builder, base):
 def AddBase(builder, base):
     BlackVolSpecAddBase(builder, base)
 
+def BlackVolSpecAddExpiries(builder, expiries):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(expiries), 0)
+
+def AddExpiries(builder, expiries):
+    BlackVolSpecAddExpiries(builder, expiries)
+
+def BlackVolSpecStartExpiriesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartExpiriesVector(builder, numElems):
+    return BlackVolSpecStartExpiriesVector(builder, numElems)
+
+def BlackVolSpecAddStrikes(builder, strikes):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(strikes), 0)
+
+def AddStrikes(builder, strikes):
+    BlackVolSpecAddStrikes(builder, strikes)
+
+def BlackVolSpecStartStrikesVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartStrikesVector(builder, numElems):
+    return BlackVolSpecStartStrikesVector(builder, numElems)
+
+def BlackVolSpecAddTermVols(builder, termVols):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(termVols), 0)
+
+def AddTermVols(builder, termVols):
+    BlackVolSpecAddTermVols(builder, termVols)
+
+def BlackVolSpecAddSurfaceVols(builder, surfaceVols):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(surfaceVols), 0)
+
+def AddSurfaceVols(builder, surfaceVols):
+    BlackVolSpecAddSurfaceVols(builder, surfaceVols)
+
+def BlackVolSpecAddSurfacePrices(builder, surfacePrices):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(surfacePrices), 0)
+
+def AddSurfacePrices(builder, surfacePrices):
+    BlackVolSpecAddSurfacePrices(builder, surfacePrices)
+
+def BlackVolSpecAddPriceExpiries(builder, priceExpiries):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(priceExpiries), 0)
+
+def AddPriceExpiries(builder, priceExpiries):
+    BlackVolSpecAddPriceExpiries(builder, priceExpiries)
+
+def BlackVolSpecStartPriceExpiriesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartPriceExpiriesVector(builder, numElems):
+    return BlackVolSpecStartPriceExpiriesVector(builder, numElems)
+
+def BlackVolSpecAddPriceStrikes(builder, priceStrikes):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(priceStrikes), 0)
+
+def AddPriceStrikes(builder, priceStrikes):
+    BlackVolSpecAddPriceStrikes(builder, priceStrikes)
+
+def BlackVolSpecStartPriceStrikesVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartPriceStrikesVector(builder, numElems):
+    return BlackVolSpecStartPriceStrikesVector(builder, numElems)
+
+def BlackVolSpecAddPriceOptionType(builder, priceOptionType):
+    builder.PrependInt8Slot(8, priceOptionType, 0)
+
+def AddPriceOptionType(builder, priceOptionType):
+    BlackVolSpecAddPriceOptionType(builder, priceOptionType)
+
+def BlackVolSpecAddSpot(builder, spot):
+    builder.PrependFloat64Slot(9, spot, 0.0)
+
+def AddSpot(builder, spot):
+    BlackVolSpecAddSpot(builder, spot)
+
+def BlackVolSpecAddSpotQuoteId(builder, spotQuoteId):
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(spotQuoteId), 0)
+
+def AddSpotQuoteId(builder, spotQuoteId):
+    BlackVolSpecAddSpotQuoteId(builder, spotQuoteId)
+
+def BlackVolSpecAddDiscountCurveId(builder, discountCurveId):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(discountCurveId), 0)
+
+def AddDiscountCurveId(builder, discountCurveId):
+    BlackVolSpecAddDiscountCurveId(builder, discountCurveId)
+
+def BlackVolSpecAddUseFlatDiscountRate(builder, useFlatDiscountRate):
+    builder.PrependBoolSlot(12, useFlatDiscountRate, 0)
+
+def AddUseFlatDiscountRate(builder, useFlatDiscountRate):
+    BlackVolSpecAddUseFlatDiscountRate(builder, useFlatDiscountRate)
+
+def BlackVolSpecAddFlatDiscountRate(builder, flatDiscountRate):
+    builder.PrependFloat64Slot(13, flatDiscountRate, 0.0)
+
+def AddFlatDiscountRate(builder, flatDiscountRate):
+    BlackVolSpecAddFlatDiscountRate(builder, flatDiscountRate)
+
+def BlackVolSpecAddDividendCurveId(builder, dividendCurveId):
+    builder.PrependUOffsetTRelativeSlot(14, flatbuffers.number_types.UOffsetTFlags.py_type(dividendCurveId), 0)
+
+def AddDividendCurveId(builder, dividendCurveId):
+    BlackVolSpecAddDividendCurveId(builder, dividendCurveId)
+
+def BlackVolSpecAddUseFlatDividendRate(builder, useFlatDividendRate):
+    builder.PrependBoolSlot(15, useFlatDividendRate, 0)
+
+def AddUseFlatDividendRate(builder, useFlatDividendRate):
+    BlackVolSpecAddUseFlatDividendRate(builder, useFlatDividendRate)
+
+def BlackVolSpecAddFlatDividendRate(builder, flatDividendRate):
+    builder.PrependFloat64Slot(16, flatDividendRate, 0.0)
+
+def AddFlatDividendRate(builder, flatDividendRate):
+    BlackVolSpecAddFlatDividendRate(builder, flatDividendRate)
+
+def BlackVolSpecAddAllowExtrapolation(builder, allowExtrapolation):
+    builder.PrependBoolSlot(17, allowExtrapolation, 0)
+
+def AddAllowExtrapolation(builder, allowExtrapolation):
+    BlackVolSpecAddAllowExtrapolation(builder, allowExtrapolation)
+
+def BlackVolSpecAddSurfaceInterpolator(builder, surfaceInterpolator):
+    builder.PrependInt8Slot(18, surfaceInterpolator, 0)
+
+def AddSurfaceInterpolator(builder, surfaceInterpolator):
+    BlackVolSpecAddSurfaceInterpolator(builder, surfaceInterpolator)
+
+def BlackVolSpecAddExpiryInterpolator(builder, expiryInterpolator):
+    builder.PrependInt8Slot(19, expiryInterpolator, 2)
+
+def AddExpiryInterpolator(builder, expiryInterpolator):
+    BlackVolSpecAddExpiryInterpolator(builder, expiryInterpolator)
+
+def BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator):
+    builder.PrependInt8Slot(20, strikeInterpolator, 2)
+
+def AddStrikeInterpolator(builder, strikeInterpolator):
+    BlackVolSpecAddStrikeInterpolator(builder, strikeInterpolator)
+
 def BlackVolSpecEnd(builder):
     return builder.EndObject()
 
@@ -55,7 +443,7 @@ def End(builder):
     return BlackVolSpecEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -64,6 +452,26 @@ class BlackVolSpecT(object):
     # BlackVolSpecT
     def __init__(self):
         self.base = None  # type: Optional[BlackVolBaseSpecT]
+        self.expiries = None  # type: List[PeriodT]
+        self.strikes = None  # type: List[float]
+        self.termVols = None  # type: Optional[QuoteMatrix2DT]
+        self.surfaceVols = None  # type: Optional[QuoteMatrix2DT]
+        self.surfacePrices = None  # type: Optional[QuoteMatrix2DT]
+        self.priceExpiries = None  # type: List[str]
+        self.priceStrikes = None  # type: List[float]
+        self.priceOptionType = 0  # type: int
+        self.spot = 0.0  # type: float
+        self.spotQuoteId = None  # type: str
+        self.discountCurveId = None  # type: str
+        self.useFlatDiscountRate = False  # type: bool
+        self.flatDiscountRate = 0.0  # type: float
+        self.dividendCurveId = None  # type: str
+        self.useFlatDividendRate = False  # type: bool
+        self.flatDividendRate = 0.0  # type: float
+        self.allowExtrapolation = False  # type: bool
+        self.surfaceInterpolator = 0  # type: int
+        self.expiryInterpolator = 2  # type: int
+        self.strikeInterpolator = 2  # type: int
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -88,13 +496,132 @@ class BlackVolSpecT(object):
             return
         if blackVolSpec.Base() is not None:
             self.base = BlackVolBaseSpecT.InitFromObj(blackVolSpec.Base())
+        if not blackVolSpec.ExpiriesIsNone():
+            self.expiries = []
+            for i in range(blackVolSpec.ExpiriesLength()):
+                if blackVolSpec.Expiries(i) is None:
+                    self.expiries.append(None)
+                else:
+                    period_ = PeriodT.InitFromObj(blackVolSpec.Expiries(i))
+                    self.expiries.append(period_)
+        if not blackVolSpec.StrikesIsNone():
+            if np is None:
+                self.strikes = []
+                for i in range(blackVolSpec.StrikesLength()):
+                    self.strikes.append(blackVolSpec.Strikes(i))
+            else:
+                self.strikes = blackVolSpec.StrikesAsNumpy()
+        if blackVolSpec.TermVols() is not None:
+            self.termVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.TermVols())
+        if blackVolSpec.SurfaceVols() is not None:
+            self.surfaceVols = QuoteMatrix2DT.InitFromObj(blackVolSpec.SurfaceVols())
+        if blackVolSpec.SurfacePrices() is not None:
+            self.surfacePrices = QuoteMatrix2DT.InitFromObj(blackVolSpec.SurfacePrices())
+        if not blackVolSpec.PriceExpiriesIsNone():
+            self.priceExpiries = []
+            for i in range(blackVolSpec.PriceExpiriesLength()):
+                self.priceExpiries.append(blackVolSpec.PriceExpiries(i))
+        if not blackVolSpec.PriceStrikesIsNone():
+            if np is None:
+                self.priceStrikes = []
+                for i in range(blackVolSpec.PriceStrikesLength()):
+                    self.priceStrikes.append(blackVolSpec.PriceStrikes(i))
+            else:
+                self.priceStrikes = blackVolSpec.PriceStrikesAsNumpy()
+        self.priceOptionType = blackVolSpec.PriceOptionType()
+        self.spot = blackVolSpec.Spot()
+        self.spotQuoteId = blackVolSpec.SpotQuoteId()
+        self.discountCurveId = blackVolSpec.DiscountCurveId()
+        self.useFlatDiscountRate = blackVolSpec.UseFlatDiscountRate()
+        self.flatDiscountRate = blackVolSpec.FlatDiscountRate()
+        self.dividendCurveId = blackVolSpec.DividendCurveId()
+        self.useFlatDividendRate = blackVolSpec.UseFlatDividendRate()
+        self.flatDividendRate = blackVolSpec.FlatDividendRate()
+        self.allowExtrapolation = blackVolSpec.AllowExtrapolation()
+        self.surfaceInterpolator = blackVolSpec.SurfaceInterpolator()
+        self.expiryInterpolator = blackVolSpec.ExpiryInterpolator()
+        self.strikeInterpolator = blackVolSpec.StrikeInterpolator()
 
     # BlackVolSpecT
     def Pack(self, builder):
         if self.base is not None:
             base = self.base.Pack(builder)
+        if self.expiries is not None:
+            expirieslist = []
+            for i in range(len(self.expiries)):
+                expirieslist.append(self.expiries[i].Pack(builder))
+            BlackVolSpecStartExpiriesVector(builder, len(self.expiries))
+            for i in reversed(range(len(self.expiries))):
+                builder.PrependUOffsetTRelative(expirieslist[i])
+            expiries = builder.EndVector()
+        if self.strikes is not None:
+            if np is not None and type(self.strikes) is np.ndarray:
+                strikes = builder.CreateNumpyVector(self.strikes)
+            else:
+                BlackVolSpecStartStrikesVector(builder, len(self.strikes))
+                for i in reversed(range(len(self.strikes))):
+                    builder.PrependFloat64(self.strikes[i])
+                strikes = builder.EndVector()
+        if self.termVols is not None:
+            termVols = self.termVols.Pack(builder)
+        if self.surfaceVols is not None:
+            surfaceVols = self.surfaceVols.Pack(builder)
+        if self.surfacePrices is not None:
+            surfacePrices = self.surfacePrices.Pack(builder)
+        if self.priceExpiries is not None:
+            priceExpirieslist = []
+            for i in range(len(self.priceExpiries)):
+                priceExpirieslist.append(builder.CreateString(self.priceExpiries[i]))
+            BlackVolSpecStartPriceExpiriesVector(builder, len(self.priceExpiries))
+            for i in reversed(range(len(self.priceExpiries))):
+                builder.PrependUOffsetTRelative(priceExpirieslist[i])
+            priceExpiries = builder.EndVector()
+        if self.priceStrikes is not None:
+            if np is not None and type(self.priceStrikes) is np.ndarray:
+                priceStrikes = builder.CreateNumpyVector(self.priceStrikes)
+            else:
+                BlackVolSpecStartPriceStrikesVector(builder, len(self.priceStrikes))
+                for i in reversed(range(len(self.priceStrikes))):
+                    builder.PrependFloat64(self.priceStrikes[i])
+                priceStrikes = builder.EndVector()
+        if self.spotQuoteId is not None:
+            spotQuoteId = builder.CreateString(self.spotQuoteId)
+        if self.discountCurveId is not None:
+            discountCurveId = builder.CreateString(self.discountCurveId)
+        if self.dividendCurveId is not None:
+            dividendCurveId = builder.CreateString(self.dividendCurveId)
         BlackVolSpecStart(builder)
         if self.base is not None:
             BlackVolSpecAddBase(builder, base)
+        if self.expiries is not None:
+            BlackVolSpecAddExpiries(builder, expiries)
+        if self.strikes is not None:
+            BlackVolSpecAddStrikes(builder, strikes)
+        if self.termVols is not None:
+            BlackVolSpecAddTermVols(builder, termVols)
+        if self.surfaceVols is not None:
+            BlackVolSpecAddSurfaceVols(builder, surfaceVols)
+        if self.surfacePrices is not None:
+            BlackVolSpecAddSurfacePrices(builder, surfacePrices)
+        if self.priceExpiries is not None:
+            BlackVolSpecAddPriceExpiries(builder, priceExpiries)
+        if self.priceStrikes is not None:
+            BlackVolSpecAddPriceStrikes(builder, priceStrikes)
+        BlackVolSpecAddPriceOptionType(builder, self.priceOptionType)
+        BlackVolSpecAddSpot(builder, self.spot)
+        if self.spotQuoteId is not None:
+            BlackVolSpecAddSpotQuoteId(builder, spotQuoteId)
+        if self.discountCurveId is not None:
+            BlackVolSpecAddDiscountCurveId(builder, discountCurveId)
+        BlackVolSpecAddUseFlatDiscountRate(builder, self.useFlatDiscountRate)
+        BlackVolSpecAddFlatDiscountRate(builder, self.flatDiscountRate)
+        if self.dividendCurveId is not None:
+            BlackVolSpecAddDividendCurveId(builder, dividendCurveId)
+        BlackVolSpecAddUseFlatDividendRate(builder, self.useFlatDividendRate)
+        BlackVolSpecAddFlatDividendRate(builder, self.flatDividendRate)
+        BlackVolSpecAddAllowExtrapolation(builder, self.allowExtrapolation)
+        BlackVolSpecAddSurfaceInterpolator(builder, self.surfaceInterpolator)
+        BlackVolSpecAddExpiryInterpolator(builder, self.expiryInterpolator)
+        BlackVolSpecAddStrikeInterpolator(builder, self.strikeInterpolator)
         blackVolSpec = BlackVolSpecEnd(builder)
         return blackVolSpec

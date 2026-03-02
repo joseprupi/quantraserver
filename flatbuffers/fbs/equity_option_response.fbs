@@ -1,0 +1,25 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Equity option pricing result.
+table EquityOptionResponse {
+    trade_id:string;
+    npv:double;
+    delta:double;
+    gamma:double;
+    vega:double;
+    theta:double;
+    rho:double;
+    implied_volatility:double;
+    used_spot:double;
+    used_strike:double;
+    used_settlement:enums.EquitySettlementType = Physical;
+}
+
+/// Response wrapper for equity option pricing.
+table PriceEquityOptionResponse {
+    options:[EquityOptionResponse];
+}
+
+root_type PriceEquityOptionResponse;

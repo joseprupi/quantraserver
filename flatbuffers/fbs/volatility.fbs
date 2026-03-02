@@ -3,7 +3,7 @@ include "common.fbs";
 
 namespace quantra;
 
-/// 2D quote matrix (expiries x tenors).
+/// 2D quote matrix (n_rows x n_cols). Interpretation depends on caller.
 table QuoteMatrix2D {
     n_rows:int;
     n_cols:int;
@@ -13,7 +13,7 @@ table QuoteMatrix2D {
     quote_ids:[string];
 }
 
-/// 3D quote tensor (expiries x tenors x strikes).
+/// 3D quote tensor (n_1 x n_2 x n_3). Interpretation depends on caller.
 table QuoteTensor3D {
     n_1:int;
     n_2:int;
@@ -130,6 +130,49 @@ table SwaptionVolSpec {
 /// Black volatility for equity/FX/commodity options.
 table BlackVolSpec {
     base:BlackVolBaseSpec;
+    /// Term/surface expiry pillars from base.reference_date.
+    expiries:[Period];
+    /// Surface strike axis (required only for shape=SmileCube3D).
+    strikes:[double];
+    /// Term vols as QuoteMatrix2D with dims (n_expiries x 1), row-major.
+    term_vols:QuoteMatrix2D;
+    /// Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
+    surface_vols:QuoteMatrix2D;
+    /// Surface prices as QuoteMatrix2D with dims (n_price_expiries x n_price_strikes), row-major by expiry then strike.
+    /// Used only when base.shape=SurfaceFromPrices.
+    surface_prices:QuoteMatrix2D;
+    /// Absolute expiry dates (YYYY-MM-DD). Used only when base.shape=SurfaceFromPrices.
+    price_expiries:[string];
+    /// Surface strike axis for prices matrix. Used only when base.shape=SurfaceFromPrices.
+    price_strikes:[double];
+    /// Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices.
+    price_option_type:enums.EquityOptionType = Call;
+    /// Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+    spot:double;
+    /// Optional: resolve spot from pricing.quotes.
+    spot_quote_id:string;
+    /// Discount curve id in pricing.curves used for implied-vol inversion.
+    discount_curve_id:string;
+    /// If true and discount_curve_id is empty, use flat_discount_rate.
+    use_flat_discount_rate:bool = false;
+    /// Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true.
+    flat_discount_rate:double = 0.0;
+    /// Dividend yield curve id in pricing.curves used for implied-vol inversion.
+    dividend_curve_id:string;
+    /// If true and dividend_curve_id is empty, use flat_dividend_rate.
+    use_flat_dividend_rate:bool = false;
+    /// Continuously-compounded flat dividend yield used when use_flat_dividend_rate=true.
+    flat_dividend_rate:double = 0.0;
+    /// Default extrapolation mode for this surface when consumed by pricing endpoints.
+    allow_extrapolation:bool = false;
+    /// 2D surface interpolator for strike/expiry surfaces.
+    surface_interpolator:enums.SurfaceInterpolator2D = Bilinear;
+    /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+    /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    expiry_interpolator:enums.Interpolator = Linear;
+    /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+    /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
+    strike_interpolator:enums.Interpolator = Linear;
 }
 
 /// Union of all volatility types.

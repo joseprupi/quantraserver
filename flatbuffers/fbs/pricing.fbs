@@ -7,6 +7,7 @@ include "model.fbs";
 include "index.fbs";
 include "swap_index.fbs";
 include "credit_curve.fbs";
+include "equity_option.fbs";
 
 namespace quantra;
 
@@ -32,6 +33,9 @@ table Pricing {
 
     /// Market quotes (spot prices, FX rates). Used by: EquityOption (future).
     quotes:[QuoteSpec];
+
+    /// Equity underlyings referenced by equity option trades.
+    equity_underlyings:[EquityUnderlyingSpec];
 
     /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption.
     vol_surfaces:[VolSurfaceSpec];

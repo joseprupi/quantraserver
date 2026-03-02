@@ -126,6 +126,37 @@ inline const char *EnumNameInterpolator(Interpolator e) {
   return EnumNamesInterpolator()[index];
 }
 
+/// 2D surface interpolation mode.
+enum SurfaceInterpolator2D : int8_t {
+  SurfaceInterpolator2D_Bilinear = 0,
+  SurfaceInterpolator2D_Bicubic = 1,
+  SurfaceInterpolator2D_MIN = SurfaceInterpolator2D_Bilinear,
+  SurfaceInterpolator2D_MAX = SurfaceInterpolator2D_Bicubic
+};
+
+inline const SurfaceInterpolator2D (&EnumValuesSurfaceInterpolator2D())[2] {
+  static const SurfaceInterpolator2D values[] = {
+    SurfaceInterpolator2D_Bilinear,
+    SurfaceInterpolator2D_Bicubic
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSurfaceInterpolator2D() {
+  static const char * const names[3] = {
+    "Bilinear",
+    "Bicubic",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSurfaceInterpolator2D(SurfaceInterpolator2D e) {
+  if (::flatbuffers::IsOutRange(e, SurfaceInterpolator2D_Bilinear, SurfaceInterpolator2D_Bicubic)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSurfaceInterpolator2D()[index];
+}
+
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : int8_t {
   BootstrapTrait_Discount = 0,
@@ -1056,17 +1087,19 @@ enum VolSurfaceShape : int8_t {
   VolSurfaceShape_Constant = 0,
   VolSurfaceShape_AtmMatrix2D = 1,
   VolSurfaceShape_SmileCube3D = 2,
-  VolSurfaceShape_SabrParams = 3,
-  VolSurfaceShape_SabrCalibrate = 4,
+  VolSurfaceShape_SurfaceFromPrices = 3,
+  VolSurfaceShape_SabrParams = 4,
+  VolSurfaceShape_SabrCalibrate = 5,
   VolSurfaceShape_MIN = VolSurfaceShape_Constant,
   VolSurfaceShape_MAX = VolSurfaceShape_SabrCalibrate
 };
 
-inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[5] {
+inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[6] {
   static const VolSurfaceShape values[] = {
     VolSurfaceShape_Constant,
     VolSurfaceShape_AtmMatrix2D,
     VolSurfaceShape_SmileCube3D,
+    VolSurfaceShape_SurfaceFromPrices,
     VolSurfaceShape_SabrParams,
     VolSurfaceShape_SabrCalibrate
   };
@@ -1074,10 +1107,11 @@ inline const VolSurfaceShape (&EnumValuesVolSurfaceShape())[5] {
 }
 
 inline const char * const *EnumNamesVolSurfaceShape() {
-  static const char * const names[6] = {
+  static const char * const names[7] = {
     "Constant",
     "AtmMatrix2D",
     "SmileCube3D",
+    "SurfaceFromPrices",
     "SabrParams",
     "SabrCalibrate",
     nullptr
@@ -1330,6 +1364,136 @@ inline const char *EnumNameEquityModelType(EquityModelType e) {
   if (::flatbuffers::IsOutRange(e, EquityModelType_BlackScholesAnalytic, EquityModelType_BinomialCRR)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEquityModelType()[index];
+}
+
+/// Equity option payoff type.
+enum EquityOptionType : int8_t {
+  EquityOptionType_Call = 0,
+  EquityOptionType_Put = 1,
+  EquityOptionType_MIN = EquityOptionType_Call,
+  EquityOptionType_MAX = EquityOptionType_Put
+};
+
+inline const EquityOptionType (&EnumValuesEquityOptionType())[2] {
+  static const EquityOptionType values[] = {
+    EquityOptionType_Call,
+    EquityOptionType_Put
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityOptionType() {
+  static const char * const names[3] = {
+    "Call",
+    "Put",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityOptionType(EquityOptionType e) {
+  if (::flatbuffers::IsOutRange(e, EquityOptionType_Call, EquityOptionType_Put)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityOptionType()[index];
+}
+
+/// Equity option settlement type.
+enum EquitySettlementType : int8_t {
+  EquitySettlementType_Physical = 0,
+  EquitySettlementType_Cash = 1,
+  EquitySettlementType_MIN = EquitySettlementType_Physical,
+  EquitySettlementType_MAX = EquitySettlementType_Cash
+};
+
+inline const EquitySettlementType (&EnumValuesEquitySettlementType())[2] {
+  static const EquitySettlementType values[] = {
+    EquitySettlementType_Physical,
+    EquitySettlementType_Cash
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquitySettlementType() {
+  static const char * const names[3] = {
+    "Physical",
+    "Cash",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquitySettlementType(EquitySettlementType e) {
+  if (::flatbuffers::IsOutRange(e, EquitySettlementType_Physical, EquitySettlementType_Cash)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquitySettlementType()[index];
+}
+
+/// Barrier direction/style for barrier options.
+enum EquityBarrierType : int8_t {
+  EquityBarrierType_DownIn = 0,
+  EquityBarrierType_UpIn = 1,
+  EquityBarrierType_DownOut = 2,
+  EquityBarrierType_UpOut = 3,
+  EquityBarrierType_MIN = EquityBarrierType_DownIn,
+  EquityBarrierType_MAX = EquityBarrierType_UpOut
+};
+
+inline const EquityBarrierType (&EnumValuesEquityBarrierType())[4] {
+  static const EquityBarrierType values[] = {
+    EquityBarrierType_DownIn,
+    EquityBarrierType_UpIn,
+    EquityBarrierType_DownOut,
+    EquityBarrierType_UpOut
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityBarrierType() {
+  static const char * const names[5] = {
+    "DownIn",
+    "UpIn",
+    "DownOut",
+    "UpOut",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityBarrierType(EquityBarrierType e) {
+  if (::flatbuffers::IsOutRange(e, EquityBarrierType_DownIn, EquityBarrierType_UpOut)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityBarrierType()[index];
+}
+
+/// Barrier monitoring type.
+enum EquityBarrierMonitoring : int8_t {
+  EquityBarrierMonitoring_Continuous = 0,
+  EquityBarrierMonitoring_Discrete = 1,
+  EquityBarrierMonitoring_MIN = EquityBarrierMonitoring_Continuous,
+  EquityBarrierMonitoring_MAX = EquityBarrierMonitoring_Discrete
+};
+
+inline const EquityBarrierMonitoring (&EnumValuesEquityBarrierMonitoring())[2] {
+  static const EquityBarrierMonitoring values[] = {
+    EquityBarrierMonitoring_Continuous,
+    EquityBarrierMonitoring_Discrete
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityBarrierMonitoring() {
+  static const char * const names[3] = {
+    "Continuous",
+    "Discrete",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityBarrierMonitoring(EquityBarrierMonitoring e) {
+  if (::flatbuffers::IsOutRange(e, EquityBarrierMonitoring_Continuous, EquityBarrierMonitoring_Discrete)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityBarrierMonitoring()[index];
 }
 
 }  // namespace enums

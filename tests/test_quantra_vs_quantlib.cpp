@@ -24,6 +24,7 @@
 #include "cds_pricing_request.h"
 #include "bootstrap_curves_request.h"
 #include "sample_vol_surfaces_request.h"
+#include "equity_option_pricing_request.h"
 #include "vol_surface_parsers.h"
 
 #include "price_fixed_rate_bond_request_generated.h"
@@ -47,6 +48,8 @@
 #include "bootstrap_curves_response_generated.h"
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
+#include "price_equity_option_request_generated.h"
+#include "equity_option_response_generated.h"
 #include "vol_query_generated.h"
 #include "index_generated.h"
 #include "swap_index_generated.h"
@@ -64,7 +67,11 @@ protected:
         evaluationDate_ = QuantLib::Date(15, QuantLib::January, 2025);
         QuantLib::Settings::instance().evaluationDate() = evaluationDate_;
         flatRate_ = 0.03;
+        dividendFlatRate_ = 0.01;
         buildBootstrappedCurve();
+        dividendCurve_ = std::make_shared<QuantLib::FlatForward>(
+            evaluationDate_, dividendFlatRate_, QuantLib::Actual365Fixed());
+        dividendHandle_ = QuantLib::Handle<QuantLib::YieldTermStructure>(dividendCurve_);
     }
     
     void buildBootstrappedCurve() {
@@ -199,14 +206,16 @@ protected:
     // =========================================================================
 
     flatbuffers::Offset<quantra::TermStructure> buildCurve(
-        flatbuffers::grpc::MessageBuilder& b, const std::string& id) {
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id,
+        double flatRate = std::numeric_limits<double>::quiet_NaN()) {
+        const double curveRate = std::isfinite(flatRate) ? flatRate : flatRate_;
         
         std::vector<flatbuffers::Offset<quantra::PointsWrapper>> points_vector;
         
         // 3M deposit
         auto dep3mTenor = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
         quantra::DepositHelperBuilder dep3m(b);
-        dep3m.add_rate(flatRate_);
+        dep3m.add_rate(curveRate);
         dep3m.add_tenor(dep3mTenor);
         dep3m.add_fixing_days(2);
         dep3m.add_calendar(quantra::enums::Calendar_TARGET);
@@ -221,7 +230,7 @@ protected:
         // 6M deposit
         auto dep6mTenor = buildPeriod(b, 6, quantra::enums::TimeUnit_Months);
         quantra::DepositHelperBuilder dep6m(b);
-        dep6m.add_rate(flatRate_);
+        dep6m.add_rate(curveRate);
         dep6m.add_tenor(dep6mTenor);
         dep6m.add_fixing_days(2);
         dep6m.add_calendar(quantra::enums::Calendar_TARGET);
@@ -236,7 +245,7 @@ protected:
         // 1Y deposit
         auto dep1yTenor = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
         quantra::DepositHelperBuilder dep1y(b);
-        dep1y.add_rate(flatRate_);
+        dep1y.add_rate(curveRate);
         dep1y.add_tenor(dep1yTenor);
         dep1y.add_fixing_days(2);
         dep1y.add_calendar(quantra::enums::Calendar_TARGET);
@@ -252,7 +261,7 @@ protected:
         auto float_idx_5y = buildIndexRef(b, "EUR_6M");
         auto sw5yTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
         quantra::SwapHelperBuilder sw5y(b);
-        sw5y.add_rate(flatRate_);
+        sw5y.add_rate(curveRate);
         sw5y.add_tenor(sw5yTenor);
         sw5y.add_calendar(quantra::enums::Calendar_TARGET);
         sw5y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
@@ -271,7 +280,7 @@ protected:
         auto float_idx_10y = buildIndexRef(b, "EUR_6M");
         auto sw10yTenor = buildPeriod(b, 10, quantra::enums::TimeUnit_Years);
         quantra::SwapHelperBuilder sw10y(b);
-        sw10y.add_rate(flatRate_);
+        sw10y.add_rate(curveRate);
         sw10y.add_tenor(sw10yTenor);
         sw10y.add_calendar(quantra::enums::Calendar_TARGET);
         sw10y.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
@@ -495,6 +504,189 @@ protected:
         vsBuilder.add_id(vol_id);
         vsBuilder.add_payload_type(quantra::VolPayload_OptionletVolSpec);
         vsBuilder.add_payload(optPayload.Union());
+        return vsBuilder.Finish();
+    }
+
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildBlackVolSurface(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        double vol,
+        quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
+        const std::string& refDate = "2025-01-15") {
+        auto ref_date = b.CreateString(refDate);
+
+        quantra::BlackVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(shape);
+        baseBuilder.add_constant_vol(vol);
+        auto base = baseBuilder.Finish();
+
+        quantra::BlackVolSpecBuilder blackBuilder(b);
+        blackBuilder.add_base(base);
+        auto blackPayload = blackBuilder.Finish();
+
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_BlackVolSpec);
+        vsBuilder.add_payload(blackPayload.Union());
+        return vsBuilder.Finish();
+    }
+
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildBlackVolTermStructure(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        const std::vector<QuantLib::Period>& expiries,
+        const std::vector<double>& vols,
+        const std::string& refDate = "2025-01-15") {
+        auto ref_date = b.CreateString(refDate);
+        quantra::BlackVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_AtmMatrix2D);
+        baseBuilder.add_constant_vol(0.20);
+        auto base = baseBuilder.Finish();
+
+        std::vector<flatbuffers::Offset<quantra::Period>> expOffsets;
+        expOffsets.reserve(expiries.size());
+        for (const auto& p : expiries) {
+            quantra::PeriodBuilder pb(b);
+            pb.add_n(p.length());
+            pb.add_unit(toFbTimeUnit(p.units()));
+            expOffsets.push_back(pb.Finish());
+        }
+        auto expVec = b.CreateVector(expOffsets);
+        auto termVals = b.CreateVector(vols);
+        quantra::QuoteMatrix2DBuilder mb(b);
+        mb.add_n_rows(static_cast<int>(expiries.size()));
+        mb.add_n_cols(1);
+        mb.add_values(termVals);
+        auto termMatrix = mb.Finish();
+
+        quantra::BlackVolSpecBuilder blackBuilder(b);
+        blackBuilder.add_base(base);
+        blackBuilder.add_expiries(expVec);
+        blackBuilder.add_term_vols(termMatrix);
+        auto blackPayload = blackBuilder.Finish();
+
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_BlackVolSpec);
+        vsBuilder.add_payload(blackPayload.Union());
+        return vsBuilder.Finish();
+    }
+
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildBlackVolSurfaceGrid(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        const std::vector<QuantLib::Period>& expiries,
+        const std::vector<double>& strikes,
+        const std::vector<double>& volsFlat,
+        const std::string& refDate = "2025-01-15") {
+        auto ref_date = b.CreateString(refDate);
+        quantra::BlackVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_SmileCube3D);
+        baseBuilder.add_constant_vol(0.20);
+        auto base = baseBuilder.Finish();
+
+        std::vector<flatbuffers::Offset<quantra::Period>> expOffsets;
+        expOffsets.reserve(expiries.size());
+        for (const auto& p : expiries) {
+            quantra::PeriodBuilder pb(b);
+            pb.add_n(p.length());
+            pb.add_unit(toFbTimeUnit(p.units()));
+            expOffsets.push_back(pb.Finish());
+        }
+        auto expVec = b.CreateVector(expOffsets);
+        auto strikeVec = b.CreateVector(strikes);
+        auto surfVals = b.CreateVector(volsFlat);
+        quantra::QuoteMatrix2DBuilder mb(b);
+        mb.add_n_rows(static_cast<int>(expiries.size()));
+        mb.add_n_cols(static_cast<int>(strikes.size()));
+        mb.add_values(surfVals);
+        auto surfaceMatrix = mb.Finish();
+
+        quantra::BlackVolSpecBuilder blackBuilder(b);
+        blackBuilder.add_base(base);
+        blackBuilder.add_expiries(expVec);
+        blackBuilder.add_strikes(strikeVec);
+        blackBuilder.add_surface_vols(surfaceMatrix);
+        auto blackPayload = blackBuilder.Finish();
+
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_BlackVolSpec);
+        vsBuilder.add_payload(blackPayload.Union());
+        return vsBuilder.Finish();
+    }
+
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildBlackVolSurfaceFromPrices(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        const std::vector<std::string>& expiryDatesIso,
+        const std::vector<double>& strikes,
+        const std::vector<double>& pricesFlat,
+        const std::string& spotQuoteId,
+        const std::string& discountCurveId,
+        const std::string& dividendCurveId,
+        quantra::enums::SurfaceInterpolator2D surfaceInterp =
+            quantra::enums::SurfaceInterpolator2D_Bilinear,
+        const std::string& refDate = "2025-01-15") {
+        auto ref_date = b.CreateString(refDate);
+        quantra::BlackVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_SurfaceFromPrices);
+        baseBuilder.add_constant_vol(0.20);
+        auto base = baseBuilder.Finish();
+
+        std::vector<flatbuffers::Offset<flatbuffers::String>> expiryOffsets;
+        expiryOffsets.reserve(expiryDatesIso.size());
+        for (const auto& s : expiryDatesIso) {
+            expiryOffsets.push_back(b.CreateString(s));
+        }
+        auto expiryVec = b.CreateVector(expiryOffsets);
+        auto strikeVec = b.CreateVector(strikes);
+        auto priceVals = b.CreateVector(pricesFlat);
+        quantra::QuoteMatrix2DBuilder mb(b);
+        mb.add_n_rows(static_cast<int>(expiryDatesIso.size()));
+        mb.add_n_cols(static_cast<int>(strikes.size()));
+        mb.add_values(priceVals);
+        auto priceMatrix = mb.Finish();
+
+        auto spotQ = b.CreateString(spotQuoteId);
+        auto discCurve = b.CreateString(discountCurveId);
+        auto divCurve = b.CreateString(dividendCurveId);
+        quantra::BlackVolSpecBuilder blackBuilder(b);
+        blackBuilder.add_base(base);
+        blackBuilder.add_surface_prices(priceMatrix);
+        blackBuilder.add_price_expiries(expiryVec);
+        blackBuilder.add_price_strikes(strikeVec);
+        blackBuilder.add_price_option_type(quantra::enums::EquityOptionType_Call);
+        blackBuilder.add_spot_quote_id(spotQ);
+        blackBuilder.add_discount_curve_id(discCurve);
+        blackBuilder.add_dividend_curve_id(divCurve);
+        blackBuilder.add_surface_interpolator(surfaceInterp);
+        auto blackPayload = blackBuilder.Finish();
+
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_BlackVolSpec);
+        vsBuilder.add_payload(blackPayload.Union());
         return vsBuilder.Finish();
     }
     
@@ -772,8 +964,10 @@ protected:
 
     QuantLib::Date evaluationDate_;
     double flatRate_;
+    double dividendFlatRate_;
     std::shared_ptr<QuantLib::YieldTermStructure> bootstrappedCurve_;
-    QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle_, forwardHandle_;
+    std::shared_ptr<QuantLib::YieldTermStructure> dividendCurve_;
+    QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle_, forwardHandle_, dividendHandle_;
 };
 
 // ======================== FIXED RATE BOND ========================
@@ -3890,6 +4084,515 @@ TEST_F(QuantraComparisonTest, SampleVolSurfaces_OptionletCube) {
     EXPECT_EQ(r->tenors()->size(), 0u);
 }
 
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackCube) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurface(b, "EQVOL_CONST", 0.25, quantra::enums::VolSurfaceShape_Constant, "2026-02-27");
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curve = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto indices = buildIndicesVector(b);
+
+    auto asof = b.CreateString("2026-02-27");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Months);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(6); e2.add_unit(quantra::enums::TimeUnit_Months);
+    auto e2Off = e2.Finish();
+    quantra::PeriodBuilder e3(b); e3.add_n(1); e3.add_unit(quantra::enums::TimeUnit_Years);
+    auto e3Off = e3.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off, e3Off});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b); expSpecB.add_grid_type(quantra::DateGrid_TenorGrid); expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{80.0, 100.0, 120.0});
+    quantra::StrikeGridBuilder sgb(b); sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike); sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("EQVOL_CONST");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    auto r = resp->results()->Get(0);
+    ASSERT_EQ(r->error(), nullptr);
+    EXPECT_EQ(r->n_expiries(), 3);
+    EXPECT_EQ(r->n_tenors(), 0);
+    EXPECT_EQ(r->n_strikes(), 3);
+    ASSERT_EQ(r->vols()->size(), 9u);
+    for (flatbuffers::uoffset_t i = 0; i < r->vols()->size(); ++i) {
+        EXPECT_NEAR(r->vols()->Get(i), 0.25, 1.0e-12);
+    }
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackTermStructureCube) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolTermStructure(
+        b, "eq_black_term",
+        {QuantLib::Period(1, QuantLib::Months), QuantLib::Period(6, QuantLib::Months), QuantLib::Period(1, QuantLib::Years)},
+        {0.20, 0.22, 0.25});
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curve = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto indices = buildIndicesVector(b);
+
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Months);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(6); e2.add_unit(quantra::enums::TimeUnit_Months);
+    auto e2Off = e2.Finish();
+    quantra::PeriodBuilder e3(b); e3.add_n(1); e3.add_unit(quantra::enums::TimeUnit_Years);
+    auto e3Off = e3.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off, e3Off});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b); expSpecB.add_grid_type(quantra::DateGrid_TenorGrid); expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{80.0, 100.0, 120.0});
+    quantra::StrikeGridBuilder sgb(b); sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike); sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("eq_black_term");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    auto r = resp->results()->Get(0);
+    ASSERT_EQ(r->error(), nullptr);
+    ASSERT_EQ(r->vols()->size(), 9u);
+    EXPECT_NEAR(r->vols()->Get(0), 0.20, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(3), 0.22, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(6), 0.25, 1.0e-12);
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackSurfaceCube) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurfaceGrid(
+        b, "eq_black_surface",
+        {QuantLib::Period(6, QuantLib::Months), QuantLib::Period(1, QuantLib::Years)},
+        {80.0, 100.0, 120.0},
+        {0.30, 0.25, 0.22, 0.32, 0.27, 0.24});
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curve = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto indices = buildIndicesVector(b);
+
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(6); e1.add_unit(quantra::enums::TimeUnit_Months);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(1); e2.add_unit(quantra::enums::TimeUnit_Years);
+    auto e2Off = e2.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b); expSpecB.add_grid_type(quantra::DateGrid_TenorGrid); expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{80.0, 100.0, 120.0});
+    quantra::StrikeGridBuilder sgb(b); sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike); sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("eq_black_surface");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    auto r = resp->results()->Get(0);
+    ASSERT_EQ(r->error(), nullptr);
+    ASSERT_EQ(r->vols()->size(), 6u);
+    EXPECT_NEAR(r->vols()->Get(0), 0.30, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(1), 0.25, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(2), 0.22, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(3), 0.32, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(4), 0.27, 1.0e-12);
+    EXPECT_NEAR(r->vols()->Get(5), 0.24, 1.0e-12);
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackSurfaceFromPricesMatchesDirectQuantLib) {
+    const QuantLib::Date refDate(15, QuantLib::January, 2025);
+    const QuantLib::Calendar cal = QuantLib::TARGET();
+    const QuantLib::BusinessDayConvention bdc = QuantLib::ModifiedFollowing;
+    const QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
+    const double spot = 100.0;
+    const std::vector<QuantLib::Date> pillarDates = {
+        QuantLib::Date(15, QuantLib::July, 2025),
+        QuantLib::Date(15, QuantLib::January, 2026)
+    };
+    const std::vector<double> strikes = {80.0, 100.0, 120.0};
+    const std::vector<double> inputVolsFlat = {
+        0.30, 0.25, 0.22,  // 2025-07-15
+        0.32, 0.27, 0.24   // 2026-01-15
+    };
+
+    // Build a direct QuantLib surface to generate option prices at the input nodes.
+    QuantLib::Matrix inputVolMatrix(static_cast<int>(strikes.size()), static_cast<int>(pillarDates.size()));
+    for (size_t i = 0; i < pillarDates.size(); ++i) {
+        for (size_t j = 0; j < strikes.size(); ++j) {
+            inputVolMatrix[static_cast<int>(j)][static_cast<int>(i)] =
+                inputVolsFlat[i * strikes.size() + j];
+        }
+    }
+    auto sourceSurface = std::make_shared<QuantLib::BlackVarianceSurface>(
+        refDate, cal, pillarDates, strikes, inputVolMatrix, dc);
+    sourceSurface->setInterpolation<QuantLib::Bilinear>();
+
+    auto spotHandle = QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(spot));
+    auto sourceProcess = std::make_shared<QuantLib::BlackScholesMertonProcess>(
+        spotHandle,
+        dividendHandle_,
+        discountHandle_,
+        QuantLib::Handle<QuantLib::BlackVolTermStructure>(sourceSurface));
+    std::vector<double> priceMatrixFlat;
+    priceMatrixFlat.reserve(pillarDates.size() * strikes.size());
+    for (const auto& expiry : pillarDates) {
+        auto ex = std::make_shared<QuantLib::EuropeanExercise>(expiry);
+        for (double k : strikes) {
+            auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(QuantLib::Option::Call, k);
+            QuantLib::VanillaOption opt(payoff, ex);
+            opt.setPricingEngine(std::make_shared<QuantLib::AnalyticEuropeanEngine>(sourceProcess));
+            priceMatrixFlat.push_back(opt.NPV());
+        }
+    }
+
+    // Reconstruct implied vol nodes directly in QuantLib from the generated prices.
+    auto seedVol = std::make_shared<QuantLib::BlackConstantVol>(refDate, cal, 0.20, dc);
+    auto inversionProcess = std::make_shared<QuantLib::BlackScholesMertonProcess>(
+        spotHandle,
+        dividendHandle_,
+        discountHandle_,
+        QuantLib::Handle<QuantLib::BlackVolTermStructure>(seedVol));
+    QuantLib::Matrix impliedNodeVols(static_cast<int>(strikes.size()), static_cast<int>(pillarDates.size()));
+    for (size_t i = 0; i < pillarDates.size(); ++i) {
+        auto ex = std::make_shared<QuantLib::EuropeanExercise>(pillarDates[i]);
+        for (size_t j = 0; j < strikes.size(); ++j) {
+            auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(QuantLib::Option::Call, strikes[j]);
+            QuantLib::VanillaOption opt(payoff, ex);
+            const double mktPrice = priceMatrixFlat[i * strikes.size() + j];
+            impliedNodeVols[static_cast<int>(j)][static_cast<int>(i)] =
+                opt.impliedVolatility(mktPrice, inversionProcess, 1.0e-8, 500, 1.0e-8, 10.0);
+        }
+    }
+    auto expectedSurface = std::make_shared<QuantLib::BlackVarianceSurface>(
+        refDate, cal, pillarDates, strikes, impliedNodeVols, dc);
+    expectedSurface->setInterpolation<QuantLib::Bilinear>();
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurfaceFromPrices(
+        b,
+        "eq_black_prices",
+        {"2025-07-15", "2026-01-15"},
+        strikes,
+        priceMatrixFlat,
+        "EQ_SPOT",
+        "discount",
+        "div");
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curveDiscount = buildCurve(b, "discount", flatRate_);
+    auto curveDividend = buildCurve(b, "div", dividendFlatRate_);
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
+        curveDiscount, curveDividend});
+    auto indices = buildIndicesVector(b);
+
+    auto quoteId = b.CreateString("EQ_SPOT");
+    quantra::QuoteSpecBuilder qb(b);
+    qb.add_id(quoteId);
+    qb.add_kind(quantra::QuoteKind_Price);
+    qb.add_value(spot);
+    qb.add_quote_type(quantra::QuoteType_Curve);
+    auto quote = qb.Finish();
+    auto quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::QuoteSpec>>{quote});
+
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_quotes(quotes);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(6); e1.add_unit(quantra::enums::TimeUnit_Months);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(9); e2.add_unit(quantra::enums::TimeUnit_Months);
+    auto e2Off = e2.Finish();
+    quantra::PeriodBuilder e3(b); e3.add_n(1); e3.add_unit(quantra::enums::TimeUnit_Years);
+    auto e3Off = e3.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off, e3Off});
+    quantra::TenorGridBuilder expGridB(b);
+    expGridB.add_tenors(expVec);
+    expGridB.add_calendar(quantra::enums::Calendar_TARGET);
+    expGridB.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b);
+    expSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+    expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(strikes);
+    quantra::StrikeGridBuilder sgb(b);
+    sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike);
+    sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("eq_black_prices");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    auto r = resp->results()->Get(0);
+    ASSERT_EQ(r->error(), nullptr);
+    ASSERT_EQ(r->n_expiries(), 3);
+    ASSERT_EQ(r->n_strikes(), 3);
+    ASSERT_EQ(r->vols()->size(), 9u);
+
+    const std::vector<QuantLib::Date> queryDates = {
+        cal.advance(refDate, QuantLib::Period(6, QuantLib::Months), bdc),
+        cal.advance(refDate, QuantLib::Period(9, QuantLib::Months), bdc),
+        cal.advance(refDate, QuantLib::Period(1, QuantLib::Years), bdc)
+    };
+    const std::vector<double> queryStrikes = strikes;
+    for (size_t i = 0; i < queryDates.size(); ++i) {
+        for (size_t j = 0; j < queryStrikes.size(); ++j) {
+            const double expected = expectedSurface->blackVol(queryDates[i], queryStrikes[j]);
+            const double actual = r->vols()->Get(static_cast<flatbuffers::uoffset_t>(i * queryStrikes.size() + j));
+            EXPECT_NEAR(actual, expected, 2.0e-4);
+        }
+    }
+
+    // Also verify exact node recovery at original pillar grid from endpoint output.
+    // Query order is [6M, 9M, 1Y], so original pillars map to row 0 and row 2.
+    for (size_t j = 0; j < strikes.size(); ++j) {
+        const double expected6M = impliedNodeVols[static_cast<int>(j)][0];
+        const double actual6M = r->vols()->Get(static_cast<flatbuffers::uoffset_t>(j));
+        EXPECT_NEAR(actual6M, expected6M, 2.0e-4);
+
+        const double expected1Y = impliedNodeVols[static_cast<int>(j)][1];
+        const double actual1Y = r->vols()->Get(static_cast<flatbuffers::uoffset_t>(2 * strikes.size() + j));
+        EXPECT_NEAR(actual1Y, expected1Y, 2.0e-4);
+    }
+}
+
+TEST_F(QuantraComparisonTest, BlackVolSurface_NodeOrientationMatchesInput) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurfaceGrid(
+        b, "eq_black_orientation",
+        {QuantLib::Period(1, QuantLib::Months), QuantLib::Period(2, QuantLib::Months)},
+        {90.0, 100.0},
+        {0.10, 0.11, 0.20, 0.21},
+        "2026-01-02");
+    b.Finish(volSurface);
+
+    auto spec = flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer());
+    auto entry = parseBlackVol(spec, nullptr);
+    ASSERT_FALSE(entry.handle.empty());
+
+    const QuantLib::Date ref(2, QuantLib::January, 2026);
+    const QuantLib::Calendar cal = QuantLib::TARGET();
+    const QuantLib::BusinessDayConvention bdc = QuantLib::ModifiedFollowing;
+    const QuantLib::Date d1M = cal.advance(ref, QuantLib::Period(1, QuantLib::Months), bdc);
+    const QuantLib::Date d2M = cal.advance(ref, QuantLib::Period(2, QuantLib::Months), bdc);
+
+    EXPECT_NEAR(entry.handle->blackVol(d1M, 90.0), 0.10, 1.0e-12);
+    EXPECT_NEAR(entry.handle->blackVol(d1M, 100.0), 0.11, 1.0e-12);
+    EXPECT_NEAR(entry.handle->blackVol(d2M, 90.0), 0.20, 1.0e-12);
+    EXPECT_NEAR(entry.handle->blackVol(d2M, 100.0), 0.21, 1.0e-12);
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackRejectsSmileSlice) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurface(b, "eq_black_const", 0.20);
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curve = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto indices = buildIndicesVector(b);
+
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1.Finish()});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b); expSpecB.add_grid_type(quantra::DateGrid_TenorGrid); expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{100.0});
+    quantra::StrikeGridBuilder sgb(b); sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike); sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("eq_black_const");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    qsb.add_output_mode(quantra::VolOutputMode_SmileSlice);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    ASSERT_NE(resp->results()->Get(0)->error(), nullptr);
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_EquityBlackRejectsSpreadFromAtmAxis) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto volSurface = buildBlackVolSurface(b, "eq_black_const", 0.20);
+    auto volSurfaces = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto curve = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto indices = buildIndicesVector(b);
+
+    auto asof = b.CreateString("2025-01-15");
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_vol_surfaces(volSurfaces);
+    auto pricing = pb.Finish();
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1.Finish()});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b); expSpecB.add_grid_type(quantra::DateGrid_TenorGrid); expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{-5.0, 0.0, 5.0});
+    quantra::StrikeGridBuilder sgb(b); sgb.add_axis(quantra::VolStrikeAxis_SpreadFromATM); sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+    auto volId = b.CreateString("eq_black_const");
+
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_EquityBlack);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_strike_grid(strikeGrid);
+    auto query = qsb.Finish();
+
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_EQ(resp->results()->size(), 1u);
+    ASSERT_NE(resp->results()->Get(0)->error(), nullptr);
+}
+
 TEST_F(QuantraComparisonTest, SampleVolSurfaces_MaxPointsGuard) {
     flatbuffers::grpc::MessageBuilder b;
     auto volSurface = buildSwaptionVolSurface(b, "swp_const", 0.20);
@@ -4031,6 +4734,260 @@ TEST_F(QuantraComparisonTest, SampleVolSurfaces_NoExtrapolationGuard) {
     auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     ASSERT_NE(resp->results()->Get(0)->error(), nullptr);
+}
+
+// ======================== EQUITY OPTION ========================
+TEST_F(QuantraComparisonTest, EquityOption_EuropeanVanilla_NPVMatches) {
+    const double spot = 100.0;
+    const double strike = 100.0;
+    const double vol = 0.20;
+    const auto expiry = evaluationDate_ + QuantLib::Period(1, QuantLib::Years);
+
+    auto payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(QuantLib::Option::Call, strike);
+    auto exercise = std::make_shared<QuantLib::EuropeanExercise>(expiry);
+    auto qlOption = std::make_shared<QuantLib::VanillaOption>(payoff, exercise);
+    auto qlSpot = QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(spot));
+    auto qlVol = QuantLib::Handle<QuantLib::BlackVolTermStructure>(
+        std::make_shared<QuantLib::BlackConstantVol>(
+            evaluationDate_, QuantLib::TARGET(), vol, QuantLib::Actual365Fixed()));
+    auto process = std::make_shared<QuantLib::BlackScholesMertonProcess>(
+        qlSpot, discountHandle_, discountHandle_, qlVol);
+    qlOption->setPricingEngine(std::make_shared<QuantLib::AnalyticEuropeanEngine>(process));
+    const double qlNpv = qlOption->NPV();
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto asof = b.CreateString("2025-01-15");
+
+    auto curveDiscount = buildCurve(b, "discount");
+    auto curveDividend = buildCurve(b, "div");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
+        curveDiscount, curveDividend});
+
+    auto quoteId = b.CreateString("EQ_SPOT");
+    quantra::QuoteSpecBuilder qb(b);
+    qb.add_id(quoteId);
+    qb.add_kind(quantra::QuoteKind_Price);
+    qb.add_value(spot);
+    qb.add_quote_type(quantra::QuoteType_Curve);
+    auto quote = qb.Finish();
+    auto quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::QuoteSpec>>{quote});
+
+    auto volRef = b.CreateString("2025-01-15");
+    quantra::BlackVolBaseSpecBuilder bvbb(b);
+    bvbb.add_reference_date(volRef);
+    bvbb.add_calendar(quantra::enums::Calendar_TARGET);
+    bvbb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    bvbb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    bvbb.add_shape(quantra::enums::VolSurfaceShape_Constant);
+    bvbb.add_constant_vol(vol);
+    auto blackBase = bvbb.Finish();
+    quantra::BlackVolSpecBuilder bvsb(b);
+    bvsb.add_base(blackBase);
+    auto blackSpec = bvsb.Finish();
+    auto volId = b.CreateString("eq_vol");
+    quantra::VolSurfaceSpecBuilder vssb(b);
+    vssb.add_id(volId);
+    vssb.add_payload_type(quantra::VolPayload_BlackVolSpec);
+    vssb.add_payload(blackSpec.Union());
+    auto volSurface = vssb.Finish();
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
+    quantra::EquityVanillaModelSpecBuilder emsb(b);
+    emsb.add_model_type(quantra::enums::EquityModelType_BlackScholesAnalytic);
+    auto eqModelSpec = emsb.Finish();
+    auto modelId = b.CreateString("eq_model");
+    quantra::ModelSpecBuilder msb(b);
+    msb.add_id(modelId);
+    msb.add_payload_type(quantra::ModelPayload_EquityVanillaModelSpec);
+    msb.add_payload(eqModelSpec.Union());
+    auto model = msb.Finish();
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+
+    auto undId = b.CreateString("EQ1");
+    auto undCcy = b.CreateString("USD");
+    auto divCurveId = b.CreateString("div");
+    quantra::EquityUnderlyingSpecBuilder usb(b);
+    usb.add_id(undId);
+    usb.add_currency(undCcy);
+    usb.add_spot_quote_id(quoteId);
+    usb.add_dividend_yield_curve_id(divCurveId);
+    auto und = usb.Finish();
+    auto underlyings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::EquityUnderlyingSpec>>{und});
+    auto indices = buildIndicesVector(b);
+
+    quantra::PricingBuilder prb(b);
+    prb.add_as_of_date(asof);
+    prb.add_indices(indices);
+    prb.add_curves(curves);
+    prb.add_quotes(quotes);
+    prb.add_vol_surfaces(vols);
+    prb.add_models(models);
+    prb.add_equity_underlyings(underlyings);
+    auto pricing = prb.Finish();
+
+    quantra::EquityPlainVanillaPayoffBuilder pvb(b);
+    pvb.add_option_type(quantra::enums::EquityOptionType_Call);
+    pvb.add_strike(strike);
+    auto payoffFb = pvb.Finish();
+
+    auto expiryStr = b.CreateString("2026-01-15");
+    quantra::EquityEuropeanExerciseBuilder eeb(b);
+    eeb.add_expiry_date(expiryStr);
+    auto exFb = eeb.Finish();
+
+    auto tradeId = b.CreateString("EQ_CALL_1Y");
+    quantra::EquityOptionBuilder eob(b);
+    eob.add_trade_id(tradeId);
+    eob.add_underlying_id(undId);
+    eob.add_quantity(1.0);
+    eob.add_settlement(quantra::enums::EquitySettlementType_Physical);
+    eob.add_payoff_type(quantra::EquityPayoff_EquityPlainVanillaPayoff);
+    eob.add_payoff(payoffFb.Union());
+    eob.add_exercise_type(quantra::EquityExercise_EquityEuropeanExercise);
+    eob.add_exercise(exFb.Union());
+    auto option = eob.Finish();
+
+    auto discId = b.CreateString("discount");
+    quantra::PriceEquityOptionBuilder peob(b);
+    peob.add_option(option);
+    peob.add_discounting_curve(discId);
+    peob.add_volatility(volId);
+    peob.add_model(modelId);
+    auto po = peob.Finish();
+    auto options = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceEquityOption>>{po});
+
+    quantra::PriceEquityOptionRequestBuilder reqb(b);
+    reqb.add_pricing(pricing);
+    reqb.add_options(options);
+    b.Finish(reqb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::PriceEquityOptionRequest>(b.GetBufferPointer());
+    EquityOptionPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::PriceEquityOptionResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_NE(resp->options(), nullptr);
+    ASSERT_EQ(resp->options()->size(), 1u);
+    const auto* r = resp->options()->Get(0);
+    ASSERT_NE(r, nullptr);
+    EXPECT_NEAR(r->npv(), qlNpv, 1.0e-8);
+}
+
+TEST_F(QuantraComparisonTest, EquityOption_BlackTermShapeMissingGridRejected) {
+    flatbuffers::grpc::MessageBuilder b;
+    auto asof = b.CreateString("2025-01-15");
+
+    auto curveDiscount = buildCurve(b, "discount");
+    auto curveDividend = buildCurve(b, "div");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
+        curveDiscount, curveDividend});
+
+    auto quoteId = b.CreateString("EQ_SPOT");
+    quantra::QuoteSpecBuilder qb(b);
+    qb.add_id(quoteId);
+    qb.add_kind(quantra::QuoteKind_Price);
+    qb.add_value(100.0);
+    qb.add_quote_type(quantra::QuoteType_Curve);
+    auto quote = qb.Finish();
+    auto quotes = b.CreateVector(std::vector<flatbuffers::Offset<quantra::QuoteSpec>>{quote});
+
+    auto volRef = b.CreateString("2025-01-15");
+    quantra::BlackVolBaseSpecBuilder bvbb(b);
+    bvbb.add_reference_date(volRef);
+    bvbb.add_calendar(quantra::enums::Calendar_TARGET);
+    bvbb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    bvbb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    bvbb.add_shape(quantra::enums::VolSurfaceShape_AtmMatrix2D);
+    bvbb.add_constant_vol(0.20);
+    auto blackBase = bvbb.Finish();
+    quantra::BlackVolSpecBuilder bvsb(b);
+    bvsb.add_base(blackBase);
+    auto blackSpec = bvsb.Finish();
+    auto volId = b.CreateString("eq_surface_like_vol");
+    quantra::VolSurfaceSpecBuilder vssb(b);
+    vssb.add_id(volId);
+    vssb.add_payload_type(quantra::VolPayload_BlackVolSpec);
+    vssb.add_payload(blackSpec.Union());
+    auto volSurface = vssb.Finish();
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
+    quantra::EquityVanillaModelSpecBuilder emsb(b);
+    emsb.add_model_type(quantra::enums::EquityModelType_BlackScholesAnalytic);
+    auto eqModelSpec = emsb.Finish();
+    auto modelId = b.CreateString("eq_model");
+    quantra::ModelSpecBuilder msb(b);
+    msb.add_id(modelId);
+    msb.add_payload_type(quantra::ModelPayload_EquityVanillaModelSpec);
+    msb.add_payload(eqModelSpec.Union());
+    auto model = msb.Finish();
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+
+    auto undId = b.CreateString("EQ1");
+    auto undCcy = b.CreateString("USD");
+    auto divCurveId = b.CreateString("div");
+    quantra::EquityUnderlyingSpecBuilder usb(b);
+    usb.add_id(undId);
+    usb.add_currency(undCcy);
+    usb.add_spot_quote_id(quoteId);
+    usb.add_dividend_yield_curve_id(divCurveId);
+    auto und = usb.Finish();
+    auto underlyings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::EquityUnderlyingSpec>>{und});
+    auto indices = buildIndicesVector(b);
+
+    quantra::PricingBuilder prb(b);
+    prb.add_as_of_date(asof);
+    prb.add_indices(indices);
+    prb.add_curves(curves);
+    prb.add_quotes(quotes);
+    prb.add_vol_surfaces(vols);
+    prb.add_models(models);
+    prb.add_equity_underlyings(underlyings);
+    auto pricing = prb.Finish();
+
+    quantra::EquityPlainVanillaPayoffBuilder pvb(b);
+    pvb.add_option_type(quantra::enums::EquityOptionType_Call);
+    pvb.add_strike(100.0);
+    auto payoffFb = pvb.Finish();
+
+    auto expiryStr = b.CreateString("2026-01-15");
+    quantra::EquityEuropeanExerciseBuilder eeb(b);
+    eeb.add_expiry_date(expiryStr);
+    auto exFb = eeb.Finish();
+
+    auto tradeId = b.CreateString("EQ_CALL_SURFACE_SHAPE");
+    quantra::EquityOptionBuilder eob(b);
+    eob.add_trade_id(tradeId);
+    eob.add_underlying_id(undId);
+    eob.add_quantity(1.0);
+    eob.add_settlement(quantra::enums::EquitySettlementType_Physical);
+    eob.add_payoff_type(quantra::EquityPayoff_EquityPlainVanillaPayoff);
+    eob.add_payoff(payoffFb.Union());
+    eob.add_exercise_type(quantra::EquityExercise_EquityEuropeanExercise);
+    eob.add_exercise(exFb.Union());
+    auto option = eob.Finish();
+
+    auto discId = b.CreateString("discount");
+    quantra::PriceEquityOptionBuilder peob(b);
+    peob.add_option(option);
+    peob.add_discounting_curve(discId);
+    peob.add_volatility(volId);
+    peob.add_model(modelId);
+    auto po = peob.Finish();
+    auto options = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceEquityOption>>{po});
+
+    quantra::PriceEquityOptionRequestBuilder reqb(b);
+    reqb.add_pricing(pricing);
+    reqb.add_options(options);
+    b.Finish(reqb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::PriceEquityOptionRequest>(b.GetBufferPointer());
+    EquityOptionPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    EXPECT_THROW(handler.request(outBuilder, req), QuantraError);
 }
 
 }} // namespace

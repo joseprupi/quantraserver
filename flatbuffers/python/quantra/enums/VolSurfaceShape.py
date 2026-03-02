@@ -7,5 +7,6 @@ class VolSurfaceShape(object):
     Constant = 0
     AtmMatrix2D = 1
     SmileCube3D = 2
-    SabrParams = 3
-    SabrCalibrate = 4
+    SurfaceFromPrices = 3
+    SabrParams = 4
+    SabrCalibrate = 5

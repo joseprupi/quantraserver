@@ -60,8 +60,27 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     reg.swapIndices = swapIndexBuilder.build(pricing->swap_indices(), reg.indices);
 
     // ==========================================================================
+    // Parse Curves (dependency-aware via CurveBootstrapper)
+    // Now passes indices to CurveBootstrapper for helper index resolution
+    // ==========================================================================
+    if (!pricing->curves()) {
+        QUANTRA_ERROR("curves is required (at least one curve needed)");
+    }
+
+    CurveBootstrapper bootstrapper;
+    auto booted = bootstrapper.bootstrapAll(
+        pricing->curves(),
+        pricing->quotes(),
+        pricing->indices()
+    );
+
+    for (auto& kv : booted.handles) {
+        reg.curves.emplace(kv.first, kv.second);
+    }
+
+    // ==========================================================================
     // Parse Vol Surfaces (optional)
-    // Parsed before curves so swap_index_id contracts are available early.
+    // Parsed after curves so equity SurfaceFromPrices can resolve curve ids.
     // ==========================================================================
     if (pricing->vol_surfaces()) {
         for (auto it = pricing->vol_surfaces()->begin(); it != pricing->vol_surfaces()->end(); ++it) {
@@ -75,18 +94,18 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 case quantra::VolPayload_OptionletVolSpec:
                     reg.optionletVols.emplace(id, parseOptionletVol(spec, &quoteRegistry));
                     break;
-                    
+
                 case quantra::VolPayload_SwaptionVolSpec:
                     reg.swaptionVols.emplace(id, parseSwaptionVol(spec, &quoteRegistry));
                     break;
-                    
+
                 case quantra::VolPayload_BlackVolSpec:
-                    reg.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry));
+                    reg.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry, &reg.curves));
                     break;
-                    
+
                 case quantra::VolPayload_NONE:
                     QUANTRA_ERROR("VolSurfaceSpec.payload is required for vol id: " + id);
-                    
+
                 default:
                     QUANTRA_ERROR("Unknown VolPayload type for vol id: " + id);
             }
@@ -105,25 +124,6 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                     entry.swapIndexId);
             }
         }
-    }
-
-    // ==========================================================================
-    // Parse Curves (dependency-aware via CurveBootstrapper)
-    // Now passes indices to CurveBootstrapper for helper index resolution
-    // ==========================================================================
-    if (!pricing->curves()) {
-        QUANTRA_ERROR("curves is required (at least one curve needed)");
-    }
-
-    CurveBootstrapper bootstrapper;
-    auto booted = bootstrapper.bootstrapAll(
-        pricing->curves(),
-        pricing->quotes(),
-        pricing->indices()
-    );
-
-    for (auto& kv : booted.handles) {
-        reg.curves.emplace(kv.first, kv.second);
     }
 
     // ==========================================================================
