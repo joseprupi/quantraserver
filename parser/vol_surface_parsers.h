@@ -20,6 +20,7 @@
 #include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
 #include <vector>
 #include <string>
+#include <map>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/time/date.hpp>
 #include <ql/time/calendar.hpp>
@@ -44,6 +45,7 @@ struct OptionletVolEntry {
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
     quantra::enums::Calendar calendarFb = quantra::enums::Calendar_NullCalendar;
+    QuantLib::BusinessDayConvention businessDayConvention = QuantLib::Following;
     quantra::enums::BusinessDayConvention businessDayConventionFb =
         quantra::enums::BusinessDayConvention_Following;
     QuantLib::DayCounter dayCounter;
@@ -82,6 +84,9 @@ struct BlackVolEntry {
     QuantLib::Date referenceDate;
     QuantLib::Calendar calendar;
     quantra::enums::Calendar calendarFb = quantra::enums::Calendar_NullCalendar;
+    QuantLib::BusinessDayConvention businessDayConvention = QuantLib::Following;
+    quantra::enums::BusinessDayConvention businessDayConventionFb =
+        quantra::enums::BusinessDayConvention_Following;
     QuantLib::DayCounter dayCounter;
 };
 
@@ -119,7 +124,11 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
 /**
  * Parse BlackVolSpec from FlatBuffers into QuantLib structure.
  */
-BlackVolEntry parseBlackVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
+BlackVolEntry parseBlackVol(
+    const quantra::VolSurfaceSpec* spec,
+    const QuoteRegistry* quotes = nullptr,
+    const std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves =
+        nullptr);
 
 } // namespace quantra
 

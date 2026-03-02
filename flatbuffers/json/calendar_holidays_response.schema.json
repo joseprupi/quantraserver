@@ -9,6 +9,10 @@
       "type" : "string",
       "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
     },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -99,7 +103,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
     },
     "quantra_enums_SwaptionVolKind" : {
       "type" : "string",

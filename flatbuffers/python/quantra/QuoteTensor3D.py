@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# 3D quote tensor (expiries x tenors x strikes).
+# 3D quote tensor (n_1 x n_2 x n_3). Interpretation depends on caller.
 class QuoteTensor3D(object):
     __slots__ = ['_tab']
 

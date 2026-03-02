@@ -28,6 +28,12 @@ enum Interpolator : byte {
     LogLinear,
 }
 
+/// 2D surface interpolation mode.
+enum SurfaceInterpolator2D : byte {
+    Bilinear = 0,
+    Bicubic = 1
+}
+
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : byte {
     Discount,
@@ -246,6 +252,7 @@ enum VolSurfaceShape : byte {
     Constant,
     AtmMatrix2D,
     SmileCube3D,
+    SurfaceFromPrices,
     SabrParams,
     SabrCalibrate
 }

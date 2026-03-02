@@ -37,12 +37,19 @@ GridConventions resolveGridConventions(
     const DateGridSpec* gridSpec,
     const QueryOptions* options,
     const Calendar& fallbackCalendar,
-    enums::Calendar fallbackFbCalendar) {
+    enums::Calendar fallbackFbCalendar,
+    BusinessDayConvention fallbackBdc,
+    enums::BusinessDayConvention fallbackFbBdc) {
     GridConventions gc;
     gc.qlCalendar = fallbackCalendar;
     gc.fbCalendar = fallbackFbCalendar;
-    gc.qlBdc = Following;
-    gc.fbBdc = enums::BusinessDayConvention_Following;
+    gc.qlBdc = fallbackBdc;
+    gc.fbBdc = fallbackFbBdc;
+    auto shouldUseOverrideBdc = [](enums::BusinessDayConvention bdc, enums::Calendar cal) {
+        // QueryOptions/TenorGrid/RangeGrid default to Following even when omitted.
+        // Treat Following as "no explicit override" unless calendar is explicitly set.
+        return cal != enums::Calendar_NullCalendar || bdc != enums::BusinessDayConvention_Following;
+    };
 
     if (options && options->calendar() != enums::Calendar_NullCalendar) {
         gc.qlCalendar = CalendarToQL(options->calendar());
@@ -60,20 +67,26 @@ GridConventions resolveGridConventions(
             gc.fbCalendar = grid->calendar();
         }
     }
-    if (options) {
+    if (options && shouldUseOverrideBdc(options->business_day_convention(), options->calendar())) {
         gc.qlBdc = ConventionToQL(options->business_day_convention());
         gc.fbBdc = options->business_day_convention();
         return gc;
     }
     if (!gridSpec) return gc;
     if (gridSpec->grid_type() == DateGrid_TenorGrid) {
-        gc.qlBdc = ConventionToQL(gridSpec->grid_as_TenorGrid()->business_day_convention());
-        gc.fbBdc = gridSpec->grid_as_TenorGrid()->business_day_convention();
+        const auto* g = gridSpec->grid_as_TenorGrid();
+        if (shouldUseOverrideBdc(g->business_day_convention(), g->calendar())) {
+            gc.qlBdc = ConventionToQL(g->business_day_convention());
+            gc.fbBdc = g->business_day_convention();
+        }
         return gc;
     }
     if (gridSpec->grid_type() == DateGrid_RangeGrid) {
-        gc.qlBdc = ConventionToQL(gridSpec->grid_as_RangeGrid()->business_day_convention());
-        gc.fbBdc = gridSpec->grid_as_RangeGrid()->business_day_convention();
+        const auto* g = gridSpec->grid_as_RangeGrid();
+        if (shouldUseOverrideBdc(g->business_day_convention(), g->calendar())) {
+            gc.qlBdc = ConventionToQL(g->business_day_convention());
+            gc.fbBdc = g->business_day_convention();
+        }
         return gc;
     }
     return gc;
@@ -85,13 +98,15 @@ std::vector<Date> buildDateGrid(
     const Date& asOfDate,
     const QueryOptions* options,
     const Calendar& fallbackCalendar,
-    enums::Calendar fallbackFbCalendar) {
+    enums::Calendar fallbackFbCalendar,
+    BusinessDayConvention fallbackBdc,
+    enums::BusinessDayConvention fallbackFbBdc) {
     if (!gridSpec) {
         QUANTRA_ERROR("DateGridSpec is required");
     }
     std::vector<Date> dates;
     GridConventions gc = resolveGridConventions(
-        gridSpec, options, fallbackCalendar, fallbackFbCalendar);
+        gridSpec, options, fallbackCalendar, fallbackFbCalendar, fallbackBdc, fallbackFbBdc);
     Calendar calendar = gc.qlCalendar;
     BusinessDayConvention bdc = gc.qlBdc;
     int maxPoints = (options && options->max_points() > 0) ? options->max_points() : 50000;
@@ -331,7 +346,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (volEntry.referenceDate == Date()) {
                     QUANTRA_ERROR("Swaption vol has invalid referenceDate: " + volId);
                 }
-                if (volEntry.referenceDate != asOf) {
+                const auto* options = q->options();
+                const bool strictMode = !options || options->strict();
+                if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal swaption vol referenceDate ("
@@ -346,8 +363,6 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 }
                 canonicalStrikeKind = volEntry.strikeKind;
                 sampleReferenceDate = volEntry.referenceDate;
-
-                const auto* options = q->options();
                 const bool allowExtrapolation = !options || options->allow_extrapolation();
                 allowExtrapolationUsed = allowExtrapolation;
 
@@ -382,7 +397,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 } else {
                     rawExpiryGrid = buildDateGrid(
                         q->expiry_grid(), volEntry.referenceDate, asOf, options,
-                        sidx.fixedCalendar, sidx.fixedCalendarFb);
+                        sidx.fixedCalendar, sidx.fixedCalendarFb, sidx.fixedBdc, sidx.fixedBdcFb);
                     expiries.reserve(rawExpiryGrid.size());
                     for (const auto& d : rawExpiryGrid) {
                         expiries.push_back(sidx.fixedCalendar.adjust(d, sidx.fixedBdc));
@@ -770,8 +785,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (q->slice_expiry_index() >= 0 || q->slice_tenor_index() >= 0 || q->slice_strike_is_set()) {
                     QUANTRA_ERROR("EquityBlack query does not support slice selectors");
                 }
-
-                if (volEntry.referenceDate != asOf) {
+                const auto* options = q->options();
+                const bool strictMode = !options || options->strict();
+                if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal equity black vol referenceDate ("
@@ -779,8 +795,6 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     QUANTRA_ERROR(err.str());
                 }
                 sampleReferenceDate = volEntry.referenceDate;
-
-                const auto* options = q->options();
                 const bool allowExtrapolation = !options || options->allow_extrapolation();
                 allowExtrapolationUsed = allowExtrapolation;
                 canonicalStrikeKind = enums::SwaptionStrikeKind_Absolute;
@@ -788,7 +802,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 volTypeOut = enums::VolatilityType_Lognormal;
 
                 GridConventions gc = resolveGridConventions(
-                    q->expiry_grid(), options, volEntry.calendar, volEntry.calendarFb);
+                    q->expiry_grid(), options, volEntry.calendar, volEntry.calendarFb,
+                    volEntry.businessDayConvention, volEntry.businessDayConventionFb);
                 usedCalendar = gc.fbCalendar;
                 usedBdc = gc.fbBdc;
 
@@ -797,7 +812,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
 
                 std::vector<Date> expiries = buildDateGrid(
                     q->expiry_grid(), sampleReferenceDate, asOf, options,
-                    volEntry.calendar, gc.fbCalendar);
+                    volEntry.calendar, gc.fbCalendar,
+                    volEntry.businessDayConvention, volEntry.businessDayConventionFb);
                 validateStrictlyIncreasingDates(expiries, "expiry_grid");
                 for (const auto& d : expiries) {
                     expiriesOut.push_back(builder->CreateString(toIso(d)));
@@ -834,7 +850,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     QUANTRA_ERROR("Optionlet vol not found: " + volId);
                 }
                 const OptionletVolEntry& volEntry = vIt->second;
-                if (volEntry.referenceDate != asOf) {
+                const auto* options = q->options();
+                const bool strictMode = !options || options->strict();
+                if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal optionlet vol referenceDate ("
@@ -853,12 +871,12 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (q->slice_expiry_index() >= 0 || q->slice_tenor_index() >= 0 || q->slice_strike_is_set()) {
                     QUANTRA_ERROR("Optionlet query does not support slice selectors");
                 }
-                const auto* options = q->options();
                 const bool allowExtrapolation = !options || options->allow_extrapolation();
                 sampleReferenceDate = volEntry.referenceDate;
                 canonicalStrikeKind = enums::SwaptionStrikeKind_Absolute;
                 GridConventions gc = resolveGridConventions(
-                    q->expiry_grid(), options, volEntry.calendar, volEntry.calendarFb);
+                    q->expiry_grid(), options, volEntry.calendar, volEntry.calendarFb,
+                    volEntry.businessDayConvention, volEntry.businessDayConventionFb);
                 usedCalendar = gc.fbCalendar;
                 usedBdc = gc.fbBdc;
                 allowExtrapolationUsed = allowExtrapolation;
@@ -867,7 +885,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 else volEntry.handle->disableExtrapolation();
                 std::vector<Date> expiries = buildDateGrid(
                     q->expiry_grid(), volEntry.referenceDate, asOf, options,
-                    volEntry.calendar, gc.fbCalendar);
+                    volEntry.calendar, gc.fbCalendar,
+                    volEntry.businessDayConvention, volEntry.businessDayConventionFb);
                 validateStrictlyIncreasingDates(expiries, "expiry_grid");
                 for (size_t i = 0; i < expiries.size(); ++i) {
                     expiriesOut.push_back(builder->CreateString(toIso(expiries[i])));

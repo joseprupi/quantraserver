@@ -372,7 +372,7 @@ struct QuoteMatrix2DT : public ::flatbuffers::NativeTable {
   std::vector<std::string> quote_ids{};
 };
 
-/// 2D quote matrix (expiries x tenors).
+/// 2D quote matrix (n_rows x n_cols). Interpretation depends on caller.
 struct QuoteMatrix2D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuoteMatrix2DT NativeTableType;
   typedef QuoteMatrix2DBuilder Builder;
@@ -480,7 +480,7 @@ struct QuoteTensor3DT : public ::flatbuffers::NativeTable {
   std::vector<std::string> quote_ids{};
 };
 
-/// 3D quote tensor (expiries x tenors x strikes).
+/// 3D quote tensor (n_1 x n_2 x n_3). Interpretation depends on caller.
 struct QuoteTensor3D FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef QuoteTensor3DT NativeTableType;
   typedef QuoteTensor3DBuilder Builder;
@@ -1822,6 +1822,20 @@ struct BlackVolSpecT : public ::flatbuffers::NativeTable {
   std::vector<double> strikes{};
   std::unique_ptr<quantra::QuoteMatrix2DT> term_vols{};
   std::unique_ptr<quantra::QuoteMatrix2DT> surface_vols{};
+  std::unique_ptr<quantra::QuoteMatrix2DT> surface_prices{};
+  std::vector<std::string> price_expiries{};
+  std::vector<double> price_strikes{};
+  quantra::enums::EquityOptionType price_option_type = quantra::enums::EquityOptionType_Call;
+  double spot = 0.0;
+  std::string spot_quote_id{};
+  std::string discount_curve_id{};
+  bool use_flat_discount_rate = false;
+  double flat_discount_rate = 0.0;
+  std::string dividend_curve_id{};
+  bool use_flat_dividend_rate = false;
+  double flat_dividend_rate = 0.0;
+  bool allow_extrapolation = false;
+  quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear;
   quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear;
   quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear;
   BlackVolSpecT() = default;
@@ -1840,8 +1854,22 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_STRIKES = 8,
     VT_TERM_VOLS = 10,
     VT_SURFACE_VOLS = 12,
-    VT_EXPIRY_INTERPOLATOR = 14,
-    VT_STRIKE_INTERPOLATOR = 16
+    VT_SURFACE_PRICES = 14,
+    VT_PRICE_EXPIRIES = 16,
+    VT_PRICE_STRIKES = 18,
+    VT_PRICE_OPTION_TYPE = 20,
+    VT_SPOT = 22,
+    VT_SPOT_QUOTE_ID = 24,
+    VT_DISCOUNT_CURVE_ID = 26,
+    VT_USE_FLAT_DISCOUNT_RATE = 28,
+    VT_FLAT_DISCOUNT_RATE = 30,
+    VT_DIVIDEND_CURVE_ID = 32,
+    VT_USE_FLAT_DIVIDEND_RATE = 34,
+    VT_FLAT_DIVIDEND_RATE = 36,
+    VT_ALLOW_EXTRAPOLATION = 38,
+    VT_SURFACE_INTERPOLATOR = 40,
+    VT_EXPIRY_INTERPOLATOR = 42,
+    VT_STRIKE_INTERPOLATOR = 44
   };
   const quantra::BlackVolBaseSpec *base() const {
     return GetPointer<const quantra::BlackVolBaseSpec *>(VT_BASE);
@@ -1862,11 +1890,70 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::QuoteMatrix2D *surface_vols() const {
     return GetPointer<const quantra::QuoteMatrix2D *>(VT_SURFACE_VOLS);
   }
-  /// Interpolator across expiry dimension for non-constant shapes (Linear only in v1).
+  /// Surface prices as QuoteMatrix2D with dims (n_price_expiries x n_price_strikes), row-major by expiry then strike.
+  /// Used only when base.shape=SurfaceFromPrices.
+  const quantra::QuoteMatrix2D *surface_prices() const {
+    return GetPointer<const quantra::QuoteMatrix2D *>(VT_SURFACE_PRICES);
+  }
+  /// Absolute expiry dates (YYYY-MM-DD). Used only when base.shape=SurfaceFromPrices.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *price_expiries() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_PRICE_EXPIRIES);
+  }
+  /// Surface strike axis for prices matrix. Used only when base.shape=SurfaceFromPrices.
+  const ::flatbuffers::Vector<double> *price_strikes() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_PRICE_STRIKES);
+  }
+  /// Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices.
+  quantra::enums::EquityOptionType price_option_type() const {
+    return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_PRICE_OPTION_TYPE, 0));
+  }
+  /// Spot level for implied-vol inversion. Optional if spot_quote_id is provided.
+  double spot() const {
+    return GetField<double>(VT_SPOT, 0.0);
+  }
+  /// Optional: resolve spot from pricing.quotes.
+  const ::flatbuffers::String *spot_quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SPOT_QUOTE_ID);
+  }
+  /// Discount curve id in pricing.curves used for implied-vol inversion.
+  const ::flatbuffers::String *discount_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNT_CURVE_ID);
+  }
+  /// If true and discount_curve_id is empty, use flat_discount_rate.
+  bool use_flat_discount_rate() const {
+    return GetField<uint8_t>(VT_USE_FLAT_DISCOUNT_RATE, 0) != 0;
+  }
+  /// Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true.
+  double flat_discount_rate() const {
+    return GetField<double>(VT_FLAT_DISCOUNT_RATE, 0.0);
+  }
+  /// Dividend yield curve id in pricing.curves used for implied-vol inversion.
+  const ::flatbuffers::String *dividend_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DIVIDEND_CURVE_ID);
+  }
+  /// If true and dividend_curve_id is empty, use flat_dividend_rate.
+  bool use_flat_dividend_rate() const {
+    return GetField<uint8_t>(VT_USE_FLAT_DIVIDEND_RATE, 0) != 0;
+  }
+  /// Continuously-compounded flat dividend yield used when use_flat_dividend_rate=true.
+  double flat_dividend_rate() const {
+    return GetField<double>(VT_FLAT_DIVIDEND_RATE, 0.0);
+  }
+  /// Default extrapolation mode for this surface when consumed by pricing endpoints.
+  bool allow_extrapolation() const {
+    return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 0) != 0;
+  }
+  /// 2D surface interpolator for strike/expiry surfaces.
+  quantra::enums::SurfaceInterpolator2D surface_interpolator() const {
+    return static_cast<quantra::enums::SurfaceInterpolator2D>(GetField<int8_t>(VT_SURFACE_INTERPOLATOR, 0));
+  }
+  /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+  /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
   quantra::enums::Interpolator expiry_interpolator() const {
     return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_EXPIRY_INTERPOLATOR, 2));
   }
-  /// Interpolator across strike dimension for shape=SmileCube3D (Linear only in v1).
+  /// Deprecated for BlackVolSpec surfaces; retained for backward compatibility.
+  /// Mapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic.
   quantra::enums::Interpolator strike_interpolator() const {
     return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_STRIKE_INTERPOLATOR, 2));
   }
@@ -1883,6 +1970,27 @@ struct BlackVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyTable(term_vols()) &&
            VerifyOffset(verifier, VT_SURFACE_VOLS) &&
            verifier.VerifyTable(surface_vols()) &&
+           VerifyOffset(verifier, VT_SURFACE_PRICES) &&
+           verifier.VerifyTable(surface_prices()) &&
+           VerifyOffset(verifier, VT_PRICE_EXPIRIES) &&
+           verifier.VerifyVector(price_expiries()) &&
+           verifier.VerifyVectorOfStrings(price_expiries()) &&
+           VerifyOffset(verifier, VT_PRICE_STRIKES) &&
+           verifier.VerifyVector(price_strikes()) &&
+           VerifyField<int8_t>(verifier, VT_PRICE_OPTION_TYPE, 1) &&
+           VerifyField<double>(verifier, VT_SPOT, 8) &&
+           VerifyOffset(verifier, VT_SPOT_QUOTE_ID) &&
+           verifier.VerifyString(spot_quote_id()) &&
+           VerifyOffset(verifier, VT_DISCOUNT_CURVE_ID) &&
+           verifier.VerifyString(discount_curve_id()) &&
+           VerifyField<uint8_t>(verifier, VT_USE_FLAT_DISCOUNT_RATE, 1) &&
+           VerifyField<double>(verifier, VT_FLAT_DISCOUNT_RATE, 8) &&
+           VerifyOffset(verifier, VT_DIVIDEND_CURVE_ID) &&
+           verifier.VerifyString(dividend_curve_id()) &&
+           VerifyField<uint8_t>(verifier, VT_USE_FLAT_DIVIDEND_RATE, 1) &&
+           VerifyField<double>(verifier, VT_FLAT_DIVIDEND_RATE, 8) &&
+           VerifyField<uint8_t>(verifier, VT_ALLOW_EXTRAPOLATION, 1) &&
+           VerifyField<int8_t>(verifier, VT_SURFACE_INTERPOLATOR, 1) &&
            VerifyField<int8_t>(verifier, VT_EXPIRY_INTERPOLATOR, 1) &&
            VerifyField<int8_t>(verifier, VT_STRIKE_INTERPOLATOR, 1) &&
            verifier.EndTable();
@@ -1911,6 +2019,48 @@ struct BlackVolSpecBuilder {
   void add_surface_vols(::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols) {
     fbb_.AddOffset(BlackVolSpec::VT_SURFACE_VOLS, surface_vols);
   }
+  void add_surface_prices(::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_prices) {
+    fbb_.AddOffset(BlackVolSpec::VT_SURFACE_PRICES, surface_prices);
+  }
+  void add_price_expiries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> price_expiries) {
+    fbb_.AddOffset(BlackVolSpec::VT_PRICE_EXPIRIES, price_expiries);
+  }
+  void add_price_strikes(::flatbuffers::Offset<::flatbuffers::Vector<double>> price_strikes) {
+    fbb_.AddOffset(BlackVolSpec::VT_PRICE_STRIKES, price_strikes);
+  }
+  void add_price_option_type(quantra::enums::EquityOptionType price_option_type) {
+    fbb_.AddElement<int8_t>(BlackVolSpec::VT_PRICE_OPTION_TYPE, static_cast<int8_t>(price_option_type), 0);
+  }
+  void add_spot(double spot) {
+    fbb_.AddElement<double>(BlackVolSpec::VT_SPOT, spot, 0.0);
+  }
+  void add_spot_quote_id(::flatbuffers::Offset<::flatbuffers::String> spot_quote_id) {
+    fbb_.AddOffset(BlackVolSpec::VT_SPOT_QUOTE_ID, spot_quote_id);
+  }
+  void add_discount_curve_id(::flatbuffers::Offset<::flatbuffers::String> discount_curve_id) {
+    fbb_.AddOffset(BlackVolSpec::VT_DISCOUNT_CURVE_ID, discount_curve_id);
+  }
+  void add_use_flat_discount_rate(bool use_flat_discount_rate) {
+    fbb_.AddElement<uint8_t>(BlackVolSpec::VT_USE_FLAT_DISCOUNT_RATE, static_cast<uint8_t>(use_flat_discount_rate), 0);
+  }
+  void add_flat_discount_rate(double flat_discount_rate) {
+    fbb_.AddElement<double>(BlackVolSpec::VT_FLAT_DISCOUNT_RATE, flat_discount_rate, 0.0);
+  }
+  void add_dividend_curve_id(::flatbuffers::Offset<::flatbuffers::String> dividend_curve_id) {
+    fbb_.AddOffset(BlackVolSpec::VT_DIVIDEND_CURVE_ID, dividend_curve_id);
+  }
+  void add_use_flat_dividend_rate(bool use_flat_dividend_rate) {
+    fbb_.AddElement<uint8_t>(BlackVolSpec::VT_USE_FLAT_DIVIDEND_RATE, static_cast<uint8_t>(use_flat_dividend_rate), 0);
+  }
+  void add_flat_dividend_rate(double flat_dividend_rate) {
+    fbb_.AddElement<double>(BlackVolSpec::VT_FLAT_DIVIDEND_RATE, flat_dividend_rate, 0.0);
+  }
+  void add_allow_extrapolation(bool allow_extrapolation) {
+    fbb_.AddElement<uint8_t>(BlackVolSpec::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 0);
+  }
+  void add_surface_interpolator(quantra::enums::SurfaceInterpolator2D surface_interpolator) {
+    fbb_.AddElement<int8_t>(BlackVolSpec::VT_SURFACE_INTERPOLATOR, static_cast<int8_t>(surface_interpolator), 0);
+  }
   void add_expiry_interpolator(quantra::enums::Interpolator expiry_interpolator) {
     fbb_.AddElement<int8_t>(BlackVolSpec::VT_EXPIRY_INTERPOLATOR, static_cast<int8_t>(expiry_interpolator), 2);
   }
@@ -1935,9 +2085,32 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> strikes = 0,
     ::flatbuffers::Offset<quantra::QuoteMatrix2D> term_vols = 0,
     ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_prices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> price_expiries = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> price_strikes = 0,
+    quantra::enums::EquityOptionType price_option_type = quantra::enums::EquityOptionType_Call,
+    double spot = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> spot_quote_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> discount_curve_id = 0,
+    bool use_flat_discount_rate = false,
+    double flat_discount_rate = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::String> dividend_curve_id = 0,
+    bool use_flat_dividend_rate = false,
+    double flat_dividend_rate = 0.0,
+    bool allow_extrapolation = false,
+    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
   BlackVolSpecBuilder builder_(_fbb);
+  builder_.add_flat_dividend_rate(flat_dividend_rate);
+  builder_.add_flat_discount_rate(flat_discount_rate);
+  builder_.add_spot(spot);
+  builder_.add_dividend_curve_id(dividend_curve_id);
+  builder_.add_discount_curve_id(discount_curve_id);
+  builder_.add_spot_quote_id(spot_quote_id);
+  builder_.add_price_strikes(price_strikes);
+  builder_.add_price_expiries(price_expiries);
+  builder_.add_surface_prices(surface_prices);
   builder_.add_surface_vols(surface_vols);
   builder_.add_term_vols(term_vols);
   builder_.add_strikes(strikes);
@@ -1945,6 +2118,11 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(
   builder_.add_base(base);
   builder_.add_strike_interpolator(strike_interpolator);
   builder_.add_expiry_interpolator(expiry_interpolator);
+  builder_.add_surface_interpolator(surface_interpolator);
+  builder_.add_allow_extrapolation(allow_extrapolation);
+  builder_.add_use_flat_dividend_rate(use_flat_dividend_rate);
+  builder_.add_use_flat_discount_rate(use_flat_discount_rate);
+  builder_.add_price_option_type(price_option_type);
   return builder_.Finish();
 }
 
@@ -1955,10 +2133,29 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
     const std::vector<double> *strikes = nullptr,
     ::flatbuffers::Offset<quantra::QuoteMatrix2D> term_vols = 0,
     ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_vols = 0,
+    ::flatbuffers::Offset<quantra::QuoteMatrix2D> surface_prices = 0,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *price_expiries = nullptr,
+    const std::vector<double> *price_strikes = nullptr,
+    quantra::enums::EquityOptionType price_option_type = quantra::enums::EquityOptionType_Call,
+    double spot = 0.0,
+    const char *spot_quote_id = nullptr,
+    const char *discount_curve_id = nullptr,
+    bool use_flat_discount_rate = false,
+    double flat_discount_rate = 0.0,
+    const char *dividend_curve_id = nullptr,
+    bool use_flat_dividend_rate = false,
+    double flat_dividend_rate = 0.0,
+    bool allow_extrapolation = false,
+    quantra::enums::SurfaceInterpolator2D surface_interpolator = quantra::enums::SurfaceInterpolator2D_Bilinear,
     quantra::enums::Interpolator expiry_interpolator = quantra::enums::Interpolator_Linear,
     quantra::enums::Interpolator strike_interpolator = quantra::enums::Interpolator_Linear) {
   auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
   auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
+  auto price_expiries__ = price_expiries ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*price_expiries) : 0;
+  auto price_strikes__ = price_strikes ? _fbb.CreateVector<double>(*price_strikes) : 0;
+  auto spot_quote_id__ = spot_quote_id ? _fbb.CreateString(spot_quote_id) : 0;
+  auto discount_curve_id__ = discount_curve_id ? _fbb.CreateString(discount_curve_id) : 0;
+  auto dividend_curve_id__ = dividend_curve_id ? _fbb.CreateString(dividend_curve_id) : 0;
   return quantra::CreateBlackVolSpec(
       _fbb,
       base,
@@ -1966,6 +2163,20 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
       strikes__,
       term_vols,
       surface_vols,
+      surface_prices,
+      price_expiries__,
+      price_strikes__,
+      price_option_type,
+      spot,
+      spot_quote_id__,
+      discount_curve_id__,
+      use_flat_discount_rate,
+      flat_discount_rate,
+      dividend_curve_id__,
+      use_flat_dividend_rate,
+      flat_dividend_rate,
+      allow_extrapolation,
+      surface_interpolator,
       expiry_interpolator,
       strike_interpolator);
 }
@@ -2646,6 +2857,20 @@ inline BlackVolSpecT::BlackVolSpecT(const BlackVolSpecT &o)
         strikes(o.strikes),
         term_vols((o.term_vols) ? new quantra::QuoteMatrix2DT(*o.term_vols) : nullptr),
         surface_vols((o.surface_vols) ? new quantra::QuoteMatrix2DT(*o.surface_vols) : nullptr),
+        surface_prices((o.surface_prices) ? new quantra::QuoteMatrix2DT(*o.surface_prices) : nullptr),
+        price_expiries(o.price_expiries),
+        price_strikes(o.price_strikes),
+        price_option_type(o.price_option_type),
+        spot(o.spot),
+        spot_quote_id(o.spot_quote_id),
+        discount_curve_id(o.discount_curve_id),
+        use_flat_discount_rate(o.use_flat_discount_rate),
+        flat_discount_rate(o.flat_discount_rate),
+        dividend_curve_id(o.dividend_curve_id),
+        use_flat_dividend_rate(o.use_flat_dividend_rate),
+        flat_dividend_rate(o.flat_dividend_rate),
+        allow_extrapolation(o.allow_extrapolation),
+        surface_interpolator(o.surface_interpolator),
         expiry_interpolator(o.expiry_interpolator),
         strike_interpolator(o.strike_interpolator) {
   expiries.reserve(o.expiries.size());
@@ -2658,6 +2883,20 @@ inline BlackVolSpecT &BlackVolSpecT::operator=(BlackVolSpecT o) FLATBUFFERS_NOEX
   std::swap(strikes, o.strikes);
   std::swap(term_vols, o.term_vols);
   std::swap(surface_vols, o.surface_vols);
+  std::swap(surface_prices, o.surface_prices);
+  std::swap(price_expiries, o.price_expiries);
+  std::swap(price_strikes, o.price_strikes);
+  std::swap(price_option_type, o.price_option_type);
+  std::swap(spot, o.spot);
+  std::swap(spot_quote_id, o.spot_quote_id);
+  std::swap(discount_curve_id, o.discount_curve_id);
+  std::swap(use_flat_discount_rate, o.use_flat_discount_rate);
+  std::swap(flat_discount_rate, o.flat_discount_rate);
+  std::swap(dividend_curve_id, o.dividend_curve_id);
+  std::swap(use_flat_dividend_rate, o.use_flat_dividend_rate);
+  std::swap(flat_dividend_rate, o.flat_dividend_rate);
+  std::swap(allow_extrapolation, o.allow_extrapolation);
+  std::swap(surface_interpolator, o.surface_interpolator);
   std::swap(expiry_interpolator, o.expiry_interpolator);
   std::swap(strike_interpolator, o.strike_interpolator);
   return *this;
@@ -2677,6 +2916,20 @@ inline void BlackVolSpec::UnPackTo(BlackVolSpecT *_o, const ::flatbuffers::resol
   { auto _e = strikes(); if (_e) { _o->strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->strikes[_i] = _e->Get(_i); } } else { _o->strikes.resize(0); } }
   { auto _e = term_vols(); if (_e) { if(_o->term_vols) { _e->UnPackTo(_o->term_vols.get(), _resolver); } else { _o->term_vols = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->term_vols) { _o->term_vols.reset(); } }
   { auto _e = surface_vols(); if (_e) { if(_o->surface_vols) { _e->UnPackTo(_o->surface_vols.get(), _resolver); } else { _o->surface_vols = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->surface_vols) { _o->surface_vols.reset(); } }
+  { auto _e = surface_prices(); if (_e) { if(_o->surface_prices) { _e->UnPackTo(_o->surface_prices.get(), _resolver); } else { _o->surface_prices = std::unique_ptr<quantra::QuoteMatrix2DT>(_e->UnPack(_resolver)); } } else if (_o->surface_prices) { _o->surface_prices.reset(); } }
+  { auto _e = price_expiries(); if (_e) { _o->price_expiries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->price_expiries[_i] = _e->Get(_i)->str(); } } else { _o->price_expiries.resize(0); } }
+  { auto _e = price_strikes(); if (_e) { _o->price_strikes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->price_strikes[_i] = _e->Get(_i); } } else { _o->price_strikes.resize(0); } }
+  { auto _e = price_option_type(); _o->price_option_type = _e; }
+  { auto _e = spot(); _o->spot = _e; }
+  { auto _e = spot_quote_id(); if (_e) _o->spot_quote_id = _e->str(); }
+  { auto _e = discount_curve_id(); if (_e) _o->discount_curve_id = _e->str(); }
+  { auto _e = use_flat_discount_rate(); _o->use_flat_discount_rate = _e; }
+  { auto _e = flat_discount_rate(); _o->flat_discount_rate = _e; }
+  { auto _e = dividend_curve_id(); if (_e) _o->dividend_curve_id = _e->str(); }
+  { auto _e = use_flat_dividend_rate(); _o->use_flat_dividend_rate = _e; }
+  { auto _e = flat_dividend_rate(); _o->flat_dividend_rate = _e; }
+  { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
+  { auto _e = surface_interpolator(); _o->surface_interpolator = _e; }
   { auto _e = expiry_interpolator(); _o->expiry_interpolator = _e; }
   { auto _e = strike_interpolator(); _o->strike_interpolator = _e; }
 }
@@ -2694,6 +2947,20 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
   auto _strikes = _o->strikes.size() ? _fbb.CreateVector(_o->strikes) : 0;
   auto _term_vols = _o->term_vols ? CreateQuoteMatrix2D(_fbb, _o->term_vols.get(), _rehasher) : 0;
   auto _surface_vols = _o->surface_vols ? CreateQuoteMatrix2D(_fbb, _o->surface_vols.get(), _rehasher) : 0;
+  auto _surface_prices = _o->surface_prices ? CreateQuoteMatrix2D(_fbb, _o->surface_prices.get(), _rehasher) : 0;
+  auto _price_expiries = _o->price_expiries.size() ? _fbb.CreateVectorOfStrings(_o->price_expiries) : 0;
+  auto _price_strikes = _o->price_strikes.size() ? _fbb.CreateVector(_o->price_strikes) : 0;
+  auto _price_option_type = _o->price_option_type;
+  auto _spot = _o->spot;
+  auto _spot_quote_id = _o->spot_quote_id.empty() ? 0 : _fbb.CreateString(_o->spot_quote_id);
+  auto _discount_curve_id = _o->discount_curve_id.empty() ? 0 : _fbb.CreateString(_o->discount_curve_id);
+  auto _use_flat_discount_rate = _o->use_flat_discount_rate;
+  auto _flat_discount_rate = _o->flat_discount_rate;
+  auto _dividend_curve_id = _o->dividend_curve_id.empty() ? 0 : _fbb.CreateString(_o->dividend_curve_id);
+  auto _use_flat_dividend_rate = _o->use_flat_dividend_rate;
+  auto _flat_dividend_rate = _o->flat_dividend_rate;
+  auto _allow_extrapolation = _o->allow_extrapolation;
+  auto _surface_interpolator = _o->surface_interpolator;
   auto _expiry_interpolator = _o->expiry_interpolator;
   auto _strike_interpolator = _o->strike_interpolator;
   return quantra::CreateBlackVolSpec(
@@ -2703,6 +2970,20 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
       _strikes,
       _term_vols,
       _surface_vols,
+      _surface_prices,
+      _price_expiries,
+      _price_strikes,
+      _price_option_type,
+      _spot,
+      _spot_quote_id,
+      _discount_curve_id,
+      _use_flat_discount_rate,
+      _flat_discount_rate,
+      _dividend_curve_id,
+      _use_flat_dividend_rate,
+      _flat_dividend_rate,
+      _allow_extrapolation,
+      _surface_interpolator,
       _expiry_interpolator,
       _strike_interpolator);
 }

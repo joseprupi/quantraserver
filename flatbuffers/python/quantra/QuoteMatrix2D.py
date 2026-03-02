@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# 2D quote matrix (expiries x tenors).
+# 2D quote matrix (n_rows x n_cols). Interpretation depends on caller.
 class QuoteMatrix2D(object):
     __slots__ = ['_tab']
 

@@ -9,6 +9,10 @@
       "type" : "string",
       "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
     },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic"]
+    },
     "quantra_enums_BootstrapTrait" : {
       "type" : "string",
       "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
@@ -99,7 +103,7 @@
     },
     "quantra_enums_VolSurfaceShape" : {
       "type" : "string",
-      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
     },
     "quantra_enums_SwaptionVolKind" : {
       "type" : "string",
@@ -930,7 +934,7 @@
     },
     "quantra_QuoteMatrix2D" : {
       "type" : "object",
-      "description" : "2D quote matrix (expiries x tenors).",
+      "description" : "2D quote matrix (n_rows x n_cols). Interpretation depends on caller.",
       "properties" : {
         "n_rows" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -951,7 +955,7 @@
     },
     "quantra_QuoteTensor3D" : {
       "type" : "object",
-      "description" : "3D quote tensor (expiries x tenors x strikes).",
+      "description" : "3D quote tensor (n_1 x n_2 x n_3). Interpretation depends on caller.",
       "properties" : {
         "n_1" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -1224,13 +1228,69 @@
                 "$ref" : "#/definitions/quantra_QuoteMatrix2D",
                 "description" : "Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike."
               },
+        "surface_prices" : {
+                "$ref" : "#/definitions/quantra_QuoteMatrix2D",
+                "description" : "Surface prices as QuoteMatrix2D with dims (n_price_expiries x n_price_strikes), row-major by expiry then strike.\nUsed only when base.shape=SurfaceFromPrices."
+              },
+        "price_expiries" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Absolute expiry dates (YYYY-MM-DD). Used only when base.shape=SurfaceFromPrices."
+              },
+        "price_strikes" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Surface strike axis for prices matrix. Used only when base.shape=SurfaceFromPrices."
+              },
+        "price_option_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityOptionType",
+                "description" : "Option type used for implied-vol inversion from prices. Used only when base.shape=SurfaceFromPrices."
+              },
+        "spot" : {
+                "type" : "number",
+                "description" : "Spot level for implied-vol inversion. Optional if spot_quote_id is provided."
+              },
+        "spot_quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve spot from pricing.quotes."
+              },
+        "discount_curve_id" : {
+                "type" : "string",
+                "description" : "Discount curve id in pricing.curves used for implied-vol inversion."
+              },
+        "use_flat_discount_rate" : {
+                "type" : "boolean",
+                "description" : "If true and discount_curve_id is empty, use flat_discount_rate."
+              },
+        "flat_discount_rate" : {
+                "type" : "number",
+                "description" : "Continuously-compounded flat risk-free rate used when use_flat_discount_rate=true."
+              },
+        "dividend_curve_id" : {
+                "type" : "string",
+                "description" : "Dividend yield curve id in pricing.curves used for implied-vol inversion."
+              },
+        "use_flat_dividend_rate" : {
+                "type" : "boolean",
+                "description" : "If true and dividend_curve_id is empty, use flat_dividend_rate."
+              },
+        "flat_dividend_rate" : {
+                "type" : "number",
+                "description" : "Continuously-compounded flat dividend yield used when use_flat_dividend_rate=true."
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean",
+                "description" : "Default extrapolation mode for this surface when consumed by pricing endpoints."
+              },
+        "surface_interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_SurfaceInterpolator2D",
+                "description" : "2D surface interpolator for strike/expiry surfaces."
+              },
         "expiry_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Interpolator across expiry dimension for non-constant shapes (Linear only in v1)."
+                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
               },
         "strike_interpolator" : {
                 "$ref" : "#/definitions/quantra_enums_Interpolator",
-                "description" : "Interpolator across strike dimension for shape=SmileCube3D (Linear only in v1)."
+                "description" : "Deprecated for BlackVolSpec surfaces; retained for backward compatibility.\nMapping: (Linear,Linear)=>Bilinear, (LogCubic,LogCubic)=>Bicubic."
               }
       },
       "additionalProperties" : false
