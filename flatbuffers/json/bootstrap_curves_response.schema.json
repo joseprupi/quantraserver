@@ -113,6 +113,14 @@
       "type" : "string",
       "enum": ["Absolute", "SpreadFromATM"]
     },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
     "quantra_enums_IrModelType" : {
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
@@ -153,6 +161,10 @@
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
     },
+    "quantra_DateGrid" : {
+      "type" : "string",
+      "enum": ["NONE", "TenorGrid", "RangeGrid"]
+    },
     "quantra_CurveMeasure" : {
       "type" : "string",
       "enum": ["DF", "ZERO", "FWD"]
@@ -160,10 +172,6 @@
     "quantra_ForwardType" : {
       "type" : "string",
       "enum": ["Instantaneous", "Period"]
-    },
-    "quantra_DateGrid" : {
-      "type" : "string",
-      "enum": ["NONE", "TenorGrid", "RangeGrid"]
     },
     "quantra_Period" : {
       "type" : "object",
@@ -355,7 +363,7 @@
     },
     "quantra_RangeGrid" : {
       "type" : "object",
-      "description" : "Sample a curve between start/end with a step.",
+      "description" : "Sample between start/end with a step.",
       "properties" : {
         "start_date" : {
                 "type" : "string"
@@ -385,7 +393,7 @@
     },
     "quantra_DateGridSpec" : {
       "type" : "object",
-      "description" : "Date grid specification for curve/vol sampling.",
+      "description" : "Date grid specification for curve/vol/inflation sampling.",
       "properties" : {
         "grid_type" : {
                 "$ref" : "#/definitions/quantra_DateGrid"

@@ -1196,6 +1196,68 @@ inline const char *EnumNameSwaptionStrikeKind(SwaptionStrikeKind e) {
   return EnumNamesSwaptionStrikeKind()[index];
 }
 
+/// Inflation curve kind (zero-coupon or year-on-year).
+enum InflationCurveKind : int8_t {
+  InflationCurveKind_ZeroInflation = 0,
+  InflationCurveKind_YoYInflation = 1,
+  InflationCurveKind_MIN = InflationCurveKind_ZeroInflation,
+  InflationCurveKind_MAX = InflationCurveKind_YoYInflation
+};
+
+inline const InflationCurveKind (&EnumValuesInflationCurveKind())[2] {
+  static const InflationCurveKind values[] = {
+    InflationCurveKind_ZeroInflation,
+    InflationCurveKind_YoYInflation
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesInflationCurveKind() {
+  static const char * const names[3] = {
+    "ZeroInflation",
+    "YoYInflation",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameInflationCurveKind(InflationCurveKind e) {
+  if (::flatbuffers::IsOutRange(e, InflationCurveKind_ZeroInflation, InflationCurveKind_YoYInflation)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesInflationCurveKind()[index];
+}
+
+/// Inflation curve output measure for sampling endpoints.
+enum InflationCurveMeasure : int8_t {
+  InflationCurveMeasure_ZeroRate = 0,
+  InflationCurveMeasure_YoYRate = 1,
+  InflationCurveMeasure_MIN = InflationCurveMeasure_ZeroRate,
+  InflationCurveMeasure_MAX = InflationCurveMeasure_YoYRate
+};
+
+inline const InflationCurveMeasure (&EnumValuesInflationCurveMeasure())[2] {
+  static const InflationCurveMeasure values[] = {
+    InflationCurveMeasure_ZeroRate,
+    InflationCurveMeasure_YoYRate
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesInflationCurveMeasure() {
+  static const char * const names[3] = {
+    "ZeroRate",
+    "YoYRate",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameInflationCurveMeasure(InflationCurveMeasure e) {
+  if (::flatbuffers::IsOutRange(e, InflationCurveMeasure_ZeroRate, InflationCurveMeasure_YoYRate)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesInflationCurveMeasure()[index];
+}
+
 /// Interest rate model type.
 enum IrModelType : int8_t {
   IrModelType_Black = 0,

@@ -4,12 +4,66 @@
  */
 
 #include "quantra_client.h"
-#include "product_registry.h"
+#include "product_catalog.h"
 
 #include <stdexcept>
 #include <iostream>
+#include <string_view>
+#include <cstdio>
 
 namespace quantra {
+
+namespace {
+
+constexpr std::chrono::milliseconds kDefaultRpcDeadline{10000};
+
+void SetDefaultDeadline(grpc::ClientContext& context) {
+    context.set_deadline(std::chrono::system_clock::now() + kDefaultRpcDeadline);
+}
+
+std::string JsonEscape(std::string_view input) {
+    std::string out;
+    out.reserve(input.size() + 8);
+    for (char c : input) {
+        switch (c) {
+            case '\"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    char buf[7];
+                    std::snprintf(buf, sizeof(buf), "\\u%04x",
+                                  static_cast<unsigned int>(static_cast<unsigned char>(c)));
+                    out += buf;
+                } else {
+                    out += c;
+                }
+        }
+    }
+    return out;
+}
+
+int GrpcToHttpStatus(grpc::StatusCode code) {
+    switch (code) {
+        case grpc::StatusCode::INVALID_ARGUMENT: return 400;
+        case grpc::StatusCode::UNAUTHENTICATED: return 401;
+        case grpc::StatusCode::PERMISSION_DENIED: return 403;
+        case grpc::StatusCode::NOT_FOUND: return 404;
+        case grpc::StatusCode::ALREADY_EXISTS: return 409;
+        case grpc::StatusCode::RESOURCE_EXHAUSTED: return 429;
+        case grpc::StatusCode::UNIMPLEMENTED: return 501;
+        case grpc::StatusCode::UNAVAILABLE: return 503;
+        case grpc::StatusCode::DEADLINE_EXCEEDED: return 504;
+        case grpc::StatusCode::OK: return 200;
+        default: return 500;
+    }
+}
+
+} // namespace
 
 // =============================================================================
 // JsonResponse Implementation
@@ -20,11 +74,11 @@ JsonResponse JsonResponse::Success(const std::string& json) {
 }
 
 JsonResponse JsonResponse::BadRequest(const std::string& error) {
-    return {false, 400, R"({"error": ")" + error + R"("})"};
+    return {false, 400, R"({"error": ")" + JsonEscape(error) + R"("})"};
 }
 
 JsonResponse JsonResponse::ServerError(const std::string& error) {
-    return {false, 500, R"({"error": ")" + error + R"("})"};
+    return {false, 500, R"({"error": ")" + JsonEscape(error) + R"("})"};
 }
 
 JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
@@ -58,9 +112,9 @@ JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
     }
     std::string code_name = codeName(status.error_code());
     oss << R"({"error": "gRPC error", "code": )" << status.error_code()
-        << R"(, "code_name": ")" << code_name
-        << R"(", "message": ")" << details << R"("})";
-    return {false, 500, oss.str()};
+        << R"(, "code_name": ")" << JsonEscape(code_name)
+        << R"(", "message": ")" << JsonEscape(details) << R"("})";
+    return {false, GrpcToHttpStatus(status.error_code()), oss.str()};
 }
 
 // =============================================================================
@@ -104,6 +158,7 @@ public:
                 return JsonResponse::BadRequest("Invalid FlatBuffers request");
             }
             grpc::ClientContext context;
+            SetDefaultDeadline(context);
             flatbuffers::grpc::Message<Response> response;
             
             grpc::Status status = (stub_.get()->*rpc)(&context, request, &response);
@@ -130,13 +185,21 @@ public:
             if (!response.data()) {
                 return JsonResponse::ServerError("Empty response from server");
             }
+
+            if (!response.Verify()) {
+                return JsonResponse::ServerError("Invalid response from server");
+            }
             
             return JsonResponse::Success(
                 json_parser_->GenerateResponse(type, response.data())
             );
             
-        } catch (const std::exception& e) {
+        } catch (const JsonParseException& e) {
             return JsonResponse::BadRequest(e.what());
+        } catch (const JsonRuntimeException& e) {
+            return JsonResponse::ServerError(e.what());
+        } catch (const std::exception& e) {
+            return JsonResponse::ServerError(e.what());
         }
     }
 
@@ -255,6 +318,12 @@ JsonResponse QuantraClient::BootstrapCurvesJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::BootstrapInflationCurvesJSON(const std::string& json) {
+    return impl_->CallJSON<BootstrapInflationCurvesRequest, BootstrapInflationCurvesResponse>(
+        ProductType::BootstrapInflationCurves, json, &QuantraServer::Stub::BootstrapInflationCurves
+    );
+}
+
 JsonResponse QuantraClient::SampleVolSurfacesJSON(const std::string& json) {
     return impl_->CallJSON<SampleVolSurfacesRequest, SampleVolSurfacesResponse>(
         ProductType::SampleVolSurfaces, json, &QuantraServer::Stub::SampleVolSurfaces
@@ -300,6 +369,7 @@ grpc::Status QuantraClient::PriceFixedRateBond(
     Message<PriceFixedRateBondResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceFixedRateBond(&context, request, response);
 }
 
@@ -308,6 +378,7 @@ grpc::Status QuantraClient::PriceFloatingRateBond(
     Message<PriceFloatingRateBondResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceFloatingRateBond(&context, request, response);
 }
 
@@ -316,6 +387,7 @@ grpc::Status QuantraClient::PriceVanillaSwap(
     Message<PriceVanillaSwapResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceVanillaSwap(&context, request, response);
 }
 
@@ -324,6 +396,7 @@ grpc::Status QuantraClient::PriceOisSwap(
     Message<PriceOisSwapResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceOisSwap(&context, request, response);
 }
 
@@ -332,6 +405,7 @@ grpc::Status QuantraClient::PriceBasisSwap(
     Message<PriceBasisSwapResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceBasisSwap(&context, request, response);
 }
 
@@ -340,6 +414,7 @@ grpc::Status QuantraClient::PriceFRA(
     Message<PriceFRAResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceFRA(&context, request, response);
 }
 
@@ -348,6 +423,7 @@ grpc::Status QuantraClient::PriceCapFloor(
     Message<PriceCapFloorResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceCapFloor(&context, request, response);
 }
 
@@ -356,6 +432,7 @@ grpc::Status QuantraClient::PriceSwaption(
     Message<PriceSwaptionResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceSwaption(&context, request, response);
 }
 
@@ -364,6 +441,7 @@ grpc::Status QuantraClient::PriceCDS(
     Message<PriceCDSResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceCDS(&context, request, response);
 }
 
@@ -372,7 +450,17 @@ grpc::Status QuantraClient::BootstrapCurves(
     Message<BootstrapCurvesResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->BootstrapCurves(&context, request, response);
+}
+
+grpc::Status QuantraClient::BootstrapInflationCurves(
+    const Message<BootstrapInflationCurvesRequest>& request,
+    Message<BootstrapInflationCurvesResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->BootstrapInflationCurves(&context, request, response);
 }
 
 grpc::Status QuantraClient::SampleVolSurfaces(
@@ -380,6 +468,7 @@ grpc::Status QuantraClient::SampleVolSurfaces(
     Message<SampleVolSurfacesResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->SampleVolSurfaces(&context, request, response);
 }
 
@@ -388,6 +477,7 @@ grpc::Status QuantraClient::CalendarBusinessDays(
     Message<CalendarBusinessDaysResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->CalendarBusinessDays(&context, request, response);
 }
 
@@ -396,6 +486,7 @@ grpc::Status QuantraClient::CalendarHolidays(
     Message<CalendarHolidaysResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->CalendarHolidays(&context, request, response);
 }
 
@@ -404,6 +495,7 @@ grpc::Status QuantraClient::CalendarAdvance(
     Message<CalendarAdvanceResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->CalendarAdvance(&context, request, response);
 }
 
@@ -412,6 +504,7 @@ grpc::Status QuantraClient::CalibrateSwaptionModel(
     Message<CalibrateSwaptionModelResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->CalibrateSwaptionModel(&context, request, response);
 }
 
@@ -420,6 +513,7 @@ grpc::Status QuantraClient::PriceEquityOption(
     Message<PriceEquityOptionResponse>* response
 ) {
     grpc::ClientContext context;
+    SetDefaultDeadline(context);
     return impl_->GetStub()->PriceEquityOption(&context, request, response);
 }
 

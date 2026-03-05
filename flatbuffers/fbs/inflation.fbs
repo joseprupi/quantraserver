@@ -1,0 +1,79 @@
+include "enums.fbs";
+include "common.fbs";
+
+namespace quantra;
+
+/// Inflation index specification. Registered once per request, referenced by id.
+table InflationIndexSpec {
+    /// Unique identifier (e.g., "UKRPI", "EUHICP", "USCPI").
+    id:string (required);
+    /// Human-readable family name.
+    family_name:string;
+    /// ISO currency code (e.g., "GBP", "EUR", "USD").
+    currency:string;
+    calendar:enums.Calendar = TARGET;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    frequency:enums.Frequency = Monthly;
+
+    /// Publication availability lag (e.g., 2 Months).
+    availability_lag:Period;
+    /// Observation lag used for swaps (e.g., 3 Months).
+    observation_lag:Period;
+    /// Whether the index is interpolated between fixings.
+    interpolated:bool = true;
+    /// Whether index values can be revised (rare; defaults to false).
+    revised:bool = false;
+
+    kind:enums.InflationCurveKind = ZeroInflation;
+}
+
+/// Inflation curve base specification.
+table InflationCurveBaseSpec {
+    id:string (required);
+    reference_date:string (required);
+    calendar:enums.Calendar = TARGET;
+    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    day_counter:enums.DayCounter = Actual365Fixed;
+
+    kind:enums.InflationCurveKind = ZeroInflation;
+    /// Link to InflationIndexSpec.id.
+    index_id:string (required);
+    /// Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
+    discount_curve_id:string;
+    allow_extrapolation:bool = true;
+}
+
+/// Pillar quote for inflation curve construction.
+table InflationSwapPillar {
+    maturity:Period (required);
+    /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
+    quote_id:string;
+    /// Inline quote value used when quote_id is empty.
+    quote_value:double;
+}
+
+/// Zero inflation curve built from pillar rates.
+/// Note: MVP treats pillar quotes as zero inflation rates at each maturity.
+table ZeroInflationCurveFromZcSwapsSpec {
+    pillars:[InflationSwapPillar] (required);
+    interpolator:enums.Interpolator = Linear;
+}
+
+/// YoY inflation curve built from pillar rates.
+/// Note: MVP treats pillar quotes as YoY rates at each maturity.
+table YoYInflationCurveFromYoYSwapsSpec {
+    pillars:[InflationSwapPillar] (required);
+    interpolator:enums.Interpolator = Linear;
+}
+
+union InflationCurvePayload {
+    ZeroInflationCurveFromZcSwapsSpec,
+    YoYInflationCurveFromYoYSwapsSpec
+}
+
+/// Inflation curve specification.
+table InflationCurveSpec {
+    base:InflationCurveBaseSpec (required);
+    payload:InflationCurvePayload (required);
+}
+

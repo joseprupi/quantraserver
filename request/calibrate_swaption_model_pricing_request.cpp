@@ -23,8 +23,8 @@ CalibrateSwaptionModelPricingRequest::request(
 
     const std::string modelId = request->model_id()->str();
     quantra::SwaptionModelParser modelParser;
-    auto mIt = reg.models.find(modelId);
-    if (mIt == reg.models.end()) {
+    auto mIt = reg.volatility.models.find(modelId);
+    if (mIt == reg.volatility.models.end()) {
         QUANTRA_ERROR("Model not found: " + modelId);
     }
     const auto* spec = modelParser.parse(mIt->second, modelId);

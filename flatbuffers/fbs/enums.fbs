@@ -272,6 +272,18 @@ enum SwaptionStrikeKind : byte {
     SpreadFromATM
 }
 
+/// Inflation curve kind (zero-coupon or year-on-year).
+enum InflationCurveKind : byte {
+    ZeroInflation = 0,
+    YoYInflation = 1
+}
+
+/// Inflation curve output measure for sampling endpoints.
+enum InflationCurveMeasure : byte {
+    ZeroRate = 0,
+    YoYRate = 1
+}
+
 /// Interest rate model type.
 enum IrModelType : byte {
     Black,

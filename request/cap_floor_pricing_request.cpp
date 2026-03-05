@@ -26,24 +26,24 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
 
     for (auto it = cap_floor_pricings->begin(); it != cap_floor_pricings->end(); it++)
     {
-        auto dIt = reg.curves.find(it->discounting_curve()->str());
-        if (dIt == reg.curves.end())
+        auto dIt = reg.rates.curves.find(it->discounting_curve()->str());
+        if (dIt == reg.rates.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
 
-        auto fIt = reg.curves.find(it->forwarding_curve()->str());
-        if (fIt == reg.curves.end())
+        auto fIt = reg.rates.curves.find(it->forwarding_curve()->str());
+        if (fIt == reg.rates.curves.end())
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
 
-        auto vIt = reg.optionletVols.find(it->volatility()->str());
-        if (vIt == reg.optionletVols.end())
+        auto vIt = reg.volatility.optionletVols.find(it->volatility()->str());
+        if (vIt == reg.volatility.optionletVols.end())
             QUANTRA_ERROR("Optionlet vol not found: " + it->volatility()->str());
 
-        auto mIt = reg.models.find(it->model()->str());
-        if (mIt == reg.models.end())
+        auto mIt = reg.volatility.models.find(it->model()->str());
+        if (mIt == reg.volatility.models.end())
             QUANTRA_ERROR("Model not found: " + it->model()->str());
 
         cap_floor_parser.linkForwardingTermStructure(fIt->second->currentLink());
-        auto capFloor = cap_floor_parser.parse(it->cap_floor(), reg.indices);
+        auto capFloor = cap_floor_parser.parse(it->cap_floor(), reg.rates.indices);
 
         Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
         auto engine = engineFactory.makeCapFloorEngine(mIt->second, discountCurve, vIt->second);

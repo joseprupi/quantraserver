@@ -8,10 +8,11 @@ A clean, modular C++ client for the Quantra pricing engine.
 client/cpp/
 ├── include/
 │   ├── quantra_client.h      # Main public header
-│   └── product_registry.h    # Product definitions (ADD NEW PRODUCTS HERE)
 ├── src/
 │   ├── json_parser.cpp       # JSON <-> FlatBuffers conversion
 │   └── quantra_client.cpp    # Client implementation
+common/
+└── product_catalog.h         # Shared product/schema catalog
 ├── CMakeLists.txt
 └── README.md
 ```
@@ -37,7 +38,7 @@ grpc::Status status = client.PriceFixedRateBond(request, &response);
 
 ## Adding a New Product
 
-### Step 1: Add to product_registry.h
+### Step 1: Add to common/product_catalog.h
 
 ```cpp
 // In GetProductSchemas():
@@ -93,14 +94,10 @@ grpc::Status QuantraClient::PriceExoticOption(
 
 ## Configuration
 
-Edit `Config` in `quantra_client.h` to change paths:
+FlatBuffers schema paths are runtime-configured via env vars:
 
-```cpp
-struct Config {
-    static constexpr const char* FBS_INCLUDE_DIR = "/workspace/flatbuffers/fbs";
-    static constexpr const char* FBS_DIR = "/workspace/flatbuffers/fbs";
-};
-```
+- `QUANTRA_FBS_DIR` (default `flatbuffers/fbs`)
+- `QUANTRA_FBS_INCLUDE_DIR` (default = `QUANTRA_FBS_DIR`)
 
 ## FlatBuffers Version
 

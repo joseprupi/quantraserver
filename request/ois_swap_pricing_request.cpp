@@ -24,17 +24,17 @@ flatbuffers::Offset<PriceOisSwapResponse> OisSwapPricingRequest::request(
 
     std::vector<flatbuffers::Offset<OisSwapResponse>> out;
     for (auto it = request->swaps()->begin(); it != request->swaps()->end(); ++it) {
-        auto discIt = reg.curves.find(it->discounting_curve()->str());
-        if (discIt == reg.curves.end()) {
+        auto discIt = reg.rates.curves.find(it->discounting_curve()->str());
+        if (discIt == reg.rates.curves.end()) {
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
         }
-        auto fwdIt = reg.curves.find(it->forwarding_curve()->str());
-        if (fwdIt == reg.curves.end()) {
+        auto fwdIt = reg.rates.curves.find(it->forwarding_curve()->str());
+        if (fwdIt == reg.rates.curves.end()) {
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
         }
 
         parser.linkForwardingTermStructure(fwdIt->second->currentLink());
-        auto swap = parser.parse(it->ois_swap(), reg.indices);
+        auto swap = parser.parse(it->ois_swap(), reg.rates.indices);
         swap->setPricingEngine(std::make_shared<DiscountingSwapEngine>(*discIt->second));
 
         std::vector<flatbuffers::Offset<SwapLegFlow>> fixedFlows;

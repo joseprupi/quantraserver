@@ -33,6 +33,11 @@ from quantra_client.client import (
     PriceCDSRequestT,
     # Building blocks
     PricingT,
+    RatesMarketDataT,
+    CreditMarketDataT,
+    VolatilityMarketDataT,
+    EquityMarketDataT,
+    PricingOptionsT,
     TermStructureT,
     ScheduleT,
     PointsWrapperT,
@@ -317,13 +322,24 @@ def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list 
     p = PricingT()
     p.asOfDate = EVAL_DATE_STR
     p.settlementDate = EVAL_DATE_STR
-    p.indices = indices or []
-    p.curves = curves
-    p.creditCurves = credit_curves or []
-    p.volSurfaces = vol_surfaces or []
-    p.models = models or []
-    p.bondPricingDetails = True
-    p.bondPricingFlows = False
+    rates = RatesMarketDataT()
+    rates.indices = indices or []
+    rates.curves = curves
+    p.rates = rates
+    if credit_curves:
+        credit = CreditMarketDataT()
+        credit.creditCurves = credit_curves
+        p.credit = credit
+    if vol_surfaces or models:
+        volatility = VolatilityMarketDataT()
+        volatility.volSurfaces = vol_surfaces or []
+        volatility.models = models or []
+        p.volatility = volatility
+    p.equity = EquityMarketDataT()
+    options = PricingOptionsT()
+    options.bondPricingDetails = True
+    options.bondPricingFlows = False
+    p.options = options
     return p
 
 

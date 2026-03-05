@@ -113,6 +113,14 @@
       "type" : "string",
       "enum": ["Absolute", "SpreadFromATM"]
     },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
     "quantra_enums_IrModelType" : {
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
@@ -152,14 +160,6 @@
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
-    },
-    "quantra_CurveMeasure" : {
-      "type" : "string",
-      "enum": ["DF", "ZERO", "FWD"]
-    },
-    "quantra_ForwardType" : {
-      "type" : "string",
-      "enum": ["Instantaneous", "Period"]
     },
     "quantra_DateGrid" : {
       "type" : "string",
@@ -371,7 +371,7 @@
     },
     "quantra_RangeGrid" : {
       "type" : "object",
-      "description" : "Sample a curve between start/end with a step.",
+      "description" : "Sample between start/end with a step.",
       "properties" : {
         "start_date" : {
                 "type" : "string"
@@ -401,7 +401,7 @@
     },
     "quantra_DateGridSpec" : {
       "type" : "object",
-      "description" : "Date grid specification for curve/vol sampling.",
+      "description" : "Date grid specification for curve/vol/inflation sampling.",
       "properties" : {
         "grid_type" : {
                 "$ref" : "#/definitions/quantra_DateGrid"
@@ -435,85 +435,6 @@
                 "type" : "boolean"
               }
       },
-      "additionalProperties" : false
-    },
-    "quantra_ZeroRateQuery" : {
-      "type" : "object",
-      "description" : "Zero rate query parameters.",
-      "properties" : {
-        "use_curve_day_counter" : {
-                "type" : "boolean"
-              },
-        "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
-              },
-        "compounding" : {
-                "$ref" : "#/definitions/quantra_enums_Compounding"
-              },
-        "frequency" : {
-                "$ref" : "#/definitions/quantra_enums_Frequency"
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_ForwardRateQuery" : {
-      "type" : "object",
-      "description" : "Forward rate query parameters.",
-      "properties" : {
-        "use_curve_day_counter" : {
-                "type" : "boolean"
-              },
-        "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
-              },
-        "compounding" : {
-                "$ref" : "#/definitions/quantra_enums_Compounding"
-              },
-        "frequency" : {
-                "$ref" : "#/definitions/quantra_enums_Frequency"
-              },
-        "forward_type" : {
-                "$ref" : "#/definitions/quantra_ForwardType"
-              },
-        "instantaneous_eps_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "instantaneous_eps_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit"
-              },
-        "tenor" : {
-                "$ref" : "#/definitions/quantra_Period"
-              },
-        "use_grid_calendar_for_advance" : {
-                "type" : "boolean"
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_CurveQuerySpec" : {
-      "type" : "object",
-      "description" : "Query spec for one curve id within Pricing.curves[].",
-      "properties" : {
-        "curve_id" : {
-                "type" : "string"
-              },
-        "measures" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CurveMeasure"}
-              },
-        "grid" : {
-                "$ref" : "#/definitions/quantra_DateGridSpec"
-              },
-        "zero" : {
-                "$ref" : "#/definitions/quantra_ZeroRateQuery"
-              },
-        "fwd" : {
-                "$ref" : "#/definitions/quantra_ForwardRateQuery"
-              },
-        "options" : {
-                "$ref" : "#/definitions/quantra_QueryOptions"
-              }
-      },
-      "required" : ["curve_id", "measures", "grid"],
       "additionalProperties" : false
     },
     "quantra_StrikeGrid" : {

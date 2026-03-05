@@ -26,7 +26,7 @@
 
 #include "crow_all.h"
 #include "quantra_client.h"
-#include "product_registry.h"
+#include "product_catalog.h"
 
 #ifndef QUANTRA_GIT_SHA
 #define QUANTRA_GIT_SHA "unknown"
@@ -74,6 +74,13 @@ std::optional<std::pair<std::string, std::string>> ParseHostPort(const std::stri
         return std::nullopt;
     }
     return std::make_pair(in.substr(0, pos), in.substr(pos + 1));
+}
+
+bool IsJsonContentType(const crow::request& req) {
+    std::string ct = req.get_header_value("Content-Type");
+    std::transform(ct.begin(), ct.end(), ct.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return ct.find("application/json") != std::string::npos;
 }
 
 std::optional<std::string> HttpGetWithTimeout(
@@ -246,30 +253,13 @@ int main(int argc, char** argv) {
         : "";
 
     std::vector<std::string> product_names;
-    for (const auto& kv : GetProductSchemas()) {
+    for (const auto& kv : GetProductCatalog()) {
         product_names.emplace_back(ProductTypeToString(kv.first));
     }
-    const std::vector<std::string> endpoint_list = {
-        "POST /price-fixed-rate-bond",
-        "POST /price-floating-rate-bond",
-        "POST /price-vanilla-swap",
-        "POST /price-ois-swap",
-        "POST /price-basis-swap",
-        "POST /price-fra",
-        "POST /price-cap-floor",
-        "POST /price-swaption",
-        "POST /price-cds",
-        "POST /bootstrap-curves",
-        "POST /sample-vol-surfaces",
-        "POST /calendar-business-days",
-        "POST /calendar-holidays",
-        "POST /calendar-advance",
-        "POST /calibrate-swaption-model",
-        "POST /price-equity-option",
-        "GET /status",
-        "GET /meta",
-        "GET /health"
-    };
+    std::vector<std::string> endpoint_list = GetProductEndpointList();
+    endpoint_list.push_back("GET /status");
+    endpoint_list.push_back("GET /meta");
+    endpoint_list.push_back("GET /health");
     
     std::cout << "===========================================\n"
               << "  Quantra JSON API Server\n"
@@ -410,6 +400,19 @@ int main(int argc, char** argv) {
             return crow::response(r.status_code, r.body);
         });
 
+        CROW_ROUTE(app, "/bootstrap-inflation-curves").methods("POST"_method)
+        ([&](const crow::request& req) {
+            constexpr size_t kMaxInflationRequestBytes = 10 * 1024 * 1024;
+            if (!IsJsonContentType(req)) {
+                return crow::response(415, R"({"error":"Content-Type must be application/json"})");
+            }
+            if (req.body.size() > kMaxInflationRequestBytes) {
+                return crow::response(413, R"({"error":"Request body too large"})");
+            }
+            auto r = client.BootstrapInflationCurvesJSON(req.body);
+            return crow::response(r.status_code, r.body);
+        });
+
         CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
         ([&](const crow::request& req) {
             std::cout << "[jsonserver] POST /sample-vol-surfaces body_bytes="
@@ -468,6 +471,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-swaption\n"
                   << "  POST /price-cds\n"
                   << "  POST /bootstrap-curves\n"
+                  << "  POST /bootstrap-inflation-curves\n"
                   << "  POST /sample-vol-surfaces\n"
                   << "  POST /calendar-business-days\n"
                   << "  POST /calendar-holidays\n"

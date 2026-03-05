@@ -5,6 +5,7 @@
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/grpc
+    ${CMAKE_SOURCE_DIR}/common
     ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
     ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/include
@@ -21,6 +22,7 @@ add_library(quantra_client STATIC
 target_include_directories(quantra_client
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/include
+        ${CMAKE_SOURCE_DIR}/common
         ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
         ${CMAKE_SOURCE_DIR}/grpc
 )

@@ -2,12 +2,13 @@ scripts/envoy_config.pyc
 scripts/__pycache__/envoy_config.cpython-37.pyc
 scripts/quantra.yaml
 build/*
+build_local/*
 flatbuffers/html/*
 flatbuffers/latex/*
 flatbuffers/build/*
 .vscode/*
 .quantra/
-.venv/* "dv01": 3595191348.854026794434
+.venv/*
 core
 tmp/*
 .venv/

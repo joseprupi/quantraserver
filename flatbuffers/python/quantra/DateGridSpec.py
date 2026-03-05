@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Date grid specification for curve/vol sampling.
+# Date grid specification for curve/vol/inflation sampling.
 class DateGridSpec(object):
     __slots__ = ['_tab']
 

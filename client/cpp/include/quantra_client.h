@@ -24,6 +24,7 @@
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <stdexcept>
 
 #include <grpcpp/grpcpp.h>
 #include "flatbuffers/idl.h"
@@ -31,6 +32,7 @@
 #include "flatbuffers/grpc.h"
 
 #include "quantraserver.grpc.fb.h"
+#include "product_catalog.h"
 
 // Generated response types
 #include "fixed_rate_bond_response_generated.h"
@@ -43,6 +45,7 @@
 #include "swaption_response_generated.h"
 #include "cds_response_generated.h"
 #include "bootstrap_curves_response_generated.h"
+#include "bootstrap_inflation_curves_response_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 #include "calendar_business_days_response_generated.h"
 #include "calendar_holidays_response_generated.h"
@@ -53,38 +56,23 @@
 namespace quantra {
 
 // =============================================================================
-// Configuration - Edit these paths for your environment
+// Configuration and Parser Exceptions
 // =============================================================================
 
 struct Config {
-    static constexpr const char* FBS_INCLUDE_DIR = "/workspace/flatbuffers/fbs";
-    static constexpr const char* FBS_DIR = "/workspace/flatbuffers/fbs";
+    static std::string GetFbsDir();
+    static std::string GetFbsIncludeDir();
 };
 
-// =============================================================================
-// Product Types
-// =============================================================================
-
-enum class ProductType {
-    FixedRateBond,
-    FloatingRateBond,
-    VanillaSwap,
-    OisSwap,
-    BasisSwap,
-    FRA,
-    CapFloor,
-    Swaption,
-    CDS,
-    BootstrapCurves,
-    SampleVolSurfaces,
-    CalendarBusinessDays,
-    CalendarHolidays,
-    CalendarAdvance,
-    CalibrateSwaptionModel,
-    EquityOption
+class JsonParseException : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
 };
 
-const char* ProductTypeToString(ProductType type);
+class JsonRuntimeException : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
 
 // =============================================================================
 // JSON Response Structure
@@ -145,6 +133,7 @@ public:
     JsonResponse PriceSwaptionJSON(const std::string& json);
     JsonResponse PriceCDSJSON(const std::string& json);
     JsonResponse BootstrapCurvesJSON(const std::string& json);
+    JsonResponse BootstrapInflationCurvesJSON(const std::string& json);
     JsonResponse SampleVolSurfacesJSON(const std::string& json);
     JsonResponse CalendarBusinessDaysJSON(const std::string& json);
     JsonResponse CalendarHolidaysJSON(const std::string& json);
@@ -198,6 +187,10 @@ public:
     grpc::Status BootstrapCurves(
         const Message<BootstrapCurvesRequest>& request,
         Message<BootstrapCurvesResponse>* response);
+
+    grpc::Status BootstrapInflationCurves(
+        const Message<BootstrapInflationCurvesRequest>& request,
+        Message<BootstrapInflationCurvesResponse>* response);
 
     grpc::Status SampleVolSurfaces(
         const Message<SampleVolSurfacesRequest>& request,

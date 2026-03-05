@@ -16,22 +16,22 @@ CdsPriceResult CdsPricingService::price(const quantra::PriceCDS* tradePricing, c
     CDSParser cdsParser;
     CreditCurveParser creditCurveParser;
 
-    auto discountIt = reg.curves.find(tradePricing->discounting_curve()->str());
-    if (discountIt == reg.curves.end()) {
+    auto discountIt = reg.rates.curves.find(tradePricing->discounting_curve()->str());
+    if (discountIt == reg.rates.curves.end()) {
         QUANTRA_ERROR("Discounting curve not found: " + tradePricing->discounting_curve()->str());
     }
     if (!tradePricing->credit_curve_id()) {
         QUANTRA_ERROR("credit_curve_id is required");
     }
-    auto creditIt = reg.creditCurveSpecs.find(tradePricing->credit_curve_id()->str());
-    if (creditIt == reg.creditCurveSpecs.end()) {
+    auto creditIt = reg.credit.creditCurveSpecs.find(tradePricing->credit_curve_id()->str());
+    if (creditIt == reg.credit.creditCurveSpecs.end()) {
         QUANTRA_ERROR("Credit curve not found: " + tradePricing->credit_curve_id()->str());
     }
     if (!tradePricing->model()) {
         QUANTRA_ERROR("model is required for CDS pricing");
     }
-    auto modelIt = reg.models.find(tradePricing->model()->str());
-    if (modelIt == reg.models.end()) {
+    auto modelIt = reg.volatility.models.find(tradePricing->model()->str());
+    if (modelIt == reg.volatility.models.end()) {
         QUANTRA_ERROR("Model not found: " + tradePricing->model()->str());
     }
     const auto* model = modelIt->second;

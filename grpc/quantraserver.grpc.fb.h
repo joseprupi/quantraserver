@@ -104,6 +104,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> PrepareAsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(PrepareAsyncBootstrapCurvesRaw(context, request, cq));
     }
+    virtual ::grpc::Status BootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>> AsyncBootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>>(AsyncBootstrapInflationCurvesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>> PrepareAsyncBootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>>(PrepareAsyncBootstrapInflationCurvesRaw(context, request, cq));
+    }
     virtual ::grpc::Status SampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>> AsyncSampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>>(AsyncSampleVolSurfacesRaw(context, request, cq));
@@ -167,6 +174,8 @@ class QuantraServer final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* AsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* AsyncBootstrapInflationCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* PrepareAsyncBootstrapInflationCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* AsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* PrepareAsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* AsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) = 0;
@@ -253,6 +262,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>> PrepareAsyncBootstrapCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>>(PrepareAsyncBootstrapCurvesRaw(context, request, cq));
     }
+    ::grpc::Status BootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>> AsyncBootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>>(AsyncBootstrapInflationCurvesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>> PrepareAsyncBootstrapInflationCurves(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>>(PrepareAsyncBootstrapInflationCurvesRaw(context, request, cq));
+    }
     ::grpc::Status SampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* response) override;
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>> AsyncSampleVolSurfaces(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>>(AsyncSampleVolSurfacesRaw(context, request, cq));
@@ -318,6 +334,8 @@ class QuantraServer final {
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCDSResponse>>* PrepareAsyncPriceCDSRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* AsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapCurvesResponse>>* PrepareAsyncBootstrapCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* AsyncBootstrapInflationCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* PrepareAsyncBootstrapInflationCurvesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* AsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* PrepareAsyncSampleVolSurfacesRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* AsyncCalendarBusinessDaysRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>& request, ::grpc::CompletionQueue* cq) override;
@@ -340,6 +358,7 @@ class QuantraServer final {
     const ::grpc::internal::RpcMethod rpcmethod_PriceSwaption_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceCDS_;
     const ::grpc::internal::RpcMethod rpcmethod_BootstrapCurves_;
+    const ::grpc::internal::RpcMethod rpcmethod_BootstrapInflationCurves_;
     const ::grpc::internal::RpcMethod rpcmethod_SampleVolSurfaces_;
     const ::grpc::internal::RpcMethod rpcmethod_CalendarBusinessDays_;
     const ::grpc::internal::RpcMethod rpcmethod_CalendarHolidays_;
@@ -363,6 +382,7 @@ class QuantraServer final {
     virtual ::grpc::Status PriceSwaption(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceSwaptionRequest>* request, flatbuffers::grpc::Message<PriceSwaptionResponse>* response);
     virtual ::grpc::Status PriceCDS(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCDSRequest>* request, flatbuffers::grpc::Message<PriceCDSResponse>* response);
     virtual ::grpc::Status BootstrapCurves(::grpc::ServerContext* context, const flatbuffers::grpc::Message<BootstrapCurvesRequest>* request, flatbuffers::grpc::Message<BootstrapCurvesResponse>* response);
+    virtual ::grpc::Status BootstrapInflationCurves(::grpc::ServerContext* context, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>* request, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* response);
     virtual ::grpc::Status SampleVolSurfaces(::grpc::ServerContext* context, const flatbuffers::grpc::Message<SampleVolSurfacesRequest>* request, flatbuffers::grpc::Message<SampleVolSurfacesResponse>* response);
     virtual ::grpc::Status CalendarBusinessDays(::grpc::ServerContext* context, const flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* request, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>* response);
     virtual ::grpc::Status CalendarHolidays(::grpc::ServerContext* context, const flatbuffers::grpc::Message<CalendarHolidaysRequest>* request, flatbuffers::grpc::Message<CalendarHolidaysResponse>* response);
@@ -571,12 +591,32 @@ class QuantraServer final {
     }
   };
   template <class BaseClass>
+  class WithAsyncMethod_BootstrapInflationCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_BootstrapInflationCurves() {
+      ::grpc::Service::MarkMethodAsync(10);
+    }
+    ~WithAsyncMethod_BootstrapInflationCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status BootstrapInflationCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestBootstrapInflationCurves(::grpc::ServerContext* context, flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithAsyncMethod_SampleVolSurfaces : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_SampleVolSurfaces() {
-      ::grpc::Service::MarkMethodAsync(10);
+      ::grpc::Service::MarkMethodAsync(11);
     }
     ~WithAsyncMethod_SampleVolSurfaces() override {
       BaseClassMustBeDerivedFromService(this);
@@ -587,7 +627,7 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestSampleVolSurfaces(::grpc::ServerContext* context, flatbuffers::grpc::Message<SampleVolSurfacesRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<SampleVolSurfacesResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -596,7 +636,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_CalendarBusinessDays() {
-      ::grpc::Service::MarkMethodAsync(11);
+      ::grpc::Service::MarkMethodAsync(12);
     }
     ~WithAsyncMethod_CalendarBusinessDays() override {
       BaseClassMustBeDerivedFromService(this);
@@ -607,7 +647,7 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestCalendarBusinessDays(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarBusinessDaysRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -616,7 +656,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_CalendarHolidays() {
-      ::grpc::Service::MarkMethodAsync(12);
+      ::grpc::Service::MarkMethodAsync(13);
     }
     ~WithAsyncMethod_CalendarHolidays() override {
       BaseClassMustBeDerivedFromService(this);
@@ -627,7 +667,7 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestCalendarHolidays(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarHolidaysRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarHolidaysResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(13, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -636,7 +676,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_CalendarAdvance() {
-      ::grpc::Service::MarkMethodAsync(13);
+      ::grpc::Service::MarkMethodAsync(14);
     }
     ~WithAsyncMethod_CalendarAdvance() override {
       BaseClassMustBeDerivedFromService(this);
@@ -647,7 +687,7 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestCalendarAdvance(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalendarAdvanceRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalendarAdvanceResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(13, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(14, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -656,7 +696,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_CalibrateSwaptionModel() {
-      ::grpc::Service::MarkMethodAsync(14);
+      ::grpc::Service::MarkMethodAsync(15);
     }
     ~WithAsyncMethod_CalibrateSwaptionModel() override {
       BaseClassMustBeDerivedFromService(this);
@@ -667,7 +707,7 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestCalibrateSwaptionModel(::grpc::ServerContext* context, flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(14, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(15, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -676,7 +716,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_PriceEquityOption() {
-      ::grpc::Service::MarkMethodAsync(15);
+      ::grpc::Service::MarkMethodAsync(16);
     }
     ~WithAsyncMethod_PriceEquityOption() override {
       BaseClassMustBeDerivedFromService(this);
@@ -687,10 +727,10 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestPriceEquityOption(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceEquityOptionRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceEquityOptionResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(15, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(16, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_SampleVolSurfaces<  WithAsyncMethod_CalendarBusinessDays<  WithAsyncMethod_CalendarHolidays<  WithAsyncMethod_CalendarAdvance<  WithAsyncMethod_CalibrateSwaptionModel<  WithAsyncMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
+  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_BootstrapInflationCurves<  WithAsyncMethod_SampleVolSurfaces<  WithAsyncMethod_CalendarBusinessDays<  WithAsyncMethod_CalendarHolidays<  WithAsyncMethod_CalendarAdvance<  WithAsyncMethod_CalibrateSwaptionModel<  WithAsyncMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
   template <class BaseClass>
   class WithGenericMethod_PriceFixedRateBond : public BaseClass {
    private:
@@ -862,12 +902,29 @@ class QuantraServer final {
     }
   };
   template <class BaseClass>
+  class WithGenericMethod_BootstrapInflationCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_BootstrapInflationCurves() {
+      ::grpc::Service::MarkMethodGeneric(10);
+    }
+    ~WithGenericMethod_BootstrapInflationCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status BootstrapInflationCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
   class WithGenericMethod_SampleVolSurfaces : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_SampleVolSurfaces() {
-      ::grpc::Service::MarkMethodGeneric(10);
+      ::grpc::Service::MarkMethodGeneric(11);
     }
     ~WithGenericMethod_SampleVolSurfaces() override {
       BaseClassMustBeDerivedFromService(this);
@@ -884,7 +941,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_CalendarBusinessDays() {
-      ::grpc::Service::MarkMethodGeneric(11);
+      ::grpc::Service::MarkMethodGeneric(12);
     }
     ~WithGenericMethod_CalendarBusinessDays() override {
       BaseClassMustBeDerivedFromService(this);
@@ -901,7 +958,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_CalendarHolidays() {
-      ::grpc::Service::MarkMethodGeneric(12);
+      ::grpc::Service::MarkMethodGeneric(13);
     }
     ~WithGenericMethod_CalendarHolidays() override {
       BaseClassMustBeDerivedFromService(this);
@@ -918,7 +975,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_CalendarAdvance() {
-      ::grpc::Service::MarkMethodGeneric(13);
+      ::grpc::Service::MarkMethodGeneric(14);
     }
     ~WithGenericMethod_CalendarAdvance() override {
       BaseClassMustBeDerivedFromService(this);
@@ -935,7 +992,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_CalibrateSwaptionModel() {
-      ::grpc::Service::MarkMethodGeneric(14);
+      ::grpc::Service::MarkMethodGeneric(15);
     }
     ~WithGenericMethod_CalibrateSwaptionModel() override {
       BaseClassMustBeDerivedFromService(this);
@@ -952,7 +1009,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_PriceEquityOption() {
-      ::grpc::Service::MarkMethodGeneric(15);
+      ::grpc::Service::MarkMethodGeneric(16);
     }
     ~WithGenericMethod_PriceEquityOption() override {
       BaseClassMustBeDerivedFromService(this);
@@ -1164,12 +1221,32 @@ class QuantraServer final {
     virtual ::grpc::Status StreamedBootstrapCurves(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<BootstrapCurvesRequest>,flatbuffers::grpc::Message<BootstrapCurvesResponse>>* server_unary_streamer) = 0;
   };
   template <class BaseClass>
+  class WithStreamedUnaryMethod_BootstrapInflationCurves : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_BootstrapInflationCurves() {
+      ::grpc::Service::MarkMethodStreamed(10,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>(std::bind(&WithStreamedUnaryMethod_BootstrapInflationCurves<BaseClass>::StreamedBootstrapInflationCurves, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_BootstrapInflationCurves() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status BootstrapInflationCurves(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>* /*request*/, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedBootstrapInflationCurves(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>,flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
   class WithStreamedUnaryMethod_SampleVolSurfaces : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_SampleVolSurfaces() {
-      ::grpc::Service::MarkMethodStreamed(10,
+      ::grpc::Service::MarkMethodStreamed(11,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<SampleVolSurfacesRequest>, flatbuffers::grpc::Message<SampleVolSurfacesResponse>>(std::bind(&WithStreamedUnaryMethod_SampleVolSurfaces<BaseClass>::StreamedSampleVolSurfaces, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_SampleVolSurfaces() override {
@@ -1189,7 +1266,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_CalendarBusinessDays() {
-      ::grpc::Service::MarkMethodStreamed(11,
+      ::grpc::Service::MarkMethodStreamed(12,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarBusinessDaysRequest>, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarBusinessDays<BaseClass>::StreamedCalendarBusinessDays, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_CalendarBusinessDays() override {
@@ -1209,7 +1286,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_CalendarHolidays() {
-      ::grpc::Service::MarkMethodStreamed(12,
+      ::grpc::Service::MarkMethodStreamed(13,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarHolidaysRequest>, flatbuffers::grpc::Message<CalendarHolidaysResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarHolidays<BaseClass>::StreamedCalendarHolidays, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_CalendarHolidays() override {
@@ -1229,7 +1306,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_CalendarAdvance() {
-      ::grpc::Service::MarkMethodStreamed(13,
+      ::grpc::Service::MarkMethodStreamed(14,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalendarAdvanceRequest>, flatbuffers::grpc::Message<CalendarAdvanceResponse>>(std::bind(&WithStreamedUnaryMethod_CalendarAdvance<BaseClass>::StreamedCalendarAdvance, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_CalendarAdvance() override {
@@ -1249,7 +1326,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_CalibrateSwaptionModel() {
-      ::grpc::Service::MarkMethodStreamed(14,
+      ::grpc::Service::MarkMethodStreamed(15,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>(std::bind(&WithStreamedUnaryMethod_CalibrateSwaptionModel<BaseClass>::StreamedCalibrateSwaptionModel, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_CalibrateSwaptionModel() override {
@@ -1269,7 +1346,7 @@ class QuantraServer final {
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_PriceEquityOption() {
-      ::grpc::Service::MarkMethodStreamed(15,
+      ::grpc::Service::MarkMethodStreamed(16,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceEquityOptionRequest>, flatbuffers::grpc::Message<PriceEquityOptionResponse>>(std::bind(&WithStreamedUnaryMethod_PriceEquityOption<BaseClass>::StreamedPriceEquityOption, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_PriceEquityOption() override {
@@ -1283,9 +1360,9 @@ class QuantraServer final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedPriceEquityOption(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceEquityOptionRequest>,flatbuffers::grpc::Message<PriceEquityOptionResponse>>* server_unary_streamer) = 0;
   };
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
   typedef   Service   SplitStreamedService;
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_PriceEquityOption<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
 };
 
 }  // namespace quantra

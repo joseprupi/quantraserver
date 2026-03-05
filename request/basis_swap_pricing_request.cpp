@@ -26,23 +26,23 @@ flatbuffers::Offset<PriceBasisSwapResponse> BasisSwapPricingRequest::request(
 
     std::vector<flatbuffers::Offset<BasisSwapResponse>> out;
     for (auto it = request->swaps()->begin(); it != request->swaps()->end(); ++it) {
-        auto discIt = reg.curves.find(it->discounting_curve()->str());
-        if (discIt == reg.curves.end()) {
+        auto discIt = reg.rates.curves.find(it->discounting_curve()->str());
+        if (discIt == reg.rates.curves.end()) {
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
         }
-        auto fwd1It = reg.curves.find(it->forwarding_curve_leg1()->str());
-        if (fwd1It == reg.curves.end()) {
+        auto fwd1It = reg.rates.curves.find(it->forwarding_curve_leg1()->str());
+        if (fwd1It == reg.rates.curves.end()) {
             QUANTRA_ERROR("Forwarding curve leg1 not found: " + it->forwarding_curve_leg1()->str());
         }
-        auto fwd2It = reg.curves.find(it->forwarding_curve_leg2()->str());
-        if (fwd2It == reg.curves.end()) {
+        auto fwd2It = reg.rates.curves.find(it->forwarding_curve_leg2()->str());
+        if (fwd2It == reg.rates.curves.end()) {
             QUANTRA_ERROR("Forwarding curve leg2 not found: " + it->forwarding_curve_leg2()->str());
         }
 
         parser.linkForwardingTermStructures(
             fwd1It->second->currentLink(),
             fwd2It->second->currentLink());
-        auto swap = parser.parse(it->basis_swap(), reg.indices);
+        auto swap = parser.parse(it->basis_swap(), reg.rates.indices);
         swap->setPricingEngine(std::make_shared<DiscountingSwapEngine>(*discIt->second));
 
         std::vector<flatbuffers::Offset<SwapLegFlow>> leg1Flows;

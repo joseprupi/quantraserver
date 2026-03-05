@@ -45,7 +45,7 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
     PricingRegistryBuilder regBuilder;
     PricingRegistry reg = regBuilder.build(request->pricing());
     EquityUnderlyingRegistryBuilder underlyingRegistryBuilder;
-    auto underlyings = underlyingRegistryBuilder.build(request->pricing(), reg);
+    auto underlyings = underlyingRegistryBuilder.build(request->pricing()->equity(), reg);
     EquityOptionParser optionParser;
     EquityModelParser modelParser;
 
@@ -68,16 +68,16 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
             QUANTRA_ERROR("Equity underlying not found: " + opt.underlyingId);
         }
 
-        auto dIt = reg.curves.find(p->discounting_curve()->str());
-        if (dIt == reg.curves.end()) {
+        auto dIt = reg.rates.curves.find(p->discounting_curve()->str());
+        if (dIt == reg.rates.curves.end()) {
             QUANTRA_ERROR("Discounting curve not found: " + p->discounting_curve()->str());
         }
-        auto vIt = reg.blackVols.find(p->volatility()->str());
-        if (vIt == reg.blackVols.end()) {
+        auto vIt = reg.volatility.blackVols.find(p->volatility()->str());
+        if (vIt == reg.volatility.blackVols.end()) {
             QUANTRA_ERROR("Black vol not found: " + p->volatility()->str());
         }
-        auto mIt = reg.models.find(p->model()->str());
-        if (mIt == reg.models.end()) {
+        auto mIt = reg.volatility.models.find(p->model()->str());
+        if (mIt == reg.volatility.models.end()) {
             QUANTRA_ERROR("Model not found: " + p->model()->str());
         }
         const auto* model = modelParser.parse(mIt->second, p->model()->str());

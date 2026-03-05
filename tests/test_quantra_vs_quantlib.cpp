@@ -24,6 +24,7 @@
 #include "cds_pricing_request.h"
 #include "bootstrap_curves_request.h"
 #include "sample_vol_surfaces_request.h"
+#include "bootstrap_inflation_curves_request.h"
 #include "equity_option_pricing_request.h"
 #include "vol_surface_parsers.h"
 
@@ -46,10 +47,14 @@
 #include "model_generated.h"
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
+#include "bootstrap_inflation_curves_request_generated.h"
+#include "bootstrap_inflation_curves_response_generated.h"
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 #include "price_equity_option_request_generated.h"
 #include "equity_option_response_generated.h"
+#include "inflation_generated.h"
+#include "inflation_curve_query_generated.h"
 #include "vol_query_generated.h"
 #include "index_generated.h"
 #include "swap_index_generated.h"
@@ -1521,14 +1526,15 @@ TEST_F(QuantraComparisonTest, CMSCoupons_PricerAttached) {
     b.Finish(cmsLegFb);
     auto cmsLegRoot = flatbuffers::GetRoot<quantra::SwapCmsLeg>(b.GetBufferPointer());
 
-    auto dIt = reg.curves.find("discount");
-    ASSERT_TRUE(dIt != reg.curves.end());
+    auto dIt = reg.rates.curves.find("discount");
+    ASSERT_TRUE(dIt != reg.rates.curves.end());
     Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
 
     CmsLegParser parser;
-    auto cmsLeg = parser.parse(cmsLegRoot, reg.indices, reg.swapIndices, discountCurve, discountCurve);
-    auto vIt = reg.swaptionVols.find("cms_swaption_vol");
-    ASSERT_TRUE(vIt != reg.swaptionVols.end());
+    auto cmsLeg = parser.parse(
+        cmsLegRoot, reg.rates.indices, reg.rates.swapIndices, discountCurve, discountCurve);
+    auto vIt = reg.volatility.swaptionVols.find("cms_swaption_vol");
+    ASSERT_TRUE(vIt != reg.volatility.swaptionVols.end());
     auto pricerBuild = parser.makeCouponPricer(cmsLegRoot, vIt->second, discountCurve);
     QuantLib::setCouponPricer(cmsLeg, pricerBuild.pricer);
 
@@ -2077,18 +2083,18 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
     auto reqRoot = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer());
     quantra::PricingRegistryBuilder regBuilder;
     quantra::PricingRegistry reg = regBuilder.build(reqRoot->pricing());
-    auto dIt = reg.curves.find("discount");
-    auto fIt = reg.curves.find("discount");
-    ASSERT_TRUE(dIt != reg.curves.end() && fIt != reg.curves.end());
+    auto dIt = reg.rates.curves.find("discount");
+    auto fIt = reg.rates.curves.find("discount");
+    ASSERT_TRUE(dIt != reg.rates.curves.end() && fIt != reg.rates.curves.end());
     QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve(dIt->second->currentLink());
     QuantLib::Handle<QuantLib::YieldTermStructure> forwardingCurve(fIt->second->currentLink());
 
-    auto vIt = reg.swaptionVols.find("swaption_atm");
-    ASSERT_TRUE(vIt != reg.swaptionVols.end());
+    auto vIt = reg.volatility.swaptionVols.find("swaption_atm");
+    ASSERT_TRUE(vIt != reg.volatility.swaptionVols.end());
     const auto& volEntry = vIt->second;
-    ASSERT_TRUE(reg.swapIndices.has("EUR_SWAP_6M"));
-    const auto& sidx = reg.swapIndices.get("EUR_SWAP_6M");
-    auto ibor = reg.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
+    ASSERT_TRUE(reg.rates.swapIndices.has("EUR_SWAP_6M"));
+    const auto& sidx = reg.rates.swapIndices.get("EUR_SWAP_6M");
+    auto ibor = reg.rates.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
 
     const QuantLib::Period fixedLegTenor(sidx.fixedFrequency);
     const QuantLib::DayCounter fixedDc = sidx.fixedDayCounter;
@@ -4988,6 +4994,165 @@ TEST_F(QuantraComparisonTest, EquityOption_BlackTermShapeMissingGridRejected) {
     EquityOptionPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     EXPECT_THROW(handler.request(outBuilder, req), QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatchesPillars) {
+    flatbuffers::grpc::MessageBuilder b;
+
+    // Pricing (needs at least one discount curve)
+    auto asof = b.CreateString("2025-01-15");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
+        buildCurve(b, "DISC")
+    });
+    auto indices = buildIndicesVector(b);
+
+    // Inflation index spec
+    auto idxId = b.CreateString("EUHICP");
+    auto idxFamily = b.CreateString("EU HICP");
+    auto idxCcy = b.CreateString("EUR");
+    auto availabilityLag = buildPeriod(b, 2, quantra::enums::TimeUnit_Months);
+    auto observationLag = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+
+    quantra::InflationIndexSpecBuilder iisb(b);
+    iisb.add_id(idxId);
+    iisb.add_family_name(idxFamily);
+    iisb.add_currency(idxCcy);
+    iisb.add_calendar(quantra::enums::Calendar_TARGET);
+    iisb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    iisb.add_frequency(quantra::enums::Frequency_Monthly);
+    iisb.add_availability_lag(availabilityLag);
+    iisb.add_observation_lag(observationLag);
+    iisb.add_interpolated(true);
+    iisb.add_revised(false);
+    iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    auto inflationIndex = iisb.Finish();
+    auto inflationIndices =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+
+    // Inflation curve spec (MVP: pillar quotes are treated as zero inflation rates)
+    auto curveId = b.CreateString("HICP_ZC");
+    auto curveRef = b.CreateString("2025-01-15");
+    auto discCurveId = b.CreateString("DISC");
+
+    quantra::InflationCurveBaseSpecBuilder baseb(b);
+    baseb.add_id(curveId);
+    baseb.add_reference_date(curveRef);
+    baseb.add_calendar(quantra::enums::Calendar_TARGET);
+    baseb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    baseb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    baseb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    baseb.add_index_id(idxId);
+    baseb.add_discount_curve_id(discCurveId);
+    baseb.add_allow_extrapolation(true);
+    auto baseSpec = baseb.Finish();
+
+    auto p1y = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
+    auto p2y = buildPeriod(b, 2, quantra::enums::TimeUnit_Years);
+    auto p5y = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
+
+    quantra::InflationSwapPillarBuilder pil1(b);
+    pil1.add_maturity(p1y);
+    pil1.add_quote_value(0.0200);
+    auto pil1Off = pil1.Finish();
+
+    quantra::InflationSwapPillarBuilder pil2(b);
+    pil2.add_maturity(p2y);
+    pil2.add_quote_value(0.0210);
+    auto pil2Off = pil2.Finish();
+
+    quantra::InflationSwapPillarBuilder pil5(b);
+    pil5.add_maturity(p5y);
+    pil5.add_quote_value(0.0220);
+    auto pil5Off = pil5.Finish();
+
+    auto pillars = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationSwapPillar>>{
+        pil1Off, pil2Off, pil5Off
+    });
+    quantra::ZeroInflationCurveFromZcSwapsSpecBuilder zcb(b);
+    zcb.add_pillars(pillars);
+    zcb.add_interpolator(quantra::enums::Interpolator_Linear);
+    auto zcPayload = zcb.Finish();
+
+    quantra::InflationCurveSpecBuilder icb(b);
+    icb.add_base(baseSpec);
+    icb.add_payload_type(quantra::InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec);
+    icb.add_payload(zcPayload.Union());
+    auto inflationCurve = icb.Finish();
+    auto inflationCurves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+
+    quantra::PricingBuilder prb(b);
+    prb.add_as_of_date(asof);
+    prb.add_indices(indices);
+    prb.add_curves(curves);
+    prb.add_inflation_indices(inflationIndices);
+    prb.add_inflation_curves(inflationCurves);
+    auto pricing = prb.Finish();
+
+    // Query: tenor grid that matches curve conventions so sampling hits pillar nodes.
+    auto t1 = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
+    auto t2 = buildPeriod(b, 2, quantra::enums::TimeUnit_Years);
+    auto t5 = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
+    auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{t1, t2, t5});
+
+    quantra::TenorGridBuilder tgb(b);
+    tgb.add_tenors(tenors);
+    tgb.add_calendar(quantra::enums::Calendar_TARGET);
+    tgb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto tg = tgb.Finish();
+
+    quantra::DateGridSpecBuilder dgsb(b);
+    dgsb.add_grid_type(quantra::DateGrid_TenorGrid);
+    dgsb.add_grid(tg.Union());
+    auto grid = dgsb.Finish();
+
+    auto measures = b.CreateVector(std::vector<int8_t>{
+        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)
+    });
+
+    quantra::InflationCurveQuerySpecBuilder qsb(b);
+    qsb.add_curve_id(curveId);
+    qsb.add_measures(measures);
+    qsb.add_grid(grid);
+    auto query = qsb.Finish();
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+
+    quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
+    reqb.add_pricing(pricing);
+    reqb.add_queries(queries);
+    b.Finish(reqb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesRequest>(b.GetBufferPointer());
+    BootstrapInflationCurvesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+
+    auto resp =
+        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+
+    ASSERT_NE(resp->results(), nullptr);
+    ASSERT_EQ(resp->results()->size(), 1u);
+    const auto* r = resp->results()->Get(0);
+    ASSERT_NE(r, nullptr);
+    ASSERT_TRUE(r->error() == nullptr);
+    ASSERT_NE(r->grid_dates(), nullptr);
+    ASSERT_NE(r->series(), nullptr);
+    ASSERT_EQ(r->grid_dates()->size(), 3u);
+    ASSERT_EQ(r->series()->size(), 1u);
+
+    const auto* s = r->series()->Get(0);
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->measure(), quantra::enums::InflationCurveMeasure_ZeroRate);
+    ASSERT_NE(s->values(), nullptr);
+    ASSERT_EQ(s->values()->size(), 3u);
+
+    // QuantLib's inflation term structures can map a date to an inflation period
+    // (e.g., month start) when computing zero rates, so the sampled values may
+    // deviate slightly from the raw node quotes. We still expect them to be close.
+    EXPECT_NEAR(s->values()->Get(0), 0.0200, 5e-4);
+    EXPECT_NEAR(s->values()->Get(1), 0.0210, 5e-4);
+    EXPECT_NEAR(s->values()->Get(2), 0.0220, 5e-4);
 }
 
 }} // namespace

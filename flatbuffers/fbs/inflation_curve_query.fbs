@@ -1,0 +1,13 @@
+include "query_grid.fbs";
+include "enums.fbs";
+
+namespace quantra;
+
+/// Query spec for one inflation curve id within Pricing.inflation_curves[].
+table InflationCurveQuerySpec {
+    curve_id:string (required);
+    measures:[enums.InflationCurveMeasure] (required);
+    grid:DateGridSpec (required);
+    options:QueryOptions;
+}
+
