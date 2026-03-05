@@ -12,3 +12,4 @@ flatbuffers/build/*
 core
 tmp/*
 .venv/
+logs/

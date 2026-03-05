@@ -1176,7 +1176,7 @@ def main():
     total = len(results)
     passed_count = sum(1 for _, p, _, _, _ in results if p)
     print("-" * 60)
-    print(f"Total: {passed_count}/{total} tests passed")
+    print(f"Total scenarios: {passed_count}/{total} passed")
     
     return passed_count == total
 

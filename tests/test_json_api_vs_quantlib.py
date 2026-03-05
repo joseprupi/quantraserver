@@ -2315,7 +2315,7 @@ def main():
     
     passed = sum(1 for r in results if r["passed"])
     print("-" * 70)
-    print(f"TOTAL: {passed}/{len(results)} tests passed")
+    print(f"TOTAL SCENARIOS: {passed}/{len(results)} passed")
     
     return passed == len(results)
 
