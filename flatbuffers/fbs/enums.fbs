@@ -332,3 +332,9 @@ enum EquityBarrierMonitoring : byte {
     Continuous = 0,
     Discrete = 1
 }
+
+/// Averaging method for Asian options.
+enum EquityAsianAverageType : byte {
+    Geometric = 0,
+    Arithmetic = 1
+}

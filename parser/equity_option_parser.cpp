@@ -107,6 +107,17 @@ QuantLib::Barrier::Type toQlBarrierType(quantra::enums::EquityBarrierType t) {
     return QuantLib::Barrier::DownOut;
 }
 
+QuantLib::Average::Type toQlAverageType(quantra::enums::EquityAsianAverageType t) {
+    switch (t) {
+        case quantra::enums::EquityAsianAverageType_Geometric:
+            return QuantLib::Average::Geometric;
+        case quantra::enums::EquityAsianAverageType_Arithmetic:
+            return QuantLib::Average::Arithmetic;
+    }
+    QUANTRA_ERROR("Unsupported EquityAsianAverageType");
+    return QuantLib::Average::Geometric;
+}
+
 } // namespace
 
 ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option) const {
@@ -137,6 +148,32 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
         parsed.barrierType = toQlBarrierType(b->barrier_type());
         parsed.barrierLevel = b->level();
         parsed.rebate = b->rebate();
+    }
+
+    if (option->asian()) {
+        const auto* a = option->asian();
+        if (!a->fixing_dates() || a->fixing_dates()->empty()) {
+            QUANTRA_ERROR("EquityAsianFeature.fixing_dates must not be empty");
+        }
+        parsed.hasAsian = true;
+        parsed.asianAverageType = toQlAverageType(a->average_type());
+        parsed.asianRunningAccumulator = a->running_accumulator();
+        parsed.asianPastFixings = a->past_fixings();
+        if (parsed.asianPastFixings < 0) {
+            QUANTRA_ERROR("EquityAsianFeature.past_fixings must be >= 0");
+        }
+        parsed.asianFixingDates.reserve(a->fixing_dates()->size());
+        for (const auto* d : *a->fixing_dates()) {
+            if (!d) continue;
+            parsed.asianFixingDates.push_back(DateToQL(d->str()));
+        }
+        if (parsed.asianFixingDates.empty()) {
+            QUANTRA_ERROR("EquityAsianFeature.fixing_dates must contain valid dates");
+        }
+    }
+
+    if (parsed.hasBarrier && parsed.hasAsian) {
+        QUANTRA_ERROR("Combining EquityBarrierFeature and EquityAsianFeature is not supported");
     }
 
     return parsed;

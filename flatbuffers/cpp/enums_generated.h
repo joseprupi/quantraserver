@@ -9,8 +9,8 @@
 // Ensure the included flatbuffers.h is the same version as when this file was
 // generated, otherwise it may not be compatible.
 static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
-              FLATBUFFERS_VERSION_MINOR == 12 &&
-              FLATBUFFERS_VERSION_REVISION == 23,
+              FLATBUFFERS_VERSION_MINOR == 3 &&
+              FLATBUFFERS_VERSION_REVISION == 25,
              "Non-compatible flatbuffers version included");
 
 namespace quantra {
@@ -1494,6 +1494,37 @@ inline const char *EnumNameEquityBarrierMonitoring(EquityBarrierMonitoring e) {
   if (::flatbuffers::IsOutRange(e, EquityBarrierMonitoring_Continuous, EquityBarrierMonitoring_Discrete)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEquityBarrierMonitoring()[index];
+}
+
+/// Averaging method for Asian options.
+enum EquityAsianAverageType : int8_t {
+  EquityAsianAverageType_Geometric = 0,
+  EquityAsianAverageType_Arithmetic = 1,
+  EquityAsianAverageType_MIN = EquityAsianAverageType_Geometric,
+  EquityAsianAverageType_MAX = EquityAsianAverageType_Arithmetic
+};
+
+inline const EquityAsianAverageType (&EnumValuesEquityAsianAverageType())[2] {
+  static const EquityAsianAverageType values[] = {
+    EquityAsianAverageType_Geometric,
+    EquityAsianAverageType_Arithmetic
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEquityAsianAverageType() {
+  static const char * const names[3] = {
+    "Geometric",
+    "Arithmetic",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEquityAsianAverageType(EquityAsianAverageType e) {
+  if (::flatbuffers::IsOutRange(e, EquityAsianAverageType_Geometric, EquityAsianAverageType_Arithmetic)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEquityAsianAverageType()[index];
 }
 
 }  // namespace enums

@@ -9,8 +9,8 @@
 // Ensure the included flatbuffers.h is the same version as when this file was
 // generated, otherwise it may not be compatible.
 static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
-              FLATBUFFERS_VERSION_MINOR == 12 &&
-              FLATBUFFERS_VERSION_REVISION == 23,
+              FLATBUFFERS_VERSION_MINOR == 3 &&
+              FLATBUFFERS_VERSION_REVISION == 25,
              "Non-compatible flatbuffers version included");
 
 #include "enums_generated.h"
@@ -52,6 +52,10 @@ struct EquityAssetOrNothingPayoffT;
 struct EquityBarrierFeature;
 struct EquityBarrierFeatureBuilder;
 struct EquityBarrierFeatureT;
+
+struct EquityAsianFeature;
+struct EquityAsianFeatureBuilder;
+struct EquityAsianFeatureT;
 
 struct EquityOption;
 struct EquityOptionBuilder;
@@ -1044,6 +1048,109 @@ inline ::flatbuffers::Offset<EquityBarrierFeature> CreateEquityBarrierFeatureDir
 
 ::flatbuffers::Offset<EquityBarrierFeature> CreateEquityBarrierFeature(::flatbuffers::FlatBufferBuilder &_fbb, const EquityBarrierFeatureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct EquityAsianFeatureT : public ::flatbuffers::NativeTable {
+  typedef EquityAsianFeature TableType;
+  quantra::enums::EquityAsianAverageType average_type = quantra::enums::EquityAsianAverageType_Geometric;
+  std::vector<std::string> fixing_dates{};
+  double running_accumulator = 0.0;
+  int32_t past_fixings = 0;
+};
+
+/// Optional Asian feature (discrete averaging).
+struct EquityAsianFeature FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityAsianFeatureT NativeTableType;
+  typedef EquityAsianFeatureBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_AVERAGE_TYPE = 4,
+    VT_FIXING_DATES = 6,
+    VT_RUNNING_ACCUMULATOR = 8,
+    VT_PAST_FIXINGS = 10
+  };
+  quantra::enums::EquityAsianAverageType average_type() const {
+    return static_cast<quantra::enums::EquityAsianAverageType>(GetField<int8_t>(VT_AVERAGE_TYPE, 0));
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *fixing_dates() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>> *>(VT_FIXING_DATES);
+  }
+  double running_accumulator() const {
+    return GetField<double>(VT_RUNNING_ACCUMULATOR, 0.0);
+  }
+  int32_t past_fixings() const {
+    return GetField<int32_t>(VT_PAST_FIXINGS, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_AVERAGE_TYPE, 1) &&
+           VerifyOffset(verifier, VT_FIXING_DATES) &&
+           verifier.VerifyVector(fixing_dates()) &&
+           verifier.VerifyVectorOfStrings(fixing_dates()) &&
+           VerifyField<double>(verifier, VT_RUNNING_ACCUMULATOR, 8) &&
+           VerifyField<int32_t>(verifier, VT_PAST_FIXINGS, 4) &&
+           verifier.EndTable();
+  }
+  EquityAsianFeatureT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityAsianFeatureT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityAsianFeature> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityAsianFeatureT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityAsianFeatureBuilder {
+  typedef EquityAsianFeature Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_average_type(quantra::enums::EquityAsianAverageType average_type) {
+    fbb_.AddElement<int8_t>(EquityAsianFeature::VT_AVERAGE_TYPE, static_cast<int8_t>(average_type), 0);
+  }
+  void add_fixing_dates(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> fixing_dates) {
+    fbb_.AddOffset(EquityAsianFeature::VT_FIXING_DATES, fixing_dates);
+  }
+  void add_running_accumulator(double running_accumulator) {
+    fbb_.AddElement<double>(EquityAsianFeature::VT_RUNNING_ACCUMULATOR, running_accumulator, 0.0);
+  }
+  void add_past_fixings(int32_t past_fixings) {
+    fbb_.AddElement<int32_t>(EquityAsianFeature::VT_PAST_FIXINGS, past_fixings, 0);
+  }
+  explicit EquityAsianFeatureBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityAsianFeature> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityAsianFeature>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityAsianFeature> CreateEquityAsianFeature(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::EquityAsianAverageType average_type = quantra::enums::EquityAsianAverageType_Geometric,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> fixing_dates = 0,
+    double running_accumulator = 0.0,
+    int32_t past_fixings = 0) {
+  EquityAsianFeatureBuilder builder_(_fbb);
+  builder_.add_running_accumulator(running_accumulator);
+  builder_.add_past_fixings(past_fixings);
+  builder_.add_fixing_dates(fixing_dates);
+  builder_.add_average_type(average_type);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityAsianFeature> CreateEquityAsianFeatureDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::enums::EquityAsianAverageType average_type = quantra::enums::EquityAsianAverageType_Geometric,
+    const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *fixing_dates = nullptr,
+    double running_accumulator = 0.0,
+    int32_t past_fixings = 0) {
+  auto fixing_dates__ = fixing_dates ? _fbb.CreateVector<::flatbuffers::Offset<::flatbuffers::String>>(*fixing_dates) : 0;
+  return quantra::CreateEquityAsianFeature(
+      _fbb,
+      average_type,
+      fixing_dates__,
+      running_accumulator,
+      past_fixings);
+}
+
+::flatbuffers::Offset<EquityAsianFeature> CreateEquityAsianFeature(::flatbuffers::FlatBufferBuilder &_fbb, const EquityAsianFeatureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct EquityOptionT : public ::flatbuffers::NativeTable {
   typedef EquityOption TableType;
   std::string trade_id{};
@@ -1053,6 +1160,7 @@ struct EquityOptionT : public ::flatbuffers::NativeTable {
   quantra::EquityPayoffUnion payoff{};
   quantra::EquityExerciseUnion exercise{};
   std::unique_ptr<quantra::EquityBarrierFeatureT> barrier{};
+  std::unique_ptr<quantra::EquityAsianFeatureT> asian{};
   EquityOptionT() = default;
   EquityOptionT(const EquityOptionT &o);
   EquityOptionT(EquityOptionT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1072,7 +1180,8 @@ struct EquityOption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_PAYOFF = 14,
     VT_EXERCISE_TYPE = 16,
     VT_EXERCISE = 18,
-    VT_BARRIER = 20
+    VT_BARRIER = 20,
+    VT_ASIAN = 22
   };
   const ::flatbuffers::String *trade_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_TRADE_ID);
@@ -1121,6 +1230,9 @@ struct EquityOption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::EquityBarrierFeature *barrier() const {
     return GetPointer<const quantra::EquityBarrierFeature *>(VT_BARRIER);
   }
+  const quantra::EquityAsianFeature *asian() const {
+    return GetPointer<const quantra::EquityAsianFeature *>(VT_ASIAN);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_TRADE_ID) &&
@@ -1137,6 +1249,8 @@ struct EquityOption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyEquityExercise(verifier, exercise(), exercise_type()) &&
            VerifyOffset(verifier, VT_BARRIER) &&
            verifier.VerifyTable(barrier()) &&
+           VerifyOffset(verifier, VT_ASIAN) &&
+           verifier.VerifyTable(asian()) &&
            verifier.EndTable();
   }
   EquityOptionT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1199,6 +1313,9 @@ struct EquityOptionBuilder {
   void add_barrier(::flatbuffers::Offset<quantra::EquityBarrierFeature> barrier) {
     fbb_.AddOffset(EquityOption::VT_BARRIER, barrier);
   }
+  void add_asian(::flatbuffers::Offset<quantra::EquityAsianFeature> asian) {
+    fbb_.AddOffset(EquityOption::VT_ASIAN, asian);
+  }
   explicit EquityOptionBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1222,9 +1339,11 @@ inline ::flatbuffers::Offset<EquityOption> CreateEquityOption(
     ::flatbuffers::Offset<void> payoff = 0,
     quantra::EquityExercise exercise_type = quantra::EquityExercise_NONE,
     ::flatbuffers::Offset<void> exercise = 0,
-    ::flatbuffers::Offset<quantra::EquityBarrierFeature> barrier = 0) {
+    ::flatbuffers::Offset<quantra::EquityBarrierFeature> barrier = 0,
+    ::flatbuffers::Offset<quantra::EquityAsianFeature> asian = 0) {
   EquityOptionBuilder builder_(_fbb);
   builder_.add_quantity(quantity);
+  builder_.add_asian(asian);
   builder_.add_barrier(barrier);
   builder_.add_exercise(exercise);
   builder_.add_payoff(payoff);
@@ -1246,7 +1365,8 @@ inline ::flatbuffers::Offset<EquityOption> CreateEquityOptionDirect(
     ::flatbuffers::Offset<void> payoff = 0,
     quantra::EquityExercise exercise_type = quantra::EquityExercise_NONE,
     ::flatbuffers::Offset<void> exercise = 0,
-    ::flatbuffers::Offset<quantra::EquityBarrierFeature> barrier = 0) {
+    ::flatbuffers::Offset<quantra::EquityBarrierFeature> barrier = 0,
+    ::flatbuffers::Offset<quantra::EquityAsianFeature> asian = 0) {
   auto trade_id__ = trade_id ? _fbb.CreateString(trade_id) : 0;
   auto underlying_id__ = underlying_id ? _fbb.CreateString(underlying_id) : 0;
   return quantra::CreateEquityOption(
@@ -1259,7 +1379,8 @@ inline ::flatbuffers::Offset<EquityOption> CreateEquityOptionDirect(
       payoff,
       exercise_type,
       exercise,
-      barrier);
+      barrier,
+      asian);
 }
 
 ::flatbuffers::Offset<EquityOption> CreateEquityOption(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1558,6 +1679,41 @@ inline ::flatbuffers::Offset<EquityBarrierFeature> CreateEquityBarrierFeature(::
       _monitoring_dates);
 }
 
+inline EquityAsianFeatureT *EquityAsianFeature::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityAsianFeatureT>(new EquityAsianFeatureT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityAsianFeature::UnPackTo(EquityAsianFeatureT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = average_type(); _o->average_type = _e; }
+  { auto _e = fixing_dates(); if (_e) { _o->fixing_dates.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->fixing_dates[_i] = _e->Get(_i)->str(); } } else { _o->fixing_dates.resize(0); } }
+  { auto _e = running_accumulator(); _o->running_accumulator = _e; }
+  { auto _e = past_fixings(); _o->past_fixings = _e; }
+}
+
+inline ::flatbuffers::Offset<EquityAsianFeature> EquityAsianFeature::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityAsianFeatureT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityAsianFeature(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityAsianFeature> CreateEquityAsianFeature(::flatbuffers::FlatBufferBuilder &_fbb, const EquityAsianFeatureT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityAsianFeatureT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _average_type = _o->average_type;
+  auto _fixing_dates = _o->fixing_dates.size() ? _fbb.CreateVectorOfStrings(_o->fixing_dates) : 0;
+  auto _running_accumulator = _o->running_accumulator;
+  auto _past_fixings = _o->past_fixings;
+  return quantra::CreateEquityAsianFeature(
+      _fbb,
+      _average_type,
+      _fixing_dates,
+      _running_accumulator,
+      _past_fixings);
+}
+
 inline EquityOptionT::EquityOptionT(const EquityOptionT &o)
       : trade_id(o.trade_id),
         underlying_id(o.underlying_id),
@@ -1565,7 +1721,8 @@ inline EquityOptionT::EquityOptionT(const EquityOptionT &o)
         settlement(o.settlement),
         payoff(o.payoff),
         exercise(o.exercise),
-        barrier((o.barrier) ? new quantra::EquityBarrierFeatureT(*o.barrier) : nullptr) {
+        barrier((o.barrier) ? new quantra::EquityBarrierFeatureT(*o.barrier) : nullptr),
+        asian((o.asian) ? new quantra::EquityAsianFeatureT(*o.asian) : nullptr) {
 }
 
 inline EquityOptionT &EquityOptionT::operator=(EquityOptionT o) FLATBUFFERS_NOEXCEPT {
@@ -1576,6 +1733,7 @@ inline EquityOptionT &EquityOptionT::operator=(EquityOptionT o) FLATBUFFERS_NOEX
   std::swap(payoff, o.payoff);
   std::swap(exercise, o.exercise);
   std::swap(barrier, o.barrier);
+  std::swap(asian, o.asian);
   return *this;
 }
 
@@ -1597,6 +1755,7 @@ inline void EquityOption::UnPackTo(EquityOptionT *_o, const ::flatbuffers::resol
   { auto _e = exercise_type(); _o->exercise.type = _e; }
   { auto _e = exercise(); if (_e) _o->exercise.value = quantra::EquityExerciseUnion::UnPack(_e, exercise_type(), _resolver); }
   { auto _e = barrier(); if (_e) { if(_o->barrier) { _e->UnPackTo(_o->barrier.get(), _resolver); } else { _o->barrier = std::unique_ptr<quantra::EquityBarrierFeatureT>(_e->UnPack(_resolver)); } } else if (_o->barrier) { _o->barrier.reset(); } }
+  { auto _e = asian(); if (_e) { if(_o->asian) { _e->UnPackTo(_o->asian.get(), _resolver); } else { _o->asian = std::unique_ptr<quantra::EquityAsianFeatureT>(_e->UnPack(_resolver)); } } else if (_o->asian) { _o->asian.reset(); } }
 }
 
 inline ::flatbuffers::Offset<EquityOption> EquityOption::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityOptionT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1616,6 +1775,7 @@ inline ::flatbuffers::Offset<EquityOption> CreateEquityOption(::flatbuffers::Fla
   auto _exercise_type = _o->exercise.type;
   auto _exercise = _o->exercise.Pack(_fbb);
   auto _barrier = _o->barrier ? CreateEquityBarrierFeature(_fbb, _o->barrier.get(), _rehasher) : 0;
+  auto _asian = _o->asian ? CreateEquityAsianFeature(_fbb, _o->asian.get(), _rehasher) : 0;
   return quantra::CreateEquityOption(
       _fbb,
       _trade_id,
@@ -1626,7 +1786,8 @@ inline ::flatbuffers::Offset<EquityOption> CreateEquityOption(::flatbuffers::Fla
       _payoff,
       _exercise_type,
       _exercise,
-      _barrier);
+      _barrier,
+      _asian);
 }
 
 inline bool VerifyEquityExercise(::flatbuffers::Verifier &verifier, const void *obj, EquityExercise type) {

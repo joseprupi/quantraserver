@@ -98,8 +98,19 @@ class EquityOption(object):
             return obj
         return None
 
+    # EquityOption
+    def Asian(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.EquityAsianFeature import EquityAsianFeature
+            obj = EquityAsianFeature()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def EquityOptionStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(10)
 
 def Start(builder):
     EquityOptionStart(builder)
@@ -158,6 +169,12 @@ def EquityOptionAddBarrier(builder, barrier):
 def AddBarrier(builder, barrier):
     EquityOptionAddBarrier(builder, barrier)
 
+def EquityOptionAddAsian(builder, asian):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(asian), 0)
+
+def AddAsian(builder, asian):
+    EquityOptionAddAsian(builder, asian)
+
 def EquityOptionEnd(builder):
     return builder.EndObject()
 
@@ -182,6 +199,7 @@ class EquityOptionT(object):
         self.exerciseType = 0  # type: int
         self.exercise = None  # type: Union[None, EquityEuropeanExerciseT, EquityAmericanExerciseT, EquityBermudanExerciseT]
         self.barrier = None  # type: Optional[EquityBarrierFeatureT]
+        self.asian = None  # type: Optional[EquityAsianFeatureT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -214,6 +232,8 @@ class EquityOptionT(object):
         self.exercise = EquityExerciseCreator(self.exerciseType, equityOption.Exercise())
         if equityOption.Barrier() is not None:
             self.barrier = EquityBarrierFeatureT.InitFromObj(equityOption.Barrier())
+        if equityOption.Asian() is not None:
+            self.asian = EquityAsianFeatureT.InitFromObj(equityOption.Asian())
 
     # EquityOptionT
     def Pack(self, builder):
@@ -227,6 +247,8 @@ class EquityOptionT(object):
             exercise = self.exercise.Pack(builder)
         if self.barrier is not None:
             barrier = self.barrier.Pack(builder)
+        if self.asian is not None:
+            asian = self.asian.Pack(builder)
         EquityOptionStart(builder)
         if self.tradeId is not None:
             EquityOptionAddTradeId(builder, tradeId)
@@ -242,5 +264,7 @@ class EquityOptionT(object):
             EquityOptionAddExercise(builder, exercise)
         if self.barrier is not None:
             EquityOptionAddBarrier(builder, barrier)
+        if self.asian is not None:
+            EquityOptionAddAsian(builder, asian)
         equityOption = EquityOptionEnd(builder)
         return equityOption

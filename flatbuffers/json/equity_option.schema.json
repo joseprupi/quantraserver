@@ -149,6 +149,10 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
+    "quantra_enums_EquityAsianAverageType" : {
+      "type" : "string",
+      "enum": ["Geometric", "Arithmetic"]
+    },
     "quantra_EquityExercise" : {
       "type" : "string",
       "enum": ["NONE", "EquityEuropeanExercise", "EquityAmericanExercise", "EquityBermudanExercise"]
@@ -290,6 +294,25 @@
       },
       "additionalProperties" : false
     },
+    "quantra_EquityAsianFeature" : {
+      "type" : "object",
+      "description" : "Optional Asian feature (discrete averaging).",
+      "properties" : {
+        "average_type" : {
+                "$ref" : "#/definitions/quantra_enums_EquityAsianAverageType"
+              },
+        "fixing_dates" : {
+                "type" : "array", "items" : {"type" : "string"}
+              },
+        "running_accumulator" : {
+                "type" : "number"
+              },
+        "past_fixings" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_EquityOption" : {
       "type" : "object",
       "description" : "Equity option trade definition.",
@@ -320,6 +343,9 @@
               },
         "barrier" : {
                 "$ref" : "#/definitions/quantra_EquityBarrierFeature"
+              },
+        "asian" : {
+                "$ref" : "#/definitions/quantra_EquityAsianFeature"
               }
       },
       "required" : ["trade_id", "underlying_id"],

@@ -4,9 +4,11 @@
 #include <limits>
 
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/instruments/asianoption.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/payoff.hpp>
+#include <ql/pricingengines/asian/analytic_discr_geom_av_price.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
 #include <ql/pricingengines/barrier/binomialbarrierengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
@@ -96,7 +98,30 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
 
         std::shared_ptr<QuantLib::Instrument> instrument;
         std::shared_ptr<QuantLib::OneAssetOption> oneAssetOption;
-        if (opt.hasBarrier) {
+        if (opt.hasAsian) {
+            if (dynamic_cast<QuantLib::EuropeanExercise*>(opt.exercise.get()) == nullptr) {
+                QUANTRA_ERROR("Asian option currently supports only EquityEuropeanExercise");
+            }
+            if (dynamic_cast<QuantLib::PlainVanillaPayoff*>(payoff.get()) == nullptr) {
+                QUANTRA_ERROR("Asian option currently supports only EquityPlainVanillaPayoff");
+            }
+            auto asian = std::make_shared<QuantLib::DiscreteAveragingAsianOption>(
+                opt.asianAverageType,
+                opt.asianRunningAccumulator,
+                opt.asianPastFixings,
+                opt.asianFixingDates,
+                payoff,
+                opt.exercise);
+            if (model->model_type() != quantra::enums::EquityModelType_BlackScholesAnalytic) {
+                QUANTRA_ERROR("Asian option currently supports only BlackScholesAnalytic model");
+            }
+            if (opt.asianAverageType != QuantLib::Average::Geometric) {
+                QUANTRA_ERROR("Asian option currently supports only Geometric averaging");
+            }
+            asian->setPricingEngine(std::make_shared<QuantLib::AnalyticDiscreteGeometricAveragePriceAsianEngine>(process));
+            instrument = asian;
+            oneAssetOption = asian;
+        } else if (opt.hasBarrier) {
             auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
                 opt.barrierType,
                 opt.barrierLevel,

@@ -3,9 +3,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/instruments/asianoption.hpp>
 #include <ql/option.hpp>
 #include <ql/payoff.hpp>
 
@@ -29,6 +31,12 @@ struct ParsedEquityOption {
     QuantLib::Barrier::Type barrierType = QuantLib::Barrier::DownOut;
     double barrierLevel = 0.0;
     double rebate = 0.0;
+
+    bool hasAsian = false;
+    QuantLib::Average::Type asianAverageType = QuantLib::Average::Geometric;
+    std::vector<QuantLib::Date> asianFixingDates;
+    double asianRunningAccumulator = 0.0;
+    int asianPastFixings = 0;
 };
 
 class EquityOptionParser {

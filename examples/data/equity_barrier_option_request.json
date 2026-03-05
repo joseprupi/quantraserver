@@ -1,0 +1,160 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "curves": [
+      {
+        "id": "discount",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 3, "unit": "Months" }
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 6, "unit": "Months" }
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.03,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 1, "unit": "Years" }
+            }
+          }
+        ]
+      },
+      {
+        "id": "dividend",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "LogLinear",
+        "reference_date": "2025-01-15",
+        "bootstrap_trait": "Discount",
+        "points": [
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.01,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 3, "unit": "Months" }
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.01,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 6, "unit": "Months" }
+            }
+          },
+          {
+            "point_type": "DepositHelper",
+            "point": {
+              "rate": 0.01,
+              "fixing_days": 2,
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "tenor": { "n": 1, "unit": "Years" }
+            }
+          }
+        ]
+      }
+    ],
+    "quotes": [
+      {
+        "id": "AAPL_SPOT",
+        "kind": "Price",
+        "value": 100.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "vol_surfaces": [
+      {
+        "id": "eq_vol",
+        "payload_type": "BlackVolSpec",
+        "payload": {
+          "base": {
+            "reference_date": "2025-01-15",
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "shape": "Constant",
+            "constant_vol": 0.20
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "eq_model",
+        "payload_type": "EquityVanillaModelSpec",
+        "payload": {
+          "model_type": "BlackScholesAnalytic"
+        }
+      }
+    ],
+    "equity_underlyings": [
+      {
+        "id": "AAPL",
+        "currency": "USD",
+        "spot_quote_id": "AAPL_SPOT",
+        "dividend_yield_curve_id": "dividend"
+      }
+    ]
+  },
+  "options": [
+    {
+      "option": {
+        "trade_id": "AAPL_UP_AND_OUT_CALL_1Y",
+        "underlying_id": "AAPL",
+        "quantity": 1.0,
+        "settlement": "Physical",
+        "payoff_type": "EquityPlainVanillaPayoff",
+        "payoff": {
+          "option_type": "Call",
+          "strike": 100.0
+        },
+        "exercise_type": "EquityEuropeanExercise",
+        "exercise": {
+          "expiry_date": "2026-01-15"
+        },
+        "barrier": {
+          "barrier_type": "UpOut",
+          "level": 120.0,
+          "rebate": 0.0,
+          "monitoring": "Continuous"
+        }
+      },
+      "discounting_curve": "discount",
+      "volatility": "eq_vol",
+      "model": "eq_model"
+    }
+  ]
+}

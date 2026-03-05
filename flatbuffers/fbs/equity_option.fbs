@@ -75,6 +75,14 @@ table EquityBarrierFeature {
     monitoring_dates:[string];
 }
 
+/// Optional Asian feature (discrete averaging).
+table EquityAsianFeature {
+    average_type:enums.EquityAsianAverageType = Geometric;
+    fixing_dates:[string];
+    running_accumulator:double = 0.0;
+    past_fixings:int = 0;
+}
+
 /// Equity option trade definition.
 table EquityOption {
     trade_id:string (required);
@@ -84,6 +92,7 @@ table EquityOption {
     payoff:EquityPayoff;
     exercise:EquityExercise;
     barrier:EquityBarrierFeature;
+    asian:EquityAsianFeature;
 }
 
 root_type EquityOption;
