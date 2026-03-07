@@ -15,6 +15,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 #include "common_generated.h"
 #include "enums_generated.h"
+#include "index_generated.h"
+#include "schedule_generated.h"
 
 namespace quantra {
 
@@ -22,97 +24,94 @@ struct InflationIndexSpec;
 struct InflationIndexSpecBuilder;
 struct InflationIndexSpecT;
 
-struct InflationCurveBaseSpec;
-struct InflationCurveBaseSpecBuilder;
-struct InflationCurveBaseSpecT;
+struct ZeroCouponInflationSwapHelper;
+struct ZeroCouponInflationSwapHelperBuilder;
+struct ZeroCouponInflationSwapHelperT;
 
-struct InflationSwapPillar;
-struct InflationSwapPillarBuilder;
-struct InflationSwapPillarT;
+struct YearOnYearInflationSwapHelper;
+struct YearOnYearInflationSwapHelperBuilder;
+struct YearOnYearInflationSwapHelperT;
 
-struct ZeroInflationCurveFromZcSwapsSpec;
-struct ZeroInflationCurveFromZcSwapsSpecBuilder;
-struct ZeroInflationCurveFromZcSwapsSpecT;
-
-struct YoYInflationCurveFromYoYSwapsSpec;
-struct YoYInflationCurveFromYoYSwapsSpecBuilder;
-struct YoYInflationCurveFromYoYSwapsSpecT;
+struct InflationPointWrapper;
+struct InflationPointWrapperBuilder;
+struct InflationPointWrapperT;
 
 struct InflationCurveSpec;
 struct InflationCurveSpecBuilder;
 struct InflationCurveSpecT;
 
-enum InflationCurvePayload : uint8_t {
-  InflationCurvePayload_NONE = 0,
-  InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec = 1,
-  InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec = 2,
-  InflationCurvePayload_MIN = InflationCurvePayload_NONE,
-  InflationCurvePayload_MAX = InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec
+/// Union of supported inflation bootstrap point/helper types.
+enum InflationPoint : uint8_t {
+  InflationPoint_NONE = 0,
+  InflationPoint_ZeroCouponInflationSwapHelper = 1,
+  InflationPoint_YearOnYearInflationSwapHelper = 2,
+  InflationPoint_MIN = InflationPoint_NONE,
+  InflationPoint_MAX = InflationPoint_YearOnYearInflationSwapHelper
 };
 
-inline const InflationCurvePayload (&EnumValuesInflationCurvePayload())[3] {
-  static const InflationCurvePayload values[] = {
-    InflationCurvePayload_NONE,
-    InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec,
-    InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec
+inline const InflationPoint (&EnumValuesInflationPoint())[3] {
+  static const InflationPoint values[] = {
+    InflationPoint_NONE,
+    InflationPoint_ZeroCouponInflationSwapHelper,
+    InflationPoint_YearOnYearInflationSwapHelper
   };
   return values;
 }
 
-inline const char * const *EnumNamesInflationCurvePayload() {
+inline const char * const *EnumNamesInflationPoint() {
   static const char * const names[4] = {
     "NONE",
-    "ZeroInflationCurveFromZcSwapsSpec",
-    "YoYInflationCurveFromYoYSwapsSpec",
+    "ZeroCouponInflationSwapHelper",
+    "YearOnYearInflationSwapHelper",
     nullptr
   };
   return names;
 }
 
-inline const char *EnumNameInflationCurvePayload(InflationCurvePayload e) {
-  if (::flatbuffers::IsOutRange(e, InflationCurvePayload_NONE, InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec)) return "";
+inline const char *EnumNameInflationPoint(InflationPoint e) {
+  if (::flatbuffers::IsOutRange(e, InflationPoint_NONE, InflationPoint_YearOnYearInflationSwapHelper)) return "";
   const size_t index = static_cast<size_t>(e);
-  return EnumNamesInflationCurvePayload()[index];
+  return EnumNamesInflationPoint()[index];
 }
 
-template<typename T> struct InflationCurvePayloadTraits {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_NONE;
+template<typename T> struct InflationPointTraits {
+  static const InflationPoint enum_value = InflationPoint_NONE;
 };
 
-template<> struct InflationCurvePayloadTraits<quantra::ZeroInflationCurveFromZcSwapsSpec> {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec;
+template<> struct InflationPointTraits<quantra::ZeroCouponInflationSwapHelper> {
+  static const InflationPoint enum_value = InflationPoint_ZeroCouponInflationSwapHelper;
 };
 
-template<> struct InflationCurvePayloadTraits<quantra::YoYInflationCurveFromYoYSwapsSpec> {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec;
+template<> struct InflationPointTraits<quantra::YearOnYearInflationSwapHelper> {
+  static const InflationPoint enum_value = InflationPoint_YearOnYearInflationSwapHelper;
 };
 
-template<typename T> struct InflationCurvePayloadUnionTraits {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_NONE;
+template<typename T> struct InflationPointUnionTraits {
+  static const InflationPoint enum_value = InflationPoint_NONE;
 };
 
-template<> struct InflationCurvePayloadUnionTraits<quantra::ZeroInflationCurveFromZcSwapsSpecT> {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec;
+template<> struct InflationPointUnionTraits<quantra::ZeroCouponInflationSwapHelperT> {
+  static const InflationPoint enum_value = InflationPoint_ZeroCouponInflationSwapHelper;
 };
 
-template<> struct InflationCurvePayloadUnionTraits<quantra::YoYInflationCurveFromYoYSwapsSpecT> {
-  static const InflationCurvePayload enum_value = InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec;
+template<> struct InflationPointUnionTraits<quantra::YearOnYearInflationSwapHelperT> {
+  static const InflationPoint enum_value = InflationPoint_YearOnYearInflationSwapHelper;
 };
 
-struct InflationCurvePayloadUnion {
-  InflationCurvePayload type;
+struct InflationPointUnion {
+  InflationPoint type;
   void *value;
 
-  InflationCurvePayloadUnion() : type(InflationCurvePayload_NONE), value(nullptr) {}
-  InflationCurvePayloadUnion(InflationCurvePayloadUnion&& u) FLATBUFFERS_NOEXCEPT :
-    type(InflationCurvePayload_NONE), value(nullptr)
+  InflationPointUnion() : type(InflationPoint_NONE), value(nullptr) {}
+  InflationPointUnion(InflationPointUnion&& u) FLATBUFFERS_NOEXCEPT :
+    type(InflationPoint_NONE), value(nullptr)
     { std::swap(type, u.type); std::swap(value, u.value); }
-  InflationCurvePayloadUnion(const InflationCurvePayloadUnion &);
-  InflationCurvePayloadUnion &operator=(const InflationCurvePayloadUnion &u)
-    { InflationCurvePayloadUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
-  InflationCurvePayloadUnion &operator=(InflationCurvePayloadUnion &&u) FLATBUFFERS_NOEXCEPT
+  InflationPointUnion(const InflationPointUnion &);
+  InflationPointUnion &operator=(const InflationPointUnion &u)
+    { InflationPointUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
+  InflationPointUnion &operator=(InflationPointUnion &&u) FLATBUFFERS_NOEXCEPT
     { std::swap(type, u.type); std::swap(value, u.value); return *this; }
-  ~InflationCurvePayloadUnion() { Reset(); }
+  ~InflationPointUnion() { Reset(); }
 
   void Reset();
 
@@ -120,35 +119,35 @@ struct InflationCurvePayloadUnion {
   void Set(T&& val) {
     typedef typename std::remove_reference<T>::type RT;
     Reset();
-    type = InflationCurvePayloadUnionTraits<RT>::enum_value;
-    if (type != InflationCurvePayload_NONE) {
+    type = InflationPointUnionTraits<RT>::enum_value;
+    if (type != InflationPoint_NONE) {
       value = new RT(std::forward<T>(val));
     }
   }
 
-  static void *UnPack(const void *obj, InflationCurvePayload type, const ::flatbuffers::resolver_function_t *resolver);
+  static void *UnPack(const void *obj, InflationPoint type, const ::flatbuffers::resolver_function_t *resolver);
   ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
-  quantra::ZeroInflationCurveFromZcSwapsSpecT *AsZeroInflationCurveFromZcSwapsSpec() {
-    return type == InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec ?
-      reinterpret_cast<quantra::ZeroInflationCurveFromZcSwapsSpecT *>(value) : nullptr;
+  quantra::ZeroCouponInflationSwapHelperT *AsZeroCouponInflationSwapHelper() {
+    return type == InflationPoint_ZeroCouponInflationSwapHelper ?
+      reinterpret_cast<quantra::ZeroCouponInflationSwapHelperT *>(value) : nullptr;
   }
-  const quantra::ZeroInflationCurveFromZcSwapsSpecT *AsZeroInflationCurveFromZcSwapsSpec() const {
-    return type == InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec ?
-      reinterpret_cast<const quantra::ZeroInflationCurveFromZcSwapsSpecT *>(value) : nullptr;
+  const quantra::ZeroCouponInflationSwapHelperT *AsZeroCouponInflationSwapHelper() const {
+    return type == InflationPoint_ZeroCouponInflationSwapHelper ?
+      reinterpret_cast<const quantra::ZeroCouponInflationSwapHelperT *>(value) : nullptr;
   }
-  quantra::YoYInflationCurveFromYoYSwapsSpecT *AsYoYInflationCurveFromYoYSwapsSpec() {
-    return type == InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec ?
-      reinterpret_cast<quantra::YoYInflationCurveFromYoYSwapsSpecT *>(value) : nullptr;
+  quantra::YearOnYearInflationSwapHelperT *AsYearOnYearInflationSwapHelper() {
+    return type == InflationPoint_YearOnYearInflationSwapHelper ?
+      reinterpret_cast<quantra::YearOnYearInflationSwapHelperT *>(value) : nullptr;
   }
-  const quantra::YoYInflationCurveFromYoYSwapsSpecT *AsYoYInflationCurveFromYoYSwapsSpec() const {
-    return type == InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec ?
-      reinterpret_cast<const quantra::YoYInflationCurveFromYoYSwapsSpecT *>(value) : nullptr;
+  const quantra::YearOnYearInflationSwapHelperT *AsYearOnYearInflationSwapHelper() const {
+    return type == InflationPoint_YearOnYearInflationSwapHelper ?
+      reinterpret_cast<const quantra::YearOnYearInflationSwapHelperT *>(value) : nullptr;
   }
 };
 
-bool VerifyInflationCurvePayload(::flatbuffers::Verifier &verifier, const void *obj, InflationCurvePayload type);
-bool VerifyInflationCurvePayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
+bool VerifyInflationPoint(::flatbuffers::Verifier &verifier, const void *obj, InflationPoint type);
+bool VerifyInflationPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
 
 struct InflationIndexSpecT : public ::flatbuffers::NativeTable {
   typedef InflationIndexSpec TableType;
@@ -163,6 +162,8 @@ struct InflationIndexSpecT : public ::flatbuffers::NativeTable {
   bool interpolated = true;
   bool revised = false;
   quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation;
+  std::string underlying_zero_index_id{};
+  std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
   InflationIndexSpecT() = default;
   InflationIndexSpecT(const InflationIndexSpecT &o);
   InflationIndexSpecT(InflationIndexSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -184,7 +185,9 @@ struct InflationIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
     VT_OBSERVATION_LAG = 18,
     VT_INTERPOLATED = 20,
     VT_REVISED = 22,
-    VT_KIND = 24
+    VT_KIND = 24,
+    VT_UNDERLYING_ZERO_INDEX_ID = 26,
+    VT_FIXINGS = 28
   };
   /// Unique identifier (e.g., "UKRPI", "EUHICP", "USCPI").
   const ::flatbuffers::String *id() const {
@@ -226,6 +229,14 @@ struct InflationIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   quantra::enums::InflationCurveKind kind() const {
     return static_cast<quantra::enums::InflationCurveKind>(GetField<int8_t>(VT_KIND, 0));
   }
+  /// For ratio-based YoY indices, link to the underlying zero inflation index id.
+  const ::flatbuffers::String *underlying_zero_index_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_UNDERLYING_ZERO_INDEX_ID);
+  }
+  /// Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *fixings() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>> *>(VT_FIXINGS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -244,6 +255,11 @@ struct InflationIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
            VerifyField<uint8_t>(verifier, VT_INTERPOLATED, 1) &&
            VerifyField<uint8_t>(verifier, VT_REVISED, 1) &&
            VerifyField<int8_t>(verifier, VT_KIND, 1) &&
+           VerifyOffset(verifier, VT_UNDERLYING_ZERO_INDEX_ID) &&
+           verifier.VerifyString(underlying_zero_index_id()) &&
+           VerifyOffset(verifier, VT_FIXINGS) &&
+           verifier.VerifyVector(fixings()) &&
+           verifier.VerifyVectorOfTables(fixings()) &&
            verifier.EndTable();
   }
   InflationIndexSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -288,6 +304,12 @@ struct InflationIndexSpecBuilder {
   void add_kind(quantra::enums::InflationCurveKind kind) {
     fbb_.AddElement<int8_t>(InflationIndexSpec::VT_KIND, static_cast<int8_t>(kind), 0);
   }
+  void add_underlying_zero_index_id(::flatbuffers::Offset<::flatbuffers::String> underlying_zero_index_id) {
+    fbb_.AddOffset(InflationIndexSpec::VT_UNDERLYING_ZERO_INDEX_ID, underlying_zero_index_id);
+  }
+  void add_fixings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings) {
+    fbb_.AddOffset(InflationIndexSpec::VT_FIXINGS, fixings);
+  }
   explicit InflationIndexSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -312,8 +334,12 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,
     bool interpolated = true,
     bool revised = false,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation) {
+    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Offset<::flatbuffers::String> underlying_zero_index_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings = 0) {
   InflationIndexSpecBuilder builder_(_fbb);
+  builder_.add_fixings(fixings);
+  builder_.add_underlying_zero_index_id(underlying_zero_index_id);
   builder_.add_observation_lag(observation_lag);
   builder_.add_availability_lag(availability_lag);
   builder_.add_currency(currency);
@@ -340,10 +366,14 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpecDirect(
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,
     bool interpolated = true,
     bool revised = false,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation) {
+    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    const char *underlying_zero_index_id = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::Fixing>> *fixings = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   auto family_name__ = family_name ? _fbb.CreateString(family_name) : 0;
   auto currency__ = currency ? _fbb.CreateString(currency) : 0;
+  auto underlying_zero_index_id__ = underlying_zero_index_id ? _fbb.CreateString(underlying_zero_index_id) : 0;
+  auto fixings__ = fixings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>>(*fixings) : 0;
   return quantra::CreateInflationIndexSpec(
       _fbb,
       id__,
@@ -356,38 +386,552 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpecDirect(
       observation_lag,
       interpolated,
       revised,
-      kind);
+      kind,
+      underlying_zero_index_id__,
+      fixings__);
 }
 
 ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(::flatbuffers::FlatBufferBuilder &_fbb, const InflationIndexSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct InflationCurveBaseSpecT : public ::flatbuffers::NativeTable {
-  typedef InflationCurveBaseSpec TableType;
+struct ZeroCouponInflationSwapHelperT : public ::flatbuffers::NativeTable {
+  typedef ZeroCouponInflationSwapHelper TableType;
+  std::string quote_id{};
+  double quote_value = 0.0;
+  std::unique_ptr<quantra::PeriodT> swap_observation_lag{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  std::string start_date{};
+  std::string end_date{};
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
+  quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex;
+  std::string nominal_curve_id{};
+  ZeroCouponInflationSwapHelperT() = default;
+  ZeroCouponInflationSwapHelperT(const ZeroCouponInflationSwapHelperT &o);
+  ZeroCouponInflationSwapHelperT(ZeroCouponInflationSwapHelperT&&) FLATBUFFERS_NOEXCEPT = default;
+  ZeroCouponInflationSwapHelperT &operator=(ZeroCouponInflationSwapHelperT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Zero-coupon inflation swap helper point.
+struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ZeroCouponInflationSwapHelperT NativeTableType;
+  typedef ZeroCouponInflationSwapHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_QUOTE_ID = 4,
+    VT_QUOTE_VALUE = 6,
+    VT_SWAP_OBSERVATION_LAG = 8,
+    VT_TENOR = 10,
+    VT_START_DATE = 12,
+    VT_END_DATE = 14,
+    VT_CALENDAR = 16,
+    VT_PAYMENT_CONVENTION = 18,
+    VT_DAY_COUNTER = 20,
+    VT_OBSERVATION_INTERPOLATION = 22,
+    VT_NOMINAL_CURVE_ID = 24
+  };
+  /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
+  /// Inline quote value used when quote_id is empty.
+  double quote_value() const {
+    return GetField<double>(VT_QUOTE_VALUE, 0.0);
+  }
+  /// Lag applied when observing the CPI index in the swap.
+  const quantra::Period *swap_observation_lag() const {
+    return GetPointer<const quantra::Period *>(VT_SWAP_OBSERVATION_LAG);
+  }
+  /// Relative helper maturity from InflationCurveBaseSpec.reference_date.
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
+  }
+  /// Optional explicit start date for dated helper construction.
+  const ::flatbuffers::String *start_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
+  }
+  /// Optional explicit end/maturity date for dated helper construction.
+  const ::flatbuffers::String *end_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  }
+  quantra::enums::BusinessDayConvention payment_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 2));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  }
+  quantra::enums::CPIInterpolationType observation_interpolation() const {
+    return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
+  }
+  /// Optional deprecated QuantLib nominal curve dependency.
+  const ::flatbuffers::String *nominal_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NOMINAL_CURVE_ID);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_QUOTE_ID) &&
+           verifier.VerifyString(quote_id()) &&
+           VerifyField<double>(verifier, VT_QUOTE_VALUE, 8) &&
+           VerifyOffsetRequired(verifier, VT_SWAP_OBSERVATION_LAG) &&
+           verifier.VerifyTable(swap_observation_lag()) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyOffset(verifier, VT_START_DATE) &&
+           verifier.VerifyString(start_date()) &&
+           VerifyOffset(verifier, VT_END_DATE) &&
+           verifier.VerifyString(end_date()) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_OBSERVATION_INTERPOLATION, 1) &&
+           VerifyOffset(verifier, VT_NOMINAL_CURVE_ID) &&
+           verifier.VerifyString(nominal_curve_id()) &&
+           verifier.EndTable();
+  }
+  ZeroCouponInflationSwapHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ZeroCouponInflationSwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ZeroCouponInflationSwapHelperBuilder {
+  typedef ZeroCouponInflationSwapHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_QUOTE_ID, quote_id);
+  }
+  void add_quote_value(double quote_value) {
+    fbb_.AddElement<double>(ZeroCouponInflationSwapHelper::VT_QUOTE_VALUE, quote_value, 0.0);
+  }
+  void add_swap_observation_lag(::flatbuffers::Offset<quantra::Period> swap_observation_lag) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_SWAP_OBSERVATION_LAG, swap_observation_lag);
+  }
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_TENOR, tenor);
+  }
+  void add_start_date(::flatbuffers::Offset<::flatbuffers::String> start_date) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_START_DATE, start_date);
+  }
+  void add_end_date(::flatbuffers::Offset<::flatbuffers::String> end_date) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_END_DATE, end_date);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 2);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+  }
+  void add_observation_interpolation(quantra::enums::CPIInterpolationType observation_interpolation) {
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation), 0);
+  }
+  void add_nominal_curve_id(::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id) {
+    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_NOMINAL_CURVE_ID, nominal_curve_id);
+  }
+  explicit ZeroCouponInflationSwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ZeroCouponInflationSwapHelper>(end);
+    fbb_.Required(o, ZeroCouponInflationSwapHelper::VT_SWAP_OBSERVATION_LAG);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
+    double quote_value = 0.0,
+    ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    ::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id = 0) {
+  ZeroCouponInflationSwapHelperBuilder builder_(_fbb);
+  builder_.add_quote_value(quote_value);
+  builder_.add_nominal_curve_id(nominal_curve_id);
+  builder_.add_end_date(end_date);
+  builder_.add_start_date(start_date);
+  builder_.add_tenor(tenor);
+  builder_.add_swap_observation_lag(swap_observation_lag);
+  builder_.add_quote_id(quote_id);
+  builder_.add_observation_interpolation(observation_interpolation);
+  builder_.add_day_counter(day_counter);
+  builder_.add_payment_convention(payment_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *quote_id = nullptr,
+    double quote_value = 0.0,
+    ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    const char *start_date = nullptr,
+    const char *end_date = nullptr,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    const char *nominal_curve_id = nullptr) {
+  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
+  auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
+  auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
+  auto nominal_curve_id__ = nominal_curve_id ? _fbb.CreateString(nominal_curve_id) : 0;
+  return quantra::CreateZeroCouponInflationSwapHelper(
+      _fbb,
+      quote_id__,
+      quote_value,
+      swap_observation_lag,
+      tenor,
+      start_date__,
+      end_date__,
+      calendar,
+      payment_convention,
+      day_counter,
+      observation_interpolation,
+      nominal_curve_id__);
+}
+
+::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct YearOnYearInflationSwapHelperT : public ::flatbuffers::NativeTable {
+  typedef YearOnYearInflationSwapHelper TableType;
+  std::string quote_id{};
+  double quote_value = 0.0;
+  std::unique_ptr<quantra::PeriodT> swap_observation_lag{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  std::string start_date{};
+  std::string end_date{};
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
+  quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex;
+  std::string nominal_curve_id{};
+  YearOnYearInflationSwapHelperT() = default;
+  YearOnYearInflationSwapHelperT(const YearOnYearInflationSwapHelperT &o);
+  YearOnYearInflationSwapHelperT(YearOnYearInflationSwapHelperT&&) FLATBUFFERS_NOEXCEPT = default;
+  YearOnYearInflationSwapHelperT &operator=(YearOnYearInflationSwapHelperT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Year-on-year inflation swap helper point.
+struct YearOnYearInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef YearOnYearInflationSwapHelperT NativeTableType;
+  typedef YearOnYearInflationSwapHelperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_QUOTE_ID = 4,
+    VT_QUOTE_VALUE = 6,
+    VT_SWAP_OBSERVATION_LAG = 8,
+    VT_TENOR = 10,
+    VT_START_DATE = 12,
+    VT_END_DATE = 14,
+    VT_CALENDAR = 16,
+    VT_PAYMENT_CONVENTION = 18,
+    VT_DAY_COUNTER = 20,
+    VT_OBSERVATION_INTERPOLATION = 22,
+    VT_NOMINAL_CURVE_ID = 24
+  };
+  /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
+  /// Inline quote value used when quote_id is empty.
+  double quote_value() const {
+    return GetField<double>(VT_QUOTE_VALUE, 0.0);
+  }
+  const quantra::Period *swap_observation_lag() const {
+    return GetPointer<const quantra::Period *>(VT_SWAP_OBSERVATION_LAG);
+  }
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
+  }
+  const ::flatbuffers::String *start_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
+  }
+  const ::flatbuffers::String *end_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  }
+  quantra::enums::BusinessDayConvention payment_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 2));
+  }
+  quantra::enums::DayCounter day_counter() const {
+    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  }
+  quantra::enums::CPIInterpolationType observation_interpolation() const {
+    return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
+  }
+  /// QuantLib YoY helper requires a nominal term structure.
+  const ::flatbuffers::String *nominal_curve_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NOMINAL_CURVE_ID);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_QUOTE_ID) &&
+           verifier.VerifyString(quote_id()) &&
+           VerifyField<double>(verifier, VT_QUOTE_VALUE, 8) &&
+           VerifyOffsetRequired(verifier, VT_SWAP_OBSERVATION_LAG) &&
+           verifier.VerifyTable(swap_observation_lag()) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyOffset(verifier, VT_START_DATE) &&
+           verifier.VerifyString(start_date()) &&
+           VerifyOffset(verifier, VT_END_DATE) &&
+           verifier.VerifyString(end_date()) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_OBSERVATION_INTERPOLATION, 1) &&
+           VerifyOffsetRequired(verifier, VT_NOMINAL_CURVE_ID) &&
+           verifier.VerifyString(nominal_curve_id()) &&
+           verifier.EndTable();
+  }
+  YearOnYearInflationSwapHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(YearOnYearInflationSwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<YearOnYearInflationSwapHelper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YearOnYearInflationSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct YearOnYearInflationSwapHelperBuilder {
+  typedef YearOnYearInflationSwapHelper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_QUOTE_ID, quote_id);
+  }
+  void add_quote_value(double quote_value) {
+    fbb_.AddElement<double>(YearOnYearInflationSwapHelper::VT_QUOTE_VALUE, quote_value, 0.0);
+  }
+  void add_swap_observation_lag(::flatbuffers::Offset<quantra::Period> swap_observation_lag) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_SWAP_OBSERVATION_LAG, swap_observation_lag);
+  }
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_TENOR, tenor);
+  }
+  void add_start_date(::flatbuffers::Offset<::flatbuffers::String> start_date) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_START_DATE, start_date);
+  }
+  void add_end_date(::flatbuffers::Offset<::flatbuffers::String> end_date) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_END_DATE, end_date);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 2);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+  }
+  void add_observation_interpolation(quantra::enums::CPIInterpolationType observation_interpolation) {
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation), 0);
+  }
+  void add_nominal_curve_id(::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id) {
+    fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_NOMINAL_CURVE_ID, nominal_curve_id);
+  }
+  explicit YearOnYearInflationSwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<YearOnYearInflationSwapHelper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<YearOnYearInflationSwapHelper>(end);
+    fbb_.Required(o, YearOnYearInflationSwapHelper::VT_SWAP_OBSERVATION_LAG);
+    fbb_.Required(o, YearOnYearInflationSwapHelper::VT_NOMINAL_CURVE_ID);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
+    double quote_value = 0.0,
+    ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    ::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id = 0) {
+  YearOnYearInflationSwapHelperBuilder builder_(_fbb);
+  builder_.add_quote_value(quote_value);
+  builder_.add_nominal_curve_id(nominal_curve_id);
+  builder_.add_end_date(end_date);
+  builder_.add_start_date(start_date);
+  builder_.add_tenor(tenor);
+  builder_.add_swap_observation_lag(swap_observation_lag);
+  builder_.add_quote_id(quote_id);
+  builder_.add_observation_interpolation(observation_interpolation);
+  builder_.add_day_counter(day_counter);
+  builder_.add_payment_convention(payment_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelperDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *quote_id = nullptr,
+    double quote_value = 0.0,
+    ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    const char *start_date = nullptr,
+    const char *end_date = nullptr,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    const char *nominal_curve_id = nullptr) {
+  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
+  auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
+  auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
+  auto nominal_curve_id__ = nominal_curve_id ? _fbb.CreateString(nominal_curve_id) : 0;
+  return quantra::CreateYearOnYearInflationSwapHelper(
+      _fbb,
+      quote_id__,
+      quote_value,
+      swap_observation_lag,
+      tenor,
+      start_date__,
+      end_date__,
+      calendar,
+      payment_convention,
+      day_counter,
+      observation_interpolation,
+      nominal_curve_id__);
+}
+
+::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const YearOnYearInflationSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct InflationPointWrapperT : public ::flatbuffers::NativeTable {
+  typedef InflationPointWrapper TableType;
+  quantra::InflationPointUnion point{};
+};
+
+/// Wrapper for one inflation curve point.
+struct InflationPointWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef InflationPointWrapperT NativeTableType;
+  typedef InflationPointWrapperBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_POINT_TYPE = 4,
+    VT_POINT = 6
+  };
+  quantra::InflationPoint point_type() const {
+    return static_cast<quantra::InflationPoint>(GetField<uint8_t>(VT_POINT_TYPE, 0));
+  }
+  const void *point() const {
+    return GetPointer<const void *>(VT_POINT);
+  }
+  template<typename T> const T *point_as() const;
+  const quantra::ZeroCouponInflationSwapHelper *point_as_ZeroCouponInflationSwapHelper() const {
+    return point_type() == quantra::InflationPoint_ZeroCouponInflationSwapHelper ? static_cast<const quantra::ZeroCouponInflationSwapHelper *>(point()) : nullptr;
+  }
+  const quantra::YearOnYearInflationSwapHelper *point_as_YearOnYearInflationSwapHelper() const {
+    return point_type() == quantra::InflationPoint_YearOnYearInflationSwapHelper ? static_cast<const quantra::YearOnYearInflationSwapHelper *>(point()) : nullptr;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_POINT_TYPE, 1) &&
+           VerifyOffset(verifier, VT_POINT) &&
+           VerifyInflationPoint(verifier, point(), point_type()) &&
+           verifier.EndTable();
+  }
+  InflationPointWrapperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(InflationPointWrapperT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<InflationPointWrapper> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationPointWrapperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const quantra::ZeroCouponInflationSwapHelper *InflationPointWrapper::point_as<quantra::ZeroCouponInflationSwapHelper>() const {
+  return point_as_ZeroCouponInflationSwapHelper();
+}
+
+template<> inline const quantra::YearOnYearInflationSwapHelper *InflationPointWrapper::point_as<quantra::YearOnYearInflationSwapHelper>() const {
+  return point_as_YearOnYearInflationSwapHelper();
+}
+
+struct InflationPointWrapperBuilder {
+  typedef InflationPointWrapper Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_point_type(quantra::InflationPoint point_type) {
+    fbb_.AddElement<uint8_t>(InflationPointWrapper::VT_POINT_TYPE, static_cast<uint8_t>(point_type), 0);
+  }
+  void add_point(::flatbuffers::Offset<void> point) {
+    fbb_.AddOffset(InflationPointWrapper::VT_POINT, point);
+  }
+  explicit InflationPointWrapperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<InflationPointWrapper> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<InflationPointWrapper>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<InflationPointWrapper> CreateInflationPointWrapper(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    quantra::InflationPoint point_type = quantra::InflationPoint_NONE,
+    ::flatbuffers::Offset<void> point = 0) {
+  InflationPointWrapperBuilder builder_(_fbb);
+  builder_.add_point(point);
+  builder_.add_point_type(point_type);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<InflationPointWrapper> CreateInflationPointWrapper(::flatbuffers::FlatBufferBuilder &_fbb, const InflationPointWrapperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct InflationCurveSpecT : public ::flatbuffers::NativeTable {
+  typedef InflationCurveSpec TableType;
   std::string id{};
   std::string reference_date{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
+  quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear;
+  double bootstrap_accuracy = 1.0e-12;
   quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation;
   std::string index_id{};
   std::string discount_curve_id{};
   bool allow_extrapolation = true;
+  std::vector<std::unique_ptr<quantra::InflationPointWrapperT>> points{};
+  InflationCurveSpecT() = default;
+  InflationCurveSpecT(const InflationCurveSpecT &o);
+  InflationCurveSpecT(InflationCurveSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  InflationCurveSpecT &operator=(InflationCurveSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Inflation curve base specification.
-struct InflationCurveBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef InflationCurveBaseSpecT NativeTableType;
-  typedef InflationCurveBaseSpecBuilder Builder;
+/// Inflation term-structure definition, modeled like rates `TermStructure`.
+struct InflationCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef InflationCurveSpecT NativeTableType;
+  typedef InflationCurveSpecBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
     VT_REFERENCE_DATE = 6,
     VT_CALENDAR = 8,
     VT_BUSINESS_DAY_CONVENTION = 10,
     VT_DAY_COUNTER = 12,
-    VT_KIND = 14,
-    VT_INDEX_ID = 16,
-    VT_DISCOUNT_CURVE_ID = 18,
-    VT_ALLOW_EXTRAPOLATION = 20
+    VT_INTERPOLATOR = 14,
+    VT_BOOTSTRAP_ACCURACY = 16,
+    VT_KIND = 18,
+    VT_INDEX_ID = 20,
+    VT_DISCOUNT_CURVE_ID = 22,
+    VT_ALLOW_EXTRAPOLATION = 24,
+    VT_POINTS = 26
   };
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
@@ -404,6 +948,12 @@ struct InflationCurveBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
   }
+  quantra::enums::Interpolator interpolator() const {
+    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_INTERPOLATOR, 2));
+  }
+  double bootstrap_accuracy() const {
+    return GetField<double>(VT_BOOTSTRAP_ACCURACY, 1.0e-12);
+  }
   quantra::enums::InflationCurveKind kind() const {
     return static_cast<quantra::enums::InflationCurveKind>(GetField<int8_t>(VT_KIND, 0));
   }
@@ -418,6 +968,9 @@ struct InflationCurveBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   bool allow_extrapolation() const {
     return GetField<uint8_t>(VT_ALLOW_EXTRAPOLATION, 1) != 0;
   }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationPointWrapper>> *points() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationPointWrapper>> *>(VT_POINTS);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -427,423 +980,17 @@ struct InflationCurveBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_INTERPOLATOR, 1) &&
+           VerifyField<double>(verifier, VT_BOOTSTRAP_ACCURACY, 8) &&
            VerifyField<int8_t>(verifier, VT_KIND, 1) &&
            VerifyOffsetRequired(verifier, VT_INDEX_ID) &&
            verifier.VerifyString(index_id()) &&
            VerifyOffset(verifier, VT_DISCOUNT_CURVE_ID) &&
            verifier.VerifyString(discount_curve_id()) &&
            VerifyField<uint8_t>(verifier, VT_ALLOW_EXTRAPOLATION, 1) &&
-           verifier.EndTable();
-  }
-  InflationCurveBaseSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(InflationCurveBaseSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<InflationCurveBaseSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveBaseSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct InflationCurveBaseSpecBuilder {
-  typedef InflationCurveBaseSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
-    fbb_.AddOffset(InflationCurveBaseSpec::VT_ID, id);
-  }
-  void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
-    fbb_.AddOffset(InflationCurveBaseSpec::VT_REFERENCE_DATE, reference_date);
-  }
-  void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(InflationCurveBaseSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
-  }
-  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(InflationCurveBaseSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(InflationCurveBaseSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
-  }
-  void add_kind(quantra::enums::InflationCurveKind kind) {
-    fbb_.AddElement<int8_t>(InflationCurveBaseSpec::VT_KIND, static_cast<int8_t>(kind), 0);
-  }
-  void add_index_id(::flatbuffers::Offset<::flatbuffers::String> index_id) {
-    fbb_.AddOffset(InflationCurveBaseSpec::VT_INDEX_ID, index_id);
-  }
-  void add_discount_curve_id(::flatbuffers::Offset<::flatbuffers::String> discount_curve_id) {
-    fbb_.AddOffset(InflationCurveBaseSpec::VT_DISCOUNT_CURVE_ID, discount_curve_id);
-  }
-  void add_allow_extrapolation(bool allow_extrapolation) {
-    fbb_.AddElement<uint8_t>(InflationCurveBaseSpec::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 1);
-  }
-  explicit InflationCurveBaseSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<InflationCurveBaseSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<InflationCurveBaseSpec>(end);
-    fbb_.Required(o, InflationCurveBaseSpec::VT_ID);
-    fbb_.Required(o, InflationCurveBaseSpec::VT_REFERENCE_DATE);
-    fbb_.Required(o, InflationCurveBaseSpec::VT_INDEX_ID);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<InflationCurveBaseSpec> CreateInflationCurveBaseSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
-    ::flatbuffers::Offset<::flatbuffers::String> index_id = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> discount_curve_id = 0,
-    bool allow_extrapolation = true) {
-  InflationCurveBaseSpecBuilder builder_(_fbb);
-  builder_.add_discount_curve_id(discount_curve_id);
-  builder_.add_index_id(index_id);
-  builder_.add_reference_date(reference_date);
-  builder_.add_id(id);
-  builder_.add_allow_extrapolation(allow_extrapolation);
-  builder_.add_kind(kind);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<InflationCurveBaseSpec> CreateInflationCurveBaseSpecDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    const char *id = nullptr,
-    const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
-    const char *index_id = nullptr,
-    const char *discount_curve_id = nullptr,
-    bool allow_extrapolation = true) {
-  auto id__ = id ? _fbb.CreateString(id) : 0;
-  auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
-  auto index_id__ = index_id ? _fbb.CreateString(index_id) : 0;
-  auto discount_curve_id__ = discount_curve_id ? _fbb.CreateString(discount_curve_id) : 0;
-  return quantra::CreateInflationCurveBaseSpec(
-      _fbb,
-      id__,
-      reference_date__,
-      calendar,
-      business_day_convention,
-      day_counter,
-      kind,
-      index_id__,
-      discount_curve_id__,
-      allow_extrapolation);
-}
-
-::flatbuffers::Offset<InflationCurveBaseSpec> CreateInflationCurveBaseSpec(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveBaseSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct InflationSwapPillarT : public ::flatbuffers::NativeTable {
-  typedef InflationSwapPillar TableType;
-  std::unique_ptr<quantra::PeriodT> maturity{};
-  std::string quote_id{};
-  double quote_value = 0.0;
-  InflationSwapPillarT() = default;
-  InflationSwapPillarT(const InflationSwapPillarT &o);
-  InflationSwapPillarT(InflationSwapPillarT&&) FLATBUFFERS_NOEXCEPT = default;
-  InflationSwapPillarT &operator=(InflationSwapPillarT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// Pillar quote for inflation curve construction.
-struct InflationSwapPillar FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef InflationSwapPillarT NativeTableType;
-  typedef InflationSwapPillarBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_MATURITY = 4,
-    VT_QUOTE_ID = 6,
-    VT_QUOTE_VALUE = 8
-  };
-  const quantra::Period *maturity() const {
-    return GetPointer<const quantra::Period *>(VT_MATURITY);
-  }
-  /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
-  const ::flatbuffers::String *quote_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
-  }
-  /// Inline quote value used when quote_id is empty.
-  double quote_value() const {
-    return GetField<double>(VT_QUOTE_VALUE, 0.0);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_MATURITY) &&
-           verifier.VerifyTable(maturity()) &&
-           VerifyOffset(verifier, VT_QUOTE_ID) &&
-           verifier.VerifyString(quote_id()) &&
-           VerifyField<double>(verifier, VT_QUOTE_VALUE, 8) &&
-           verifier.EndTable();
-  }
-  InflationSwapPillarT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(InflationSwapPillarT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<InflationSwapPillar> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationSwapPillarT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct InflationSwapPillarBuilder {
-  typedef InflationSwapPillar Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_maturity(::flatbuffers::Offset<quantra::Period> maturity) {
-    fbb_.AddOffset(InflationSwapPillar::VT_MATURITY, maturity);
-  }
-  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
-    fbb_.AddOffset(InflationSwapPillar::VT_QUOTE_ID, quote_id);
-  }
-  void add_quote_value(double quote_value) {
-    fbb_.AddElement<double>(InflationSwapPillar::VT_QUOTE_VALUE, quote_value, 0.0);
-  }
-  explicit InflationSwapPillarBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<InflationSwapPillar> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<InflationSwapPillar>(end);
-    fbb_.Required(o, InflationSwapPillar::VT_MATURITY);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<InflationSwapPillar> CreateInflationSwapPillar(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Period> maturity = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
-    double quote_value = 0.0) {
-  InflationSwapPillarBuilder builder_(_fbb);
-  builder_.add_quote_value(quote_value);
-  builder_.add_quote_id(quote_id);
-  builder_.add_maturity(maturity);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<InflationSwapPillar> CreateInflationSwapPillarDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Period> maturity = 0,
-    const char *quote_id = nullptr,
-    double quote_value = 0.0) {
-  auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
-  return quantra::CreateInflationSwapPillar(
-      _fbb,
-      maturity,
-      quote_id__,
-      quote_value);
-}
-
-::flatbuffers::Offset<InflationSwapPillar> CreateInflationSwapPillar(::flatbuffers::FlatBufferBuilder &_fbb, const InflationSwapPillarT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct ZeroInflationCurveFromZcSwapsSpecT : public ::flatbuffers::NativeTable {
-  typedef ZeroInflationCurveFromZcSwapsSpec TableType;
-  std::vector<std::unique_ptr<quantra::InflationSwapPillarT>> pillars{};
-  quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear;
-  ZeroInflationCurveFromZcSwapsSpecT() = default;
-  ZeroInflationCurveFromZcSwapsSpecT(const ZeroInflationCurveFromZcSwapsSpecT &o);
-  ZeroInflationCurveFromZcSwapsSpecT(ZeroInflationCurveFromZcSwapsSpecT&&) FLATBUFFERS_NOEXCEPT = default;
-  ZeroInflationCurveFromZcSwapsSpecT &operator=(ZeroInflationCurveFromZcSwapsSpecT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// Zero inflation curve built from pillar rates.
-/// Note: MVP treats pillar quotes as zero inflation rates at each maturity.
-struct ZeroInflationCurveFromZcSwapsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef ZeroInflationCurveFromZcSwapsSpecT NativeTableType;
-  typedef ZeroInflationCurveFromZcSwapsSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_PILLARS = 4,
-    VT_INTERPOLATOR = 6
-  };
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *pillars() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *>(VT_PILLARS);
-  }
-  quantra::enums::Interpolator interpolator() const {
-    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_INTERPOLATOR, 2));
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_PILLARS) &&
-           verifier.VerifyVector(pillars()) &&
-           verifier.VerifyVectorOfTables(pillars()) &&
-           VerifyField<int8_t>(verifier, VT_INTERPOLATOR, 1) &&
-           verifier.EndTable();
-  }
-  ZeroInflationCurveFromZcSwapsSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(ZeroInflationCurveFromZcSwapsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroInflationCurveFromZcSwapsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct ZeroInflationCurveFromZcSwapsSpecBuilder {
-  typedef ZeroInflationCurveFromZcSwapsSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_pillars(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>>> pillars) {
-    fbb_.AddOffset(ZeroInflationCurveFromZcSwapsSpec::VT_PILLARS, pillars);
-  }
-  void add_interpolator(quantra::enums::Interpolator interpolator) {
-    fbb_.AddElement<int8_t>(ZeroInflationCurveFromZcSwapsSpec::VT_INTERPOLATOR, static_cast<int8_t>(interpolator), 2);
-  }
-  explicit ZeroInflationCurveFromZcSwapsSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec>(end);
-    fbb_.Required(o, ZeroInflationCurveFromZcSwapsSpec::VT_PILLARS);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> CreateZeroInflationCurveFromZcSwapsSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>>> pillars = 0,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear) {
-  ZeroInflationCurveFromZcSwapsSpecBuilder builder_(_fbb);
-  builder_.add_pillars(pillars);
-  builder_.add_interpolator(interpolator);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> CreateZeroInflationCurveFromZcSwapsSpecDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *pillars = nullptr,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear) {
-  auto pillars__ = pillars ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationSwapPillar>>(*pillars) : 0;
-  return quantra::CreateZeroInflationCurveFromZcSwapsSpec(
-      _fbb,
-      pillars__,
-      interpolator);
-}
-
-::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> CreateZeroInflationCurveFromZcSwapsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroInflationCurveFromZcSwapsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct YoYInflationCurveFromYoYSwapsSpecT : public ::flatbuffers::NativeTable {
-  typedef YoYInflationCurveFromYoYSwapsSpec TableType;
-  std::vector<std::unique_ptr<quantra::InflationSwapPillarT>> pillars{};
-  quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear;
-  YoYInflationCurveFromYoYSwapsSpecT() = default;
-  YoYInflationCurveFromYoYSwapsSpecT(const YoYInflationCurveFromYoYSwapsSpecT &o);
-  YoYInflationCurveFromYoYSwapsSpecT(YoYInflationCurveFromYoYSwapsSpecT&&) FLATBUFFERS_NOEXCEPT = default;
-  YoYInflationCurveFromYoYSwapsSpecT &operator=(YoYInflationCurveFromYoYSwapsSpecT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// YoY inflation curve built from pillar rates.
-/// Note: MVP treats pillar quotes as YoY rates at each maturity.
-struct YoYInflationCurveFromYoYSwapsSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef YoYInflationCurveFromYoYSwapsSpecT NativeTableType;
-  typedef YoYInflationCurveFromYoYSwapsSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_PILLARS = 4,
-    VT_INTERPOLATOR = 6
-  };
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *pillars() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *>(VT_PILLARS);
-  }
-  quantra::enums::Interpolator interpolator() const {
-    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_INTERPOLATOR, 2));
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_PILLARS) &&
-           verifier.VerifyVector(pillars()) &&
-           verifier.VerifyVectorOfTables(pillars()) &&
-           VerifyField<int8_t>(verifier, VT_INTERPOLATOR, 1) &&
-           verifier.EndTable();
-  }
-  YoYInflationCurveFromYoYSwapsSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(YoYInflationCurveFromYoYSwapsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YoYInflationCurveFromYoYSwapsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct YoYInflationCurveFromYoYSwapsSpecBuilder {
-  typedef YoYInflationCurveFromYoYSwapsSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_pillars(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>>> pillars) {
-    fbb_.AddOffset(YoYInflationCurveFromYoYSwapsSpec::VT_PILLARS, pillars);
-  }
-  void add_interpolator(quantra::enums::Interpolator interpolator) {
-    fbb_.AddElement<int8_t>(YoYInflationCurveFromYoYSwapsSpec::VT_INTERPOLATOR, static_cast<int8_t>(interpolator), 2);
-  }
-  explicit YoYInflationCurveFromYoYSwapsSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec>(end);
-    fbb_.Required(o, YoYInflationCurveFromYoYSwapsSpec::VT_PILLARS);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> CreateYoYInflationCurveFromYoYSwapsSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationSwapPillar>>> pillars = 0,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear) {
-  YoYInflationCurveFromYoYSwapsSpecBuilder builder_(_fbb);
-  builder_.add_pillars(pillars);
-  builder_.add_interpolator(interpolator);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> CreateYoYInflationCurveFromYoYSwapsSpecDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<quantra::InflationSwapPillar>> *pillars = nullptr,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear) {
-  auto pillars__ = pillars ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationSwapPillar>>(*pillars) : 0;
-  return quantra::CreateYoYInflationCurveFromYoYSwapsSpec(
-      _fbb,
-      pillars__,
-      interpolator);
-}
-
-::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> CreateYoYInflationCurveFromYoYSwapsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const YoYInflationCurveFromYoYSwapsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct InflationCurveSpecT : public ::flatbuffers::NativeTable {
-  typedef InflationCurveSpec TableType;
-  std::unique_ptr<quantra::InflationCurveBaseSpecT> base{};
-  quantra::InflationCurvePayloadUnion payload{};
-  InflationCurveSpecT() = default;
-  InflationCurveSpecT(const InflationCurveSpecT &o);
-  InflationCurveSpecT(InflationCurveSpecT&&) FLATBUFFERS_NOEXCEPT = default;
-  InflationCurveSpecT &operator=(InflationCurveSpecT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// Inflation curve specification.
-struct InflationCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef InflationCurveSpecT NativeTableType;
-  typedef InflationCurveSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BASE = 4,
-    VT_PAYLOAD_TYPE = 6,
-    VT_PAYLOAD = 8
-  };
-  const quantra::InflationCurveBaseSpec *base() const {
-    return GetPointer<const quantra::InflationCurveBaseSpec *>(VT_BASE);
-  }
-  quantra::InflationCurvePayload payload_type() const {
-    return static_cast<quantra::InflationCurvePayload>(GetField<uint8_t>(VT_PAYLOAD_TYPE, 0));
-  }
-  const void *payload() const {
-    return GetPointer<const void *>(VT_PAYLOAD);
-  }
-  template<typename T> const T *payload_as() const;
-  const quantra::ZeroInflationCurveFromZcSwapsSpec *payload_as_ZeroInflationCurveFromZcSwapsSpec() const {
-    return payload_type() == quantra::InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec ? static_cast<const quantra::ZeroInflationCurveFromZcSwapsSpec *>(payload()) : nullptr;
-  }
-  const quantra::YoYInflationCurveFromYoYSwapsSpec *payload_as_YoYInflationCurveFromYoYSwapsSpec() const {
-    return payload_type() == quantra::InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec ? static_cast<const quantra::YoYInflationCurveFromYoYSwapsSpec *>(payload()) : nullptr;
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_BASE) &&
-           verifier.VerifyTable(base()) &&
-           VerifyField<uint8_t>(verifier, VT_PAYLOAD_TYPE, 1) &&
-           VerifyOffsetRequired(verifier, VT_PAYLOAD) &&
-           VerifyInflationCurvePayload(verifier, payload(), payload_type()) &&
+           VerifyOffsetRequired(verifier, VT_POINTS) &&
+           verifier.VerifyVector(points()) &&
+           verifier.VerifyVectorOfTables(points()) &&
            verifier.EndTable();
   }
   InflationCurveSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -851,26 +998,45 @@ struct InflationCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   static ::flatbuffers::Offset<InflationCurveSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-template<> inline const quantra::ZeroInflationCurveFromZcSwapsSpec *InflationCurveSpec::payload_as<quantra::ZeroInflationCurveFromZcSwapsSpec>() const {
-  return payload_as_ZeroInflationCurveFromZcSwapsSpec();
-}
-
-template<> inline const quantra::YoYInflationCurveFromYoYSwapsSpec *InflationCurveSpec::payload_as<quantra::YoYInflationCurveFromYoYSwapsSpec>() const {
-  return payload_as_YoYInflationCurveFromYoYSwapsSpec();
-}
-
 struct InflationCurveSpecBuilder {
   typedef InflationCurveSpec Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_base(::flatbuffers::Offset<quantra::InflationCurveBaseSpec> base) {
-    fbb_.AddOffset(InflationCurveSpec::VT_BASE, base);
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(InflationCurveSpec::VT_ID, id);
   }
-  void add_payload_type(quantra::InflationCurvePayload payload_type) {
-    fbb_.AddElement<uint8_t>(InflationCurveSpec::VT_PAYLOAD_TYPE, static_cast<uint8_t>(payload_type), 0);
+  void add_reference_date(::flatbuffers::Offset<::flatbuffers::String> reference_date) {
+    fbb_.AddOffset(InflationCurveSpec::VT_REFERENCE_DATE, reference_date);
   }
-  void add_payload(::flatbuffers::Offset<void> payload) {
-    fbb_.AddOffset(InflationCurveSpec::VT_PAYLOAD, payload);
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+  }
+  void add_interpolator(quantra::enums::Interpolator interpolator) {
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_INTERPOLATOR, static_cast<int8_t>(interpolator), 2);
+  }
+  void add_bootstrap_accuracy(double bootstrap_accuracy) {
+    fbb_.AddElement<double>(InflationCurveSpec::VT_BOOTSTRAP_ACCURACY, bootstrap_accuracy, 1.0e-12);
+  }
+  void add_kind(quantra::enums::InflationCurveKind kind) {
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_KIND, static_cast<int8_t>(kind), 0);
+  }
+  void add_index_id(::flatbuffers::Offset<::flatbuffers::String> index_id) {
+    fbb_.AddOffset(InflationCurveSpec::VT_INDEX_ID, index_id);
+  }
+  void add_discount_curve_id(::flatbuffers::Offset<::flatbuffers::String> discount_curve_id) {
+    fbb_.AddOffset(InflationCurveSpec::VT_DISCOUNT_CURVE_ID, discount_curve_id);
+  }
+  void add_allow_extrapolation(bool allow_extrapolation) {
+    fbb_.AddElement<uint8_t>(InflationCurveSpec::VT_ALLOW_EXTRAPOLATION, static_cast<uint8_t>(allow_extrapolation), 1);
+  }
+  void add_points(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationPointWrapper>>> points) {
+    fbb_.AddOffset(InflationCurveSpec::VT_POINTS, points);
   }
   explicit InflationCurveSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -879,22 +1045,77 @@ struct InflationCurveSpecBuilder {
   ::flatbuffers::Offset<InflationCurveSpec> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<InflationCurveSpec>(end);
-    fbb_.Required(o, InflationCurveSpec::VT_BASE);
-    fbb_.Required(o, InflationCurveSpec::VT_PAYLOAD);
+    fbb_.Required(o, InflationCurveSpec::VT_ID);
+    fbb_.Required(o, InflationCurveSpec::VT_REFERENCE_DATE);
+    fbb_.Required(o, InflationCurveSpec::VT_INDEX_ID);
+    fbb_.Required(o, InflationCurveSpec::VT_POINTS);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::InflationCurveBaseSpec> base = 0,
-    quantra::InflationCurvePayload payload_type = quantra::InflationCurvePayload_NONE,
-    ::flatbuffers::Offset<void> payload = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear,
+    double bootstrap_accuracy = 1.0e-12,
+    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Offset<::flatbuffers::String> index_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> discount_curve_id = 0,
+    bool allow_extrapolation = true,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationPointWrapper>>> points = 0) {
   InflationCurveSpecBuilder builder_(_fbb);
-  builder_.add_payload(payload);
-  builder_.add_base(base);
-  builder_.add_payload_type(payload_type);
+  builder_.add_bootstrap_accuracy(bootstrap_accuracy);
+  builder_.add_points(points);
+  builder_.add_discount_curve_id(discount_curve_id);
+  builder_.add_index_id(index_id);
+  builder_.add_reference_date(reference_date);
+  builder_.add_id(id);
+  builder_.add_allow_extrapolation(allow_extrapolation);
+  builder_.add_kind(kind);
+  builder_.add_interpolator(interpolator);
+  builder_.add_day_counter(day_counter);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
   return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpecDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    const char *reference_date = nullptr,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
+    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear,
+    double bootstrap_accuracy = 1.0e-12,
+    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    const char *index_id = nullptr,
+    const char *discount_curve_id = nullptr,
+    bool allow_extrapolation = true,
+    const std::vector<::flatbuffers::Offset<quantra::InflationPointWrapper>> *points = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
+  auto index_id__ = index_id ? _fbb.CreateString(index_id) : 0;
+  auto discount_curve_id__ = discount_curve_id ? _fbb.CreateString(discount_curve_id) : 0;
+  auto points__ = points ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationPointWrapper>>(*points) : 0;
+  return quantra::CreateInflationCurveSpec(
+      _fbb,
+      id__,
+      reference_date__,
+      calendar,
+      business_day_convention,
+      day_counter,
+      interpolator,
+      bootstrap_accuracy,
+      kind,
+      index_id__,
+      discount_curve_id__,
+      allow_extrapolation,
+      points__);
 }
 
 ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpec(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -910,7 +1131,10 @@ inline InflationIndexSpecT::InflationIndexSpecT(const InflationIndexSpecT &o)
         observation_lag((o.observation_lag) ? new quantra::PeriodT(*o.observation_lag) : nullptr),
         interpolated(o.interpolated),
         revised(o.revised),
-        kind(o.kind) {
+        kind(o.kind),
+        underlying_zero_index_id(o.underlying_zero_index_id) {
+  fixings.reserve(o.fixings.size());
+  for (const auto &fixings_ : o.fixings) { fixings.emplace_back((fixings_) ? new quantra::FixingT(*fixings_) : nullptr); }
 }
 
 inline InflationIndexSpecT &InflationIndexSpecT::operator=(InflationIndexSpecT o) FLATBUFFERS_NOEXCEPT {
@@ -925,6 +1149,8 @@ inline InflationIndexSpecT &InflationIndexSpecT::operator=(InflationIndexSpecT o
   std::swap(interpolated, o.interpolated);
   std::swap(revised, o.revised);
   std::swap(kind, o.kind);
+  std::swap(underlying_zero_index_id, o.underlying_zero_index_id);
+  std::swap(fixings, o.fixings);
   return *this;
 }
 
@@ -948,6 +1174,8 @@ inline void InflationIndexSpec::UnPackTo(InflationIndexSpecT *_o, const ::flatbu
   { auto _e = interpolated(); _o->interpolated = _e; }
   { auto _e = revised(); _o->revised = _e; }
   { auto _e = kind(); _o->kind = _e; }
+  { auto _e = underlying_zero_index_id(); if (_e) _o->underlying_zero_index_id = _e->str(); }
+  { auto _e = fixings(); if (_e) { _o->fixings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->fixings[_i]) { _e->Get(_i)->UnPackTo(_o->fixings[_i].get(), _resolver); } else { _o->fixings[_i] = std::unique_ptr<quantra::FixingT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->fixings.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<InflationIndexSpec> InflationIndexSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationIndexSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -969,6 +1197,8 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(::flat
   auto _interpolated = _o->interpolated;
   auto _revised = _o->revised;
   auto _kind = _o->kind;
+  auto _underlying_zero_index_id = _o->underlying_zero_index_id.empty() ? 0 : _fbb.CreateString(_o->underlying_zero_index_id);
+  auto _fixings = _o->fixings.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Fixing>> (_o->fixings.size(), [](size_t i, _VectorArgs *__va) { return CreateFixing(*__va->__fbb, __va->__o->fixings[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateInflationIndexSpec(
       _fbb,
       _id,
@@ -981,194 +1211,239 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(::flat
       _observation_lag,
       _interpolated,
       _revised,
-      _kind);
-}
-
-inline InflationCurveBaseSpecT *InflationCurveBaseSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<InflationCurveBaseSpecT>(new InflationCurveBaseSpecT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void InflationCurveBaseSpec::UnPackTo(InflationCurveBaseSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = id(); if (_e) _o->id = _e->str(); }
-  { auto _e = reference_date(); if (_e) _o->reference_date = _e->str(); }
-  { auto _e = calendar(); _o->calendar = _e; }
-  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = kind(); _o->kind = _e; }
-  { auto _e = index_id(); if (_e) _o->index_id = _e->str(); }
-  { auto _e = discount_curve_id(); if (_e) _o->discount_curve_id = _e->str(); }
-  { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
-}
-
-inline ::flatbuffers::Offset<InflationCurveBaseSpec> InflationCurveBaseSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveBaseSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateInflationCurveBaseSpec(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<InflationCurveBaseSpec> CreateInflationCurveBaseSpec(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveBaseSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const InflationCurveBaseSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _id = _fbb.CreateString(_o->id);
-  auto _reference_date = _fbb.CreateString(_o->reference_date);
-  auto _calendar = _o->calendar;
-  auto _business_day_convention = _o->business_day_convention;
-  auto _day_counter = _o->day_counter;
-  auto _kind = _o->kind;
-  auto _index_id = _fbb.CreateString(_o->index_id);
-  auto _discount_curve_id = _o->discount_curve_id.empty() ? 0 : _fbb.CreateString(_o->discount_curve_id);
-  auto _allow_extrapolation = _o->allow_extrapolation;
-  return quantra::CreateInflationCurveBaseSpec(
-      _fbb,
-      _id,
-      _reference_date,
-      _calendar,
-      _business_day_convention,
-      _day_counter,
       _kind,
-      _index_id,
-      _discount_curve_id,
-      _allow_extrapolation);
+      _underlying_zero_index_id,
+      _fixings);
 }
 
-inline InflationSwapPillarT::InflationSwapPillarT(const InflationSwapPillarT &o)
-      : maturity((o.maturity) ? new quantra::PeriodT(*o.maturity) : nullptr),
-        quote_id(o.quote_id),
-        quote_value(o.quote_value) {
+inline ZeroCouponInflationSwapHelperT::ZeroCouponInflationSwapHelperT(const ZeroCouponInflationSwapHelperT &o)
+      : quote_id(o.quote_id),
+        quote_value(o.quote_value),
+        swap_observation_lag((o.swap_observation_lag) ? new quantra::PeriodT(*o.swap_observation_lag) : nullptr),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        start_date(o.start_date),
+        end_date(o.end_date),
+        calendar(o.calendar),
+        payment_convention(o.payment_convention),
+        day_counter(o.day_counter),
+        observation_interpolation(o.observation_interpolation),
+        nominal_curve_id(o.nominal_curve_id) {
 }
 
-inline InflationSwapPillarT &InflationSwapPillarT::operator=(InflationSwapPillarT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(maturity, o.maturity);
+inline ZeroCouponInflationSwapHelperT &ZeroCouponInflationSwapHelperT::operator=(ZeroCouponInflationSwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(quote_id, o.quote_id);
   std::swap(quote_value, o.quote_value);
+  std::swap(swap_observation_lag, o.swap_observation_lag);
+  std::swap(tenor, o.tenor);
+  std::swap(start_date, o.start_date);
+  std::swap(end_date, o.end_date);
+  std::swap(calendar, o.calendar);
+  std::swap(payment_convention, o.payment_convention);
+  std::swap(day_counter, o.day_counter);
+  std::swap(observation_interpolation, o.observation_interpolation);
+  std::swap(nominal_curve_id, o.nominal_curve_id);
   return *this;
 }
 
-inline InflationSwapPillarT *InflationSwapPillar::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<InflationSwapPillarT>(new InflationSwapPillarT());
+inline ZeroCouponInflationSwapHelperT *ZeroCouponInflationSwapHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ZeroCouponInflationSwapHelperT>(new ZeroCouponInflationSwapHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void InflationSwapPillar::UnPackTo(InflationSwapPillarT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void ZeroCouponInflationSwapHelper::UnPackTo(ZeroCouponInflationSwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = maturity(); if (_e) { if(_o->maturity) { _e->UnPackTo(_o->maturity.get(), _resolver); } else { _o->maturity = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->maturity) { _o->maturity.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
   { auto _e = quote_value(); _o->quote_value = _e; }
+  { auto _e = swap_observation_lag(); if (_e) { if(_o->swap_observation_lag) { _e->UnPackTo(_o->swap_observation_lag.get(), _resolver); } else { _o->swap_observation_lag = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->swap_observation_lag) { _o->swap_observation_lag.reset(); } }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = start_date(); if (_e) _o->start_date = _e->str(); }
+  { auto _e = end_date(); if (_e) _o->end_date = _e->str(); }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = payment_convention(); _o->payment_convention = _e; }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = observation_interpolation(); _o->observation_interpolation = _e; }
+  { auto _e = nominal_curve_id(); if (_e) _o->nominal_curve_id = _e->str(); }
 }
 
-inline ::flatbuffers::Offset<InflationSwapPillar> InflationSwapPillar::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationSwapPillarT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateInflationSwapPillar(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> ZeroCouponInflationSwapHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateZeroCouponInflationSwapHelper(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<InflationSwapPillar> CreateInflationSwapPillar(::flatbuffers::FlatBufferBuilder &_fbb, const InflationSwapPillarT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const InflationSwapPillarT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _maturity = _o->maturity ? CreatePeriod(_fbb, _o->maturity.get(), _rehasher) : 0;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ZeroCouponInflationSwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   auto _quote_value = _o->quote_value;
-  return quantra::CreateInflationSwapPillar(
+  auto _swap_observation_lag = _o->swap_observation_lag ? CreatePeriod(_fbb, _o->swap_observation_lag.get(), _rehasher) : 0;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _start_date = _o->start_date.empty() ? 0 : _fbb.CreateString(_o->start_date);
+  auto _end_date = _o->end_date.empty() ? 0 : _fbb.CreateString(_o->end_date);
+  auto _calendar = _o->calendar;
+  auto _payment_convention = _o->payment_convention;
+  auto _day_counter = _o->day_counter;
+  auto _observation_interpolation = _o->observation_interpolation;
+  auto _nominal_curve_id = _o->nominal_curve_id.empty() ? 0 : _fbb.CreateString(_o->nominal_curve_id);
+  return quantra::CreateZeroCouponInflationSwapHelper(
       _fbb,
-      _maturity,
       _quote_id,
-      _quote_value);
+      _quote_value,
+      _swap_observation_lag,
+      _tenor,
+      _start_date,
+      _end_date,
+      _calendar,
+      _payment_convention,
+      _day_counter,
+      _observation_interpolation,
+      _nominal_curve_id);
 }
 
-inline ZeroInflationCurveFromZcSwapsSpecT::ZeroInflationCurveFromZcSwapsSpecT(const ZeroInflationCurveFromZcSwapsSpecT &o)
-      : interpolator(o.interpolator) {
-  pillars.reserve(o.pillars.size());
-  for (const auto &pillars_ : o.pillars) { pillars.emplace_back((pillars_) ? new quantra::InflationSwapPillarT(*pillars_) : nullptr); }
+inline YearOnYearInflationSwapHelperT::YearOnYearInflationSwapHelperT(const YearOnYearInflationSwapHelperT &o)
+      : quote_id(o.quote_id),
+        quote_value(o.quote_value),
+        swap_observation_lag((o.swap_observation_lag) ? new quantra::PeriodT(*o.swap_observation_lag) : nullptr),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        start_date(o.start_date),
+        end_date(o.end_date),
+        calendar(o.calendar),
+        payment_convention(o.payment_convention),
+        day_counter(o.day_counter),
+        observation_interpolation(o.observation_interpolation),
+        nominal_curve_id(o.nominal_curve_id) {
 }
 
-inline ZeroInflationCurveFromZcSwapsSpecT &ZeroInflationCurveFromZcSwapsSpecT::operator=(ZeroInflationCurveFromZcSwapsSpecT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(pillars, o.pillars);
-  std::swap(interpolator, o.interpolator);
+inline YearOnYearInflationSwapHelperT &YearOnYearInflationSwapHelperT::operator=(YearOnYearInflationSwapHelperT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(quote_id, o.quote_id);
+  std::swap(quote_value, o.quote_value);
+  std::swap(swap_observation_lag, o.swap_observation_lag);
+  std::swap(tenor, o.tenor);
+  std::swap(start_date, o.start_date);
+  std::swap(end_date, o.end_date);
+  std::swap(calendar, o.calendar);
+  std::swap(payment_convention, o.payment_convention);
+  std::swap(day_counter, o.day_counter);
+  std::swap(observation_interpolation, o.observation_interpolation);
+  std::swap(nominal_curve_id, o.nominal_curve_id);
   return *this;
 }
 
-inline ZeroInflationCurveFromZcSwapsSpecT *ZeroInflationCurveFromZcSwapsSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<ZeroInflationCurveFromZcSwapsSpecT>(new ZeroInflationCurveFromZcSwapsSpecT());
+inline YearOnYearInflationSwapHelperT *YearOnYearInflationSwapHelper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<YearOnYearInflationSwapHelperT>(new YearOnYearInflationSwapHelperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void ZeroInflationCurveFromZcSwapsSpec::UnPackTo(ZeroInflationCurveFromZcSwapsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void YearOnYearInflationSwapHelper::UnPackTo(YearOnYearInflationSwapHelperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = pillars(); if (_e) { _o->pillars.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->pillars[_i]) { _e->Get(_i)->UnPackTo(_o->pillars[_i].get(), _resolver); } else { _o->pillars[_i] = std::unique_ptr<quantra::InflationSwapPillarT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->pillars.resize(0); } }
-  { auto _e = interpolator(); _o->interpolator = _e; }
+  { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
+  { auto _e = quote_value(); _o->quote_value = _e; }
+  { auto _e = swap_observation_lag(); if (_e) { if(_o->swap_observation_lag) { _e->UnPackTo(_o->swap_observation_lag.get(), _resolver); } else { _o->swap_observation_lag = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->swap_observation_lag) { _o->swap_observation_lag.reset(); } }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = start_date(); if (_e) _o->start_date = _e->str(); }
+  { auto _e = end_date(); if (_e) _o->end_date = _e->str(); }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = payment_convention(); _o->payment_convention = _e; }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = observation_interpolation(); _o->observation_interpolation = _e; }
+  { auto _e = nominal_curve_id(); if (_e) _o->nominal_curve_id = _e->str(); }
 }
 
-inline ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> ZeroInflationCurveFromZcSwapsSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroInflationCurveFromZcSwapsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateZeroInflationCurveFromZcSwapsSpec(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> YearOnYearInflationSwapHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YearOnYearInflationSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateYearOnYearInflationSwapHelper(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<ZeroInflationCurveFromZcSwapsSpec> CreateZeroInflationCurveFromZcSwapsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroInflationCurveFromZcSwapsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const YearOnYearInflationSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ZeroInflationCurveFromZcSwapsSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _pillars = _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationSwapPillar>> (_o->pillars.size(), [](size_t i, _VectorArgs *__va) { return CreateInflationSwapPillar(*__va->__fbb, __va->__o->pillars[i].get(), __va->__rehasher); }, &_va );
-  auto _interpolator = _o->interpolator;
-  return quantra::CreateZeroInflationCurveFromZcSwapsSpec(
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const YearOnYearInflationSwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
+  auto _quote_value = _o->quote_value;
+  auto _swap_observation_lag = _o->swap_observation_lag ? CreatePeriod(_fbb, _o->swap_observation_lag.get(), _rehasher) : 0;
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _start_date = _o->start_date.empty() ? 0 : _fbb.CreateString(_o->start_date);
+  auto _end_date = _o->end_date.empty() ? 0 : _fbb.CreateString(_o->end_date);
+  auto _calendar = _o->calendar;
+  auto _payment_convention = _o->payment_convention;
+  auto _day_counter = _o->day_counter;
+  auto _observation_interpolation = _o->observation_interpolation;
+  auto _nominal_curve_id = _fbb.CreateString(_o->nominal_curve_id);
+  return quantra::CreateYearOnYearInflationSwapHelper(
       _fbb,
-      _pillars,
-      _interpolator);
+      _quote_id,
+      _quote_value,
+      _swap_observation_lag,
+      _tenor,
+      _start_date,
+      _end_date,
+      _calendar,
+      _payment_convention,
+      _day_counter,
+      _observation_interpolation,
+      _nominal_curve_id);
 }
 
-inline YoYInflationCurveFromYoYSwapsSpecT::YoYInflationCurveFromYoYSwapsSpecT(const YoYInflationCurveFromYoYSwapsSpecT &o)
-      : interpolator(o.interpolator) {
-  pillars.reserve(o.pillars.size());
-  for (const auto &pillars_ : o.pillars) { pillars.emplace_back((pillars_) ? new quantra::InflationSwapPillarT(*pillars_) : nullptr); }
-}
-
-inline YoYInflationCurveFromYoYSwapsSpecT &YoYInflationCurveFromYoYSwapsSpecT::operator=(YoYInflationCurveFromYoYSwapsSpecT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(pillars, o.pillars);
-  std::swap(interpolator, o.interpolator);
-  return *this;
-}
-
-inline YoYInflationCurveFromYoYSwapsSpecT *YoYInflationCurveFromYoYSwapsSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<YoYInflationCurveFromYoYSwapsSpecT>(new YoYInflationCurveFromYoYSwapsSpecT());
+inline InflationPointWrapperT *InflationPointWrapper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<InflationPointWrapperT>(new InflationPointWrapperT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void YoYInflationCurveFromYoYSwapsSpec::UnPackTo(YoYInflationCurveFromYoYSwapsSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void InflationPointWrapper::UnPackTo(InflationPointWrapperT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = pillars(); if (_e) { _o->pillars.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->pillars[_i]) { _e->Get(_i)->UnPackTo(_o->pillars[_i].get(), _resolver); } else { _o->pillars[_i] = std::unique_ptr<quantra::InflationSwapPillarT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->pillars.resize(0); } }
-  { auto _e = interpolator(); _o->interpolator = _e; }
+  { auto _e = point_type(); _o->point.type = _e; }
+  { auto _e = point(); if (_e) _o->point.value = quantra::InflationPointUnion::UnPack(_e, point_type(), _resolver); }
 }
 
-inline ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> YoYInflationCurveFromYoYSwapsSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YoYInflationCurveFromYoYSwapsSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateYoYInflationCurveFromYoYSwapsSpec(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<InflationPointWrapper> InflationPointWrapper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationPointWrapperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateInflationPointWrapper(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<YoYInflationCurveFromYoYSwapsSpec> CreateYoYInflationCurveFromYoYSwapsSpec(::flatbuffers::FlatBufferBuilder &_fbb, const YoYInflationCurveFromYoYSwapsSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<InflationPointWrapper> CreateInflationPointWrapper(::flatbuffers::FlatBufferBuilder &_fbb, const InflationPointWrapperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const YoYInflationCurveFromYoYSwapsSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _pillars = _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationSwapPillar>> (_o->pillars.size(), [](size_t i, _VectorArgs *__va) { return CreateInflationSwapPillar(*__va->__fbb, __va->__o->pillars[i].get(), __va->__rehasher); }, &_va );
-  auto _interpolator = _o->interpolator;
-  return quantra::CreateYoYInflationCurveFromYoYSwapsSpec(
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const InflationPointWrapperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _point_type = _o->point.type;
+  auto _point = _o->point.Pack(_fbb);
+  return quantra::CreateInflationPointWrapper(
       _fbb,
-      _pillars,
-      _interpolator);
+      _point_type,
+      _point);
 }
 
 inline InflationCurveSpecT::InflationCurveSpecT(const InflationCurveSpecT &o)
-      : base((o.base) ? new quantra::InflationCurveBaseSpecT(*o.base) : nullptr),
-        payload(o.payload) {
+      : id(o.id),
+        reference_date(o.reference_date),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        day_counter(o.day_counter),
+        interpolator(o.interpolator),
+        bootstrap_accuracy(o.bootstrap_accuracy),
+        kind(o.kind),
+        index_id(o.index_id),
+        discount_curve_id(o.discount_curve_id),
+        allow_extrapolation(o.allow_extrapolation) {
+  points.reserve(o.points.size());
+  for (const auto &points_ : o.points) { points.emplace_back((points_) ? new quantra::InflationPointWrapperT(*points_) : nullptr); }
 }
 
 inline InflationCurveSpecT &InflationCurveSpecT::operator=(InflationCurveSpecT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(base, o.base);
-  std::swap(payload, o.payload);
+  std::swap(id, o.id);
+  std::swap(reference_date, o.reference_date);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(day_counter, o.day_counter);
+  std::swap(interpolator, o.interpolator);
+  std::swap(bootstrap_accuracy, o.bootstrap_accuracy);
+  std::swap(kind, o.kind);
+  std::swap(index_id, o.index_id);
+  std::swap(discount_curve_id, o.discount_curve_id);
+  std::swap(allow_extrapolation, o.allow_extrapolation);
+  std::swap(points, o.points);
   return *this;
 }
 
@@ -1181,9 +1456,18 @@ inline InflationCurveSpecT *InflationCurveSpec::UnPack(const ::flatbuffers::reso
 inline void InflationCurveSpec::UnPackTo(InflationCurveSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = base(); if (_e) { if(_o->base) { _e->UnPackTo(_o->base.get(), _resolver); } else { _o->base = std::unique_ptr<quantra::InflationCurveBaseSpecT>(_e->UnPack(_resolver)); } } else if (_o->base) { _o->base.reset(); } }
-  { auto _e = payload_type(); _o->payload.type = _e; }
-  { auto _e = payload(); if (_e) _o->payload.value = quantra::InflationCurvePayloadUnion::UnPack(_e, payload_type(), _resolver); }
+  { auto _e = id(); if (_e) _o->id = _e->str(); }
+  { auto _e = reference_date(); if (_e) _o->reference_date = _e->str(); }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = interpolator(); _o->interpolator = _e; }
+  { auto _e = bootstrap_accuracy(); _o->bootstrap_accuracy = _e; }
+  { auto _e = kind(); _o->kind = _e; }
+  { auto _e = index_id(); if (_e) _o->index_id = _e->str(); }
+  { auto _e = discount_curve_id(); if (_e) _o->discount_curve_id = _e->str(); }
+  { auto _e = allow_extrapolation(); _o->allow_extrapolation = _e; }
+  { auto _e = points(); if (_e) { _o->points.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->points[_i]) { _e->Get(_i)->UnPackTo(_o->points[_i].get(), _resolver); } else { _o->points[_i] = std::unique_ptr<quantra::InflationPointWrapperT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->points.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<InflationCurveSpec> InflationCurveSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationCurveSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1194,83 +1478,101 @@ inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpec(::flat
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const InflationCurveSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _base = _o->base ? CreateInflationCurveBaseSpec(_fbb, _o->base.get(), _rehasher) : 0;
-  auto _payload_type = _o->payload.type;
-  auto _payload = _o->payload.Pack(_fbb);
+  auto _id = _fbb.CreateString(_o->id);
+  auto _reference_date = _fbb.CreateString(_o->reference_date);
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _day_counter = _o->day_counter;
+  auto _interpolator = _o->interpolator;
+  auto _bootstrap_accuracy = _o->bootstrap_accuracy;
+  auto _kind = _o->kind;
+  auto _index_id = _fbb.CreateString(_o->index_id);
+  auto _discount_curve_id = _o->discount_curve_id.empty() ? 0 : _fbb.CreateString(_o->discount_curve_id);
+  auto _allow_extrapolation = _o->allow_extrapolation;
+  auto _points = _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationPointWrapper>> (_o->points.size(), [](size_t i, _VectorArgs *__va) { return CreateInflationPointWrapper(*__va->__fbb, __va->__o->points[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreateInflationCurveSpec(
       _fbb,
-      _base,
-      _payload_type,
-      _payload);
+      _id,
+      _reference_date,
+      _calendar,
+      _business_day_convention,
+      _day_counter,
+      _interpolator,
+      _bootstrap_accuracy,
+      _kind,
+      _index_id,
+      _discount_curve_id,
+      _allow_extrapolation,
+      _points);
 }
 
-inline bool VerifyInflationCurvePayload(::flatbuffers::Verifier &verifier, const void *obj, InflationCurvePayload type) {
+inline bool VerifyInflationPoint(::flatbuffers::Verifier &verifier, const void *obj, InflationPoint type) {
   switch (type) {
-    case InflationCurvePayload_NONE: {
+    case InflationPoint_NONE: {
       return true;
     }
-    case InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::ZeroInflationCurveFromZcSwapsSpec *>(obj);
+    case InflationPoint_ZeroCouponInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::ZeroCouponInflationSwapHelper *>(obj);
       return verifier.VerifyTable(ptr);
     }
-    case InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::YoYInflationCurveFromYoYSwapsSpec *>(obj);
+    case InflationPoint_YearOnYearInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::YearOnYearInflationSwapHelper *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;
   }
 }
 
-inline bool VerifyInflationCurvePayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
+inline bool VerifyInflationPointVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
   if (!values || !types) return !values && !types;
   if (values->size() != types->size()) return false;
   for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
-    if (!VerifyInflationCurvePayload(
-        verifier,  values->Get(i), types->GetEnum<InflationCurvePayload>(i))) {
+    if (!VerifyInflationPoint(
+        verifier,  values->Get(i), types->GetEnum<InflationPoint>(i))) {
       return false;
     }
   }
   return true;
 }
 
-inline void *InflationCurvePayloadUnion::UnPack(const void *obj, InflationCurvePayload type, const ::flatbuffers::resolver_function_t *resolver) {
+inline void *InflationPointUnion::UnPack(const void *obj, InflationPoint type, const ::flatbuffers::resolver_function_t *resolver) {
   (void)resolver;
   switch (type) {
-    case InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::ZeroInflationCurveFromZcSwapsSpec *>(obj);
+    case InflationPoint_ZeroCouponInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::ZeroCouponInflationSwapHelper *>(obj);
       return ptr->UnPack(resolver);
     }
-    case InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::YoYInflationCurveFromYoYSwapsSpec *>(obj);
+    case InflationPoint_YearOnYearInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::YearOnYearInflationSwapHelper *>(obj);
       return ptr->UnPack(resolver);
     }
     default: return nullptr;
   }
 }
 
-inline ::flatbuffers::Offset<void> InflationCurvePayloadUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
+inline ::flatbuffers::Offset<void> InflationPointUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
   (void)_rehasher;
   switch (type) {
-    case InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::ZeroInflationCurveFromZcSwapsSpecT *>(value);
-      return CreateZeroInflationCurveFromZcSwapsSpec(_fbb, ptr, _rehasher).Union();
+    case InflationPoint_ZeroCouponInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::ZeroCouponInflationSwapHelperT *>(value);
+      return CreateZeroCouponInflationSwapHelper(_fbb, ptr, _rehasher).Union();
     }
-    case InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec: {
-      auto ptr = reinterpret_cast<const quantra::YoYInflationCurveFromYoYSwapsSpecT *>(value);
-      return CreateYoYInflationCurveFromYoYSwapsSpec(_fbb, ptr, _rehasher).Union();
+    case InflationPoint_YearOnYearInflationSwapHelper: {
+      auto ptr = reinterpret_cast<const quantra::YearOnYearInflationSwapHelperT *>(value);
+      return CreateYearOnYearInflationSwapHelper(_fbb, ptr, _rehasher).Union();
     }
     default: return 0;
   }
 }
 
-inline InflationCurvePayloadUnion::InflationCurvePayloadUnion(const InflationCurvePayloadUnion &u) : type(u.type), value(nullptr) {
+inline InflationPointUnion::InflationPointUnion(const InflationPointUnion &u) : type(u.type), value(nullptr) {
   switch (type) {
-    case InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec: {
-      value = new quantra::ZeroInflationCurveFromZcSwapsSpecT(*reinterpret_cast<quantra::ZeroInflationCurveFromZcSwapsSpecT *>(u.value));
+    case InflationPoint_ZeroCouponInflationSwapHelper: {
+      value = new quantra::ZeroCouponInflationSwapHelperT(*reinterpret_cast<quantra::ZeroCouponInflationSwapHelperT *>(u.value));
       break;
     }
-    case InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec: {
-      value = new quantra::YoYInflationCurveFromYoYSwapsSpecT(*reinterpret_cast<quantra::YoYInflationCurveFromYoYSwapsSpecT *>(u.value));
+    case InflationPoint_YearOnYearInflationSwapHelper: {
+      value = new quantra::YearOnYearInflationSwapHelperT(*reinterpret_cast<quantra::YearOnYearInflationSwapHelperT *>(u.value));
       break;
     }
     default:
@@ -1278,22 +1580,22 @@ inline InflationCurvePayloadUnion::InflationCurvePayloadUnion(const InflationCur
   }
 }
 
-inline void InflationCurvePayloadUnion::Reset() {
+inline void InflationPointUnion::Reset() {
   switch (type) {
-    case InflationCurvePayload_ZeroInflationCurveFromZcSwapsSpec: {
-      auto ptr = reinterpret_cast<quantra::ZeroInflationCurveFromZcSwapsSpecT *>(value);
+    case InflationPoint_ZeroCouponInflationSwapHelper: {
+      auto ptr = reinterpret_cast<quantra::ZeroCouponInflationSwapHelperT *>(value);
       delete ptr;
       break;
     }
-    case InflationCurvePayload_YoYInflationCurveFromYoYSwapsSpec: {
-      auto ptr = reinterpret_cast<quantra::YoYInflationCurveFromYoYSwapsSpecT *>(value);
+    case InflationPoint_YearOnYearInflationSwapHelper: {
+      auto ptr = reinterpret_cast<quantra::YearOnYearInflationSwapHelperT *>(value);
       delete ptr;
       break;
     }
     default: break;
   }
   value = nullptr;
-  type = InflationCurvePayload_NONE;
+  type = InflationPoint_NONE;
 }
 
 }  // namespace quantra

@@ -1,5 +1,7 @@
 include "enums.fbs";
 include "common.fbs";
+include "index.fbs";
+include "schedule.fbs";
 
 namespace quantra;
 
@@ -25,15 +27,72 @@ table InflationIndexSpec {
     revised:bool = false;
 
     kind:enums.InflationCurveKind = ZeroInflation;
+    /// For ratio-based YoY indices, link to the underlying zero inflation index id.
+    underlying_zero_index_id:string;
+    /// Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting.
+    fixings:[Fixing];
 }
 
-/// Inflation curve base specification.
-table InflationCurveBaseSpec {
+/// Zero-coupon inflation swap helper point.
+table ZeroCouponInflationSwapHelper {
+    /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
+    quote_id:string;
+    /// Inline quote value used when quote_id is empty.
+    quote_value:double;
+    /// Lag applied when observing the CPI index in the swap.
+    swap_observation_lag:Period (required);
+    /// Relative helper maturity from InflationCurveBaseSpec.reference_date.
+    tenor:Period;
+    /// Optional explicit start date for dated helper construction.
+    start_date:string;
+    /// Optional explicit end/maturity date for dated helper construction.
+    end_date:string;
+    calendar:enums.Calendar = TARGET;
+    payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    /// Optional deprecated QuantLib nominal curve dependency.
+    nominal_curve_id:string;
+}
+
+/// Year-on-year inflation swap helper point.
+table YearOnYearInflationSwapHelper {
+    /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
+    quote_id:string;
+    /// Inline quote value used when quote_id is empty.
+    quote_value:double;
+    swap_observation_lag:Period (required);
+    tenor:Period;
+    start_date:string;
+    end_date:string;
+    calendar:enums.Calendar = TARGET;
+    payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    /// QuantLib YoY helper requires a nominal term structure.
+    nominal_curve_id:string (required);
+}
+
+/// Union of supported inflation bootstrap point/helper types.
+union InflationPoint {
+    ZeroCouponInflationSwapHelper,
+    YearOnYearInflationSwapHelper
+}
+
+/// Wrapper for one inflation curve point.
+table InflationPointWrapper {
+    point:InflationPoint;
+}
+
+/// Inflation term-structure definition, modeled like rates `TermStructure`.
+table InflationCurveSpec {
     id:string (required);
     reference_date:string (required);
     calendar:enums.Calendar = TARGET;
     business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
     day_counter:enums.DayCounter = Actual365Fixed;
+    interpolator:enums.Interpolator = Linear;
+    bootstrap_accuracy:double = 1.0e-12;
 
     kind:enums.InflationCurveKind = ZeroInflation;
     /// Link to InflationIndexSpec.id.
@@ -41,39 +100,6 @@ table InflationCurveBaseSpec {
     /// Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
     discount_curve_id:string;
     allow_extrapolation:bool = true;
-}
-
-/// Pillar quote for inflation curve construction.
-table InflationSwapPillar {
-    maturity:Period (required);
-    /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
-    quote_id:string;
-    /// Inline quote value used when quote_id is empty.
-    quote_value:double;
-}
-
-/// Zero inflation curve built from pillar rates.
-/// Note: MVP treats pillar quotes as zero inflation rates at each maturity.
-table ZeroInflationCurveFromZcSwapsSpec {
-    pillars:[InflationSwapPillar] (required);
-    interpolator:enums.Interpolator = Linear;
-}
-
-/// YoY inflation curve built from pillar rates.
-/// Note: MVP treats pillar quotes as YoY rates at each maturity.
-table YoYInflationCurveFromYoYSwapsSpec {
-    pillars:[InflationSwapPillar] (required);
-    interpolator:enums.Interpolator = Linear;
-}
-
-union InflationCurvePayload {
-    ZeroInflationCurveFromZcSwapsSpec,
-    YoYInflationCurveFromYoYSwapsSpec
-}
-
-/// Inflation curve specification.
-table InflationCurveSpec {
-    base:InflationCurveBaseSpec (required);
-    payload:InflationCurvePayload (required);
+    points:[InflationPointWrapper] (required);
 }
 

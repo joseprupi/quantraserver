@@ -381,7 +381,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/quantra_PriceFraRequest"
+                "$ref": "#/components/schemas/quantra_PriceFRARequest"
               }
             }
           }
@@ -392,7 +392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_FraResponse"
+                  "$ref": "#/components/schemas/quantra_FRAResponse"
                 }
               }
             }
@@ -570,7 +570,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/quantra_PriceCdsRequest"
+                "$ref": "#/components/schemas/quantra_PriceCDSRequest"
               }
             }
           }
@@ -581,7 +581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_CdsResponse"
+                  "$ref": "#/components/schemas/quantra_CDSResponse"
                 }
               }
             }
@@ -1513,6 +1513,21 @@
           "YoYRate"
         ]
       },
+      "quantra_enums_CPIInterpolationType": {
+        "type": "string",
+        "enum": [
+          "AsIndex",
+          "Flat",
+          "Linear"
+        ]
+      },
+      "quantra_enums_BondPriceType": {
+        "type": "string",
+        "enum": [
+          "Clean",
+          "Dirty"
+        ]
+      },
       "quantra_enums_IrModelType": {
         "type": "string",
         "enum": [
@@ -2399,12 +2414,12 @@
           "EquityAssetOrNothingPayoff"
         ]
       },
-      "quantra_InflationCurvePayload": {
+      "quantra_InflationPoint": {
         "type": "string",
         "enum": [
           "NONE",
-          "ZeroInflationCurveFromZcSwapsSpec",
-          "YoYInflationCurveFromYoYSwapsSpec"
+          "ZeroCouponInflationSwapHelper",
+          "YearOnYearInflationSwapHelper"
         ]
       },
       "quantra_DateGrid": {
@@ -4122,6 +4137,17 @@
           },
           "kind": {
             "$ref": "#/components/schemas/quantra_enums_InflationCurveKind"
+          },
+          "underlying_zero_index_id": {
+            "type": "string",
+            "description": "For ratio-based YoY indices, link to the underlying zero inflation index id."
+          },
+          "fixings": {
+            "type": "array",
+            "description": "Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_Fixing"
+            }
           }
         },
         "required": [
@@ -4129,9 +4155,124 @@
         ],
         "additionalProperties": false
       },
-      "quantra_InflationCurveBaseSpec": {
+      "quantra_ZeroCouponInflationSwapHelper": {
         "type": "object",
-        "description": "Inflation curve base specification.",
+        "description": "Zero-coupon inflation swap helper point.",
+        "properties": {
+          "quote_id": {
+            "type": "string",
+            "description": "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+          },
+          "quote_value": {
+            "type": "number",
+            "description": "Inline quote value used when quote_id is empty."
+          },
+          "swap_observation_lag": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "tenor": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Optional explicit start date for dated helper construction."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "Optional explicit end/maturity date for dated helper construction."
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "observation_interpolation": {
+            "$ref": "#/components/schemas/quantra_enums_CPIInterpolationType"
+          },
+          "nominal_curve_id": {
+            "type": "string",
+            "description": "Optional deprecated QuantLib nominal curve dependency."
+          }
+        },
+        "required": [
+          "swap_observation_lag"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_YearOnYearInflationSwapHelper": {
+        "type": "object",
+        "description": "Year-on-year inflation swap helper point.",
+        "properties": {
+          "quote_id": {
+            "type": "string",
+            "description": "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+          },
+          "quote_value": {
+            "type": "number",
+            "description": "Inline quote value used when quote_id is empty."
+          },
+          "swap_observation_lag": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "tenor": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "observation_interpolation": {
+            "$ref": "#/components/schemas/quantra_enums_CPIInterpolationType"
+          },
+          "nominal_curve_id": {
+            "type": "string",
+            "description": "QuantLib YoY helper requires a nominal term structure."
+          }
+        },
+        "required": [
+          "swap_observation_lag",
+          "nominal_curve_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_InflationPointWrapper": {
+        "type": "object",
+        "description": "Wrapper for one inflation curve point.",
+        "properties": {
+          "point_type": {
+            "$ref": "#/components/schemas/quantra_InflationPoint"
+          },
+          "point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/quantra_ZeroCouponInflationSwapHelper"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_YearOnYearInflationSwapHelper"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_InflationCurveSpec": {
+        "type": "object",
+        "description": "Inflation term-structure definition, modeled like rates `TermStructure`.",
         "properties": {
           "id": {
             "type": "string"
@@ -4148,6 +4289,12 @@
           "day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
           },
+          "interpolator": {
+            "$ref": "#/components/schemas/quantra_enums_Interpolator"
+          },
+          "bootstrap_accuracy": {
+            "type": "number"
+          },
           "kind": {
             "$ref": "#/components/schemas/quantra_enums_InflationCurveKind"
           },
@@ -4161,98 +4308,19 @@
           },
           "allow_extrapolation": {
             "type": "boolean"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_InflationPointWrapper"
+            }
           }
         },
         "required": [
           "id",
           "reference_date",
-          "index_id"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_InflationSwapPillar": {
-        "type": "object",
-        "description": "Pillar quote for inflation curve construction.",
-        "properties": {
-          "maturity": {
-            "$ref": "#/components/schemas/quantra_Period"
-          },
-          "quote_id": {
-            "type": "string",
-            "description": "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
-          },
-          "quote_value": {
-            "type": "number",
-            "description": "Inline quote value used when quote_id is empty."
-          }
-        },
-        "required": [
-          "maturity"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_ZeroInflationCurveFromZcSwapsSpec": {
-        "type": "object",
-        "description": "Zero inflation curve built from pillar rates.\nNote: MVP treats pillar quotes as zero inflation rates at each maturity.",
-        "properties": {
-          "pillars": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_InflationSwapPillar"
-            }
-          },
-          "interpolator": {
-            "$ref": "#/components/schemas/quantra_enums_Interpolator"
-          }
-        },
-        "required": [
-          "pillars"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_YoYInflationCurveFromYoYSwapsSpec": {
-        "type": "object",
-        "description": "YoY inflation curve built from pillar rates.\nNote: MVP treats pillar quotes as YoY rates at each maturity.",
-        "properties": {
-          "pillars": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/quantra_InflationSwapPillar"
-            }
-          },
-          "interpolator": {
-            "$ref": "#/components/schemas/quantra_enums_Interpolator"
-          }
-        },
-        "required": [
-          "pillars"
-        ],
-        "additionalProperties": false
-      },
-      "quantra_InflationCurveSpec": {
-        "type": "object",
-        "description": "Inflation curve specification.",
-        "properties": {
-          "base": {
-            "$ref": "#/components/schemas/quantra_InflationCurveBaseSpec"
-          },
-          "payload_type": {
-            "$ref": "#/components/schemas/quantra_InflationCurvePayload"
-          },
-          "payload": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/quantra_ZeroInflationCurveFromZcSwapsSpec"
-              },
-              {
-                "$ref": "#/components/schemas/quantra_YoYInflationCurveFromYoYSwapsSpec"
-              }
-            ]
-          }
-        },
-        "required": [
-          "base",
-          "payload"
+          "index_id",
+          "points"
         ],
         "additionalProperties": false
       },

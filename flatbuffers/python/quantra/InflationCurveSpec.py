@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Inflation curve specification.
+# Inflation term-structure definition, modeled like rates `TermStructure`.
 class InflationCurveSpec(object):
     __slots__ = ['_tab']
 
@@ -26,56 +26,192 @@ class InflationCurveSpec(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # InflationCurveSpec
-    def Base(self):
+    def Id(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.InflationCurveBaseSpec import InflationCurveBaseSpec
-            obj = InflationCurveBaseSpec()
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # InflationCurveSpec
+    def ReferenceDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # InflationCurveSpec
+    def Calendar(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 32
+
+    # InflationCurveSpec
+    def BusinessDayConvention(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
+    # InflationCurveSpec
+    def DayCounter(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 1
+
+    # InflationCurveSpec
+    def Interpolator(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 2
+
+    # InflationCurveSpec
+    def BootstrapAccuracy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 1.0e-12
+
+    # InflationCurveSpec
+    def Kind(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return 0
+
+    # Link to InflationIndexSpec.id.
+    # InflationCurveSpec
+    def IndexId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
+    # InflationCurveSpec
+    def DiscountCurveId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # InflationCurveSpec
+    def AllowExtrapolation(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
+
+    # InflationCurveSpec
+    def Points(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.InflationPointWrapper import InflationPointWrapper
+            obj = InflationPointWrapper()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # InflationCurveSpec
-    def PayloadType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+    def PointsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
+            return self._tab.VectorLen(o)
         return 0
 
     # InflationCurveSpec
-    def Payload(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            from flatbuffers.table import Table
-            obj = Table(bytearray(), 0)
-            self._tab.Union(obj, o)
-            return obj
-        return None
+    def PointsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        return o == 0
 
 def InflationCurveSpecStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(12)
 
 def Start(builder):
     InflationCurveSpecStart(builder)
 
-def InflationCurveSpecAddBase(builder, base):
-    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(base), 0)
+def InflationCurveSpecAddId(builder, id):
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(id), 0)
 
-def AddBase(builder, base):
-    InflationCurveSpecAddBase(builder, base)
+def AddId(builder, id):
+    InflationCurveSpecAddId(builder, id)
 
-def InflationCurveSpecAddPayloadType(builder, payloadType):
-    builder.PrependUint8Slot(1, payloadType, 0)
+def InflationCurveSpecAddReferenceDate(builder, referenceDate):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(referenceDate), 0)
 
-def AddPayloadType(builder, payloadType):
-    InflationCurveSpecAddPayloadType(builder, payloadType)
+def AddReferenceDate(builder, referenceDate):
+    InflationCurveSpecAddReferenceDate(builder, referenceDate)
 
-def InflationCurveSpecAddPayload(builder, payload):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(payload), 0)
+def InflationCurveSpecAddCalendar(builder, calendar):
+    builder.PrependInt8Slot(2, calendar, 32)
 
-def AddPayload(builder, payload):
-    InflationCurveSpecAddPayload(builder, payload)
+def AddCalendar(builder, calendar):
+    InflationCurveSpecAddCalendar(builder, calendar)
+
+def InflationCurveSpecAddBusinessDayConvention(builder, businessDayConvention):
+    builder.PrependInt8Slot(3, businessDayConvention, 2)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    InflationCurveSpecAddBusinessDayConvention(builder, businessDayConvention)
+
+def InflationCurveSpecAddDayCounter(builder, dayCounter):
+    builder.PrependInt8Slot(4, dayCounter, 1)
+
+def AddDayCounter(builder, dayCounter):
+    InflationCurveSpecAddDayCounter(builder, dayCounter)
+
+def InflationCurveSpecAddInterpolator(builder, interpolator):
+    builder.PrependInt8Slot(5, interpolator, 2)
+
+def AddInterpolator(builder, interpolator):
+    InflationCurveSpecAddInterpolator(builder, interpolator)
+
+def InflationCurveSpecAddBootstrapAccuracy(builder, bootstrapAccuracy):
+    builder.PrependFloat64Slot(6, bootstrapAccuracy, 1.0e-12)
+
+def AddBootstrapAccuracy(builder, bootstrapAccuracy):
+    InflationCurveSpecAddBootstrapAccuracy(builder, bootstrapAccuracy)
+
+def InflationCurveSpecAddKind(builder, kind):
+    builder.PrependInt8Slot(7, kind, 0)
+
+def AddKind(builder, kind):
+    InflationCurveSpecAddKind(builder, kind)
+
+def InflationCurveSpecAddIndexId(builder, indexId):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(indexId), 0)
+
+def AddIndexId(builder, indexId):
+    InflationCurveSpecAddIndexId(builder, indexId)
+
+def InflationCurveSpecAddDiscountCurveId(builder, discountCurveId):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(discountCurveId), 0)
+
+def AddDiscountCurveId(builder, discountCurveId):
+    InflationCurveSpecAddDiscountCurveId(builder, discountCurveId)
+
+def InflationCurveSpecAddAllowExtrapolation(builder, allowExtrapolation):
+    builder.PrependBoolSlot(10, allowExtrapolation, 1)
+
+def AddAllowExtrapolation(builder, allowExtrapolation):
+    InflationCurveSpecAddAllowExtrapolation(builder, allowExtrapolation)
+
+def InflationCurveSpecAddPoints(builder, points):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(points), 0)
+
+def AddPoints(builder, points):
+    InflationCurveSpecAddPoints(builder, points)
+
+def InflationCurveSpecStartPointsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartPointsVector(builder, numElems):
+    return InflationCurveSpecStartPointsVector(builder, numElems)
 
 def InflationCurveSpecEnd(builder):
     return builder.EndObject()
@@ -84,7 +220,7 @@ def End(builder):
     return InflationCurveSpecEnd(builder)
 
 try:
-    from typing import Optional, Union
+    from typing import List
 except:
     pass
 
@@ -92,9 +228,18 @@ class InflationCurveSpecT(object):
 
     # InflationCurveSpecT
     def __init__(self):
-        self.base = None  # type: Optional[InflationCurveBaseSpecT]
-        self.payloadType = 0  # type: int
-        self.payload = None  # type: Union[None, ZeroInflationCurveFromZcSwapsSpecT, YoYInflationCurveFromYoYSwapsSpecT]
+        self.id = None  # type: str
+        self.referenceDate = None  # type: str
+        self.calendar = 32  # type: int
+        self.businessDayConvention = 2  # type: int
+        self.dayCounter = 1  # type: int
+        self.interpolator = 2  # type: int
+        self.bootstrapAccuracy = 1.0e-12  # type: float
+        self.kind = 0  # type: int
+        self.indexId = None  # type: str
+        self.discountCurveId = None  # type: str
+        self.allowExtrapolation = True  # type: bool
+        self.points = None  # type: List[InflationPointWrapperT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -117,22 +262,61 @@ class InflationCurveSpecT(object):
     def _UnPack(self, inflationCurveSpec):
         if inflationCurveSpec is None:
             return
-        if inflationCurveSpec.Base() is not None:
-            self.base = InflationCurveBaseSpecT.InitFromObj(inflationCurveSpec.Base())
-        self.payloadType = inflationCurveSpec.PayloadType()
-        self.payload = InflationCurvePayloadCreator(self.payloadType, inflationCurveSpec.Payload())
+        self.id = inflationCurveSpec.Id()
+        self.referenceDate = inflationCurveSpec.ReferenceDate()
+        self.calendar = inflationCurveSpec.Calendar()
+        self.businessDayConvention = inflationCurveSpec.BusinessDayConvention()
+        self.dayCounter = inflationCurveSpec.DayCounter()
+        self.interpolator = inflationCurveSpec.Interpolator()
+        self.bootstrapAccuracy = inflationCurveSpec.BootstrapAccuracy()
+        self.kind = inflationCurveSpec.Kind()
+        self.indexId = inflationCurveSpec.IndexId()
+        self.discountCurveId = inflationCurveSpec.DiscountCurveId()
+        self.allowExtrapolation = inflationCurveSpec.AllowExtrapolation()
+        if not inflationCurveSpec.PointsIsNone():
+            self.points = []
+            for i in range(inflationCurveSpec.PointsLength()):
+                if inflationCurveSpec.Points(i) is None:
+                    self.points.append(None)
+                else:
+                    inflationPointWrapper_ = InflationPointWrapperT.InitFromObj(inflationCurveSpec.Points(i))
+                    self.points.append(inflationPointWrapper_)
 
     # InflationCurveSpecT
     def Pack(self, builder):
-        if self.base is not None:
-            base = self.base.Pack(builder)
-        if self.payload is not None:
-            payload = self.payload.Pack(builder)
+        if self.id is not None:
+            id = builder.CreateString(self.id)
+        if self.referenceDate is not None:
+            referenceDate = builder.CreateString(self.referenceDate)
+        if self.indexId is not None:
+            indexId = builder.CreateString(self.indexId)
+        if self.discountCurveId is not None:
+            discountCurveId = builder.CreateString(self.discountCurveId)
+        if self.points is not None:
+            pointslist = []
+            for i in range(len(self.points)):
+                pointslist.append(self.points[i].Pack(builder))
+            InflationCurveSpecStartPointsVector(builder, len(self.points))
+            for i in reversed(range(len(self.points))):
+                builder.PrependUOffsetTRelative(pointslist[i])
+            points = builder.EndVector()
         InflationCurveSpecStart(builder)
-        if self.base is not None:
-            InflationCurveSpecAddBase(builder, base)
-        InflationCurveSpecAddPayloadType(builder, self.payloadType)
-        if self.payload is not None:
-            InflationCurveSpecAddPayload(builder, payload)
+        if self.id is not None:
+            InflationCurveSpecAddId(builder, id)
+        if self.referenceDate is not None:
+            InflationCurveSpecAddReferenceDate(builder, referenceDate)
+        InflationCurveSpecAddCalendar(builder, self.calendar)
+        InflationCurveSpecAddBusinessDayConvention(builder, self.businessDayConvention)
+        InflationCurveSpecAddDayCounter(builder, self.dayCounter)
+        InflationCurveSpecAddInterpolator(builder, self.interpolator)
+        InflationCurveSpecAddBootstrapAccuracy(builder, self.bootstrapAccuracy)
+        InflationCurveSpecAddKind(builder, self.kind)
+        if self.indexId is not None:
+            InflationCurveSpecAddIndexId(builder, indexId)
+        if self.discountCurveId is not None:
+            InflationCurveSpecAddDiscountCurveId(builder, discountCurveId)
+        InflationCurveSpecAddAllowExtrapolation(builder, self.allowExtrapolation)
+        if self.points is not None:
+            InflationCurveSpecAddPoints(builder, points)
         inflationCurveSpec = InflationCurveSpecEnd(builder)
         return inflationCurveSpec

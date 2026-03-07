@@ -677,6 +677,7 @@ struct PricingBuilder {
   ::flatbuffers::Offset<quantra::EquityMarketData> equity_{0};
   ::flatbuffers::Offset<quantra::InflationMarketData> inflation_{0};
   ::flatbuffers::Offset<quantra::PricingOptions> options_{0};
+
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> legacy_indices_{0};
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> legacy_swap_indices_{0};
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> legacy_curves_{0};
@@ -691,6 +692,7 @@ struct PricingBuilder {
   bool legacy_bond_pricing_flows_ = false;
   bool legacy_swaption_pricing_details_ = false;
   bool legacy_swaption_pricing_rebump_ = false;
+  bool legacy_options_set_ = false;
   void add_as_of_date(::flatbuffers::Offset<::flatbuffers::String> as_of_date) {
     as_of_date_ = as_of_date;
   }
@@ -749,15 +751,19 @@ struct PricingBuilder {
     legacy_inflation_curves_ = inflation_curves;
   }
   void add_bond_pricing_details(bool bond_pricing_details) {
+    legacy_options_set_ = true;
     legacy_bond_pricing_details_ = bond_pricing_details;
   }
   void add_bond_pricing_flows(bool bond_pricing_flows) {
+    legacy_options_set_ = true;
     legacy_bond_pricing_flows_ = bond_pricing_flows;
   }
   void add_swaption_pricing_details(bool swaption_pricing_details) {
+    legacy_options_set_ = true;
     legacy_swaption_pricing_details_ = swaption_pricing_details;
   }
   void add_swaption_pricing_rebump(bool swaption_pricing_rebump) {
+    legacy_options_set_ = true;
     legacy_swaption_pricing_rebump_ = swaption_pricing_rebump;
   }
   explicit PricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -781,9 +787,7 @@ struct PricingBuilder {
     if (inflation_.o == 0 && (legacy_inflation_indices_.o != 0 || legacy_inflation_curves_.o != 0)) {
       inflation_ = quantra::CreateInflationMarketData(fbb_, legacy_inflation_indices_, legacy_inflation_curves_);
     }
-    if (options_.o == 0 &&
-        (legacy_bond_pricing_details_ || legacy_bond_pricing_flows_ ||
-         legacy_swaption_pricing_details_ || legacy_swaption_pricing_rebump_)) {
+    if (options_.o == 0 && legacy_options_set_) {
       options_ = quantra::CreatePricingOptions(
           fbb_,
           legacy_bond_pricing_details_,

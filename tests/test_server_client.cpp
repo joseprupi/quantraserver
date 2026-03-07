@@ -29,6 +29,8 @@
 #include "calendar_holidays_response_generated.h"
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
+#include "bootstrap_inflation_curves_request_generated.h"
+#include "bootstrap_inflation_curves_response_generated.h"
 #include "index_generated.h"
 
 namespace quantra { namespace testing {
@@ -692,6 +694,171 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     std::cout << "NPV: " << r->npv() << " | Fair Spread: " << r->fair_spread()*10000 << " bps" << std::endl;
     EXPECT_NEAR(r->npv(), 86698.9, 1.0);
     EXPECT_NEAR(r->fair_spread(), 0.0118792, 0.0001);
+}
+
+TEST_F(ServerClientTest, BootstrapInflationCurves_RoundTrip) {
+    flatbuffers::grpc::MessageBuilder b;
+
+    auto ts = buildCurve(b, "DISC");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    auto idxId = b.CreateString("EUHICP");
+    auto idxFamily = b.CreateString("EU HICP");
+    auto idxCcy = b.CreateString("EUR");
+    auto availabilityLag = buildPeriod(b, 2, quantra::enums::TimeUnit_Months);
+    auto observationLag = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+
+    auto fixingOct = b.CreateString("2024-10-01");
+    auto fixingNov = b.CreateString("2024-11-01");
+    auto fixingDec = b.CreateString("2024-12-01");
+    quantra::FixingBuilder fixOctBuilder(b);
+    fixOctBuilder.add_date(fixingOct);
+    fixOctBuilder.add_value(100.0);
+    auto fixOct = fixOctBuilder.Finish();
+    quantra::FixingBuilder fixNovBuilder(b);
+    fixNovBuilder.add_date(fixingNov);
+    fixNovBuilder.add_value(100.2);
+    auto fixNov = fixNovBuilder.Finish();
+    quantra::FixingBuilder fixDecBuilder(b);
+    fixDecBuilder.add_date(fixingDec);
+    fixDecBuilder.add_value(100.4);
+    auto fixDec = fixDecBuilder.Finish();
+    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{
+        fixOct, fixNov, fixDec
+    });
+
+    quantra::InflationIndexSpecBuilder iisb(b);
+    iisb.add_id(idxId);
+    iisb.add_family_name(idxFamily);
+    iisb.add_currency(idxCcy);
+    iisb.add_calendar(quantra::enums::Calendar_TARGET);
+    iisb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    iisb.add_frequency(quantra::enums::Frequency_Monthly);
+    iisb.add_availability_lag(availabilityLag);
+    iisb.add_observation_lag(observationLag);
+    iisb.add_interpolated(true);
+    iisb.add_revised(false);
+    iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    iisb.add_fixings(fixings);
+    auto inflationIndex = iisb.Finish();
+    auto inflationIndices =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+
+    auto curveId = b.CreateString("HICP_ZC");
+    auto curveRef = b.CreateString("2025-01-15");
+    auto discCurveId = b.CreateString("DISC");
+    auto p1y = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
+    auto p2y = buildPeriod(b, 2, quantra::enums::TimeUnit_Years);
+
+    quantra::ZeroCouponInflationSwapHelperBuilder h1Builder(b);
+    h1Builder.add_quote_value(0.0200);
+    h1Builder.add_swap_observation_lag(observationLag);
+    h1Builder.add_tenor(p1y);
+    h1Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h1Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h1Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h1Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    auto h1 = h1Builder.Finish();
+
+    quantra::ZeroCouponInflationSwapHelperBuilder h2Builder(b);
+    h2Builder.add_quote_value(0.0210);
+    h2Builder.add_swap_observation_lag(observationLag);
+    h2Builder.add_tenor(p2y);
+    h2Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h2Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h2Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h2Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    auto h2 = h2Builder.Finish();
+
+    quantra::InflationPointWrapperBuilder pw1Builder(b);
+    pw1Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
+    pw1Builder.add_point(h1.Union());
+    auto pwh1 = pw1Builder.Finish();
+    quantra::InflationPointWrapperBuilder pw2Builder(b);
+    pw2Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
+    pw2Builder.add_point(h2.Union());
+    auto pwh2 = pw2Builder.Finish();
+    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
+        pwh1, pwh2
+    });
+
+    quantra::InflationCurveSpecBuilder icb(b);
+    icb.add_id(curveId);
+    icb.add_reference_date(curveRef);
+    icb.add_calendar(quantra::enums::Calendar_TARGET);
+    icb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    icb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    icb.add_interpolator(quantra::enums::Interpolator_Linear);
+    icb.add_bootstrap_accuracy(1.0e-12);
+    icb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    icb.add_index_id(idxId);
+    icb.add_discount_curve_id(discCurveId);
+    icb.add_allow_extrapolation(true);
+    icb.add_points(points);
+    auto inflationCurve = icb.Finish();
+    auto inflationCurves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_inflation_indices(inflationIndices);
+    pb.add_inflation_curves(inflationCurves);
+    auto pricing = pb.Finish();
+
+    auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y, p2y});
+    quantra::TenorGridBuilder tgb(b);
+    tgb.add_tenors(tenors);
+    tgb.add_calendar(quantra::enums::Calendar_TARGET);
+    tgb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto tg = tgb.Finish();
+    quantra::DateGridSpecBuilder dgsb(b);
+    dgsb.add_grid_type(quantra::DateGrid_TenorGrid);
+    dgsb.add_grid(tg.Union());
+    auto grid = dgsb.Finish();
+
+    auto measures = b.CreateVector(std::vector<int8_t>{
+        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)
+    });
+    quantra::InflationCurveQuerySpecBuilder qsb(b);
+    qsb.add_curve_id(curveId);
+    qsb.add_measures(measures);
+    qsb.add_grid(grid);
+    auto query = qsb.Finish();
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+
+    quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
+    reqb.add_pricing(pricing);
+    reqb.add_queries(queries);
+    b.Finish(reqb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::BootstrapInflationCurvesRequest>();
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::BootstrapInflationCurvesResponse> response;
+    auto status = stub_->BootstrapInflationCurves(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    const auto* results = response.GetRoot()->results();
+    ASSERT_NE(results, nullptr);
+    ASSERT_EQ(results->size(), 1u);
+    const auto* result = results->Get(0);
+    ASSERT_NE(result, nullptr);
+    ASSERT_EQ(result->error(), nullptr);
+    ASSERT_NE(result->series(), nullptr);
+    ASSERT_EQ(result->series()->size(), 1u);
+    ASSERT_NE(result->pillar_dates(), nullptr);
+    EXPECT_EQ(result->pillar_dates()->size(), 2u);
+
+    const auto* series = result->series()->Get(0);
+    ASSERT_NE(series, nullptr);
+    ASSERT_NE(series->values(), nullptr);
+    ASSERT_EQ(series->values()->size(), 2u);
+    EXPECT_NEAR(series->values()->Get(0), 0.0200, 5e-4);
+    EXPECT_NEAR(series->values()->Get(1), 0.0210, 5e-4);
 }
 
 TEST_F(ServerClientTest, CalendarBusinessDays_RoundTrip) {

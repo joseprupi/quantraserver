@@ -2069,24 +2069,51 @@ def test_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
                     "frequency": "Monthly",
                     "availability_lag": {"n": 2, "unit": "Months"},
                     "observation_lag": {"n": 3, "unit": "Months"},
-                    "interpolated": True, "revised": False, "kind": "ZeroInflation"
+                    "interpolated": True, "revised": False, "kind": "ZeroInflation",
+                    "fixings": [
+                        {"date": "2024-10-01", "value": 100.0},
+                        {"date": "2024-11-01", "value": 100.2},
+                        {"date": "2024-12-01", "value": 100.4}
+                    ]
                 }],
                 "inflation_curves": [{
-                    "base": {
-                        "id": "HICP_ZC", "reference_date": "2025-01-15",
-                        "calendar": "TARGET", "business_day_convention": "ModifiedFollowing",
-                        "day_counter": "Actual365Fixed", "kind": "ZeroInflation",
-                        "index_id": "EUHICP", "discount_curve_id": "DISC",
-                        "allow_extrapolation": True
-                    },
-                    "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
-                    "payload": {
-                        "pillars": [
-                            {"maturity": {"n": 1, "unit": "Years"}, "quote_value": 0.0200},
-                            {"maturity": {"n": 2, "unit": "Years"}, "quote_value": 0.0210}
-                        ],
-                        "interpolator": "Linear"
-                    }
+                    "id": "HICP_ZC",
+                    "reference_date": "2025-01-15",
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "Linear",
+                    "bootstrap_accuracy": 1.0e-12,
+                    "kind": "ZeroInflation",
+                    "index_id": "EUHICP",
+                    "discount_curve_id": "DISC",
+                    "allow_extrapolation": True,
+                    "points": [
+                        {
+                            "point_type": "ZeroCouponInflationSwapHelper",
+                            "point": {
+                                "quote_value": 0.0200,
+                                "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                "tenor": {"n": 1, "unit": "Years"},
+                                "calendar": "TARGET",
+                                "payment_convention": "ModifiedFollowing",
+                                "day_counter": "Actual365Fixed",
+                                "observation_interpolation": "Linear"
+                            }
+                        },
+                        {
+                            "point_type": "ZeroCouponInflationSwapHelper",
+                            "point": {
+                                "quote_value": 0.0210,
+                                "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                "tenor": {"n": 2, "unit": "Years"},
+                                "calendar": "TARGET",
+                                "payment_convention": "ModifiedFollowing",
+                                "day_counter": "Actual365Fixed",
+                                "observation_interpolation": "Linear"
+                            }
+                        }
+                    ]
                 }]
             },
             "queries": [{
@@ -2124,6 +2151,93 @@ def test_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
     except Exception as e:
         result["error"] = str(e)
         return result
+
+
+def test_bootstrap_inflation_curves_rejects_legacy_payload(client: ApiClient) -> dict:
+    """Breaking-change guard: old generic inflation pillar payload must be rejected."""
+    result = {
+        "product": "bootstrap_inflation_curves_legacy_payload_rejected",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": 0.0,
+        "quantlib_npv": 0.0,
+        "diff": 0.0,
+        "error": None,
+    }
+    request = {
+        "pricing": {
+            "as_of_date": "2025-01-15",
+            "curves": [{
+                "id": "DISC",
+                "reference_date": "2025-01-15",
+                "day_counter": "Actual365Fixed",
+                "interpolator": "LogLinear",
+                "bootstrap_trait": "Discount",
+                "points": [{
+                    "point_type": "DepositHelper",
+                    "point": {
+                        "rate": 0.03,
+                        "tenor": {"n": 6, "unit": "Months"},
+                        "fixing_days": 2,
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual360",
+                    },
+                }],
+            }]
+        },
+        "inflation": {
+            "inflation_indices": [{
+                "id": "EUHICP",
+                "family_name": "EU HICP",
+                "currency": "EUR",
+                "calendar": "TARGET",
+                "day_counter": "Actual365Fixed",
+                "frequency": "Monthly",
+                "availability_lag": {"n": 2, "unit": "Months"},
+                "observation_lag": {"n": 3, "unit": "Months"},
+                "interpolated": True,
+                "revised": False,
+                "kind": "ZeroInflation",
+            }],
+            "inflation_curves": [{
+                "base": {
+                    "id": "HICP_ZC",
+                    "reference_date": "2025-01-15",
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "kind": "ZeroInflation",
+                    "index_id": "EUHICP",
+                },
+                "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
+                "payload": {
+                    "pillars": [
+                        {"maturity": {"n": 1, "unit": "Years"}, "quote_value": 0.0200}
+                    ]
+                },
+            }]
+        },
+        "queries": [{
+            "curve_id": "HICP_ZC",
+            "measures": ["ZeroRate"],
+            "grid": {
+                "grid_type": "TenorGrid",
+                "grid": {"tenors": [{"n": 1, "unit": "Years"}]},
+            },
+        }],
+    }
+
+    try:
+        client.price("bootstrap_inflation_curves", request)
+        result["error"] = "Legacy payload unexpectedly accepted"
+    except Exception as e:
+        msg = str(e)
+        if "ZeroInflationCurveFromZcSwapsSpec" in msg or "JSON parse error" in msg:
+            result["passed"] = True
+        else:
+            result["error"] = msg
+    return result
 
 
 # =============================================================================
@@ -2298,6 +2412,17 @@ def main():
         print(f"  ❌ Error: {bi_result['error']}")
     else:
         status = "✓ PASS" if bi_result["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
+
+    bi_legacy = test_bootstrap_inflation_curves_rejects_legacy_payload(client)
+    results.append(bi_legacy)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP INFLATION CURVES (LEGACY PAYLOAD REJECTED)")
+    print(f"{'='*70}")
+    if bi_legacy["error"]:
+        print(f"  ❌ Error: {bi_legacy['error']}")
+    else:
+        status = "✓ PASS" if bi_legacy["passed"] else "✗ FAIL"
         print(f"  Status:       {status}")
     # Summary
     print("\n" + "=" * 70)

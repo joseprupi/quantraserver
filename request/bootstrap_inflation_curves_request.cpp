@@ -165,12 +165,7 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
                 seriesVector.push_back(seriesBuilder.Finish());
             }
 
-            std::set<Date> uniquePillars;
-            uniquePillars.insert(referenceDate);
-            for (const auto& d : meta.pillarDates) {
-                uniquePillars.insert(d);
-            }
-            std::vector<Date> pillarDates(uniquePillars.begin(), uniquePillars.end());
+            std::vector<Date> pillarDates = meta.pillarDates;
             std::vector<flatbuffers::Offset<flatbuffers::String>> pillarDateStrings;
             pillarDateStrings.reserve(pillarDates.size());
             for (const auto& d : pillarDates) {

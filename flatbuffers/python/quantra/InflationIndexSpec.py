@@ -116,8 +116,42 @@ class InflationIndexSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # For ratio-based YoY indices, link to the underlying zero inflation index id.
+    # InflationIndexSpec
+    def UnderlyingZeroIndexId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting.
+    # InflationIndexSpec
+    def Fixings(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.Fixing import Fixing
+            obj = Fixing()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # InflationIndexSpec
+    def FixingsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # InflationIndexSpec
+    def FixingsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        return o == 0
+
 def InflationIndexSpecStart(builder):
-    builder.StartObject(11)
+    builder.StartObject(13)
 
 def Start(builder):
     InflationIndexSpecStart(builder)
@@ -188,6 +222,24 @@ def InflationIndexSpecAddKind(builder, kind):
 def AddKind(builder, kind):
     InflationIndexSpecAddKind(builder, kind)
 
+def InflationIndexSpecAddUnderlyingZeroIndexId(builder, underlyingZeroIndexId):
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingZeroIndexId), 0)
+
+def AddUnderlyingZeroIndexId(builder, underlyingZeroIndexId):
+    InflationIndexSpecAddUnderlyingZeroIndexId(builder, underlyingZeroIndexId)
+
+def InflationIndexSpecAddFixings(builder, fixings):
+    builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(fixings), 0)
+
+def AddFixings(builder, fixings):
+    InflationIndexSpecAddFixings(builder, fixings)
+
+def InflationIndexSpecStartFixingsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartFixingsVector(builder, numElems):
+    return InflationIndexSpecStartFixingsVector(builder, numElems)
+
 def InflationIndexSpecEnd(builder):
     return builder.EndObject()
 
@@ -195,7 +247,7 @@ def End(builder):
     return InflationIndexSpecEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -214,6 +266,8 @@ class InflationIndexSpecT(object):
         self.interpolated = True  # type: bool
         self.revised = False  # type: bool
         self.kind = 0  # type: int
+        self.underlyingZeroIndexId = None  # type: str
+        self.fixings = None  # type: List[FixingT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -249,6 +303,15 @@ class InflationIndexSpecT(object):
         self.interpolated = inflationIndexSpec.Interpolated()
         self.revised = inflationIndexSpec.Revised()
         self.kind = inflationIndexSpec.Kind()
+        self.underlyingZeroIndexId = inflationIndexSpec.UnderlyingZeroIndexId()
+        if not inflationIndexSpec.FixingsIsNone():
+            self.fixings = []
+            for i in range(inflationIndexSpec.FixingsLength()):
+                if inflationIndexSpec.Fixings(i) is None:
+                    self.fixings.append(None)
+                else:
+                    fixing_ = FixingT.InitFromObj(inflationIndexSpec.Fixings(i))
+                    self.fixings.append(fixing_)
 
     # InflationIndexSpecT
     def Pack(self, builder):
@@ -262,6 +325,16 @@ class InflationIndexSpecT(object):
             availabilityLag = self.availabilityLag.Pack(builder)
         if self.observationLag is not None:
             observationLag = self.observationLag.Pack(builder)
+        if self.underlyingZeroIndexId is not None:
+            underlyingZeroIndexId = builder.CreateString(self.underlyingZeroIndexId)
+        if self.fixings is not None:
+            fixingslist = []
+            for i in range(len(self.fixings)):
+                fixingslist.append(self.fixings[i].Pack(builder))
+            InflationIndexSpecStartFixingsVector(builder, len(self.fixings))
+            for i in reversed(range(len(self.fixings))):
+                builder.PrependUOffsetTRelative(fixingslist[i])
+            fixings = builder.EndVector()
         InflationIndexSpecStart(builder)
         if self.id is not None:
             InflationIndexSpecAddId(builder, id)
@@ -279,5 +352,9 @@ class InflationIndexSpecT(object):
         InflationIndexSpecAddInterpolated(builder, self.interpolated)
         InflationIndexSpecAddRevised(builder, self.revised)
         InflationIndexSpecAddKind(builder, self.kind)
+        if self.underlyingZeroIndexId is not None:
+            InflationIndexSpecAddUnderlyingZeroIndexId(builder, underlyingZeroIndexId)
+        if self.fixings is not None:
+            InflationIndexSpecAddFixings(builder, fixings)
         inflationIndexSpec = InflationIndexSpecEnd(builder)
         return inflationIndexSpec
