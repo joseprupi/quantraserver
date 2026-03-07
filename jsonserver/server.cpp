@@ -394,6 +394,20 @@ int main(int argc, char** argv) {
             });
         });
 
+        CROW_ROUTE(app, "/price-zero-coupon-inflation-swap").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-zero-coupon-inflation-swap", req, [&](const std::string& body) {
+                return client.PriceZeroCouponInflationSwapJSON(body);
+            });
+        });
+
+        CROW_ROUTE(app, "/price-year-on-year-inflation-swap").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-year-on-year-inflation-swap", req, [&](const std::string& body) {
+                return client.PriceYearOnYearInflationSwapJSON(body);
+            });
+        });
+
         CROW_ROUTE(app, "/price-ois-swap").methods("POST"_method)
         ([&](const crow::request& req) {
             return respond("/price-ois-swap", req, [&](const std::string& body) {
@@ -512,6 +526,8 @@ int main(int argc, char** argv) {
                   << "  POST /price-fixed-rate-bond\n"
                   << "  POST /price-floating-rate-bond\n"
                   << "  POST /price-vanilla-swap\n"
+                  << "  POST /price-zero-coupon-inflation-swap\n"
+                  << "  POST /price-year-on-year-inflation-swap\n"
                   << "  POST /price-ois-swap\n"
                   << "  POST /price-basis-swap\n"
                   << "  POST /price-fra\n"

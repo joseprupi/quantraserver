@@ -50,6 +50,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |
 | Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |
 | Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |
+| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |
+| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |
 | OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |
 | Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |
 | FRA | `/price-fra` | Price forward rate agreements |
@@ -104,6 +106,16 @@ ENDPOINT_METADATA = {
         "summary": "Price Vanilla Interest Rate Swap",
         "description": "Calculate NPV and fair rate for fixed-for-floating interest rate swaps.",
         "tags": ["Interest Rate Derivatives"]
+    },
+    "zero_coupon_inflation_swap": {
+        "summary": "Price Zero Coupon Inflation Swap",
+        "description": "Calculate NPV and fair fixed rate for zero-coupon inflation swaps against a configured inflation curve.",
+        "tags": ["Inflation"]
+    },
+    "year_on_year_inflation_swap": {
+        "summary": "Price Year-on-Year Inflation Swap",
+        "description": "Calculate NPV, fair fixed rate, and fair spread for year-on-year inflation swaps against a configured inflation curve.",
+        "tags": ["Inflation"]
     },
     "ois_swap": {
         "summary": "Price OIS Swap",

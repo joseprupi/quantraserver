@@ -677,7 +677,6 @@ struct PricingBuilder {
   ::flatbuffers::Offset<quantra::EquityMarketData> equity_{0};
   ::flatbuffers::Offset<quantra::InflationMarketData> inflation_{0};
   ::flatbuffers::Offset<quantra::PricingOptions> options_{0};
-
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> legacy_indices_{0};
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> legacy_swap_indices_{0};
   ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> legacy_curves_{0};
@@ -768,7 +767,6 @@ struct PricingBuilder {
   }
   explicit PricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
-    start_ = 0;
   }
   ::flatbuffers::Offset<Pricing> Finish() {
     if (rates_.o == 0 &&
@@ -796,15 +794,15 @@ struct PricingBuilder {
           legacy_swaption_pricing_rebump_);
     }
     start_ = fbb_.StartTable();
-    fbb_.AddOffset(Pricing::VT_OPTIONS, options_);
-    fbb_.AddOffset(Pricing::VT_INFLATION, inflation_);
-    fbb_.AddOffset(Pricing::VT_EQUITY, equity_);
-    fbb_.AddOffset(Pricing::VT_VOLATILITY, volatility_);
-    fbb_.AddOffset(Pricing::VT_CREDIT, credit_);
-    fbb_.AddOffset(Pricing::VT_RATES, rates_);
-    fbb_.AddOffset(Pricing::VT_QUOTES, quotes_);
-    fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date_);
-    fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date_);
+    if (options_.o != 0) fbb_.AddOffset(Pricing::VT_OPTIONS, options_);
+    if (inflation_.o != 0) fbb_.AddOffset(Pricing::VT_INFLATION, inflation_);
+    if (equity_.o != 0) fbb_.AddOffset(Pricing::VT_EQUITY, equity_);
+    if (volatility_.o != 0) fbb_.AddOffset(Pricing::VT_VOLATILITY, volatility_);
+    if (credit_.o != 0) fbb_.AddOffset(Pricing::VT_CREDIT, credit_);
+    if (rates_.o != 0) fbb_.AddOffset(Pricing::VT_RATES, rates_);
+    if (quotes_.o != 0) fbb_.AddOffset(Pricing::VT_QUOTES, quotes_);
+    if (settlement_date_.o != 0) fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date_);
+    if (as_of_date_.o != 0) fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date_);
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<Pricing>(end);
     fbb_.Required(o, Pricing::VT_AS_OF_DATE);

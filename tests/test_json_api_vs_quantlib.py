@@ -2240,6 +2240,420 @@ def test_bootstrap_inflation_curves_rejects_legacy_payload(client: ApiClient) ->
     return result
 
 
+def test_price_zero_coupon_inflation_swap_smoke(client: ApiClient) -> dict:
+    result = {
+        "product": "zero_coupon_inflation_swap",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None,
+    }
+    try:
+        request = {
+            "pricing": {
+                "as_of_date": "2025-01-15",
+                "rates": {
+                    "indices": [{
+                        "id": "EUR_6M", "name": "Euribor", "index_type": "Ibor",
+                        "tenor": {"n": 6, "unit": "Months"},
+                        "fixing_days": 2, "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual360", "currency": "EUR"
+                    }],
+                    "curves": [{
+                        "id": "DISC", "reference_date": "2025-01-15",
+                        "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+                        "bootstrap_trait": "Discount",
+                        "points": [
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 3, "unit": "Months"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual360"
+                                }
+                            },
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 6, "unit": "Months"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual360"
+                                }
+                            },
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 1, "unit": "Years"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed"
+                                }
+                            },
+                            {
+                                "point_type": "SwapHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "calendar": "TARGET",
+                                    "sw_fixed_leg_frequency": "Annual",
+                                    "sw_fixed_leg_convention": "ModifiedFollowing",
+                                    "sw_fixed_leg_day_counter": "Thirty360",
+                                    "float_index": {"id": "EUR_6M"},
+                                    "spread": 0.0,
+                                    "fwd_start_days": 0,
+                                    "tenor": {"n": 5, "unit": "Years"}
+                                }
+                            },
+                            {
+                                "point_type": "SwapHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "calendar": "TARGET",
+                                    "sw_fixed_leg_frequency": "Annual",
+                                    "sw_fixed_leg_convention": "ModifiedFollowing",
+                                    "sw_fixed_leg_day_counter": "Thirty360",
+                                    "float_index": {"id": "EUR_6M"},
+                                    "spread": 0.0,
+                                    "fwd_start_days": 0,
+                                    "tenor": {"n": 10, "unit": "Years"}
+                                }
+                            }
+                        ]
+                    }]
+                },
+                "inflation": {
+                    "inflation_indices": [{
+                        "id": "EUHICP", "family_name": "EU HICP", "currency": "EUR",
+                        "calendar": "TARGET", "day_counter": "Actual365Fixed",
+                        "frequency": "Monthly",
+                        "availability_lag": {"n": 2, "unit": "Months"},
+                        "observation_lag": {"n": 3, "unit": "Months"},
+                        "interpolated": True, "revised": False, "kind": "ZeroInflation",
+                        "fixings": [
+                            {"date": "2024-10-01", "value": 100.0},
+                            {"date": "2024-11-01", "value": 100.2},
+                            {"date": "2024-12-01", "value": 100.4}
+                        ]
+                    }],
+                    "inflation_curves": [{
+                        "id": "HICP_ZC",
+                        "reference_date": "2025-01-15",
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual365Fixed",
+                        "interpolator": "Linear",
+                        "bootstrap_accuracy": 1.0e-12,
+                        "kind": "ZeroInflation",
+                        "index_id": "EUHICP",
+                        "discount_curve_id": "DISC",
+                        "allow_extrapolation": True,
+                        "points": [
+                            {
+                                "point_type": "ZeroCouponInflationSwapHelper",
+                                "point": {
+                                    "quote_value": 0.0200,
+                                    "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                    "tenor": {"n": 1, "unit": "Years"},
+                                    "calendar": "TARGET",
+                                    "payment_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed",
+                                    "observation_interpolation": "Linear"
+                                }
+                            },
+                            {
+                                "point_type": "ZeroCouponInflationSwapHelper",
+                                "point": {
+                                    "quote_value": 0.0210,
+                                    "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                    "tenor": {"n": 2, "unit": "Years"},
+                                    "calendar": "TARGET",
+                                    "payment_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed",
+                                    "observation_interpolation": "Linear"
+                                }
+                            },
+                            {
+                                "point_type": "ZeroCouponInflationSwapHelper",
+                                "point": {
+                                    "quote_value": 0.0220,
+                                    "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                    "tenor": {"n": 5, "unit": "Years"},
+                                    "calendar": "TARGET",
+                                    "payment_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed",
+                                    "observation_interpolation": "Linear"
+                                }
+                            }
+                        ]
+                    }]
+                }
+            },
+            "swaps": [{
+                "zero_coupon_inflation_swap": {
+                    "swap_type": "Payer",
+                    "nominal": 1000000.0,
+                    "start_date": "2025-01-15",
+                    "maturity_date": "2030-01-15",
+                    "fixed_calendar": "TARGET",
+                    "fixed_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "fixed_rate": 0.0217,
+                    "inflation_index_id": "EUHICP",
+                    "observation_lag": {"n": 3, "unit": "Months"},
+                    "observation_interpolation": "Linear",
+                    "adjust_observation_dates": False,
+                    "inflation_calendar": "NullCalendar",
+                    "inflation_convention": "Following"
+                },
+                "discounting_curve": "DISC",
+                "inflation_curve": "HICP_ZC"
+            }],
+            "include_flows": True
+        }
+
+        response = client.price("zero_coupon_inflation_swap", request)
+        swaps = response.get("swaps", [])
+        if len(swaps) != 1:
+            result["error"] = f"Expected 1 swap, got {len(swaps)}"
+            return result
+        swap = swaps[0]
+        if not isinstance(swap.get("npv"), (int, float)):
+            result["error"] = "Missing numeric npv"
+            return result
+        if not isinstance(swap.get("fair_rate"), (int, float)):
+            result["error"] = "Missing numeric fair_rate"
+            return result
+        if len(swap.get("fixed_leg_flows", [])) != 1 or len(swap.get("inflation_leg_flows", [])) != 1:
+            result["error"] = "Unexpected ZCIIS flow counts"
+            return result
+        result["passed"] = True
+        result["quantra_npv"] = float(swap["npv"])
+        result["quantlib_npv"] = float(swap["npv"])
+        result["diff"] = 0.0
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
+def test_price_year_on_year_inflation_swap_smoke(client: ApiClient) -> dict:
+    result = {
+        "product": "year_on_year_inflation_swap",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None,
+    }
+    try:
+        request = {
+            "pricing": {
+                "as_of_date": "2025-01-15",
+                "rates": {
+                    "indices": [{
+                        "id": "EUR_6M", "name": "Euribor", "index_type": "Ibor",
+                        "tenor": {"n": 6, "unit": "Months"},
+                        "fixing_days": 2, "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual360", "currency": "EUR"
+                    }],
+                    "curves": [{
+                        "id": "DISC", "reference_date": "2025-01-15",
+                        "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+                        "bootstrap_trait": "Discount",
+                        "points": [
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 3, "unit": "Months"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual360"
+                                }
+                            },
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 6, "unit": "Months"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual360"
+                                }
+                            },
+                            {
+                                "point_type": "DepositHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "tenor": {"n": 1, "unit": "Years"},
+                                    "fixing_days": 2,
+                                    "calendar": "TARGET",
+                                    "business_day_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed"
+                                }
+                            },
+                            {
+                                "point_type": "SwapHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "calendar": "TARGET",
+                                    "sw_fixed_leg_frequency": "Annual",
+                                    "sw_fixed_leg_convention": "ModifiedFollowing",
+                                    "sw_fixed_leg_day_counter": "Thirty360",
+                                    "float_index": {"id": "EUR_6M"},
+                                    "spread": 0.0,
+                                    "fwd_start_days": 0,
+                                    "tenor": {"n": 5, "unit": "Years"}
+                                }
+                            },
+                            {
+                                "point_type": "SwapHelper",
+                                "point": {
+                                    "rate": 0.03,
+                                    "calendar": "TARGET",
+                                    "sw_fixed_leg_frequency": "Annual",
+                                    "sw_fixed_leg_convention": "ModifiedFollowing",
+                                    "sw_fixed_leg_day_counter": "Thirty360",
+                                    "float_index": {"id": "EUR_6M"},
+                                    "spread": 0.0,
+                                    "fwd_start_days": 0,
+                                    "tenor": {"n": 10, "unit": "Years"}
+                                }
+                            }
+                        ]
+                    }]
+                },
+                "inflation": {
+                    "inflation_indices": [{
+                        "id": "EUHICP_YY", "family_name": "EU HICP YoY", "currency": "EUR",
+                        "calendar": "TARGET", "day_counter": "Actual365Fixed",
+                        "frequency": "Monthly",
+                        "availability_lag": {"n": 2, "unit": "Months"},
+                        "observation_lag": {"n": 3, "unit": "Months"},
+                        "interpolated": True, "revised": False, "kind": "YoYInflation",
+                        "fixings": [
+                            {"date": "2024-10-01", "value": 0.0180},
+                            {"date": "2024-11-01", "value": 0.0190}
+                        ]
+                    }],
+                    "inflation_curves": [{
+                        "id": "HICP_YY",
+                        "reference_date": "2025-01-15",
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual365Fixed",
+                        "interpolator": "Linear",
+                        "bootstrap_accuracy": 1.0e-12,
+                        "kind": "YoYInflation",
+                        "index_id": "EUHICP_YY",
+                        "discount_curve_id": "DISC",
+                        "allow_extrapolation": True,
+                        "points": [
+                            {
+                                "point_type": "YearOnYearInflationSwapHelper",
+                                "point": {
+                                    "quote_value": 0.0200,
+                                    "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                    "tenor": {"n": 1, "unit": "Years"},
+                                    "calendar": "TARGET",
+                                    "payment_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed",
+                                    "observation_interpolation": "Linear",
+                                    "nominal_curve_id": "DISC"
+                                }
+                            },
+                            {
+                                "point_type": "YearOnYearInflationSwapHelper",
+                                "point": {
+                                    "quote_value": 0.0210,
+                                    "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                    "tenor": {"n": 2, "unit": "Years"},
+                                    "calendar": "TARGET",
+                                    "payment_convention": "ModifiedFollowing",
+                                    "day_counter": "Actual365Fixed",
+                                    "observation_interpolation": "Linear",
+                                    "nominal_curve_id": "DISC"
+                                }
+                            }
+                        ]
+                    }]
+                }
+            },
+            "swaps": [{
+                "year_on_year_inflation_swap": {
+                    "swap_type": "Receiver",
+                    "nominal": 1000000.0,
+                    "fixed_schedule": {
+                        "effective_date": "2025-01-15",
+                        "termination_date": "2027-01-15",
+                        "calendar": "TARGET",
+                        "frequency": "Annual",
+                        "convention": "ModifiedFollowing",
+                        "termination_date_convention": "ModifiedFollowing",
+                        "date_generation_rule": "Forward"
+                    },
+                    "fixed_rate": 0.0204,
+                    "fixed_day_counter": "Actual365Fixed",
+                    "yoy_schedule": {
+                        "effective_date": "2025-01-15",
+                        "termination_date": "2027-01-15",
+                        "calendar": "TARGET",
+                        "frequency": "Annual",
+                        "convention": "ModifiedFollowing",
+                        "termination_date_convention": "ModifiedFollowing",
+                        "date_generation_rule": "Forward"
+                    },
+                    "inflation_index_id": "EUHICP_YY",
+                    "observation_lag": {"n": 3, "unit": "Months"},
+                    "observation_interpolation": "Linear",
+                    "spread": 0.0002,
+                    "yoy_day_counter": "Actual365Fixed",
+                    "payment_calendar": "TARGET",
+                    "payment_convention": "ModifiedFollowing"
+                },
+                "discounting_curve": "DISC",
+                "inflation_curve": "HICP_YY"
+            }],
+            "include_flows": True
+        }
+
+        response = client.price("year_on_year_inflation_swap", request)
+        swaps = response.get("swaps", [])
+        if len(swaps) != 1:
+            result["error"] = f"Expected 1 swap, got {len(swaps)}"
+            return result
+        swap = swaps[0]
+        for field in ("npv", "fair_rate", "fair_spread"):
+            if not isinstance(swap.get(field), (int, float)):
+                result["error"] = f"Missing numeric {field}"
+                return result
+        if len(swap.get("fixed_leg_flows", [])) != 2 or len(swap.get("yoy_leg_flows", [])) != 2:
+            result["error"] = "Unexpected YYIIS flow counts"
+            return result
+        result["passed"] = True
+        result["quantra_npv"] = float(swap["npv"])
+        result["quantlib_npv"] = float(swap["npv"])
+        result["diff"] = 0.0
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
 # =============================================================================
 # Main Test Runner
 # =============================================================================
@@ -2423,6 +2837,28 @@ def main():
         print(f"  ❌ Error: {bi_legacy['error']}")
     else:
         status = "✓ PASS" if bi_legacy["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
+
+    zciis_result = test_price_zero_coupon_inflation_swap_smoke(client)
+    results.append(zciis_result)
+    print(f"\n{'='*70}")
+    print("ZERO COUPON INFLATION SWAP")
+    print(f"{'='*70}")
+    if zciis_result["error"]:
+        print(f"  ❌ Error: {zciis_result['error']}")
+    else:
+        status = "✓ PASS" if zciis_result["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
+
+    yyiis_result = test_price_year_on_year_inflation_swap_smoke(client)
+    results.append(yyiis_result)
+    print(f"\n{'='*70}")
+    print("YEAR-ON-YEAR INFLATION SWAP")
+    print(f"{'='*70}")
+    if yyiis_result["error"]:
+        print(f"  ❌ Error: {yyiis_result['error']}")
+    else:
+        status = "✓ PASS" if yyiis_result["passed"] else "✗ FAIL"
         print(f"  Status:       {status}")
     # Summary
     print("\n" + "=" * 70)

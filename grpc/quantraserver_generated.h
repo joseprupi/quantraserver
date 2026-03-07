@@ -43,9 +43,13 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "price_ois_swap_request_generated.h"
 #include "price_swaption_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
+#include "price_year_on_year_inflation_swap_request_generated.h"
+#include "price_zero_coupon_inflation_swap_request_generated.h"
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 #include "swaption_response_generated.h"
 #include "vanilla_swap_response_generated.h"
+#include "year_on_year_inflation_swap_response_generated.h"
+#include "zero_coupon_inflation_swap_response_generated.h"
 
 #endif  // FLATBUFFERS_GENERATED_QUANTRASERVER_QUANTRA_H_

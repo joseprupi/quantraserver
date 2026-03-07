@@ -1,0 +1,23 @@
+include "pricing.fbs";
+include "year_on_year_inflation_swap.fbs";
+
+namespace quantra;
+
+/// Single YYIIS pricing context with explicit market-data references.
+table PriceYearOnYearInflationSwap {
+    year_on_year_inflation_swap:YearOnYearInflationSwap;
+    /// Reference to curve in Pricing.rates.curves.
+    discounting_curve:string;
+    /// Reference to curve in Pricing.inflation.inflation_curves.
+    inflation_curve:string;
+}
+
+/// Request to price one or more YYIIS trades.
+table PriceYearOnYearInflationSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceYearOnYearInflationSwap];
+    /// Include detailed cashflows in response.
+    include_flows:bool = false;
+}
+
+root_type PriceYearOnYearInflationSwapRequest;

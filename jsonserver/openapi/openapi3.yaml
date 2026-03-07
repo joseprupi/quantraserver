@@ -7,14 +7,16 @@ info:
     \ | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond`\
     \ | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond`\
     \ | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price\
-    \ interest rate swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed\
-    \ swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps\
-    \ |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor`\
-    \ | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price\
-    \ swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap\
-    \ Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n\
-    | Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation\
-    \ curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces`\
+    \ interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap`\
+    \ | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap`\
+    \ | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price\
+    \ overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg\
+    \ basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor\
+    \ | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption`\
+    \ | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n|\
+    \ Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract\
+    \ rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap\
+    \ inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces`\
     \ | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business\
     \ Days | `/calendar-business-days` | List business days for a calendar and date\
     \ range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar\
@@ -155,6 +157,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/quantra_VanillaSwapResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /price-zero-coupon-inflation-swap:
+    post:
+      summary: Price Zero Coupon Inflation Swap
+      description: Calculate NPV and fair fixed rate for zero-coupon inflation swaps
+        against a configured inflation curve.
+      tags:
+      - Inflation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceZeroCouponInflationSwapRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_ZeroCouponInflationSwapResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /price-year-on-year-inflation-swap:
+    post:
+      summary: Price Year-on-Year Inflation Swap
+      description: Calculate NPV, fair fixed rate, and fair spread for year-on-year
+        inflation swaps against a configured inflation curve.
+      tags:
+      - Inflation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceYearOnYearInflationSwapRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_YearOnYearInflationSwapResponse'
         '400':
           description: Invalid request
           content:
@@ -4320,6 +4402,137 @@ components:
           type: boolean
           description: Include detailed cashflows in response.
       additionalProperties: false
+    quantra_YearOnYearInflationSwap:
+      type: object
+      description: Standard year-on-year inflation swap (YYIIS).
+      properties:
+        swap_type:
+          $ref: '#/components/schemas/quantra_enums_SwapType'
+        nominal:
+          type: number
+        fixed_schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        fixed_rate:
+          type: number
+        fixed_day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        yoy_schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        inflation_index_id:
+          type: string
+          description: Link to InflationIndexSpec.id.
+        observation_lag:
+          $ref: '#/components/schemas/quantra_Period'
+        observation_interpolation:
+          $ref: '#/components/schemas/quantra_enums_CPIInterpolationType'
+        spread:
+          type: number
+        yoy_day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - fixed_schedule
+      - yoy_schedule
+      - inflation_index_id
+      - observation_lag
+      additionalProperties: false
+    quantra_PriceYearOnYearInflationSwap:
+      type: object
+      description: Single YYIIS pricing context with explicit market-data references.
+      properties:
+        year_on_year_inflation_swap:
+          $ref: '#/components/schemas/quantra_YearOnYearInflationSwap'
+        discounting_curve:
+          type: string
+          description: Reference to curve in Pricing.rates.curves.
+        inflation_curve:
+          type: string
+          description: Reference to curve in Pricing.inflation.inflation_curves.
+      additionalProperties: false
+    quantra_PriceYearOnYearInflationSwapRequest:
+      type: object
+      description: Request to price one or more YYIIS trades.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceYearOnYearInflationSwap'
+        include_flows:
+          type: boolean
+          description: Include detailed cashflows in response.
+      additionalProperties: false
+    quantra_ZeroCouponInflationSwap:
+      type: object
+      description: Standard zero-coupon inflation swap (ZCIIS).
+      properties:
+        swap_type:
+          $ref: '#/components/schemas/quantra_enums_SwapType'
+        nominal:
+          type: number
+        start_date:
+          type: string
+        maturity_date:
+          type: string
+          description: Contract maturity date before any internal observation adjustment.
+        fixed_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        fixed_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        fixed_rate:
+          type: number
+        inflation_index_id:
+          type: string
+          description: Link to InflationIndexSpec.id.
+        observation_lag:
+          $ref: '#/components/schemas/quantra_Period'
+        observation_interpolation:
+          $ref: '#/components/schemas/quantra_enums_CPIInterpolationType'
+        adjust_observation_dates:
+          type: boolean
+        inflation_calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        inflation_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+      required:
+      - start_date
+      - maturity_date
+      - inflation_index_id
+      - observation_lag
+      additionalProperties: false
+    quantra_PriceZeroCouponInflationSwap:
+      type: object
+      description: Single ZCIIS pricing context with explicit market-data references.
+      properties:
+        zero_coupon_inflation_swap:
+          $ref: '#/components/schemas/quantra_ZeroCouponInflationSwap'
+        discounting_curve:
+          type: string
+          description: Reference to curve in Pricing.rates.curves.
+        inflation_curve:
+          type: string
+          description: Reference to curve in Pricing.inflation.inflation_curves.
+      additionalProperties: false
+    quantra_PriceZeroCouponInflationSwapRequest:
+      type: object
+      description: Request to price one or more ZCIIS trades.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceZeroCouponInflationSwap'
+        include_flows:
+          type: boolean
+          description: Include detailed cashflows in response.
+      additionalProperties: false
     quantra_VolSurfaceType:
       type: string
       enum:
@@ -4615,4 +4828,72 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_SwaptionResponse'
+      additionalProperties: false
+    quantra_YearOnYearInflationSwapResponse:
+      type: object
+      description: Year-on-year inflation swap pricing response.
+      properties:
+        npv:
+          type: number
+        fair_rate:
+          type: number
+        fair_spread:
+          type: number
+        fixed_leg_bps:
+          type: number
+        yoy_leg_bps:
+          type: number
+        fixed_leg_npv:
+          type: number
+        yoy_leg_npv:
+          type: number
+        fixed_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+        yoy_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_PriceYearOnYearInflationSwapResponse:
+      type: object
+      description: Response wrapper for multiple YYIIS trades.
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_YearOnYearInflationSwapResponse'
+      additionalProperties: false
+    quantra_ZeroCouponInflationSwapResponse:
+      type: object
+      description: Zero-coupon inflation swap pricing response.
+      properties:
+        npv:
+          type: number
+        fair_rate:
+          type: number
+        fixed_leg_bps:
+          type: number
+        fixed_leg_npv:
+          type: number
+        inflation_leg_npv:
+          type: number
+        fixed_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+        inflation_leg_flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_SwapLegFlow'
+      additionalProperties: false
+    quantra_PriceZeroCouponInflationSwapResponse:
+      type: object
+      description: Response wrapper for multiple ZCIIS trades.
+      properties:
+        swaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_ZeroCouponInflationSwapResponse'
       additionalProperties: false

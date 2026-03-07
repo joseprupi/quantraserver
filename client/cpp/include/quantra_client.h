@@ -38,6 +38,8 @@
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "vanilla_swap_response_generated.h"
+#include "zero_coupon_inflation_swap_response_generated.h"
+#include "year_on_year_inflation_swap_response_generated.h"
 #include "ois_swap_response_generated.h"
 #include "basis_swap_response_generated.h"
 #include "fra_response_generated.h"
@@ -126,6 +128,8 @@ public:
     JsonResponse PriceFixedRateBondJSON(const std::string& json);
     JsonResponse PriceFloatingRateBondJSON(const std::string& json);
     JsonResponse PriceVanillaSwapJSON(const std::string& json);
+    JsonResponse PriceZeroCouponInflationSwapJSON(const std::string& json);
+    JsonResponse PriceYearOnYearInflationSwapJSON(const std::string& json);
     JsonResponse PriceOisSwapJSON(const std::string& json);
     JsonResponse PriceBasisSwapJSON(const std::string& json);
     JsonResponse PriceFRAJSON(const std::string& json);
@@ -159,6 +163,14 @@ public:
     grpc::Status PriceVanillaSwap(
         const Message<PriceVanillaSwapRequest>& request,
         Message<PriceVanillaSwapResponse>* response);
+
+    grpc::Status PriceZeroCouponInflationSwap(
+        const Message<PriceZeroCouponInflationSwapRequest>& request,
+        Message<PriceZeroCouponInflationSwapResponse>* response);
+
+    grpc::Status PriceYearOnYearInflationSwap(
+        const Message<PriceYearOnYearInflationSwapRequest>& request,
+        Message<PriceYearOnYearInflationSwapResponse>* response);
 
     grpc::Status PriceOisSwap(
         const Message<PriceOisSwapRequest>& request,
