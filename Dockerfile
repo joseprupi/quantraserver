@@ -143,25 +143,12 @@ RUN chmod +x /usr/local/bin/quantra
 # Create helper scripts
 RUN echo '#!/bin/bash' > /usr/local/bin/regen-flatbuffers.sh && \
     echo 'set -e' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'cd /workspace' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'echo "Regenerating Flatbuffers code..."' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'echo "Using flatc version: $(flatc --version)"' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'for fbs in flatbuffers/fbs/*.fbs; do' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo '    echo "Processing $fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo '    flatc --cpp -o flatbuffers/cpp/ "$fbs"' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'done' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'flatc --grpc --cpp -I flatbuffers -o grpc/ grpc/quantraserver.fbs' >> /usr/local/bin/regen-flatbuffers.sh && \
-    echo 'echo "Done!"' >> /usr/local/bin/regen-flatbuffers.sh && \
+    echo 'exec /workspace/scripts/generate_schemas.sh "$@"' >> /usr/local/bin/regen-flatbuffers.sh && \
     chmod +x /usr/local/bin/regen-flatbuffers.sh
 
 RUN echo '#!/bin/bash' > /usr/local/bin/build.sh && \
     echo 'set -e' >> /usr/local/bin/build.sh && \
-    echo 'cd /workspace' >> /usr/local/bin/build.sh && \
-    echo 'mkdir -p build' >> /usr/local/bin/build.sh && \
-    echo 'cd build' >> /usr/local/bin/build.sh && \
-    echo 'cmake -DCMAKE_PREFIX_PATH=${DEPS_INSTALL_PREFIX} -DCMAKE_BUILD_TYPE=${1:-Debug} ..' >> /usr/local/bin/build.sh && \
-    echo 'make -j$(nproc)' >> /usr/local/bin/build.sh && \
-    echo 'echo "Build complete!"' >> /usr/local/bin/build.sh && \
+    echo 'exec /workspace/scripts/build.sh "$@"' >> /usr/local/bin/build.sh && \
     chmod +x /usr/local/bin/build.sh
 
 RUN echo '#!/bin/bash' > /usr/local/bin/run-tests.sh && \
@@ -197,22 +184,12 @@ RUN mkdir -p /root/grpc && \
 COPY . /src
 WORKDIR /src
 
-# Regenerate Flatbuffers code for new versions
-# Note: quantraserver.fbs uses includes like "/fbs/..." so we use -I to set include path
-RUN echo "=== Regenerating Flatbuffers code ===" && \
-    echo "Using flatc version: $(${DEPS_INSTALL_PREFIX}/bin/flatc --version)" && \
-    for fbs in flatbuffers/fbs/*.fbs; do \
-        echo "Processing $fbs"; \
-        ${DEPS_INSTALL_PREFIX}/bin/flatc --cpp -o flatbuffers/cpp/ "$fbs"; \
-    done && \
-    ${DEPS_INSTALL_PREFIX}/bin/flatc --grpc --cpp \
-        -I flatbuffers \
-        -o grpc/ \
-        grpc/quantraserver.fbs
-
 # Set environment for pkg-config and library paths
 ENV PKG_CONFIG_PATH="${DEPS_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 ENV LD_LIBRARY_PATH="${DEPS_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+
+# Build script regenerates schemas and OpenAPI docs; PyYAML is required.
+RUN pip3 install --break-system-packages -r tools/quantra-manager/requirements.txt
 
 # Debug: List available abseil libraries
 RUN echo "=== Available abseil libraries ===" && \
@@ -220,14 +197,8 @@ RUN echo "=== Available abseil libraries ===" && \
     echo "=== pkg-config grpc++ ===" && \
     pkg-config --libs grpc++ || echo "pkg-config for grpc++ failed"
 
-# Build
-RUN mkdir -p build && \
-    cd build && \
-    cmake \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_PREFIX_PATH=${DEPS_INSTALL_PREFIX} \
-        .. && \
-    make -j$(nproc)
+# Build using the same entrypoint as local and CI.
+RUN ./scripts/build.sh Release
 
 # =============================================================================
 # Stage: production - Minimal runtime image with multi-process support

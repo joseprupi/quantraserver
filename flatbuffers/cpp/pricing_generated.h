@@ -668,141 +668,38 @@ struct PricingBuilder {
   typedef Pricing Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  ::flatbuffers::Offset<::flatbuffers::String> as_of_date_{0};
-  ::flatbuffers::Offset<::flatbuffers::String> settlement_date_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes_{0};
-  ::flatbuffers::Offset<quantra::RatesMarketData> rates_{0};
-  ::flatbuffers::Offset<quantra::CreditMarketData> credit_{0};
-  ::flatbuffers::Offset<quantra::VolatilityMarketData> volatility_{0};
-  ::flatbuffers::Offset<quantra::EquityMarketData> equity_{0};
-  ::flatbuffers::Offset<quantra::InflationMarketData> inflation_{0};
-  ::flatbuffers::Offset<quantra::PricingOptions> options_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> legacy_indices_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> legacy_swap_indices_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> legacy_curves_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> legacy_coupon_pricers_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> legacy_credit_curves_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> legacy_vol_surfaces_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> legacy_models_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> legacy_equity_underlyings_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> legacy_inflation_indices_{0};
-  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> legacy_inflation_curves_{0};
-  bool legacy_bond_pricing_details_ = false;
-  bool legacy_bond_pricing_flows_ = false;
-  bool legacy_swaption_pricing_details_ = false;
-  bool legacy_swaption_pricing_rebump_ = false;
-  bool legacy_options_set_ = false;
   void add_as_of_date(::flatbuffers::Offset<::flatbuffers::String> as_of_date) {
-    as_of_date_ = as_of_date;
+    fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date);
   }
   void add_settlement_date(::flatbuffers::Offset<::flatbuffers::String> settlement_date) {
-    settlement_date_ = settlement_date;
+    fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date);
   }
   void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes) {
-    quotes_ = quotes;
+    fbb_.AddOffset(Pricing::VT_QUOTES, quotes);
   }
   void add_rates(::flatbuffers::Offset<quantra::RatesMarketData> rates) {
-    rates_ = rates;
+    fbb_.AddOffset(Pricing::VT_RATES, rates);
   }
   void add_credit(::flatbuffers::Offset<quantra::CreditMarketData> credit) {
-    credit_ = credit;
+    fbb_.AddOffset(Pricing::VT_CREDIT, credit);
   }
   void add_volatility(::flatbuffers::Offset<quantra::VolatilityMarketData> volatility) {
-    volatility_ = volatility;
+    fbb_.AddOffset(Pricing::VT_VOLATILITY, volatility);
   }
   void add_equity(::flatbuffers::Offset<quantra::EquityMarketData> equity) {
-    equity_ = equity;
+    fbb_.AddOffset(Pricing::VT_EQUITY, equity);
   }
   void add_inflation(::flatbuffers::Offset<quantra::InflationMarketData> inflation) {
-    inflation_ = inflation;
+    fbb_.AddOffset(Pricing::VT_INFLATION, inflation);
   }
   void add_options(::flatbuffers::Offset<quantra::PricingOptions> options) {
-    options_ = options;
-  }
-  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
-    legacy_indices_ = indices;
-  }
-  void add_swap_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices) {
-    legacy_swap_indices_ = swap_indices;
-  }
-  void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
-    legacy_curves_ = curves;
-  }
-  void add_coupon_pricers(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers) {
-    legacy_coupon_pricers_ = coupon_pricers;
-  }
-  void add_credit_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves) {
-    legacy_credit_curves_ = credit_curves;
-  }
-  void add_vol_surfaces(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces) {
-    legacy_vol_surfaces_ = vol_surfaces;
-  }
-  void add_models(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models) {
-    legacy_models_ = models;
-  }
-  void add_equity_underlyings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings) {
-    legacy_equity_underlyings_ = equity_underlyings;
-  }
-  void add_inflation_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> inflation_indices) {
-    legacy_inflation_indices_ = inflation_indices;
-  }
-  void add_inflation_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> inflation_curves) {
-    legacy_inflation_curves_ = inflation_curves;
-  }
-  void add_bond_pricing_details(bool bond_pricing_details) {
-    legacy_options_set_ = true;
-    legacy_bond_pricing_details_ = bond_pricing_details;
-  }
-  void add_bond_pricing_flows(bool bond_pricing_flows) {
-    legacy_options_set_ = true;
-    legacy_bond_pricing_flows_ = bond_pricing_flows;
-  }
-  void add_swaption_pricing_details(bool swaption_pricing_details) {
-    legacy_options_set_ = true;
-    legacy_swaption_pricing_details_ = swaption_pricing_details;
-  }
-  void add_swaption_pricing_rebump(bool swaption_pricing_rebump) {
-    legacy_options_set_ = true;
-    legacy_swaption_pricing_rebump_ = swaption_pricing_rebump;
+    fbb_.AddOffset(Pricing::VT_OPTIONS, options);
   }
   explicit PricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
   }
   ::flatbuffers::Offset<Pricing> Finish() {
-    if (rates_.o == 0 &&
-        (legacy_indices_.o != 0 || legacy_swap_indices_.o != 0 || legacy_curves_.o != 0 || legacy_coupon_pricers_.o != 0)) {
-      rates_ = quantra::CreateRatesMarketData(fbb_, legacy_indices_, legacy_swap_indices_, legacy_curves_, legacy_coupon_pricers_);
-    }
-    if (credit_.o == 0 && legacy_credit_curves_.o != 0) {
-      credit_ = quantra::CreateCreditMarketData(fbb_, legacy_credit_curves_);
-    }
-    if (volatility_.o == 0 && (legacy_vol_surfaces_.o != 0 || legacy_models_.o != 0)) {
-      volatility_ = quantra::CreateVolatilityMarketData(fbb_, legacy_vol_surfaces_, legacy_models_);
-    }
-    if (equity_.o == 0 && legacy_equity_underlyings_.o != 0) {
-      equity_ = quantra::CreateEquityMarketData(fbb_, legacy_equity_underlyings_);
-    }
-    if (inflation_.o == 0 && (legacy_inflation_indices_.o != 0 || legacy_inflation_curves_.o != 0)) {
-      inflation_ = quantra::CreateInflationMarketData(fbb_, legacy_inflation_indices_, legacy_inflation_curves_);
-    }
-    if (options_.o == 0 && legacy_options_set_) {
-      options_ = quantra::CreatePricingOptions(
-          fbb_,
-          legacy_bond_pricing_details_,
-          legacy_bond_pricing_flows_,
-          legacy_swaption_pricing_details_,
-          legacy_swaption_pricing_rebump_);
-    }
-    start_ = fbb_.StartTable();
-    if (options_.o != 0) fbb_.AddOffset(Pricing::VT_OPTIONS, options_);
-    if (inflation_.o != 0) fbb_.AddOffset(Pricing::VT_INFLATION, inflation_);
-    if (equity_.o != 0) fbb_.AddOffset(Pricing::VT_EQUITY, equity_);
-    if (volatility_.o != 0) fbb_.AddOffset(Pricing::VT_VOLATILITY, volatility_);
-    if (credit_.o != 0) fbb_.AddOffset(Pricing::VT_CREDIT, credit_);
-    if (rates_.o != 0) fbb_.AddOffset(Pricing::VT_RATES, rates_);
-    if (quotes_.o != 0) fbb_.AddOffset(Pricing::VT_QUOTES, quotes_);
-    if (settlement_date_.o != 0) fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date_);
-    if (as_of_date_.o != 0) fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date_);
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<Pricing>(end);
     fbb_.Required(o, Pricing::VT_AS_OF_DATE);
