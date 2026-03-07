@@ -1,5 +1,5 @@
 include "common.fbs";
-include "curve_query.fbs";
+include "query_grid.fbs";
 include "enums.fbs";
 
 namespace quantra;

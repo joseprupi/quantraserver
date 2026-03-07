@@ -9,6 +9,13 @@
 #include <ql/handle.hpp>
 #include <ql/quote.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/termstructures/inflationtermstructure.hpp>
+#include <ql/indexes/inflationindex.hpp>
+#include <ql/time/date.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/period.hpp>
 
 #include "vol_surface_parsers.h"
 #include "common_generated.h"
@@ -26,42 +33,65 @@ class DefaultProbabilityTermStructure;
 
 namespace quantra {
 
+struct InflationCurveEntry {
+    enums::InflationCurveKind kind = enums::InflationCurveKind_ZeroInflation;
+    std::string id;
+    std::string indexId;
+    QuantLib::Date referenceDate;
+    QuantLib::Calendar calendar;
+    QuantLib::BusinessDayConvention businessDayConvention = QuantLib::ModifiedFollowing;
+    QuantLib::DayCounter dayCounter;
+    QuantLib::Period observationLag;
+    QuantLib::Frequency frequency = QuantLib::Monthly;
+    bool indexInterpolated = true;
+    bool allowExtrapolation = true;
+    std::vector<QuantLib::Date> pillarDates;
+};
+
+struct RatesRegistry {
+    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
+    IndexRegistry indices;
+    SwapIndexRegistry swapIndices;
+    std::vector<const quantra::CouponPricer*> couponPricers;
+};
+
+struct CreditRegistry {
+    std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
+};
+
+struct VolatilityRegistry {
+    std::map<std::string, OptionletVolEntry> optionletVols;
+    std::map<std::string, SwaptionVolEntry> swaptionVols;
+    std::map<std::string, BlackVolEntry> blackVols;
+    std::map<std::string, const quantra::ModelSpec*> models;
+};
+
+struct InflationRegistry {
+    std::map<std::string, std::shared_ptr<QuantLib::InflationIndex>> inflationIndices;
+    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>> zeroInflationCurves;
+    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YoYInflationTermStructure>>> yoyInflationCurves;
+    std::map<std::string, InflationCurveEntry> curveMetadata;
+};
+
+struct PricingRequestOptions {
+    bool bondPricingDetails = false;
+    bool bondPricingFlows = false;
+    bool swaptionPricingDetails = false;
+    bool swaptionPricingRebump = false;
+};
+
 /**
  * Registry containing all parsed market data.
  */
 struct PricingRegistry {
-    // Yield curves (bootstrapped or flat)
-    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
-
-    // Credit curve specs (parsed on demand per CDS trade)
-    std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
-    
     // Shared market quotes (type-checked)
     QuoteRegistry quoteRegistry;
 
-    // Index registry (IborIndex and OvernightIndex objects by id)
-    IndexRegistry indices;
-    // Swap index registry (swap conventions by id)
-    SwapIndexRegistry swapIndices;
-    
-    // Vol surfaces - separate maps by QuantLib type
-    std::map<std::string, OptionletVolEntry> optionletVols;
-    std::map<std::string, SwaptionVolEntry> swaptionVols;
-    std::map<std::string, BlackVolEntry> blackVols;
-    
-    // Model specs (lazy - engine created on demand)
-    std::map<std::string, const quantra::ModelSpec*> models;
-
-    // Coupon pricers (for floating rate instruments)
-    std::vector<const quantra::CouponPricer*> couponPricers;
-
-    // Bond pricing flags
-    bool bondPricingDetails = false;
-    bool bondPricingFlows = false;
-
-    // Swaption analytics flag
-    bool swaptionPricingDetails = false;
-    bool swaptionPricingRebump = false;
+    RatesRegistry rates;
+    CreditRegistry credit;
+    VolatilityRegistry volatility;
+    InflationRegistry inflation;
+    PricingRequestOptions options;
 };
 
 /**

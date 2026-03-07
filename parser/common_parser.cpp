@@ -37,12 +37,15 @@ std::shared_ptr<PricingStruct> PricingParser::parse(const quantra::Pricing *pric
     if (!pricing->as_of_date())
         QUANTRA_ERROR("as_of_date is required");
 
+    const auto* rates = pricing->rates();
+    const auto* options = pricing->options();
+
     return std::make_shared<PricingStruct>(
         PricingStruct{
             pricing->as_of_date()->str(),
             pricing->settlement_date() ? pricing->settlement_date()->str() : "",
-            pricing->curves(),
-            pricing->bond_pricing_details(),
-            pricing->bond_pricing_flows(),
-            pricing->coupon_pricers()});
+            rates ? rates->curves() : nullptr,
+            options ? options->bond_pricing_details() : false,
+            options ? options->bond_pricing_flows() : false,
+            rates ? rates->coupon_pricers() : nullptr});
 }

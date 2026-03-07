@@ -28,9 +28,9 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
 
     for (auto it = bond_pricings->begin(); it != bond_pricings->end(); it++)
     {
-        auto term_structure = reg.curves.find(it->discounting_curve()->str());
+        auto term_structure = reg.rates.curves.find(it->discounting_curve()->str());
 
-        if (term_structure == reg.curves.end())
+        if (term_structure == reg.rates.curves.end())
         {
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
         }
@@ -40,7 +40,7 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
         std::shared_ptr<PricingEngine> bond_engine(new QuantLib::DiscountingBondEngine(*term_structure->second));
         bond->setPricingEngine(bond_engine);
 
-        if (reg.bondPricingFlows)
+        if (reg.options.bondPricingFlows)
         {
             flows_vector = buildFixedBondFlows(
                 bond->cashflows(),
@@ -50,7 +50,7 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
         }
 
         const double npv = bond->NPV();
-        bool hasDetails = reg.bondPricingDetails;
+        bool hasDetails = reg.options.bondPricingDetails;
         double cleanPrice = 0.0;
         double dirtyPrice = 0.0;
         double accruedAmount = 0.0;

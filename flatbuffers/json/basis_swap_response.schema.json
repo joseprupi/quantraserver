@@ -113,6 +113,22 @@
       "type" : "string",
       "enum": ["Absolute", "SpreadFromATM"]
     },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
     "quantra_enums_IrModelType" : {
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]

@@ -18,6 +18,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "enums_generated.h"
 #include "equity_option_generated.h"
 #include "index_generated.h"
+#include "inflation_generated.h"
 #include "model_generated.h"
 #include "quotes_generated.h"
 #include "swap_index_generated.h"
@@ -26,63 +27,57 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
+struct RatesMarketData;
+struct RatesMarketDataBuilder;
+struct RatesMarketDataT;
+
+struct CreditMarketData;
+struct CreditMarketDataBuilder;
+struct CreditMarketDataT;
+
+struct VolatilityMarketData;
+struct VolatilityMarketDataBuilder;
+struct VolatilityMarketDataT;
+
+struct EquityMarketData;
+struct EquityMarketDataBuilder;
+struct EquityMarketDataT;
+
+struct InflationMarketData;
+struct InflationMarketDataBuilder;
+struct InflationMarketDataT;
+
+struct PricingOptions;
+struct PricingOptionsBuilder;
+struct PricingOptionsT;
+
 struct Pricing;
 struct PricingBuilder;
 struct PricingT;
 
-struct PricingT : public ::flatbuffers::NativeTable {
-  typedef Pricing TableType;
-  std::string as_of_date{};
-  std::string settlement_date{};
+struct RatesMarketDataT : public ::flatbuffers::NativeTable {
+  typedef RatesMarketData TableType;
   std::vector<std::unique_ptr<quantra::IndexDefT>> indices{};
   std::vector<std::unique_ptr<quantra::SwapIndexDefT>> swap_indices{};
   std::vector<std::unique_ptr<quantra::TermStructureT>> curves{};
-  std::vector<std::unique_ptr<quantra::CreditCurveSpecT>> credit_curves{};
-  std::vector<std::unique_ptr<quantra::QuoteSpecT>> quotes{};
-  std::vector<std::unique_ptr<quantra::EquityUnderlyingSpecT>> equity_underlyings{};
-  std::vector<std::unique_ptr<quantra::VolSurfaceSpecT>> vol_surfaces{};
-  std::vector<std::unique_ptr<quantra::ModelSpecT>> models{};
-  bool bond_pricing_details = false;
-  bool bond_pricing_flows = false;
-  bool swaption_pricing_details = false;
-  bool swaption_pricing_rebump = false;
   std::vector<std::unique_ptr<quantra::CouponPricerT>> coupon_pricers{};
-  PricingT() = default;
-  PricingT(const PricingT &o);
-  PricingT(PricingT&&) FLATBUFFERS_NOEXCEPT = default;
-  PricingT &operator=(PricingT o) FLATBUFFERS_NOEXCEPT;
+  RatesMarketDataT() = default;
+  RatesMarketDataT(const RatesMarketDataT &o);
+  RatesMarketDataT(RatesMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
+  RatesMarketDataT &operator=(RatesMarketDataT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Central pricing configuration. Indices, curves, volatility surfaces, and models are defined here and referenced by id.
-struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef PricingT NativeTableType;
-  typedef PricingBuilder Builder;
+/// Rates market data shared across interest-rate products.
+struct RatesMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef RatesMarketDataT NativeTableType;
+  typedef RatesMarketDataBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_AS_OF_DATE = 4,
-    VT_SETTLEMENT_DATE = 6,
-    VT_INDICES = 8,
-    VT_SWAP_INDICES = 10,
-    VT_CURVES = 12,
-    VT_CREDIT_CURVES = 14,
-    VT_QUOTES = 16,
-    VT_EQUITY_UNDERLYINGS = 18,
-    VT_VOL_SURFACES = 20,
-    VT_MODELS = 22,
-    VT_BOND_PRICING_DETAILS = 24,
-    VT_BOND_PRICING_FLOWS = 26,
-    VT_SWAPTION_PRICING_DETAILS = 28,
-    VT_SWAPTION_PRICING_REBUMP = 30,
-    VT_COUPON_PRICERS = 32
+    VT_INDICES = 4,
+    VT_SWAP_INDICES = 6,
+    VT_CURVES = 8,
+    VT_COUPON_PRICERS = 10
   };
-  /// Valuation date (YYYY-MM-DD). Used by: ALL.
-  const ::flatbuffers::String *as_of_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
-  }
-  /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond.
-  const ::flatbuffers::String *settlement_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
-  }
-  /// Index definitions. Used by: ALL floating-rate instruments and curve helpers.
+  /// Index definitions used by floating-rate instruments and curve helpers.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *indices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>> *>(VT_INDICES);
   }
@@ -90,30 +85,423 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *>(VT_SWAP_INDICES);
   }
-  /// Yield curves for discounting/forwarding. Used by: ALL.
+  /// Yield curves for discounting/forwarding.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>> *>(VT_CURVES);
   }
-  /// Credit curves for CDS pricing. Used by: CDS.
+  /// Coupon pricers for floating legs.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *>(VT_COUPON_PRICERS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_INDICES) &&
+           verifier.VerifyVector(indices()) &&
+           verifier.VerifyVectorOfTables(indices()) &&
+           VerifyOffset(verifier, VT_SWAP_INDICES) &&
+           verifier.VerifyVector(swap_indices()) &&
+           verifier.VerifyVectorOfTables(swap_indices()) &&
+           VerifyOffsetRequired(verifier, VT_CURVES) &&
+           verifier.VerifyVector(curves()) &&
+           verifier.VerifyVectorOfTables(curves()) &&
+           VerifyOffset(verifier, VT_COUPON_PRICERS) &&
+           verifier.VerifyVector(coupon_pricers()) &&
+           verifier.VerifyVectorOfTables(coupon_pricers()) &&
+           verifier.EndTable();
+  }
+  RatesMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(RatesMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<RatesMarketData> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const RatesMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct RatesMarketDataBuilder {
+  typedef RatesMarketData Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
+    fbb_.AddOffset(RatesMarketData::VT_INDICES, indices);
+  }
+  void add_swap_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices) {
+    fbb_.AddOffset(RatesMarketData::VT_SWAP_INDICES, swap_indices);
+  }
+  void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
+    fbb_.AddOffset(RatesMarketData::VT_CURVES, curves);
+  }
+  void add_coupon_pricers(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers) {
+    fbb_.AddOffset(RatesMarketData::VT_COUPON_PRICERS, coupon_pricers);
+  }
+  explicit RatesMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<RatesMarketData> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<RatesMarketData>(end);
+    fbb_.Required(o, RatesMarketData::VT_CURVES);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<RatesMarketData> CreateRatesMarketData(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers = 0) {
+  RatesMarketDataBuilder builder_(_fbb);
+  builder_.add_coupon_pricers(coupon_pricers);
+  builder_.add_curves(curves);
+  builder_.add_swap_indices(swap_indices);
+  builder_.add_indices(indices);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<RatesMarketData> CreateRatesMarketDataDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::IndexDef>> *indices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::TermStructure>> *curves = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers = nullptr) {
+  auto indices__ = indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>>(*indices) : 0;
+  auto swap_indices__ = swap_indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>>(*swap_indices) : 0;
+  auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>>(*curves) : 0;
+  auto coupon_pricers__ = coupon_pricers ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CouponPricer>>(*coupon_pricers) : 0;
+  return quantra::CreateRatesMarketData(
+      _fbb,
+      indices__,
+      swap_indices__,
+      curves__,
+      coupon_pricers__);
+}
+
+::flatbuffers::Offset<RatesMarketData> CreateRatesMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const RatesMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CreditMarketDataT : public ::flatbuffers::NativeTable {
+  typedef CreditMarketData TableType;
+  std::vector<std::unique_ptr<quantra::CreditCurveSpecT>> credit_curves{};
+  CreditMarketDataT() = default;
+  CreditMarketDataT(const CreditMarketDataT &o);
+  CreditMarketDataT(CreditMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
+  CreditMarketDataT &operator=(CreditMarketDataT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Credit market data grouped under the shared Pricing context.
+struct CreditMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CreditMarketDataT NativeTableType;
+  typedef CreditMarketDataBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CREDIT_CURVES = 4
+  };
+  /// Credit curves for CDS pricing.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *credit_curves() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *>(VT_CREDIT_CURVES);
   }
-  /// Market quotes (spot prices, FX rates). Used by: EquityOption (future).
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *>(VT_QUOTES);
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_CREDIT_CURVES) &&
+           verifier.VerifyVector(credit_curves()) &&
+           verifier.VerifyVectorOfTables(credit_curves()) &&
+           verifier.EndTable();
   }
+  CreditMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CreditMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CreditMarketData> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CreditMarketDataBuilder {
+  typedef CreditMarketData Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_credit_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves) {
+    fbb_.AddOffset(CreditMarketData::VT_CREDIT_CURVES, credit_curves);
+  }
+  explicit CreditMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<CreditMarketData> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<CreditMarketData>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<CreditMarketData> CreateCreditMarketData(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves = 0) {
+  CreditMarketDataBuilder builder_(_fbb);
+  builder_.add_credit_curves(credit_curves);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<CreditMarketData> CreateCreditMarketDataDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *credit_curves = nullptr) {
+  auto credit_curves__ = credit_curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>>(*credit_curves) : 0;
+  return quantra::CreateCreditMarketData(
+      _fbb,
+      credit_curves__);
+}
+
+::flatbuffers::Offset<CreditMarketData> CreateCreditMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const CreditMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct VolatilityMarketDataT : public ::flatbuffers::NativeTable {
+  typedef VolatilityMarketData TableType;
+  std::vector<std::unique_ptr<quantra::VolSurfaceSpecT>> vol_surfaces{};
+  std::vector<std::unique_ptr<quantra::ModelSpecT>> models{};
+  VolatilityMarketDataT() = default;
+  VolatilityMarketDataT(const VolatilityMarketDataT &o);
+  VolatilityMarketDataT(VolatilityMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
+  VolatilityMarketDataT &operator=(VolatilityMarketDataT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Volatility and model data grouped under the shared Pricing context.
+struct VolatilityMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef VolatilityMarketDataT NativeTableType;
+  typedef VolatilityMarketDataBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VOL_SURFACES = 4,
+    VT_MODELS = 6
+  };
+  /// Volatility surfaces referenced by pricing and sampling endpoints.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *>(VT_VOL_SURFACES);
+  }
+  /// Pricing models/engines referenced by product requests.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *models() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *>(VT_MODELS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_VOL_SURFACES) &&
+           verifier.VerifyVector(vol_surfaces()) &&
+           verifier.VerifyVectorOfTables(vol_surfaces()) &&
+           VerifyOffset(verifier, VT_MODELS) &&
+           verifier.VerifyVector(models()) &&
+           verifier.VerifyVectorOfTables(models()) &&
+           verifier.EndTable();
+  }
+  VolatilityMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(VolatilityMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<VolatilityMarketData> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VolatilityMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct VolatilityMarketDataBuilder {
+  typedef VolatilityMarketData Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_vol_surfaces(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces) {
+    fbb_.AddOffset(VolatilityMarketData::VT_VOL_SURFACES, vol_surfaces);
+  }
+  void add_models(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models) {
+    fbb_.AddOffset(VolatilityMarketData::VT_MODELS, models);
+  }
+  explicit VolatilityMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<VolatilityMarketData> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<VolatilityMarketData>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<VolatilityMarketData> CreateVolatilityMarketData(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models = 0) {
+  VolatilityMarketDataBuilder builder_(_fbb);
+  builder_.add_models(models);
+  builder_.add_vol_surfaces(vol_surfaces);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<VolatilityMarketData> CreateVolatilityMarketDataDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::ModelSpec>> *models = nullptr) {
+  auto vol_surfaces__ = vol_surfaces ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>(*vol_surfaces) : 0;
+  auto models__ = models ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ModelSpec>>(*models) : 0;
+  return quantra::CreateVolatilityMarketData(
+      _fbb,
+      vol_surfaces__,
+      models__);
+}
+
+::flatbuffers::Offset<VolatilityMarketData> CreateVolatilityMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const VolatilityMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct EquityMarketDataT : public ::flatbuffers::NativeTable {
+  typedef EquityMarketData TableType;
+  std::vector<std::unique_ptr<quantra::EquityUnderlyingSpecT>> equity_underlyings{};
+  EquityMarketDataT() = default;
+  EquityMarketDataT(const EquityMarketDataT &o);
+  EquityMarketDataT(EquityMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
+  EquityMarketDataT &operator=(EquityMarketDataT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Equity market data grouped under the shared Pricing context.
+struct EquityMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EquityMarketDataT NativeTableType;
+  typedef EquityMarketDataBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_EQUITY_UNDERLYINGS = 4
+  };
   /// Equity underlyings referenced by equity option trades.
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> *equity_underlyings() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> *>(VT_EQUITY_UNDERLYINGS);
   }
-  /// Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption.
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *>(VT_VOL_SURFACES);
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_EQUITY_UNDERLYINGS) &&
+           verifier.VerifyVector(equity_underlyings()) &&
+           verifier.VerifyVectorOfTables(equity_underlyings()) &&
+           verifier.EndTable();
   }
-  /// Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption.
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *models() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>> *>(VT_MODELS);
+  EquityMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EquityMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<EquityMarketData> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EquityMarketDataBuilder {
+  typedef EquityMarketData Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_equity_underlyings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings) {
+    fbb_.AddOffset(EquityMarketData::VT_EQUITY_UNDERLYINGS, equity_underlyings);
   }
+  explicit EquityMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<EquityMarketData> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<EquityMarketData>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<EquityMarketData> CreateEquityMarketData(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings = 0) {
+  EquityMarketDataBuilder builder_(_fbb);
+  builder_.add_equity_underlyings(equity_underlyings);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<EquityMarketData> CreateEquityMarketDataDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> *equity_underlyings = nullptr) {
+  auto equity_underlyings__ = equity_underlyings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>(*equity_underlyings) : 0;
+  return quantra::CreateEquityMarketData(
+      _fbb,
+      equity_underlyings__);
+}
+
+::flatbuffers::Offset<EquityMarketData> CreateEquityMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const EquityMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct InflationMarketDataT : public ::flatbuffers::NativeTable {
+  typedef InflationMarketData TableType;
+  std::vector<std::unique_ptr<quantra::InflationIndexSpecT>> inflation_indices{};
+  std::vector<std::unique_ptr<quantra::InflationCurveSpecT>> inflation_curves{};
+  InflationMarketDataT() = default;
+  InflationMarketDataT(const InflationMarketDataT &o);
+  InflationMarketDataT(InflationMarketDataT&&) FLATBUFFERS_NOEXCEPT = default;
+  InflationMarketDataT &operator=(InflationMarketDataT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Inflation market data grouped under the shared Pricing context.
+struct InflationMarketData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef InflationMarketDataT NativeTableType;
+  typedef InflationMarketDataBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_INFLATION_INDICES = 4,
+    VT_INFLATION_CURVES = 6
+  };
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>> *inflation_indices() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>> *>(VT_INFLATION_INDICES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>> *inflation_curves() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>> *>(VT_INFLATION_CURVES);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_INFLATION_INDICES) &&
+           verifier.VerifyVector(inflation_indices()) &&
+           verifier.VerifyVectorOfTables(inflation_indices()) &&
+           VerifyOffset(verifier, VT_INFLATION_CURVES) &&
+           verifier.VerifyVector(inflation_curves()) &&
+           verifier.VerifyVectorOfTables(inflation_curves()) &&
+           verifier.EndTable();
+  }
+  InflationMarketDataT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(InflationMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<InflationMarketData> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct InflationMarketDataBuilder {
+  typedef InflationMarketData Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_inflation_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> inflation_indices) {
+    fbb_.AddOffset(InflationMarketData::VT_INFLATION_INDICES, inflation_indices);
+  }
+  void add_inflation_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> inflation_curves) {
+    fbb_.AddOffset(InflationMarketData::VT_INFLATION_CURVES, inflation_curves);
+  }
+  explicit InflationMarketDataBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<InflationMarketData> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<InflationMarketData>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<InflationMarketData> CreateInflationMarketData(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> inflation_indices = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> inflation_curves = 0) {
+  InflationMarketDataBuilder builder_(_fbb);
+  builder_.add_inflation_curves(inflation_curves);
+  builder_.add_inflation_indices(inflation_indices);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<InflationMarketData> CreateInflationMarketDataDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<::flatbuffers::Offset<quantra::InflationIndexSpec>> *inflation_indices = nullptr,
+    const std::vector<::flatbuffers::Offset<quantra::InflationCurveSpec>> *inflation_curves = nullptr) {
+  auto inflation_indices__ = inflation_indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationIndexSpec>>(*inflation_indices) : 0;
+  auto inflation_curves__ = inflation_curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationCurveSpec>>(*inflation_curves) : 0;
+  return quantra::CreateInflationMarketData(
+      _fbb,
+      inflation_indices__,
+      inflation_curves__);
+}
+
+::flatbuffers::Offset<InflationMarketData> CreateInflationMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const InflationMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PricingOptionsT : public ::flatbuffers::NativeTable {
+  typedef PricingOptions TableType;
+  bool bond_pricing_details = false;
+  bool bond_pricing_flows = false;
+  bool swaption_pricing_details = false;
+  bool swaption_pricing_rebump = false;
+};
+
+/// Shared request-level pricing output options.
+struct PricingOptions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PricingOptionsT NativeTableType;
+  typedef PricingOptionsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_BOND_PRICING_DETAILS = 4,
+    VT_BOND_PRICING_FLOWS = 6,
+    VT_SWAPTION_PRICING_DETAILS = 8,
+    VT_SWAPTION_PRICING_REBUMP = 10
+  };
   /// Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond.
   bool bond_pricing_details() const {
     return GetField<uint8_t>(VT_BOND_PRICING_DETAILS, 0) != 0;
@@ -130,9 +518,123 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   bool swaption_pricing_rebump() const {
     return GetField<uint8_t>(VT_SWAPTION_PRICING_REBUMP, 0) != 0;
   }
-  /// Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap.
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>> *>(VT_COUPON_PRICERS);
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_BOND_PRICING_DETAILS, 1) &&
+           VerifyField<uint8_t>(verifier, VT_BOND_PRICING_FLOWS, 1) &&
+           VerifyField<uint8_t>(verifier, VT_SWAPTION_PRICING_DETAILS, 1) &&
+           VerifyField<uint8_t>(verifier, VT_SWAPTION_PRICING_REBUMP, 1) &&
+           verifier.EndTable();
+  }
+  PricingOptionsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PricingOptionsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<PricingOptions> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PricingOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PricingOptionsBuilder {
+  typedef PricingOptions Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_bond_pricing_details(bool bond_pricing_details) {
+    fbb_.AddElement<uint8_t>(PricingOptions::VT_BOND_PRICING_DETAILS, static_cast<uint8_t>(bond_pricing_details), 0);
+  }
+  void add_bond_pricing_flows(bool bond_pricing_flows) {
+    fbb_.AddElement<uint8_t>(PricingOptions::VT_BOND_PRICING_FLOWS, static_cast<uint8_t>(bond_pricing_flows), 0);
+  }
+  void add_swaption_pricing_details(bool swaption_pricing_details) {
+    fbb_.AddElement<uint8_t>(PricingOptions::VT_SWAPTION_PRICING_DETAILS, static_cast<uint8_t>(swaption_pricing_details), 0);
+  }
+  void add_swaption_pricing_rebump(bool swaption_pricing_rebump) {
+    fbb_.AddElement<uint8_t>(PricingOptions::VT_SWAPTION_PRICING_REBUMP, static_cast<uint8_t>(swaption_pricing_rebump), 0);
+  }
+  explicit PricingOptionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<PricingOptions> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<PricingOptions>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<PricingOptions> CreatePricingOptions(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    bool bond_pricing_details = false,
+    bool bond_pricing_flows = false,
+    bool swaption_pricing_details = false,
+    bool swaption_pricing_rebump = false) {
+  PricingOptionsBuilder builder_(_fbb);
+  builder_.add_swaption_pricing_rebump(swaption_pricing_rebump);
+  builder_.add_swaption_pricing_details(swaption_pricing_details);
+  builder_.add_bond_pricing_flows(bond_pricing_flows);
+  builder_.add_bond_pricing_details(bond_pricing_details);
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<PricingOptions> CreatePricingOptions(::flatbuffers::FlatBufferBuilder &_fbb, const PricingOptionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PricingT : public ::flatbuffers::NativeTable {
+  typedef Pricing TableType;
+  std::string as_of_date{};
+  std::string settlement_date{};
+  std::vector<std::unique_ptr<quantra::QuoteSpecT>> quotes{};
+  std::unique_ptr<quantra::RatesMarketDataT> rates{};
+  std::unique_ptr<quantra::CreditMarketDataT> credit{};
+  std::unique_ptr<quantra::VolatilityMarketDataT> volatility{};
+  std::unique_ptr<quantra::EquityMarketDataT> equity{};
+  std::unique_ptr<quantra::InflationMarketDataT> inflation{};
+  std::unique_ptr<quantra::PricingOptionsT> options{};
+  PricingT() = default;
+  PricingT(const PricingT &o);
+  PricingT(PricingT&&) FLATBUFFERS_NOEXCEPT = default;
+  PricingT &operator=(PricingT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Central pricing configuration grouped by market-data domain.
+struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PricingT NativeTableType;
+  typedef PricingBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_AS_OF_DATE = 4,
+    VT_SETTLEMENT_DATE = 6,
+    VT_QUOTES = 8,
+    VT_RATES = 10,
+    VT_CREDIT = 12,
+    VT_VOLATILITY = 14,
+    VT_EQUITY = 16,
+    VT_INFLATION = 18,
+    VT_OPTIONS = 20
+  };
+  /// Valuation date (YYYY-MM-DD). Used by: ALL.
+  const ::flatbuffers::String *as_of_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_AS_OF_DATE);
+  }
+  /// Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond.
+  const ::flatbuffers::String *settlement_date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_SETTLEMENT_DATE);
+  }
+  /// Shared market quotes (spot prices, FX rates, helper quotes).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>> *>(VT_QUOTES);
+  }
+  const quantra::RatesMarketData *rates() const {
+    return GetPointer<const quantra::RatesMarketData *>(VT_RATES);
+  }
+  const quantra::CreditMarketData *credit() const {
+    return GetPointer<const quantra::CreditMarketData *>(VT_CREDIT);
+  }
+  const quantra::VolatilityMarketData *volatility() const {
+    return GetPointer<const quantra::VolatilityMarketData *>(VT_VOLATILITY);
+  }
+  const quantra::EquityMarketData *equity() const {
+    return GetPointer<const quantra::EquityMarketData *>(VT_EQUITY);
+  }
+  const quantra::InflationMarketData *inflation() const {
+    return GetPointer<const quantra::InflationMarketData *>(VT_INFLATION);
+  }
+  const quantra::PricingOptions *options() const {
+    return GetPointer<const quantra::PricingOptions *>(VT_OPTIONS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -140,37 +642,21 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(as_of_date()) &&
            VerifyOffset(verifier, VT_SETTLEMENT_DATE) &&
            verifier.VerifyString(settlement_date()) &&
-           VerifyOffset(verifier, VT_INDICES) &&
-           verifier.VerifyVector(indices()) &&
-           verifier.VerifyVectorOfTables(indices()) &&
-           VerifyOffset(verifier, VT_SWAP_INDICES) &&
-           verifier.VerifyVector(swap_indices()) &&
-           verifier.VerifyVectorOfTables(swap_indices()) &&
-           VerifyOffsetRequired(verifier, VT_CURVES) &&
-           verifier.VerifyVector(curves()) &&
-           verifier.VerifyVectorOfTables(curves()) &&
-           VerifyOffset(verifier, VT_CREDIT_CURVES) &&
-           verifier.VerifyVector(credit_curves()) &&
-           verifier.VerifyVectorOfTables(credit_curves()) &&
            VerifyOffset(verifier, VT_QUOTES) &&
            verifier.VerifyVector(quotes()) &&
            verifier.VerifyVectorOfTables(quotes()) &&
-           VerifyOffset(verifier, VT_EQUITY_UNDERLYINGS) &&
-           verifier.VerifyVector(equity_underlyings()) &&
-           verifier.VerifyVectorOfTables(equity_underlyings()) &&
-           VerifyOffset(verifier, VT_VOL_SURFACES) &&
-           verifier.VerifyVector(vol_surfaces()) &&
-           verifier.VerifyVectorOfTables(vol_surfaces()) &&
-           VerifyOffset(verifier, VT_MODELS) &&
-           verifier.VerifyVector(models()) &&
-           verifier.VerifyVectorOfTables(models()) &&
-           VerifyField<uint8_t>(verifier, VT_BOND_PRICING_DETAILS, 1) &&
-           VerifyField<uint8_t>(verifier, VT_BOND_PRICING_FLOWS, 1) &&
-           VerifyField<uint8_t>(verifier, VT_SWAPTION_PRICING_DETAILS, 1) &&
-           VerifyField<uint8_t>(verifier, VT_SWAPTION_PRICING_REBUMP, 1) &&
-           VerifyOffset(verifier, VT_COUPON_PRICERS) &&
-           verifier.VerifyVector(coupon_pricers()) &&
-           verifier.VerifyVectorOfTables(coupon_pricers()) &&
+           VerifyOffset(verifier, VT_RATES) &&
+           verifier.VerifyTable(rates()) &&
+           VerifyOffset(verifier, VT_CREDIT) &&
+           verifier.VerifyTable(credit()) &&
+           VerifyOffset(verifier, VT_VOLATILITY) &&
+           verifier.VerifyTable(volatility()) &&
+           VerifyOffset(verifier, VT_EQUITY) &&
+           verifier.VerifyTable(equity()) &&
+           VerifyOffset(verifier, VT_INFLATION) &&
+           verifier.VerifyTable(inflation()) &&
+           VerifyOffset(verifier, VT_OPTIONS) &&
+           verifier.VerifyTable(options()) &&
            verifier.EndTable();
   }
   PricingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -182,60 +668,146 @@ struct PricingBuilder {
   typedef Pricing Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  ::flatbuffers::Offset<::flatbuffers::String> as_of_date_{0};
+  ::flatbuffers::Offset<::flatbuffers::String> settlement_date_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes_{0};
+  ::flatbuffers::Offset<quantra::RatesMarketData> rates_{0};
+  ::flatbuffers::Offset<quantra::CreditMarketData> credit_{0};
+  ::flatbuffers::Offset<quantra::VolatilityMarketData> volatility_{0};
+  ::flatbuffers::Offset<quantra::EquityMarketData> equity_{0};
+  ::flatbuffers::Offset<quantra::InflationMarketData> inflation_{0};
+  ::flatbuffers::Offset<quantra::PricingOptions> options_{0};
+
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> legacy_indices_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> legacy_swap_indices_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> legacy_curves_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> legacy_coupon_pricers_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> legacy_credit_curves_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> legacy_vol_surfaces_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> legacy_models_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> legacy_equity_underlyings_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> legacy_inflation_indices_{0};
+  ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> legacy_inflation_curves_{0};
+  bool legacy_bond_pricing_details_ = false;
+  bool legacy_bond_pricing_flows_ = false;
+  bool legacy_swaption_pricing_details_ = false;
+  bool legacy_swaption_pricing_rebump_ = false;
+  bool legacy_options_set_ = false;
   void add_as_of_date(::flatbuffers::Offset<::flatbuffers::String> as_of_date) {
-    fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date);
+    as_of_date_ = as_of_date;
   }
   void add_settlement_date(::flatbuffers::Offset<::flatbuffers::String> settlement_date) {
-    fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date);
-  }
-  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
-    fbb_.AddOffset(Pricing::VT_INDICES, indices);
-  }
-  void add_swap_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices) {
-    fbb_.AddOffset(Pricing::VT_SWAP_INDICES, swap_indices);
-  }
-  void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
-    fbb_.AddOffset(Pricing::VT_CURVES, curves);
-  }
-  void add_credit_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves) {
-    fbb_.AddOffset(Pricing::VT_CREDIT_CURVES, credit_curves);
+    settlement_date_ = settlement_date;
   }
   void add_quotes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes) {
-    fbb_.AddOffset(Pricing::VT_QUOTES, quotes);
+    quotes_ = quotes;
   }
-  void add_equity_underlyings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings) {
-    fbb_.AddOffset(Pricing::VT_EQUITY_UNDERLYINGS, equity_underlyings);
+  void add_rates(::flatbuffers::Offset<quantra::RatesMarketData> rates) {
+    rates_ = rates;
   }
-  void add_vol_surfaces(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces) {
-    fbb_.AddOffset(Pricing::VT_VOL_SURFACES, vol_surfaces);
+  void add_credit(::flatbuffers::Offset<quantra::CreditMarketData> credit) {
+    credit_ = credit;
   }
-  void add_models(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models) {
-    fbb_.AddOffset(Pricing::VT_MODELS, models);
+  void add_volatility(::flatbuffers::Offset<quantra::VolatilityMarketData> volatility) {
+    volatility_ = volatility;
   }
-  void add_bond_pricing_details(bool bond_pricing_details) {
-    fbb_.AddElement<uint8_t>(Pricing::VT_BOND_PRICING_DETAILS, static_cast<uint8_t>(bond_pricing_details), 0);
+  void add_equity(::flatbuffers::Offset<quantra::EquityMarketData> equity) {
+    equity_ = equity;
   }
-  void add_bond_pricing_flows(bool bond_pricing_flows) {
-    fbb_.AddElement<uint8_t>(Pricing::VT_BOND_PRICING_FLOWS, static_cast<uint8_t>(bond_pricing_flows), 0);
+  void add_inflation(::flatbuffers::Offset<quantra::InflationMarketData> inflation) {
+    inflation_ = inflation;
   }
-  void add_swaption_pricing_details(bool swaption_pricing_details) {
-    fbb_.AddElement<uint8_t>(Pricing::VT_SWAPTION_PRICING_DETAILS, static_cast<uint8_t>(swaption_pricing_details), 0);
+  void add_options(::flatbuffers::Offset<quantra::PricingOptions> options) {
+    options_ = options;
   }
-  void add_swaption_pricing_rebump(bool swaption_pricing_rebump) {
-    fbb_.AddElement<uint8_t>(Pricing::VT_SWAPTION_PRICING_REBUMP, static_cast<uint8_t>(swaption_pricing_rebump), 0);
+  void add_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices) {
+    legacy_indices_ = indices;
+  }
+  void add_swap_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices) {
+    legacy_swap_indices_ = swap_indices;
+  }
+  void add_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves) {
+    legacy_curves_ = curves;
   }
   void add_coupon_pricers(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers) {
-    fbb_.AddOffset(Pricing::VT_COUPON_PRICERS, coupon_pricers);
+    legacy_coupon_pricers_ = coupon_pricers;
+  }
+  void add_credit_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves) {
+    legacy_credit_curves_ = credit_curves;
+  }
+  void add_vol_surfaces(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces) {
+    legacy_vol_surfaces_ = vol_surfaces;
+  }
+  void add_models(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models) {
+    legacy_models_ = models;
+  }
+  void add_equity_underlyings(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings) {
+    legacy_equity_underlyings_ = equity_underlyings;
+  }
+  void add_inflation_indices(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationIndexSpec>>> inflation_indices) {
+    legacy_inflation_indices_ = inflation_indices;
+  }
+  void add_inflation_curves(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::InflationCurveSpec>>> inflation_curves) {
+    legacy_inflation_curves_ = inflation_curves;
+  }
+  void add_bond_pricing_details(bool bond_pricing_details) {
+    legacy_options_set_ = true;
+    legacy_bond_pricing_details_ = bond_pricing_details;
+  }
+  void add_bond_pricing_flows(bool bond_pricing_flows) {
+    legacy_options_set_ = true;
+    legacy_bond_pricing_flows_ = bond_pricing_flows;
+  }
+  void add_swaption_pricing_details(bool swaption_pricing_details) {
+    legacy_options_set_ = true;
+    legacy_swaption_pricing_details_ = swaption_pricing_details;
+  }
+  void add_swaption_pricing_rebump(bool swaption_pricing_rebump) {
+    legacy_options_set_ = true;
+    legacy_swaption_pricing_rebump_ = swaption_pricing_rebump;
   }
   explicit PricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
+    start_ = 0;
   }
   ::flatbuffers::Offset<Pricing> Finish() {
+    if (rates_.o == 0 &&
+        (legacy_indices_.o != 0 || legacy_swap_indices_.o != 0 || legacy_curves_.o != 0 || legacy_coupon_pricers_.o != 0)) {
+      rates_ = quantra::CreateRatesMarketData(fbb_, legacy_indices_, legacy_swap_indices_, legacy_curves_, legacy_coupon_pricers_);
+    }
+    if (credit_.o == 0 && legacy_credit_curves_.o != 0) {
+      credit_ = quantra::CreateCreditMarketData(fbb_, legacy_credit_curves_);
+    }
+    if (volatility_.o == 0 && (legacy_vol_surfaces_.o != 0 || legacy_models_.o != 0)) {
+      volatility_ = quantra::CreateVolatilityMarketData(fbb_, legacy_vol_surfaces_, legacy_models_);
+    }
+    if (equity_.o == 0 && legacy_equity_underlyings_.o != 0) {
+      equity_ = quantra::CreateEquityMarketData(fbb_, legacy_equity_underlyings_);
+    }
+    if (inflation_.o == 0 && (legacy_inflation_indices_.o != 0 || legacy_inflation_curves_.o != 0)) {
+      inflation_ = quantra::CreateInflationMarketData(fbb_, legacy_inflation_indices_, legacy_inflation_curves_);
+    }
+    if (options_.o == 0 && legacy_options_set_) {
+      options_ = quantra::CreatePricingOptions(
+          fbb_,
+          legacy_bond_pricing_details_,
+          legacy_bond_pricing_flows_,
+          legacy_swaption_pricing_details_,
+          legacy_swaption_pricing_rebump_);
+    }
+    start_ = fbb_.StartTable();
+    fbb_.AddOffset(Pricing::VT_OPTIONS, options_);
+    fbb_.AddOffset(Pricing::VT_INFLATION, inflation_);
+    fbb_.AddOffset(Pricing::VT_EQUITY, equity_);
+    fbb_.AddOffset(Pricing::VT_VOLATILITY, volatility_);
+    fbb_.AddOffset(Pricing::VT_CREDIT, credit_);
+    fbb_.AddOffset(Pricing::VT_RATES, rates_);
+    fbb_.AddOffset(Pricing::VT_QUOTES, quotes_);
+    fbb_.AddOffset(Pricing::VT_SETTLEMENT_DATE, settlement_date_);
+    fbb_.AddOffset(Pricing::VT_AS_OF_DATE, as_of_date_);
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<Pricing>(end);
     fbb_.Required(o, Pricing::VT_AS_OF_DATE);
-    fbb_.Required(o, Pricing::VT_CURVES);
     return o;
   }
 };
@@ -244,35 +816,23 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> as_of_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> settlement_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapIndexDef>>> swap_indices = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CreditCurveSpec>>> credit_curves = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::QuoteSpec>>> quotes = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equity_underlyings = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>> vol_surfaces = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::ModelSpec>>> models = 0,
-    bool bond_pricing_details = false,
-    bool bond_pricing_flows = false,
-    bool swaption_pricing_details = false,
-    bool swaption_pricing_rebump = false,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CouponPricer>>> coupon_pricers = 0) {
+    ::flatbuffers::Offset<quantra::RatesMarketData> rates = 0,
+    ::flatbuffers::Offset<quantra::CreditMarketData> credit = 0,
+    ::flatbuffers::Offset<quantra::VolatilityMarketData> volatility = 0,
+    ::flatbuffers::Offset<quantra::EquityMarketData> equity = 0,
+    ::flatbuffers::Offset<quantra::InflationMarketData> inflation = 0,
+    ::flatbuffers::Offset<quantra::PricingOptions> options = 0) {
   PricingBuilder builder_(_fbb);
-  builder_.add_coupon_pricers(coupon_pricers);
-  builder_.add_models(models);
-  builder_.add_vol_surfaces(vol_surfaces);
-  builder_.add_equity_underlyings(equity_underlyings);
+  builder_.add_options(options);
+  builder_.add_inflation(inflation);
+  builder_.add_equity(equity);
+  builder_.add_volatility(volatility);
+  builder_.add_credit(credit);
+  builder_.add_rates(rates);
   builder_.add_quotes(quotes);
-  builder_.add_credit_curves(credit_curves);
-  builder_.add_curves(curves);
-  builder_.add_swap_indices(swap_indices);
-  builder_.add_indices(indices);
   builder_.add_settlement_date(settlement_date);
   builder_.add_as_of_date(as_of_date);
-  builder_.add_swaption_pricing_rebump(swaption_pricing_rebump);
-  builder_.add_swaption_pricing_details(swaption_pricing_details);
-  builder_.add_bond_pricing_flows(bond_pricing_flows);
-  builder_.add_bond_pricing_details(bond_pricing_details);
   return builder_.Finish();
 }
 
@@ -280,94 +840,299 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *as_of_date = nullptr,
     const char *settlement_date = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::IndexDef>> *indices = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::SwapIndexDef>> *swap_indices = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::TermStructure>> *curves = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::CreditCurveSpec>> *credit_curves = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::QuoteSpec>> *quotes = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> *equity_underlyings = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> *vol_surfaces = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::ModelSpec>> *models = nullptr,
-    bool bond_pricing_details = false,
-    bool bond_pricing_flows = false,
-    bool swaption_pricing_details = false,
-    bool swaption_pricing_rebump = false,
-    const std::vector<::flatbuffers::Offset<quantra::CouponPricer>> *coupon_pricers = nullptr) {
+    ::flatbuffers::Offset<quantra::RatesMarketData> rates = 0,
+    ::flatbuffers::Offset<quantra::CreditMarketData> credit = 0,
+    ::flatbuffers::Offset<quantra::VolatilityMarketData> volatility = 0,
+    ::flatbuffers::Offset<quantra::EquityMarketData> equity = 0,
+    ::flatbuffers::Offset<quantra::InflationMarketData> inflation = 0,
+    ::flatbuffers::Offset<quantra::PricingOptions> options = 0) {
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
   auto settlement_date__ = settlement_date ? _fbb.CreateString(settlement_date) : 0;
-  auto indices__ = indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>>(*indices) : 0;
-  auto swap_indices__ = swap_indices ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>>(*swap_indices) : 0;
-  auto curves__ = curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>>(*curves) : 0;
-  auto credit_curves__ = credit_curves ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>>(*credit_curves) : 0;
   auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>>(*quotes) : 0;
-  auto equity_underlyings__ = equity_underlyings ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>>(*equity_underlyings) : 0;
-  auto vol_surfaces__ = vol_surfaces ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>>(*vol_surfaces) : 0;
-  auto models__ = models ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ModelSpec>>(*models) : 0;
-  auto coupon_pricers__ = coupon_pricers ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CouponPricer>>(*coupon_pricers) : 0;
   return quantra::CreatePricing(
       _fbb,
       as_of_date__,
       settlement_date__,
-      indices__,
-      swap_indices__,
-      curves__,
-      credit_curves__,
       quotes__,
-      equity_underlyings__,
-      vol_surfaces__,
-      models__,
-      bond_pricing_details,
-      bond_pricing_flows,
-      swaption_pricing_details,
-      swaption_pricing_rebump,
-      coupon_pricers__);
+      rates,
+      credit,
+      volatility,
+      equity,
+      inflation,
+      options);
 }
 
 ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBuilder &_fbb, const PricingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline PricingT::PricingT(const PricingT &o)
-      : as_of_date(o.as_of_date),
-        settlement_date(o.settlement_date),
-        bond_pricing_details(o.bond_pricing_details),
-        bond_pricing_flows(o.bond_pricing_flows),
-        swaption_pricing_details(o.swaption_pricing_details),
-        swaption_pricing_rebump(o.swaption_pricing_rebump) {
+inline RatesMarketDataT::RatesMarketDataT(const RatesMarketDataT &o) {
   indices.reserve(o.indices.size());
   for (const auto &indices_ : o.indices) { indices.emplace_back((indices_) ? new quantra::IndexDefT(*indices_) : nullptr); }
   swap_indices.reserve(o.swap_indices.size());
   for (const auto &swap_indices_ : o.swap_indices) { swap_indices.emplace_back((swap_indices_) ? new quantra::SwapIndexDefT(*swap_indices_) : nullptr); }
   curves.reserve(o.curves.size());
   for (const auto &curves_ : o.curves) { curves.emplace_back((curves_) ? new quantra::TermStructureT(*curves_) : nullptr); }
+  coupon_pricers.reserve(o.coupon_pricers.size());
+  for (const auto &coupon_pricers_ : o.coupon_pricers) { coupon_pricers.emplace_back((coupon_pricers_) ? new quantra::CouponPricerT(*coupon_pricers_) : nullptr); }
+}
+
+inline RatesMarketDataT &RatesMarketDataT::operator=(RatesMarketDataT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(indices, o.indices);
+  std::swap(swap_indices, o.swap_indices);
+  std::swap(curves, o.curves);
+  std::swap(coupon_pricers, o.coupon_pricers);
+  return *this;
+}
+
+inline RatesMarketDataT *RatesMarketData::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<RatesMarketDataT>(new RatesMarketDataT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void RatesMarketData::UnPackTo(RatesMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = indices(); if (_e) { _o->indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->indices[_i]) { _e->Get(_i)->UnPackTo(_o->indices[_i].get(), _resolver); } else { _o->indices[_i] = std::unique_ptr<quantra::IndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->indices.resize(0); } }
+  { auto _e = swap_indices(); if (_e) { _o->swap_indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swap_indices[_i]) { _e->Get(_i)->UnPackTo(_o->swap_indices[_i].get(), _resolver); } else { _o->swap_indices[_i] = std::unique_ptr<quantra::SwapIndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swap_indices.resize(0); } }
+  { auto _e = curves(); if (_e) { _o->curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curves[_i]) { _e->Get(_i)->UnPackTo(_o->curves[_i].get(), _resolver); } else { _o->curves[_i] = std::unique_ptr<quantra::TermStructureT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curves.resize(0); } }
+  { auto _e = coupon_pricers(); if (_e) { _o->coupon_pricers.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->coupon_pricers[_i]) { _e->Get(_i)->UnPackTo(_o->coupon_pricers[_i].get(), _resolver); } else { _o->coupon_pricers[_i] = std::unique_ptr<quantra::CouponPricerT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->coupon_pricers.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<RatesMarketData> RatesMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const RatesMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateRatesMarketData(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<RatesMarketData> CreateRatesMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const RatesMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const RatesMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _indices = _o->indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>> (_o->indices.size(), [](size_t i, _VectorArgs *__va) { return CreateIndexDef(*__va->__fbb, __va->__o->indices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _swap_indices = _o->swap_indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>> (_o->swap_indices.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapIndexDef(*__va->__fbb, __va->__o->swap_indices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _curves = _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>> (_o->curves.size(), [](size_t i, _VectorArgs *__va) { return CreateTermStructure(*__va->__fbb, __va->__o->curves[i].get(), __va->__rehasher); }, &_va );
+  auto _coupon_pricers = _o->coupon_pricers.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CouponPricer>> (_o->coupon_pricers.size(), [](size_t i, _VectorArgs *__va) { return CreateCouponPricer(*__va->__fbb, __va->__o->coupon_pricers[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateRatesMarketData(
+      _fbb,
+      _indices,
+      _swap_indices,
+      _curves,
+      _coupon_pricers);
+}
+
+inline CreditMarketDataT::CreditMarketDataT(const CreditMarketDataT &o) {
   credit_curves.reserve(o.credit_curves.size());
   for (const auto &credit_curves_ : o.credit_curves) { credit_curves.emplace_back((credit_curves_) ? new quantra::CreditCurveSpecT(*credit_curves_) : nullptr); }
-  quotes.reserve(o.quotes.size());
-  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::QuoteSpecT(*quotes_) : nullptr); }
-  equity_underlyings.reserve(o.equity_underlyings.size());
-  for (const auto &equity_underlyings_ : o.equity_underlyings) { equity_underlyings.emplace_back((equity_underlyings_) ? new quantra::EquityUnderlyingSpecT(*equity_underlyings_) : nullptr); }
+}
+
+inline CreditMarketDataT &CreditMarketDataT::operator=(CreditMarketDataT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(credit_curves, o.credit_curves);
+  return *this;
+}
+
+inline CreditMarketDataT *CreditMarketData::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CreditMarketDataT>(new CreditMarketDataT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CreditMarketData::UnPackTo(CreditMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = credit_curves(); if (_e) { _o->credit_curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->credit_curves[_i]) { _e->Get(_i)->UnPackTo(_o->credit_curves[_i].get(), _resolver); } else { _o->credit_curves[_i] = std::unique_ptr<quantra::CreditCurveSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->credit_curves.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<CreditMarketData> CreditMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CreditMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCreditMarketData(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<CreditMarketData> CreateCreditMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const CreditMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CreditMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _credit_curves = _o->credit_curves.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>> (_o->credit_curves.size(), [](size_t i, _VectorArgs *__va) { return CreateCreditCurveSpec(*__va->__fbb, __va->__o->credit_curves[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateCreditMarketData(
+      _fbb,
+      _credit_curves);
+}
+
+inline VolatilityMarketDataT::VolatilityMarketDataT(const VolatilityMarketDataT &o) {
   vol_surfaces.reserve(o.vol_surfaces.size());
   for (const auto &vol_surfaces_ : o.vol_surfaces) { vol_surfaces.emplace_back((vol_surfaces_) ? new quantra::VolSurfaceSpecT(*vol_surfaces_) : nullptr); }
   models.reserve(o.models.size());
   for (const auto &models_ : o.models) { models.emplace_back((models_) ? new quantra::ModelSpecT(*models_) : nullptr); }
-  coupon_pricers.reserve(o.coupon_pricers.size());
-  for (const auto &coupon_pricers_ : o.coupon_pricers) { coupon_pricers.emplace_back((coupon_pricers_) ? new quantra::CouponPricerT(*coupon_pricers_) : nullptr); }
+}
+
+inline VolatilityMarketDataT &VolatilityMarketDataT::operator=(VolatilityMarketDataT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(vol_surfaces, o.vol_surfaces);
+  std::swap(models, o.models);
+  return *this;
+}
+
+inline VolatilityMarketDataT *VolatilityMarketData::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<VolatilityMarketDataT>(new VolatilityMarketDataT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void VolatilityMarketData::UnPackTo(VolatilityMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = vol_surfaces(); if (_e) { _o->vol_surfaces.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->vol_surfaces[_i]) { _e->Get(_i)->UnPackTo(_o->vol_surfaces[_i].get(), _resolver); } else { _o->vol_surfaces[_i] = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->vol_surfaces.resize(0); } }
+  { auto _e = models(); if (_e) { _o->models.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->models[_i]) { _e->Get(_i)->UnPackTo(_o->models[_i].get(), _resolver); } else { _o->models[_i] = std::unique_ptr<quantra::ModelSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->models.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<VolatilityMarketData> VolatilityMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VolatilityMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateVolatilityMarketData(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<VolatilityMarketData> CreateVolatilityMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const VolatilityMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const VolatilityMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _vol_surfaces = _o->vol_surfaces.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> (_o->vol_surfaces.size(), [](size_t i, _VectorArgs *__va) { return CreateVolSurfaceSpec(*__va->__fbb, __va->__o->vol_surfaces[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _models = _o->models.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ModelSpec>> (_o->models.size(), [](size_t i, _VectorArgs *__va) { return CreateModelSpec(*__va->__fbb, __va->__o->models[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateVolatilityMarketData(
+      _fbb,
+      _vol_surfaces,
+      _models);
+}
+
+inline EquityMarketDataT::EquityMarketDataT(const EquityMarketDataT &o) {
+  equity_underlyings.reserve(o.equity_underlyings.size());
+  for (const auto &equity_underlyings_ : o.equity_underlyings) { equity_underlyings.emplace_back((equity_underlyings_) ? new quantra::EquityUnderlyingSpecT(*equity_underlyings_) : nullptr); }
+}
+
+inline EquityMarketDataT &EquityMarketDataT::operator=(EquityMarketDataT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(equity_underlyings, o.equity_underlyings);
+  return *this;
+}
+
+inline EquityMarketDataT *EquityMarketData::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<EquityMarketDataT>(new EquityMarketDataT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void EquityMarketData::UnPackTo(EquityMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = equity_underlyings(); if (_e) { _o->equity_underlyings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->equity_underlyings[_i]) { _e->Get(_i)->UnPackTo(_o->equity_underlyings[_i].get(), _resolver); } else { _o->equity_underlyings[_i] = std::unique_ptr<quantra::EquityUnderlyingSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->equity_underlyings.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<EquityMarketData> EquityMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const EquityMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEquityMarketData(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<EquityMarketData> CreateEquityMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const EquityMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const EquityMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _equity_underlyings = _o->equity_underlyings.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> (_o->equity_underlyings.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityUnderlyingSpec(*__va->__fbb, __va->__o->equity_underlyings[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateEquityMarketData(
+      _fbb,
+      _equity_underlyings);
+}
+
+inline InflationMarketDataT::InflationMarketDataT(const InflationMarketDataT &o) {
+  inflation_indices.reserve(o.inflation_indices.size());
+  for (const auto &inflation_indices_ : o.inflation_indices) { inflation_indices.emplace_back((inflation_indices_) ? new quantra::InflationIndexSpecT(*inflation_indices_) : nullptr); }
+  inflation_curves.reserve(o.inflation_curves.size());
+  for (const auto &inflation_curves_ : o.inflation_curves) { inflation_curves.emplace_back((inflation_curves_) ? new quantra::InflationCurveSpecT(*inflation_curves_) : nullptr); }
+}
+
+inline InflationMarketDataT &InflationMarketDataT::operator=(InflationMarketDataT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(inflation_indices, o.inflation_indices);
+  std::swap(inflation_curves, o.inflation_curves);
+  return *this;
+}
+
+inline InflationMarketDataT *InflationMarketData::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<InflationMarketDataT>(new InflationMarketDataT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void InflationMarketData::UnPackTo(InflationMarketDataT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = inflation_indices(); if (_e) { _o->inflation_indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->inflation_indices[_i]) { _e->Get(_i)->UnPackTo(_o->inflation_indices[_i].get(), _resolver); } else { _o->inflation_indices[_i] = std::unique_ptr<quantra::InflationIndexSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->inflation_indices.resize(0); } }
+  { auto _e = inflation_curves(); if (_e) { _o->inflation_curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->inflation_curves[_i]) { _e->Get(_i)->UnPackTo(_o->inflation_curves[_i].get(), _resolver); } else { _o->inflation_curves[_i] = std::unique_ptr<quantra::InflationCurveSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->inflation_curves.resize(0); } }
+}
+
+inline ::flatbuffers::Offset<InflationMarketData> InflationMarketData::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const InflationMarketDataT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateInflationMarketData(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<InflationMarketData> CreateInflationMarketData(::flatbuffers::FlatBufferBuilder &_fbb, const InflationMarketDataT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const InflationMarketDataT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _inflation_indices = _o->inflation_indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationIndexSpec>> (_o->inflation_indices.size(), [](size_t i, _VectorArgs *__va) { return CreateInflationIndexSpec(*__va->__fbb, __va->__o->inflation_indices[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _inflation_curves = _o->inflation_curves.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::InflationCurveSpec>> (_o->inflation_curves.size(), [](size_t i, _VectorArgs *__va) { return CreateInflationCurveSpec(*__va->__fbb, __va->__o->inflation_curves[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return quantra::CreateInflationMarketData(
+      _fbb,
+      _inflation_indices,
+      _inflation_curves);
+}
+
+inline PricingOptionsT *PricingOptions::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<PricingOptionsT>(new PricingOptionsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void PricingOptions::UnPackTo(PricingOptionsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = bond_pricing_details(); _o->bond_pricing_details = _e; }
+  { auto _e = bond_pricing_flows(); _o->bond_pricing_flows = _e; }
+  { auto _e = swaption_pricing_details(); _o->swaption_pricing_details = _e; }
+  { auto _e = swaption_pricing_rebump(); _o->swaption_pricing_rebump = _e; }
+}
+
+inline ::flatbuffers::Offset<PricingOptions> PricingOptions::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PricingOptionsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePricingOptions(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<PricingOptions> CreatePricingOptions(::flatbuffers::FlatBufferBuilder &_fbb, const PricingOptionsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PricingOptionsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _bond_pricing_details = _o->bond_pricing_details;
+  auto _bond_pricing_flows = _o->bond_pricing_flows;
+  auto _swaption_pricing_details = _o->swaption_pricing_details;
+  auto _swaption_pricing_rebump = _o->swaption_pricing_rebump;
+  return quantra::CreatePricingOptions(
+      _fbb,
+      _bond_pricing_details,
+      _bond_pricing_flows,
+      _swaption_pricing_details,
+      _swaption_pricing_rebump);
+}
+
+inline PricingT::PricingT(const PricingT &o)
+      : as_of_date(o.as_of_date),
+        settlement_date(o.settlement_date),
+        rates((o.rates) ? new quantra::RatesMarketDataT(*o.rates) : nullptr),
+        credit((o.credit) ? new quantra::CreditMarketDataT(*o.credit) : nullptr),
+        volatility((o.volatility) ? new quantra::VolatilityMarketDataT(*o.volatility) : nullptr),
+        equity((o.equity) ? new quantra::EquityMarketDataT(*o.equity) : nullptr),
+        inflation((o.inflation) ? new quantra::InflationMarketDataT(*o.inflation) : nullptr),
+        options((o.options) ? new quantra::PricingOptionsT(*o.options) : nullptr) {
+  quotes.reserve(o.quotes.size());
+  for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::QuoteSpecT(*quotes_) : nullptr); }
 }
 
 inline PricingT &PricingT::operator=(PricingT o) FLATBUFFERS_NOEXCEPT {
   std::swap(as_of_date, o.as_of_date);
   std::swap(settlement_date, o.settlement_date);
-  std::swap(indices, o.indices);
-  std::swap(swap_indices, o.swap_indices);
-  std::swap(curves, o.curves);
-  std::swap(credit_curves, o.credit_curves);
   std::swap(quotes, o.quotes);
-  std::swap(equity_underlyings, o.equity_underlyings);
-  std::swap(vol_surfaces, o.vol_surfaces);
-  std::swap(models, o.models);
-  std::swap(bond_pricing_details, o.bond_pricing_details);
-  std::swap(bond_pricing_flows, o.bond_pricing_flows);
-  std::swap(swaption_pricing_details, o.swaption_pricing_details);
-  std::swap(swaption_pricing_rebump, o.swaption_pricing_rebump);
-  std::swap(coupon_pricers, o.coupon_pricers);
+  std::swap(rates, o.rates);
+  std::swap(credit, o.credit);
+  std::swap(volatility, o.volatility);
+  std::swap(equity, o.equity);
+  std::swap(inflation, o.inflation);
+  std::swap(options, o.options);
   return *this;
 }
 
@@ -382,19 +1147,13 @@ inline void Pricing::UnPackTo(PricingT *_o, const ::flatbuffers::resolver_functi
   (void)_resolver;
   { auto _e = as_of_date(); if (_e) _o->as_of_date = _e->str(); }
   { auto _e = settlement_date(); if (_e) _o->settlement_date = _e->str(); }
-  { auto _e = indices(); if (_e) { _o->indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->indices[_i]) { _e->Get(_i)->UnPackTo(_o->indices[_i].get(), _resolver); } else { _o->indices[_i] = std::unique_ptr<quantra::IndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->indices.resize(0); } }
-  { auto _e = swap_indices(); if (_e) { _o->swap_indices.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swap_indices[_i]) { _e->Get(_i)->UnPackTo(_o->swap_indices[_i].get(), _resolver); } else { _o->swap_indices[_i] = std::unique_ptr<quantra::SwapIndexDefT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swap_indices.resize(0); } }
-  { auto _e = curves(); if (_e) { _o->curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->curves[_i]) { _e->Get(_i)->UnPackTo(_o->curves[_i].get(), _resolver); } else { _o->curves[_i] = std::unique_ptr<quantra::TermStructureT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->curves.resize(0); } }
-  { auto _e = credit_curves(); if (_e) { _o->credit_curves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->credit_curves[_i]) { _e->Get(_i)->UnPackTo(_o->credit_curves[_i].get(), _resolver); } else { _o->credit_curves[_i] = std::unique_ptr<quantra::CreditCurveSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->credit_curves.resize(0); } }
   { auto _e = quotes(); if (_e) { _o->quotes.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->quotes[_i]) { _e->Get(_i)->UnPackTo(_o->quotes[_i].get(), _resolver); } else { _o->quotes[_i] = std::unique_ptr<quantra::QuoteSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->quotes.resize(0); } }
-  { auto _e = equity_underlyings(); if (_e) { _o->equity_underlyings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->equity_underlyings[_i]) { _e->Get(_i)->UnPackTo(_o->equity_underlyings[_i].get(), _resolver); } else { _o->equity_underlyings[_i] = std::unique_ptr<quantra::EquityUnderlyingSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->equity_underlyings.resize(0); } }
-  { auto _e = vol_surfaces(); if (_e) { _o->vol_surfaces.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->vol_surfaces[_i]) { _e->Get(_i)->UnPackTo(_o->vol_surfaces[_i].get(), _resolver); } else { _o->vol_surfaces[_i] = std::unique_ptr<quantra::VolSurfaceSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->vol_surfaces.resize(0); } }
-  { auto _e = models(); if (_e) { _o->models.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->models[_i]) { _e->Get(_i)->UnPackTo(_o->models[_i].get(), _resolver); } else { _o->models[_i] = std::unique_ptr<quantra::ModelSpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->models.resize(0); } }
-  { auto _e = bond_pricing_details(); _o->bond_pricing_details = _e; }
-  { auto _e = bond_pricing_flows(); _o->bond_pricing_flows = _e; }
-  { auto _e = swaption_pricing_details(); _o->swaption_pricing_details = _e; }
-  { auto _e = swaption_pricing_rebump(); _o->swaption_pricing_rebump = _e; }
-  { auto _e = coupon_pricers(); if (_e) { _o->coupon_pricers.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->coupon_pricers[_i]) { _e->Get(_i)->UnPackTo(_o->coupon_pricers[_i].get(), _resolver); } else { _o->coupon_pricers[_i] = std::unique_ptr<quantra::CouponPricerT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->coupon_pricers.resize(0); } }
+  { auto _e = rates(); if (_e) { if(_o->rates) { _e->UnPackTo(_o->rates.get(), _resolver); } else { _o->rates = std::unique_ptr<quantra::RatesMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->rates) { _o->rates.reset(); } }
+  { auto _e = credit(); if (_e) { if(_o->credit) { _e->UnPackTo(_o->credit.get(), _resolver); } else { _o->credit = std::unique_ptr<quantra::CreditMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->credit) { _o->credit.reset(); } }
+  { auto _e = volatility(); if (_e) { if(_o->volatility) { _e->UnPackTo(_o->volatility.get(), _resolver); } else { _o->volatility = std::unique_ptr<quantra::VolatilityMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->volatility) { _o->volatility.reset(); } }
+  { auto _e = equity(); if (_e) { if(_o->equity) { _e->UnPackTo(_o->equity.get(), _resolver); } else { _o->equity = std::unique_ptr<quantra::EquityMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->equity) { _o->equity.reset(); } }
+  { auto _e = inflation(); if (_e) { if(_o->inflation) { _e->UnPackTo(_o->inflation.get(), _resolver); } else { _o->inflation = std::unique_ptr<quantra::InflationMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->inflation) { _o->inflation.reset(); } }
+  { auto _e = options(); if (_e) { if(_o->options) { _e->UnPackTo(_o->options.get(), _resolver); } else { _o->options = std::unique_ptr<quantra::PricingOptionsT>(_e->UnPack(_resolver)); } } else if (_o->options) { _o->options.reset(); } }
 }
 
 inline ::flatbuffers::Offset<Pricing> Pricing::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PricingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -407,36 +1166,24 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PricingT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _as_of_date = _fbb.CreateString(_o->as_of_date);
   auto _settlement_date = _o->settlement_date.empty() ? 0 : _fbb.CreateString(_o->settlement_date);
-  auto _indices = _o->indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::IndexDef>> (_o->indices.size(), [](size_t i, _VectorArgs *__va) { return CreateIndexDef(*__va->__fbb, __va->__o->indices[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _swap_indices = _o->swap_indices.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapIndexDef>> (_o->swap_indices.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapIndexDef(*__va->__fbb, __va->__o->swap_indices[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _curves = _fbb.CreateVector<::flatbuffers::Offset<quantra::TermStructure>> (_o->curves.size(), [](size_t i, _VectorArgs *__va) { return CreateTermStructure(*__va->__fbb, __va->__o->curves[i].get(), __va->__rehasher); }, &_va );
-  auto _credit_curves = _o->credit_curves.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CreditCurveSpec>> (_o->credit_curves.size(), [](size_t i, _VectorArgs *__va) { return CreateCreditCurveSpec(*__va->__fbb, __va->__o->credit_curves[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _quotes = _o->quotes.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>> (_o->quotes.size(), [](size_t i, _VectorArgs *__va) { return CreateQuoteSpec(*__va->__fbb, __va->__o->quotes[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _equity_underlyings = _o->equity_underlyings.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityUnderlyingSpec>> (_o->equity_underlyings.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityUnderlyingSpec(*__va->__fbb, __va->__o->equity_underlyings[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _vol_surfaces = _o->vol_surfaces.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolSurfaceSpec>> (_o->vol_surfaces.size(), [](size_t i, _VectorArgs *__va) { return CreateVolSurfaceSpec(*__va->__fbb, __va->__o->vol_surfaces[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _models = _o->models.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::ModelSpec>> (_o->models.size(), [](size_t i, _VectorArgs *__va) { return CreateModelSpec(*__va->__fbb, __va->__o->models[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _bond_pricing_details = _o->bond_pricing_details;
-  auto _bond_pricing_flows = _o->bond_pricing_flows;
-  auto _swaption_pricing_details = _o->swaption_pricing_details;
-  auto _swaption_pricing_rebump = _o->swaption_pricing_rebump;
-  auto _coupon_pricers = _o->coupon_pricers.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CouponPricer>> (_o->coupon_pricers.size(), [](size_t i, _VectorArgs *__va) { return CreateCouponPricer(*__va->__fbb, __va->__o->coupon_pricers[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _rates = _o->rates ? CreateRatesMarketData(_fbb, _o->rates.get(), _rehasher) : 0;
+  auto _credit = _o->credit ? CreateCreditMarketData(_fbb, _o->credit.get(), _rehasher) : 0;
+  auto _volatility = _o->volatility ? CreateVolatilityMarketData(_fbb, _o->volatility.get(), _rehasher) : 0;
+  auto _equity = _o->equity ? CreateEquityMarketData(_fbb, _o->equity.get(), _rehasher) : 0;
+  auto _inflation = _o->inflation ? CreateInflationMarketData(_fbb, _o->inflation.get(), _rehasher) : 0;
+  auto _options = _o->options ? CreatePricingOptions(_fbb, _o->options.get(), _rehasher) : 0;
   return quantra::CreatePricing(
       _fbb,
       _as_of_date,
       _settlement_date,
-      _indices,
-      _swap_indices,
-      _curves,
-      _credit_curves,
       _quotes,
-      _equity_underlyings,
-      _vol_surfaces,
-      _models,
-      _bond_pricing_details,
-      _bond_pricing_flows,
-      _swaption_pricing_details,
-      _swaption_pricing_rebump,
-      _coupon_pricers);
+      _rates,
+      _credit,
+      _volatility,
+      _equity,
+      _inflation,
+      _options);
 }
 
 }  // namespace quantra

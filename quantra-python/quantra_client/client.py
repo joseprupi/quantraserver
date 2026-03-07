@@ -33,6 +33,14 @@ from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
 from quantra.BootstrapCurvesRequest import BootstrapCurvesRequestT
+from quantra.BootstrapInflationCurvesRequest import BootstrapInflationCurvesRequestT
+from quantra.Pricing import PricingT
+from quantra.RatesMarketData import RatesMarketDataT
+from quantra.CreditMarketData import CreditMarketDataT
+from quantra.VolatilityMarketData import VolatilityMarketDataT
+from quantra.EquityMarketData import EquityMarketDataT
+from quantra.InflationMarketData import InflationMarketDataT
+from quantra.PricingOptions import PricingOptionsT
 
 # =============================================================================
 # Response Types (Reader classes - for deserializing responses)
@@ -45,6 +53,7 @@ from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
 from quantra.BootstrapCurvesResponse import BootstrapCurvesResponse
+from quantra.BootstrapInflationCurvesResponse import BootstrapInflationCurvesResponse
 
 
 class Client:
@@ -72,6 +81,7 @@ class Client:
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
         'bootstrap_curves': '/quantra.QuantraServer/BootstrapCurves',
+        'bootstrap_inflation_curves': '/quantra.QuantraServer/BootstrapInflationCurves',
     }
     
     def __init__(
@@ -207,6 +217,17 @@ class Client:
             'bootstrap_curves',
             request,
             BootstrapCurvesResponse
+        )
+
+    def bootstrap_inflation_curves(
+        self,
+        request: BootstrapInflationCurvesRequestT
+    ) -> BootstrapInflationCurvesResponse:
+        """Bootstrap inflation curves and sample zero/YoY measures on a date grid."""
+        return self._call(
+            'bootstrap_inflation_curves',
+            request,
+            BootstrapInflationCurvesResponse
         )
     
     # =========================================================================
@@ -370,6 +391,7 @@ __all__ = [
     'PriceSwaptionRequestT',
     'PriceCDSRequestT',
     'BootstrapCurvesRequestT',
+    'BootstrapInflationCurvesRequestT',
     
     # Response types
     'PriceFixedRateBondResponse',
@@ -380,9 +402,16 @@ __all__ = [
     'PriceSwaptionResponse',
     'PriceCDSResponse',
     'BootstrapCurvesResponse',
+    'BootstrapInflationCurvesResponse',
     
     # Building blocks
     'PricingT',
+    'RatesMarketDataT',
+    'CreditMarketDataT',
+    'VolatilityMarketDataT',
+    'EquityMarketDataT',
+    'InflationMarketDataT',
+    'PricingOptionsT',
     'TermStructureT',
     'ScheduleT',
     'PointsWrapperT',

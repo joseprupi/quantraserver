@@ -1,8 +1,7 @@
 /**
  * Pricing Registry Builder Implementation
- * 
- * Builds the PricingRegistry by delegating to type-specific parsers.
- * Now includes IndexRegistry built from pricing->indices().
+ *
+ * Builds the PricingRegistry by delegating to domain-specific parsers.
  */
 
 #include "pricing_registry.h"
@@ -15,6 +14,7 @@
 #include "enums.h"
 #include "common.h"
 #include "quote_registry.h"
+#include "inflation_curve_parsers.h"
 
 namespace quantra {
 
@@ -51,39 +51,60 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     }
     reg.quoteRegistry = quoteRegistry;
 
+    const auto* rates = pricing->rates();
+    const auto* credit = pricing->credit();
+    const auto* volatility = pricing->volatility();
+    const auto* inflation = pricing->inflation();
+    const auto* options = pricing->options();
+
     // ==========================================================================
-    // Build IndexRegistry from indices[]
+    // Build rates domain
     // ==========================================================================
     IndexRegistryBuilder indexBuilder;
-    reg.indices = indexBuilder.build(pricing->indices());
+    reg.rates.indices = indexBuilder.build(rates ? rates->indices() : nullptr);
     SwapIndexRegistryBuilder swapIndexBuilder;
-    reg.swapIndices = swapIndexBuilder.build(pricing->swap_indices(), reg.indices);
+    reg.rates.swapIndices = swapIndexBuilder.build(
+        rates ? rates->swap_indices() : nullptr,
+        reg.rates.indices);
 
     // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
-    // Now passes indices to CurveBootstrapper for helper index resolution
     // ==========================================================================
-    if (!pricing->curves()) {
-        QUANTRA_ERROR("curves is required (at least one curve needed)");
+    if (!rates || !rates->curves()) {
+        QUANTRA_ERROR("pricing.rates.curves is required (at least one curve needed)");
     }
 
     CurveBootstrapper bootstrapper;
     auto booted = bootstrapper.bootstrapAll(
-        pricing->curves(),
+        rates->curves(),
         pricing->quotes(),
-        pricing->indices()
+        rates ? rates->indices() : nullptr
     );
 
     for (auto& kv : booted.handles) {
-        reg.curves.emplace(kv.first, kv.second);
+        reg.rates.curves.emplace(kv.first, kv.second);
     }
 
     // ==========================================================================
-    // Parse Vol Surfaces (optional)
-    // Parsed after curves so equity SurfaceFromPrices can resolve curve ids.
+    // Parse inflation domain (optional)
     // ==========================================================================
-    if (pricing->vol_surfaces()) {
-        for (auto it = pricing->vol_surfaces()->begin(); it != pricing->vol_surfaces()->end(); ++it) {
+    if (inflation && inflation->inflation_curves()) {
+        reg.inflation.curveMetadata = buildInflationCurves(
+            inflation->inflation_curves(),
+            inflation->inflation_indices(),
+            &quoteRegistry,
+            reg);
+        buildInflationIndices(inflation->inflation_indices(), reg.inflation.curveMetadata, reg);
+    } else if (inflation && inflation->inflation_indices()) {
+        buildInflationIndices(inflation->inflation_indices(), reg.inflation.curveMetadata, reg);
+    }
+
+    // ==========================================================================
+    // Parse volatility domain (optional)
+    // Parsed after rates so equity SurfaceFromPrices can resolve curve ids.
+    // ==========================================================================
+    if (volatility && volatility->vol_surfaces()) {
+        for (auto it = volatility->vol_surfaces()->begin(); it != volatility->vol_surfaces()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_ERROR("VolSurfaceSpec.id is required");
@@ -92,15 +113,15 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
             switch (spec->payload_type()) {
                 case quantra::VolPayload_OptionletVolSpec:
-                    reg.optionletVols.emplace(id, parseOptionletVol(spec, &quoteRegistry));
+                    reg.volatility.optionletVols.emplace(id, parseOptionletVol(spec, &quoteRegistry));
                     break;
 
                 case quantra::VolPayload_SwaptionVolSpec:
-                    reg.swaptionVols.emplace(id, parseSwaptionVol(spec, &quoteRegistry));
+                    reg.volatility.swaptionVols.emplace(id, parseSwaptionVol(spec, &quoteRegistry));
                     break;
 
                 case quantra::VolPayload_BlackVolSpec:
-                    reg.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry, &reg.curves));
+                    reg.volatility.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry, &reg.rates.curves));
                     break;
 
                 case quantra::VolPayload_NONE:
@@ -111,14 +132,14 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             }
         }
     }
-    for (const auto& kv : reg.swaptionVols) {
+    for (const auto& kv : reg.volatility.swaptionVols) {
         const auto& entry = kv.second;
         if (entry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
             if (entry.swapIndexId.empty()) {
                 QUANTRA_ERROR(
                     "Swaption smile vol '" + kv.first + "' requires swap_index_id for SpreadFromATM");
             }
-            if (!reg.swapIndices.has(entry.swapIndexId)) {
+            if (!reg.rates.swapIndices.has(entry.swapIndexId)) {
                 QUANTRA_ERROR(
                     "Swaption smile vol '" + kv.first + "' references unknown swap_index_id: " +
                     entry.swapIndexId);
@@ -127,10 +148,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     }
 
     // ==========================================================================
-    // Parse Models (optional)
+    // Parse models (optional)
     // ==========================================================================
-    if (pricing->models()) {
-        for (auto it = pricing->models()->begin(); it != pricing->models()->end(); ++it) {
+    if (volatility && volatility->models()) {
+        for (auto it = volatility->models()->begin(); it != volatility->models()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_ERROR("ModelSpec.id is required");
@@ -140,16 +161,16 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
                 QUANTRA_ERROR("ModelSpec.payload is required for model id: " + id);
             }
-            
-            reg.models[id] = spec;
+
+            reg.volatility.models[id] = spec;
         }
     }
 
     // ==========================================================================
-    // Register Credit Curve Specs (optional)
+    // Register credit curve specs (optional)
     // ==========================================================================
-    if (pricing->credit_curves()) {
-        for (auto it = pricing->credit_curves()->begin(); it != pricing->credit_curves()->end(); ++it) {
+    if (credit && credit->credit_curves()) {
+        for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_ERROR("CreditCurveSpec.id is required");
@@ -157,23 +178,25 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             if (!spec->reference_date()) {
                 QUANTRA_ERROR("CreditCurveSpec.reference_date is required");
             }
-            reg.creditCurveSpecs.emplace(spec->id()->str(), spec);
+            reg.credit.creditCurveSpecs.emplace(spec->id()->str(), spec);
         }
     }
 
     // ==========================================================================
     // Coupon pricers (optional)
     // ==========================================================================
-    if (pricing->coupon_pricers()) {
-        for (auto it = pricing->coupon_pricers()->begin(); it != pricing->coupon_pricers()->end(); ++it) {
-            reg.couponPricers.emplace_back(*it);
+    if (rates && rates->coupon_pricers()) {
+        for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end(); ++it) {
+            reg.rates.couponPricers.emplace_back(*it);
         }
     }
 
-    reg.bondPricingDetails = pricing->bond_pricing_details();
-    reg.bondPricingFlows = pricing->bond_pricing_flows();
-    reg.swaptionPricingDetails = pricing->swaption_pricing_details();
-    reg.swaptionPricingRebump = pricing->swaption_pricing_rebump();
+    if (options) {
+        reg.options.bondPricingDetails = options->bond_pricing_details();
+        reg.options.bondPricingFlows = options->bond_pricing_flows();
+        reg.options.swaptionPricingDetails = options->swaption_pricing_details();
+        reg.options.swaptionPricingRebump = options->swaption_pricing_rebump();
+    }
 
     return reg;
 }

@@ -18,6 +18,8 @@ include "../flatbuffers/fbs/price_cds_request.fbs";
 include "../flatbuffers/fbs/cds_response.fbs";
 include "../flatbuffers/fbs/bootstrap_curves_request.fbs";
 include "../flatbuffers/fbs/bootstrap_curves_response.fbs";
+include "../flatbuffers/fbs/bootstrap_inflation_curves_request.fbs";
+include "../flatbuffers/fbs/bootstrap_inflation_curves_response.fbs";
 include "../flatbuffers/fbs/sample_vol_surfaces_request.fbs";
 include "../flatbuffers/fbs/sample_vol_surfaces_response.fbs";
 include "../flatbuffers/fbs/calendar_business_days_request.fbs";
@@ -44,6 +46,7 @@ rpc_service QuantraServer {
   PriceSwaption(PriceSwaptionRequest):PriceSwaptionResponse;
   PriceCDS(PriceCDSRequest):PriceCDSResponse;
   BootstrapCurves(BootstrapCurvesRequest):BootstrapCurvesResponse;
+  BootstrapInflationCurves(BootstrapInflationCurvesRequest):BootstrapInflationCurvesResponse;
   SampleVolSurfaces(SampleVolSurfacesRequest):SampleVolSurfacesResponse;
   CalendarBusinessDays(CalendarBusinessDaysRequest):CalendarBusinessDaysResponse;
   CalendarHolidays(CalendarHolidaysRequest):CalendarHolidaysResponse;

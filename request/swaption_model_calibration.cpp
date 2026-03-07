@@ -125,8 +125,8 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     const std::string forwardingCurveId = calibSpec->forwarding_curve_id()->str();
     const std::string swapIndexId = calibSpec->swap_index_id()->str();
 
-    auto vIt = reg.swaptionVols.find(volId);
-    if (vIt == reg.swaptionVols.end()) {
+    auto vIt = reg.volatility.swaptionVols.find(volId);
+    if (vIt == reg.volatility.swaptionVols.end()) {
         QUANTRA_ERROR("Calibration swaption vol not found: " + volId);
     }
     const auto& volEntry = vIt->second;
@@ -134,21 +134,21 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         QUANTRA_ERROR("Calibration swaption vol handle is empty: " + volId);
     }
 
-    auto cIt = reg.curves.find(discountCurveId);
-    if (cIt == reg.curves.end() || !cIt->second || cIt->second->empty()) {
+    auto cIt = reg.rates.curves.find(discountCurveId);
+    if (cIt == reg.rates.curves.end() || !cIt->second || cIt->second->empty()) {
         QUANTRA_ERROR("Calibration discount curve not found: " + discountCurveId);
     }
     QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve(cIt->second->currentLink());
-    auto fIt = reg.curves.find(forwardingCurveId);
-    if (fIt == reg.curves.end() || !fIt->second || fIt->second->empty()) {
+    auto fIt = reg.rates.curves.find(forwardingCurveId);
+    if (fIt == reg.rates.curves.end() || !fIt->second || fIt->second->empty()) {
         QUANTRA_ERROR("Calibration forwarding curve not found: " + forwardingCurveId);
     }
     QuantLib::Handle<QuantLib::YieldTermStructure> forwardingCurve(fIt->second->currentLink());
 
-    if (!reg.swapIndices.has(swapIndexId)) {
+    if (!reg.rates.swapIndices.has(swapIndexId)) {
         QUANTRA_ERROR("Calibration swap index not found: " + swapIndexId);
     }
-    const auto& sidx = reg.swapIndices.get(swapIndexId);
+    const auto& sidx = reg.rates.swapIndices.get(swapIndexId);
     if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
         QUANTRA_ERROR("Hull-White calibration currently supports Ibor swap_index_id only");
     }
@@ -187,7 +187,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         QUANTRA_ERROR(os.str());
     }
 
-    auto ibor = reg.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
+    auto ibor = reg.rates.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
     if (sidx.fixedCalendar != ibor->fixingCalendar()) {
         QUANTRA_ERROR(
             "Hull-White calibration requires swap index fixed_calendar to match IBOR fixing calendar");

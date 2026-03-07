@@ -1,0 +1,28 @@
+include "common.fbs";
+include "enums.fbs";
+
+namespace quantra;
+
+/// One sampled inflation series aligned to grid_dates.
+table InflationCurveSeries {
+    measure:enums.InflationCurveMeasure;
+    values:[double] (required);
+}
+
+/// Result for a single requested inflation curve.
+table BootstrapInflationCurveResult {
+    id:string;
+    reference_date:string;
+    grid_dates:[string];
+    series:[InflationCurveSeries];
+    pillar_dates:[string];
+    error:Error;
+}
+
+/// Response for all requested inflation curve queries.
+table BootstrapInflationCurvesResponse {
+    results:[BootstrapInflationCurveResult] (required);
+}
+
+root_type BootstrapInflationCurvesResponse;
+

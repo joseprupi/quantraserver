@@ -19,17 +19,17 @@ flatbuffers::Offset<PriceFRAResponse> FRAPricingRequest::request(
 
     for (auto it = fra_pricings->begin(); it != fra_pricings->end(); it++)
     {
-        auto discounting_curve_it = reg.curves.find(it->discounting_curve()->str());
-        if (discounting_curve_it == reg.curves.end())
+        auto discounting_curve_it = reg.rates.curves.find(it->discounting_curve()->str());
+        if (discounting_curve_it == reg.rates.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
 
-        auto forwarding_curve_it = reg.curves.find(it->forwarding_curve()->str());
-        if (forwarding_curve_it == reg.curves.end())
+        auto forwarding_curve_it = reg.rates.curves.find(it->forwarding_curve()->str());
+        if (forwarding_curve_it == reg.rates.curves.end())
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
 
         fra_parser.linkForwardingTermStructure(forwarding_curve_it->second->currentLink());
         fra_parser.linkDiscountingTermStructure(discounting_curve_it->second->currentLink());
-        auto fra = fra_parser.parse(it->fra(), reg.indices);
+        auto fra = fra_parser.parse(it->fra(), reg.rates.indices);
 
         double npv = fra->NPV();
         double forwardRate = fra->forwardRate();

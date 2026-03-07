@@ -113,6 +113,22 @@
       "type" : "string",
       "enum": ["Absolute", "SpreadFromATM"]
     },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
     "quantra_enums_IrModelType" : {
       "type" : "string",
       "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
@@ -200,6 +216,10 @@
     "quantra_EquityPayoff" : {
       "type" : "string",
       "enum": ["NONE", "EquityPlainVanillaPayoff", "EquityCashOrNothingPayoff", "EquityAssetOrNothingPayoff"]
+    },
+    "quantra_InflationPoint" : {
+      "type" : "string",
+      "enum": ["NONE", "ZeroCouponInflationSwapHelper", "YearOnYearInflationSwapHelper"]
     },
     "quantra_Period" : {
       "type" : "object",
@@ -1900,21 +1920,220 @@
       "required" : ["trade_id", "underlying_id"],
       "additionalProperties" : false
     },
-    "quantra_Pricing" : {
+    "quantra_InflationIndexSpec" : {
       "type" : "object",
-      "description" : "Central pricing configuration. Indices, curves, volatility surfaces, and models are defined here and referenced by id.",
+      "description" : "Inflation index specification. Registered once per request, referenced by id.",
       "properties" : {
-        "as_of_date" : {
+        "id" : {
                 "type" : "string",
-                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL."
+                "description" : "Unique identifier (e.g., \"UKRPI\", \"EUHICP\", \"USCPI\")."
               },
-        "settlement_date" : {
+        "family_name" : {
                 "type" : "string",
-                "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond."
+                "description" : "Human-readable family name."
               },
+        "currency" : {
+                "type" : "string",
+                "description" : "ISO currency code (e.g., \"GBP\", \"EUR\", \"USD\")."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "availability_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Publication availability lag (e.g., 2 Months)."
+              },
+        "observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Observation lag used for swaps (e.g., 3 Months)."
+              },
+        "interpolated" : {
+                "type" : "boolean",
+                "description" : "Whether the index is interpolated between fixings."
+              },
+        "revised" : {
+                "type" : "boolean",
+                "description" : "Whether index values can be revised (rare; defaults to false)."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_InflationCurveKind"
+              },
+        "underlying_zero_index_id" : {
+                "type" : "string",
+                "description" : "For ratio-based YoY indices, link to the underlying zero inflation index id."
+              },
+        "fixings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Fixing"},
+                "description" : "Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting."
+              }
+      },
+      "required" : ["id"],
+      "additionalProperties" : false
+    },
+    "quantra_ZeroCouponInflationSwapHelper" : {
+      "type" : "object",
+      "description" : "Zero-coupon inflation swap helper point.",
+      "properties" : {
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+              },
+        "quote_value" : {
+                "type" : "number",
+                "description" : "Inline quote value used when quote_id is empty."
+              },
+        "swap_observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Lag applied when observing the CPI index in the swap."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Relative helper maturity from InflationCurveBaseSpec.reference_date."
+              },
+        "start_date" : {
+                "type" : "string",
+                "description" : "Optional explicit start date for dated helper construction."
+              },
+        "end_date" : {
+                "type" : "string",
+                "description" : "Optional explicit end/maturity date for dated helper construction."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "observation_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
+              },
+        "nominal_curve_id" : {
+                "type" : "string",
+                "description" : "Optional deprecated QuantLib nominal curve dependency."
+              }
+      },
+      "required" : ["swap_observation_lag"],
+      "additionalProperties" : false
+    },
+    "quantra_YearOnYearInflationSwapHelper" : {
+      "type" : "object",
+      "description" : "Year-on-year inflation swap helper point.",
+      "properties" : {
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Optional: resolve quote from pricing.quotes (QuoteType=Curve)."
+              },
+        "quote_value" : {
+                "type" : "number",
+                "description" : "Inline quote value used when quote_id is empty."
+              },
+        "swap_observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period"
+              },
+        "start_date" : {
+                "type" : "string"
+              },
+        "end_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "observation_interpolation" : {
+                "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
+              },
+        "nominal_curve_id" : {
+                "type" : "string",
+                "description" : "QuantLib YoY helper requires a nominal term structure."
+              }
+      },
+      "required" : ["swap_observation_lag", "nominal_curve_id"],
+      "additionalProperties" : false
+    },
+    "quantra_InflationPointWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for one inflation curve point.",
+      "properties" : {
+        "point_type" : {
+                "$ref" : "#/definitions/quantra_InflationPoint"
+              },
+        "point" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_ZeroCouponInflationSwapHelper" },{ "$ref" : "#/definitions/quantra_YearOnYearInflationSwapHelper" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_InflationCurveSpec" : {
+      "type" : "object",
+      "description" : "Inflation term-structure definition, modeled like rates `TermStructure`.",
+      "properties" : {
+        "id" : {
+                "type" : "string"
+              },
+        "reference_date" : {
+                "type" : "string"
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "interpolator" : {
+                "$ref" : "#/definitions/quantra_enums_Interpolator"
+              },
+        "bootstrap_accuracy" : {
+                "type" : "number"
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_InflationCurveKind"
+              },
+        "index_id" : {
+                "type" : "string",
+                "description" : "Link to InflationIndexSpec.id."
+              },
+        "discount_curve_id" : {
+                "type" : "string",
+                "description" : "Optional nominal discount curve id reserved for future inflation-leg projection/discounting models."
+              },
+        "allow_extrapolation" : {
+                "type" : "boolean"
+              },
+        "points" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationPointWrapper"}
+              }
+      },
+      "required" : ["id", "reference_date", "index_id", "points"],
+      "additionalProperties" : false
+    },
+    "quantra_RatesMarketData" : {
+      "type" : "object",
+      "description" : "Rates market data shared across interest-rate products.",
+      "properties" : {
         "indices" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_IndexDef"},
-                "description" : "Index definitions. Used by: ALL floating-rate instruments and curve helpers."
+                "description" : "Index definitions used by floating-rate instruments and curve helpers."
               },
         "swap_indices" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapIndexDef"},
@@ -1922,28 +2141,70 @@
               },
         "curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_TermStructure"},
-                "description" : "Yield curves for discounting/forwarding. Used by: ALL."
+                "description" : "Yield curves for discounting/forwarding."
               },
+        "coupon_pricers" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
+                "description" : "Coupon pricers for floating legs."
+              }
+      },
+      "required" : ["curves"],
+      "additionalProperties" : false
+    },
+    "quantra_CreditMarketData" : {
+      "type" : "object",
+      "description" : "Credit market data grouped under the shared Pricing context.",
+      "properties" : {
         "credit_curves" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CreditCurveSpec"},
-                "description" : "Credit curves for CDS pricing. Used by: CDS."
-              },
-        "quotes" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
-                "description" : "Market quotes (spot prices, FX rates). Used by: EquityOption (future)."
-              },
-        "equity_underlyings" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityUnderlyingSpec"},
-                "description" : "Equity underlyings referenced by equity option trades."
-              },
+                "description" : "Credit curves for CDS pricing."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VolatilityMarketData" : {
+      "type" : "object",
+      "description" : "Volatility and model data grouped under the shared Pricing context.",
+      "properties" : {
         "vol_surfaces" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSpec"},
-                "description" : "Volatility surfaces (typed by product family). Used by: CapFloor, Swaption, EquityOption."
+                "description" : "Volatility surfaces referenced by pricing and sampling endpoints."
               },
         "models" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ModelSpec"},
-                "description" : "Pricing models/engines (typed by product family). Used by: CapFloor, Swaption, CDS, EquityOption."
+                "description" : "Pricing models/engines referenced by product requests."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_EquityMarketData" : {
+      "type" : "object",
+      "description" : "Equity market data grouped under the shared Pricing context.",
+      "properties" : {
+        "equity_underlyings" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityUnderlyingSpec"},
+                "description" : "Equity underlyings referenced by equity option trades."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_InflationMarketData" : {
+      "type" : "object",
+      "description" : "Inflation market data grouped under the shared Pricing context.",
+      "properties" : {
+        "inflation_indices" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationIndexSpec"}
               },
+        "inflation_curves" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_InflationCurveSpec"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PricingOptions" : {
+      "type" : "object",
+      "description" : "Shared request-level pricing output options.",
+      "properties" : {
         "bond_pricing_details" : {
                 "type" : "boolean",
                 "description" : "Include bond analytics (duration, convexity). Used by: FixedRateBond, FloatingRateBond."
@@ -1959,13 +2220,46 @@
         "swaption_pricing_rebump" : {
                 "type" : "boolean",
                 "description" : "Include curve-rebump swaption analytics (Bloomberg-style)."
-              },
-        "coupon_pricers" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CouponPricer"},
-                "description" : "Coupon pricers for floating legs. Used by: FloatingRateBond, VanillaSwap."
               }
       },
-      "required" : ["as_of_date", "curves"],
+      "additionalProperties" : false
+    },
+    "quantra_Pricing" : {
+      "type" : "object",
+      "description" : "Central pricing configuration grouped by market-data domain.",
+      "properties" : {
+        "as_of_date" : {
+                "type" : "string",
+                "description" : "Valuation date (YYYY-MM-DD). Used by: ALL."
+              },
+        "settlement_date" : {
+                "type" : "string",
+                "description" : "Settlement date (YYYY-MM-DD). Used by: FixedRateBond, FloatingRateBond."
+              },
+        "quotes" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_QuoteSpec"},
+                "description" : "Shared market quotes (spot prices, FX rates, helper quotes)."
+              },
+        "rates" : {
+                "$ref" : "#/definitions/quantra_RatesMarketData"
+              },
+        "credit" : {
+                "$ref" : "#/definitions/quantra_CreditMarketData"
+              },
+        "volatility" : {
+                "$ref" : "#/definitions/quantra_VolatilityMarketData"
+              },
+        "equity" : {
+                "$ref" : "#/definitions/quantra_EquityMarketData"
+              },
+        "inflation" : {
+                "$ref" : "#/definitions/quantra_InflationMarketData"
+              },
+        "options" : {
+                "$ref" : "#/definitions/quantra_PricingOptions"
+              }
+      },
+      "required" : ["as_of_date"],
       "additionalProperties" : false
     },
     "quantra_CapFloor" : {

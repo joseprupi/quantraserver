@@ -14,8 +14,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
              "Non-compatible flatbuffers version included");
 
 #include "common_generated.h"
-#include "curve_query_generated.h"
 #include "enums_generated.h"
+#include "query_grid_generated.h"
 
 namespace quantra {
 

@@ -1,0 +1,14 @@
+include "common.fbs";
+include "pricing.fbs";
+include "inflation_curve_query.fbs";
+
+namespace quantra;
+
+/// Request to bootstrap inflation curves from Pricing and sample them by query.
+table BootstrapInflationCurvesRequest {
+    pricing:Pricing (required);
+    queries:[InflationCurveQuerySpec] (required);
+}
+
+root_type BootstrapInflationCurvesRequest;
+

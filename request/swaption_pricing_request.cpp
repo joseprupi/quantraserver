@@ -58,16 +58,16 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
     for (auto it = swaption_pricings->begin(); it != swaption_pricings->end(); it++)
     {
-        auto dIt = reg.curves.find(it->discounting_curve()->str());
-        if (dIt == reg.curves.end())
+        auto dIt = reg.rates.curves.find(it->discounting_curve()->str());
+        if (dIt == reg.rates.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
 
-        auto fIt = reg.curves.find(it->forwarding_curve()->str());
-        if (fIt == reg.curves.end())
+        auto fIt = reg.rates.curves.find(it->forwarding_curve()->str());
+        if (fIt == reg.rates.curves.end())
             QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
 
-        auto vIt = reg.swaptionVols.find(it->volatility()->str());
-        if (vIt == reg.swaptionVols.end())
+        auto vIt = reg.volatility.swaptionVols.find(it->volatility()->str());
+        if (vIt == reg.volatility.swaptionVols.end())
             QUANTRA_ERROR("Swaption vol not found: " + it->volatility()->str());
         if (vIt->second.referenceDate == QuantLib::Date()) {
             QUANTRA_ERROR("Swaption vol has invalid referenceDate: " + it->volatility()->str());
@@ -81,8 +81,8 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             QUANTRA_ERROR(err.str());
         }
 
-        auto mIt = reg.models.find(it->model()->str());
-        if (mIt == reg.models.end())
+        auto mIt = reg.volatility.models.find(it->model()->str());
+        if (mIt == reg.volatility.models.end())
             QUANTRA_ERROR("Model not found: " + it->model()->str());
         const std::string modelId = it->model()->str();
         const auto* swaptionModelSpec = modelParser.parse(mIt->second, it->model()->str());
@@ -120,7 +120,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                     "Model '" + modelId + "' hw_calibration.swaption_vol_id must match trade volatility");
             }
             const std::string calibSwapIndexId = calibSpec->swap_index_id()->str();
-            if (!reg.swapIndices.has(calibSwapIndexId)) {
+            if (!reg.rates.swapIndices.has(calibSwapIndexId)) {
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' hw_calibration.swap_index_id not found in pricing.swap_indices");
             }
@@ -134,7 +134,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' param_mode=Calibrate requires trade floating index id for compatibility checks");
             }
-            const auto& sidx = reg.swapIndices.get(calibSwapIndexId);
+            const auto& sidx = reg.rates.swapIndices.get(calibSwapIndexId);
             if (sidx.floatIndexId != tradeFloatIndexId) {
                 QUANTRA_ERROR(
                     "Model '" + modelId + "' hw_calibration.swap_index_id float_index_id does not match "
@@ -143,7 +143,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         }
 
         swaption_parser.linkForwardingTermStructure(fIt->second->currentLink());
-        auto swaption = swaption_parser.parse(it->swaption(), reg.indices);
+        auto swaption = swaption_parser.parse(it->swaption(), reg.rates.indices);
 
         SwaptionVolEntry volEntry = pricingServices.resolveVolEntry(
             vIt->second,
@@ -260,9 +260,9 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             // using the same input quotes under the rolled date.
             CurveBootstrapper bootstrapper;
             auto booted = bootstrapper.bootstrapAll(
-                request->pricing()->curves(),
+                request->pricing()->rates()->curves(),
                 request->pricing()->quotes(),
-                request->pricing()->indices(),
+                request->pricing()->rates()->indices(),
                 curveBump
             );
 
@@ -275,7 +275,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 QUANTRA_ERROR("Forwarding curve not found (rebump): " + it->forwarding_curve()->str());
 
             IndexRegistryBuilder indexBuilder;
-            IndexRegistry idx = indexBuilder.build(request->pricing()->indices());
+            IndexRegistry idx = indexBuilder.build(request->pricing()->rates()->indices());
 
             SwaptionParser bumpParser;
             bumpParser.linkForwardingTermStructure(fItB->second->currentLink());
@@ -297,7 +297,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             return bumpSwaption->NPV();
         };
 
-        if (reg.swaptionPricingDetails) {
+        if (reg.options.swaptionPricingDetails) {
             impliedVol = getResultOrDefault("impliedVolatility", impliedVol);
             atmForward = getResultOrDefault("atmForward", 0.0);
             annuity = getResultOrDefault("annuity", 0.0);
@@ -333,7 +333,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             impliedVol = -1.0;
         }
 
-        if (reg.swaptionPricingRebump) {
+        if (reg.options.swaptionPricingRebump) {
             const double bump = 1.0e-4; // 1bp
             double npvUp = priceWithRebump(bump, 0.0, 0);
             double npvDown = priceWithRebump(-bump, 0.0, 0);

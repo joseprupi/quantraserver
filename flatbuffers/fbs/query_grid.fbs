@@ -1,0 +1,42 @@
+include "enums.fbs";
+include "common.fbs";
+
+namespace quantra;
+
+/// Tenors relative to a curve reference date.
+table TenorGrid {
+    tenors:[Period] (required);
+    calendar:enums.Calendar = NullCalendar;
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+/// Sample between start/end with a step.
+table RangeGrid {
+    start_date:string;
+    end_date:string (required);
+    step_number:int = 1;
+    /// Days/Weeks are literal increments; Months/Years use calendar advance + BDC.
+    step_time_unit:enums.TimeUnit = Days;
+    business_days_only:bool = false;
+    calendar:enums.Calendar = NullCalendar;
+    business_day_convention:enums.BusinessDayConvention = Following;
+}
+
+/// Union of date grid types.
+union DateGrid { TenorGrid, RangeGrid }
+
+/// Date grid specification for curve/vol/inflation sampling.
+table DateGridSpec {
+    grid:DateGrid (required);
+}
+
+/// Generic query options for reusable sampling endpoints.
+table QueryOptions {
+    /// Calendar override when set.
+    calendar:enums.Calendar = NullCalendar;
+    /// Business day convention override when set.
+    business_day_convention:enums.BusinessDayConvention = Following;
+    max_points:int = 50000;
+    allow_extrapolation:bool = true;
+    strict:bool = true;
+}

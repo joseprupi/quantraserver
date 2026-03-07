@@ -272,6 +272,31 @@ enum SwaptionStrikeKind : byte {
     SpreadFromATM
 }
 
+/// Inflation curve kind (zero-coupon or year-on-year).
+enum InflationCurveKind : byte {
+    ZeroInflation = 0,
+    YoYInflation = 1
+}
+
+/// Inflation curve output measure for sampling endpoints.
+enum InflationCurveMeasure : byte {
+    ZeroRate = 0,
+    YoYRate = 1
+}
+
+/// CPI fixing interpolation convention used by QuantLib inflation helpers.
+enum CPIInterpolationType : byte {
+    AsIndex = 0,
+    Flat = 1,
+    Linear = 2
+}
+
+/// Bond quote cleanliness used by CPI bond bootstrap helpers.
+enum BondPriceType : byte {
+    Clean = 0,
+    Dirty = 1
+}
+
 /// Interest rate model type.
 enum IrModelType : byte {
     Black,

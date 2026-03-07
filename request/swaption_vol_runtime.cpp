@@ -195,10 +195,10 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         return raw;
     }
 
-    if (!reg.swapIndices.has(raw.swapIndexId)) {
+    if (!reg.rates.swapIndices.has(raw.swapIndexId)) {
         QUANTRA_ERROR("Missing swap index definition for id: " + raw.swapIndexId);
     }
-    const auto& sidx = reg.swapIndices.get(raw.swapIndexId);
+    const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
     if (trade != nullptr) {
         std::string tradeIndexId = getTradeFloatingIndexId(trade);
         if (!tradeIndexId.empty() && tradeIndexId != sidx.floatIndexId) {
@@ -229,7 +229,7 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     }
 
     auto atms = computeServerAtmForwards(
-        raw, sidx, reg.indices, discountCurve, forwardingCurve);
+        raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
     return withSwaptionSmileCubeAtm(raw, atms);
 }
 

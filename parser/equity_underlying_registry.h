@@ -21,7 +21,7 @@ struct EquityUnderlyingRuntime {
 class EquityUnderlyingRegistryBuilder {
 public:
     std::unordered_map<std::string, EquityUnderlyingRuntime> build(
-        const quantra::Pricing* pricing,
+        const quantra::EquityMarketData* equity,
         const PricingRegistry& reg) const;
 };
 

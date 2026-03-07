@@ -338,8 +338,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
             int nExpOut = 0, nTenOut = 0, nStrOut = 0;
 
             if (q->surface_type() == VolSurfaceType_Swaption) {
-                auto vIt = reg.swaptionVols.find(volId);
-                if (vIt == reg.swaptionVols.end()) {
+                auto vIt = reg.volatility.swaptionVols.find(volId);
+                if (vIt == reg.volatility.swaptionVols.end()) {
                     QUANTRA_ERROR("Swaption vol not found: " + volId);
                 }
                 SwaptionVolEntry volEntry = vIt->second;
@@ -376,10 +376,10 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (volEntry.swapIndexId != swapIndexId) {
                     QUANTRA_ERROR("VolQuerySpec.swap_index_id does not match surface swap_index_id");
                 }
-                if (!reg.swapIndices.has(swapIndexId)) {
+                if (!reg.rates.swapIndices.has(swapIndexId)) {
                     QUANTRA_ERROR("Missing swap index definition for id: " + swapIndexId);
                 }
-                const SwapIndexRuntime& sidx = reg.swapIndices.get(swapIndexId);
+                const SwapIndexRuntime& sidx = reg.rates.swapIndices.get(swapIndexId);
                 usedCalendar = sidx.fixedCalendarFb;
                 usedBdc = sidx.fixedBdcFb;
 
@@ -427,9 +427,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         QUANTRA_ERROR(
                             "SpreadFromATM swaption sampling requires discounting_curve_id and forwarding_curve_id");
                     }
-                    auto dIt = reg.curves.find(q->discounting_curve_id()->str());
-                    auto fIt = reg.curves.find(q->forwarding_curve_id()->str());
-                    if (dIt == reg.curves.end() || fIt == reg.curves.end()) {
+                    auto dIt = reg.rates.curves.find(q->discounting_curve_id()->str());
+                    auto fIt = reg.rates.curves.find(q->forwarding_curve_id()->str());
+                    if (dIt == reg.rates.curves.end() || fIt == reg.rates.curves.end()) {
                         QUANTRA_ERROR("Sampling curve ids not found for ATM computation");
                     }
                     volEntry = finalizeSwaptionVolEntryForPricing(
@@ -511,9 +511,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         !q->forwarding_curve_id() || q->forwarding_curve_id()->str().empty()) {
                         QUANTRA_ERROR("SpreadFromATM requires discounting_curve_id/forwarding_curve_id");
                     }
-                    auto dIt = reg.curves.find(q->discounting_curve_id()->str());
-                    auto fIt = reg.curves.find(q->forwarding_curve_id()->str());
-                    if (dIt == reg.curves.end() || fIt == reg.curves.end()) {
+                    auto dIt = reg.rates.curves.find(q->discounting_curve_id()->str());
+                    auto fIt = reg.rates.curves.find(q->forwarding_curve_id()->str());
+                    if (dIt == reg.rates.curves.end() || fIt == reg.rates.curves.end()) {
                         QUANTRA_ERROR("Sampling curve ids not found for ATM computation");
                     }
                     std::vector<Date> atmExpiries;
@@ -535,7 +535,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         atmExpiries,
                         atmTenors,
                         sidx,
-                        reg.indices,
+                        reg.rates.indices,
                         Handle<YieldTermStructure>(dIt->second->currentLink()),
                         Handle<YieldTermStructure>(fIt->second->currentLink()));
                     const size_t expectedAtm = atmExpiries.size() * atmTenors.size();
@@ -756,8 +756,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
 
                 volTypeOut = fromQlVolType(volEntry.qlVolType, volEntry.displacement);
             } else if (q->surface_type() == VolSurfaceType_EquityBlack) {
-                auto vIt = reg.blackVols.find(volId);
-                if (vIt == reg.blackVols.end()) {
+                auto vIt = reg.volatility.blackVols.find(volId);
+                if (vIt == reg.volatility.blackVols.end()) {
                     QUANTRA_ERROR("Black vol not found: " + volId);
                 }
                 const BlackVolEntry& volEntry = vIt->second;
@@ -845,8 +845,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 nTenOut = 0;
                 nStrOut = static_cast<int>(strikesOut.size());
             } else if (q->surface_type() == VolSurfaceType_Optionlet) {
-                auto vIt = reg.optionletVols.find(volId);
-                if (vIt == reg.optionletVols.end()) {
+                auto vIt = reg.volatility.optionletVols.find(volId);
+                if (vIt == reg.volatility.optionletVols.end()) {
                     QUANTRA_ERROR("Optionlet vol not found: " + volId);
                 }
                 const OptionletVolEntry& volEntry = vIt->second;

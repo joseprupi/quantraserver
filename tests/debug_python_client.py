@@ -100,19 +100,19 @@ if not all_imports_ok:
 
 print()
 print("=" * 60)
-print("STEP 3: Check PricingT has 'indices' attribute")
+print("STEP 3: Check PricingT has 'rates' attribute")
 print("=" * 60)
 
 from quantra.Pricing import PricingT
 p = PricingT()
-if hasattr(p, 'indices'):
-    print(f"  ✓ PricingT has 'indices' attribute (value: {p.indices})")
+if hasattr(p, 'rates'):
+    print(f"  ✓ PricingT has 'rates' attribute (value: {p.rates})")
 else:
-    print(f"  ✗ PricingT does NOT have 'indices' attribute!")
+    print(f"  ✗ PricingT does NOT have 'rates' attribute!")
     print(f"    Available attrs: {[a for a in dir(p) if not a.startswith('_')]}")
     print()
-    print("  This means flatc was not run with the updated common.fbs.")
-    print("  The old Pricing table doesn't have indices.")
+    print("  This means flatc was not run with the updated pricing.fbs.")
+    print("  The old Pricing table doesn't have grouped market-data sections.")
     sys.exit(1)
 
 print()
@@ -140,6 +140,8 @@ try:
     from quantra.IndexRef import IndexRefT
     from quantra.IndexType import IndexType
     from quantra.Pricing import PricingT
+    from quantra.RatesMarketData import RatesMarketDataT
+    from quantra.PricingOptions import PricingOptionsT
     from quantra.TermStructure import TermStructureT
     from quantra.PointsWrapper import PointsWrapperT
     from quantra.DepositHelper import DepositHelperT
@@ -228,10 +230,12 @@ try:
     pricing = PricingT()
     pricing.asOfDate = EVAL_DATE_STR
     pricing.settlementDate = EVAL_DATE_STR
-    pricing.indices = [idx_def]
-    pricing.curves = [ts]
-    pricing.bondPricingDetails = True
-    print(f"  ✓ PricingT built with {len(pricing.indices)} indices, {len(pricing.curves)} curves")
+    pricing.rates = RatesMarketDataT()
+    pricing.rates.indices = [idx_def]
+    pricing.rates.curves = [ts]
+    pricing.options = PricingOptionsT()
+    pricing.options.bondPricingDetails = True
+    print(f"  ✓ PricingT built with {len(pricing.rates.indices)} indices, {len(pricing.rates.curves)} curves")
     
     # Build bond
     sch = ScheduleT()

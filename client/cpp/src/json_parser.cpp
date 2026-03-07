@@ -4,13 +4,34 @@
  */
 
 #include "quantra_client.h"
-#include "product_registry.h"
 
 #include <map>
 #include <stdexcept>
 #include <iostream>
+#include <cstdlib>
+#include <filesystem>
 
 namespace quantra {
+
+namespace {
+
+std::string ResolveEnvOrDefault(const char* env_name, const std::string& fallback) {
+    const char* value = std::getenv(env_name);
+    if (value != nullptr && value[0] != '\0') {
+        return value;
+    }
+    return fallback;
+}
+
+} // namespace
+
+std::string Config::GetFbsDir() {
+    return ResolveEnvOrDefault("QUANTRA_FBS_DIR", "flatbuffers/fbs");
+}
+
+std::string Config::GetFbsIncludeDir() {
+    return ResolveEnvOrDefault("QUANTRA_FBS_INCLUDE_DIR", Config::GetFbsDir());
+}
 
 // =============================================================================
 // JsonParser Implementation (PIMPL)
@@ -19,7 +40,9 @@ namespace quantra {
 class JsonParser::Impl {
 public:
     Impl() {
-        include_dirs_[0] = Config::FBS_INCLUDE_DIR;
+        fbs_dir_ = Config::GetFbsDir();
+        include_dir_ = Config::GetFbsIncludeDir();
+        include_dirs_[0] = include_dir_.c_str();
         include_dirs_[1] = nullptr;
         LoadAllSchemas();
     }
@@ -31,7 +54,7 @@ public:
         auto& parser = request_parsers_.at(type);
         
         if (!parser->Parse(json.c_str(), include_dirs_)) {
-            throw std::runtime_error("JSON parse error for " + 
+            throw JsonParseException("JSON parse error for " +
                 std::string(ProductTypeToString(type)) + ": " + parser->error_);
         }
         
@@ -48,7 +71,7 @@ public:
         const char* error = flatbuffers::GenText(*parser, buffer, &json);
         
         if (error != nullptr) {
-            throw std::runtime_error("Failed to generate JSON for " + 
+            throw JsonRuntimeException("Failed to generate JSON for " +
                 std::string(ProductTypeToString(type)) + ": " + error);
         }
         
@@ -57,6 +80,8 @@ public:
 
 private:
     const char* include_dirs_[2];
+    std::string fbs_dir_;
+    std::string include_dir_;
     std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> request_parsers_;
     std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> response_parsers_;
     
@@ -74,15 +99,17 @@ private:
         parser->opts.strict_json = true;
         parser->opts.force_defaults = true;
         
-        std::string filepath = std::string(Config::FBS_DIR) + "/" + filename;
+        std::filesystem::path filepath = std::filesystem::path(fbs_dir_) / filename;
         std::string content;
         
-        if (!flatbuffers::LoadFile(filepath.c_str(), false, &content)) {
-            throw std::runtime_error("Failed to load schema: " + filepath);
+        if (!flatbuffers::LoadFile(filepath.string().c_str(), false, &content)) {
+            throw JsonRuntimeException(
+                "Failed to load schema: " + filepath.string() +
+                " (set QUANTRA_FBS_DIR/QUANTRA_FBS_INCLUDE_DIR if needed)");
         }
         
         if (!parser->Parse(content.c_str(), include_dirs_)) {
-            throw std::runtime_error("Failed to parse schema " + 
+            throw JsonRuntimeException("Failed to parse schema " +
                 std::string(filename) + ": " + parser->error_);
         }
         

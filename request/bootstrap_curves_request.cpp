@@ -1,4 +1,5 @@
 #include "bootstrap_curves_request.h"
+#include "grid_utils.h"
 
 #include <set>
 
@@ -64,8 +65,8 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 QUANTRA_ERROR("CurveQuerySpec.measures is required for curve_id: " + curveId);
             }
 
-            auto regIt = reg.curves.find(curveId);
-            if (regIt == reg.curves.end() || !regIt->second || regIt->second->empty()) {
+            auto regIt = reg.rates.curves.find(curveId);
+            if (regIt == reg.rates.curves.end() || !regIt->second || regIt->second->empty()) {
                 QUANTRA_ERROR("Curve id not found in PricingRegistry: " + curveId);
             }
             auto curve = regIt->second->currentLink();
@@ -73,9 +74,10 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 QUANTRA_ERROR("Curve handle has no linked curve for id: " + curveId);
             }
 
-            const auto* tsSpec = findCurveSpecById(request->pricing()->curves(), curveId);
+            const auto* rates = request->pricing()->rates();
+            const auto* tsSpec = findCurveSpecById(rates ? rates->curves() : nullptr, curveId);
             if (!tsSpec) {
-                QUANTRA_ERROR("curve_id '" + curveId + "' not found in pricing.curves");
+                QUANTRA_ERROR("curve_id '" + curveId + "' not found in pricing.rates.curves");
             }
 
             const auto* options = query->options();
@@ -103,9 +105,7 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
 
             std::vector<flatbuffers::Offset<flatbuffers::String>> gridDateStrings;
             for (const auto& d : gridDates) {
-                std::ostringstream os;
-                os << io::iso_date(d);
-                gridDateStrings.push_back(builder->CreateString(os.str()));
+                gridDateStrings.push_back(builder->CreateString(grid_utils::ToIsoDate(d)));
             }
 
             std::vector<flatbuffers::Offset<CurveSeries>> seriesVector;
@@ -138,15 +138,11 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
             std::vector<Date> pillarDates = extractPillarDatesFromHelpers(tsSpec, referenceDate);
             std::vector<flatbuffers::Offset<flatbuffers::String>> pillarDateStrings;
             for (const auto& d : pillarDates) {
-                std::ostringstream os;
-                os << io::iso_date(d);
-                pillarDateStrings.push_back(builder->CreateString(os.str()));
+                pillarDateStrings.push_back(builder->CreateString(grid_utils::ToIsoDate(d)));
             }
 
             auto idStr = builder->CreateString(curveId);
-            std::ostringstream refDateOs;
-            refDateOs << io::iso_date(referenceDate);
-            auto refDateStr = builder->CreateString(refDateOs.str());
+            auto refDateStr = builder->CreateString(grid_utils::ToIsoDate(referenceDate));
             auto gridDatesVec = builder->CreateVector(gridDateStrings);
             auto seriesVec = builder->CreateVector(seriesVector);
             auto pillarDatesVec = builder->CreateVector(pillarDateStrings);
@@ -200,42 +196,13 @@ Calendar BootstrapCurvesRequestHandler::getCalendarFromGrid(
     const DateGridSpec* gridSpec,
     const QueryOptions* options,
     const Calendar& fallbackCalendar) const {
-    if (options && options->calendar() != enums::Calendar_NullCalendar) {
-        return CalendarToQL(options->calendar());
-    }
-    if (!gridSpec) return fallbackCalendar;
-
-    if (gridSpec->grid_type() == DateGrid_TenorGrid) {
-        auto grid = gridSpec->grid_as_TenorGrid();
-        if (grid->calendar() != enums::Calendar_NullCalendar) {
-            return CalendarToQL(grid->calendar());
-        }
-    } else if (gridSpec->grid_type() == DateGrid_RangeGrid) {
-        auto grid = gridSpec->grid_as_RangeGrid();
-        if (grid->calendar() != enums::Calendar_NullCalendar) {
-            return CalendarToQL(grid->calendar());
-        }
-    }
-
-    return fallbackCalendar;
+    return grid_utils::ResolveCalendar(gridSpec, options, fallbackCalendar);
 }
 
 BusinessDayConvention BootstrapCurvesRequestHandler::getBdcFromGrid(
     const DateGridSpec* gridSpec,
     const QueryOptions* options) const {
-    if (options) {
-        return ConventionToQL(options->business_day_convention());
-    }
-    if (!gridSpec) return Following;
-
-    if (gridSpec->grid_type() == DateGrid_TenorGrid) {
-        return ConventionToQL(gridSpec->grid_as_TenorGrid()->business_day_convention());
-    }
-    if (gridSpec->grid_type() == DateGrid_RangeGrid) {
-        return ConventionToQL(gridSpec->grid_as_RangeGrid()->business_day_convention());
-    }
-
-    return Following;
+    return grid_utils::ResolveBusinessDayConvention(gridSpec, options, Following);
 }
 
 std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
@@ -312,75 +279,14 @@ std::vector<Date> BootstrapCurvesRequestHandler::buildTenorGrid(
     const TenorGrid* grid,
     const Date& referenceDate,
     const Calendar& fallbackCalendar) const {
-    std::vector<Date> dates;
-    auto tenors = grid->tenors();
-    Calendar calendar = fallbackCalendar;
-    BusinessDayConvention bdc = Following;
-    bool useCalendar = false;
-
-    if (grid->calendar() != enums::Calendar_NullCalendar) {
-        calendar = CalendarToQL(grid->calendar());
-        bdc = ConventionToQL(grid->business_day_convention());
-        useCalendar = true;
-    }
-
-    for (flatbuffers::uoffset_t i = 0; i < tenors->size(); i++) {
-        auto tenor = tenors->Get(i);
-        int n = tenor->n();
-        TimeUnit unit = TimeUnitToQL(tenor->unit());
-        if (n == 0) {
-            dates.push_back(referenceDate);
-            continue;
-        }
-        QuantLib::Period period(n, unit);
-        Date d = useCalendar ? calendar.advance(referenceDate, period, bdc) : referenceDate + period;
-        dates.push_back(d);
-    }
-
-    return dates;
+    return grid_utils::BuildTenorGrid(grid, referenceDate, fallbackCalendar, false);
 }
 
 std::vector<Date> BootstrapCurvesRequestHandler::buildRangeGrid(
     const RangeGrid* grid,
     const Date& asOfDate,
     int maxPoints) const {
-    std::vector<Date> dates;
-    Date startDate = grid->start_date() ? DateToQL(grid->start_date()->str()) : asOfDate;
-    Date endDate = DateToQL(grid->end_date()->str());
-    int stepNumber = grid->step_number();
-    TimeUnit stepUnit = TimeUnitToQL(grid->step_time_unit());
-    QuantLib::Period step(stepNumber, stepUnit);
-    bool businessDaysOnly = grid->business_days_only();
-    Calendar calendar = CalendarToQL(grid->calendar());
-    BusinessDayConvention bdc = ConventionToQL(grid->business_day_convention());
-
-    bool isNullCalendar = (grid->calendar() == enums::Calendar_NullCalendar);
-    if (businessDaysOnly && isNullCalendar) {
-        calendar = WeekendsOnly();
-    }
-
-    Date current = startDate;
-    while (current <= endDate) {
-        if (businessDaysOnly) {
-            if (calendar.isBusinessDay(current)) dates.push_back(current);
-        } else {
-            dates.push_back(current);
-        }
-
-        if (stepUnit == Days) {
-            current = current + stepNumber;
-        } else if (stepUnit == Weeks) {
-            current = current + stepNumber * 7;
-        } else {
-            current = calendar.advance(current, step, bdc);
-        }
-
-        if (static_cast<int>(dates.size()) > maxPoints) {
-            QUANTRA_ERROR("Grid too large (>" + std::to_string(maxPoints) + " points).");
-        }
-    }
-
-    return dates;
+    return grid_utils::BuildRangeGrid(grid, asOfDate, maxPoints);
 }
 
 std::vector<double> BootstrapCurvesRequestHandler::computeDiscountFactors(

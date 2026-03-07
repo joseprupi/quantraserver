@@ -1196,6 +1196,133 @@ inline const char *EnumNameSwaptionStrikeKind(SwaptionStrikeKind e) {
   return EnumNamesSwaptionStrikeKind()[index];
 }
 
+/// Inflation curve kind (zero-coupon or year-on-year).
+enum InflationCurveKind : int8_t {
+  InflationCurveKind_ZeroInflation = 0,
+  InflationCurveKind_YoYInflation = 1,
+  InflationCurveKind_MIN = InflationCurveKind_ZeroInflation,
+  InflationCurveKind_MAX = InflationCurveKind_YoYInflation
+};
+
+inline const InflationCurveKind (&EnumValuesInflationCurveKind())[2] {
+  static const InflationCurveKind values[] = {
+    InflationCurveKind_ZeroInflation,
+    InflationCurveKind_YoYInflation
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesInflationCurveKind() {
+  static const char * const names[3] = {
+    "ZeroInflation",
+    "YoYInflation",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameInflationCurveKind(InflationCurveKind e) {
+  if (::flatbuffers::IsOutRange(e, InflationCurveKind_ZeroInflation, InflationCurveKind_YoYInflation)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesInflationCurveKind()[index];
+}
+
+/// Inflation curve output measure for sampling endpoints.
+enum InflationCurveMeasure : int8_t {
+  InflationCurveMeasure_ZeroRate = 0,
+  InflationCurveMeasure_YoYRate = 1,
+  InflationCurveMeasure_MIN = InflationCurveMeasure_ZeroRate,
+  InflationCurveMeasure_MAX = InflationCurveMeasure_YoYRate
+};
+
+inline const InflationCurveMeasure (&EnumValuesInflationCurveMeasure())[2] {
+  static const InflationCurveMeasure values[] = {
+    InflationCurveMeasure_ZeroRate,
+    InflationCurveMeasure_YoYRate
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesInflationCurveMeasure() {
+  static const char * const names[3] = {
+    "ZeroRate",
+    "YoYRate",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameInflationCurveMeasure(InflationCurveMeasure e) {
+  if (::flatbuffers::IsOutRange(e, InflationCurveMeasure_ZeroRate, InflationCurveMeasure_YoYRate)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesInflationCurveMeasure()[index];
+}
+
+/// CPI fixing interpolation convention used by QuantLib inflation helpers.
+enum CPIInterpolationType : int8_t {
+  CPIInterpolationType_AsIndex = 0,
+  CPIInterpolationType_Flat = 1,
+  CPIInterpolationType_Linear = 2,
+  CPIInterpolationType_MIN = CPIInterpolationType_AsIndex,
+  CPIInterpolationType_MAX = CPIInterpolationType_Linear
+};
+
+inline const CPIInterpolationType (&EnumValuesCPIInterpolationType())[3] {
+  static const CPIInterpolationType values[] = {
+    CPIInterpolationType_AsIndex,
+    CPIInterpolationType_Flat,
+    CPIInterpolationType_Linear
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCPIInterpolationType() {
+  static const char * const names[4] = {
+    "AsIndex",
+    "Flat",
+    "Linear",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCPIInterpolationType(CPIInterpolationType e) {
+  if (::flatbuffers::IsOutRange(e, CPIInterpolationType_AsIndex, CPIInterpolationType_Linear)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCPIInterpolationType()[index];
+}
+
+/// Bond quote cleanliness used by CPI bond bootstrap helpers.
+enum BondPriceType : int8_t {
+  BondPriceType_Clean = 0,
+  BondPriceType_Dirty = 1,
+  BondPriceType_MIN = BondPriceType_Clean,
+  BondPriceType_MAX = BondPriceType_Dirty
+};
+
+inline const BondPriceType (&EnumValuesBondPriceType())[2] {
+  static const BondPriceType values[] = {
+    BondPriceType_Clean,
+    BondPriceType_Dirty
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesBondPriceType() {
+  static const char * const names[3] = {
+    "Clean",
+    "Dirty",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameBondPriceType(BondPriceType e) {
+  if (::flatbuffers::IsOutRange(e, BondPriceType_Clean, BondPriceType_Dirty)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesBondPriceType()[index];
+}
+
 /// Interest rate model type.
 enum IrModelType : int8_t {
   IrModelType_Black = 0,

@@ -12,6 +12,7 @@ Usage:
 import json
 import argparse
 import requests
+import re
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 import copy
@@ -28,18 +29,25 @@ except ImportError:
 # =============================================================================
 
 class ApiClient:
-    ENDPOINTS = {
-        "fixed_rate_bond": "price-fixed-rate-bond",
-        "floating_rate_bond": "price-floating-rate-bond",
-        "vanilla_swap": "price-vanilla-swap",
-        "ois_swap": "price-ois-swap",
-        "basis_swap": "price-basis-swap",
-        "fra": "price-fra",
-        "cap_floor": "price-cap-floor",
-        "swaption": "price-swaption",
-        "cds": "price-cds",
-        "bootstrap_curves": "bootstrap-curves",
-    }
+    @staticmethod
+    def _load_endpoints() -> Dict[str, str]:
+        header = Path(__file__).resolve().parent.parent / "common" / "product_catalog.h"
+        pattern = re.compile(
+            r'^\s*X\(\s*\w+,\s*"(?P<key>[^"]+)",\s*"(?P<route>[^"]+)",\s*"[^"]+",\s*"[^"]+"\s*\)'
+        )
+        endpoints: Dict[str, str] = {}
+        with open(header, "r") as f:
+            for raw_line in f:
+                line = raw_line.strip().rstrip("\\")
+                match = pattern.match(line)
+                if match:
+                    entry = match.groupdict()
+                    endpoints[entry["key"]] = entry["route"]
+        if not endpoints:
+            raise RuntimeError(f"Could not parse endpoint catalog from {header}")
+        return endpoints
+
+    ENDPOINTS = _load_endpoints.__func__()
     
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip('/')
@@ -92,8 +100,83 @@ def _normalize_period_fields_for_api(obj):
             del out["float_tenor_number"]
             del out["float_tenor_time_unit"]
 
+        if "pricing" in out and isinstance(out["pricing"], dict):
+            out["pricing"] = _reshape_pricing_for_api(out["pricing"])
+        if "inflation" in out and isinstance(out["inflation"], dict) and "pricing" in out and isinstance(out["pricing"], dict):
+            pricing = out["pricing"]
+            inflation = pricing.get("inflation", {})
+            for key in ("inflation_indices", "inflation_curves"):
+                if key in out["inflation"] and key not in inflation:
+                    inflation[key] = out["inflation"][key]
+            if inflation:
+                pricing["inflation"] = inflation
+            del out["inflation"]
+
         return out
     return obj
+
+
+def _reshape_pricing_for_api(pricing: dict) -> dict:
+    """Convert legacy flat Pricing payloads into nested domain-grouped pricing."""
+    if not isinstance(pricing, dict):
+        return pricing
+
+    # Already nested.
+    if any(key in pricing for key in ("rates", "credit", "volatility", "equity", "inflation", "options")):
+        return pricing
+
+    out = dict(pricing)
+    rates = {}
+    credit = {}
+    volatility = {}
+    equity = {}
+    inflation = {}
+    options = {}
+
+    rates_fields = ("indices", "swap_indices", "curves", "coupon_pricers")
+    credit_fields = ("credit_curves",)
+    volatility_fields = ("vol_surfaces", "models")
+    equity_fields = ("equity_underlyings",)
+    inflation_fields = ("inflation_indices", "inflation_curves")
+    option_fields = (
+        "bond_pricing_details",
+        "bond_pricing_flows",
+        "swaption_pricing_details",
+        "swaption_pricing_rebump",
+    )
+
+    for key in rates_fields:
+        if key in out:
+            rates[key] = out.pop(key)
+    for key in credit_fields:
+        if key in out:
+            credit[key] = out.pop(key)
+    for key in volatility_fields:
+        if key in out:
+            volatility[key] = out.pop(key)
+    for key in equity_fields:
+        if key in out:
+            equity[key] = out.pop(key)
+    for key in inflation_fields:
+        if key in out:
+            inflation[key] = out.pop(key)
+    for key in option_fields:
+        if key in out:
+            options[key] = out.pop(key)
+
+    if rates:
+        out["rates"] = rates
+    if credit:
+        out["credit"] = credit
+    if volatility:
+        out["volatility"] = volatility
+    if equity:
+        out["equity"] = equity
+    if inflation:
+        out["inflation"] = inflation
+    if options:
+        out["options"] = options
+    return out
 
 
 def _period_n_unit(container: dict, key: str = "tenor", default_n: int = 0, default_unit: str = "Days"):
@@ -1942,6 +2025,221 @@ def test_bootstrap_curves_missing_dependency_fails(client: ApiClient) -> dict:
         return result
 
 
+def test_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
+    """Smoke-test inflation bootstrap endpoint exposure and response shape."""
+    result = {
+        "product": "bootstrap_inflation_curves",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": None,
+        "quantlib_npv": None,
+        "diff": None,
+        "error": None
+    }
+    try:
+        request = {
+            "pricing": {
+                "as_of_date": "2025-01-15",
+                "indices": [{
+                    "id": "EUR_6M", "name": "Euribor", "index_type": "Ibor",
+                    "tenor_number": 6, "tenor_time_unit": "Months",
+                    "fixing_days": 2, "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual360", "currency": "EUR"
+                }],
+                "curves": [{
+                    "id": "DISC", "reference_date": "2025-01-15",
+                    "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [{
+                        "point_type": "DepositHelper",
+                        "point": {
+                            "rate": 0.03, "tenor_number": 6, "tenor_time_unit": "Months",
+                            "fixing_days": 2, "calendar": "TARGET",
+                            "business_day_convention": "ModifiedFollowing",
+                            "day_counter": "Actual360"
+                        }
+                    }]
+                }]
+            },
+            "inflation": {
+                "inflation_indices": [{
+                    "id": "EUHICP", "family_name": "EU HICP", "currency": "EUR",
+                    "calendar": "TARGET", "day_counter": "Actual365Fixed",
+                    "frequency": "Monthly",
+                    "availability_lag": {"n": 2, "unit": "Months"},
+                    "observation_lag": {"n": 3, "unit": "Months"},
+                    "interpolated": True, "revised": False, "kind": "ZeroInflation",
+                    "fixings": [
+                        {"date": "2024-10-01", "value": 100.0},
+                        {"date": "2024-11-01", "value": 100.2},
+                        {"date": "2024-12-01", "value": 100.4}
+                    ]
+                }],
+                "inflation_curves": [{
+                    "id": "HICP_ZC",
+                    "reference_date": "2025-01-15",
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "Linear",
+                    "bootstrap_accuracy": 1.0e-12,
+                    "kind": "ZeroInflation",
+                    "index_id": "EUHICP",
+                    "discount_curve_id": "DISC",
+                    "allow_extrapolation": True,
+                    "points": [
+                        {
+                            "point_type": "ZeroCouponInflationSwapHelper",
+                            "point": {
+                                "quote_value": 0.0200,
+                                "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                "tenor": {"n": 1, "unit": "Years"},
+                                "calendar": "TARGET",
+                                "payment_convention": "ModifiedFollowing",
+                                "day_counter": "Actual365Fixed",
+                                "observation_interpolation": "Linear"
+                            }
+                        },
+                        {
+                            "point_type": "ZeroCouponInflationSwapHelper",
+                            "point": {
+                                "quote_value": 0.0210,
+                                "swap_observation_lag": {"n": 3, "unit": "Months"},
+                                "tenor": {"n": 2, "unit": "Years"},
+                                "calendar": "TARGET",
+                                "payment_convention": "ModifiedFollowing",
+                                "day_counter": "Actual365Fixed",
+                                "observation_interpolation": "Linear"
+                            }
+                        }
+                    ]
+                }]
+            },
+            "queries": [{
+                "curve_id": "HICP_ZC",
+                "measures": ["ZeroRate"],
+                "grid": {
+                    "grid_type": "TenorGrid",
+                    "grid": {
+                        "tenors": [{"n": 1, "unit": "Years"}, {"n": 2, "unit": "Years"}],
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing"
+                    }
+                }
+            }]
+        }
+
+        response = client.price("bootstrap_inflation_curves", request)
+        results = response.get("results", [])
+        if len(results) != 1:
+            result["error"] = f"Expected 1 result, got {len(results)}"
+            return result
+        if results[0].get("error"):
+            result["error"] = str(results[0]["error"])
+            return result
+
+        series = results[0].get("series", [])
+        if not series or not series[0].get("values"):
+            result["error"] = "Missing sampled inflation series values"
+            return result
+        result["passed"] = True
+        result["quantra_npv"] = float(series[0]["values"][0])
+        result["quantlib_npv"] = float(series[0]["values"][0])
+        result["diff"] = 0.0
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
+def test_bootstrap_inflation_curves_rejects_legacy_payload(client: ApiClient) -> dict:
+    """Breaking-change guard: old generic inflation pillar payload must be rejected."""
+    result = {
+        "product": "bootstrap_inflation_curves_legacy_payload_rejected",
+        "file": "<inline>",
+        "passed": False,
+        "quantra_npv": 0.0,
+        "quantlib_npv": 0.0,
+        "diff": 0.0,
+        "error": None,
+    }
+    request = {
+        "pricing": {
+            "as_of_date": "2025-01-15",
+            "curves": [{
+                "id": "DISC",
+                "reference_date": "2025-01-15",
+                "day_counter": "Actual365Fixed",
+                "interpolator": "LogLinear",
+                "bootstrap_trait": "Discount",
+                "points": [{
+                    "point_type": "DepositHelper",
+                    "point": {
+                        "rate": 0.03,
+                        "tenor": {"n": 6, "unit": "Months"},
+                        "fixing_days": 2,
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual360",
+                    },
+                }],
+            }]
+        },
+        "inflation": {
+            "inflation_indices": [{
+                "id": "EUHICP",
+                "family_name": "EU HICP",
+                "currency": "EUR",
+                "calendar": "TARGET",
+                "day_counter": "Actual365Fixed",
+                "frequency": "Monthly",
+                "availability_lag": {"n": 2, "unit": "Months"},
+                "observation_lag": {"n": 3, "unit": "Months"},
+                "interpolated": True,
+                "revised": False,
+                "kind": "ZeroInflation",
+            }],
+            "inflation_curves": [{
+                "base": {
+                    "id": "HICP_ZC",
+                    "reference_date": "2025-01-15",
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "kind": "ZeroInflation",
+                    "index_id": "EUHICP",
+                },
+                "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
+                "payload": {
+                    "pillars": [
+                        {"maturity": {"n": 1, "unit": "Years"}, "quote_value": 0.0200}
+                    ]
+                },
+            }]
+        },
+        "queries": [{
+            "curve_id": "HICP_ZC",
+            "measures": ["ZeroRate"],
+            "grid": {
+                "grid_type": "TenorGrid",
+                "grid": {"tenors": [{"n": 1, "unit": "Years"}]},
+            },
+        }],
+    }
+
+    try:
+        client.price("bootstrap_inflation_curves", request)
+        result["error"] = "Legacy payload unexpectedly accepted"
+    except Exception as e:
+        msg = str(e)
+        if "ZeroInflationCurveFromZcSwapsSpec" in msg or "JSON parse error" in msg:
+            result["passed"] = True
+        else:
+            result["error"] = msg
+    return result
+
+
 # =============================================================================
 # Main Test Runner
 # =============================================================================
@@ -2104,6 +2402,28 @@ def main():
     else:
         status = "✓ PASS" if mc_missing["passed"] else "✗ FAIL"
         print(f"  Status:       {status}")
+
+    bi_result = test_bootstrap_inflation_curves_smoke(client)
+    results.append(bi_result)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP INFLATION CURVES")
+    print(f"{'='*70}")
+    if bi_result["error"]:
+        print(f"  ❌ Error: {bi_result['error']}")
+    else:
+        status = "✓ PASS" if bi_result["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
+
+    bi_legacy = test_bootstrap_inflation_curves_rejects_legacy_payload(client)
+    results.append(bi_legacy)
+    print(f"\n{'='*70}")
+    print("BOOTSTRAP INFLATION CURVES (LEGACY PAYLOAD REJECTED)")
+    print(f"{'='*70}")
+    if bi_legacy["error"]:
+        print(f"  ❌ Error: {bi_legacy['error']}")
+    else:
+        status = "✓ PASS" if bi_legacy["passed"] else "✗ FAIL"
+        print(f"  Status:       {status}")
     # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")
@@ -2120,7 +2440,7 @@ def main():
     
     passed = sum(1 for r in results if r["passed"])
     print("-" * 70)
-    print(f"TOTAL: {passed}/{len(results)} tests passed")
+    print(f"TOTAL SCENARIOS: {passed}/{len(results)} passed")
     
     return passed == len(results)
 

@@ -17,12 +17,12 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
         QUANTRA_ERROR("PriceVanillaSwap entry requires vanilla_swap");
     }
 
-    auto discountIt = reg.curves.find(tradePricing->discounting_curve()->str());
-    if (discountIt == reg.curves.end()) {
+    auto discountIt = reg.rates.curves.find(tradePricing->discounting_curve()->str());
+    if (discountIt == reg.rates.curves.end()) {
         QUANTRA_ERROR("Discounting curve not found: " + tradePricing->discounting_curve()->str());
     }
-    auto forwardIt = reg.curves.find(tradePricing->forwarding_curve()->str());
-    if (forwardIt == reg.curves.end()) {
+    auto forwardIt = reg.rates.curves.find(tradePricing->forwarding_curve()->str());
+    if (forwardIt == reg.rates.curves.end()) {
         QUANTRA_ERROR("Forwarding curve not found: " + tradePricing->forwarding_curve()->str());
     }
 
@@ -43,7 +43,7 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
 
     if (hasIborFloatLeg) {
         swapParser.linkForwardingTermStructure(forwardIt->second->currentLink());
-        auto swap = swapParser.parse(trade, reg.indices);
+        auto swap = swapParser.parse(trade, reg.rates.indices);
         swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
         out.npv = swap->NPV();
@@ -67,8 +67,8 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
         QUANTRA_ERROR("CMS leg requires swaption_vol_id");
     }
 
-    auto volIt = reg.swaptionVols.find(cmsLegFb->swaption_vol_id()->str());
-    if (volIt == reg.swaptionVols.end()) {
+    auto volIt = reg.volatility.swaptionVols.find(cmsLegFb->swaption_vol_id()->str());
+    if (volIt == reg.volatility.swaptionVols.end()) {
         QUANTRA_ERROR("CMS leg swaption vol not found: " + cmsLegFb->swaption_vol_id()->str());
     }
     if (volIt->second.referenceDate != asOf) {
@@ -86,8 +86,8 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
 
     out.floatingLeg = cmsLegParser.parse(
         cmsLegFb,
-        reg.indices,
-        reg.swapIndices,
+        reg.rates.indices,
+        reg.rates.swapIndices,
         QuantLib::Handle<QuantLib::YieldTermStructure>(forwardIt->second->currentLink()),
         QuantLib::Handle<QuantLib::YieldTermStructure>(discountIt->second->currentLink()));
 

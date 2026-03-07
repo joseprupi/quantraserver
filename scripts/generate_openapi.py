@@ -33,6 +33,7 @@ from collections import OrderedDict
 WORKSPACE = Path(__file__).parent.parent
 JSON_SCHEMA_DIR = WORKSPACE / "flatbuffers" / "json"
 OUTPUT_DIR = WORKSPACE / "jsonserver" / "openapi"
+PRODUCT_CATALOG_HEADER = WORKSPACE / "common" / "product_catalog.h"
 
 # API Info
 API_INFO = {
@@ -56,11 +57,13 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Swaption | `/price-swaption` | Price swaptions |
 | CDS | `/price-cds` | Price credit default swaps |
 | Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |
+| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |
 | Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |
 | Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |
 | Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |
 | Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |
 | Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |
+| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -85,115 +88,144 @@ curl -X POST http://localhost:8080/price-fixed-rate-bond \\
     }
 }
 
-# Endpoint definitions - maps endpoint to request/response schema names
-# These must match exactly what FlatBuffers generates in the JSON schemas
-ENDPOINTS = {
-    "/price-fixed-rate-bond": {
+# Endpoint metadata keyed by the stable product key from common/product_catalog.h.
+ENDPOINT_METADATA = {
+    "fixed_rate_bond": {
         "summary": "Price Fixed Rate Bond",
         "description": "Calculate NPV, clean/dirty price, yield, duration, and convexity for fixed coupon bonds.",
-        "request_schema": "quantra_PriceFixedRateBondRequest",
-        "response_schema": "quantra_PriceFixedRateBondResponse",
         "tags": ["Bonds"]
     },
-    "/price-floating-rate-bond": {
+    "floating_rate_bond": {
         "summary": "Price Floating Rate Bond",
         "description": "Calculate NPV and analytics for floating rate notes with IBOR index linkage.",
-        "request_schema": "quantra_PriceFloatingRateBondRequest",
-        "response_schema": "quantra_PriceFloatingRateBondResponse",
         "tags": ["Bonds"]
     },
-    "/price-vanilla-swap": {
+    "vanilla_swap": {
         "summary": "Price Vanilla Interest Rate Swap",
         "description": "Calculate NPV and fair rate for fixed-for-floating interest rate swaps.",
-        "request_schema": "quantra_PriceVanillaSwapRequest",
-        "response_schema": "quantra_PriceVanillaSwapResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-ois-swap": {
+    "ois_swap": {
         "summary": "Price OIS Swap",
         "description": "Calculate NPV and fair terms for fixed-vs-overnight indexed swaps.",
-        "request_schema": "quantra_PriceOisSwapRequest",
-        "response_schema": "quantra_PriceOisSwapResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-basis-swap": {
+    "basis_swap": {
         "summary": "Price Basis Swap",
         "description": "Calculate NPV and leg analytics for two-floating-leg basis swaps.",
-        "request_schema": "quantra_PriceBasisSwapRequest",
-        "response_schema": "quantra_PriceBasisSwapResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-fra": {
+    "fra": {
         "summary": "Price Forward Rate Agreement",
         "description": "Calculate NPV and forward rate for FRAs.",
-        "request_schema": "quantra_PriceFRARequest",
-        "response_schema": "quantra_PriceFRAResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-cap-floor": {
+    "cap_floor": {
         "summary": "Price Interest Rate Cap/Floor",
         "description": "Calculate NPV for interest rate caps, floors, and collars using Black model.",
-        "request_schema": "quantra_PriceCapFloorRequest",
-        "response_schema": "quantra_PriceCapFloorResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-swaption": {
+    "swaption": {
         "summary": "Price Swaption",
         "description": "Calculate NPV for European swaptions using Black model.",
-        "request_schema": "quantra_PriceSwaptionRequest",
-        "response_schema": "quantra_PriceSwaptionResponse",
         "tags": ["Interest Rate Derivatives"]
     },
-    "/price-cds": {
+    "cds": {
         "summary": "Price Credit Default Swap",
         "description": "Calculate NPV and fair spread for CDS contracts.",
-        "request_schema": "quantra_PriceCDSRequest",
-        "response_schema": "quantra_PriceCDSResponse",
         "tags": ["Credit Derivatives"]
     },
-    "/bootstrap-curves": {
+    "bootstrap_curves": {
         "summary": "Bootstrap Yield Curves",
         "description": "Bootstrap yield curves from market instruments and extract discount factors, zero rates, and forward rates on a specified grid of dates.",
-        "request_schema": "quantra_BootstrapCurvesRequest",
-        "response_schema": "quantra_BootstrapCurvesResponse",
         "tags": ["Curves"]
     },
-    "/sample-vol-surfaces": {
+    "bootstrap_inflation_curves": {
+        "summary": "Bootstrap Inflation Curves",
+        "description": "Build inflation curves from pillar quotes and extract zero or YoY inflation rates on a specified grid of dates.",
+        "tags": ["Inflation"]
+    },
+    "sample_vol_surfaces": {
         "summary": "Sample Volatility Surfaces",
         "description": "Build pricing registries and sample a selected volatility surface on expiry/tenor/strike grids for UI plotting.",
-        "request_schema": "quantra_SampleVolSurfacesRequest",
-        "response_schema": "quantra_SampleVolSurfacesResponse",
         "tags": ["Volatility"]
     },
-    "/calendar-business-days": {
+    "calendar_business_days": {
         "summary": "List Calendar Business Days",
         "description": "Return business/market dates between start_date and end_date for a QuantLib calendar.",
-        "request_schema": "quantra_CalendarBusinessDaysRequest",
-        "response_schema": "quantra_CalendarBusinessDaysResponse",
         "tags": ["Calendars"]
     },
-    "/calendar-holidays": {
+    "calendar_holidays": {
         "summary": "List Calendar Holidays",
         "description": "Return holidays (and optionally weekends) between start_date and end_date for a QuantLib calendar.",
-        "request_schema": "quantra_CalendarHolidaysRequest",
-        "response_schema": "quantra_CalendarHolidaysResponse",
         "tags": ["Calendars"]
     },
-    "/calendar-advance": {
+    "calendar_advance": {
         "summary": "Advance Calendar Date",
         "description": "Advance one date by tenor_number/tenor_unit using QuantLib calendar and business-day convention.",
-        "request_schema": "quantra_CalendarAdvanceRequest",
-        "response_schema": "quantra_CalendarAdvanceResponse",
         "tags": ["Calendars"]
     },
-    "/calibrate-swaption-model": {
+    "calibrate_swaption_model": {
         "summary": "Calibrate Swaption Hull-White Model",
         "description": "Calibrate Hull-White parameters from swaption volatility nodes using configured market data in pricing.",
-        "request_schema": "quantra_CalibrateSwaptionModelRequest",
-        "response_schema": "quantra_CalibrateSwaptionModelResponse",
         "tags": ["Interest Rate Derivatives"]
+    },
+    "equity_option": {
+        "summary": "Price Equity Option",
+        "description": "Price vanilla or barrier equity options with configured equity underlyings, curves, vols, and model.",
+        "tags": ["Equity Derivatives"]
     }
 }
+
+
+def schema_name_from_fbs(filename: str) -> str:
+    stem = Path(filename).stem
+    parts = stem.split("_")
+    acronyms = {
+        "fra": "FRA",
+        "cds": "CDS",
+    }
+    return "quantra_" + "".join(acronyms.get(part, part.capitalize()) for part in parts)
+
+
+def load_product_catalog() -> Dict[str, Dict[str, str]]:
+    pattern = re.compile(
+        r'^\s*X\(\s*(?P<enum>\w+),\s*"(?P<key>[^"]+)",\s*"(?P<route>[^"]+)",\s*"(?P<request>[^"]+)",\s*"(?P<response>[^"]+)"\s*\)'
+    )
+    catalog: Dict[str, Dict[str, str]] = {}
+    with open(PRODUCT_CATALOG_HEADER, "r") as f:
+        for line in f:
+            match = pattern.match(line.strip().rstrip("\\"))
+            if not match:
+                continue
+            entry = match.groupdict()
+            catalog[entry["key"]] = {
+                "enum": entry["enum"],
+                "path": f'/{entry["route"]}',
+                "request_schema": schema_name_from_fbs(entry["request"]),
+                "response_schema": schema_name_from_fbs(entry["response"]),
+            }
+    if not catalog:
+        raise ValueError(f"Could not parse any product entries from {PRODUCT_CATALOG_HEADER}")
+    return catalog
+
+
+def build_endpoint_catalog() -> Dict[str, Dict[str, Any]]:
+    catalog = load_product_catalog()
+    endpoints: Dict[str, Dict[str, Any]] = {}
+    for product_key, entry in catalog.items():
+        metadata = ENDPOINT_METADATA.get(product_key)
+        if metadata is None:
+            raise ValueError(f"Missing OpenAPI metadata for product '{product_key}'")
+        endpoints[entry["path"]] = {
+            **metadata,
+            "request_schema": entry["request_schema"],
+            "response_schema": entry["response_schema"],
+        }
+    return endpoints
+
+
+ENDPOINTS = build_endpoint_catalog()
 
 
 # =============================================================================
@@ -289,8 +321,13 @@ def load_all_schemas() -> Dict[str, Any]:
             # FlatBuffers preserves original naming like "quantra_PriceCDSRequest"
             if "definitions" in schema:
                 for def_name, def_schema in schema["definitions"].items():
+                    converted = convert_schema_to_openapi(def_schema)
                     if def_name not in schemas:
-                        schemas[def_name] = convert_schema_to_openapi(def_schema)
+                        schemas[def_name] = converted
+                    elif schemas[def_name] != converted:
+                        raise ValueError(
+                            f"Schema definition drift detected for '{def_name}' "
+                            f"in file '{schema_file.name}'")
             
             # The root schema properties are at the top level
             # The root type name is in the definitions, we don't need to add it again
@@ -462,7 +499,9 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Bonds", "description": "Fixed and floating rate bond pricing"},
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
+            {"name": "Equity Derivatives", "description": "Equity option pricing"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
+            {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},
             {"name": "Calendars", "description": "Calendar business-day, holiday, and date-advance utilities"},
             {"name": "System", "description": "System endpoints"}

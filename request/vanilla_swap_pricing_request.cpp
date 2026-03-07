@@ -55,7 +55,7 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
 
         if (include_flows)
         {
-            auto discountIt = reg.curves.find(it->discounting_curve()->str());
+            auto discountIt = reg.rates.curves.find(it->discounting_curve()->str());
             auto builtFlows = buildVanillaSwapFlows(
                 priced.fixedLeg,
                 priced.floatingLeg,
