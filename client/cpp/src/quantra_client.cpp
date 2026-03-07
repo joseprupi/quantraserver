@@ -276,6 +276,18 @@ JsonResponse QuantraClient::PriceVanillaSwapJSON(const std::string& json) {
     );
 }
 
+JsonResponse QuantraClient::PriceZeroCouponInflationSwapJSON(const std::string& json) {
+    return impl_->CallJSON<PriceZeroCouponInflationSwapRequest, PriceZeroCouponInflationSwapResponse>(
+        ProductType::ZeroCouponInflationSwap, json, &QuantraServer::Stub::PriceZeroCouponInflationSwap
+    );
+}
+
+JsonResponse QuantraClient::PriceYearOnYearInflationSwapJSON(const std::string& json) {
+    return impl_->CallJSON<PriceYearOnYearInflationSwapRequest, PriceYearOnYearInflationSwapResponse>(
+        ProductType::YearOnYearInflationSwap, json, &QuantraServer::Stub::PriceYearOnYearInflationSwap
+    );
+}
+
 JsonResponse QuantraClient::PriceOisSwapJSON(const std::string& json) {
     return impl_->CallJSON<PriceOisSwapRequest, PriceOisSwapResponse>(
         ProductType::OisSwap, json, &QuantraServer::Stub::PriceOisSwap
@@ -389,6 +401,24 @@ grpc::Status QuantraClient::PriceVanillaSwap(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceVanillaSwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceZeroCouponInflationSwap(
+    const Message<PriceZeroCouponInflationSwapRequest>& request,
+    Message<PriceZeroCouponInflationSwapResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceZeroCouponInflationSwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceYearOnYearInflationSwap(
+    const Message<PriceYearOnYearInflationSwapRequest>& request,
+    Message<PriceYearOnYearInflationSwapResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceYearOnYearInflationSwap(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceOisSwap(

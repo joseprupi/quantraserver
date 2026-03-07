@@ -1,0 +1,26 @@
+include "enums.fbs";
+include "inflation.fbs";
+include "schedule.fbs";
+
+namespace quantra;
+
+/// Standard year-on-year inflation swap (YYIIS).
+table YearOnYearInflationSwap {
+    /// "Payer" / "Receiver" refers to the YoY inflation leg.
+    swap_type:enums.SwapType;
+    nominal:double;
+    fixed_schedule:Schedule (required);
+    fixed_rate:double;
+    fixed_day_counter:enums.DayCounter = Actual365Fixed;
+    yoy_schedule:Schedule (required);
+    /// Link to InflationIndexSpec.id.
+    inflation_index_id:string (required);
+    observation_lag:Period (required);
+    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    spread:double = 0.0;
+    yoy_day_counter:enums.DayCounter = Actual365Fixed;
+    payment_calendar:enums.Calendar = TARGET;
+    payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
+}
+
+root_type YearOnYearInflationSwap;

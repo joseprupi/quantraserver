@@ -30,6 +30,8 @@ struct ProductCatalogEntry {
     X(FixedRateBond, "fixed_rate_bond", "price-fixed-rate-bond", "price_fixed_rate_bond_request.fbs", "fixed_rate_bond_response.fbs") \
     X(FloatingRateBond, "floating_rate_bond", "price-floating-rate-bond", "price_floating_rate_bond_request.fbs", "floating_rate_bond_response.fbs") \
     X(VanillaSwap, "vanilla_swap", "price-vanilla-swap", "price_vanilla_swap_request.fbs", "vanilla_swap_response.fbs") \
+    X(ZeroCouponInflationSwap, "zero_coupon_inflation_swap", "price-zero-coupon-inflation-swap", "price_zero_coupon_inflation_swap_request.fbs", "zero_coupon_inflation_swap_response.fbs") \
+    X(YearOnYearInflationSwap, "year_on_year_inflation_swap", "price-year-on-year-inflation-swap", "price_year_on_year_inflation_swap_request.fbs", "year_on_year_inflation_swap_response.fbs") \
     X(OisSwap, "ois_swap", "price-ois-swap", "price_ois_swap_request.fbs", "ois_swap_response.fbs") \
     X(BasisSwap, "basis_swap", "price-basis-swap", "price_basis_swap_request.fbs", "basis_swap_response.fbs") \
     X(FRA, "fra", "price-fra", "price_fra_request.fbs", "fra_response.fbs") \

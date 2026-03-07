@@ -1,0 +1,23 @@
+include "vanilla_swap_response.fbs";
+
+namespace quantra;
+
+/// Year-on-year inflation swap pricing response.
+table YearOnYearInflationSwapResponse {
+    npv:double;
+    fair_rate:double;
+    fair_spread:double;
+    fixed_leg_bps:double;
+    yoy_leg_bps:double;
+    fixed_leg_npv:double;
+    yoy_leg_npv:double;
+    fixed_leg_flows:[SwapLegFlow];
+    yoy_leg_flows:[SwapLegFlow];
+}
+
+/// Response wrapper for multiple YYIIS trades.
+table PriceYearOnYearInflationSwapResponse {
+    swaps:[YearOnYearInflationSwapResponse];
+}
+
+root_type PriceYearOnYearInflationSwapResponse;

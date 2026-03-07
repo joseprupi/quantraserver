@@ -19,6 +19,8 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceFixedRateBond",
   "/quantra.QuantraServer/PriceFloatingRateBond",
   "/quantra.QuantraServer/PriceVanillaSwap",
+  "/quantra.QuantraServer/PriceZeroCouponInflationSwap",
+  "/quantra.QuantraServer/PriceYearOnYearInflationSwap",
   "/quantra.QuantraServer/PriceOisSwap",
   "/quantra.QuantraServer/PriceBasisSwap",
   "/quantra.QuantraServer/PriceFRA",
@@ -44,20 +46,22 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   : channel_(channel)  , rpcmethod_PriceFixedRateBond_(QuantraServer_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceFloatingRateBond_(QuantraServer_method_names[1], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceVanillaSwap_(QuantraServer_method_names[2], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceOisSwap_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceBasisSwap_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceFRA_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCapFloor_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceSwaption_(QuantraServer_method_names[7], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceCDS_(QuantraServer_method_names[8], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_BootstrapCurves_(QuantraServer_method_names[9], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_BootstrapInflationCurves_(QuantraServer_method_names[10], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_SampleVolSurfaces_(QuantraServer_method_names[11], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_CalendarBusinessDays_(QuantraServer_method_names[12], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_CalendarHolidays_(QuantraServer_method_names[13], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_CalendarAdvance_(QuantraServer_method_names[14], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[15], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_PriceEquityOption_(QuantraServer_method_names[16], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceZeroCouponInflationSwap_(QuantraServer_method_names[3], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceYearOnYearInflationSwap_(QuantraServer_method_names[4], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceOisSwap_(QuantraServer_method_names[5], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceBasisSwap_(QuantraServer_method_names[6], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceFRA_(QuantraServer_method_names[7], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCapFloor_(QuantraServer_method_names[8], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceSwaption_(QuantraServer_method_names[9], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCDS_(QuantraServer_method_names[10], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_BootstrapCurves_(QuantraServer_method_names[11], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_BootstrapInflationCurves_(QuantraServer_method_names[12], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_SampleVolSurfaces_(QuantraServer_method_names[13], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarBusinessDays_(QuantraServer_method_names[14], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarHolidays_(QuantraServer_method_names[15], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalendarAdvance_(QuantraServer_method_names[16], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[17], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceEquityOption_(QuantraServer_method_names[18], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -94,6 +98,30 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
 
 ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceVanillaSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>& request, ::grpc::CompletionQueue* cq) {
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceVanillaSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceVanillaSwap_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceZeroCouponInflationSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponInflationSwapRequest>& request, flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceZeroCouponInflationSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>>* QuantraServer::Stub::AsyncPriceZeroCouponInflationSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponInflationSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponInflationSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceZeroCouponInflationSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponInflationSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponInflationSwap_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceYearOnYearInflationSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationSwapRequest>& request, flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceYearOnYearInflationSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>>* QuantraServer::Stub::AsyncPriceYearOnYearInflationSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceYearOnYearInflationSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceYearOnYearInflationSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceYearOnYearInflationSwap_, context, request, false);
 }
 
 ::grpc::Status QuantraServer::Stub::PriceOisSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceOisSwapRequest>& request, flatbuffers::grpc::Message<PriceOisSwapResponse>* response) {
@@ -283,70 +311,80 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[3],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceZeroCouponInflationSwapRequest>, flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceZeroCouponInflationSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[4],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceYearOnYearInflationSwapRequest>, flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceYearOnYearInflationSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[5],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceOisSwapRequest>, flatbuffers::grpc::Message<PriceOisSwapResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceOisSwap), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[4],
+      QuantraServer_method_names[6],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceBasisSwapRequest>, flatbuffers::grpc::Message<PriceBasisSwapResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceBasisSwap), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[5],
+      QuantraServer_method_names[7],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFRARequest>, flatbuffers::grpc::Message<PriceFRAResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceFRA), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[6],
+      QuantraServer_method_names[8],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCapFloorRequest>, flatbuffers::grpc::Message<PriceCapFloorResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCapFloor), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[7],
+      QuantraServer_method_names[9],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceSwaptionRequest>, flatbuffers::grpc::Message<PriceSwaptionResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceSwaption), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[8],
+      QuantraServer_method_names[10],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCDSRequest>, flatbuffers::grpc::Message<PriceCDSResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceCDS), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[9],
+      QuantraServer_method_names[11],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<BootstrapCurvesRequest>, flatbuffers::grpc::Message<BootstrapCurvesResponse>>(
           std::mem_fn(&QuantraServer::Service::BootstrapCurves), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[10],
+      QuantraServer_method_names[12],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<BootstrapInflationCurvesRequest>, flatbuffers::grpc::Message<BootstrapInflationCurvesResponse>>(
           std::mem_fn(&QuantraServer::Service::BootstrapInflationCurves), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[11],
+      QuantraServer_method_names[13],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<SampleVolSurfacesRequest>, flatbuffers::grpc::Message<SampleVolSurfacesResponse>>(
           std::mem_fn(&QuantraServer::Service::SampleVolSurfaces), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[12],
+      QuantraServer_method_names[14],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarBusinessDaysRequest>, flatbuffers::grpc::Message<CalendarBusinessDaysResponse>>(
           std::mem_fn(&QuantraServer::Service::CalendarBusinessDays), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[13],
+      QuantraServer_method_names[15],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarHolidaysRequest>, flatbuffers::grpc::Message<CalendarHolidaysResponse>>(
           std::mem_fn(&QuantraServer::Service::CalendarHolidays), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[14],
+      QuantraServer_method_names[16],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalendarAdvanceRequest>, flatbuffers::grpc::Message<CalendarAdvanceResponse>>(
           std::mem_fn(&QuantraServer::Service::CalendarAdvance), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[15],
+      QuantraServer_method_names[17],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<CalibrateSwaptionModelRequest>, flatbuffers::grpc::Message<CalibrateSwaptionModelResponse>>(
           std::mem_fn(&QuantraServer::Service::CalibrateSwaptionModel), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      QuantraServer_method_names[16],
+      QuantraServer_method_names[18],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceEquityOptionRequest>, flatbuffers::grpc::Message<PriceEquityOptionResponse>>(
           std::mem_fn(&QuantraServer::Service::PriceEquityOption), this)));
@@ -364,6 +402,14 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceVanillaSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceVanillaSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceVanillaSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceZeroCouponInflationSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceZeroCouponInflationSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceZeroCouponInflationSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceYearOnYearInflationSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceYearOnYearInflationSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceYearOnYearInflationSwapResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

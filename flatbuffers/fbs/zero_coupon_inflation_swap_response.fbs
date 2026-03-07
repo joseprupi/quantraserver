@@ -1,0 +1,21 @@
+include "vanilla_swap_response.fbs";
+
+namespace quantra;
+
+/// Zero-coupon inflation swap pricing response.
+table ZeroCouponInflationSwapResponse {
+    npv:double;
+    fair_rate:double;
+    fixed_leg_bps:double;
+    fixed_leg_npv:double;
+    inflation_leg_npv:double;
+    fixed_leg_flows:[SwapLegFlow];
+    inflation_leg_flows:[SwapLegFlow];
+}
+
+/// Response wrapper for multiple ZCIIS trades.
+table PriceZeroCouponInflationSwapResponse {
+    swaps:[ZeroCouponInflationSwapResponse];
+}
+
+root_type PriceZeroCouponInflationSwapResponse;

@@ -1,0 +1,27 @@
+include "enums.fbs";
+include "inflation.fbs";
+
+namespace quantra;
+
+/// Standard zero-coupon inflation swap (ZCIIS).
+table ZeroCouponInflationSwap {
+    /// "Payer" / "Receiver" refers to the inflation leg.
+    swap_type:enums.SwapType;
+    nominal:double;
+    start_date:string (required);
+    /// Contract maturity date before any internal observation adjustment.
+    maturity_date:string (required);
+    fixed_calendar:enums.Calendar = TARGET;
+    fixed_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    day_counter:enums.DayCounter = Actual365Fixed;
+    fixed_rate:double;
+    /// Link to InflationIndexSpec.id.
+    inflation_index_id:string (required);
+    observation_lag:Period (required);
+    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    adjust_observation_dates:bool = false;
+    inflation_calendar:enums.Calendar = NullCalendar;
+    inflation_convention:enums.BusinessDayConvention = Following;
+}
+
+root_type ZeroCouponInflationSwap;

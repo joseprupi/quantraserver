@@ -11,22 +11,28 @@ flatbuffers::Offset<SwapLegFlow> buildSwapLegFlow(
     const std::shared_ptr<QuantLib::YieldTermStructure>& discountCurve,
     flatbuffers::grpc::MessageBuilder& builder,
     QuantLib::Date asOf) {
-    auto coupon = std::dynamic_pointer_cast<QuantLib::Coupon>(cf);
-    if (!coupon || coupon->hasOccurred(asOf)) {
+    if (!cf || cf->hasOccurred(asOf)) {
         return 0;
     }
 
+    auto coupon = std::dynamic_pointer_cast<QuantLib::Coupon>(cf);
     std::ostringstream osPayment, osStart, osEnd;
-    osPayment << QuantLib::io::iso_date(coupon->date());
-    osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-    osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
+    osPayment << QuantLib::io::iso_date(cf->date());
     auto paymentDate = builder.CreateString(osPayment.str());
-    auto accrualStart = builder.CreateString(osStart.str());
-    auto accrualEnd = builder.CreateString(osEnd.str());
+    flatbuffers::Offset<flatbuffers::String> accrualStart = 0;
+    flatbuffers::Offset<flatbuffers::String> accrualEnd = 0;
+    if (coupon) {
+        osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
+        osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
+        accrualStart = builder.CreateString(osStart.str());
+        accrualEnd = builder.CreateString(osEnd.str());
+    }
 
     flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
     double indexFixing = 0.0;
     double spread = 0.0;
+    double rate = 0.0;
+    double accrualYearFraction = 0.0;
     auto frc = std::dynamic_pointer_cast<QuantLib::FloatingRateCoupon>(coupon);
     if (frc) {
         std::ostringstream osFix;
@@ -35,18 +41,25 @@ flatbuffers::Offset<SwapLegFlow> buildSwapLegFlow(
         indexFixing = frc->indexFixing();
         spread = frc->spread();
     }
+    if (coupon) {
+        rate = coupon->rate();
+        accrualYearFraction = coupon->accrualPeriod();
+    }
 
-    const double discount = discountCurve->discount(coupon->date());
-    const double amount = coupon->amount();
+    const double discount = discountCurve->discount(cf->date());
+    const double amount = cf->amount();
 
     SwapLegFlowBuilder fb(builder);
     fb.add_payment_date(paymentDate);
-    fb.add_accrual_start_date(accrualStart);
-    fb.add_accrual_end_date(accrualEnd);
+    if (coupon) {
+        fb.add_accrual_start_date(accrualStart);
+        fb.add_accrual_end_date(accrualEnd);
+        fb.add_accrual_year_fraction(accrualYearFraction);
+    }
     fb.add_amount(amount);
     fb.add_discount(discount);
     fb.add_present_value(amount * discount);
-    fb.add_rate(coupon->rate());
+    fb.add_rate(rate);
     if (frc) {
         fb.add_fixing_date(fixingDate);
         fb.add_index_fixing(indexFixing);

@@ -1,0 +1,23 @@
+include "pricing.fbs";
+include "zero_coupon_inflation_swap.fbs";
+
+namespace quantra;
+
+/// Single ZCIIS pricing context with explicit market-data references.
+table PriceZeroCouponInflationSwap {
+    zero_coupon_inflation_swap:ZeroCouponInflationSwap;
+    /// Reference to curve in Pricing.rates.curves.
+    discounting_curve:string;
+    /// Reference to curve in Pricing.inflation.inflation_curves.
+    inflation_curve:string;
+}
+
+/// Request to price one or more ZCIIS trades.
+table PriceZeroCouponInflationSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceZeroCouponInflationSwap];
+    /// Include detailed cashflows in response.
+    include_flows:bool = false;
+}
+
+root_type PriceZeroCouponInflationSwapRequest;

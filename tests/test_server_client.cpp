@@ -15,11 +15,15 @@
 #include "quantraserver_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
+#include "price_zero_coupon_inflation_swap_request_generated.h"
+#include "price_year_on_year_inflation_swap_request_generated.h"
 #include "price_ois_swap_request_generated.h"
 #include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "vanilla_swap_response_generated.h"
+#include "zero_coupon_inflation_swap_response_generated.h"
+#include "year_on_year_inflation_swap_response_generated.h"
 #include "ois_swap_response_generated.h"
 #include "basis_swap_response_generated.h"
 #include "cds_response_generated.h"
@@ -859,6 +863,358 @@ TEST_F(ServerClientTest, BootstrapInflationCurves_RoundTrip) {
     ASSERT_EQ(series->values()->size(), 2u);
     EXPECT_NEAR(series->values()->Get(0), 0.0200, 5e-4);
     EXPECT_NEAR(series->values()->Get(1), 0.0210, 5e-4);
+}
+
+TEST_F(ServerClientTest, PriceZeroCouponInflationSwap_RoundTrip) {
+    flatbuffers::grpc::MessageBuilder b;
+
+    auto ts = buildCurve(b, "DISC");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    auto idxId = b.CreateString("EUHICP");
+    auto idxFamily = b.CreateString("EU HICP");
+    auto idxCcy = b.CreateString("EUR");
+    auto availabilityLag = buildPeriod(b, 2, quantra::enums::TimeUnit_Months);
+    auto observationLag = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+
+    auto fixingOct = b.CreateString("2024-10-01");
+    auto fixingNov = b.CreateString("2024-11-01");
+    auto fixingDec = b.CreateString("2024-12-01");
+    quantra::FixingBuilder fixOctBuilder(b);
+    fixOctBuilder.add_date(fixingOct);
+    fixOctBuilder.add_value(100.0);
+    auto fixOct = fixOctBuilder.Finish();
+    quantra::FixingBuilder fixNovBuilder(b);
+    fixNovBuilder.add_date(fixingNov);
+    fixNovBuilder.add_value(100.2);
+    auto fixNov = fixNovBuilder.Finish();
+    quantra::FixingBuilder fixDecBuilder(b);
+    fixDecBuilder.add_date(fixingDec);
+    fixDecBuilder.add_value(100.4);
+    auto fixDec = fixDecBuilder.Finish();
+    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
+
+    quantra::InflationIndexSpecBuilder iisb(b);
+    iisb.add_id(idxId);
+    iisb.add_family_name(idxFamily);
+    iisb.add_currency(idxCcy);
+    iisb.add_calendar(quantra::enums::Calendar_TARGET);
+    iisb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    iisb.add_frequency(quantra::enums::Frequency_Monthly);
+    iisb.add_availability_lag(availabilityLag);
+    iisb.add_observation_lag(observationLag);
+    iisb.add_interpolated(true);
+    iisb.add_revised(false);
+    iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    iisb.add_fixings(fixings);
+    auto inflationIndex = iisb.Finish();
+    auto inflationIndices =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+
+    auto curveId = b.CreateString("HICP_ZC");
+    auto curveRef = b.CreateString("2025-01-15");
+    auto discCurveId = b.CreateString("DISC");
+    auto p1y = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
+    auto p2y = buildPeriod(b, 2, quantra::enums::TimeUnit_Years);
+    auto p5y = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
+
+    quantra::ZeroCouponInflationSwapHelperBuilder h1Builder(b);
+    h1Builder.add_quote_value(0.0200);
+    h1Builder.add_swap_observation_lag(observationLag);
+    h1Builder.add_tenor(p1y);
+    h1Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h1Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h1Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h1Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    auto h1 = h1Builder.Finish();
+
+    quantra::ZeroCouponInflationSwapHelperBuilder h2Builder(b);
+    h2Builder.add_quote_value(0.0210);
+    h2Builder.add_swap_observation_lag(observationLag);
+    h2Builder.add_tenor(p2y);
+    h2Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h2Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h2Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h2Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    auto h2 = h2Builder.Finish();
+
+    quantra::ZeroCouponInflationSwapHelperBuilder h5Builder(b);
+    h5Builder.add_quote_value(0.0220);
+    h5Builder.add_swap_observation_lag(observationLag);
+    h5Builder.add_tenor(p5y);
+    h5Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h5Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h5Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h5Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    auto h5 = h5Builder.Finish();
+
+    quantra::InflationPointWrapperBuilder pw1Builder(b);
+    pw1Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
+    pw1Builder.add_point(h1.Union());
+    auto pwh1 = pw1Builder.Finish();
+    quantra::InflationPointWrapperBuilder pw2Builder(b);
+    pw2Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
+    pw2Builder.add_point(h2.Union());
+    auto pwh2 = pw2Builder.Finish();
+    quantra::InflationPointWrapperBuilder pw5Builder(b);
+    pw5Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
+    pw5Builder.add_point(h5.Union());
+    auto pwh5 = pw5Builder.Finish();
+    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
+        pwh1, pwh2, pwh5
+    });
+
+    quantra::InflationCurveSpecBuilder icb(b);
+    icb.add_id(curveId);
+    icb.add_reference_date(curveRef);
+    icb.add_calendar(quantra::enums::Calendar_TARGET);
+    icb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    icb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    icb.add_interpolator(quantra::enums::Interpolator_Linear);
+    icb.add_bootstrap_accuracy(1.0e-12);
+    icb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
+    icb.add_index_id(idxId);
+    icb.add_discount_curve_id(discCurveId);
+    icb.add_allow_extrapolation(true);
+    icb.add_points(points);
+    auto inflationCurve = icb.Finish();
+    auto inflationCurves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_inflation_indices(inflationIndices);
+    pb.add_inflation_curves(inflationCurves);
+    auto pricing = pb.Finish();
+
+    auto startDate = b.CreateString("2025-01-15");
+    auto maturityDate = b.CreateString("2030-01-15");
+    quantra::ZeroCouponInflationSwapBuilder zcib(b);
+    zcib.add_swap_type(quantra::enums::SwapType_Payer);
+    zcib.add_nominal(1000000.0);
+    zcib.add_start_date(startDate);
+    zcib.add_maturity_date(maturityDate);
+    zcib.add_fixed_rate(0.0217);
+    zcib.add_fixed_calendar(quantra::enums::Calendar_TARGET);
+    zcib.add_fixed_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    zcib.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    zcib.add_inflation_index_id(idxId);
+    zcib.add_observation_lag(observationLag);
+    zcib.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    zcib.add_inflation_calendar(quantra::enums::Calendar_NullCalendar);
+    zcib.add_inflation_convention(quantra::enums::BusinessDayConvention_Following);
+    auto swap = zcib.Finish();
+
+    quantra::PriceZeroCouponInflationSwapBuilder pzb(b);
+    pzb.add_zero_coupon_inflation_swap(swap);
+    pzb.add_discounting_curve(discCurveId);
+    pzb.add_inflation_curve(curveId);
+    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{pzb.Finish()});
+
+    quantra::PriceZeroCouponInflationSwapRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaps(swaps);
+    rb.add_include_flows(true);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::PriceZeroCouponInflationSwapRequest>();
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceZeroCouponInflationSwapResponse> response;
+    auto status = stub_->PriceZeroCouponInflationSwap(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    const auto* swapsOut = response.GetRoot()->swaps();
+    ASSERT_NE(swapsOut, nullptr);
+    ASSERT_EQ(swapsOut->size(), 1u);
+    const auto* out = swapsOut->Get(0);
+    ASSERT_NE(out, nullptr);
+    EXPECT_TRUE(std::isfinite(out->npv()));
+    EXPECT_TRUE(std::isfinite(out->fair_rate()));
+    ASSERT_NE(out->fixed_leg_flows(), nullptr);
+    ASSERT_NE(out->inflation_leg_flows(), nullptr);
+    EXPECT_EQ(out->fixed_leg_flows()->size(), 1u);
+    EXPECT_EQ(out->inflation_leg_flows()->size(), 1u);
+}
+
+TEST_F(ServerClientTest, PriceYearOnYearInflationSwap_RoundTrip) {
+    flatbuffers::grpc::MessageBuilder b;
+
+    auto ts = buildCurve(b, "DISC");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+
+    auto idxId = b.CreateString("EUHICP_YY");
+    auto idxFamily = b.CreateString("EU HICP YoY");
+    auto idxCcy = b.CreateString("EUR");
+    auto availabilityLag = buildPeriod(b, 2, quantra::enums::TimeUnit_Months);
+    auto observationLag = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+
+    auto fixingOct = b.CreateString("2024-10-01");
+    auto fixingNov = b.CreateString("2024-11-01");
+    quantra::FixingBuilder fixOctBuilder(b);
+    fixOctBuilder.add_date(fixingOct);
+    fixOctBuilder.add_value(0.0180);
+    auto fixOct = fixOctBuilder.Finish();
+    quantra::FixingBuilder fixNovBuilder(b);
+    fixNovBuilder.add_date(fixingNov);
+    fixNovBuilder.add_value(0.0190);
+    auto fixNov = fixNovBuilder.Finish();
+    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
+
+    quantra::InflationIndexSpecBuilder iisb(b);
+    iisb.add_id(idxId);
+    iisb.add_family_name(idxFamily);
+    iisb.add_currency(idxCcy);
+    iisb.add_calendar(quantra::enums::Calendar_TARGET);
+    iisb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    iisb.add_frequency(quantra::enums::Frequency_Monthly);
+    iisb.add_availability_lag(availabilityLag);
+    iisb.add_observation_lag(observationLag);
+    iisb.add_interpolated(true);
+    iisb.add_revised(false);
+    iisb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
+    iisb.add_fixings(fixings);
+    auto inflationIndex = iisb.Finish();
+    auto inflationIndices =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+
+    auto curveId = b.CreateString("HICP_YY");
+    auto curveRef = b.CreateString("2025-01-15");
+    auto discCurveId = b.CreateString("DISC");
+    auto p1y = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
+    auto p2y = buildPeriod(b, 2, quantra::enums::TimeUnit_Years);
+
+    quantra::YearOnYearInflationSwapHelperBuilder h1Builder(b);
+    h1Builder.add_quote_value(0.0200);
+    h1Builder.add_swap_observation_lag(observationLag);
+    h1Builder.add_tenor(p1y);
+    h1Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h1Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h1Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h1Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    h1Builder.add_nominal_curve_id(discCurveId);
+    auto h1 = h1Builder.Finish();
+
+    quantra::YearOnYearInflationSwapHelperBuilder h2Builder(b);
+    h2Builder.add_quote_value(0.0210);
+    h2Builder.add_swap_observation_lag(observationLag);
+    h2Builder.add_tenor(p2y);
+    h2Builder.add_calendar(quantra::enums::Calendar_TARGET);
+    h2Builder.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    h2Builder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    h2Builder.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    h2Builder.add_nominal_curve_id(discCurveId);
+    auto h2 = h2Builder.Finish();
+
+    quantra::InflationPointWrapperBuilder pw1Builder(b);
+    pw1Builder.add_point_type(quantra::InflationPoint_YearOnYearInflationSwapHelper);
+    pw1Builder.add_point(h1.Union());
+    auto pwh1 = pw1Builder.Finish();
+    quantra::InflationPointWrapperBuilder pw2Builder(b);
+    pw2Builder.add_point_type(quantra::InflationPoint_YearOnYearInflationSwapHelper);
+    pw2Builder.add_point(h2.Union());
+    auto pwh2 = pw2Builder.Finish();
+    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
+
+    quantra::InflationCurveSpecBuilder icb(b);
+    icb.add_id(curveId);
+    icb.add_reference_date(curveRef);
+    icb.add_calendar(quantra::enums::Calendar_TARGET);
+    icb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    icb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    icb.add_interpolator(quantra::enums::Interpolator_Linear);
+    icb.add_bootstrap_accuracy(1.0e-12);
+    icb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
+    icb.add_index_id(idxId);
+    icb.add_discount_curve_id(discCurveId);
+    icb.add_points(points);
+    auto inflationCurve = icb.Finish();
+    auto inflationCurves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+
+    quantra::PricingBuilder pb(b);
+    pb.add_as_of_date(asof);
+    pb.add_indices(indices);
+    pb.add_curves(curves);
+    pb.add_inflation_indices(inflationIndices);
+    pb.add_inflation_curves(inflationCurves);
+    auto pricing = pb.Finish();
+
+    auto effective = b.CreateString("2025-01-15");
+    auto termination = b.CreateString("2027-01-15");
+    quantra::ScheduleBuilder fixedSb(b);
+    fixedSb.add_effective_date(effective);
+    fixedSb.add_termination_date(termination);
+    fixedSb.add_calendar(quantra::enums::Calendar_TARGET);
+    fixedSb.add_frequency(quantra::enums::Frequency_Annual);
+    fixedSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fixedSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fixedSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto fixedSchedule = fixedSb.Finish();
+
+    quantra::ScheduleBuilder yoySb(b);
+    yoySb.add_effective_date(effective);
+    yoySb.add_termination_date(termination);
+    yoySb.add_calendar(quantra::enums::Calendar_TARGET);
+    yoySb.add_frequency(quantra::enums::Frequency_Annual);
+    yoySb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    yoySb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    yoySb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto yoySchedule = yoySb.Finish();
+
+    quantra::YearOnYearInflationSwapBuilder yyb(b);
+    yyb.add_swap_type(quantra::enums::SwapType_Receiver);
+    yyb.add_nominal(1000000.0);
+    yyb.add_fixed_schedule(fixedSchedule);
+    yyb.add_fixed_rate(0.0204);
+    yyb.add_fixed_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    yyb.add_yoy_schedule(yoySchedule);
+    yyb.add_inflation_index_id(idxId);
+    yyb.add_observation_lag(observationLag);
+    yyb.add_observation_interpolation(quantra::enums::CPIInterpolationType_Linear);
+    yyb.add_spread(0.0002);
+    yyb.add_yoy_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+    yyb.add_payment_calendar(quantra::enums::Calendar_TARGET);
+    yyb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto swap = yyb.Finish();
+
+    quantra::PriceYearOnYearInflationSwapBuilder pyb(b);
+    pyb.add_year_on_year_inflation_swap(swap);
+    pyb.add_discounting_curve(discCurveId);
+    pyb.add_inflation_curve(curveId);
+    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceYearOnYearInflationSwap>>{pyb.Finish()});
+
+    quantra::PriceYearOnYearInflationSwapRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaps(swaps);
+    rb.add_include_flows(true);
+    b.Finish(rb.Finish());
+
+    auto request = b.ReleaseMessage<quantra::PriceYearOnYearInflationSwapRequest>();
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceYearOnYearInflationSwapResponse> response;
+    auto status = stub_->PriceYearOnYearInflationSwap(&context, request, &response);
+
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    const auto* swapsOut = response.GetRoot()->swaps();
+    ASSERT_NE(swapsOut, nullptr);
+    ASSERT_EQ(swapsOut->size(), 1u);
+    const auto* out = swapsOut->Get(0);
+    ASSERT_NE(out, nullptr);
+    EXPECT_TRUE(std::isfinite(out->npv()));
+    EXPECT_TRUE(std::isfinite(out->fair_rate()));
+    EXPECT_TRUE(std::isfinite(out->fair_spread()));
+    ASSERT_NE(out->fixed_leg_flows(), nullptr);
+    ASSERT_NE(out->yoy_leg_flows(), nullptr);
+    EXPECT_EQ(out->fixed_leg_flows()->size(), 2u);
+    EXPECT_EQ(out->yoy_leg_flows()->size(), 2u);
 }
 
 TEST_F(ServerClientTest, CalendarBusinessDays_RoundTrip) {
