@@ -222,6 +222,58 @@ protected:
         defs.push_back(buildIndexDef_SOFR(b));
         return b.CreateVector(defs);
     }
+
+    flatbuffers::Offset<quantra::Pricing> buildPricing(
+        flatbuffers::grpc::MessageBuilder& b,
+        flatbuffers::Offset<flatbuffers::String> asOfDate,
+        flatbuffers::Offset<flatbuffers::String> settlementDate = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>> quotes = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>> indices = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapIndexDef>>> swapIndices = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>> curves = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CouponPricer>>> couponPricers = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CreditCurveSpec>>> creditCurves = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>> volSurfaces = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::ModelSpec>>> models = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::EquityUnderlyingSpec>>> equityUnderlyings = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::InflationIndexSpec>>> inflationIndices = 0,
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::InflationCurveSpec>>> inflationCurves = 0,
+        bool bondPricingDetails = false,
+        bool bondPricingFlows = false,
+        bool swaptionPricingDetails = false,
+        bool swaptionPricingRebump = false) {
+        auto rates = (indices.o != 0 || swapIndices.o != 0 || curves.o != 0 || couponPricers.o != 0)
+            ? quantra::CreateRatesMarketData(b, indices, swapIndices, curves, couponPricers)
+            : 0;
+        auto credit = creditCurves.o != 0 ? quantra::CreateCreditMarketData(b, creditCurves) : 0;
+        auto volatility = (volSurfaces.o != 0 || models.o != 0)
+            ? quantra::CreateVolatilityMarketData(b, volSurfaces, models)
+            : 0;
+        auto equity = equityUnderlyings.o != 0 ? quantra::CreateEquityMarketData(b, equityUnderlyings) : 0;
+        auto inflation = (inflationIndices.o != 0 || inflationCurves.o != 0)
+            ? quantra::CreateInflationMarketData(b, inflationIndices, inflationCurves)
+            : 0;
+        auto options = (bondPricingDetails || bondPricingFlows || swaptionPricingDetails || swaptionPricingRebump)
+            ? quantra::CreatePricingOptions(
+                  b,
+                  bondPricingDetails,
+                  bondPricingFlows,
+                  swaptionPricingDetails,
+                  swaptionPricingRebump)
+            : 0;
+
+        return quantra::CreatePricing(
+            b,
+            asOfDate,
+            settlementDate,
+            quotes,
+            rates,
+            credit,
+            volatility,
+            equity,
+            inflation,
+            options);
+    }
     
     flatbuffers::Offset<quantra::Yield> buildYield(flatbuffers::grpc::MessageBuilder& b) {
         quantra::YieldBuilder yb(b);
@@ -249,11 +301,7 @@ TEST_F(ServerClientTest, FixedRateBond_RoundTrip) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof); pb.add_settlement_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves); pb.add_bond_pricing_details(true);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, 0, 0, 0, 0, 0, 0, true);
     
     auto eff = b.CreateString("2024-01-15");
     auto term = b.CreateString("2029-01-15");
@@ -347,13 +395,7 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     msb.add_payload(cds_payload.Union());
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof); pb.add_settlement_date(asof);
-    pb.add_indices(indices2);
-    pb.add_curves(curves);
-    pb.add_credit_curves(credit_curves);
-    pb.add_models(models);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, asof, 0, indices2, 0, curves, 0, credit_curves, 0, models);
     
     auto feff = b.CreateString("2025-01-17"); auto fterm = b.CreateString("2030-01-17");
     quantra::ScheduleBuilder fsb(b);
@@ -426,12 +468,7 @@ TEST_F(ServerClientTest, OisSwap_RoundTrip) {
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof);
-    pb.add_settlement_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves);
 
     auto eff = b.CreateString("2025-01-17");
     auto term = b.CreateString("2030-01-17");
@@ -517,12 +554,7 @@ TEST_F(ServerClientTest, BasisSwap_RoundTrip) {
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof);
-    pb.add_settlement_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves);
 
     auto eff = b.CreateString("2025-01-17");
     auto term = b.CreateString("2030-01-17");
@@ -648,13 +680,7 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     msb.add_payload(cds_payload.Union());
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof); pb.add_settlement_date(asof);
-    pb.add_indices(indices3);
-    pb.add_curves(curves);
-    pb.add_credit_curves(credit_curves);
-    pb.add_models(models);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, asof, 0, indices3, 0, curves, 0, credit_curves, 0, models);
     
     auto eff = b.CreateString("2025-01-15"); auto term = b.CreateString("2030-01-15");
     quantra::ScheduleBuilder sb(b);
@@ -805,13 +831,7 @@ TEST_F(ServerClientTest, BootstrapInflationCurves_RoundTrip) {
     auto inflationCurves =
         b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves);
-    pb.add_inflation_indices(inflationIndices);
-    pb.add_inflation_curves(inflationCurves);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y, p2y});
     quantra::TenorGridBuilder tgb(b);
@@ -983,13 +1003,7 @@ TEST_F(ServerClientTest, PriceZeroCouponInflationSwap_RoundTrip) {
     auto inflationCurves =
         b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves);
-    pb.add_inflation_indices(inflationIndices);
-    pb.add_inflation_curves(inflationCurves);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto startDate = b.CreateString("2025-01-15");
     auto maturityDate = b.CreateString("2030-01-15");
@@ -1138,13 +1152,7 @@ TEST_F(ServerClientTest, PriceYearOnYearInflationSwap_RoundTrip) {
     auto inflationCurves =
         b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    quantra::PricingBuilder pb(b);
-    pb.add_as_of_date(asof);
-    pb.add_indices(indices);
-    pb.add_curves(curves);
-    pb.add_inflation_indices(inflationIndices);
-    pb.add_inflation_curves(inflationCurves);
-    auto pricing = pb.Finish();
+    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto effective = b.CreateString("2025-01-15");
     auto termination = b.CreateString("2027-01-15");
@@ -1406,11 +1414,7 @@ TEST_F(ServerClientTest, Latency_MultipleRequests) {
         auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
         auto lat_indices = buildIndicesVector(b);
         auto asof = b.CreateString("2025-01-15");
-        quantra::PricingBuilder pb(b);
-        pb.add_as_of_date(asof); pb.add_settlement_date(asof);
-        pb.add_indices(lat_indices);
-        pb.add_curves(curves);
-        auto pricing = pb.Finish();
+        auto pricing = buildPricing(b, asof, asof, 0, lat_indices, 0, curves);
         
         auto eff = b.CreateString("2024-01-15"); auto term = b.CreateString("2029-01-15");
         quantra::ScheduleBuilder sb(b);
