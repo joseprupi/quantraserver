@@ -15,4 +15,4 @@
 
 ## Docs
 - [ ] Not needed
-- [ ] Updated (`README`, `docs/VERSIONING.md`, etc.)
+- [ ] Updated (`README`, `docs/versioning.md`, etc.)

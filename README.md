@@ -1,219 +1,163 @@
 # Quantra
 
-Quantra is a high-performance pricing engine built on QuantLib. It exposes QuantLib's functionality through gRPC and REST APIs, enabling distributed computations with FlatBuffers serialization.
+Quantra is a QuantLib-based pricing service built for parallel execution. It exposes pricing functionality over gRPC with FlatBuffers, and it also includes an optional HTTP/JSON gateway for easier integration and generated OpenAPI documentation.
 
-## Motivation
+## Why This Exists
 
-QuantLib is a widely-used C++ library for quantitative finance, but it has limitations that make it difficult to scale:
+QuantLib is powerful, but it is not naturally suited to high-concurrency service workloads because important state such as `Settings::instance().evaluationDate()` is global to the process. Quantra works around that by running multiple isolated pricing workers and placing Envoy in front of them as a load balancer.
 
-- Single-threaded by design due to global state (e.g., `Settings::instance().evaluationDate()`)
-- Requires C++ knowledge to use directly
-- No built-in support for distributed computing
+## What You Get
 
-Quantra addresses these by wrapping QuantLib in a server architecture that supports parallel processing across multiple worker processes, with clients available in C++, Python, and any language that can speak gRPC or REST.
+- A C++ pricing server built on QuantLib
+- A gRPC API using FlatBuffers messages
+- An optional JSON/HTTP gateway in `jsonserver/`
+- A C++ client in `client/`
+- A Python client package in `quantra-python/`
+- Build, schema generation, and process-management tooling in `scripts/` and `tools/quantra-manager/`
+- Integration and parity tests in `tests/`
 
-## Supported Instruments
+## Supported Pricing Coverage
 
-- Fixed Rate Bonds
-- Floating Rate Bonds
-- Vanilla Interest Rate Swaps
-- Forward Rate Agreements (FRA)
-- Caps and Floors
+Representative supported request types include:
+
+- Fixed-rate bonds
+- Floating-rate bonds
+- Vanilla swaps
+- OIS swaps
+- Basis swaps
+- Zero-coupon inflation swaps
+- Year-on-year inflation swaps
+- FRAs
+- Caps and floors
 - Swaptions
-- Credit Default Swaps (CDS)
+- CDS
+- Equity options
+
+See `examples/data/` for sample payloads.
 
 ## Architecture
 
-Quantra runs multiple QuantLib instances as separate worker processes behind an Envoy proxy that load-balances requests across them.
+The main runtime model is a multi-process gRPC service fronted by Envoy:
 
-```
-                    Client Request
-                          │
-                          ▼
-                 ┌─────────────────┐
-                 │  Envoy Proxy    │  Port 50051
-                 │  (Round Robin)  │
-                 └────────┬────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-   ┌─────────┐       ┌─────────┐       ┌─────────┐
-   │ Worker 1│       │ Worker 2│       │ Worker N│
-   │  :50055 │       │  :50056 │       │ :50055+N│
-   └─────────┘       └─────────┘       └─────────┘
+```text
+client -> Envoy (:50051) -> sync_server workers (:50055+)
 ```
 
-Two server types are available:
+Typical local or container workflow:
 
-- **gRPC Server** - High-performance binary protocol using FlatBuffers
-- **JSON Server** - REST API for easier integration (see [API Documentation](jsonserver/openapi/docs.html))
+1. Build schemas and binaries
+2. Start the gRPC worker cluster with `quantra`
+3. Optionally run `json_server` to expose HTTP/JSON endpoints
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Docker
+
+The default production image starts the gRPC cluster and exposes port `50051`.
 
 ```bash
-# Build and run
 docker build -t quantra .
-docker run -p 50051:50051 -p 8080:8080 quantra
-
-# Test with curl (JSON API)
-curl -X POST http://localhost:8080/price/fixed-rate-bond \
-  -H "Content-Type: application/json" \
-  -d @examples/data/fixed_rate_bond_request.json
+docker run --rm -p 50051:50051 quantra
 ```
 
 ### Local Build
 
-See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed instructions.
+See `docs/build.md` for environment setup details. Once dependencies are available:
 
 ```bash
-# Quick start
-git clone https://github.com/joseprupi/quantraserver
-cd quantraserver
-./scripts/build.sh
-
-# Start server cluster with 4 workers
-./scripts/quantra start --workers 4
-
-# Run example
-./build/examples/bond_request 100
+./scripts/build.sh Release
+./scripts/quantra start --workers 4 --foreground
 ```
 
-## Usage Examples
+### Optional JSON Gateway
 
-### C++ Client
-
-```cpp
-#include "quantra_client.h"
-
-int main() {
-    quantra::QuantraClient client("localhost:50051");
-    
-    // Load request from JSON file
-    std::ifstream file("examples/data/fixed_rate_bond_request.json");
-    std::string json((std::istreambuf_iterator<char>(file)),
-                      std::istreambuf_iterator<char>());
-    
-    auto result = client.PriceFixedRateBondJSON(json);
-    if (result.ok) {
-        std::cout << result.body << std::endl;
-    }
-    return 0;
-}
-```
-
-### Python Client
-
-```python
-from quantra_client import Client
-
-client = Client(target="localhost:50051")
-
-# Build request using generated types
-request = PriceFixedRateBondRequestT()
-# ... configure request ...
-
-response = client.price_fixed_rate_bonds(request)
-print(f"NPV: {response.Bonds(0).Npv()}")
-```
-
-### REST API
+The JSON server is built as a separate binary and connects to the gRPC endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/price/vanilla-swap \
+./build/jsonserver/json_server localhost:50051 8080
+```
+
+You can then call the HTTP API with sample requests from `examples/data/`:
+
+```bash
+curl -X POST http://localhost:8080/price-fixed-rate-bond \
   -H "Content-Type: application/json" \
-  -d @examples/data/vanilla_swap_request.json
+  -d @examples/data/fixed_rate_bond_request.json
 ```
 
-## Data Formats
+The generated OpenAPI files live in `jsonserver/openapi/`.
 
-Quantra uses FlatBuffers for efficient serialization. Requests can be built using:
+## Development Workflow
 
-- **C++ structs** - Native types for maximum performance
-- **JSON** - Human-readable, easy to debug
-- **Binary FlatBuffers** - Compact wire format
+### Build
 
-Example of a deposit helper for yield curve construction:
+`./scripts/build.sh` regenerates schemas, recreates `build/`, and compiles the project.
 
-```json
-{
-  "point_wrapper_type": "DepositHelper",
-  "point_wrapper": {
-    "rate": 0.0096,
-    "tenor_time_unit": "Months",
-    "tenor_number": 3,
-    "fixing_days": 3,
-    "calendar": "TARGET",
-    "business_day_convention": "ModifiedFollowing",
-    "day_counter": "Actual365Fixed"
-  }
-}
+```bash
+./scripts/build.sh
+./scripts/build.sh Release
 ```
 
-See [examples/data/](examples/data/) for complete request examples for all supported instruments.
+### Regenerate Schemas Only
 
-## Performance
+If you are editing FlatBuffers schemas and want to regenerate artifacts without a full build:
 
-Benchmarks run on AMD Ryzen 9 3900X (12 cores), pricing fixed-rate bonds with full curve bootstrapping:
-
-| Workers | Bonds | Quantra (ms) | QuantLib (ms) | Speedup |
-|---------|-------|--------------|---------------|---------|
-| 1       | 1,000 | 941          | 556           | 0.6x    |
-| 5       | 5,000 | 1,017        | 2,759         | 2.7x    |
-| 10      | 10,000| 1,057        | 5,578         | 5.3x    |
-| 10      | 100,000| 10,544      | 56,324        | 5.3x    |
-
-With curve reuse (single bootstrap):
-
-| Workers | Bonds   | Quantra (ms) | QuantLib (ms) |
-|---------|---------|--------------|---------------|
-| 10      | 10,000  | 213          | 176           |
-| 10      | 100,000 | 1,618        | 1,675         |
-
-Quantra excels when curve bootstrapping dominates computation time or when processing large batches in parallel.
-
-## Project Structure
-
+```bash
+./scripts/generate_schemas.sh
 ```
-quantraserver/
-├── client/              # C++ client library
-├── examples/            # Usage examples and sample data
-├── flatbuffers/         # Schema definitions and generated code
-│   ├── fbs/             # FlatBuffers schema files (.fbs)
-│   ├── cpp/             # Generated C++ headers
-│   ├── python/          # Generated Python modules
-│   └── json/            # JSON schemas
-├── grpc/                # gRPC service definition
-├── jsonserver/          # REST API server (Crow-based)
-│   └── openapi/         # API documentation
-├── parser/              # FlatBuffers to QuantLib converters
-├── quantra-python/      # Python client package
-├── request/             # Request handlers
-├── scripts/             # Build and management scripts
-├── server/              # gRPC server
-├── tests/               # Test suite
-└── tools/               # Process management utilities
+
+### Run Tests
+
+```bash
+bash tests/run_all_tests.sh
 ```
+
+The test suite exercises:
+
+- C++ pricing parity against QuantLib
+- C++ gRPC integration
+- JSON HTTP API scenarios
+- Python client scenarios
+
+## Repository Map
+
+- `server/`: gRPC pricing server
+- `jsonserver/`: HTTP/JSON gateway and generated OpenAPI docs
+- `request/`: request entrypoints and endpoint orchestration
+- `parser/`: parsing, domain conversion, pricing helpers, and builders
+- `client/`: C++ client library
+- `quantra-python/`: Python client package
+- `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts
+- `grpc/`: gRPC service definitions and generated service bindings
+- `examples/data/`: example JSON requests
+- `tests/`: parity, integration, and client tests
+- `scripts/`: build, code generation, and runtime helpers
+- `tools/quantra-manager/`: packaged process-manager implementation
+- `docs/`: project documentation and reference notes
 
 ## Documentation
 
-- [BUILD_GUIDE.md](BUILD_GUIDE.md) - Build instructions and Docker setup
-- [scripts/README.md](scripts/README.md) - Script reference
-- [client/README.md](client/README.md) - C++ client library
-- [tests/README.md](tests/README.md) - Testing framework
-- [tools/quantra-manager/README.md](tools/quantra-manager/README.md) - Process manager CLI
-- [API Documentation](jsonserver/openapi/docs.html) - REST API reference (OpenAPI)
+- `docs/README.md`: documentation index
+- `docs/build.md`: environment setup and build details
+- `docs/scripts.md`: build and schema tooling
+- `docs/testing.md`: test suite details
+- `docs/process-manager.md`: process-manager behavior and runtime model
+- `docs/client.md`: C++ client notes
+- `docs/parser.md`: parser/service/builder conventions
+- `docs/versioning.md`: versioning policy
+- `CONTRIBUTING.md`: contribution workflow
 
 ## Requirements
 
-- gRPC v1.60.0+
-- FlatBuffers v24.12.23+
-- QuantLib 1.22+
-- CMake 3.16+
-- GCC 12+ or Clang 14+
-- Envoy proxy (for load balancing)
+The repository currently documents and builds around:
+
+- CMake `3.16+`
+- GCC `12+` or Clang `14+`
+- gRPC `v1.60.0`
+- FlatBuffers `v24.12.23`
+- QuantLib `1.41` in Docker builds
+- Envoy for worker load balancing
 
 ## License
 
-MIT / Apache 2.0 (same as QuantLib)
+MIT / Apache 2.0
