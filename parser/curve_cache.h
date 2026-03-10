@@ -2,6 +2,8 @@
 #define QUANTRASERVER_CURVE_CACHE_H
 
 #include <string>
+#include <algorithm>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -10,10 +12,49 @@
 #include <list>
 #include <iostream>
 #include <cstdlib>
+#include <cctype>
+#include <limits>
 
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 namespace quantra {
+
+namespace detail {
+
+inline std::optional<size_t> ParsePositiveSizeT(const char* text) {
+    if (text == nullptr) {
+        return std::nullopt;
+    }
+
+    std::string value(text);
+    auto begin = std::find_if_not(value.begin(), value.end(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    });
+    auto end = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    }).base();
+    if (begin >= end) {
+        return std::nullopt;
+    }
+
+    value = std::string(begin, end);
+    size_t parsed_chars = 0;
+    unsigned long long parsed = 0;
+    try {
+        parsed = std::stoull(value, &parsed_chars, 10);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+
+    if (parsed_chars != value.size() || parsed == 0 ||
+        parsed > static_cast<unsigned long long>(std::numeric_limits<size_t>::max())) {
+        return std::nullopt;
+    }
+
+    return static_cast<size_t>(parsed);
+}
+
+} // namespace detail
 
 // =============================================================================
 // Serialized curve representation (for L2 / Redis)
@@ -50,6 +91,7 @@ public:
     virtual ~CurveCacheBackend() = default;
 
     // --- L1: Live QuantLib object cache ---
+    // Returns nullptr on cache miss; callers must handle misses explicitly.
     virtual std::shared_ptr<QuantLib::YieldTermStructure>
         getL1(const std::string& key) = 0;
 
@@ -88,6 +130,7 @@ public:
     explicit InProcessCurveCache(size_t maxEntries = 100)
         : maxEntries_(maxEntries) {}
 
+    // Returns nullptr on miss and updates LRU state on hit.
     std::shared_ptr<QuantLib::YieldTermStructure>
     getL1(const std::string& key) override {
         auto it = cacheMap_.find(key);
@@ -216,8 +259,12 @@ private:
         size_t maxEntries = 100;
         const char* envMax = std::getenv("QUANTRA_CURVE_CACHE_MAX_ENTRIES");
         if (envMax) {
-            int val = std::atoi(envMax);
-            if (val > 0) maxEntries = static_cast<size_t>(val);
+            if (auto parsed = detail::ParsePositiveSizeT(envMax)) {
+                maxEntries = *parsed;
+            } else {
+                std::cerr << "[CurveCache] Invalid QUANTRA_CURVE_CACHE_MAX_ENTRIES='"
+                          << envMax << "'; using default " << maxEntries << std::endl;
+            }
         }
 
         // For now, always create InProcessCurveCache.

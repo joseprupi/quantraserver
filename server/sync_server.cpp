@@ -25,11 +25,36 @@
 #include "equity_option_handler.h"
 
 #include <grpcpp/grpcpp.h>
+#include <csignal>
+#include <cstdlib>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
 
 using quantra::QuantraServer;
+
+namespace {
+
+constexpr int kMaxGrpcMessageBytes = 8 * 1024 * 1024;
+volatile std::sig_atomic_t g_shutdown_requested = 0;
+
+void HandleShutdownSignal(int /*signum*/)
+{
+    g_shutdown_requested = 1;
+}
+
+std::string GetBindHost()
+{
+    const char *env_host = std::getenv("QUANTRA_SERVER_BIND_HOST");
+    if (env_host == nullptr || env_host[0] == '\0')
+    {
+        return "127.0.0.1";
+    }
+    return env_host;
+}
+
+} // namespace
 
 /**
  * ServerImpl - Async gRPC server.
@@ -42,17 +67,20 @@ class ServerImpl final
 public:
     ~ServerImpl()
     {
-        server_->Shutdown();
-        cq_->Shutdown();
+        Shutdown();
     }
 
     void Run(std::string port)
     {
-        std::string server_address("127.0.0.1:" + port);
+        std::signal(SIGINT, HandleShutdownSignal);
+        std::signal(SIGTERM, HandleShutdownSignal);
+
+        std::string server_address(GetBindHost() + ":" + port);
 
         grpc::ServerBuilder builder;
-        builder.SetMaxMessageSize(INT_MAX);
-        builder.SetMaxReceiveMessageSize(INT_MAX);
+        // Intentionally cap request/response sizes to harden against oversized payloads.
+        builder.SetMaxReceiveMessageSize(kMaxGrpcMessageBytes);
+        builder.SetMaxSendMessageSize(kMaxGrpcMessageBytes);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();
@@ -69,29 +97,63 @@ public:
         }
 
         HandleRpcs();
+        Shutdown();
     }
 
 private:
+    void Shutdown()
+    {
+        if (shutdown_started_)
+        {
+            return;
+        }
+
+        shutdown_started_ = true;
+        if (server_)
+        {
+            server_->Shutdown();
+        }
+        if (cq_)
+        {
+            cq_->Shutdown();
+        }
+    }
+
     void HandleRpcs()
     {
-        void *tag;
-        bool ok;
-
         // Initialize all registered products
         quantra::ProductRegistry::instance().initializeAll(&service_, cq_.get());
 
         // Main event loop
         while (true)
         {
-            GPR_ASSERT(cq_->Next(&tag, &ok));
-            GPR_ASSERT(ok);
-            static_cast<CallData *>(tag)->Proceed();
+            if (g_shutdown_requested != 0)
+            {
+                Shutdown();
+            }
+
+            void *tag = nullptr;
+            bool ok = false;
+            const auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(200);
+            const auto next_status = cq_->AsyncNext(&tag, &ok, deadline);
+
+            if (next_status == grpc::CompletionQueue::TIMEOUT)
+            {
+                continue;
+            }
+            if (next_status == grpc::CompletionQueue::SHUTDOWN)
+            {
+                break;
+            }
+
+            static_cast<CallData *>(tag)->Proceed(ok);
         }
     }
 
     std::unique_ptr<grpc::ServerCompletionQueue> cq_;
     QuantraServer::AsyncService service_;
     std::unique_ptr<grpc::Server> server_;
+    bool shutdown_started_ = false;
 };
 
 int main(int argc, char **argv)
