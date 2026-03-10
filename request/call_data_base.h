@@ -2,9 +2,11 @@
 #define QUANTRASERVER_CALL_DATA_BASE_H
 
 #include <grpcpp/grpcpp.h>
+#include <exception>
 #include <iostream>
 #include <memory>
-#include <cassert>
+#include <string>
+#include <typeinfo>
 
 #include <ql/quantlib.hpp>
 
@@ -23,7 +25,7 @@ class CallData
 {
 public:
     virtual ~CallData() = default;
-    virtual void Proceed() = 0;
+    virtual void Proceed(bool ok) = 0;
 };
 
 /**
@@ -40,10 +42,10 @@ public:
 
     void start()
     {
-        Proceed();
+        Proceed(true);
     }
 
-    void Proceed() override
+    void Proceed(bool ok) override
     {
         if (status_ == CREATE)
         {
@@ -52,52 +54,96 @@ public:
         }
         else if (status_ == PROCESS)
         {
+            if (!ok)
+            {
+                delete this;
+                return;
+            }
+
             std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder = 
                 std::make_shared<flatbuffers::grpc::MessageBuilder>();
             try
             {
                 this->CreateService(service_, cq_);
+
+                if (!request_msg.Verify())
+                {
+                    std::cerr << "[grpc] malformed FlatBuffer request"
+                              << " type=" << typeid(Message).name()
+                              << " peer=" << ctx_.peer()
+                              << " bytes=" << request_msg.size()
+                              << std::endl;
+                    status_ = FINISH;
+                    responder_.FinishWithError(
+                        grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Malformed request"),
+                        this);
+                    return;
+                }
+
                 Request request;
                 auto response = request.request(builder, request_msg.GetRoot());
                 builder->Finish(response);
 
                 reply_ = builder->ReleaseMessage<Response>();
-                assert(reply_.Verify());
+                if (!reply_.Verify())
+                {
+                    std::cerr << "[grpc] refusing to send invalid FlatBuffer reply"
+                              << " request_type=" << typeid(Message).name()
+                              << " response_type=" << typeid(Response).name()
+                              << " peer=" << ctx_.peer()
+                              << " bytes=" << reply_.size()
+                              << std::endl;
+                    status_ = FINISH;
+                    responder_.FinishWithError(
+                        grpc::Status(grpc::StatusCode::INTERNAL, "Invalid server response"),
+                        this);
+                    return;
+                }
 
                 status_ = FINISH;
                 responder_.Finish(reply_, grpc::Status::OK, this);
             }
             catch (QuantLib::Error &e)
             {
-                std::string error_msg = "QuantLib error: ";
-                error_msg.append(e.what());
+                std::cerr << "[grpc] QuantLib exception"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "QuantLib error", error_msg);
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, "QuantLib error");
                 responder_.FinishWithError(status, this);
             }
             catch (QuantraError &e)
             {
-                std::string error_msg = "Quantra error: ";
-                error_msg.append(e.what());
-                std::cout << "Quantra error:  " << error_msg << std::endl;
+                std::cerr << "[grpc] Quantra exception"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Quantra error", error_msg);
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Quantra error");
                 responder_.FinishWithError(status, this);
             }
             catch (std::exception &e)
             {
-                std::string error_msg = "Unknown error: ";
-                error_msg.append(e.what());
-                std::cout << "Unknown error:  " << error_msg << std::endl;
+                std::cerr << "[grpc] std::exception while handling request"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error", error_msg);
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error");
                 responder_.FinishWithError(status, this);
             }
             catch (...)
             {
-                std::cout << "Unknown error exception:  " << std::endl;
+                std::cerr << "[grpc] non-std exception while handling request"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error", "Unknown exception");
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error");
                 responder_.FinishWithError(status, this);
             }
         }

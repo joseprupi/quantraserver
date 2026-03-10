@@ -12,8 +12,10 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <exception>
 #include <vector>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <algorithm>
@@ -57,6 +59,53 @@ using namespace quantra;
 
 namespace {
 
+std::string TrimWhitespace(const std::string& value) {
+    const auto begin = std::find_if_not(value.begin(), value.end(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    });
+    const auto end = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    }).base();
+    if (begin >= end) {
+        return "";
+    }
+    return std::string(begin, end);
+}
+
+bool HasWhitespace(const std::string& value) {
+    return std::any_of(value.begin(), value.end(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    });
+}
+
+std::optional<int> ParsePortNumber(const std::string& text, std::string& error_out) {
+    const std::string trimmed = TrimWhitespace(text);
+    if (trimmed.empty()) {
+        error_out = "must not be empty";
+        return std::nullopt;
+    }
+
+    size_t parsed_chars = 0;
+    int64_t parsed = 0;
+    try {
+        parsed = std::stoll(trimmed, &parsed_chars, 10);
+    } catch (const std::exception&) {
+        error_out = "must be numeric";
+        return std::nullopt;
+    }
+
+    if (parsed_chars != trimmed.size()) {
+        error_out = "must be numeric";
+        return std::nullopt;
+    }
+    if (parsed < 1 || parsed > 65535) {
+        error_out = "must be between 1 and 65535";
+        return std::nullopt;
+    }
+
+    return static_cast<int>(parsed);
+}
+
 std::string GrpcChannelStateToString(grpc_connectivity_state state) {
     switch (state) {
         case GRPC_CHANNEL_IDLE: return "IDLE";
@@ -69,11 +118,57 @@ std::string GrpcChannelStateToString(grpc_connectivity_state state) {
 }
 
 std::optional<std::pair<std::string, std::string>> ParseHostPort(const std::string& in) {
-    auto pos = in.rfind(':');
-    if (pos == std::string::npos || pos == 0 || pos + 1 >= in.size()) {
+    const std::string trimmed = TrimWhitespace(in);
+    if (trimmed.empty()) {
         return std::nullopt;
     }
-    return std::make_pair(in.substr(0, pos), in.substr(pos + 1));
+
+    if (trimmed.front() == '[') {
+        const auto close = trimmed.find(']');
+        if (close == std::string::npos || close + 1 >= trimmed.size() || trimmed[close + 1] != ':') {
+            return std::nullopt;
+        }
+
+        const std::string host = trimmed.substr(0, close + 1);
+        const std::string port = trimmed.substr(close + 2);
+        if (port.empty() || HasWhitespace(host) || HasWhitespace(port)) {
+            return std::nullopt;
+        }
+
+        return std::make_pair(host, port);
+    }
+
+    const auto pos = trimmed.rfind(':');
+    if (pos == std::string::npos || pos == 0 || pos + 1 >= trimmed.size()) {
+        return std::nullopt;
+    }
+    if (trimmed.find(':') != pos) {
+        return std::nullopt;
+    }
+
+    const std::string host = trimmed.substr(0, pos);
+    const std::string port = trimmed.substr(pos + 1);
+    if (host.empty() || port.empty() || HasWhitespace(host) || HasWhitespace(port)) {
+        return std::nullopt;
+    }
+
+    return std::make_pair(host, port);
+}
+
+bool ValidateGrpcAddress(const std::string& grpc_address, std::string& error_out) {
+    const auto host_port = ParseHostPort(grpc_address);
+    if (!host_port) {
+        error_out = "must be in host:port or [ipv6]:port form";
+        return false;
+    }
+
+    std::string port_error;
+    if (!ParsePortNumber(host_port->second, port_error)) {
+        error_out = "port " + port_error;
+        return false;
+    }
+
+    return true;
 }
 
 bool IsJsonContentType(const crow::request& req) {
@@ -139,13 +234,13 @@ std::optional<std::string> HttpGetWithTimeout(
             }
             pos = line_end + 2;
             if (chunk_size == 0) break;
-            if (pos + chunk_size > body.size()) {
+            if (pos > body.size() || chunk_size > body.size() - pos) {
                 error_out = "truncated chunked body";
                 return std::nullopt;
             }
             decoded.append(body.substr(pos, chunk_size));
             pos += chunk_size;
-            if (pos + 2 > body.size() || body.substr(pos, 2) != "\r\n") {
+            if (pos > body.size() || body.size() - pos < 2 || body.substr(pos, 2) != "\r\n") {
                 error_out = "invalid chunk delimiter";
                 return std::nullopt;
             }
@@ -208,6 +303,8 @@ void FillEnvoyClusterHealth(
             try {
                 out = std::stoi(line.substr(c + 1));
             } catch (...) {
+                std::cerr << "[jsonserver] failed to parse envoy metric "
+                          << key << " from line: " << line << std::endl;
             }
         };
         parse_metric("cluster.quantra_workers.membership_total", total);
@@ -247,7 +344,20 @@ int main(int argc, char** argv) {
     }
     
     std::string grpc_address = argv[1];
-    int http_port = std::atoi(argv[2]);
+    std::string http_port_error;
+    auto http_port = ParsePortNumber(argv[2], http_port_error);
+    if (!http_port) {
+        std::cerr << "Invalid HTTP port '" << argv[2] << "': " << http_port_error << "\n";
+        return 1;
+    }
+
+    std::string grpc_address_error;
+    if (!ValidateGrpcAddress(grpc_address, grpc_address_error)) {
+        std::cerr << "Invalid gRPC server address '" << grpc_address << "': "
+                  << grpc_address_error << "\n";
+        return 1;
+    }
+
     bool log_json_bodies = false;
     for (int i = 3; i < argc; ++i) {
         std::string arg = argv[i];
@@ -260,9 +370,8 @@ int main(int argc, char** argv) {
         }
     }
     auto start_time = std::chrono::steady_clock::now();
-    std::string envoy_admin_target = std::getenv("QUANTRA_ENVOY_ADMIN")
-        ? std::getenv("QUANTRA_ENVOY_ADMIN")
-        : "";
+    const char* envoy_admin_env = std::getenv("QUANTRA_ENVOY_ADMIN");
+    std::string envoy_admin_target = envoy_admin_env ? envoy_admin_env : "";
 
     std::vector<std::string> product_names;
     for (const auto& kv : GetProductCatalog()) {
@@ -277,7 +386,7 @@ int main(int argc, char** argv) {
               << "  Quantra JSON API Server\n"
               << "===========================================\n"
               << "  gRPC backend: " << grpc_address << "\n"
-              << "  HTTP port:    " << http_port << "\n"
+              << "  HTTP port:    " << *http_port << "\n"
               << "  Log JSON:     " << (log_json_bodies ? "enabled" : "disabled") << "\n"
               << "===========================================\n\n";
     
@@ -547,7 +656,7 @@ int main(int argc, char** argv) {
                   << "  GET  /health\n\n"
                   << "Starting server...\n";
         
-        app.port(http_port).multithreaded().run();
+        app.port(*http_port).multithreaded().run();
         
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";
