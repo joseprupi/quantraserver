@@ -44,7 +44,7 @@ class PriceFloatingRateBond(object):
         return None
 
     # PriceFloatingRateBond
-    def ForecastingCurve(self):
+    def ForwardingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
@@ -86,11 +86,11 @@ def PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve):
 def AddDiscountingCurve(builder, discountingCurve):
     PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve)
 
-def PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forecastingCurve), 0)
+def PriceFloatingRateBondAddForwardingCurve(builder, forwardingCurve):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
 
-def AddForecastingCurve(builder, forecastingCurve):
-    PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve)
+def AddForwardingCurve(builder, forwardingCurve):
+    PriceFloatingRateBondAddForwardingCurve(builder, forwardingCurve)
 
 def PriceFloatingRateBondAddCouponPricer(builder, couponPricer):
     builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(couponPricer), 0)
@@ -121,7 +121,7 @@ class PriceFloatingRateBondT(object):
     def __init__(self):
         self.floatingRateBond = None  # type: Optional[FloatingRateBondT]
         self.discountingCurve = None  # type: str
-        self.forecastingCurve = None  # type: str
+        self.forwardingCurve = None  # type: str
         self.couponPricer = None  # type: str
         self.yield_ = None  # type: Optional[YieldT]
 
@@ -149,7 +149,7 @@ class PriceFloatingRateBondT(object):
         if priceFloatingRateBond.FloatingRateBond() is not None:
             self.floatingRateBond = FloatingRateBondT.InitFromObj(priceFloatingRateBond.FloatingRateBond())
         self.discountingCurve = priceFloatingRateBond.DiscountingCurve()
-        self.forecastingCurve = priceFloatingRateBond.ForecastingCurve()
+        self.forwardingCurve = priceFloatingRateBond.ForwardingCurve()
         self.couponPricer = priceFloatingRateBond.CouponPricer()
         if priceFloatingRateBond.Yield() is not None:
             self.yield_ = YieldT.InitFromObj(priceFloatingRateBond.Yield())
@@ -160,8 +160,8 @@ class PriceFloatingRateBondT(object):
             floatingRateBond = self.floatingRateBond.Pack(builder)
         if self.discountingCurve is not None:
             discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.forecastingCurve is not None:
-            forecastingCurve = builder.CreateString(self.forecastingCurve)
+        if self.forwardingCurve is not None:
+            forwardingCurve = builder.CreateString(self.forwardingCurve)
         if self.couponPricer is not None:
             couponPricer = builder.CreateString(self.couponPricer)
         if self.yield_ is not None:
@@ -171,8 +171,8 @@ class PriceFloatingRateBondT(object):
             PriceFloatingRateBondAddFloatingRateBond(builder, floatingRateBond)
         if self.discountingCurve is not None:
             PriceFloatingRateBondAddDiscountingCurve(builder, discountingCurve)
-        if self.forecastingCurve is not None:
-            PriceFloatingRateBondAddForecastingCurve(builder, forecastingCurve)
+        if self.forwardingCurve is not None:
+            PriceFloatingRateBondAddForwardingCurve(builder, forwardingCurve)
         if self.couponPricer is not None:
             PriceFloatingRateBondAddCouponPricer(builder, couponPricer)
         if self.yield_ is not None:

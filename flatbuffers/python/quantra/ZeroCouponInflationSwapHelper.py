@@ -108,16 +108,8 @@ class ZeroCouponInflationSwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Optional deprecated QuantLib nominal curve dependency.
-    # ZeroCouponInflationSwapHelper
-    def NominalCurveId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def ZeroCouponInflationSwapHelperStart(builder):
-    builder.StartObject(11)
+    builder.StartObject(10)
 
 def Start(builder):
     ZeroCouponInflationSwapHelperStart(builder)
@@ -182,12 +174,6 @@ def ZeroCouponInflationSwapHelperAddObservationInterpolation(builder, observatio
 def AddObservationInterpolation(builder, observationInterpolation):
     ZeroCouponInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation)
 
-def ZeroCouponInflationSwapHelperAddNominalCurveId(builder, nominalCurveId):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(nominalCurveId), 0)
-
-def AddNominalCurveId(builder, nominalCurveId):
-    ZeroCouponInflationSwapHelperAddNominalCurveId(builder, nominalCurveId)
-
 def ZeroCouponInflationSwapHelperEnd(builder):
     return builder.EndObject()
 
@@ -213,7 +199,6 @@ class ZeroCouponInflationSwapHelperT(object):
         self.paymentConvention = 2  # type: int
         self.dayCounter = 1  # type: int
         self.observationInterpolation = 0  # type: int
-        self.nominalCurveId = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -248,7 +233,6 @@ class ZeroCouponInflationSwapHelperT(object):
         self.paymentConvention = zeroCouponInflationSwapHelper.PaymentConvention()
         self.dayCounter = zeroCouponInflationSwapHelper.DayCounter()
         self.observationInterpolation = zeroCouponInflationSwapHelper.ObservationInterpolation()
-        self.nominalCurveId = zeroCouponInflationSwapHelper.NominalCurveId()
 
     # ZeroCouponInflationSwapHelperT
     def Pack(self, builder):
@@ -262,8 +246,6 @@ class ZeroCouponInflationSwapHelperT(object):
             startDate = builder.CreateString(self.startDate)
         if self.endDate is not None:
             endDate = builder.CreateString(self.endDate)
-        if self.nominalCurveId is not None:
-            nominalCurveId = builder.CreateString(self.nominalCurveId)
         ZeroCouponInflationSwapHelperStart(builder)
         if self.quoteId is not None:
             ZeroCouponInflationSwapHelperAddQuoteId(builder, quoteId)
@@ -280,7 +262,5 @@ class ZeroCouponInflationSwapHelperT(object):
         ZeroCouponInflationSwapHelperAddPaymentConvention(builder, self.paymentConvention)
         ZeroCouponInflationSwapHelperAddDayCounter(builder, self.dayCounter)
         ZeroCouponInflationSwapHelperAddObservationInterpolation(builder, self.observationInterpolation)
-        if self.nominalCurveId is not None:
-            ZeroCouponInflationSwapHelperAddNominalCurveId(builder, nominalCurveId)
         zeroCouponInflationSwapHelper = ZeroCouponInflationSwapHelperEnd(builder)
         return zeroCouponInflationSwapHelper

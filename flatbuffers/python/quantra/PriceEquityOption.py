@@ -36,7 +36,7 @@ class PriceEquityOption(object):
             return obj
         return None
 
-    # Reference to risk-free discounting curve in Pricing.curves by id.
+    # Reference to risk-free discounting curve in pricing.rates.curves by id.
     # PriceEquityOption
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -44,7 +44,7 @@ class PriceEquityOption(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to volatility in Pricing.vol_surfaces by id.
+    # Reference to volatility in pricing.volatility.vol_surfaces by id.
     # PriceEquityOption
     def Volatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -52,7 +52,7 @@ class PriceEquityOption(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to model in Pricing.models by id.
+    # Reference to model in pricing.volatility.models by id.
     # PriceEquityOption
     def Model(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

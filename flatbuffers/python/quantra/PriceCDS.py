@@ -36,7 +36,7 @@ class PriceCDS(object):
             return obj
         return None
 
-    # Reference to yield curve in Pricing.curves.
+    # Reference to yield curve in pricing.rates.curves by id.
     # PriceCDS
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -44,7 +44,7 @@ class PriceCDS(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to credit curve in Pricing.credit_curves.
+    # Reference to credit curve in pricing.credit.credit_curves by id.
     # PriceCDS
     def CreditCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -52,7 +52,7 @@ class PriceCDS(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to model in Pricing.models.
+    # Reference to model in pricing.volatility.models by id.
     # PriceCDS
     def Model(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))

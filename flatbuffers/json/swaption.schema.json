@@ -717,16 +717,12 @@
                 "type" : "array", "items" : {"type" : "string"},
                 "description" : "Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates."
               },
-        "underlying_swap" : {
-                "$ref" : "#/definitions/quantra_VanillaSwap",
-                "description" : "Legacy field: vanilla swap only (kept for backward compatibility)."
-              },
         "underlying_type" : {
                 "$ref" : "#/definitions/quantra_SwaptionUnderlying"
               },
         "underlying" : {
                 "anyOf": [{ "$ref" : "#/definitions/quantra_VanillaSwap" },{ "$ref" : "#/definitions/quantra_OisSwap" }],
-                "description" : "New union-based underlying (VanillaSwap or OisSwap)."
+                "description" : "Underlying swap instrument."
               }
       },
       "additionalProperties" : false

@@ -50,11 +50,11 @@ struct PriceFRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::FRA *fra() const {
     return GetPointer<const quantra::FRA *>(VT_FRA);
   }
-  /// Reference to curve in Pricing.curves.
+  /// Reference to curve in pricing.rates.curves by id.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
-  /// Reference to curve for forward rates.
+  /// Reference to curve in pricing.rates.curves for forward rates by id.
   const ::flatbuffers::String *forwarding_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }

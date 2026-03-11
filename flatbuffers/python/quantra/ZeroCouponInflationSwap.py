@@ -34,7 +34,7 @@ class ZeroCouponInflationSwap(object):
         return 0
 
     # ZeroCouponInflationSwap
-    def Nominal(self):
+    def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
@@ -142,11 +142,11 @@ def ZeroCouponInflationSwapAddSwapType(builder, swapType):
 def AddSwapType(builder, swapType):
     ZeroCouponInflationSwapAddSwapType(builder, swapType)
 
-def ZeroCouponInflationSwapAddNominal(builder, nominal):
-    builder.PrependFloat64Slot(1, nominal, 0.0)
+def ZeroCouponInflationSwapAddNotional(builder, notional):
+    builder.PrependFloat64Slot(1, notional, 0.0)
 
-def AddNominal(builder, nominal):
-    ZeroCouponInflationSwapAddNominal(builder, nominal)
+def AddNotional(builder, notional):
+    ZeroCouponInflationSwapAddNotional(builder, notional)
 
 def ZeroCouponInflationSwapAddStartDate(builder, startDate):
     builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(startDate), 0)
@@ -236,7 +236,7 @@ class ZeroCouponInflationSwapT(object):
     # ZeroCouponInflationSwapT
     def __init__(self):
         self.swapType = 0  # type: int
-        self.nominal = 0.0  # type: float
+        self.notional = 0.0  # type: float
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
         self.fixedCalendar = 32  # type: int
@@ -272,7 +272,7 @@ class ZeroCouponInflationSwapT(object):
         if zeroCouponInflationSwap is None:
             return
         self.swapType = zeroCouponInflationSwap.SwapType()
-        self.nominal = zeroCouponInflationSwap.Nominal()
+        self.notional = zeroCouponInflationSwap.Notional()
         self.startDate = zeroCouponInflationSwap.StartDate()
         self.maturityDate = zeroCouponInflationSwap.MaturityDate()
         self.fixedCalendar = zeroCouponInflationSwap.FixedCalendar()
@@ -299,7 +299,7 @@ class ZeroCouponInflationSwapT(object):
             observationLag = self.observationLag.Pack(builder)
         ZeroCouponInflationSwapStart(builder)
         ZeroCouponInflationSwapAddSwapType(builder, self.swapType)
-        ZeroCouponInflationSwapAddNominal(builder, self.nominal)
+        ZeroCouponInflationSwapAddNotional(builder, self.notional)
         if self.startDate is not None:
             ZeroCouponInflationSwapAddStartDate(builder, startDate)
         if self.maturityDate is not None:

@@ -34,18 +34,18 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondPric
     for (auto it = bond_pricings->begin(); it != bond_pricings->end(); it++)
     {
         auto discounting_term_structure = reg.rates.curves.find(it->discounting_curve()->str());
-        auto forecasting_term_structure = reg.rates.curves.find(it->forecasting_curve()->str());
+        auto forwarding_term_structure = reg.rates.curves.find(it->forwarding_curve()->str());
         auto pricer = pricers_map.find(it->coupon_pricer()->str());
 
         if (discounting_term_structure == reg.rates.curves.end())
             QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
-        if (forecasting_term_structure == reg.rates.curves.end())
-            QUANTRA_ERROR("Forecasting curve not found: " + it->forecasting_curve()->str());
+        if (forwarding_term_structure == reg.rates.curves.end())
+            QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
         if (pricer == pricers_map.end())
             QUANTRA_ERROR("Coupon pricer not found: " + it->coupon_pricer()->str());
 
-        // Link forecasting curve and parse bond with IndexRegistry
-        bond_parser.linkForecastingTermStructure(forecasting_term_structure->second->currentLink());
+        // Link forwarding curve and parse bond with IndexRegistry
+        bond_parser.linkForwardingTermStructure(forwarding_term_structure->second->currentLink());
         std::shared_ptr<QuantLib::FloatingRateBond> bond = bond_parser.parse(it->floating_rate_bond(), reg.rates.indices);
 
         std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> flows_vector;

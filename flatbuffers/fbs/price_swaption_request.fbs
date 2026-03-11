@@ -7,13 +7,13 @@ namespace quantra;
 /// Single swaption pricing request with curve/vol/model references.
 table PriceSwaption {
     swaption:Swaption;
-    /// Reference to curve in Pricing.curves by id.
+    /// Reference to curve in pricing.rates.curves by id.
     discounting_curve:string;
-    /// Reference to curve for forward rates by id.
+    /// Reference to curve in pricing.rates.curves for forward rates by id.
     forwarding_curve:string;
-    /// Reference to volatility in Pricing.vol_surfaces by id.
+    /// Reference to volatility in pricing.volatility.vol_surfaces by id.
     volatility:string;
-    /// Reference to model in Pricing.models by id.
+    /// Reference to model in pricing.volatility.models by id.
     model:string;
 }
 

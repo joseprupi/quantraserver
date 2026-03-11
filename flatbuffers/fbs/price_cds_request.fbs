@@ -7,11 +7,11 @@ namespace quantra;
 /// Single CDS pricing request with curve/credit/model references.
 table PriceCDS {
     cds:CDS;
-    /// Reference to yield curve in Pricing.curves.
+    /// Reference to yield curve in pricing.rates.curves by id.
     discounting_curve:string;
-    /// Reference to credit curve in Pricing.credit_curves.
+    /// Reference to credit curve in pricing.credit.credit_curves by id.
     credit_curve_id:string;
-    /// Reference to model in Pricing.models.
+    /// Reference to model in pricing.volatility.models by id.
     model:string;
 }
 

@@ -36,7 +36,7 @@ class PriceVanillaSwap(object):
             return obj
         return None
 
-    # Reference to curve in Pricing.curves.
+    # Reference to curve in pricing.rates.curves by id.
     # PriceVanillaSwap
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -44,7 +44,7 @@ class PriceVanillaSwap(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to curve for forward rates (can be same as discounting).
+    # Reference to curve in pricing.rates.curves for forward rates by id.
     # PriceVanillaSwap
     def ForwardingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

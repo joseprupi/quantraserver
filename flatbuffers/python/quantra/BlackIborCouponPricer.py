@@ -26,39 +26,27 @@ class BlackIborCouponPricer(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # BlackIborCouponPricer
-    def OptionletVolatilityStructureType(self):
+    def OptionletVolatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
-        return 0
-
-    # BlackIborCouponPricer
-    def OptionletVolatilityStructure(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            from flatbuffers.table import Table
-            obj = Table(bytearray(), 0)
-            self._tab.Union(obj, o)
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.ConstantOptionletVolatility import ConstantOptionletVolatility
+            obj = ConstantOptionletVolatility()
+            obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def BlackIborCouponPricerStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(1)
 
 def Start(builder):
     BlackIborCouponPricerStart(builder)
 
-def BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType):
-    builder.PrependUint8Slot(0, optionletVolatilityStructureType, 0)
+def BlackIborCouponPricerAddOptionletVolatility(builder, optionletVolatility):
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(optionletVolatility), 0)
 
-def AddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType):
-    BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, optionletVolatilityStructureType)
-
-def BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(optionletVolatilityStructure), 0)
-
-def AddOptionletVolatilityStructure(builder, optionletVolatilityStructure):
-    BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure)
+def AddOptionletVolatility(builder, optionletVolatility):
+    BlackIborCouponPricerAddOptionletVolatility(builder, optionletVolatility)
 
 def BlackIborCouponPricerEnd(builder):
     return builder.EndObject()
@@ -67,7 +55,7 @@ def End(builder):
     return BlackIborCouponPricerEnd(builder)
 
 try:
-    from typing import Union
+    from typing import Optional
 except:
     pass
 
@@ -75,8 +63,7 @@ class BlackIborCouponPricerT(object):
 
     # BlackIborCouponPricerT
     def __init__(self):
-        self.optionletVolatilityStructureType = 0  # type: int
-        self.optionletVolatilityStructure = None  # type: Union[None, ConstantOptionletVolatilityT]
+        self.optionletVolatility = None  # type: Optional[ConstantOptionletVolatilityT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -99,16 +86,15 @@ class BlackIborCouponPricerT(object):
     def _UnPack(self, blackIborCouponPricer):
         if blackIborCouponPricer is None:
             return
-        self.optionletVolatilityStructureType = blackIborCouponPricer.OptionletVolatilityStructureType()
-        self.optionletVolatilityStructure = OptionletVolatilityStructureCreator(self.optionletVolatilityStructureType, blackIborCouponPricer.OptionletVolatilityStructure())
+        if blackIborCouponPricer.OptionletVolatility() is not None:
+            self.optionletVolatility = ConstantOptionletVolatilityT.InitFromObj(blackIborCouponPricer.OptionletVolatility())
 
     # BlackIborCouponPricerT
     def Pack(self, builder):
-        if self.optionletVolatilityStructure is not None:
-            optionletVolatilityStructure = self.optionletVolatilityStructure.Pack(builder)
+        if self.optionletVolatility is not None:
+            optionletVolatility = self.optionletVolatility.Pack(builder)
         BlackIborCouponPricerStart(builder)
-        BlackIborCouponPricerAddOptionletVolatilityStructureType(builder, self.optionletVolatilityStructureType)
-        if self.optionletVolatilityStructure is not None:
-            BlackIborCouponPricerAddOptionletVolatilityStructure(builder, optionletVolatilityStructure)
+        if self.optionletVolatility is not None:
+            BlackIborCouponPricerAddOptionletVolatility(builder, optionletVolatility)
         blackIborCouponPricer = BlackIborCouponPricerEnd(builder)
         return blackIborCouponPricer

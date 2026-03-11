@@ -20,10 +20,6 @@ std::string getTradeFloatingIndexId(const quantra::PriceSwaption* p) {
         if (u && u->overnight_leg() && u->overnight_leg()->index() && u->overnight_leg()->index()->id()) {
             return u->overnight_leg()->index()->id()->str();
         }
-    } else if (sw->underlying_swap() && sw->underlying_swap()->floating_leg() &&
-               sw->underlying_swap()->floating_leg()->index() &&
-               sw->underlying_swap()->floating_leg()->index()->id()) {
-        return sw->underlying_swap()->floating_leg()->index()->id()->str();
     }
     return "";
 }
@@ -48,11 +44,6 @@ bool getTradeExerciseAndStartDates(
             startDate = DateToQL(u->fixed_leg()->schedule()->effective_date()->str());
             return true;
         }
-    } else if (sw->underlying_swap() && sw->underlying_swap()->fixed_leg() &&
-               sw->underlying_swap()->fixed_leg()->schedule() &&
-               sw->underlying_swap()->fixed_leg()->schedule()->effective_date()) {
-        startDate = DateToQL(sw->underlying_swap()->fixed_leg()->schedule()->effective_date()->str());
-        return true;
     }
 
     return false;

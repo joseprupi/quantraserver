@@ -672,10 +672,10 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
     discount_curve = build_curve_from_json(curve_json, eval_date, request)
     
-    # Build forecasting curve (may be different)
-    forecast_id = bond_data.get("forecasting_curve", curve_id)
-    forecast_json = next((c for c in pricing["curves"] if c["id"] == forecast_id), curve_json)
-    forecast_curve = build_curve_from_json(forecast_json, eval_date, request)
+    # Build forwarding curve (may be different)
+    forward_id = bond_data.get("forwarding_curve", curve_id)
+    forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
+    forward_curve = build_curve_from_json(forward_json, eval_date, request)
     
     # Build schedule
     sch = bond["schedule"]
@@ -700,11 +700,11 @@ def price_floating_rate_bond_ql(request: dict) -> float:
     
     # Create index with forecasting curve
     if period_months == 3:
-        index = ql.Euribor3M(forecast_curve)
+        index = ql.Euribor3M(forward_curve)
     elif period_months == 6:
-        index = ql.Euribor6M(forecast_curve)
+        index = ql.Euribor6M(forward_curve)
     else:
-        index = ql.Euribor6M(forecast_curve)
+        index = ql.Euribor6M(forward_curve)
     
     # Add any fixings from the IndexDef
     if idx_def:
@@ -1041,8 +1041,7 @@ def price_swaption_ql(request: dict) -> float:
     underlying_type = sw.get("underlying_type")
     underlying = sw.get("underlying")
     if not underlying_type or underlying is None:
-        underlying_type = "VanillaSwap"
-        underlying = sw.get("underlying_swap")
+        raise ValueError("Swaption underlying_type and underlying are required")
     
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
@@ -2401,7 +2400,7 @@ def test_price_zero_coupon_inflation_swap_smoke(client: ApiClient) -> dict:
             "swaps": [{
                 "zero_coupon_inflation_swap": {
                     "swap_type": "Payer",
-                    "nominal": 1000000.0,
+                    "notional": 1000000.0,
                     "start_date": "2025-01-15",
                     "maturity_date": "2030-01-15",
                     "fixed_calendar": "TARGET",
@@ -2596,7 +2595,7 @@ def test_price_year_on_year_inflation_swap_smoke(client: ApiClient) -> dict:
             "swaps": [{
                 "year_on_year_inflation_swap": {
                     "swap_type": "Receiver",
-                    "nominal": 1000000.0,
+                    "notional": 1000000.0,
                     "fixed_schedule": {
                         "effective_date": "2025-01-15",
                         "termination_date": "2027-01-15",

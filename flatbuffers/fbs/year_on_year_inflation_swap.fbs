@@ -8,7 +8,7 @@ namespace quantra;
 table YearOnYearInflationSwap {
     /// "Payer" / "Receiver" refers to the YoY inflation leg.
     swap_type:enums.SwapType;
-    nominal:double;
+    notional:double;
     fixed_schedule:Schedule (required);
     fixed_rate:double;
     fixed_day_counter:enums.DayCounter = Actual365Fixed;

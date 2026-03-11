@@ -7,7 +7,7 @@ namespace quantra;
 table ZeroCouponInflationSwap {
     /// "Payer" / "Receiver" refers to the inflation leg.
     swap_type:enums.SwapType;
-    nominal:double;
+    notional:double;
     start_date:string (required);
     /// Contract maturity date before any internal observation adjustment.
     maturity_date:string (required);

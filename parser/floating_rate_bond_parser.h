@@ -15,14 +15,14 @@ using namespace QuantLib;
 
 class FloatingRateBondParser {
 private:
-    RelinkableHandle<YieldTermStructure> forecasting_term_structure_;
+    RelinkableHandle<YieldTermStructure> forwarding_term_structure_;
 
 public:
     std::shared_ptr<QuantLib::FloatingRateBond> parse(
         const quantra::FloatingRateBond *bond,
         const quantra::IndexRegistry& indices);
 
-    void linkForecastingTermStructure(std::shared_ptr<YieldTermStructure> term_structure);
+    void linkForwardingTermStructure(std::shared_ptr<YieldTermStructure> term_structure);
 };
 
 #endif // QUANTRASERVER_FLOATINGRATEBONDPARSER_H

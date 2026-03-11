@@ -52,15 +52,15 @@ struct PriceCDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CDS *cds() const {
     return GetPointer<const quantra::CDS *>(VT_CDS);
   }
-  /// Reference to yield curve in Pricing.curves.
+  /// Reference to yield curve in pricing.rates.curves by id.
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
-  /// Reference to credit curve in Pricing.credit_curves.
+  /// Reference to credit curve in pricing.credit.credit_curves by id.
   const ::flatbuffers::String *credit_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CREDIT_CURVE_ID);
   }
-  /// Reference to model in Pricing.models.
+  /// Reference to model in pricing.volatility.models by id.
   const ::flatbuffers::String *model() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MODEL);
   }

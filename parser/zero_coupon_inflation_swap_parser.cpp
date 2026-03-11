@@ -58,7 +58,7 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
 
     return std::make_shared<QuantLib::ZeroCouponInflationSwap>(
         swapType,
-        swap->nominal(),
+        swap->notional(),
         DateToQL(swap->start_date()->str()),
         DateToQL(swap->maturity_date()->str()),
         CalendarToQL(swap->fixed_calendar()),

@@ -865,13 +865,14 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     float_leg.spread = 0.0
     float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
     
-    underlying_swap = VanillaSwapT()
-    underlying_swap.swapType = SwapType.Payer
-    underlying_swap.fixedLeg = fixed_leg
-    underlying_swap.floatingLeg = float_leg
+    underlying = VanillaSwapT()
+    underlying.swapType = SwapType.Payer
+    underlying.fixedLeg = fixed_leg
+    underlying.floatingLeg = float_leg
     
     swaption = SwaptionT()
-    swaption.underlyingSwap = underlying_swap
+    swaption.underlyingType = 1
+    swaption.underlying = underlying
     swaption.exerciseDate = "2026-01-15"
     swaption.exerciseType = ExerciseType.European
     swaption.settlementType = SettlementType.Physical

@@ -405,7 +405,6 @@ struct ZeroCouponInflationSwapHelperT : public ::flatbuffers::NativeTable {
   quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
   quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex;
-  std::string nominal_curve_id{};
   ZeroCouponInflationSwapHelperT() = default;
   ZeroCouponInflationSwapHelperT(const ZeroCouponInflationSwapHelperT &o);
   ZeroCouponInflationSwapHelperT(ZeroCouponInflationSwapHelperT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -426,8 +425,7 @@ struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
     VT_CALENDAR = 16,
     VT_PAYMENT_CONVENTION = 18,
     VT_DAY_COUNTER = 20,
-    VT_OBSERVATION_INTERPOLATION = 22,
-    VT_NOMINAL_CURVE_ID = 24
+    VT_OBSERVATION_INTERPOLATION = 22
   };
   /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
   const ::flatbuffers::String *quote_id() const {
@@ -465,10 +463,6 @@ struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   quantra::enums::CPIInterpolationType observation_interpolation() const {
     return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
   }
-  /// Optional deprecated QuantLib nominal curve dependency.
-  const ::flatbuffers::String *nominal_curve_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_NOMINAL_CURVE_ID);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
@@ -486,8 +480,6 @@ struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
            VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_OBSERVATION_INTERPOLATION, 1) &&
-           VerifyOffset(verifier, VT_NOMINAL_CURVE_ID) &&
-           verifier.VerifyString(nominal_curve_id()) &&
            verifier.EndTable();
   }
   ZeroCouponInflationSwapHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -529,9 +521,6 @@ struct ZeroCouponInflationSwapHelperBuilder {
   void add_observation_interpolation(quantra::enums::CPIInterpolationType observation_interpolation) {
     fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation), 0);
   }
-  void add_nominal_curve_id(::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id) {
-    fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_NOMINAL_CURVE_ID, nominal_curve_id);
-  }
   explicit ZeroCouponInflationSwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -555,11 +544,9 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
-    ::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id = 0) {
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex) {
   ZeroCouponInflationSwapHelperBuilder builder_(_fbb);
   builder_.add_quote_value(quote_value);
-  builder_.add_nominal_curve_id(nominal_curve_id);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
   builder_.add_tenor(tenor);
@@ -583,12 +570,10 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
-    const char *nominal_curve_id = nullptr) {
+    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
   auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
-  auto nominal_curve_id__ = nominal_curve_id ? _fbb.CreateString(nominal_curve_id) : 0;
   return quantra::CreateZeroCouponInflationSwapHelper(
       _fbb,
       quote_id__,
@@ -600,8 +585,7 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
       calendar,
       payment_convention,
       day_counter,
-      observation_interpolation,
-      nominal_curve_id__);
+      observation_interpolation);
 }
 
 ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -674,7 +658,7 @@ struct YearOnYearInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   quantra::enums::CPIInterpolationType observation_interpolation() const {
     return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
   }
-  /// QuantLib YoY helper requires a nominal term structure.
+  /// QuantLib YoY helper requires a nominal term structure id.
   const ::flatbuffers::String *nominal_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_NOMINAL_CURVE_ID);
   }
@@ -961,7 +945,7 @@ struct InflationCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   const ::flatbuffers::String *index_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_INDEX_ID);
   }
-  /// Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
+  /// Optional discount curve id for inflation-leg projection/discounting models.
   const ::flatbuffers::String *discount_curve_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNT_CURVE_ID);
   }
@@ -1226,8 +1210,7 @@ inline ZeroCouponInflationSwapHelperT::ZeroCouponInflationSwapHelperT(const Zero
         calendar(o.calendar),
         payment_convention(o.payment_convention),
         day_counter(o.day_counter),
-        observation_interpolation(o.observation_interpolation),
-        nominal_curve_id(o.nominal_curve_id) {
+        observation_interpolation(o.observation_interpolation) {
 }
 
 inline ZeroCouponInflationSwapHelperT &ZeroCouponInflationSwapHelperT::operator=(ZeroCouponInflationSwapHelperT o) FLATBUFFERS_NOEXCEPT {
@@ -1241,7 +1224,6 @@ inline ZeroCouponInflationSwapHelperT &ZeroCouponInflationSwapHelperT::operator=
   std::swap(payment_convention, o.payment_convention);
   std::swap(day_counter, o.day_counter);
   std::swap(observation_interpolation, o.observation_interpolation);
-  std::swap(nominal_curve_id, o.nominal_curve_id);
   return *this;
 }
 
@@ -1264,7 +1246,6 @@ inline void ZeroCouponInflationSwapHelper::UnPackTo(ZeroCouponInflationSwapHelpe
   { auto _e = payment_convention(); _o->payment_convention = _e; }
   { auto _e = day_counter(); _o->day_counter = _e; }
   { auto _e = observation_interpolation(); _o->observation_interpolation = _e; }
-  { auto _e = nominal_curve_id(); if (_e) _o->nominal_curve_id = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> ZeroCouponInflationSwapHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroCouponInflationSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1285,7 +1266,6 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
   auto _payment_convention = _o->payment_convention;
   auto _day_counter = _o->day_counter;
   auto _observation_interpolation = _o->observation_interpolation;
-  auto _nominal_curve_id = _o->nominal_curve_id.empty() ? 0 : _fbb.CreateString(_o->nominal_curve_id);
   return quantra::CreateZeroCouponInflationSwapHelper(
       _fbb,
       _quote_id,
@@ -1297,8 +1277,7 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
       _calendar,
       _payment_convention,
       _day_counter,
-      _observation_interpolation,
-      _nominal_curve_id);
+      _observation_interpolation);
 }
 
 inline YearOnYearInflationSwapHelperT::YearOnYearInflationSwapHelperT(const YearOnYearInflationSwapHelperT &o)

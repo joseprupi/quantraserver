@@ -34,11 +34,6 @@ std::string SwaptionModelParser::extractTradeFloatIndexId(const quantra::Swaptio
     if (swaption->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
         return {};
     }
-    if (swaption->underlying_swap() && swaption->underlying_swap()->floating_leg() &&
-        swaption->underlying_swap()->floating_leg()->index() &&
-        swaption->underlying_swap()->floating_leg()->index()->id()) {
-        return swaption->underlying_swap()->floating_leg()->index()->id()->str();
-    }
     return {};
 }
 

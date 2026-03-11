@@ -185,14 +185,6 @@
       "type" : "string",
       "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec"]
     },
-    "quantra_OptionletVolatilityStructure" : {
-      "type" : "string",
-      "enum": ["NONE", "ConstantOptionletVolatility"]
-    },
-    "quantra_Pricer" : {
-      "type" : "string",
-      "enum": ["NONE", "BlackIborCouponPricer"]
-    },
     "quantra_QuoteKind" : {
       "type" : "string",
       "enum": ["Rate", "Spread", "Price", "FuturesPrice", "FxSpot", "FxPoints"]
@@ -1358,11 +1350,8 @@
       "type" : "object",
       "description" : "Black Ibor coupon pricer with optionlet volatility.",
       "properties" : {
-        "optionlet_volatility_structure_type" : {
-                "$ref" : "#/definitions/quantra_OptionletVolatilityStructure"
-              },
-        "optionlet_volatility_structure" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_ConstantOptionletVolatility" }]
+        "optionlet_volatility" : {
+                "$ref" : "#/definitions/quantra_ConstantOptionletVolatility"
               }
       },
       "additionalProperties" : false
@@ -1374,11 +1363,8 @@
         "id" : {
                 "type" : "string"
               },
-        "pricer_type" : {
-                "$ref" : "#/definitions/quantra_Pricer"
-              },
-        "pricer" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_BlackIborCouponPricer" }]
+        "black_ibor_coupon_pricer" : {
+                "$ref" : "#/definitions/quantra_BlackIborCouponPricer"
               }
       },
       "additionalProperties" : false
@@ -2015,10 +2001,6 @@
               },
         "observation_interpolation" : {
                 "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
-              },
-        "nominal_curve_id" : {
-                "type" : "string",
-                "description" : "Optional deprecated QuantLib nominal curve dependency."
               }
       },
       "required" : ["swap_observation_lag"],
@@ -2062,7 +2044,7 @@
               },
         "nominal_curve_id" : {
                 "type" : "string",
-                "description" : "QuantLib YoY helper requires a nominal term structure."
+                "description" : "QuantLib YoY helper requires a nominal term structure id."
               }
       },
       "required" : ["swap_observation_lag", "nominal_curve_id"],
@@ -2115,7 +2097,7 @@
               },
         "discount_curve_id" : {
                 "type" : "string",
-                "description" : "Optional nominal discount curve id reserved for future inflation-leg projection/discounting models."
+                "description" : "Optional discount curve id for inflation-leg projection/discounting models."
               },
         "allow_extrapolation" : {
                 "type" : "boolean"
@@ -2442,11 +2424,11 @@
               },
         "discounting_curve" : {
                 "type" : "string",
-                "description" : "Reference to curve in Pricing.curves."
+                "description" : "Reference to curve in pricing.rates.curves by id."
               },
         "forwarding_curve" : {
                 "type" : "string",
-                "description" : "Reference to curve for forward rates (can be same as discounting)."
+                "description" : "Reference to curve in pricing.rates.curves for forward rates by id."
               }
       },
       "additionalProperties" : false
