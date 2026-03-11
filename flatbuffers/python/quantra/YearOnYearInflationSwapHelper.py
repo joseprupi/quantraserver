@@ -104,7 +104,7 @@ class YearOnYearInflationSwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # QuantLib YoY helper requires a nominal term structure.
+    # QuantLib YoY helper requires a nominal term structure id.
     # YearOnYearInflationSwapHelper
     def NominalCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))

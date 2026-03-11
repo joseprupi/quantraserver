@@ -147,7 +147,8 @@
   "swaptions": [
     {
       "swaption": {
-        "underlying_swap": {
+        "underlying_type": "VanillaSwap",
+        "underlying": {
           "swap_type": "Payer",
           "fixed_leg": {
             "notional": 1000000.0,

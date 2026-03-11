@@ -1,5 +1,7 @@
 scripts/envoy_config.pyc
 scripts/__pycache__/envoy_config.cpython-37.pyc
+__pycache__/
+*.pyc
 scripts/quantra.yaml
 build/*
 build_local/*

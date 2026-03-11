@@ -20,10 +20,7 @@ table Swaption {
     /// Bermudan exercise date set (ISO date strings). Required for Bermudan; must contain at least 2 dates.
     exercise_dates:[string];
 
-    /// Legacy field: vanilla swap only (kept for backward compatibility).
-    underlying_swap:VanillaSwap;
-
-    /// New union-based underlying (VanillaSwap or OisSwap).
+    /// Underlying swap instrument.
     underlying:SwaptionUnderlying;
 }
 

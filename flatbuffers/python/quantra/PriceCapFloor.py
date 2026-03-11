@@ -36,7 +36,7 @@ class PriceCapFloor(object):
             return obj
         return None
 
-    # Reference to curve in Pricing.curves by id.
+    # Reference to curve in pricing.rates.curves by id.
     # PriceCapFloor
     def DiscountingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -44,7 +44,7 @@ class PriceCapFloor(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to curve for forward rates by id.
+    # Reference to curve in pricing.rates.curves for forward rates by id.
     # PriceCapFloor
     def ForwardingCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -52,7 +52,7 @@ class PriceCapFloor(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to volatility in Pricing.vol_surfaces by id.
+    # Reference to volatility in pricing.volatility.vol_surfaces by id.
     # PriceCapFloor
     def Volatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -60,7 +60,7 @@ class PriceCapFloor(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Reference to model in Pricing.models by id.
+    # Reference to model in pricing.volatility.models by id.
     # PriceCapFloor
     def Model(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))

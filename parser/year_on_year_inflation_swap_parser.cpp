@@ -62,7 +62,7 @@ std::shared_ptr<QuantLib::YearOnYearInflationSwap> YearOnYearInflationSwapParser
 
     return std::make_shared<QuantLib::YearOnYearInflationSwap>(
         swapType,
-        swap->nominal(),
+        swap->notional(),
         *fixedSchedule,
         swap->fixed_rate(),
         DayCounterToQL(swap->fixed_day_counter()),

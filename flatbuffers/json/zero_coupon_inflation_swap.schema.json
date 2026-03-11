@@ -551,10 +551,6 @@
               },
         "observation_interpolation" : {
                 "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
-              },
-        "nominal_curve_id" : {
-                "type" : "string",
-                "description" : "Optional deprecated QuantLib nominal curve dependency."
               }
       },
       "required" : ["swap_observation_lag"],
@@ -598,7 +594,7 @@
               },
         "nominal_curve_id" : {
                 "type" : "string",
-                "description" : "QuantLib YoY helper requires a nominal term structure."
+                "description" : "QuantLib YoY helper requires a nominal term structure id."
               }
       },
       "required" : ["swap_observation_lag", "nominal_curve_id"],
@@ -651,7 +647,7 @@
               },
         "discount_curve_id" : {
                 "type" : "string",
-                "description" : "Optional nominal discount curve id reserved for future inflation-leg projection/discounting models."
+                "description" : "Optional discount curve id for inflation-leg projection/discounting models."
               },
         "allow_extrapolation" : {
                 "type" : "boolean"
@@ -671,7 +667,7 @@
                 "$ref" : "#/definitions/quantra_enums_SwapType",
                 "description" : "\"Payer\" / \"Receiver\" refers to the inflation leg."
               },
-        "nominal" : {
+        "notional" : {
                 "type" : "number"
               },
         "start_date" : {

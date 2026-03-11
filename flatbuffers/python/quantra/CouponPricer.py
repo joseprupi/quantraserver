@@ -33,24 +33,18 @@ class CouponPricer(object):
         return None
 
     # CouponPricer
-    def PricerType(self):
+    def BlackIborCouponPricer(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
-        return 0
-
-    # CouponPricer
-    def Pricer(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            from flatbuffers.table import Table
-            obj = Table(bytearray(), 0)
-            self._tab.Union(obj, o)
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.BlackIborCouponPricer import BlackIborCouponPricer
+            obj = BlackIborCouponPricer()
+            obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def CouponPricerStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(2)
 
 def Start(builder):
     CouponPricerStart(builder)
@@ -61,17 +55,11 @@ def CouponPricerAddId(builder, id):
 def AddId(builder, id):
     CouponPricerAddId(builder, id)
 
-def CouponPricerAddPricerType(builder, pricerType):
-    builder.PrependUint8Slot(1, pricerType, 0)
+def CouponPricerAddBlackIborCouponPricer(builder, blackIborCouponPricer):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(blackIborCouponPricer), 0)
 
-def AddPricerType(builder, pricerType):
-    CouponPricerAddPricerType(builder, pricerType)
-
-def CouponPricerAddPricer(builder, pricer):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(pricer), 0)
-
-def AddPricer(builder, pricer):
-    CouponPricerAddPricer(builder, pricer)
+def AddBlackIborCouponPricer(builder, blackIborCouponPricer):
+    CouponPricerAddBlackIborCouponPricer(builder, blackIborCouponPricer)
 
 def CouponPricerEnd(builder):
     return builder.EndObject()
@@ -80,7 +68,7 @@ def End(builder):
     return CouponPricerEnd(builder)
 
 try:
-    from typing import Union
+    from typing import Optional
 except:
     pass
 
@@ -89,8 +77,7 @@ class CouponPricerT(object):
     # CouponPricerT
     def __init__(self):
         self.id = None  # type: str
-        self.pricerType = 0  # type: int
-        self.pricer = None  # type: Union[None, BlackIborCouponPricerT]
+        self.blackIborCouponPricer = None  # type: Optional[BlackIborCouponPricerT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -114,20 +101,19 @@ class CouponPricerT(object):
         if couponPricer is None:
             return
         self.id = couponPricer.Id()
-        self.pricerType = couponPricer.PricerType()
-        self.pricer = PricerCreator(self.pricerType, couponPricer.Pricer())
+        if couponPricer.BlackIborCouponPricer() is not None:
+            self.blackIborCouponPricer = BlackIborCouponPricerT.InitFromObj(couponPricer.BlackIborCouponPricer())
 
     # CouponPricerT
     def Pack(self, builder):
         if self.id is not None:
             id = builder.CreateString(self.id)
-        if self.pricer is not None:
-            pricer = self.pricer.Pack(builder)
+        if self.blackIborCouponPricer is not None:
+            blackIborCouponPricer = self.blackIborCouponPricer.Pack(builder)
         CouponPricerStart(builder)
         if self.id is not None:
             CouponPricerAddId(builder, id)
-        CouponPricerAddPricerType(builder, self.pricerType)
-        if self.pricer is not None:
-            CouponPricerAddPricer(builder, pricer)
+        if self.blackIborCouponPricer is not None:
+            CouponPricerAddBlackIborCouponPricer(builder, blackIborCouponPricer)
         couponPricer = CouponPricerEnd(builder)
         return couponPricer

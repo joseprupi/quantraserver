@@ -1009,7 +1009,7 @@ TEST_F(ServerClientTest, PriceZeroCouponInflationSwap_RoundTrip) {
     auto maturityDate = b.CreateString("2030-01-15");
     quantra::ZeroCouponInflationSwapBuilder zcib(b);
     zcib.add_swap_type(quantra::enums::SwapType_Payer);
-    zcib.add_nominal(1000000.0);
+    zcib.add_notional(1000000.0);
     zcib.add_start_date(startDate);
     zcib.add_maturity_date(maturityDate);
     zcib.add_fixed_rate(0.0217);
@@ -1178,7 +1178,7 @@ TEST_F(ServerClientTest, PriceYearOnYearInflationSwap_RoundTrip) {
 
     quantra::YearOnYearInflationSwapBuilder yyb(b);
     yyb.add_swap_type(quantra::enums::SwapType_Receiver);
-    yyb.add_nominal(1000000.0);
+    yyb.add_notional(1000000.0);
     yyb.add_fixed_schedule(fixedSchedule);
     yyb.add_fixed_rate(0.0204);
     yyb.add_fixed_day_counter(quantra::enums::DayCounter_Actual365Fixed);

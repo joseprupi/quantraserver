@@ -12,9 +12,9 @@ std::shared_ptr<QuantLib::FloatingRateBond> FloatingRateBondParser::parse(
 
     ScheduleParser schedule_parser;
 
-    // Resolve index from registry and clone with forecasting curve
+    // Resolve index from registry and clone with forwarding curve
     std::string indexId = bond->index()->id()->str();
-    auto iborIndex = indices.getIborWithCurve(indexId, forecasting_term_structure_);
+    auto iborIndex = indices.getIborWithCurve(indexId, forwarding_term_structure_);
 
     return std::make_shared<QuantLib::FloatingRateBond>(
         bond->settlement_days(),
@@ -33,7 +33,7 @@ std::shared_ptr<QuantLib::FloatingRateBond> FloatingRateBondParser::parse(
         DateToQL(bond->issue_date()->str()));
 }
 
-void FloatingRateBondParser::linkForecastingTermStructure(std::shared_ptr<YieldTermStructure> term_structure)
+void FloatingRateBondParser::linkForwardingTermStructure(std::shared_ptr<YieldTermStructure> term_structure)
 {
-    forecasting_term_structure_.linkTo(term_structure);
+    forwarding_term_structure_.linkTo(term_structure);
 }

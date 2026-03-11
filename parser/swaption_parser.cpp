@@ -57,34 +57,27 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
 
     // Parse underlying swap (passing indices for floating leg resolution)
     std::shared_ptr<QuantLib::FixedVsFloatingSwap> underlyingSwap;
-    if (swaption->underlying_type() != quantra::SwaptionUnderlying_NONE) {
-        switch (swaption->underlying_type()) {
-            case quantra::SwaptionUnderlying_VanillaSwap: {
-                auto underlying = swaption->underlying_as_VanillaSwap();
-                if (!underlying) QUANTRA_ERROR("Swaption underlying VanillaSwap not found");
-                VanillaSwapParser swapParser;
-                swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
-                underlyingSwap = swapParser.parse(underlying, indices);
-                break;
-            }
-            case quantra::SwaptionUnderlying_OisSwap: {
-                auto underlying = swaption->underlying_as_OisSwap();
-                if (!underlying) QUANTRA_ERROR("Swaption underlying OisSwap not found");
-                OisSwapParser swapParser;
-                swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
-                underlyingSwap = swapParser.parse(underlying, indices);
-                break;
-            }
-            default:
-                QUANTRA_ERROR("Invalid swaption underlying type");
+    switch (swaption->underlying_type()) {
+        case quantra::SwaptionUnderlying_VanillaSwap: {
+            auto underlying = swaption->underlying_as_VanillaSwap();
+            if (!underlying) QUANTRA_ERROR("Swaption underlying VanillaSwap not found");
+            VanillaSwapParser swapParser;
+            swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
+            underlyingSwap = swapParser.parse(underlying, indices);
+            break;
         }
-    } else if (swaption->underlying_swap() != NULL) {
-        // Legacy field: underlying_swap
-        VanillaSwapParser swapParser;
-        swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
-        underlyingSwap = swapParser.parse(swaption->underlying_swap(), indices);
-    } else {
-        QUANTRA_ERROR("Swaption underlying not found");
+        case quantra::SwaptionUnderlying_OisSwap: {
+            auto underlying = swaption->underlying_as_OisSwap();
+            if (!underlying) QUANTRA_ERROR("Swaption underlying OisSwap not found");
+            OisSwapParser swapParser;
+            swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
+            underlyingSwap = swapParser.parse(underlying, indices);
+            break;
+        }
+        case quantra::SwaptionUnderlying_NONE:
+            QUANTRA_ERROR("Swaption underlying not found");
+        default:
+            QUANTRA_ERROR("Invalid swaption underlying type");
     }
 
     // Create exercise based on type

@@ -34,7 +34,7 @@ class YearOnYearInflationSwap(object):
         return 0
 
     # YearOnYearInflationSwap
-    def Nominal(self):
+    def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
@@ -141,11 +141,11 @@ def YearOnYearInflationSwapAddSwapType(builder, swapType):
 def AddSwapType(builder, swapType):
     YearOnYearInflationSwapAddSwapType(builder, swapType)
 
-def YearOnYearInflationSwapAddNominal(builder, nominal):
-    builder.PrependFloat64Slot(1, nominal, 0.0)
+def YearOnYearInflationSwapAddNotional(builder, notional):
+    builder.PrependFloat64Slot(1, notional, 0.0)
 
-def AddNominal(builder, nominal):
-    YearOnYearInflationSwapAddNominal(builder, nominal)
+def AddNotional(builder, notional):
+    YearOnYearInflationSwapAddNotional(builder, notional)
 
 def YearOnYearInflationSwapAddFixedSchedule(builder, fixedSchedule):
     builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(fixedSchedule), 0)
@@ -229,7 +229,7 @@ class YearOnYearInflationSwapT(object):
     # YearOnYearInflationSwapT
     def __init__(self):
         self.swapType = 0  # type: int
-        self.nominal = 0.0  # type: float
+        self.notional = 0.0  # type: float
         self.fixedSchedule = None  # type: Optional[ScheduleT]
         self.fixedRate = 0.0  # type: float
         self.fixedDayCounter = 1  # type: int
@@ -264,7 +264,7 @@ class YearOnYearInflationSwapT(object):
         if yearOnYearInflationSwap is None:
             return
         self.swapType = yearOnYearInflationSwap.SwapType()
-        self.nominal = yearOnYearInflationSwap.Nominal()
+        self.notional = yearOnYearInflationSwap.Notional()
         if yearOnYearInflationSwap.FixedSchedule() is not None:
             self.fixedSchedule = ScheduleT.InitFromObj(yearOnYearInflationSwap.FixedSchedule())
         self.fixedRate = yearOnYearInflationSwap.FixedRate()
@@ -292,7 +292,7 @@ class YearOnYearInflationSwapT(object):
             observationLag = self.observationLag.Pack(builder)
         YearOnYearInflationSwapStart(builder)
         YearOnYearInflationSwapAddSwapType(builder, self.swapType)
-        YearOnYearInflationSwapAddNominal(builder, self.nominal)
+        YearOnYearInflationSwapAddNotional(builder, self.notional)
         if self.fixedSchedule is not None:
             YearOnYearInflationSwapAddFixedSchedule(builder, fixedSchedule)
         YearOnYearInflationSwapAddFixedRate(builder, self.fixedRate)

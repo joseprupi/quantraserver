@@ -165,14 +165,6 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
-    "quantra_OptionletVolatilityStructure" : {
-      "type" : "string",
-      "enum": ["NONE", "ConstantOptionletVolatility"]
-    },
-    "quantra_Pricer" : {
-      "type" : "string",
-      "enum": ["NONE", "BlackIborCouponPricer"]
-    },
     "quantra_ConstantOptionletVolatility" : {
       "type" : "object",
       "description" : "Constant optionlet volatility for coupon pricer.",
@@ -199,11 +191,8 @@
       "type" : "object",
       "description" : "Black Ibor coupon pricer with optionlet volatility.",
       "properties" : {
-        "optionlet_volatility_structure_type" : {
-                "$ref" : "#/definitions/quantra_OptionletVolatilityStructure"
-              },
-        "optionlet_volatility_structure" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_ConstantOptionletVolatility" }]
+        "optionlet_volatility" : {
+                "$ref" : "#/definitions/quantra_ConstantOptionletVolatility"
               }
       },
       "additionalProperties" : false
@@ -215,11 +204,8 @@
         "id" : {
                 "type" : "string"
               },
-        "pricer_type" : {
-                "$ref" : "#/definitions/quantra_Pricer"
-              },
-        "pricer" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_BlackIborCouponPricer" }]
+        "black_ibor_coupon_pricer" : {
+                "$ref" : "#/definitions/quantra_BlackIborCouponPricer"
               }
       },
       "additionalProperties" : false

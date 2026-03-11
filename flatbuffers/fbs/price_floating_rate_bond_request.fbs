@@ -9,7 +9,7 @@ namespace quantra;
 table PriceFloatingRateBond {
     floating_rate_bond:FloatingRateBond;
     discounting_curve:string;
-    forecasting_curve:string;
+    forwarding_curve:string;
     coupon_pricer:string;
     yield:Yield;
 }

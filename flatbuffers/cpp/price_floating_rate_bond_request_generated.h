@@ -32,7 +32,7 @@ struct PriceFloatingRateBondT : public ::flatbuffers::NativeTable {
   typedef PriceFloatingRateBond TableType;
   std::unique_ptr<quantra::FloatingRateBondT> floating_rate_bond{};
   std::string discounting_curve{};
-  std::string forecasting_curve{};
+  std::string forwarding_curve{};
   std::string coupon_pricer{};
   std::unique_ptr<quantra::YieldT> yield{};
   PriceFloatingRateBondT() = default;
@@ -48,7 +48,7 @@ struct PriceFloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_FLOATING_RATE_BOND = 4,
     VT_DISCOUNTING_CURVE = 6,
-    VT_FORECASTING_CURVE = 8,
+    VT_FORWARDING_CURVE = 8,
     VT_COUPON_PRICER = 10,
     VT_YIELD = 12
   };
@@ -58,8 +58,8 @@ struct PriceFloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   const ::flatbuffers::String *discounting_curve() const {
     return GetPointer<const ::flatbuffers::String *>(VT_DISCOUNTING_CURVE);
   }
-  const ::flatbuffers::String *forecasting_curve() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FORECASTING_CURVE);
+  const ::flatbuffers::String *forwarding_curve() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FORWARDING_CURVE);
   }
   const ::flatbuffers::String *coupon_pricer() const {
     return GetPointer<const ::flatbuffers::String *>(VT_COUPON_PRICER);
@@ -73,8 +73,8 @@ struct PriceFloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
            verifier.VerifyTable(floating_rate_bond()) &&
            VerifyOffset(verifier, VT_DISCOUNTING_CURVE) &&
            verifier.VerifyString(discounting_curve()) &&
-           VerifyOffset(verifier, VT_FORECASTING_CURVE) &&
-           verifier.VerifyString(forecasting_curve()) &&
+           VerifyOffset(verifier, VT_FORWARDING_CURVE) &&
+           verifier.VerifyString(forwarding_curve()) &&
            VerifyOffset(verifier, VT_COUPON_PRICER) &&
            verifier.VerifyString(coupon_pricer()) &&
            VerifyOffset(verifier, VT_YIELD) &&
@@ -96,8 +96,8 @@ struct PriceFloatingRateBondBuilder {
   void add_discounting_curve(::flatbuffers::Offset<::flatbuffers::String> discounting_curve) {
     fbb_.AddOffset(PriceFloatingRateBond::VT_DISCOUNTING_CURVE, discounting_curve);
   }
-  void add_forecasting_curve(::flatbuffers::Offset<::flatbuffers::String> forecasting_curve) {
-    fbb_.AddOffset(PriceFloatingRateBond::VT_FORECASTING_CURVE, forecasting_curve);
+  void add_forwarding_curve(::flatbuffers::Offset<::flatbuffers::String> forwarding_curve) {
+    fbb_.AddOffset(PriceFloatingRateBond::VT_FORWARDING_CURVE, forwarding_curve);
   }
   void add_coupon_pricer(::flatbuffers::Offset<::flatbuffers::String> coupon_pricer) {
     fbb_.AddOffset(PriceFloatingRateBond::VT_COUPON_PRICER, coupon_pricer);
@@ -120,13 +120,13 @@ inline ::flatbuffers::Offset<PriceFloatingRateBond> CreatePriceFloatingRateBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::FloatingRateBond> floating_rate_bond = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discounting_curve = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> forecasting_curve = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> forwarding_curve = 0,
     ::flatbuffers::Offset<::flatbuffers::String> coupon_pricer = 0,
     ::flatbuffers::Offset<quantra::Yield> yield = 0) {
   PriceFloatingRateBondBuilder builder_(_fbb);
   builder_.add_yield(yield);
   builder_.add_coupon_pricer(coupon_pricer);
-  builder_.add_forecasting_curve(forecasting_curve);
+  builder_.add_forwarding_curve(forwarding_curve);
   builder_.add_discounting_curve(discounting_curve);
   builder_.add_floating_rate_bond(floating_rate_bond);
   return builder_.Finish();
@@ -136,17 +136,17 @@ inline ::flatbuffers::Offset<PriceFloatingRateBond> CreatePriceFloatingRateBondD
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::FloatingRateBond> floating_rate_bond = 0,
     const char *discounting_curve = nullptr,
-    const char *forecasting_curve = nullptr,
+    const char *forwarding_curve = nullptr,
     const char *coupon_pricer = nullptr,
     ::flatbuffers::Offset<quantra::Yield> yield = 0) {
   auto discounting_curve__ = discounting_curve ? _fbb.CreateString(discounting_curve) : 0;
-  auto forecasting_curve__ = forecasting_curve ? _fbb.CreateString(forecasting_curve) : 0;
+  auto forwarding_curve__ = forwarding_curve ? _fbb.CreateString(forwarding_curve) : 0;
   auto coupon_pricer__ = coupon_pricer ? _fbb.CreateString(coupon_pricer) : 0;
   return quantra::CreatePriceFloatingRateBond(
       _fbb,
       floating_rate_bond,
       discounting_curve__,
-      forecasting_curve__,
+      forwarding_curve__,
       coupon_pricer__,
       yield);
 }
@@ -238,7 +238,7 @@ inline ::flatbuffers::Offset<PriceFloatingRateBondRequest> CreatePriceFloatingRa
 inline PriceFloatingRateBondT::PriceFloatingRateBondT(const PriceFloatingRateBondT &o)
       : floating_rate_bond((o.floating_rate_bond) ? new quantra::FloatingRateBondT(*o.floating_rate_bond) : nullptr),
         discounting_curve(o.discounting_curve),
-        forecasting_curve(o.forecasting_curve),
+        forwarding_curve(o.forwarding_curve),
         coupon_pricer(o.coupon_pricer),
         yield((o.yield) ? new quantra::YieldT(*o.yield) : nullptr) {
 }
@@ -246,7 +246,7 @@ inline PriceFloatingRateBondT::PriceFloatingRateBondT(const PriceFloatingRateBon
 inline PriceFloatingRateBondT &PriceFloatingRateBondT::operator=(PriceFloatingRateBondT o) FLATBUFFERS_NOEXCEPT {
   std::swap(floating_rate_bond, o.floating_rate_bond);
   std::swap(discounting_curve, o.discounting_curve);
-  std::swap(forecasting_curve, o.forecasting_curve);
+  std::swap(forwarding_curve, o.forwarding_curve);
   std::swap(coupon_pricer, o.coupon_pricer);
   std::swap(yield, o.yield);
   return *this;
@@ -263,7 +263,7 @@ inline void PriceFloatingRateBond::UnPackTo(PriceFloatingRateBondT *_o, const ::
   (void)_resolver;
   { auto _e = floating_rate_bond(); if (_e) { if(_o->floating_rate_bond) { _e->UnPackTo(_o->floating_rate_bond.get(), _resolver); } else { _o->floating_rate_bond = std::unique_ptr<quantra::FloatingRateBondT>(_e->UnPack(_resolver)); } } else if (_o->floating_rate_bond) { _o->floating_rate_bond.reset(); } }
   { auto _e = discounting_curve(); if (_e) _o->discounting_curve = _e->str(); }
-  { auto _e = forecasting_curve(); if (_e) _o->forecasting_curve = _e->str(); }
+  { auto _e = forwarding_curve(); if (_e) _o->forwarding_curve = _e->str(); }
   { auto _e = coupon_pricer(); if (_e) _o->coupon_pricer = _e->str(); }
   { auto _e = yield(); if (_e) { if(_o->yield) { _e->UnPackTo(_o->yield.get(), _resolver); } else { _o->yield = std::unique_ptr<quantra::YieldT>(_e->UnPack(_resolver)); } } else if (_o->yield) { _o->yield.reset(); } }
 }
@@ -278,14 +278,14 @@ inline ::flatbuffers::Offset<PriceFloatingRateBond> CreatePriceFloatingRateBond(
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFloatingRateBondT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _floating_rate_bond = _o->floating_rate_bond ? CreateFloatingRateBond(_fbb, _o->floating_rate_bond.get(), _rehasher) : 0;
   auto _discounting_curve = _o->discounting_curve.empty() ? 0 : _fbb.CreateString(_o->discounting_curve);
-  auto _forecasting_curve = _o->forecasting_curve.empty() ? 0 : _fbb.CreateString(_o->forecasting_curve);
+  auto _forwarding_curve = _o->forwarding_curve.empty() ? 0 : _fbb.CreateString(_o->forwarding_curve);
   auto _coupon_pricer = _o->coupon_pricer.empty() ? 0 : _fbb.CreateString(_o->coupon_pricer);
   auto _yield = _o->yield ? CreateYield(_fbb, _o->yield.get(), _rehasher) : 0;
   return quantra::CreatePriceFloatingRateBond(
       _fbb,
       _floating_rate_bond,
       _discounting_curve,
-      _forecasting_curve,
+      _forwarding_curve,
       _coupon_pricer,
       _yield);
 }

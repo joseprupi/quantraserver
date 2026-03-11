@@ -82,10 +82,8 @@
     "coupon_pricers": [
       {
         "id": "iborpricer",
-        "pricer_type": "BlackIborCouponPricer",
-        "pricer": {
-          "optionlet_volatility_structure_type": "ConstantOptionletVolatility",
-          "optionlet_volatility_structure": {
+        "black_ibor_coupon_pricer": {
+          "optionlet_volatility": {
             "settlement_days": 2,
             "calendar": "TARGET",
             "business_day_convention": "ModifiedFollowing",
@@ -139,7 +137,7 @@
         "issue_date": "2025-01-17"
       },
       "discounting_curve": "discount",
-      "forecasting_curve": "discount",
+      "forwarding_curve": "discount",
       "coupon_pricer": "iborpricer"
     }
   ]

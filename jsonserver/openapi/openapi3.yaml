@@ -1722,16 +1722,6 @@ components:
       - OptionletVolSpec
       - SwaptionVolSpec
       - BlackVolSpec
-    quantra_OptionletVolatilityStructure:
-      type: string
-      enum:
-      - NONE
-      - ConstantOptionletVolatility
-    quantra_Pricer:
-      type: string
-      enum:
-      - NONE
-      - BlackIborCouponPricer
     quantra_QuoteKind:
       type: string
       enum:
@@ -2481,11 +2471,8 @@ components:
       type: object
       description: Black Ibor coupon pricer with optionlet volatility.
       properties:
-        optionlet_volatility_structure_type:
-          $ref: '#/components/schemas/quantra_OptionletVolatilityStructure'
-        optionlet_volatility_structure:
-          anyOf:
-          - $ref: '#/components/schemas/quantra_ConstantOptionletVolatility'
+        optionlet_volatility:
+          $ref: '#/components/schemas/quantra_ConstantOptionletVolatility'
       additionalProperties: false
     quantra_CouponPricer:
       type: object
@@ -2493,11 +2480,8 @@ components:
       properties:
         id:
           type: string
-        pricer_type:
-          $ref: '#/components/schemas/quantra_Pricer'
-        pricer:
-          anyOf:
-          - $ref: '#/components/schemas/quantra_BlackIborCouponPricer'
+        black_ibor_coupon_pricer:
+          $ref: '#/components/schemas/quantra_BlackIborCouponPricer'
       additionalProperties: false
     quantra_QuoteSpec:
       type: object
@@ -2999,9 +2983,6 @@ components:
           $ref: '#/components/schemas/quantra_enums_DayCounter'
         observation_interpolation:
           $ref: '#/components/schemas/quantra_enums_CPIInterpolationType'
-        nominal_curve_id:
-          type: string
-          description: Optional deprecated QuantLib nominal curve dependency.
       required:
       - swap_observation_lag
       additionalProperties: false
@@ -3033,7 +3014,7 @@ components:
           $ref: '#/components/schemas/quantra_enums_CPIInterpolationType'
         nominal_curve_id:
           type: string
-          description: QuantLib YoY helper requires a nominal term structure.
+          description: QuantLib YoY helper requires a nominal term structure id.
       required:
       - swap_observation_lag
       - nominal_curve_id
@@ -3074,8 +3055,8 @@ components:
           description: Link to InflationIndexSpec.id.
         discount_curve_id:
           type: string
-          description: Optional nominal discount curve id reserved for future inflation-leg
-            projection/discounting models.
+          description: Optional discount curve id for inflation-leg projection/discounting
+            models.
         allow_extrapolation:
           type: boolean
         points:
@@ -4083,16 +4064,18 @@ components:
           $ref: '#/components/schemas/quantra_CapFloor'
         discounting_curve:
           type: string
-          description: Reference to curve in Pricing.curves by id.
+          description: Reference to curve in pricing.rates.curves by id.
         forwarding_curve:
           type: string
-          description: Reference to curve for forward rates by id.
+          description: Reference to curve in pricing.rates.curves for forward rates
+            by id.
         volatility:
           type: string
-          description: Reference to volatility in Pricing.vol_surfaces by id.
+          description: Reference to volatility in pricing.volatility.vol_surfaces
+            by id.
         model:
           type: string
-          description: Reference to model in Pricing.models by id.
+          description: Reference to model in pricing.volatility.models by id.
         include_details:
           type: boolean
           description: Include caplet/floorlet breakdown.
@@ -4116,13 +4099,14 @@ components:
           $ref: '#/components/schemas/quantra_CDS'
         discounting_curve:
           type: string
-          description: Reference to yield curve in Pricing.curves.
+          description: Reference to yield curve in pricing.rates.curves by id.
         credit_curve_id:
           type: string
-          description: Reference to credit curve in Pricing.credit_curves.
+          description: Reference to credit curve in pricing.credit.credit_curves by
+            id.
         model:
           type: string
-          description: Reference to model in Pricing.models.
+          description: Reference to model in pricing.volatility.models by id.
       additionalProperties: false
     quantra_PriceCDSRequest:
       type: object
@@ -4143,14 +4127,15 @@ components:
           $ref: '#/components/schemas/quantra_EquityOption'
         discounting_curve:
           type: string
-          description: Reference to risk-free discounting curve in Pricing.curves
+          description: Reference to risk-free discounting curve in pricing.rates.curves
             by id.
         volatility:
           type: string
-          description: Reference to volatility in Pricing.vol_surfaces by id.
+          description: Reference to volatility in pricing.volatility.vol_surfaces
+            by id.
         model:
           type: string
-          description: Reference to model in Pricing.models by id.
+          description: Reference to model in pricing.volatility.models by id.
       additionalProperties: false
     quantra_PriceEquityOptionRequest:
       type: object
@@ -4193,7 +4178,7 @@ components:
           $ref: '#/components/schemas/quantra_FloatingRateBond'
         discounting_curve:
           type: string
-        forecasting_curve:
+        forwarding_curve:
           type: string
         coupon_pricer:
           type: string
@@ -4219,10 +4204,11 @@ components:
           $ref: '#/components/schemas/quantra_FRA'
         discounting_curve:
           type: string
-          description: Reference to curve in Pricing.curves.
+          description: Reference to curve in pricing.rates.curves by id.
         forwarding_curve:
           type: string
-          description: Reference to curve for forward rates.
+          description: Reference to curve in pricing.rates.curves for forward rates
+            by id.
       additionalProperties: false
     quantra_PriceFRARequest:
       type: object
@@ -4335,12 +4321,10 @@ components:
             Bermudan; must contain at least 2 dates.
           items:
             type: string
-        underlying_swap:
-          $ref: '#/components/schemas/quantra_VanillaSwap'
         underlying_type:
           $ref: '#/components/schemas/quantra_SwaptionUnderlying'
         underlying:
-          description: New union-based underlying (VanillaSwap or OisSwap).
+          description: Underlying swap instrument.
           anyOf:
           - $ref: '#/components/schemas/quantra_VanillaSwap'
           - $ref: '#/components/schemas/quantra_OisSwap'
@@ -4353,16 +4337,18 @@ components:
           $ref: '#/components/schemas/quantra_Swaption'
         discounting_curve:
           type: string
-          description: Reference to curve in Pricing.curves by id.
+          description: Reference to curve in pricing.rates.curves by id.
         forwarding_curve:
           type: string
-          description: Reference to curve for forward rates by id.
+          description: Reference to curve in pricing.rates.curves for forward rates
+            by id.
         volatility:
           type: string
-          description: Reference to volatility in Pricing.vol_surfaces by id.
+          description: Reference to volatility in pricing.volatility.vol_surfaces
+            by id.
         model:
           type: string
-          description: Reference to model in Pricing.models by id.
+          description: Reference to model in pricing.volatility.models by id.
       additionalProperties: false
     quantra_PriceSwaptionRequest:
       type: object
@@ -4383,10 +4369,11 @@ components:
           $ref: '#/components/schemas/quantra_VanillaSwap'
         discounting_curve:
           type: string
-          description: Reference to curve in Pricing.curves.
+          description: Reference to curve in pricing.rates.curves by id.
         forwarding_curve:
           type: string
-          description: Reference to curve for forward rates (can be same as discounting).
+          description: Reference to curve in pricing.rates.curves for forward rates
+            by id.
       additionalProperties: false
     quantra_PriceVanillaSwapRequest:
       type: object
@@ -4408,7 +4395,7 @@ components:
       properties:
         swap_type:
           $ref: '#/components/schemas/quantra_enums_SwapType'
-        nominal:
+        notional:
           type: number
         fixed_schedule:
           $ref: '#/components/schemas/quantra_Schedule'
@@ -4472,7 +4459,7 @@ components:
       properties:
         swap_type:
           $ref: '#/components/schemas/quantra_enums_SwapType'
-        nominal:
+        notional:
           type: number
         start_date:
           type: string

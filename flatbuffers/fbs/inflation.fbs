@@ -51,8 +51,6 @@ table ZeroCouponInflationSwapHelper {
     payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
     day_counter:enums.DayCounter = Actual365Fixed;
     observation_interpolation:enums.CPIInterpolationType = AsIndex;
-    /// Optional deprecated QuantLib nominal curve dependency.
-    nominal_curve_id:string;
 }
 
 /// Year-on-year inflation swap helper point.
@@ -69,7 +67,7 @@ table YearOnYearInflationSwapHelper {
     payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
     day_counter:enums.DayCounter = Actual365Fixed;
     observation_interpolation:enums.CPIInterpolationType = AsIndex;
-    /// QuantLib YoY helper requires a nominal term structure.
+    /// QuantLib YoY helper requires a nominal term structure id.
     nominal_curve_id:string (required);
 }
 
@@ -97,7 +95,7 @@ table InflationCurveSpec {
     kind:enums.InflationCurveKind = ZeroInflation;
     /// Link to InflationIndexSpec.id.
     index_id:string (required);
-    /// Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
+    /// Optional discount curve id for inflation-leg projection/discounting models.
     discount_curve_id:string;
     allow_extrapolation:bool = true;
     points:[InflationPointWrapper] (required);

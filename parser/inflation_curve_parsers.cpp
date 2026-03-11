@@ -418,23 +418,7 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                 auto quote = QuantLib::Handle<QuantLib::Quote>(
                     QuantLib::ext::make_shared<QuantLib::SimpleQuote>(quoteValue));
 
-                if (hasText(helper->nominal_curve_id())) {
-                    auto nominalCurve = lookupNominalCurveHandle<QuantLib::YieldTermStructure>(
-                        id, helper->nominal_curve_id()->str(), reg, label);
-                    if (dates.useExplicitStartEnd) {
-                        QUANTRA_ERROR(label + " with nominal_curve_id only supports maturity-style helpers in QuantLib 1.41 for curve id: " + id);
-                    }
-                    helpers.push_back(QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
-                        quote,
-                        helperObsLag,
-                        dates.endDate,
-                        helperCalendar,
-                        helperBdc,
-                        helperDc,
-                        zeroIndex,
-                        helperInterpolation,
-                        nominalCurve));
-                } else if (dates.useExplicitStartEnd) {
+                if (dates.useExplicitStartEnd) {
                     helpers.push_back(QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
                         quote,
                         helperObsLag,

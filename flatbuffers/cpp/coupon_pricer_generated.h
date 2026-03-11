@@ -29,186 +29,6 @@ struct CouponPricer;
 struct CouponPricerBuilder;
 struct CouponPricerT;
 
-/// Union of optionlet volatility structure types.
-enum OptionletVolatilityStructure : uint8_t {
-  OptionletVolatilityStructure_NONE = 0,
-  OptionletVolatilityStructure_ConstantOptionletVolatility = 1,
-  OptionletVolatilityStructure_MIN = OptionletVolatilityStructure_NONE,
-  OptionletVolatilityStructure_MAX = OptionletVolatilityStructure_ConstantOptionletVolatility
-};
-
-inline const OptionletVolatilityStructure (&EnumValuesOptionletVolatilityStructure())[2] {
-  static const OptionletVolatilityStructure values[] = {
-    OptionletVolatilityStructure_NONE,
-    OptionletVolatilityStructure_ConstantOptionletVolatility
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesOptionletVolatilityStructure() {
-  static const char * const names[3] = {
-    "NONE",
-    "ConstantOptionletVolatility",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameOptionletVolatilityStructure(OptionletVolatilityStructure e) {
-  if (::flatbuffers::IsOutRange(e, OptionletVolatilityStructure_NONE, OptionletVolatilityStructure_ConstantOptionletVolatility)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesOptionletVolatilityStructure()[index];
-}
-
-template<typename T> struct OptionletVolatilityStructureTraits {
-  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_NONE;
-};
-
-template<> struct OptionletVolatilityStructureTraits<quantra::ConstantOptionletVolatility> {
-  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_ConstantOptionletVolatility;
-};
-
-template<typename T> struct OptionletVolatilityStructureUnionTraits {
-  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_NONE;
-};
-
-template<> struct OptionletVolatilityStructureUnionTraits<quantra::ConstantOptionletVolatilityT> {
-  static const OptionletVolatilityStructure enum_value = OptionletVolatilityStructure_ConstantOptionletVolatility;
-};
-
-struct OptionletVolatilityStructureUnion {
-  OptionletVolatilityStructure type;
-  void *value;
-
-  OptionletVolatilityStructureUnion() : type(OptionletVolatilityStructure_NONE), value(nullptr) {}
-  OptionletVolatilityStructureUnion(OptionletVolatilityStructureUnion&& u) FLATBUFFERS_NOEXCEPT :
-    type(OptionletVolatilityStructure_NONE), value(nullptr)
-    { std::swap(type, u.type); std::swap(value, u.value); }
-  OptionletVolatilityStructureUnion(const OptionletVolatilityStructureUnion &);
-  OptionletVolatilityStructureUnion &operator=(const OptionletVolatilityStructureUnion &u)
-    { OptionletVolatilityStructureUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
-  OptionletVolatilityStructureUnion &operator=(OptionletVolatilityStructureUnion &&u) FLATBUFFERS_NOEXCEPT
-    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
-  ~OptionletVolatilityStructureUnion() { Reset(); }
-
-  void Reset();
-
-  template <typename T>
-  void Set(T&& val) {
-    typedef typename std::remove_reference<T>::type RT;
-    Reset();
-    type = OptionletVolatilityStructureUnionTraits<RT>::enum_value;
-    if (type != OptionletVolatilityStructure_NONE) {
-      value = new RT(std::forward<T>(val));
-    }
-  }
-
-  static void *UnPack(const void *obj, OptionletVolatilityStructure type, const ::flatbuffers::resolver_function_t *resolver);
-  ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
-
-  quantra::ConstantOptionletVolatilityT *AsConstantOptionletVolatility() {
-    return type == OptionletVolatilityStructure_ConstantOptionletVolatility ?
-      reinterpret_cast<quantra::ConstantOptionletVolatilityT *>(value) : nullptr;
-  }
-  const quantra::ConstantOptionletVolatilityT *AsConstantOptionletVolatility() const {
-    return type == OptionletVolatilityStructure_ConstantOptionletVolatility ?
-      reinterpret_cast<const quantra::ConstantOptionletVolatilityT *>(value) : nullptr;
-  }
-};
-
-bool VerifyOptionletVolatilityStructure(::flatbuffers::Verifier &verifier, const void *obj, OptionletVolatilityStructure type);
-bool VerifyOptionletVolatilityStructureVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
-
-/// Union of pricer types.
-enum Pricer : uint8_t {
-  Pricer_NONE = 0,
-  Pricer_BlackIborCouponPricer = 1,
-  Pricer_MIN = Pricer_NONE,
-  Pricer_MAX = Pricer_BlackIborCouponPricer
-};
-
-inline const Pricer (&EnumValuesPricer())[2] {
-  static const Pricer values[] = {
-    Pricer_NONE,
-    Pricer_BlackIborCouponPricer
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesPricer() {
-  static const char * const names[3] = {
-    "NONE",
-    "BlackIborCouponPricer",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNamePricer(Pricer e) {
-  if (::flatbuffers::IsOutRange(e, Pricer_NONE, Pricer_BlackIborCouponPricer)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesPricer()[index];
-}
-
-template<typename T> struct PricerTraits {
-  static const Pricer enum_value = Pricer_NONE;
-};
-
-template<> struct PricerTraits<quantra::BlackIborCouponPricer> {
-  static const Pricer enum_value = Pricer_BlackIborCouponPricer;
-};
-
-template<typename T> struct PricerUnionTraits {
-  static const Pricer enum_value = Pricer_NONE;
-};
-
-template<> struct PricerUnionTraits<quantra::BlackIborCouponPricerT> {
-  static const Pricer enum_value = Pricer_BlackIborCouponPricer;
-};
-
-struct PricerUnion {
-  Pricer type;
-  void *value;
-
-  PricerUnion() : type(Pricer_NONE), value(nullptr) {}
-  PricerUnion(PricerUnion&& u) FLATBUFFERS_NOEXCEPT :
-    type(Pricer_NONE), value(nullptr)
-    { std::swap(type, u.type); std::swap(value, u.value); }
-  PricerUnion(const PricerUnion &);
-  PricerUnion &operator=(const PricerUnion &u)
-    { PricerUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
-  PricerUnion &operator=(PricerUnion &&u) FLATBUFFERS_NOEXCEPT
-    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
-  ~PricerUnion() { Reset(); }
-
-  void Reset();
-
-  template <typename T>
-  void Set(T&& val) {
-    typedef typename std::remove_reference<T>::type RT;
-    Reset();
-    type = PricerUnionTraits<RT>::enum_value;
-    if (type != Pricer_NONE) {
-      value = new RT(std::forward<T>(val));
-    }
-  }
-
-  static void *UnPack(const void *obj, Pricer type, const ::flatbuffers::resolver_function_t *resolver);
-  ::flatbuffers::Offset<void> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
-
-  quantra::BlackIborCouponPricerT *AsBlackIborCouponPricer() {
-    return type == Pricer_BlackIborCouponPricer ?
-      reinterpret_cast<quantra::BlackIborCouponPricerT *>(value) : nullptr;
-  }
-  const quantra::BlackIborCouponPricerT *AsBlackIborCouponPricer() const {
-    return type == Pricer_BlackIborCouponPricer ?
-      reinterpret_cast<const quantra::BlackIborCouponPricerT *>(value) : nullptr;
-  }
-};
-
-bool VerifyPricer(::flatbuffers::Verifier &verifier, const void *obj, Pricer type);
-bool VerifyPricerVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types);
-
 struct ConstantOptionletVolatilityT : public ::flatbuffers::NativeTable {
   typedef ConstantOptionletVolatility TableType;
   int32_t settlement_days = 0;
@@ -308,7 +128,11 @@ inline ::flatbuffers::Offset<ConstantOptionletVolatility> CreateConstantOptionle
 
 struct BlackIborCouponPricerT : public ::flatbuffers::NativeTable {
   typedef BlackIborCouponPricer TableType;
-  quantra::OptionletVolatilityStructureUnion optionlet_volatility_structure{};
+  std::unique_ptr<quantra::ConstantOptionletVolatilityT> optionlet_volatility{};
+  BlackIborCouponPricerT() = default;
+  BlackIborCouponPricerT(const BlackIborCouponPricerT &o);
+  BlackIborCouponPricerT(BlackIborCouponPricerT&&) FLATBUFFERS_NOEXCEPT = default;
+  BlackIborCouponPricerT &operator=(BlackIborCouponPricerT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// Black Ibor coupon pricer with optionlet volatility.
@@ -316,24 +140,15 @@ struct BlackIborCouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   typedef BlackIborCouponPricerT NativeTableType;
   typedef BlackIborCouponPricerBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE = 4,
-    VT_OPTIONLET_VOLATILITY_STRUCTURE = 6
+    VT_OPTIONLET_VOLATILITY = 4
   };
-  quantra::OptionletVolatilityStructure optionlet_volatility_structure_type() const {
-    return static_cast<quantra::OptionletVolatilityStructure>(GetField<uint8_t>(VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, 0));
-  }
-  const void *optionlet_volatility_structure() const {
-    return GetPointer<const void *>(VT_OPTIONLET_VOLATILITY_STRUCTURE);
-  }
-  template<typename T> const T *optionlet_volatility_structure_as() const;
-  const quantra::ConstantOptionletVolatility *optionlet_volatility_structure_as_ConstantOptionletVolatility() const {
-    return optionlet_volatility_structure_type() == quantra::OptionletVolatilityStructure_ConstantOptionletVolatility ? static_cast<const quantra::ConstantOptionletVolatility *>(optionlet_volatility_structure()) : nullptr;
+  const quantra::ConstantOptionletVolatility *optionlet_volatility() const {
+    return GetPointer<const quantra::ConstantOptionletVolatility *>(VT_OPTIONLET_VOLATILITY);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, 1) &&
-           VerifyOffset(verifier, VT_OPTIONLET_VOLATILITY_STRUCTURE) &&
-           VerifyOptionletVolatilityStructure(verifier, optionlet_volatility_structure(), optionlet_volatility_structure_type()) &&
+           VerifyOffset(verifier, VT_OPTIONLET_VOLATILITY) &&
+           verifier.VerifyTable(optionlet_volatility()) &&
            verifier.EndTable();
   }
   BlackIborCouponPricerT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -341,19 +156,12 @@ struct BlackIborCouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   static ::flatbuffers::Offset<BlackIborCouponPricer> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackIborCouponPricerT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-template<> inline const quantra::ConstantOptionletVolatility *BlackIborCouponPricer::optionlet_volatility_structure_as<quantra::ConstantOptionletVolatility>() const {
-  return optionlet_volatility_structure_as_ConstantOptionletVolatility();
-}
-
 struct BlackIborCouponPricerBuilder {
   typedef BlackIborCouponPricer Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_optionlet_volatility_structure_type(quantra::OptionletVolatilityStructure optionlet_volatility_structure_type) {
-    fbb_.AddElement<uint8_t>(BlackIborCouponPricer::VT_OPTIONLET_VOLATILITY_STRUCTURE_TYPE, static_cast<uint8_t>(optionlet_volatility_structure_type), 0);
-  }
-  void add_optionlet_volatility_structure(::flatbuffers::Offset<void> optionlet_volatility_structure) {
-    fbb_.AddOffset(BlackIborCouponPricer::VT_OPTIONLET_VOLATILITY_STRUCTURE, optionlet_volatility_structure);
+  void add_optionlet_volatility(::flatbuffers::Offset<quantra::ConstantOptionletVolatility> optionlet_volatility) {
+    fbb_.AddOffset(BlackIborCouponPricer::VT_OPTIONLET_VOLATILITY, optionlet_volatility);
   }
   explicit BlackIborCouponPricerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -368,11 +176,9 @@ struct BlackIborCouponPricerBuilder {
 
 inline ::flatbuffers::Offset<BlackIborCouponPricer> CreateBlackIborCouponPricer(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::OptionletVolatilityStructure optionlet_volatility_structure_type = quantra::OptionletVolatilityStructure_NONE,
-    ::flatbuffers::Offset<void> optionlet_volatility_structure = 0) {
+    ::flatbuffers::Offset<quantra::ConstantOptionletVolatility> optionlet_volatility = 0) {
   BlackIborCouponPricerBuilder builder_(_fbb);
-  builder_.add_optionlet_volatility_structure(optionlet_volatility_structure);
-  builder_.add_optionlet_volatility_structure_type(optionlet_volatility_structure_type);
+  builder_.add_optionlet_volatility(optionlet_volatility);
   return builder_.Finish();
 }
 
@@ -381,7 +187,11 @@ inline ::flatbuffers::Offset<BlackIborCouponPricer> CreateBlackIborCouponPricer(
 struct CouponPricerT : public ::flatbuffers::NativeTable {
   typedef CouponPricer TableType;
   std::string id{};
-  quantra::PricerUnion pricer{};
+  std::unique_ptr<quantra::BlackIborCouponPricerT> black_ibor_coupon_pricer{};
+  CouponPricerT() = default;
+  CouponPricerT(const CouponPricerT &o);
+  CouponPricerT(CouponPricerT&&) FLATBUFFERS_NOEXCEPT = default;
+  CouponPricerT &operator=(CouponPricerT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// Coupon pricer specification referenced by id.
@@ -390,39 +200,26 @@ struct CouponPricer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CouponPricerBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
-    VT_PRICER_TYPE = 6,
-    VT_PRICER = 8
+    VT_BLACK_IBOR_COUPON_PRICER = 6
   };
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
   }
-  quantra::Pricer pricer_type() const {
-    return static_cast<quantra::Pricer>(GetField<uint8_t>(VT_PRICER_TYPE, 0));
-  }
-  const void *pricer() const {
-    return GetPointer<const void *>(VT_PRICER);
-  }
-  template<typename T> const T *pricer_as() const;
-  const quantra::BlackIborCouponPricer *pricer_as_BlackIborCouponPricer() const {
-    return pricer_type() == quantra::Pricer_BlackIborCouponPricer ? static_cast<const quantra::BlackIborCouponPricer *>(pricer()) : nullptr;
+  const quantra::BlackIborCouponPricer *black_ibor_coupon_pricer() const {
+    return GetPointer<const quantra::BlackIborCouponPricer *>(VT_BLACK_IBOR_COUPON_PRICER);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_ID) &&
            verifier.VerifyString(id()) &&
-           VerifyField<uint8_t>(verifier, VT_PRICER_TYPE, 1) &&
-           VerifyOffset(verifier, VT_PRICER) &&
-           VerifyPricer(verifier, pricer(), pricer_type()) &&
+           VerifyOffset(verifier, VT_BLACK_IBOR_COUPON_PRICER) &&
+           verifier.VerifyTable(black_ibor_coupon_pricer()) &&
            verifier.EndTable();
   }
   CouponPricerT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(CouponPricerT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
   static ::flatbuffers::Offset<CouponPricer> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CouponPricerT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
-
-template<> inline const quantra::BlackIborCouponPricer *CouponPricer::pricer_as<quantra::BlackIborCouponPricer>() const {
-  return pricer_as_BlackIborCouponPricer();
-}
 
 struct CouponPricerBuilder {
   typedef CouponPricer Table;
@@ -431,11 +228,8 @@ struct CouponPricerBuilder {
   void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
     fbb_.AddOffset(CouponPricer::VT_ID, id);
   }
-  void add_pricer_type(quantra::Pricer pricer_type) {
-    fbb_.AddElement<uint8_t>(CouponPricer::VT_PRICER_TYPE, static_cast<uint8_t>(pricer_type), 0);
-  }
-  void add_pricer(::flatbuffers::Offset<void> pricer) {
-    fbb_.AddOffset(CouponPricer::VT_PRICER, pricer);
+  void add_black_ibor_coupon_pricer(::flatbuffers::Offset<quantra::BlackIborCouponPricer> black_ibor_coupon_pricer) {
+    fbb_.AddOffset(CouponPricer::VT_BLACK_IBOR_COUPON_PRICER, black_ibor_coupon_pricer);
   }
   explicit CouponPricerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -451,26 +245,22 @@ struct CouponPricerBuilder {
 inline ::flatbuffers::Offset<CouponPricer> CreateCouponPricer(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
-    quantra::Pricer pricer_type = quantra::Pricer_NONE,
-    ::flatbuffers::Offset<void> pricer = 0) {
+    ::flatbuffers::Offset<quantra::BlackIborCouponPricer> black_ibor_coupon_pricer = 0) {
   CouponPricerBuilder builder_(_fbb);
-  builder_.add_pricer(pricer);
+  builder_.add_black_ibor_coupon_pricer(black_ibor_coupon_pricer);
   builder_.add_id(id);
-  builder_.add_pricer_type(pricer_type);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CouponPricer> CreateCouponPricerDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
-    quantra::Pricer pricer_type = quantra::Pricer_NONE,
-    ::flatbuffers::Offset<void> pricer = 0) {
+    ::flatbuffers::Offset<quantra::BlackIborCouponPricer> black_ibor_coupon_pricer = 0) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   return quantra::CreateCouponPricer(
       _fbb,
       id__,
-      pricer_type,
-      pricer);
+      black_ibor_coupon_pricer);
 }
 
 ::flatbuffers::Offset<CouponPricer> CreateCouponPricer(::flatbuffers::FlatBufferBuilder &_fbb, const CouponPricerT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -513,6 +303,15 @@ inline ::flatbuffers::Offset<ConstantOptionletVolatility> CreateConstantOptionle
       _day_counter);
 }
 
+inline BlackIborCouponPricerT::BlackIborCouponPricerT(const BlackIborCouponPricerT &o)
+      : optionlet_volatility((o.optionlet_volatility) ? new quantra::ConstantOptionletVolatilityT(*o.optionlet_volatility) : nullptr) {
+}
+
+inline BlackIborCouponPricerT &BlackIborCouponPricerT::operator=(BlackIborCouponPricerT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(optionlet_volatility, o.optionlet_volatility);
+  return *this;
+}
+
 inline BlackIborCouponPricerT *BlackIborCouponPricer::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<BlackIborCouponPricerT>(new BlackIborCouponPricerT());
   UnPackTo(_o.get(), _resolver);
@@ -522,8 +321,7 @@ inline BlackIborCouponPricerT *BlackIborCouponPricer::UnPack(const ::flatbuffers
 inline void BlackIborCouponPricer::UnPackTo(BlackIborCouponPricerT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = optionlet_volatility_structure_type(); _o->optionlet_volatility_structure.type = _e; }
-  { auto _e = optionlet_volatility_structure(); if (_e) _o->optionlet_volatility_structure.value = quantra::OptionletVolatilityStructureUnion::UnPack(_e, optionlet_volatility_structure_type(), _resolver); }
+  { auto _e = optionlet_volatility(); if (_e) { if(_o->optionlet_volatility) { _e->UnPackTo(_o->optionlet_volatility.get(), _resolver); } else { _o->optionlet_volatility = std::unique_ptr<quantra::ConstantOptionletVolatilityT>(_e->UnPack(_resolver)); } } else if (_o->optionlet_volatility) { _o->optionlet_volatility.reset(); } }
 }
 
 inline ::flatbuffers::Offset<BlackIborCouponPricer> BlackIborCouponPricer::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BlackIborCouponPricerT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -534,12 +332,21 @@ inline ::flatbuffers::Offset<BlackIborCouponPricer> CreateBlackIborCouponPricer(
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BlackIborCouponPricerT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _optionlet_volatility_structure_type = _o->optionlet_volatility_structure.type;
-  auto _optionlet_volatility_structure = _o->optionlet_volatility_structure.Pack(_fbb);
+  auto _optionlet_volatility = _o->optionlet_volatility ? CreateConstantOptionletVolatility(_fbb, _o->optionlet_volatility.get(), _rehasher) : 0;
   return quantra::CreateBlackIborCouponPricer(
       _fbb,
-      _optionlet_volatility_structure_type,
-      _optionlet_volatility_structure);
+      _optionlet_volatility);
+}
+
+inline CouponPricerT::CouponPricerT(const CouponPricerT &o)
+      : id(o.id),
+        black_ibor_coupon_pricer((o.black_ibor_coupon_pricer) ? new quantra::BlackIborCouponPricerT(*o.black_ibor_coupon_pricer) : nullptr) {
+}
+
+inline CouponPricerT &CouponPricerT::operator=(CouponPricerT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(id, o.id);
+  std::swap(black_ibor_coupon_pricer, o.black_ibor_coupon_pricer);
+  return *this;
 }
 
 inline CouponPricerT *CouponPricer::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
@@ -552,8 +359,7 @@ inline void CouponPricer::UnPackTo(CouponPricerT *_o, const ::flatbuffers::resol
   (void)_o;
   (void)_resolver;
   { auto _e = id(); if (_e) _o->id = _e->str(); }
-  { auto _e = pricer_type(); _o->pricer.type = _e; }
-  { auto _e = pricer(); if (_e) _o->pricer.value = quantra::PricerUnion::UnPack(_e, pricer_type(), _resolver); }
+  { auto _e = black_ibor_coupon_pricer(); if (_e) { if(_o->black_ibor_coupon_pricer) { _e->UnPackTo(_o->black_ibor_coupon_pricer.get(), _resolver); } else { _o->black_ibor_coupon_pricer = std::unique_ptr<quantra::BlackIborCouponPricerT>(_e->UnPack(_resolver)); } } else if (_o->black_ibor_coupon_pricer) { _o->black_ibor_coupon_pricer.reset(); } }
 }
 
 inline ::flatbuffers::Offset<CouponPricer> CouponPricer::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CouponPricerT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -565,155 +371,11 @@ inline ::flatbuffers::Offset<CouponPricer> CreateCouponPricer(::flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CouponPricerT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _id = _o->id.empty() ? 0 : _fbb.CreateString(_o->id);
-  auto _pricer_type = _o->pricer.type;
-  auto _pricer = _o->pricer.Pack(_fbb);
+  auto _black_ibor_coupon_pricer = _o->black_ibor_coupon_pricer ? CreateBlackIborCouponPricer(_fbb, _o->black_ibor_coupon_pricer.get(), _rehasher) : 0;
   return quantra::CreateCouponPricer(
       _fbb,
       _id,
-      _pricer_type,
-      _pricer);
-}
-
-inline bool VerifyOptionletVolatilityStructure(::flatbuffers::Verifier &verifier, const void *obj, OptionletVolatilityStructure type) {
-  switch (type) {
-    case OptionletVolatilityStructure_NONE: {
-      return true;
-    }
-    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
-      auto ptr = reinterpret_cast<const quantra::ConstantOptionletVolatility *>(obj);
-      return verifier.VerifyTable(ptr);
-    }
-    default: return true;
-  }
-}
-
-inline bool VerifyOptionletVolatilityStructureVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
-  if (!values || !types) return !values && !types;
-  if (values->size() != types->size()) return false;
-  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
-    if (!VerifyOptionletVolatilityStructure(
-        verifier,  values->Get(i), types->GetEnum<OptionletVolatilityStructure>(i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-inline void *OptionletVolatilityStructureUnion::UnPack(const void *obj, OptionletVolatilityStructure type, const ::flatbuffers::resolver_function_t *resolver) {
-  (void)resolver;
-  switch (type) {
-    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
-      auto ptr = reinterpret_cast<const quantra::ConstantOptionletVolatility *>(obj);
-      return ptr->UnPack(resolver);
-    }
-    default: return nullptr;
-  }
-}
-
-inline ::flatbuffers::Offset<void> OptionletVolatilityStructureUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
-  (void)_rehasher;
-  switch (type) {
-    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
-      auto ptr = reinterpret_cast<const quantra::ConstantOptionletVolatilityT *>(value);
-      return CreateConstantOptionletVolatility(_fbb, ptr, _rehasher).Union();
-    }
-    default: return 0;
-  }
-}
-
-inline OptionletVolatilityStructureUnion::OptionletVolatilityStructureUnion(const OptionletVolatilityStructureUnion &u) : type(u.type), value(nullptr) {
-  switch (type) {
-    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
-      value = new quantra::ConstantOptionletVolatilityT(*reinterpret_cast<quantra::ConstantOptionletVolatilityT *>(u.value));
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-inline void OptionletVolatilityStructureUnion::Reset() {
-  switch (type) {
-    case OptionletVolatilityStructure_ConstantOptionletVolatility: {
-      auto ptr = reinterpret_cast<quantra::ConstantOptionletVolatilityT *>(value);
-      delete ptr;
-      break;
-    }
-    default: break;
-  }
-  value = nullptr;
-  type = OptionletVolatilityStructure_NONE;
-}
-
-inline bool VerifyPricer(::flatbuffers::Verifier &verifier, const void *obj, Pricer type) {
-  switch (type) {
-    case Pricer_NONE: {
-      return true;
-    }
-    case Pricer_BlackIborCouponPricer: {
-      auto ptr = reinterpret_cast<const quantra::BlackIborCouponPricer *>(obj);
-      return verifier.VerifyTable(ptr);
-    }
-    default: return true;
-  }
-}
-
-inline bool VerifyPricerVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Vector<::flatbuffers::Offset<void>> *values, const ::flatbuffers::Vector<uint8_t> *types) {
-  if (!values || !types) return !values && !types;
-  if (values->size() != types->size()) return false;
-  for (::flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
-    if (!VerifyPricer(
-        verifier,  values->Get(i), types->GetEnum<Pricer>(i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-inline void *PricerUnion::UnPack(const void *obj, Pricer type, const ::flatbuffers::resolver_function_t *resolver) {
-  (void)resolver;
-  switch (type) {
-    case Pricer_BlackIborCouponPricer: {
-      auto ptr = reinterpret_cast<const quantra::BlackIborCouponPricer *>(obj);
-      return ptr->UnPack(resolver);
-    }
-    default: return nullptr;
-  }
-}
-
-inline ::flatbuffers::Offset<void> PricerUnion::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ::flatbuffers::rehasher_function_t *_rehasher) const {
-  (void)_rehasher;
-  switch (type) {
-    case Pricer_BlackIborCouponPricer: {
-      auto ptr = reinterpret_cast<const quantra::BlackIborCouponPricerT *>(value);
-      return CreateBlackIborCouponPricer(_fbb, ptr, _rehasher).Union();
-    }
-    default: return 0;
-  }
-}
-
-inline PricerUnion::PricerUnion(const PricerUnion &u) : type(u.type), value(nullptr) {
-  switch (type) {
-    case Pricer_BlackIborCouponPricer: {
-      value = new quantra::BlackIborCouponPricerT(*reinterpret_cast<quantra::BlackIborCouponPricerT *>(u.value));
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-inline void PricerUnion::Reset() {
-  switch (type) {
-    case Pricer_BlackIborCouponPricer: {
-      auto ptr = reinterpret_cast<quantra::BlackIborCouponPricerT *>(value);
-      delete ptr;
-      break;
-    }
-    default: break;
-  }
-  value = nullptr;
-  type = Pricer_NONE;
+      _black_ibor_coupon_pricer);
 }
 
 inline const quantra::CouponPricer *GetCouponPricer(const void *buf) {

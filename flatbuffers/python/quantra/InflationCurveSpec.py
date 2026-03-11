@@ -89,7 +89,7 @@ class InflationCurveSpec(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Optional nominal discount curve id reserved for future inflation-leg projection/discounting models.
+    # Optional discount curve id for inflation-leg projection/discounting models.
     # InflationCurveSpec
     def DiscountCurveId(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))

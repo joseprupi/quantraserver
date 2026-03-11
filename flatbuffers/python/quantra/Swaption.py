@@ -78,29 +78,17 @@ class Swaption(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         return o == 0
 
-    # Legacy field: vanilla swap only (kept for backward compatibility).
-    # Swaption
-    def UnderlyingSwap(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.VanillaSwap import VanillaSwap
-            obj = VanillaSwap()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
     # Swaption
     def UnderlyingType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
-    # New union-based underlying (VanillaSwap or OisSwap).
+    # Underlying swap instrument.
     # Swaption
     def Underlying(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -109,7 +97,7 @@ class Swaption(object):
         return None
 
 def SwaptionStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(7)
 
 def Start(builder):
     SwaptionStart(builder)
@@ -150,20 +138,14 @@ def SwaptionStartExerciseDatesVector(builder, numElems):
 def StartExerciseDatesVector(builder, numElems):
     return SwaptionStartExerciseDatesVector(builder, numElems)
 
-def SwaptionAddUnderlyingSwap(builder, underlyingSwap):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(underlyingSwap), 0)
-
-def AddUnderlyingSwap(builder, underlyingSwap):
-    SwaptionAddUnderlyingSwap(builder, underlyingSwap)
-
 def SwaptionAddUnderlyingType(builder, underlyingType):
-    builder.PrependUint8Slot(6, underlyingType, 0)
+    builder.PrependUint8Slot(5, underlyingType, 0)
 
 def AddUnderlyingType(builder, underlyingType):
     SwaptionAddUnderlyingType(builder, underlyingType)
 
 def SwaptionAddUnderlying(builder, underlying):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(underlying), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(underlying), 0)
 
 def AddUnderlying(builder, underlying):
     SwaptionAddUnderlying(builder, underlying)
@@ -175,7 +157,7 @@ def End(builder):
     return SwaptionEnd(builder)
 
 try:
-    from typing import List, Optional, Union
+    from typing import List, Union
 except:
     pass
 
@@ -188,7 +170,6 @@ class SwaptionT(object):
         self.settlementMethod = 0  # type: int
         self.exerciseDate = None  # type: str
         self.exerciseDates = None  # type: List[str]
-        self.underlyingSwap = None  # type: Optional[VanillaSwapT]
         self.underlyingType = 0  # type: int
         self.underlying = None  # type: Union[None, VanillaSwapT, OisSwapT]
 
@@ -221,8 +202,6 @@ class SwaptionT(object):
             self.exerciseDates = []
             for i in range(swaption.ExerciseDatesLength()):
                 self.exerciseDates.append(swaption.ExerciseDates(i))
-        if swaption.UnderlyingSwap() is not None:
-            self.underlyingSwap = VanillaSwapT.InitFromObj(swaption.UnderlyingSwap())
         self.underlyingType = swaption.UnderlyingType()
         self.underlying = SwaptionUnderlyingCreator(self.underlyingType, swaption.Underlying())
 
@@ -238,8 +217,6 @@ class SwaptionT(object):
             for i in reversed(range(len(self.exerciseDates))):
                 builder.PrependUOffsetTRelative(exerciseDateslist[i])
             exerciseDates = builder.EndVector()
-        if self.underlyingSwap is not None:
-            underlyingSwap = self.underlyingSwap.Pack(builder)
         if self.underlying is not None:
             underlying = self.underlying.Pack(builder)
         SwaptionStart(builder)
@@ -250,8 +227,6 @@ class SwaptionT(object):
             SwaptionAddExerciseDate(builder, exerciseDate)
         if self.exerciseDates is not None:
             SwaptionAddExerciseDates(builder, exerciseDates)
-        if self.underlyingSwap is not None:
-            SwaptionAddUnderlyingSwap(builder, underlyingSwap)
         SwaptionAddUnderlyingType(builder, self.underlyingType)
         if self.underlying is not None:
             SwaptionAddUnderlying(builder, underlying)

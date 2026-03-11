@@ -1814,7 +1814,8 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_date(exd);
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
@@ -1952,7 +1953,8 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     auto exDatesVec = b.CreateVector(exDateStrs);
 
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_type(quantra::enums::ExerciseType_Bermudan);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     swb.add_exercise_dates(exDatesVec);
@@ -2227,7 +2229,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         auto exDatesVec = b.CreateVector(exDateStrs);
 
         quantra::SwaptionBuilder swb(b);
-        swb.add_underlying_swap(uswap);
+        swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+        swb.add_underlying(uswap.Union());
         swb.add_exercise_type(quantra::enums::ExerciseType_Bermudan);
         swb.add_settlement_type(quantra::enums::SettlementType_Physical);
         swb.add_exercise_dates(exDatesVec);
@@ -2386,7 +2389,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     auto exDatesVec = b.CreateVector(exDateStrs);
 
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_type(quantra::enums::ExerciseType_Bermudan);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     swb.add_exercise_dates(exDatesVec);
@@ -2517,7 +2521,8 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_date(exd);
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
@@ -2645,7 +2650,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_date(exd);
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
@@ -2760,7 +2766,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_date(exd);
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
@@ -2988,7 +2995,8 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
-    swb.add_underlying_swap(uswap);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
     swb.add_exercise_date(exd);
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
@@ -5670,7 +5678,7 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     auto maturityDate = b.CreateString("2030-01-15");
     quantra::ZeroCouponInflationSwapBuilder zcib(b);
     zcib.add_swap_type(quantra::enums::SwapType_Payer);
-    zcib.add_nominal(1000000.0);
+    zcib.add_notional(1000000.0);
     zcib.add_start_date(startDate);
     zcib.add_maturity_date(maturityDate);
     zcib.add_fixed_calendar(quantra::enums::Calendar_TARGET);
@@ -5874,7 +5882,7 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
 
     quantra::YearOnYearInflationSwapBuilder yyb(b);
     yyb.add_swap_type(quantra::enums::SwapType_Receiver);
-    yyb.add_nominal(1000000.0);
+    yyb.add_notional(1000000.0);
     yyb.add_fixed_schedule(fixedSchedule);
     yyb.add_fixed_rate(0.0204);
     yyb.add_fixed_day_counter(quantra::enums::DayCounter_Actual365Fixed);

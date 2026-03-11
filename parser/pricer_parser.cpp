@@ -2,37 +2,32 @@
 
 std::shared_ptr<QuantLib::IborCouponPricer> PricerParser::parse(const quantra::CouponPricer *pricer)
 {
-
-    auto pricer_type = pricer->pricer_type();
-    ext::shared_ptr<QuantLib::IborCouponPricer> ibor_coupon_pricer;
-
-    if (pricer_type == quantra::Pricer_BlackIborCouponPricer)
-    {
-        
-        auto black_ibor_pricer = static_cast<const quantra::BlackIborCouponPricer *>(pricer->pricer());
-        auto black_ibor_structuretype = black_ibor_pricer->optionlet_volatility_structure_type();
-
-        if (black_ibor_structuretype == quantra::OptionletVolatilityStructure_ConstantOptionletVolatility){
-            
-            auto constant_optionlet_volatility = static_cast<const quantra::ConstantOptionletVolatility *>(black_ibor_pricer->optionlet_volatility_structure());
-            ibor_coupon_pricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
-
-            QuantLib::Volatility volatility = constant_optionlet_volatility->volatility();
-            Handle<QuantLib::OptionletVolatilityStructure> vol;
-            vol = Handle<QuantLib::OptionletVolatilityStructure>(ext::shared_ptr<QuantLib::OptionletVolatilityStructure>(new QuantLib::ConstantOptionletVolatility(
-                constant_optionlet_volatility->settlement_days(),
-                CalendarToQL(constant_optionlet_volatility->calendar()),
-                ConventionToQL(constant_optionlet_volatility->business_day_convention()),
-                volatility,
-                DayCounterToQL(constant_optionlet_volatility->day_counter()))));
-
-            ibor_coupon_pricer->setCapletVolatility(vol);
-        }else{
-            QUANTRA_ERROR("Optionlet Volatility Structure not supported");
-        }
-    }else{
-        QUANTRA_ERROR("Coupon Pricer not supported");
+    if (!pricer) {
+        QUANTRA_ERROR("Coupon pricer not found");
     }
-    
+
+    const auto* black_ibor_pricer = pricer->black_ibor_coupon_pricer();
+    if (!black_ibor_pricer) {
+        QUANTRA_ERROR("Coupon pricer black_ibor_coupon_pricer not found");
+    }
+
+    const auto* optionlet_volatility = black_ibor_pricer->optionlet_volatility();
+    if (!optionlet_volatility) {
+        QUANTRA_ERROR("Coupon pricer optionlet_volatility not found");
+    }
+
+    auto ibor_coupon_pricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
+    QuantLib::Volatility volatility = optionlet_volatility->volatility();
+    Handle<QuantLib::OptionletVolatilityStructure> vol;
+    vol = Handle<QuantLib::OptionletVolatilityStructure>(
+        ext::shared_ptr<QuantLib::OptionletVolatilityStructure>(
+            new QuantLib::ConstantOptionletVolatility(
+                optionlet_volatility->settlement_days(),
+                CalendarToQL(optionlet_volatility->calendar()),
+                ConventionToQL(optionlet_volatility->business_day_convention()),
+                volatility,
+                DayCounterToQL(optionlet_volatility->day_counter()))));
+
+    ibor_coupon_pricer->setCapletVolatility(vol);
     return ibor_coupon_pricer;
 }
