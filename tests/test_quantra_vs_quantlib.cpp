@@ -1209,6 +1209,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     std::cout << "QuantLib Fair: " << qlFairRate*100 << "% | Quantra: " << qFairRate*100 << "%" << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_NEAR(qlFairRate, qFairRate, 1e-6);
+    EXPECT_DOUBLE_EQ(-1.0, r->used_cms_mean_reversion());
 }
 
 TEST_F(QuantraComparisonTest, VanillaSwap_CMS_NPVMatches) {
