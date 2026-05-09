@@ -162,6 +162,43 @@ std::vector<double> computeServerAtmForwardsForExerciseDates(
     return atms;
 }
 
+namespace {
+
+void validateTradeAgainstSwapIndex(
+    const quantra::PriceSwaption* trade,
+    const std::string& swapIndexId,
+    const quantra::SwapIndexRuntime& sidx) {
+    if (trade == nullptr) return;
+    std::string tradeIndexId = getTradeFloatingIndexId(trade);
+    if (!tradeIndexId.empty() && tradeIndexId != sidx.floatIndexId) {
+        QUANTRA_ERROR(
+            "Swap index '" + swapIndexId + "' float_index_id '" + sidx.floatIndexId +
+            "' does not match swaption floating index '" + tradeIndexId + "'");
+    }
+
+    QuantLib::Date tradeExerciseDate, tradeStartDate;
+    if (getTradeExerciseAndStartDates(trade, tradeExerciseDate, tradeStartDate)) {
+        QuantLib::Date tradeExerciseAdjusted = sidx.fixedCalendar.adjust(tradeExerciseDate, sidx.fixedBdc);
+        QuantLib::Date expectedStart = sidx.fixedCalendar.advance(
+            tradeExerciseAdjusted, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
+        QuantLib::Date tradeStartAdjusted = sidx.fixedCalendar.adjust(tradeStartDate, sidx.fixedBdc);
+        if (expectedStart != tradeStartAdjusted) {
+            std::ostringstream err;
+            err << "Swap index '" << swapIndexId
+                << "' spot_days mismatch against trade start convention: expected start "
+                << QuantLib::io::iso_date(expectedStart) << " from exercise "
+                << QuantLib::io::iso_date(tradeExerciseDate)
+                << " (adjusted: " << QuantLib::io::iso_date(tradeExerciseAdjusted) << ")"
+                << " with spot_days=" << sidx.spotDays
+                << ", but trade start is " << QuantLib::io::iso_date(tradeStartDate)
+                << " (adjusted: " << QuantLib::io::iso_date(tradeStartAdjusted) << ")";
+            QUANTRA_ERROR(err.str());
+        }
+    }
+}
+
+} // namespace
+
 SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const SwaptionVolEntry& raw,
     const quantra::PriceSwaption* trade,
@@ -169,58 +206,49 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
     bool forceRecomputeAtm) {
-    if (raw.volKind != quantra::enums::SwaptionVolKind_SmileCube3D ||
-        raw.strikeKind != quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
+    const bool isSmileCubeSpread =
+        raw.volKind == quantra::enums::SwaptionVolKind_SmileCube3D &&
+        raw.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM;
+    const bool isSabrParams = raw.volKind == quantra::enums::SwaptionVolKind_SabrParams;
+
+    if (!isSmileCubeSpread && !isSabrParams) {
         return raw;
     }
     if (raw.referenceDate == QuantLib::Date()) {
-        QUANTRA_ERROR("SpreadFromATM smile cube requires a valid vol referenceDate");
+        QUANTRA_ERROR("Swaption vol surface requires a valid referenceDate");
     }
     if (raw.swapIndexId.empty()) {
-        QUANTRA_ERROR("SpreadFromATM smile cube requires swap_index_id");
+        QUANTRA_ERROR("Swaption vol surface requires swap_index_id for forward resolution");
     }
-    if (raw.allowExternalAtm && !raw.atmForwardsFlat.empty()) {
-        return raw;
-    }
-    if (!forceRecomputeAtm && !raw.atmForwardsFlat.empty()) {
-        return raw;
+
+    if (isSmileCubeSpread) {
+        if (raw.allowExternalAtm && !raw.atmForwardsFlat.empty()) {
+            return raw;
+        }
+        if (!forceRecomputeAtm && !raw.atmForwardsFlat.empty()) {
+            return raw;
+        }
+    } else {
+        // SABR params: handle is built from atmForwardsFlat in withSwaptionSabrParamsAtm,
+        // so an empty handle is the signal that finalize hasn't run yet. If the handle is
+        // already built and forwards are populated, only rebuild on explicit forceRecomputeAtm.
+        if (!forceRecomputeAtm && !raw.handle.empty() && !raw.atmForwardsFlat.empty()) {
+            return raw;
+        }
     }
 
     if (!reg.rates.swapIndices.has(raw.swapIndexId)) {
         QUANTRA_ERROR("Missing swap index definition for id: " + raw.swapIndexId);
     }
     const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
-    if (trade != nullptr) {
-        std::string tradeIndexId = getTradeFloatingIndexId(trade);
-        if (!tradeIndexId.empty() && tradeIndexId != sidx.floatIndexId) {
-            QUANTRA_ERROR(
-                "Swap index '" + raw.swapIndexId + "' float_index_id '" + sidx.floatIndexId +
-                "' does not match swaption floating index '" + tradeIndexId + "'");
-        }
-
-        QuantLib::Date tradeExerciseDate, tradeStartDate;
-        if (getTradeExerciseAndStartDates(trade, tradeExerciseDate, tradeStartDate)) {
-            QuantLib::Date tradeExerciseAdjusted = sidx.fixedCalendar.adjust(tradeExerciseDate, sidx.fixedBdc);
-            QuantLib::Date expectedStart = sidx.fixedCalendar.advance(
-                tradeExerciseAdjusted, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
-            QuantLib::Date tradeStartAdjusted = sidx.fixedCalendar.adjust(tradeStartDate, sidx.fixedBdc);
-            if (expectedStart != tradeStartAdjusted) {
-                std::ostringstream err;
-                err << "Swap index '" << raw.swapIndexId
-                    << "' spot_days mismatch against trade start convention: expected start "
-                    << QuantLib::io::iso_date(expectedStart) << " from exercise "
-                    << QuantLib::io::iso_date(tradeExerciseDate)
-                    << " (adjusted: " << QuantLib::io::iso_date(tradeExerciseAdjusted) << ")"
-                    << " with spot_days=" << sidx.spotDays
-                    << ", but trade start is " << QuantLib::io::iso_date(tradeStartDate)
-                    << " (adjusted: " << QuantLib::io::iso_date(tradeStartAdjusted) << ")";
-                QUANTRA_ERROR(err.str());
-            }
-        }
-    }
+    validateTradeAgainstSwapIndex(trade, raw.swapIndexId, sidx);
 
     auto atms = computeServerAtmForwards(
         raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
+
+    if (isSabrParams) {
+        return withSwaptionSabrParamsAtm(raw, atms);
+    }
     return withSwaptionSmileCubeAtm(raw, atms);
 }
 

@@ -122,6 +122,19 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
     const std::vector<double>& atmForwardsFlat);
 
 /**
+ * Build a SABR params swaption vol structure from per-node ATM forwards.
+ *
+ * `base` must have volKind == SwaptionVolKind_SabrParams with sabrAlpha/Beta/Rho/Nu
+ * populated row-major (length nExp * nTen). `atmForwardsFlat` supplies the per-node
+ * forward F(expiry, tenor) row-major (length nExp * nTen), used to instantiate one
+ * QuantLib::SabrSmileSection per node. Returns an entry with `handle` and
+ * `atmForwardsFlat` populated; other fields are passed through unchanged.
+ */
+SwaptionVolEntry withSwaptionSabrParamsAtm(
+    const SwaptionVolEntry& base,
+    const std::vector<double>& atmForwardsFlat);
+
+/**
  * Parse BlackVolSpec from FlatBuffers into QuantLib structure.
  */
 BlackVolEntry parseBlackVol(
