@@ -78,13 +78,16 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
         swap_response_builder.add_floating_leg_bps(priced.floatingLegBps);
         swap_response_builder.add_fixed_leg_npv(priced.fixedLegNpv);
         swap_response_builder.add_floating_leg_npv(priced.floatingLegNpv);
-        swap_response_builder.add_used_cms_pricer_type(priced.cmsUsed.pricerType);
-        swap_response_builder.add_used_cms_yield_curve_model(priced.cmsUsed.yieldCurveModel);
-        swap_response_builder.add_used_cms_mean_reversion(priced.cmsUsed.meanReversion);
-        swap_response_builder.add_used_cms_hagan_lower_limit(priced.cmsUsed.haganLowerLimit);
-        swap_response_builder.add_used_cms_hagan_upper_limit(priced.cmsUsed.haganUpperLimit);
-        swap_response_builder.add_used_cms_hagan_precision(priced.cmsUsed.haganPrecision);
-        swap_response_builder.add_used_cms_hagan_hard_upper_limit(priced.cmsUsed.haganHardUpperLimit);
+        const bool hasCmsLeg = it->vanilla_swap() && it->vanilla_swap()->cms_leg();
+        if (hasCmsLeg) {
+            swap_response_builder.add_used_cms_pricer_type(priced.cmsUsed.pricerType);
+            swap_response_builder.add_used_cms_yield_curve_model(priced.cmsUsed.yieldCurveModel);
+            swap_response_builder.add_used_cms_mean_reversion(priced.cmsUsed.meanReversion);
+            swap_response_builder.add_used_cms_hagan_lower_limit(priced.cmsUsed.haganLowerLimit);
+            swap_response_builder.add_used_cms_hagan_upper_limit(priced.cmsUsed.haganUpperLimit);
+            swap_response_builder.add_used_cms_hagan_precision(priced.cmsUsed.haganPrecision);
+            swap_response_builder.add_used_cms_hagan_hard_upper_limit(priced.cmsUsed.haganHardUpperLimit);
+        }
 
         if (include_flows)
         {
