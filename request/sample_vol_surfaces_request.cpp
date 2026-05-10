@@ -753,7 +753,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         volsOut.push_back(sampleVol(static_cast<int>(i), j, q->slice_strike(), dates));
                         effectiveSwapStartsOut.push_back(builder->CreateString(toIso(dates.start)));
                         effectiveSwapEndsOut.push_back(builder->CreateString(toIso(dates.end)));
-                        if (volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM) {
+                        if (!precomputedAtm.empty()) {
                             double atm = atmLookup(static_cast<int>(i), j);
                             if (std::isfinite(atm)) atmLevelsOut.push_back(atm);
                         }
