@@ -1,0 +1,20 @@
+include "diagnostics.fbs";
+
+namespace quantra;
+
+/// Response from /calibrate-swaption-vol: a single SwaptionVolDiagnostics
+/// block describing the calibrated surface. Wrapped in a thin envelope rather
+/// than using SwaptionVolDiagnostics as `root_type` directly so that future
+/// additions (status field, audit metadata, etc.) don't break the schema —
+/// same pattern as CalibrateSwaptionModelResponse.
+table CalibrateSwaptionVolResponse {
+    /// Vol id requested for calibration. Echoed for client correlation,
+    /// mirroring CalibrateSwaptionModelResponse.model_id.
+    vol_id:string (required);
+    /// Calibration diagnostics: per-node forwards, ATM vols, calibrated
+    /// (alpha, beta, rho, nu) grids, per-node fit errors, convergence flag,
+    /// per-strike fit errors, and warnings. See diagnostics.fbs.
+    diagnostics:SwaptionVolDiagnostics (required);
+}
+
+root_type CalibrateSwaptionVolResponse;

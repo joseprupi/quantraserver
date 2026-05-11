@@ -281,6 +281,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 cache.logEvent(id, key, "L1_HIT", keyMs);
                 out.handles.at(id)->linkTo(cached);
                 depKeys[id] = key;
+                out.keys[id] = key;
                 continue;
             }
             cache.stats().l1_misses++;
@@ -294,6 +295,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 cache.logEvent(id, key, "L2_HIT");
                 out.handles.at(id)->linkTo(curve);
                 depKeys[id] = key;
+                out.keys[id] = key;
                 continue;
             }
             cache.stats().l2_misses++;
@@ -317,6 +319,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             out.handles.at(id)->linkTo(curve);
             depKeys[id] = key;
+            out.keys[id] = key;
         } else {
             // Cache disabled — original behavior
             auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);

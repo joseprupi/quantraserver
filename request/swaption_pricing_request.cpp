@@ -10,6 +10,7 @@
 #include "swaption_model_calibration.h"
 #include "swaption_pricing_service.h"
 #include "swaption_model_parser.h"
+#include "swaption_vol_diagnostics.h"
 
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
@@ -55,6 +56,11 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
     auto swaption_pricings = request->swaptions();
     std::vector<flatbuffers::Offset<SwaptionResponse>> swaptions_vector;
     std::unordered_map<std::string, HwCalibResult> hwCalibrationCache;
+    // For include_diagnostics: capture the finalized entry per unique SABR
+    // vol_id. Last writer wins (per-trade finalize for the same vol_id with
+    // matching curves is idempotent).
+    std::unordered_map<std::string, SwaptionVolEntry> finalizedSabrEntries;
+    std::vector<std::string> sabrVolIdsInOrder;
 
     for (auto it = swaption_pricings->begin(); it != swaption_pricings->end(); it++)
     {
@@ -152,6 +158,15 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             Handle<YieldTermStructure>(dIt->second->currentLink()),
             Handle<YieldTermStructure>(fIt->second->currentLink()),
             false);
+        if (request->include_diagnostics() &&
+            (volEntry.volKind == enums::SwaptionVolKind_SabrCalibrate ||
+             volEntry.volKind == enums::SwaptionVolKind_SabrParams)) {
+            const std::string vid = it->volatility()->str();
+            if (!finalizedSabrEntries.count(vid)) {
+                sabrVolIdsInOrder.push_back(vid);
+            }
+            finalizedSabrEntries[vid] = volEntry;
+        }
 
         auto makeEngine = [&](const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
                               const SwaptionVolEntry& entryForEngine) {
@@ -433,8 +448,22 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
     }
 
     auto swaptions = builder->CreateVector(swaptions_vector);
+    std::vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>> diagnosticsOffs;
+    if (request->include_diagnostics()) {
+        for (const auto& vid : sabrVolIdsInOrder) {
+            auto eIt = finalizedSabrEntries.find(vid);
+            if (eIt == finalizedSabrEntries.end()) continue;
+            diagnosticsOffs.push_back(
+                buildSwaptionVolDiagnostics(*builder, vid, eIt->second, /*extraWarnings=*/{}));
+        }
+    }
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>>> diagVec = 0;
+    if (!diagnosticsOffs.empty()) {
+        diagVec = builder->CreateVector(diagnosticsOffs);
+    }
     PriceSwaptionResponseBuilder response_builder(*builder);
     response_builder.add_swaptions(swaptions);
+    if (diagVec.o != 0) response_builder.add_diagnostics(diagVec);
 
     return response_builder.Finish();
 }

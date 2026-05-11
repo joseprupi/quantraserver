@@ -25,7 +25,13 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const PricingRegistry& reg,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
-    bool forceRecomputeAtm);
+    bool forceRecomputeAtm,
+    // Explicit curve ids used for content-keyed caches (e.g. the SABR
+    // calibrate cube cache). When unset, falls back to ids inferred from
+    // `trade`. Pass these from the sampler where no trade is in scope but
+    // curve ids are explicit on the query.
+    const std::string& discountCurveId = "",
+    const std::string& forwardingCurveId = "");
 
 std::vector<double> computeServerAtmForwardsForExerciseDates(
     const std::vector<QuantLib::Date>& exerciseDates,

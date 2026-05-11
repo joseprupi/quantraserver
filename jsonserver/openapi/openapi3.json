@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
     "version": "1.0.0",
     "contact": {
       "name": "Quantra API Support",
@@ -1149,6 +1149,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/quantra_CalibrateSwaptionModelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calibrate-swaption-vol": {
+      "post": {
+        "summary": "Calibrate Swaption SABR Volatility Surface",
+        "description": "Run SABR calibration on a SwaptionSabrCalibrateSpec surface and return diagnostics: per-node forwards, ATM vols, calibrated (alpha, beta, rho, nu) grids, per-node fit errors, convergence flag, and per-strike fit errors.",
+        "tags": [
+          "Volatility"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_CalibrateSwaptionVolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_CalibrateSwaptionVolResponse"
                 }
               }
             }
@@ -3335,7 +3398,7 @@
       },
       "quantra_SwaptionSabrCalibrateSpec": {
         "type": "object",
-        "description": "SABR calibrate swaption volatility.",
+        "description": "SABR calibrate swaption volatility.\n\nStrike axis interpretation: `strikes` are spreads from the per-node ATM\nforward (rate units, e.g. -0.02 = -200bp). The same spread vector applies\nat every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube\nAPI. 0.0 spread (true ATM) is not required to be in the grid \u2014 per-node ATM\nvols are interpolated from the user grid at spread=0.\n\n`vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.\n\n`weights` is rejected in v1 \u2014 set `vega_weighted_smile_fit=true` for\nvega-weighted fitting instead. Per-strike non-uniform weights are not\nexposed by QuantLib 1.41's calibrator.",
         "properties": {
           "base": {
             "$ref": "#/components/schemas/quantra_IrVolBaseSpec"
@@ -3369,6 +3432,10 @@
           },
           "weights": {
             "$ref": "#/components/schemas/quantra_QuoteTensor3D"
+          },
+          "vega_weighted_smile_fit": {
+            "type": "boolean",
+            "description": "When true, the SABR calibrator weights residuals by Black vega. This is\nthe standard \"vega-weighted smile fit\" QL flag (cube-level, not per\nstrike)."
           }
         },
         "additionalProperties": false
@@ -5217,6 +5284,200 @@
         ],
         "additionalProperties": false
       },
+      "quantra_CalibrateSwaptionVolRequest": {
+        "type": "object",
+        "description": "Request to calibrate a SABR swaption volatility surface.\n\nMirrors `/calibrate-swaption-model` (Hull-White) in shape: caller supplies\na full pricing context plus a `vol_id` referencing the surface to calibrate.\nDiscount/forwarding curve ids are explicit on the request (rather than\ninferred from a model spec, since SABR has no model) and follow the same\nconvention as `VolQuerySpec` on `/sample-vol-surfaces`.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "vol_id": {
+            "type": "string",
+            "description": "Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a\nSwaptionVolSpec whose payload is SwaptionSabrCalibrateSpec; all other\nkinds (Constant, AtmMatrix2D, SmileCube3D, SabrParams) are rejected."
+          },
+          "discounting_curve_id": {
+            "type": "string",
+            "description": "Discount curve id used to compute per-node ATM forwards F(expiry, tenor).\nRequired: SABR calibrate is forward-aware and the request stands alone\n(no trade-side curve fallback like /price-swaption has)."
+          },
+          "forwarding_curve_id": {
+            "type": "string",
+            "description": "Forwarding curve id used to project the floating leg in F computation."
+          }
+        },
+        "required": [
+          "pricing",
+          "vol_id",
+          "discounting_curve_id",
+          "forwarding_curve_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_SabrCalibrationDiagnostics": {
+        "type": "object",
+        "description": "Calibration-specific diagnostics. Populated only for SABR surfaces whose\nkind is SabrCalibrate. For SabrParams surfaces (and other kinds in future\nextensions) this sub-block is absent on the parent SwaptionVolDiagnostics.",
+        "properties": {
+          "per_node_rmse": {
+            "type": "array",
+            "description": "Root-mean-square fit error per (expiry, tenor) node, row-major nExp*nTen.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "per_node_max_abs_error": {
+            "type": "array",
+            "description": "Worst single-strike absolute error per (expiry, tenor) node, row-major nExp*nTen.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "overall_rmse": {
+            "type": "number",
+            "description": "Aggregate RMSE across the entire cube."
+          },
+          "converged": {
+            "type": "boolean",
+            "description": "True iff every node converged to a stationary point (i.e., end criteria\nis not None and not MaxIterations on any node)."
+          },
+          "iterations_per_node": {
+            "type": "array",
+            "description": "Iteration count per node. Sentinel -1 indicates \"not exposed by the\noptimizer\" \u2014 current QuantLib (1.41) does not expose this publicly from\nthe SABR interpolator, so v1 always emits -1. Field is retained for\nschema forward-compatibility.",
+            "items": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            }
+          },
+          "strikes": {
+            "type": "array",
+            "description": "Strike spreads used in calibration (rate units, e.g. -0.02 = -200bp).\nSame vector applied at every (expiry, tenor) node.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "per_strike_fit_error": {
+            "type": "array",
+            "description": "Per-strike fit error (fitted - market) for each (expiry, tenor, strike).\nRow-major nExp*nTen*nStrikes.",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_SwaptionVolDiagnostics": {
+        "type": "object",
+        "description": "Diagnostics block describing one swaption vol surface. Emitted opt-in by\n/sample-vol-surfaces and /price-swaption when include_diagnostics=true, and\nreused as the response body for the standalone /calibrate-swaption-vol\nendpoint (Step 9).",
+        "properties": {
+          "vol_id": {
+            "type": "string",
+            "description": "Matches Pricing.volatility.vol_surfaces[].id."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/quantra_enums_SwaptionVolKind"
+          },
+          "expiries": {
+            "type": "array",
+            "description": "Per-node grid axes, mirroring the surface's pillars.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_Period"
+            }
+          },
+          "tenors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_Period"
+            }
+          },
+          "n_expiries": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "n_tenors": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "forward_per_node": {
+            "type": "array",
+            "description": "Per-node forwards F(expiry, tenor), populated when handle is built.\nRow-major nExp*nTen.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "atm_vol_per_node": {
+            "type": "array",
+            "description": "Per-node ATM vols sigma(F) evaluated via Hagan. Row-major nExp*nTen.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "time_to_expiry_per_node": {
+            "type": "array",
+            "description": "Time-to-expiry in years for each node. Row-major nExp*nTen.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "alpha_per_node": {
+            "type": "array",
+            "description": "SABR parameters in effect at each node. For SabrParams these are the\nuser-supplied values; for SabrCalibrate these are calibrator output.\nRow-major nExp*nTen, schema field order alpha, beta, rho, nu.",
+            "items": {
+              "type": "number"
+            }
+          },
+          "beta_per_node": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "rho_per_node": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "nu_per_node": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "calibration": {
+            "$ref": "#/components/schemas/quantra_SabrCalibrationDiagnostics"
+          },
+          "warnings": {
+            "type": "array",
+            "description": "Validation warnings. Empty when fit is healthy.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "vol_id"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CalibrateSwaptionVolResponse": {
+        "type": "object",
+        "description": "Response from /calibrate-swaption-vol: a single SwaptionVolDiagnostics\nblock describing the calibrated surface. Wrapped in a thin envelope rather\nthan using SwaptionVolDiagnostics as `root_type` directly so that future\nadditions (status field, audit metadata, etc.) don't break the schema \u2014\nsame pattern as CalibrateSwaptionModelResponse.",
+        "properties": {
+          "vol_id": {
+            "type": "string",
+            "description": "Vol id requested for calibration. Echoed for client correlation,\nmirroring CalibrateSwaptionModelResponse.model_id."
+          },
+          "diagnostics": {
+            "$ref": "#/components/schemas/quantra_SwaptionVolDiagnostics"
+          }
+        },
+        "required": [
+          "vol_id",
+          "diagnostics"
+        ],
+        "additionalProperties": false
+      },
       "quantra_CapFloor": {
         "type": "object",
         "description": "Cap or Floor instrument.",
@@ -6246,6 +6507,10 @@
             "items": {
               "$ref": "#/components/schemas/quantra_PriceSwaption"
             }
+          },
+          "include_diagnostics": {
+            "type": "boolean",
+            "description": "When true, the response carries one SwaptionVolDiagnostics block per\nunique SABR-kind vol surface referenced by `swaptions`. Default false."
           }
         },
         "additionalProperties": false
@@ -6709,6 +6974,10 @@
             "items": {
               "$ref": "#/components/schemas/quantra_VolQuerySpec"
             }
+          },
+          "include_diagnostics": {
+            "type": "boolean",
+            "description": "When true, the response carries one SwaptionVolDiagnostics block per\nunique SABR-kind vol surface referenced by `queries`. Default false to\nkeep wire size and serialization cost down for clients that don't need it."
           }
         },
         "required": [
@@ -6725,6 +6994,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/quantra_VolSurfaceSample"
+            }
+          },
+          "diagnostics": {
+            "type": "array",
+            "description": "Per-surface diagnostics, one entry per unique SABR-kind vol surface\nreferenced by the request. Populated only when the request sets\n`include_diagnostics=true`. Empty/absent otherwise.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwaptionVolDiagnostics"
             }
           }
         },
@@ -6857,6 +7133,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/quantra_SwaptionResponse"
+            }
+          },
+          "diagnostics": {
+            "type": "array",
+            "description": "Per-surface diagnostics, one entry per unique SABR-kind vol surface\nreferenced by the priced swaptions. Populated only when the request\nsets `include_diagnostics=true`. Empty/absent otherwise.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwaptionVolDiagnostics"
             }
           }
         },

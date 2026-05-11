@@ -34,6 +34,8 @@ include "../flatbuffers/fbs/calendar_advance_request.fbs";
 include "../flatbuffers/fbs/calendar_advance_response.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_model_request.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_model_response.fbs";
+include "../flatbuffers/fbs/calibrate_swaption_vol_request.fbs";
+include "../flatbuffers/fbs/calibrate_swaption_vol_response.fbs";
 include "../flatbuffers/fbs/price_equity_option_request.fbs";
 include "../flatbuffers/fbs/equity_option_response.fbs";
 
@@ -58,5 +60,6 @@ rpc_service QuantraServer {
   CalendarHolidays(CalendarHolidaysRequest):CalendarHolidaysResponse;
   CalendarAdvance(CalendarAdvanceRequest):CalendarAdvanceResponse;
   CalibrateSwaptionModel(CalibrateSwaptionModelRequest):CalibrateSwaptionModelResponse;
+  CalibrateSwaptionVol(CalibrateSwaptionVolRequest):CalibrateSwaptionVolResponse;
   PriceEquityOption(PriceEquityOptionRequest):PriceEquityOptionResponse;
 }

@@ -81,6 +81,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         rates ? rates->indices() : nullptr
     );
 
+    reg.rates.curveKeys = booted.keys;
     for (auto& kv : booted.handles) {
         reg.rates.curves.emplace(kv.first, kv.second);
     }
@@ -136,7 +137,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         const auto& entry = kv.second;
         const bool needsSwapIndex =
             entry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM ||
-            entry.volKind == quantra::enums::SwaptionVolKind_SabrParams;
+            entry.volKind == quantra::enums::SwaptionVolKind_SabrParams ||
+            entry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate;
         if (needsSwapIndex) {
             if (entry.swapIndexId.empty()) {
                 QUANTRA_ERROR(
@@ -147,6 +149,22 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 QUANTRA_ERROR(
                     "Swaption vol '" + kv.first + "' references unknown swap_index_id: " +
                     entry.swapIndexId);
+            }
+        }
+        // SABR calibrate path requires an Ibor swap index because QuantLib's
+        // XabrSwaptionVolatilityCube takes a QuantLib::SwapIndex (Ibor-shaped)
+        // and we route through SwapIndexRegistry::getIborSwapIndexWithCurves.
+        // OIS-shaped indices need a parallel helper (e.g. an OIS-aware
+        // construction with OvernightIndexedSwapIndex); deferred to a
+        // follow-up.
+        if (entry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate) {
+            const auto& sidx = reg.rates.swapIndices.get(entry.swapIndexId);
+            if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
+                QUANTRA_ERROR(
+                    "Swaption vol '" + kv.first +
+                    "' uses SabrCalibrate with swap_index_id '" + entry.swapIndexId +
+                    "' which is not an Ibor swap index; OIS swap index support for the "
+                    "SABR calibrate path is not implemented yet (TODO).");
             }
         }
     }

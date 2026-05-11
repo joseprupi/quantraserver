@@ -7,6 +7,18 @@ from flatbuffers.compat import import_numpy
 np = import_numpy()
 
 # SABR calibrate swaption volatility.
+#
+# Strike axis interpretation: `strikes` are spreads from the per-node ATM
+# forward (rate units, e.g. -0.02 = -200bp). The same spread vector applies
+# at every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube
+# API. 0.0 spread (true ATM) is not required to be in the grid — per-node ATM
+# vols are interpolated from the user grid at spread=0.
+#
+# `vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.
+#
+# `weights` is rejected in v1 — set `vega_weighted_smile_fit=true` for
+# vega-weighted fitting instead. Per-strike non-uniform weights are not
+# exposed by QuantLib 1.41's calibrator.
 class SwaptionSabrCalibrateSpec(object):
     __slots__ = ['_tab']
 
@@ -137,6 +149,7 @@ class SwaptionSabrCalibrateSpec(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.5
 
+    # Reserved. Must be empty/absent in v1; otherwise parse-time rejection.
     # SwaptionSabrCalibrateSpec
     def Weights(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
@@ -147,8 +160,18 @@ class SwaptionSabrCalibrateSpec(object):
             return obj
         return None
 
+    # When true, the SABR calibrator weights residuals by Black vega. This is
+    # the standard "vega-weighted smile fit" QL flag (cube-level, not per
+    # strike).
+    # SwaptionSabrCalibrateSpec
+    def VegaWeightedSmileFit(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def SwaptionSabrCalibrateSpecStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(9)
 
 def Start(builder):
     SwaptionSabrCalibrateSpecStart(builder)
@@ -219,6 +242,12 @@ def SwaptionSabrCalibrateSpecAddWeights(builder, weights):
 def AddWeights(builder, weights):
     SwaptionSabrCalibrateSpecAddWeights(builder, weights)
 
+def SwaptionSabrCalibrateSpecAddVegaWeightedSmileFit(builder, vegaWeightedSmileFit):
+    builder.PrependBoolSlot(8, vegaWeightedSmileFit, 0)
+
+def AddVegaWeightedSmileFit(builder, vegaWeightedSmileFit):
+    SwaptionSabrCalibrateSpecAddVegaWeightedSmileFit(builder, vegaWeightedSmileFit)
+
 def SwaptionSabrCalibrateSpecEnd(builder):
     return builder.EndObject()
 
@@ -242,6 +271,7 @@ class SwaptionSabrCalibrateSpecT(object):
         self.betaFixed = True  # type: bool
         self.betaValue = 0.5  # type: float
         self.weights = None  # type: Optional[QuoteTensor3DT]
+        self.vegaWeightedSmileFit = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -295,6 +325,7 @@ class SwaptionSabrCalibrateSpecT(object):
         self.betaValue = swaptionSabrCalibrateSpec.BetaValue()
         if swaptionSabrCalibrateSpec.Weights() is not None:
             self.weights = QuoteTensor3DT.InitFromObj(swaptionSabrCalibrateSpec.Weights())
+        self.vegaWeightedSmileFit = swaptionSabrCalibrateSpec.VegaWeightedSmileFit()
 
     # SwaptionSabrCalibrateSpecT
     def Pack(self, builder):
@@ -343,5 +374,6 @@ class SwaptionSabrCalibrateSpecT(object):
         SwaptionSabrCalibrateSpecAddBetaValue(builder, self.betaValue)
         if self.weights is not None:
             SwaptionSabrCalibrateSpecAddWeights(builder, weights)
+        SwaptionSabrCalibrateSpecAddVegaWeightedSmileFit(builder, self.vegaWeightedSmileFit)
         swaptionSabrCalibrateSpec = SwaptionSabrCalibrateSpecEnd(builder)
         return swaptionSabrCalibrateSpec

@@ -594,12 +594,113 @@
       "required" : ["vol_id"],
       "additionalProperties" : false
     },
+    "quantra_SabrCalibrationDiagnostics" : {
+      "type" : "object",
+      "description" : "Calibration-specific diagnostics. Populated only for SABR surfaces whose\nkind is SabrCalibrate. For SabrParams surfaces (and other kinds in future\nextensions) this sub-block is absent on the parent SwaptionVolDiagnostics.",
+      "properties" : {
+        "per_node_rmse" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Root-mean-square fit error per (expiry, tenor) node, row-major nExp*nTen."
+              },
+        "per_node_max_abs_error" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Worst single-strike absolute error per (expiry, tenor) node, row-major nExp*nTen."
+              },
+        "overall_rmse" : {
+                "type" : "number",
+                "description" : "Aggregate RMSE across the entire cube."
+              },
+        "converged" : {
+                "type" : "boolean",
+                "description" : "True iff every node converged to a stationary point (i.e., end criteria\nis not None and not MaxIterations on any node)."
+              },
+        "iterations_per_node" : {
+                "type" : "array", "items" : {"type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647},
+                "description" : "Iteration count per node. Sentinel -1 indicates \"not exposed by the\noptimizer\" — current QuantLib (1.41) does not expose this publicly from\nthe SABR interpolator, so v1 always emits -1. Field is retained for\nschema forward-compatibility."
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Strike spreads used in calibration (rate units, e.g. -0.02 = -200bp).\nSame vector applied at every (expiry, tenor) node."
+              },
+        "per_strike_fit_error" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-strike fit error (fitted - market) for each (expiry, tenor, strike).\nRow-major nExp*nTen*nStrikes."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolDiagnostics" : {
+      "type" : "object",
+      "description" : "Diagnostics block describing one swaption vol surface. Emitted opt-in by\n/sample-vol-surfaces and /price-swaption when include_diagnostics=true, and\nreused as the response body for the standalone /calibrate-swaption-vol\nendpoint (Step 9).",
+      "properties" : {
+        "vol_id" : {
+                "type" : "string",
+                "description" : "Matches Pricing.volatility.vol_surfaces[].id."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionVolKind",
+                "description" : "Resolved swaption vol kind for the surface."
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"},
+                "description" : "Per-node grid axes, mirroring the surface's pillars."
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "n_expiries" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_tenors" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "forward_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-node forwards F(expiry, tenor), populated when handle is built.\nRow-major nExp*nTen."
+              },
+        "atm_vol_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-node ATM vols sigma(F) evaluated via Hagan. Row-major nExp*nTen."
+              },
+        "time_to_expiry_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Time-to-expiry in years for each node. Row-major nExp*nTen."
+              },
+        "alpha_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "SABR parameters in effect at each node. For SabrParams these are the\nuser-supplied values; for SabrCalibrate these are calibrator output.\nRow-major nExp*nTen, schema field order alpha, beta, rho, nu."
+              },
+        "beta_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "rho_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "nu_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "calibration" : {
+                "$ref" : "#/definitions/quantra_SabrCalibrationDiagnostics",
+                "description" : "Calibration sub-block. Present only for SabrCalibrate; absent for\nSabrParams (and other kinds in future extensions)."
+              },
+        "warnings" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Validation warnings. Empty when fit is healthy."
+              }
+      },
+      "required" : ["vol_id"],
+      "additionalProperties" : false
+    },
     "quantra_SampleVolSurfacesResponse" : {
       "type" : "object",
       "description" : "Response from volatility surface sampling request.",
       "properties" : {
         "results" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSample"}
+              },
+        "diagnostics" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwaptionVolDiagnostics"},
+                "description" : "Per-surface diagnostics, one entry per unique SABR-kind vol surface\nreferenced by the request. Populated only when the request sets\n`include_diagnostics=true`. Empty/absent otherwise."
               }
       },
       "required" : ["results"],

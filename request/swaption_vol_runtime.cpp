@@ -5,6 +5,8 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
+#include "sabr_calibrate_cache_key.h"
+
 namespace {
 
 std::string getTradeFloatingIndexId(const quantra::PriceSwaption* p) {
@@ -199,19 +201,40 @@ void validateTradeAgainstSwapIndex(
 
 } // namespace
 
+namespace {
+
+// Resolve a curve cache key by curve id, returning "" when the curve cache is
+// disabled or the curve is missing from the keys map. An empty key disables
+// downstream caching for the SABR cube (safe fallback — never wrong, only slower).
+std::string getCurveCacheKey(const PricingRegistry& reg, const std::string& curveId) {
+    auto it = reg.rates.curveKeys.find(curveId);
+    return (it == reg.rates.curveKeys.end()) ? std::string() : it->second;
+}
+
+std::string getCurveIdFromTrade(const quantra::PriceSwaption* trade, bool discounting) {
+    if (!trade) return "";
+    auto* id = discounting ? trade->discounting_curve() : trade->forwarding_curve();
+    return id ? id->str() : "";
+}
+
+} // namespace
+
 SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const SwaptionVolEntry& raw,
     const quantra::PriceSwaption* trade,
     const PricingRegistry& reg,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
-    bool forceRecomputeAtm) {
+    bool forceRecomputeAtm,
+    const std::string& discountCurveId,
+    const std::string& forwardingCurveId) {
     const bool isSmileCubeSpread =
         raw.volKind == quantra::enums::SwaptionVolKind_SmileCube3D &&
         raw.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM;
     const bool isSabrParams = raw.volKind == quantra::enums::SwaptionVolKind_SabrParams;
+    const bool isSabrCalibrate = raw.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate;
 
-    if (!isSmileCubeSpread && !isSabrParams) {
+    if (!isSmileCubeSpread && !isSabrParams && !isSabrCalibrate) {
         return raw;
     }
     if (raw.referenceDate == QuantLib::Date()) {
@@ -229,9 +252,10 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
             return raw;
         }
     } else {
-        // SABR params: handle is built from atmForwardsFlat in withSwaptionSabrParamsAtm,
-        // so an empty handle is the signal that finalize hasn't run yet. If the handle is
-        // already built and forwards are populated, only rebuild on explicit forceRecomputeAtm.
+        // SABR variants: handle is built from atmForwardsFlat (and, for
+        // calibrate, the QL cube), so an empty handle is the signal that
+        // finalize hasn't run yet. If the handle is already built and forwards
+        // are populated, only rebuild on explicit forceRecomputeAtm.
         if (!forceRecomputeAtm && !raw.handle.empty() && !raw.atmForwardsFlat.empty()) {
             return raw;
         }
@@ -248,6 +272,37 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
 
     if (isSabrParams) {
         return withSwaptionSabrParamsAtm(raw, atms);
+    }
+    if (isSabrCalibrate) {
+        if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
+            QUANTRA_ERROR(
+                "SABR calibrate finalize: swap index '" + raw.swapIndexId +
+                "' is not an Ibor swap index (OIS-shaped SABR calibrate not "
+                "supported in v1)");
+        }
+        // Use the first tenor in the grid as the representative swap tenor
+        // for the SwapIndex; XabrSwaptionVolatilityCube re-indexes internally
+        // by exact (option, tenor) lookup so this choice is only the index's
+        // "default" tenor for fallback/extrapolation paths.
+        const QuantLib::Period swapIdxTenor = raw.tenors.front();
+        auto swapIndexBase = reg.rates.swapIndices.getIborSwapIndexWithCurves(
+            raw.swapIndexId, swapIdxTenor, reg.rates.indices, forwardingCurve, discountCurve);
+
+        // Derive the discount/forwarding curve cache keys for the SABR cube
+        // cache. Empty keys (e.g. bumped runs, or callers that didn't supply
+        // ids and have no trade) disable caching for this run — safe; we
+        // always rebuild rather than risk serving a stale cube.
+        const std::string discId = !discountCurveId.empty()
+            ? discountCurveId : getCurveIdFromTrade(trade, /*discounting=*/true);
+        const std::string fwdId = !forwardingCurveId.empty()
+            ? forwardingCurveId : getCurveIdFromTrade(trade, /*discounting=*/false);
+        const std::string discCurveKey = getCurveCacheKey(reg, discId);
+        const std::string fwdCurveKey = getCurveCacheKey(reg, fwdId);
+        std::string cubeKey;
+        if (!discCurveKey.empty() && !fwdCurveKey.empty()) {
+            cubeKey = buildSabrCalibrateCacheKey(raw, atms, discCurveKey, fwdCurveKey);
+        }
+        return withSwaptionSabrCalibrateAtm(raw, atms, swapIndexBase, cubeKey);
     }
     return withSwaptionSmileCubeAtm(raw, atms);
 }

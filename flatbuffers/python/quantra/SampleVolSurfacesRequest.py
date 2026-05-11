@@ -61,8 +61,18 @@ class SampleVolSurfacesRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
+    # When true, the response carries one SwaptionVolDiagnostics block per
+    # unique SABR-kind vol surface referenced by `queries`. Default false to
+    # keep wire size and serialization cost down for clients that don't need it.
+    # SampleVolSurfacesRequest
+    def IncludeDiagnostics(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
 def SampleVolSurfacesRequestStart(builder):
-    builder.StartObject(2)
+    builder.StartObject(3)
 
 def Start(builder):
     SampleVolSurfacesRequestStart(builder)
@@ -85,6 +95,12 @@ def SampleVolSurfacesRequestStartQueriesVector(builder, numElems):
 def StartQueriesVector(builder, numElems):
     return SampleVolSurfacesRequestStartQueriesVector(builder, numElems)
 
+def SampleVolSurfacesRequestAddIncludeDiagnostics(builder, includeDiagnostics):
+    builder.PrependBoolSlot(2, includeDiagnostics, 0)
+
+def AddIncludeDiagnostics(builder, includeDiagnostics):
+    SampleVolSurfacesRequestAddIncludeDiagnostics(builder, includeDiagnostics)
+
 def SampleVolSurfacesRequestEnd(builder):
     return builder.EndObject()
 
@@ -102,6 +118,7 @@ class SampleVolSurfacesRequestT(object):
     def __init__(self):
         self.pricing = None  # type: Optional[PricingT]
         self.queries = None  # type: List[VolQuerySpecT]
+        self.includeDiagnostics = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -134,6 +151,7 @@ class SampleVolSurfacesRequestT(object):
                 else:
                     volQuerySpec_ = VolQuerySpecT.InitFromObj(sampleVolSurfacesRequest.Queries(i))
                     self.queries.append(volQuerySpec_)
+        self.includeDiagnostics = sampleVolSurfacesRequest.IncludeDiagnostics()
 
     # SampleVolSurfacesRequestT
     def Pack(self, builder):
@@ -152,5 +170,6 @@ class SampleVolSurfacesRequestT(object):
             SampleVolSurfacesRequestAddPricing(builder, pricing)
         if self.queries is not None:
             SampleVolSurfacesRequestAddQueries(builder, queries)
+        SampleVolSurfacesRequestAddIncludeDiagnostics(builder, self.includeDiagnostics)
         sampleVolSurfacesRequest = SampleVolSurfacesRequestEnd(builder)
         return sampleVolSurfacesRequest

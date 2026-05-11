@@ -623,6 +623,13 @@ int main(int argc, char** argv) {
             });
         });
 
+        CROW_ROUTE(app, "/calibrate-swaption-vol").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/calibrate-swaption-vol", req, [&](const std::string& body) {
+                return client.CalibrateSwaptionVolJSON(body);
+            });
+        });
+
         CROW_ROUTE(app, "/price-equity-option").methods("POST"_method)
         ([&](const crow::request& req) {
             return respond("/price-equity-option", req, [&](const std::string& body) {
@@ -650,6 +657,7 @@ int main(int argc, char** argv) {
                   << "  POST /calendar-holidays\n"
                   << "  POST /calendar-advance\n"
                   << "  POST /calibrate-swaption-model\n"
+                  << "  POST /calibrate-swaption-vol\n"
                   << "  POST /price-equity-option\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"

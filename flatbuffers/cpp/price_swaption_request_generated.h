@@ -161,6 +161,7 @@ struct PriceSwaptionRequestT : public ::flatbuffers::NativeTable {
   typedef PriceSwaptionRequest TableType;
   std::unique_ptr<quantra::PricingT> pricing{};
   std::vector<std::unique_ptr<quantra::PriceSwaptionT>> swaptions{};
+  bool include_diagnostics = false;
   PriceSwaptionRequestT() = default;
   PriceSwaptionRequestT(const PriceSwaptionRequestT &o);
   PriceSwaptionRequestT(PriceSwaptionRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -173,13 +174,19 @@ struct PriceSwaptionRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   typedef PriceSwaptionRequestBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PRICING = 4,
-    VT_SWAPTIONS = 6
+    VT_SWAPTIONS = 6,
+    VT_INCLUDE_DIAGNOSTICS = 8
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceSwaption>> *swaptions() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceSwaption>> *>(VT_SWAPTIONS);
+  }
+  /// When true, the response carries one SwaptionVolDiagnostics block per
+  /// unique SABR-kind vol surface referenced by `swaptions`. Default false.
+  bool include_diagnostics() const {
+    return GetField<uint8_t>(VT_INCLUDE_DIAGNOSTICS, 0) != 0;
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -188,6 +195,7 @@ struct PriceSwaptionRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
            VerifyOffset(verifier, VT_SWAPTIONS) &&
            verifier.VerifyVector(swaptions()) &&
            verifier.VerifyVectorOfTables(swaptions()) &&
+           VerifyField<uint8_t>(verifier, VT_INCLUDE_DIAGNOSTICS, 1) &&
            verifier.EndTable();
   }
   PriceSwaptionRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -205,6 +213,9 @@ struct PriceSwaptionRequestBuilder {
   void add_swaptions(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceSwaption>>> swaptions) {
     fbb_.AddOffset(PriceSwaptionRequest::VT_SWAPTIONS, swaptions);
   }
+  void add_include_diagnostics(bool include_diagnostics) {
+    fbb_.AddElement<uint8_t>(PriceSwaptionRequest::VT_INCLUDE_DIAGNOSTICS, static_cast<uint8_t>(include_diagnostics), 0);
+  }
   explicit PriceSwaptionRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -219,22 +230,26 @@ struct PriceSwaptionRequestBuilder {
 inline ::flatbuffers::Offset<PriceSwaptionRequest> CreatePriceSwaptionRequest(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceSwaption>>> swaptions = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PriceSwaption>>> swaptions = 0,
+    bool include_diagnostics = false) {
   PriceSwaptionRequestBuilder builder_(_fbb);
   builder_.add_swaptions(swaptions);
   builder_.add_pricing(pricing);
+  builder_.add_include_diagnostics(include_diagnostics);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<PriceSwaptionRequest> CreatePriceSwaptionRequestDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    const std::vector<::flatbuffers::Offset<quantra::PriceSwaption>> *swaptions = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::PriceSwaption>> *swaptions = nullptr,
+    bool include_diagnostics = false) {
   auto swaptions__ = swaptions ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceSwaption>>(*swaptions) : 0;
   return quantra::CreatePriceSwaptionRequest(
       _fbb,
       pricing,
-      swaptions__);
+      swaptions__,
+      include_diagnostics);
 }
 
 ::flatbuffers::Offset<PriceSwaptionRequest> CreatePriceSwaptionRequest(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -295,7 +310,8 @@ inline ::flatbuffers::Offset<PriceSwaption> CreatePriceSwaption(::flatbuffers::F
 }
 
 inline PriceSwaptionRequestT::PriceSwaptionRequestT(const PriceSwaptionRequestT &o)
-      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr) {
+      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
+        include_diagnostics(o.include_diagnostics) {
   swaptions.reserve(o.swaptions.size());
   for (const auto &swaptions_ : o.swaptions) { swaptions.emplace_back((swaptions_) ? new quantra::PriceSwaptionT(*swaptions_) : nullptr); }
 }
@@ -303,6 +319,7 @@ inline PriceSwaptionRequestT::PriceSwaptionRequestT(const PriceSwaptionRequestT 
 inline PriceSwaptionRequestT &PriceSwaptionRequestT::operator=(PriceSwaptionRequestT o) FLATBUFFERS_NOEXCEPT {
   std::swap(pricing, o.pricing);
   std::swap(swaptions, o.swaptions);
+  std::swap(include_diagnostics, o.include_diagnostics);
   return *this;
 }
 
@@ -317,6 +334,7 @@ inline void PriceSwaptionRequest::UnPackTo(PriceSwaptionRequestT *_o, const ::fl
   (void)_resolver;
   { auto _e = pricing(); if (_e) { if(_o->pricing) { _e->UnPackTo(_o->pricing.get(), _resolver); } else { _o->pricing = std::unique_ptr<quantra::PricingT>(_e->UnPack(_resolver)); } } else if (_o->pricing) { _o->pricing.reset(); } }
   { auto _e = swaptions(); if (_e) { _o->swaptions.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->swaptions[_i]) { _e->Get(_i)->UnPackTo(_o->swaptions[_i].get(), _resolver); } else { _o->swaptions[_i] = std::unique_ptr<quantra::PriceSwaptionT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->swaptions.resize(0); } }
+  { auto _e = include_diagnostics(); _o->include_diagnostics = _e; }
 }
 
 inline ::flatbuffers::Offset<PriceSwaptionRequest> PriceSwaptionRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PriceSwaptionRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -329,10 +347,12 @@ inline ::flatbuffers::Offset<PriceSwaptionRequest> CreatePriceSwaptionRequest(::
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceSwaptionRequestT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _pricing = _o->pricing ? CreatePricing(_fbb, _o->pricing.get(), _rehasher) : 0;
   auto _swaptions = _o->swaptions.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::PriceSwaption>> (_o->swaptions.size(), [](size_t i, _VectorArgs *__va) { return CreatePriceSwaption(*__va->__fbb, __va->__o->swaptions[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _include_diagnostics = _o->include_diagnostics;
   return quantra::CreatePriceSwaptionRequest(
       _fbb,
       _pricing,
-      _swaptions);
+      _swaptions,
+      _include_diagnostics);
 }
 
 inline const quantra::PriceSwaptionRequest *GetPriceSwaptionRequest(const void *buf) {

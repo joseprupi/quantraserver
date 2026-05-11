@@ -1,0 +1,458 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "description" : "Canonical period type used across APIs.",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "description" : "Yield/compounding convention specification.",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "description" : "Error message container.",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterestFloat" : {
+      "type" : "object",
+      "description" : "Floating-rate interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterestFloat" : {
+      "type" : "object",
+      "description" : "Past floating-rate interest for seasoned instruments.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "description" : "Past fixed interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "description" : "Notional exchange cash flow.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SabrCalibrationDiagnostics" : {
+      "type" : "object",
+      "description" : "Calibration-specific diagnostics. Populated only for SABR surfaces whose\nkind is SabrCalibrate. For SabrParams surfaces (and other kinds in future\nextensions) this sub-block is absent on the parent SwaptionVolDiagnostics.",
+      "properties" : {
+        "per_node_rmse" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Root-mean-square fit error per (expiry, tenor) node, row-major nExp*nTen."
+              },
+        "per_node_max_abs_error" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Worst single-strike absolute error per (expiry, tenor) node, row-major nExp*nTen."
+              },
+        "overall_rmse" : {
+                "type" : "number",
+                "description" : "Aggregate RMSE across the entire cube."
+              },
+        "converged" : {
+                "type" : "boolean",
+                "description" : "True iff every node converged to a stationary point (i.e., end criteria\nis not None and not MaxIterations on any node)."
+              },
+        "iterations_per_node" : {
+                "type" : "array", "items" : {"type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647},
+                "description" : "Iteration count per node. Sentinel -1 indicates \"not exposed by the\noptimizer\" — current QuantLib (1.41) does not expose this publicly from\nthe SABR interpolator, so v1 always emits -1. Field is retained for\nschema forward-compatibility."
+              },
+        "strikes" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Strike spreads used in calibration (rate units, e.g. -0.02 = -200bp).\nSame vector applied at every (expiry, tenor) node."
+              },
+        "per_strike_fit_error" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-strike fit error (fitted - market) for each (expiry, tenor, strike).\nRow-major nExp*nTen*nStrikes."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwaptionVolDiagnostics" : {
+      "type" : "object",
+      "description" : "Diagnostics block describing one swaption vol surface. Emitted opt-in by\n/sample-vol-surfaces and /price-swaption when include_diagnostics=true, and\nreused as the response body for the standalone /calibrate-swaption-vol\nendpoint (Step 9).",
+      "properties" : {
+        "vol_id" : {
+                "type" : "string",
+                "description" : "Matches Pricing.volatility.vol_surfaces[].id."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwaptionVolKind",
+                "description" : "Resolved swaption vol kind for the surface."
+              },
+        "expiries" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"},
+                "description" : "Per-node grid axes, mirroring the surface's pillars."
+              },
+        "tenors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
+              },
+        "n_expiries" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "n_tenors" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "forward_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-node forwards F(expiry, tenor), populated when handle is built.\nRow-major nExp*nTen."
+              },
+        "atm_vol_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Per-node ATM vols sigma(F) evaluated via Hagan. Row-major nExp*nTen."
+              },
+        "time_to_expiry_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Time-to-expiry in years for each node. Row-major nExp*nTen."
+              },
+        "alpha_per_node" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "SABR parameters in effect at each node. For SabrParams these are the\nuser-supplied values; for SabrCalibrate these are calibrator output.\nRow-major nExp*nTen, schema field order alpha, beta, rho, nu."
+              },
+        "beta_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "rho_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "nu_per_node" : {
+                "type" : "array", "items" : {"type" : "number"}
+              },
+        "calibration" : {
+                "$ref" : "#/definitions/quantra_SabrCalibrationDiagnostics",
+                "description" : "Calibration sub-block. Present only for SabrCalibrate; absent for\nSabrParams (and other kinds in future extensions)."
+              },
+        "warnings" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Validation warnings. Empty when fit is healthy."
+              }
+      },
+      "required" : ["vol_id"],
+      "additionalProperties" : false
+    },
+    "quantra_CalibrateSwaptionVolResponse" : {
+      "type" : "object",
+      "description" : "Response from /calibrate-swaption-vol: a single SwaptionVolDiagnostics\nblock describing the calibrated surface. Wrapped in a thin envelope rather\nthan using SwaptionVolDiagnostics as `root_type` directly so that future\nadditions (status field, audit metadata, etc.) don't break the schema —\nsame pattern as CalibrateSwaptionModelResponse.",
+      "properties" : {
+        "vol_id" : {
+                "type" : "string",
+                "description" : "Vol id requested for calibration. Echoed for client correlation,\nmirroring CalibrateSwaptionModelResponse.model_id."
+              },
+        "diagnostics" : {
+                "$ref" : "#/definitions/quantra_SwaptionVolDiagnostics",
+                "description" : "Calibration diagnostics: per-node forwards, ATM vols, calibrated\n(alpha, beta, rho, nu) grids, per-node fit errors, convergence flag,\nper-strike fit errors, and warnings. See diagnostics.fbs."
+              }
+      },
+      "required" : ["vol_id", "diagnostics"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_CalibrateSwaptionVolResponse"
+}

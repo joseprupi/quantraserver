@@ -50,8 +50,36 @@ class PriceSwaptionResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Per-surface diagnostics, one entry per unique SABR-kind vol surface
+    # referenced by the priced swaptions. Populated only when the request
+    # sets `include_diagnostics=true`. Empty/absent otherwise.
+    # PriceSwaptionResponse
+    def Diagnostics(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.SwaptionVolDiagnostics import SwaptionVolDiagnostics
+            obj = SwaptionVolDiagnostics()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # PriceSwaptionResponse
+    def DiagnosticsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # PriceSwaptionResponse
+    def DiagnosticsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PriceSwaptionResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     PriceSwaptionResponseStart(builder)
@@ -67,6 +95,18 @@ def PriceSwaptionResponseStartSwaptionsVector(builder, numElems):
 
 def StartSwaptionsVector(builder, numElems):
     return PriceSwaptionResponseStartSwaptionsVector(builder, numElems)
+
+def PriceSwaptionResponseAddDiagnostics(builder, diagnostics):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(diagnostics), 0)
+
+def AddDiagnostics(builder, diagnostics):
+    PriceSwaptionResponseAddDiagnostics(builder, diagnostics)
+
+def PriceSwaptionResponseStartDiagnosticsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartDiagnosticsVector(builder, numElems):
+    return PriceSwaptionResponseStartDiagnosticsVector(builder, numElems)
 
 def PriceSwaptionResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +124,7 @@ class PriceSwaptionResponseT(object):
     # PriceSwaptionResponseT
     def __init__(self):
         self.swaptions = None  # type: List[SwaptionResponseT]
+        self.diagnostics = None  # type: List[SwaptionVolDiagnosticsT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -114,6 +155,14 @@ class PriceSwaptionResponseT(object):
                 else:
                     swaptionResponse_ = SwaptionResponseT.InitFromObj(priceSwaptionResponse.Swaptions(i))
                     self.swaptions.append(swaptionResponse_)
+        if not priceSwaptionResponse.DiagnosticsIsNone():
+            self.diagnostics = []
+            for i in range(priceSwaptionResponse.DiagnosticsLength()):
+                if priceSwaptionResponse.Diagnostics(i) is None:
+                    self.diagnostics.append(None)
+                else:
+                    swaptionVolDiagnostics_ = SwaptionVolDiagnosticsT.InitFromObj(priceSwaptionResponse.Diagnostics(i))
+                    self.diagnostics.append(swaptionVolDiagnostics_)
 
     # PriceSwaptionResponseT
     def Pack(self, builder):
@@ -125,8 +174,18 @@ class PriceSwaptionResponseT(object):
             for i in reversed(range(len(self.swaptions))):
                 builder.PrependUOffsetTRelative(swaptionslist[i])
             swaptions = builder.EndVector()
+        if self.diagnostics is not None:
+            diagnosticslist = []
+            for i in range(len(self.diagnostics)):
+                diagnosticslist.append(self.diagnostics[i].Pack(builder))
+            PriceSwaptionResponseStartDiagnosticsVector(builder, len(self.diagnostics))
+            for i in reversed(range(len(self.diagnostics))):
+                builder.PrependUOffsetTRelative(diagnosticslist[i])
+            diagnostics = builder.EndVector()
         PriceSwaptionResponseStart(builder)
         if self.swaptions is not None:
             PriceSwaptionResponseAddSwaptions(builder, swaptions)
+        if self.diagnostics is not None:
+            PriceSwaptionResponseAddDiagnostics(builder, diagnostics)
         priceSwaptionResponse = PriceSwaptionResponseEnd(builder)
         return priceSwaptionResponse

@@ -65,6 +65,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |
 | Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |
 | Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |
+| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |
 | Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
@@ -181,6 +182,11 @@ ENDPOINT_METADATA = {
         "summary": "Calibrate Swaption Hull-White Model",
         "description": "Calibrate Hull-White parameters from swaption volatility nodes using configured market data in pricing.",
         "tags": ["Interest Rate Derivatives"]
+    },
+    "calibrate_swaption_vol": {
+        "summary": "Calibrate Swaption SABR Volatility Surface",
+        "description": "Run SABR calibration on a SwaptionSabrCalibrateSpec surface and return diagnostics: per-node forwards, ATM vols, calibrated (alpha, beta, rho, nu) grids, per-node fit errors, convergence flag, and per-strike fit errors.",
+        "tags": ["Volatility"]
     },
     "equity_option": {
         "summary": "Price Equity Option",

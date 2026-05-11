@@ -1532,6 +1532,7 @@ struct SwaptionSabrCalibrateSpecT : public ::flatbuffers::NativeTable {
   bool beta_fixed = true;
   double beta_value = 0.5;
   std::unique_ptr<quantra::QuoteTensor3DT> weights{};
+  bool vega_weighted_smile_fit = false;
   SwaptionSabrCalibrateSpecT() = default;
   SwaptionSabrCalibrateSpecT(const SwaptionSabrCalibrateSpecT &o);
   SwaptionSabrCalibrateSpecT(SwaptionSabrCalibrateSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1539,6 +1540,18 @@ struct SwaptionSabrCalibrateSpecT : public ::flatbuffers::NativeTable {
 };
 
 /// SABR calibrate swaption volatility.
+///
+/// Strike axis interpretation: `strikes` are spreads from the per-node ATM
+/// forward (rate units, e.g. -0.02 = -200bp). The same spread vector applies
+/// at every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube
+/// API. 0.0 spread (true ATM) is not required to be in the grid — per-node ATM
+/// vols are interpolated from the user grid at spread=0.
+///
+/// `vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.
+///
+/// `weights` is rejected in v1 — set `vega_weighted_smile_fit=true` for
+/// vega-weighted fitting instead. Per-strike non-uniform weights are not
+/// exposed by QuantLib 1.41's calibrator.
 struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionSabrCalibrateSpecT NativeTableType;
   typedef SwaptionSabrCalibrateSpecBuilder Builder;
@@ -1550,7 +1563,8 @@ struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
     VT_VOLS = 12,
     VT_BETA_FIXED = 14,
     VT_BETA_VALUE = 16,
-    VT_WEIGHTS = 18
+    VT_WEIGHTS = 18,
+    VT_VEGA_WEIGHTED_SMILE_FIT = 20
   };
   const quantra::IrVolBaseSpec *base() const {
     return GetPointer<const quantra::IrVolBaseSpec *>(VT_BASE);
@@ -1573,8 +1587,15 @@ struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   double beta_value() const {
     return GetField<double>(VT_BETA_VALUE, 0.5);
   }
+  /// Reserved. Must be empty/absent in v1; otherwise parse-time rejection.
   const quantra::QuoteTensor3D *weights() const {
     return GetPointer<const quantra::QuoteTensor3D *>(VT_WEIGHTS);
+  }
+  /// When true, the SABR calibrator weights residuals by Black vega. This is
+  /// the standard "vega-weighted smile fit" QL flag (cube-level, not per
+  /// strike).
+  bool vega_weighted_smile_fit() const {
+    return GetField<uint8_t>(VT_VEGA_WEIGHTED_SMILE_FIT, 0) != 0;
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -1594,6 +1615,7 @@ struct SwaptionSabrCalibrateSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
            VerifyField<double>(verifier, VT_BETA_VALUE, 8) &&
            VerifyOffset(verifier, VT_WEIGHTS) &&
            verifier.VerifyTable(weights()) &&
+           VerifyField<uint8_t>(verifier, VT_VEGA_WEIGHTED_SMILE_FIT, 1) &&
            verifier.EndTable();
   }
   SwaptionSabrCalibrateSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1629,6 +1651,9 @@ struct SwaptionSabrCalibrateSpecBuilder {
   void add_weights(::flatbuffers::Offset<quantra::QuoteTensor3D> weights) {
     fbb_.AddOffset(SwaptionSabrCalibrateSpec::VT_WEIGHTS, weights);
   }
+  void add_vega_weighted_smile_fit(bool vega_weighted_smile_fit) {
+    fbb_.AddElement<uint8_t>(SwaptionSabrCalibrateSpec::VT_VEGA_WEIGHTED_SMILE_FIT, static_cast<uint8_t>(vega_weighted_smile_fit), 0);
+  }
   explicit SwaptionSabrCalibrateSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1649,7 +1674,8 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
     ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
     bool beta_fixed = true,
     double beta_value = 0.5,
-    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0) {
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0,
+    bool vega_weighted_smile_fit = false) {
   SwaptionSabrCalibrateSpecBuilder builder_(_fbb);
   builder_.add_beta_value(beta_value);
   builder_.add_weights(weights);
@@ -1658,6 +1684,7 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
   builder_.add_tenors(tenors);
   builder_.add_expiries(expiries);
   builder_.add_base(base);
+  builder_.add_vega_weighted_smile_fit(vega_weighted_smile_fit);
   builder_.add_beta_fixed(beta_fixed);
   return builder_.Finish();
 }
@@ -1671,7 +1698,8 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
     ::flatbuffers::Offset<quantra::QuoteTensor3D> vols = 0,
     bool beta_fixed = true,
     double beta_value = 0.5,
-    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0) {
+    ::flatbuffers::Offset<quantra::QuoteTensor3D> weights = 0,
+    bool vega_weighted_smile_fit = false) {
   auto expiries__ = expiries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*expiries) : 0;
   auto tenors__ = tenors ? _fbb.CreateVector<::flatbuffers::Offset<quantra::Period>>(*tenors) : 0;
   auto strikes__ = strikes ? _fbb.CreateVector<double>(*strikes) : 0;
@@ -1684,7 +1712,8 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
       vols,
       beta_fixed,
       beta_value,
-      weights);
+      weights,
+      vega_weighted_smile_fit);
 }
 
 ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibrateSpec(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2754,7 +2783,8 @@ inline SwaptionSabrCalibrateSpecT::SwaptionSabrCalibrateSpecT(const SwaptionSabr
         vols((o.vols) ? new quantra::QuoteTensor3DT(*o.vols) : nullptr),
         beta_fixed(o.beta_fixed),
         beta_value(o.beta_value),
-        weights((o.weights) ? new quantra::QuoteTensor3DT(*o.weights) : nullptr) {
+        weights((o.weights) ? new quantra::QuoteTensor3DT(*o.weights) : nullptr),
+        vega_weighted_smile_fit(o.vega_weighted_smile_fit) {
   expiries.reserve(o.expiries.size());
   for (const auto &expiries_ : o.expiries) { expiries.emplace_back((expiries_) ? new quantra::PeriodT(*expiries_) : nullptr); }
   tenors.reserve(o.tenors.size());
@@ -2770,6 +2800,7 @@ inline SwaptionSabrCalibrateSpecT &SwaptionSabrCalibrateSpecT::operator=(Swaptio
   std::swap(beta_fixed, o.beta_fixed);
   std::swap(beta_value, o.beta_value);
   std::swap(weights, o.weights);
+  std::swap(vega_weighted_smile_fit, o.vega_weighted_smile_fit);
   return *this;
 }
 
@@ -2790,6 +2821,7 @@ inline void SwaptionSabrCalibrateSpec::UnPackTo(SwaptionSabrCalibrateSpecT *_o, 
   { auto _e = beta_fixed(); _o->beta_fixed = _e; }
   { auto _e = beta_value(); _o->beta_value = _e; }
   { auto _e = weights(); if (_e) { if(_o->weights) { _e->UnPackTo(_o->weights.get(), _resolver); } else { _o->weights = std::unique_ptr<quantra::QuoteTensor3DT>(_e->UnPack(_resolver)); } } else if (_o->weights) { _o->weights.reset(); } }
+  { auto _e = vega_weighted_smile_fit(); _o->vega_weighted_smile_fit = _e; }
 }
 
 inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> SwaptionSabrCalibrateSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwaptionSabrCalibrateSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -2808,6 +2840,7 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
   auto _beta_fixed = _o->beta_fixed;
   auto _beta_value = _o->beta_value;
   auto _weights = _o->weights ? CreateQuoteTensor3D(_fbb, _o->weights.get(), _rehasher) : 0;
+  auto _vega_weighted_smile_fit = _o->vega_weighted_smile_fit;
   return quantra::CreateSwaptionSabrCalibrateSpec(
       _fbb,
       _base,
@@ -2817,7 +2850,8 @@ inline ::flatbuffers::Offset<SwaptionSabrCalibrateSpec> CreateSwaptionSabrCalibr
       _vols,
       _beta_fixed,
       _beta_value,
-      _weights);
+      _weights,
+      _vega_weighted_smile_fit);
 }
 
 inline SwaptionVolSpecT *SwaptionVolSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

@@ -114,6 +114,28 @@ public:
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "QuantLib error");
                 responder_.FinishWithError(status, this);
             }
+            catch (QuantraNotFound &e)
+            {
+                std::cerr << "[grpc] Quantra not-found"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
+                status_ = FINISH;
+                auto status = grpc::Status(grpc::StatusCode::NOT_FOUND, e.what());
+                responder_.FinishWithError(status, this);
+            }
+            catch (QuantraInvalidArgument &e)
+            {
+                std::cerr << "[grpc] Quantra invalid-argument"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
+                status_ = FINISH;
+                auto status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
+                responder_.FinishWithError(status, this);
+            }
             catch (QuantraError &e)
             {
                 std::cerr << "[grpc] Quantra exception"

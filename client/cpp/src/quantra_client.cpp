@@ -366,6 +366,12 @@ JsonResponse QuantraClient::CalibrateSwaptionModelJSON(const std::string& json) 
     );
 }
 
+JsonResponse QuantraClient::CalibrateSwaptionVolJSON(const std::string& json) {
+    return impl_->CallJSON<CalibrateSwaptionVolRequest, CalibrateSwaptionVolResponse>(
+        ProductType::CalibrateSwaptionVol, json, &QuantraServer::Stub::CalibrateSwaptionVol
+    );
+}
+
 JsonResponse QuantraClient::PriceEquityOptionJSON(const std::string& json) {
     return impl_->CallJSON<PriceEquityOptionRequest, PriceEquityOptionResponse>(
         ProductType::EquityOption, json, &QuantraServer::Stub::PriceEquityOption
@@ -536,6 +542,15 @@ grpc::Status QuantraClient::CalibrateSwaptionModel(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->CalibrateSwaptionModel(&context, request, response);
+}
+
+grpc::Status QuantraClient::CalibrateSwaptionVol(
+    const Message<CalibrateSwaptionVolRequest>& request,
+    Message<CalibrateSwaptionVolResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->CalibrateSwaptionVol(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceEquityOption(

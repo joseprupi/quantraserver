@@ -25,6 +25,7 @@
 #include <ql/time/date.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
+#include <ql/indexes/swapindex.hpp>
 
 #include "volatility_generated.h"
 #include "enums.h"
@@ -73,6 +74,24 @@ struct SwaptionVolEntry {
     std::vector<double> sabrBeta;
     std::vector<double> sabrRho;
     std::vector<double> sabrNu;
+    // SABR calibrate-path inputs and diagnostics. Stored separately from
+    // volsFlat/strikes (which carry SmileCube/AtmMatrix semantics) to avoid
+    // semantic collisions with downstream sampling/bumping helpers — see
+    // sample_vol_surfaces_request.cpp strike-support bounds checks.
+    // sabrStrikeSpreads: strike spreads from per-node ATM forward, length nStrikes.
+    // sabrMarketVolsFlat: row-major nExp*nTen*nStrikes absolute market vols.
+    std::vector<double> sabrStrikeSpreads;
+    std::vector<double> sabrMarketVolsFlat;
+    // Calibration options, populated by the calibrate parser; ignored otherwise.
+    bool sabrBetaFixed = true;
+    double sabrBetaValue = 0.5;
+    bool sabrVegaWeightedSmileFit = false;
+    // Per-node calibration diagnostics, populated by withSwaptionSabrCalibrateAtm
+    // after the QL cube has run. Empty for SabrParams surfaces.
+    // Row-major nExp*nTen.
+    std::vector<double> sabrPerNodeRmse;
+    std::vector<double> sabrPerNodeMaxError;
+    std::vector<int> sabrPerNodeEndCriteria;
     int nExp = 0;
     int nTen = 0;
     int nStrikes = 0;
@@ -133,6 +152,30 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
 SwaptionVolEntry withSwaptionSabrParamsAtm(
     const SwaptionVolEntry& base,
     const std::vector<double>& atmForwardsFlat);
+
+/**
+ * Build a SABR-calibrated swaption vol structure from per-node ATM forwards.
+ *
+ * Calls into QuantLib's XabrSwaptionVolatilityCube<SwaptionVolCubeSabrModel>,
+ * which runs per-node Levenberg-Marquardt calibration via SABRInterpolation.
+ *
+ * `base` must have volKind == SwaptionVolKind_SabrCalibrate with strike spreads
+ * in `sabrStrikeSpreads` and market vols in `sabrMarketVolsFlat`.
+ *
+ * Returns an entry with `handle` set, `atmForwardsFlat` populated, calibrated
+ * (alpha, beta, rho, nu) per-node grids in sabrAlpha/Beta/Rho/Nu, and per-node
+ * fit diagnostics in sabrPerNodeRmse/sabrPerNodeMaxError/sabrPerNodeEndCriteria.
+ *
+ * `swapIndexBase` and `cubeCacheKey` are emitted by the caller after
+ * forward-resolution and curve-key resolution; the cache lookup happens before
+ * invoking the QuantLib calibrator. Pass empty `cubeCacheKey` to bypass caching
+ * (used by sanity tests).
+ */
+SwaptionVolEntry withSwaptionSabrCalibrateAtm(
+    const SwaptionVolEntry& base,
+    const std::vector<double>& atmForwardsFlat,
+    const std::shared_ptr<QuantLib::SwapIndex>& swapIndexBase,
+    const std::string& cubeCacheKey);
 
 /**
  * Parse BlackVolSpec from FlatBuffers into QuantLib structure.
