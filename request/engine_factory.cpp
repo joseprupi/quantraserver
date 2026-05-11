@@ -124,6 +124,20 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeSwaptionEngine(
     auto modelType = spec->model_type();
 
     // =========================================================================
+    // SABR vol kinds return Black (lognormal) vols via the Hagan expansion;
+    // pairing them with a Bachelier (Normal) engine is a configuration error.
+    // Reject early with a clear message, regardless of the underlying QL volatility
+    // type (which for SABR cubes is always set to ShiftedLognormal).
+    // =========================================================================
+    if (modelType == quantra::enums::IrModelType_Bachelier &&
+        (volEntry.volKind == quantra::enums::SwaptionVolKind_SabrParams ||
+         volEntry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate)) {
+        QUANTRA_ERROR(
+            "Model '" + modelId + "': Bachelier engine cannot be paired with SABR vol surface "
+            "(SABR via Hagan returns lognormal Black vol). Use Black or ShiftedBlack instead.");
+    }
+
+    // =========================================================================
     // Validate model/vol compatibility and create engine
     // =========================================================================
     switch (modelType) {

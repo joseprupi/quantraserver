@@ -421,11 +421,20 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     QUANTRA_ERROR("SpreadFromATM strike axis requested for Absolute-strike swaption vol");
                 }
 
-                if (volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM) {
+                // SpreadFromATM smile cubes and SABR-params surfaces both need
+                // forward resolution before sampling: SpreadFromATM to translate
+                // strike spreads to absolute strikes, SABR to instantiate per-node
+                // SabrSmileSection from F(expiry, tenor). Both go through the
+                // shared finalizeSwaptionVolEntryForPricing path.
+                const bool needsForwardResolution =
+                    volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM ||
+                    volEntry.volKind == enums::SwaptionVolKind_SabrParams;
+                if (needsForwardResolution) {
                     if (!q->discounting_curve_id() || q->discounting_curve_id()->str().empty() ||
                         !q->forwarding_curve_id() || q->forwarding_curve_id()->str().empty()) {
                         QUANTRA_ERROR(
-                            "SpreadFromATM swaption sampling requires discounting_curve_id and forwarding_curve_id");
+                            "SpreadFromATM/SABR swaption sampling requires "
+                            "discounting_curve_id and forwarding_curve_id");
                     }
                     auto dIt = reg.rates.curves.find(q->discounting_curve_id()->str());
                     auto fIt = reg.rates.curves.find(q->forwarding_curve_id()->str());
@@ -744,7 +753,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         volsOut.push_back(sampleVol(static_cast<int>(i), j, q->slice_strike(), dates));
                         effectiveSwapStartsOut.push_back(builder->CreateString(toIso(dates.start)));
                         effectiveSwapEndsOut.push_back(builder->CreateString(toIso(dates.end)));
-                        if (volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM) {
+                        if (!precomputedAtm.empty()) {
                             double atm = atmLookup(static_cast<int>(i), j);
                             if (std::isfinite(atm)) atmLevelsOut.push_back(atm);
                         }

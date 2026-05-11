@@ -134,14 +134,18 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     }
     for (const auto& kv : reg.volatility.swaptionVols) {
         const auto& entry = kv.second;
-        if (entry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
+        const bool needsSwapIndex =
+            entry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM ||
+            entry.volKind == quantra::enums::SwaptionVolKind_SabrParams;
+        if (needsSwapIndex) {
             if (entry.swapIndexId.empty()) {
                 QUANTRA_ERROR(
-                    "Swaption smile vol '" + kv.first + "' requires swap_index_id for SpreadFromATM");
+                    "Swaption vol '" + kv.first +
+                    "' requires swap_index_id (forward-aware surface)");
             }
             if (!reg.rates.swapIndices.has(entry.swapIndexId)) {
                 QUANTRA_ERROR(
-                    "Swaption smile vol '" + kv.first + "' references unknown swap_index_id: " +
+                    "Swaption vol '" + kv.first + "' references unknown swap_index_id: " +
                     entry.swapIndexId);
             }
         }

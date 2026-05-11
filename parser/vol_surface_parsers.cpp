@@ -15,6 +15,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
+#include <ql/termstructures/volatility/sabr.hpp>
+#include <ql/termstructures/volatility/sabrsmilesection.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
@@ -488,6 +490,241 @@ private:
     QuantLib::Rate maxStrike_ = 0.0;
     QuantLib::Period maxSwapTenor_;
 };
+
+// SABR-params swaption vol structure built from per-node (alpha, beta, nu, rho)
+// and per-node forwards. Smile evaluation at each node delegates to QuantLib's
+// SabrSmileSection (Hagan formula). Cross-node interpolation: total variance
+// (sigma^2 * t) bilinearly across (expiry, tenor) — same convention as the
+// existing SwaptionSmileCubeCustom so the two cube types behave consistently.
+class SwaptionSabrParamsCube : public QuantLib::SwaptionVolatilityStructure {
+public:
+    SwaptionSabrParamsCube(
+        const QuantLib::Date& ref,
+        const QuantLib::Calendar& cal,
+        QuantLib::BusinessDayConvention bdc,
+        const QuantLib::DayCounter& dc,
+        QuantLib::VolatilityType volType,
+        double displacement,
+        std::vector<QuantLib::Period> expiries,
+        std::vector<QuantLib::Period> tenors,
+        std::vector<double> alpha,
+        std::vector<double> beta,
+        std::vector<double> rho,
+        std::vector<double> nu,
+        std::vector<double> atmForwardsFlat)
+        : QuantLib::SwaptionVolatilityStructure(ref, cal, bdc, dc),
+          volType_(volType),
+          displacement_(displacement),
+          expiries_(std::move(expiries)),
+          tenors_(std::move(tenors)),
+          alpha_(std::move(alpha)),
+          beta_(std::move(beta)),
+          rho_(std::move(rho)),
+          nu_(std::move(nu)),
+          atmForwards_(std::move(atmForwardsFlat)) {
+        enableExtrapolation();
+        if (expiries_.empty() || tenors_.empty()) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec expiries/tenors must be non-empty");
+        }
+        if (!std::is_sorted(expiries_.begin(), expiries_.end())) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec expiries must be sorted ascending");
+        }
+        auto expDup = std::adjacent_find(
+            expiries_.begin(), expiries_.end(),
+            [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
+        if (expDup != expiries_.end()) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec expiries must be strictly increasing");
+        }
+        if (!std::is_sorted(tenors_.begin(), tenors_.end())) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec tenors must be sorted ascending");
+        }
+        auto tenDup = std::adjacent_find(
+            tenors_.begin(), tenors_.end(),
+            [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
+        if (tenDup != tenors_.end()) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec tenors must be strictly increasing");
+        }
+        nExp_ = static_cast<int>(expiries_.size());
+        nTen_ = static_cast<int>(tenors_.size());
+        const int expected = nExp_ * nTen_;
+        if (static_cast<int>(alpha_.size()) != expected ||
+            static_cast<int>(beta_.size()) != expected ||
+            static_cast<int>(rho_.size()) != expected ||
+            static_cast<int>(nu_.size()) != expected) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec parameter grid sizes must equal nExp * nTen");
+        }
+        if (static_cast<int>(atmForwards_.size()) != expected) {
+            QUANTRA_ERROR("SwaptionSabrParamsSpec ATM forwards grid size must equal nExp * nTen");
+        }
+
+        tExp_.reserve(expiries_.size());
+        tTen_.reserve(tenors_.size());
+        for (const auto& p : expiries_) tExp_.push_back(periodToTime(ref, cal, bdc, dc, p));
+        for (const auto& p : tenors_) tTen_.push_back(periodToTime(ref, cal, bdc, dc, p));
+
+        smiles_.resize(static_cast<size_t>(expected));
+        for (int i = 0; i < nExp_; ++i) {
+            for (int j = 0; j < nTen_; ++j) {
+                const size_t k = idx2d(i, j);
+                const double t = std::max(tExp_[i], 1.0e-8);
+                const double f = atmForwards_[k];
+                if (!std::isfinite(f) || f + displacement_ <= 0.0) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrParamsSpec requires positive (forward + displacement) at every node");
+                }
+                std::vector<QuantLib::Real> sabrParams(4);
+                sabrParams[0] = alpha_[k];
+                sabrParams[1] = beta_[k];
+                sabrParams[2] = nu_[k];
+                sabrParams[3] = rho_[k];
+                smiles_[k] = QuantLib::ext::shared_ptr<QuantLib::SabrSmileSection>(
+                    new QuantLib::SabrSmileSection(
+                        t, f, sabrParams, displacement_, volType_));
+            }
+        }
+
+        maxSwapTenor_ = tenors_.back();
+        QuantLib::Date maxExerciseDate = ref;
+        for (const auto& p : expiries_) {
+            QuantLib::Date d = cal.advance(ref, p, bdc);
+            if (d > maxExerciseDate) maxExerciseDate = d;
+        }
+        maxDate_ = maxExerciseDate;
+        if (maxSwapTenor_.length() > 0) {
+            QuantLib::Date end = cal.advance(maxExerciseDate, maxSwapTenor_, bdc);
+            if (end > maxDate_) maxDate_ = end;
+        }
+        // Strike support is unbounded above; lower bound is -displacement_
+        // (consistent with QuantLib::SabrSmileSection::minStrike()).
+        minStrike_ = -displacement_;
+        maxStrike_ = QL_MAX_REAL;
+    }
+
+    QuantLib::VolatilityType volatilityType() const override { return volType_; }
+    QuantLib::Date maxDate() const override { return maxDate_; }
+    QuantLib::Rate minStrike() const override { return minStrike_; }
+    QuantLib::Rate maxStrike() const override { return maxStrike_; }
+    const QuantLib::Period& maxSwapTenor() const override { return maxSwapTenor_; }
+
+protected:
+    QuantLib::Volatility volatilityImpl(
+        QuantLib::Time optionTime, QuantLib::Time swapLength, QuantLib::Rate strike) const override {
+        return blendedVol(optionTime, swapLength, strike);
+    }
+
+    QuantLib::ext::shared_ptr<QuantLib::SmileSection> smileSectionImpl(
+        QuantLib::Time optionTime, QuantLib::Time swapLength) const override {
+        // Sample the blended (alpha,beta,nu,rho)-implied vol at a small grid of
+        // strikes around the bracketed-node ATM forward, then wrap as an
+        // InterpolatedSmileSection. Mirrors SwaptionSmileCubeCustom's pattern
+        // so consumers get a real SmileSection without exposing the per-node
+        // Sabr internals.
+        size_t e0, e1, t0, t1;
+        double we, wt;
+        bracket(tExp_, optionTime, e0, e1, we);
+        bracket(tTen_, swapLength, t0, t1, wt);
+        const double f00 = atmForwards_[idx2d(static_cast<int>(e0), static_cast<int>(t0))];
+        const double f01 = atmForwards_[idx2d(static_cast<int>(e0), static_cast<int>(t1))];
+        const double f10 = atmForwards_[idx2d(static_cast<int>(e1), static_cast<int>(t0))];
+        const double f11 = atmForwards_[idx2d(static_cast<int>(e1), static_cast<int>(t1))];
+        const double f0 = f00 * (1.0 - wt) + f01 * wt;
+        const double f1 = f10 * (1.0 - wt) + f11 * wt;
+        const double atm = f0 * (1.0 - we) + f1 * we;
+
+        const double t = std::max(optionTime, 1.0e-8);
+        const double sqrtT = std::sqrt(t);
+        // Strike grid: ATM and a moderate spread around it. Consumers wanting
+        // off-grid strikes can call volatility(...) directly; this section is
+        // primarily an interface helper.
+        std::vector<double> spreads = {-0.02, -0.01, -0.005, -0.0025, 0.0, 0.0025, 0.005, 0.01, 0.02};
+        std::vector<double> absStrikes;
+        absStrikes.reserve(spreads.size());
+        std::vector<QuantLib::Real> stdDevs;
+        stdDevs.reserve(spreads.size());
+        for (double s : spreads) {
+            double k = atm + s;
+            if (k + displacement_ <= 0.0) continue;
+            double v = blendedVol(optionTime, swapLength, k);
+            absStrikes.push_back(k);
+            stdDevs.push_back(v * sqrtT);
+        }
+        if (absStrikes.size() < 2) {
+            // Fallback: return the bracketed-node section directly.
+            return smiles_[idx2d(static_cast<int>(e0), static_cast<int>(t0))];
+        }
+        return QuantLib::ext::shared_ptr<QuantLib::SmileSection>(
+            new QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
+                t, absStrikes, stdDevs, atm, QuantLib::Linear(),
+                dayCounter(), volatilityType(), displacement_));
+    }
+
+private:
+    size_t idx2d(int i, int j) const {
+        return static_cast<size_t>(i) * tenors_.size() + static_cast<size_t>(j);
+    }
+
+    static void bracket(const std::vector<double>& grid, double x, size_t& i0, size_t& i1, double& w) {
+        if (grid.empty()) { i0 = i1 = 0; w = 0.0; return; }
+        if (x <= grid.front()) { i0 = i1 = 0; w = 0.0; return; }
+        if (x >= grid.back()) { i0 = i1 = grid.size() - 1; w = 0.0; return; }
+        auto it = std::lower_bound(grid.begin(), grid.end(), x);
+        size_t hi = static_cast<size_t>(it - grid.begin());
+        size_t lo = hi - 1;
+        i0 = lo; i1 = hi;
+        w = (x - grid[lo]) / (grid[hi] - grid[lo]);
+    }
+
+    double nodeVol(size_t i, size_t j, double strike) const {
+        return smiles_[idx2d(static_cast<int>(i), static_cast<int>(j))]->volatility(strike);
+    }
+
+    double blendedVol(double optionTime, double swapLength, double strike) const {
+        size_t e0, e1, t0, t1;
+        double we, wt;
+        bracket(tExp_, optionTime, e0, e1, we);
+        bracket(tTen_, swapLength, t0, t1, wt);
+
+        const double eps = 1.0e-12;
+        const double tNode0 = std::max(tExp_[e0], eps);
+        const double tNode1 = std::max(tExp_[e1], eps);
+        const double tQuery = std::max(optionTime, eps);
+
+        const double v00 = nodeVol(e0, t0, strike);
+        const double v01 = nodeVol(e0, t1, strike);
+        const double v10 = nodeVol(e1, t0, strike);
+        const double v11 = nodeVol(e1, t1, strike);
+
+        // Total variance interpolation across expiry; linear across tenor.
+        const double w00 = v00 * v00 * tNode0;
+        const double w01 = v01 * v01 * tNode0;
+        const double w10 = v10 * v10 * tNode1;
+        const double w11 = v11 * v11 * tNode1;
+        const double w0 = w00 * (1.0 - wt) + w01 * wt;
+        const double w1 = w10 * (1.0 - wt) + w11 * wt;
+        const double w = w0 * (1.0 - we) + w1 * we;
+        return std::sqrt(std::max(w, 0.0) / tQuery);
+    }
+
+    QuantLib::VolatilityType volType_;
+    double displacement_;
+    std::vector<QuantLib::Period> expiries_;
+    std::vector<QuantLib::Period> tenors_;
+    std::vector<double> alpha_;
+    std::vector<double> beta_;
+    std::vector<double> rho_;
+    std::vector<double> nu_;
+    std::vector<double> atmForwards_;
+    std::vector<double> tExp_;
+    std::vector<double> tTen_;
+    std::vector<QuantLib::ext::shared_ptr<QuantLib::SabrSmileSection>> smiles_;
+    int nExp_ = 0;
+    int nTen_ = 0;
+    QuantLib::Date maxDate_;
+    QuantLib::Rate minStrike_ = 0.0;
+    QuantLib::Rate maxStrike_ = 0.0;
+    QuantLib::Period maxSwapTenor_;
+};
+
 double resolveVolValue(
     double inlineValue,
     const flatbuffers::String* quoteId,
@@ -896,9 +1133,114 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
             const auto* b = payload->base();
             validateIrVolBaseCommon(b, id);
-            QUANTRA_ERROR(
-                "SwaptionSabrParamsSpec requires forward-aware cube wiring (e.g. QuantLib SABR cube with swap indices); "
-                "pure surface construction without forward access is intentionally not supported for vol id: " + id);
+
+            // SABR via Hagan returns lognormal Black vol (or shifted lognormal
+            // when displacement > 0). Normal SABR is a separate model with its
+            // own engine pairing rules; reject for v1 rather than producing
+            // wrong vols silently.
+            if (b->volatility_type() == quantra::enums::VolatilityType_Normal) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrParamsSpec only supports Lognormal/ShiftedLognormal vol type "
+                    "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
+            }
+
+            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            double disp = b->displacement();
+            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+
+            if (!payload->expiries() || !payload->tenors()) {
+                QUANTRA_ERROR("SwaptionSabrParamsSpec expiries/tenors missing for vol id: " + id);
+            }
+            int nExp = static_cast<int>(payload->expiries()->size());
+            int nTen = static_cast<int>(payload->tenors()->size());
+            if (nExp <= 0 || nTen <= 0) {
+                QUANTRA_ERROR("SwaptionSabrParamsSpec expiries/tenors empty for vol id: " + id);
+            }
+
+            std::vector<QuantLib::Period> expiries;
+            expiries.reserve(nExp);
+            for (auto it = payload->expiries()->begin(); it != payload->expiries()->end(); ++it) {
+                expiries.push_back(toQlPeriod(*it));
+            }
+            std::vector<QuantLib::Period> tenors;
+            tenors.reserve(nTen);
+            for (auto it = payload->tenors()->begin(); it != payload->tenors()->end(); ++it) {
+                tenors.push_back(toQlPeriod(*it));
+            }
+
+            const auto* mAlpha = payload->alpha();
+            const auto* mBeta = payload->beta();
+            const auto* mRho = payload->rho();
+            const auto* mNu = payload->nu();
+            validateMatrix2D(mAlpha, nExp, nTen, id);
+            validateMatrix2D(mBeta, nExp, nTen, id);
+            validateMatrix2D(mRho, nExp, nTen, id);
+            validateMatrix2D(mNu, nExp, nTen, id);
+
+            const int expected = nExp * nTen;
+            std::vector<double> alpha;
+            std::vector<double> beta;
+            std::vector<double> rho;
+            std::vector<double> nu;
+            alpha.reserve(expected);
+            beta.reserve(expected);
+            rho.reserve(expected);
+            nu.reserve(expected);
+            for (int k = 0; k < expected; ++k) {
+                double a = resolveMatrixValue(mAlpha, k, quotes, id);
+                double bv = resolveMatrixValue(mBeta, k, quotes, id);
+                double r = resolveMatrixValue(mRho, k, quotes, id);
+                double n = resolveMatrixValue(mNu, k, quotes, id);
+                if (!std::isfinite(a) || !std::isfinite(bv) || !std::isfinite(r) || !std::isfinite(n)) {
+                    QUANTRA_ERROR("SwaptionSabrParamsSpec alpha/beta/rho/nu must be finite for vol id: " + id);
+                }
+                if (!(a > 0.0)) {
+                    QUANTRA_ERROR("SwaptionSabrParamsSpec alpha must be > 0 for vol id: " + id);
+                }
+                if (bv < 0.0 || bv > 1.0) {
+                    QUANTRA_ERROR("SwaptionSabrParamsSpec beta must be in [0, 1] for vol id: " + id);
+                }
+                if (!(r > -1.0 && r < 1.0)) {
+                    QUANTRA_ERROR("SwaptionSabrParamsSpec rho must be in (-1, 1) for vol id: " + id);
+                }
+                if (!(n > 0.0)) {
+                    QUANTRA_ERROR("SwaptionSabrParamsSpec nu must be > 0 for vol id: " + id);
+                }
+                alpha.push_back(a);
+                beta.push_back(bv);
+                rho.push_back(r);
+                nu.push_back(n);
+            }
+
+            // Defer handle construction until finalizeSwaptionVolEntryForPricing
+            // injects ATM forwards from the swap-index runtime. SABR per-node
+            // smile sections require F(expiry, tenor), which is not available
+            // at parse time.
+            SwaptionVolEntry entry;
+            entry.qlVolType = qlType;
+            entry.displacement = disp;
+            entry.referenceDate = ref;
+            entry.calendar = cal;
+            entry.businessDayConvention = bdc;
+            entry.dayCounter = dc;
+            entry.volKind = quantra::enums::SwaptionVolKind_SabrParams;
+            entry.constantVol = std::numeric_limits<double>::quiet_NaN();
+            entry.expiries = expiries;
+            entry.tenors = tenors;
+            entry.swapIndexId = wrapperSwapIndexId;
+            entry.strikeKind = quantra::enums::SwaptionStrikeKind_Absolute;
+            entry.allowExternalAtm = false;
+            entry.sabrAlpha = std::move(alpha);
+            entry.sabrBeta = std::move(beta);
+            entry.sabrRho = std::move(rho);
+            entry.sabrNu = std::move(nu);
+            entry.nExp = nExp;
+            entry.nTen = nTen;
+            entry.nStrikes = 0;
+            return entry;
         }
 
         case quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec:
@@ -1458,6 +1800,50 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
         base.strikeKind,
         atmForwardsFlat,
         base.volsFlat);
+
+    out.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
+    out.atmForwardsFlat = atmForwardsFlat;
+    return out;
+}
+
+SwaptionVolEntry withSwaptionSabrParamsAtm(
+    const SwaptionVolEntry& base,
+    const std::vector<double>& atmForwardsFlat) {
+    if (base.volKind != quantra::enums::SwaptionVolKind_SabrParams) {
+        return base;
+    }
+    if (base.nExp <= 0 || base.nTen <= 0) {
+        QUANTRA_ERROR("Invalid SABR params dimensions while injecting ATM forwards");
+    }
+    const int expected = base.nExp * base.nTen;
+    if (static_cast<int>(atmForwardsFlat.size()) != expected) {
+        QUANTRA_ERROR("ATM forward matrix size mismatch while injecting ATM forwards into SABR cube");
+    }
+    if (static_cast<int>(base.sabrAlpha.size()) != expected ||
+        static_cast<int>(base.sabrBeta.size()) != expected ||
+        static_cast<int>(base.sabrRho.size()) != expected ||
+        static_cast<int>(base.sabrNu.size()) != expected) {
+        QUANTRA_ERROR("SABR parameter grid sizes inconsistent while injecting ATM forwards");
+    }
+    if (base.swapIndexId.empty()) {
+        QUANTRA_ERROR("Building SABR params handle requires swapIndexId to be set");
+    }
+
+    SwaptionVolEntry out = base;
+    auto qlVol = std::make_shared<SwaptionSabrParamsCube>(
+        base.referenceDate,
+        base.calendar,
+        base.businessDayConvention,
+        base.dayCounter,
+        base.qlVolType,
+        base.displacement,
+        base.expiries,
+        base.tenors,
+        base.sabrAlpha,
+        base.sabrBeta,
+        base.sabrRho,
+        base.sabrNu,
+        atmForwardsFlat);
 
     out.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
     out.atmForwardsFlat = atmForwardsFlat;
