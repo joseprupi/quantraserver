@@ -1175,7 +1175,7 @@
     },
     "quantra_SwaptionSabrCalibrateSpec" : {
       "type" : "object",
-      "description" : "SABR calibrate swaption volatility.",
+      "description" : "SABR calibrate swaption volatility.\n\nStrike axis interpretation: `strikes` are spreads from the per-node ATM\nforward (rate units, e.g. -0.02 = -200bp). The same spread vector applies\nat every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube\nAPI. 0.0 spread (true ATM) is not required to be in the grid — per-node ATM\nvols are interpolated from the user grid at spread=0.\n\n`vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.\n\n`weights` is rejected in v1 — set `vega_weighted_smile_fit=true` for\nvega-weighted fitting instead. Per-strike non-uniform weights are not\nexposed by QuantLib 1.41's calibrator.",
       "properties" : {
         "base" : {
                 "$ref" : "#/definitions/quantra_IrVolBaseSpec"
@@ -1199,7 +1199,12 @@
                 "type" : "number"
               },
         "weights" : {
-                "$ref" : "#/definitions/quantra_QuoteTensor3D"
+                "$ref" : "#/definitions/quantra_QuoteTensor3D",
+                "description" : "Reserved. Must be empty/absent in v1; otherwise parse-time rejection."
+              },
+        "vega_weighted_smile_fit" : {
+                "type" : "boolean",
+                "description" : "When true, the SABR calibrator weights residuals by Black vega. This is\nthe standard \"vega-weighted smile fit\" QL flag (cube-level, not per\nstrike)."
               }
       },
       "additionalProperties" : false
@@ -2554,6 +2559,10 @@
               },
         "swaptions" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PriceSwaption"}
+              },
+        "include_diagnostics" : {
+                "type" : "boolean",
+                "description" : "When true, the response carries one SwaptionVolDiagnostics block per\nunique SABR-kind vol surface referenced by `swaptions`. Default false."
               }
       },
       "additionalProperties" : false

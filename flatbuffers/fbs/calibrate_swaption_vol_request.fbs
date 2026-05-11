@@ -1,0 +1,27 @@
+include "pricing.fbs";
+
+namespace quantra;
+
+/// Request to calibrate a SABR swaption volatility surface.
+///
+/// Mirrors `/calibrate-swaption-model` (Hull-White) in shape: caller supplies
+/// a full pricing context plus a `vol_id` referencing the surface to calibrate.
+/// Discount/forwarding curve ids are explicit on the request (rather than
+/// inferred from a model spec, since SABR has no model) and follow the same
+/// convention as `VolQuerySpec` on `/sample-vol-surfaces`.
+table CalibrateSwaptionVolRequest {
+    /// Full pricing context (as_of, curves, indices, vols).
+    pricing:Pricing (required);
+    /// Vol surface id inside `pricing.volatility.vol_surfaces`. Must reference a
+    /// SwaptionVolSpec whose payload is SwaptionSabrCalibrateSpec; all other
+    /// kinds (Constant, AtmMatrix2D, SmileCube3D, SabrParams) are rejected.
+    vol_id:string (required);
+    /// Discount curve id used to compute per-node ATM forwards F(expiry, tenor).
+    /// Required: SABR calibrate is forward-aware and the request stands alone
+    /// (no trade-side curve fallback like /price-swaption has).
+    discounting_curve_id:string (required);
+    /// Forwarding curve id used to project the floating leg in F computation.
+    forwarding_curve_id:string (required);
+}
+
+root_type CalibrateSwaptionVolRequest;

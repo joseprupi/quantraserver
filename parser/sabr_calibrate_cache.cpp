@@ -1,7 +1,10 @@
 #include "sabr_calibrate_cache.h"
 
+#include <cstdlib>
+#include <iostream>
 #include <list>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 
 namespace quantra {
@@ -9,6 +12,28 @@ namespace quantra {
 namespace {
 
 constexpr size_t kSabrCalibrateCacheCapacity = 64;
+
+// Env-gated stderr logging for cache events. Reading the env var once at
+// process start avoids the per-call getenv() cost on the hot path. Mirrors
+// the curve cache's QUANTRA_CURVE_CACHE_LOG pattern.
+bool sabrCacheLoggingEnabled() {
+    static const bool kEnabled = []() {
+        const char* v = std::getenv("QUANTRA_SABR_CACHE_LOG");
+        return v != nullptr && std::string(v) == "1";
+    }();
+    return kEnabled;
+}
+
+void logCacheEvent(const std::string& event, const std::string& key, size_t size) {
+    if (!sabrCacheLoggingEnabled()) return;
+    // Truncate the (160-hex-char SHA-256) key for log readability; full key
+    // isn't useful in logs and bloats the line.
+    const std::string keyShort = key.size() > 16 ? (key.substr(0, 16) + "...") : key;
+    std::cerr << "[SabrCalibrateCache] event=" << event
+              << " key=" << keyShort
+              << " size=" << size
+              << std::endl;
+}
 
 } // namespace
 
@@ -33,12 +58,14 @@ std::shared_ptr<const SabrCalibratedCube> SabrCalibrateCache::tryGet(const std::
     std::lock_guard<std::mutex> lock(impl_->mu);
     auto it = impl_->map.find(key);
     if (it == impl_->map.end()) {
+        logCacheEvent("MISS", key, impl_->map.size());
         return nullptr;
     }
     // Touch: move key to LRU front.
     impl_->lru.erase(it->second.second);
     impl_->lru.push_front(key);
     it->second.second = impl_->lru.begin();
+    logCacheEvent("HIT", key, impl_->map.size());
     return it->second.first;
 }
 
@@ -53,6 +80,7 @@ void SabrCalibrateCache::put(const std::string& key, std::shared_ptr<const SabrC
         impl_->lru.push_front(key);
         it->second.first = std::move(value);
         it->second.second = impl_->lru.begin();
+        logCacheEvent("PUT_REPLACE", key, impl_->map.size());
         return;
     }
     impl_->lru.push_front(key);
@@ -62,6 +90,7 @@ void SabrCalibrateCache::put(const std::string& key, std::shared_ptr<const SabrC
         impl_->map.erase(victim);
         impl_->lru.pop_back();
     }
+    logCacheEvent("PUT", key, impl_->map.size());
 }
 
 void SabrCalibrateCache::clear() {

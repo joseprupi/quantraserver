@@ -53,6 +53,7 @@
 #include "calendar_holidays_response_generated.h"
 #include "calendar_advance_response_generated.h"
 #include "calibrate_swaption_model_response_generated.h"
+#include "calibrate_swaption_vol_response_generated.h"
 #include "equity_option_response_generated.h"
 
 namespace quantra {
@@ -143,6 +144,7 @@ public:
     JsonResponse CalendarHolidaysJSON(const std::string& json);
     JsonResponse CalendarAdvanceJSON(const std::string& json);
     JsonResponse CalibrateSwaptionModelJSON(const std::string& json);
+    JsonResponse CalibrateSwaptionVolJSON(const std::string& json);
     JsonResponse PriceEquityOptionJSON(const std::string& json);
     
     // -------------------------------------------------------------------------
@@ -223,6 +225,10 @@ public:
     grpc::Status CalibrateSwaptionModel(
         const Message<CalibrateSwaptionModelRequest>& request,
         Message<CalibrateSwaptionModelResponse>* response);
+
+    grpc::Status CalibrateSwaptionVol(
+        const Message<CalibrateSwaptionVolRequest>& request,
+        Message<CalibrateSwaptionVolResponse>* response);
 
     grpc::Status PriceEquityOption(
         const Message<PriceEquityOptionRequest>& request,

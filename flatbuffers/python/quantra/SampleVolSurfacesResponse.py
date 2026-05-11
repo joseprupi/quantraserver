@@ -50,8 +50,36 @@ class SampleVolSurfacesResponse(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Per-surface diagnostics, one entry per unique SABR-kind vol surface
+    # referenced by the request. Populated only when the request sets
+    # `include_diagnostics=true`. Empty/absent otherwise.
+    # SampleVolSurfacesResponse
+    def Diagnostics(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.SwaptionVolDiagnostics import SwaptionVolDiagnostics
+            obj = SwaptionVolDiagnostics()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # SampleVolSurfacesResponse
+    def DiagnosticsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # SampleVolSurfacesResponse
+    def DiagnosticsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def SampleVolSurfacesResponseStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(2)
 
 def Start(builder):
     SampleVolSurfacesResponseStart(builder)
@@ -67,6 +95,18 @@ def SampleVolSurfacesResponseStartResultsVector(builder, numElems):
 
 def StartResultsVector(builder, numElems):
     return SampleVolSurfacesResponseStartResultsVector(builder, numElems)
+
+def SampleVolSurfacesResponseAddDiagnostics(builder, diagnostics):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(diagnostics), 0)
+
+def AddDiagnostics(builder, diagnostics):
+    SampleVolSurfacesResponseAddDiagnostics(builder, diagnostics)
+
+def SampleVolSurfacesResponseStartDiagnosticsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartDiagnosticsVector(builder, numElems):
+    return SampleVolSurfacesResponseStartDiagnosticsVector(builder, numElems)
 
 def SampleVolSurfacesResponseEnd(builder):
     return builder.EndObject()
@@ -84,6 +124,7 @@ class SampleVolSurfacesResponseT(object):
     # SampleVolSurfacesResponseT
     def __init__(self):
         self.results = None  # type: List[VolSurfaceSampleT]
+        self.diagnostics = None  # type: List[SwaptionVolDiagnosticsT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -114,6 +155,14 @@ class SampleVolSurfacesResponseT(object):
                 else:
                     volSurfaceSample_ = VolSurfaceSampleT.InitFromObj(sampleVolSurfacesResponse.Results(i))
                     self.results.append(volSurfaceSample_)
+        if not sampleVolSurfacesResponse.DiagnosticsIsNone():
+            self.diagnostics = []
+            for i in range(sampleVolSurfacesResponse.DiagnosticsLength()):
+                if sampleVolSurfacesResponse.Diagnostics(i) is None:
+                    self.diagnostics.append(None)
+                else:
+                    swaptionVolDiagnostics_ = SwaptionVolDiagnosticsT.InitFromObj(sampleVolSurfacesResponse.Diagnostics(i))
+                    self.diagnostics.append(swaptionVolDiagnostics_)
 
     # SampleVolSurfacesResponseT
     def Pack(self, builder):
@@ -125,8 +174,18 @@ class SampleVolSurfacesResponseT(object):
             for i in reversed(range(len(self.results))):
                 builder.PrependUOffsetTRelative(resultslist[i])
             results = builder.EndVector()
+        if self.diagnostics is not None:
+            diagnosticslist = []
+            for i in range(len(self.diagnostics)):
+                diagnosticslist.append(self.diagnostics[i].Pack(builder))
+            SampleVolSurfacesResponseStartDiagnosticsVector(builder, len(self.diagnostics))
+            for i in reversed(range(len(self.diagnostics))):
+                builder.PrependUOffsetTRelative(diagnosticslist[i])
+            diagnostics = builder.EndVector()
         SampleVolSurfacesResponseStart(builder)
         if self.results is not None:
             SampleVolSurfacesResponseAddResults(builder, results)
+        if self.diagnostics is not None:
+            SampleVolSurfacesResponseAddDiagnostics(builder, diagnostics)
         sampleVolSurfacesResponse = SampleVolSurfacesResponseEnd(builder)
         return sampleVolSurfacesResponse

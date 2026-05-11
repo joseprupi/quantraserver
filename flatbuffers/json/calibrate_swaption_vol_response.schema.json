@@ -169,26 +169,6 @@
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
     },
-    "quantra_DateGrid" : {
-      "type" : "string",
-      "enum": ["NONE", "TenorGrid", "RangeGrid"]
-    },
-    "quantra_VolSurfaceType" : {
-      "type" : "string",
-      "enum": ["Swaption", "Optionlet", "EquityBlack"]
-    },
-    "quantra_VolStrikeAxis" : {
-      "type" : "string",
-      "enum": ["AbsoluteStrike", "SpreadFromATM"]
-    },
-    "quantra_VolOutputMode" : {
-      "type" : "string",
-      "enum": ["Cube", "SmileSlice", "TermSlice", "ExpirySlice"]
-    },
-    "quantra_ExpiryKind" : {
-      "type" : "string",
-      "enum": ["ExerciseDate", "GridDate"]
-    },
     "quantra_Period" : {
       "type" : "object",
       "description" : "Canonical period type used across APIs.",
@@ -360,240 +340,6 @@
       },
       "additionalProperties" : false
     },
-    "quantra_TenorGrid" : {
-      "type" : "object",
-      "description" : "Tenors relative to a curve reference date.",
-      "properties" : {
-        "tenors" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
-              },
-        "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
-              }
-      },
-      "required" : ["tenors"],
-      "additionalProperties" : false
-    },
-    "quantra_RangeGrid" : {
-      "type" : "object",
-      "description" : "Sample between start/end with a step.",
-      "properties" : {
-        "start_date" : {
-                "type" : "string"
-              },
-        "end_date" : {
-                "type" : "string"
-              },
-        "step_number" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "step_time_unit" : {
-                "$ref" : "#/definitions/quantra_enums_TimeUnit",
-                "description" : "Days/Weeks are literal increments; Months/Years use calendar advance + BDC."
-              },
-        "business_days_only" : {
-                "type" : "boolean"
-              },
-        "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
-              }
-      },
-      "required" : ["end_date"],
-      "additionalProperties" : false
-    },
-    "quantra_DateGridSpec" : {
-      "type" : "object",
-      "description" : "Date grid specification for curve/vol/inflation sampling.",
-      "properties" : {
-        "grid_type" : {
-                "$ref" : "#/definitions/quantra_DateGrid"
-              },
-        "grid" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_TenorGrid" },{ "$ref" : "#/definitions/quantra_RangeGrid" }]
-              }
-      },
-      "required" : ["grid"],
-      "additionalProperties" : false
-    },
-    "quantra_QueryOptions" : {
-      "type" : "object",
-      "description" : "Generic query options for reusable sampling endpoints.",
-      "properties" : {
-        "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar override when set."
-              },
-        "business_day_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention override when set."
-              },
-        "max_points" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "allow_extrapolation" : {
-                "type" : "boolean"
-              },
-        "strict" : {
-                "type" : "boolean"
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_StrikeGrid" : {
-      "type" : "object",
-      "description" : "Strike grid for vol surface sampling.",
-      "properties" : {
-        "axis" : {
-                "$ref" : "#/definitions/quantra_VolStrikeAxis"
-              },
-        "strikes" : {
-                "type" : "array", "items" : {"type" : "number"},
-                "description" : "If axis=SpreadFromATM these are spreads."
-              }
-      },
-      "required" : ["strikes"],
-      "additionalProperties" : false
-    },
-    "quantra_VolQuerySpec" : {
-      "type" : "object",
-      "description" : "Volatility surface query specification.",
-      "properties" : {
-        "vol_id" : {
-                "type" : "string",
-                "description" : "References Pricing.vol_surfaces[].id."
-              },
-        "surface_type" : {
-                "$ref" : "#/definitions/quantra_VolSurfaceType"
-              },
-        "expiry_grid" : {
-                "$ref" : "#/definitions/quantra_DateGridSpec"
-              },
-        "tenor_grid" : {
-                "$ref" : "#/definitions/quantra_DateGridSpec",
-                "description" : "Required for swaption, ignored for optionlet."
-              },
-        "strike_grid" : {
-                "$ref" : "#/definitions/quantra_StrikeGrid"
-              },
-        "options" : {
-                "$ref" : "#/definitions/quantra_QueryOptions"
-              },
-        "output_mode" : {
-                "$ref" : "#/definitions/quantra_VolOutputMode"
-              },
-        "swap_index_id" : {
-                "type" : "string",
-                "description" : "Optional override; must match surface swap_index_id if provided."
-              },
-        "slice_expiry_index" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Slice selectors (only used by slice modes). -1 means \"not set\"."
-              },
-        "slice_tenor_index" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "slice_strike" : {
-                "type" : "number"
-              },
-        "slice_strike_is_set" : {
-                "type" : "boolean",
-                "description" : "Strict mode requires true for slice modes using slice_strike."
-              },
-        "discounting_curve_id" : {
-                "type" : "string",
-                "description" : "Required for SpreadFromATM swaption surfaces to compute ATM forwards."
-              },
-        "forwarding_curve_id" : {
-                "type" : "string"
-              }
-      },
-      "required" : ["vol_id", "expiry_grid", "strike_grid"],
-      "additionalProperties" : false
-    },
-    "quantra_VolSurfaceSample" : {
-      "type" : "object",
-      "description" : "Sampled volatility surface output.",
-      "properties" : {
-        "vol_id" : {
-                "type" : "string"
-              },
-        "reference_date" : {
-                "type" : "string",
-                "description" : "Vol surface reference date."
-              },
-        "ql_vol_type" : {
-                "$ref" : "#/definitions/quantra_enums_VolatilityType"
-              },
-        "requested_strike_axis" : {
-                "$ref" : "#/definitions/quantra_VolStrikeAxis"
-              },
-        "canonical_strike_kind" : {
-                "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind"
-              },
-        "allow_extrapolation_used" : {
-                "type" : "boolean"
-              },
-        "calendar_used" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "business_day_convention_used" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
-              },
-        "expiry_kind" : {
-                "$ref" : "#/definitions/quantra_ExpiryKind",
-                "description" : "Swaption: ExerciseDate and expiries are effective exercise dates. Optionlet: GridDate and expiries are grid dates."
-              },
-        "expiries" : {
-                "type" : "array", "items" : {"type" : "string"},
-                "description" : "Sampled expiry dates (ISO)."
-              },
-        "requested_expiry_grid_points" : {
-                "type" : "array", "items" : {"type" : "string"},
-                "description" : "Optional grid points after grid conventions."
-              },
-        "tenors" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_Period"}
-              },
-        "effective_swap_starts" : {
-                "type" : "array", "items" : {"type" : "string"},
-                "description" : "Swaptions flattened i_expiry major then j_tenor."
-              },
-        "effective_swap_ends" : {
-                "type" : "array", "items" : {"type" : "string"}
-              },
-        "strikes" : {
-                "type" : "array", "items" : {"type" : "number"}
-              },
-        "vols" : {
-                "type" : "array", "items" : {"type" : "number"},
-                "description" : "Flattening: swaptions Cube i_expiry major, j_tenor, k_strike; optionlets Cube i_expiry major, k_strike."
-              },
-        "n_expiries" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "n_tenors" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "n_strikes" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "atm_levels" : {
-                "type" : "array", "items" : {"type" : "number"},
-                "description" : "Optional flattened ATM levels (par swap rates), i_expiry major then j_tenor. Populated when strike kind is SpreadFromATM."
-              },
-        "error" : {
-                "$ref" : "#/definitions/quantra_Error"
-              }
-      },
-      "required" : ["vol_id"],
-      "additionalProperties" : false
-    },
     "quantra_SabrCalibrationDiagnostics" : {
       "type" : "object",
       "description" : "Calibration-specific diagnostics. Populated only for SABR surfaces whose\nkind is SabrCalibrate. For SabrParams surfaces (and other kinds in future\nextensions) this sub-block is absent on the parent SwaptionVolDiagnostics.",
@@ -691,21 +437,22 @@
       "required" : ["vol_id"],
       "additionalProperties" : false
     },
-    "quantra_SampleVolSurfacesResponse" : {
+    "quantra_CalibrateSwaptionVolResponse" : {
       "type" : "object",
-      "description" : "Response from volatility surface sampling request.",
+      "description" : "Response from /calibrate-swaption-vol: a single SwaptionVolDiagnostics\nblock describing the calibrated surface. Wrapped in a thin envelope rather\nthan using SwaptionVolDiagnostics as `root_type` directly so that future\nadditions (status field, audit metadata, etc.) don't break the schema —\nsame pattern as CalibrateSwaptionModelResponse.",
       "properties" : {
-        "results" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VolSurfaceSample"}
+        "vol_id" : {
+                "type" : "string",
+                "description" : "Vol id requested for calibration. Echoed for client correlation,\nmirroring CalibrateSwaptionModelResponse.model_id."
               },
         "diagnostics" : {
-                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwaptionVolDiagnostics"},
-                "description" : "Per-surface diagnostics, one entry per unique SABR-kind vol surface\nreferenced by the request. Populated only when the request sets\n`include_diagnostics=true`. Empty/absent otherwise."
+                "$ref" : "#/definitions/quantra_SwaptionVolDiagnostics",
+                "description" : "Calibration diagnostics: per-node forwards, ATM vols, calibrated\n(alpha, beta, rho, nu) grids, per-node fit errors, convergence flag,\nper-strike fit errors, and warnings. See diagnostics.fbs."
               }
       },
-      "required" : ["results"],
+      "required" : ["vol_id", "diagnostics"],
       "additionalProperties" : false
     }
   },
-  "$ref" : "#/definitions/quantra_SampleVolSurfacesResponse"
+  "$ref" : "#/definitions/quantra_CalibrateSwaptionVolResponse"
 }
