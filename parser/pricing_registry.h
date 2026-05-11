@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <ql/handle.hpp>
@@ -50,6 +51,13 @@ struct InflationCurveEntry {
 
 struct RatesRegistry {
     std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
+    /// Per-curve canonical cache keys ("yc:v1:<hex>"), populated when the curve
+    /// cache is enabled. Used by downstream consumers (e.g. SABR calibrate
+    /// cube cache) to derive their own content-keyed identities. Missing
+    /// entries indicate that the curve was bootstrapped with caching disabled
+    /// (e.g. under a non-zero curveBump), and downstream caches should fall
+    /// back to bypassing their own cache for that surface.
+    std::unordered_map<std::string, std::string> curveKeys;
     IndexRegistry indices;
     SwapIndexRegistry swapIndices;
     std::vector<const quantra::CouponPricer*> couponPricers;

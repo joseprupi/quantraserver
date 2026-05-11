@@ -1,11 +1,16 @@
 include "common.fbs";
 include "vol_query.fbs";
+include "diagnostics.fbs";
 
 namespace quantra;
 
 /// Response from volatility surface sampling request.
 table SampleVolSurfacesResponse {
     results:[VolSurfaceSample] (required);
+    /// Per-surface diagnostics, one entry per unique SABR-kind vol surface
+    /// referenced by the request. Populated only when the request sets
+    /// `include_diagnostics=true`. Empty/absent otherwise.
+    diagnostics:[SwaptionVolDiagnostics];
 }
 
 root_type SampleVolSurfacesResponse;

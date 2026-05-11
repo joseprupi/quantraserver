@@ -21,6 +21,9 @@ table PriceSwaption {
 table PriceSwaptionRequest {
     pricing:Pricing;
     swaptions:[PriceSwaption];
+    /// When true, the response carries one SwaptionVolDiagnostics block per
+    /// unique SABR-kind vol surface referenced by `swaptions`. Default false.
+    include_diagnostics:bool = false;
 }
 
 root_type PriceSwaptionRequest;

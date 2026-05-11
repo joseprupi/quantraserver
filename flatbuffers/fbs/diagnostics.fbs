@@ -1,0 +1,70 @@
+include "enums.fbs";
+include "common.fbs";
+
+namespace quantra;
+
+/// Calibration-specific diagnostics. Populated only for SABR surfaces whose
+/// kind is SabrCalibrate. For SabrParams surfaces (and other kinds in future
+/// extensions) this sub-block is absent on the parent SwaptionVolDiagnostics.
+table SabrCalibrationDiagnostics {
+    /// Root-mean-square fit error per (expiry, tenor) node, row-major nExp*nTen.
+    per_node_rmse:[double];
+    /// Worst single-strike absolute error per (expiry, tenor) node, row-major nExp*nTen.
+    per_node_max_abs_error:[double];
+    /// Aggregate RMSE across the entire cube.
+    overall_rmse:double;
+    /// True iff every node converged to a stationary point (i.e., end criteria
+    /// is not None and not MaxIterations on any node).
+    converged:bool;
+    /// Iteration count per node. Sentinel -1 indicates "not exposed by the
+    /// optimizer" — current QuantLib (1.41) does not expose this publicly from
+    /// the SABR interpolator, so v1 always emits -1. Field is retained for
+    /// schema forward-compatibility.
+    iterations_per_node:[int];
+    /// Strike spreads used in calibration (rate units, e.g. -0.02 = -200bp).
+    /// Same vector applied at every (expiry, tenor) node.
+    strikes:[double];
+    /// Per-strike fit error (fitted - market) for each (expiry, tenor, strike).
+    /// Row-major nExp*nTen*nStrikes.
+    per_strike_fit_error:[double];
+}
+
+/// Diagnostics block describing one swaption vol surface. Emitted opt-in by
+/// /sample-vol-surfaces and /price-swaption when include_diagnostics=true, and
+/// reused as the response body for the standalone /calibrate-swaption-vol
+/// endpoint (Step 9).
+table SwaptionVolDiagnostics {
+    /// Matches Pricing.volatility.vol_surfaces[].id.
+    vol_id:string (required);
+    /// Resolved swaption vol kind for the surface.
+    kind:enums.SwaptionVolKind;
+
+    /// Per-node grid axes, mirroring the surface's pillars.
+    expiries:[Period];
+    tenors:[Period];
+    n_expiries:int;
+    n_tenors:int;
+
+    /// Per-node forwards F(expiry, tenor), populated when handle is built.
+    /// Row-major nExp*nTen.
+    forward_per_node:[double];
+    /// Per-node ATM vols sigma(F) evaluated via Hagan. Row-major nExp*nTen.
+    atm_vol_per_node:[double];
+    /// Time-to-expiry in years for each node. Row-major nExp*nTen.
+    time_to_expiry_per_node:[double];
+
+    /// SABR parameters in effect at each node. For SabrParams these are the
+    /// user-supplied values; for SabrCalibrate these are calibrator output.
+    /// Row-major nExp*nTen, schema field order alpha, beta, rho, nu.
+    alpha_per_node:[double];
+    beta_per_node:[double];
+    rho_per_node:[double];
+    nu_per_node:[double];
+
+    /// Calibration sub-block. Present only for SabrCalibrate; absent for
+    /// SabrParams (and other kinds in future extensions).
+    calibration:SabrCalibrationDiagnostics;
+
+    /// Validation warnings. Empty when fit is healthy.
+    warnings:[string];
+}

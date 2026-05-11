@@ -27,6 +27,7 @@ struct SampleVolSurfacesRequestT : public ::flatbuffers::NativeTable {
   typedef SampleVolSurfacesRequest TableType;
   std::unique_ptr<quantra::PricingT> pricing{};
   std::vector<std::unique_ptr<quantra::VolQuerySpecT>> queries{};
+  bool include_diagnostics = false;
   SampleVolSurfacesRequestT() = default;
   SampleVolSurfacesRequestT(const SampleVolSurfacesRequestT &o);
   SampleVolSurfacesRequestT(SampleVolSurfacesRequestT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -39,13 +40,20 @@ struct SampleVolSurfacesRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
   typedef SampleVolSurfacesRequestBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PRICING = 4,
-    VT_QUERIES = 6
+    VT_QUERIES = 6,
+    VT_INCLUDE_DIAGNOSTICS = 8
   };
   const quantra::Pricing *pricing() const {
     return GetPointer<const quantra::Pricing *>(VT_PRICING);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolQuerySpec>> *queries() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolQuerySpec>> *>(VT_QUERIES);
+  }
+  /// When true, the response carries one SwaptionVolDiagnostics block per
+  /// unique SABR-kind vol surface referenced by `queries`. Default false to
+  /// keep wire size and serialization cost down for clients that don't need it.
+  bool include_diagnostics() const {
+    return GetField<uint8_t>(VT_INCLUDE_DIAGNOSTICS, 0) != 0;
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -54,6 +62,7 @@ struct SampleVolSurfacesRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
            VerifyOffsetRequired(verifier, VT_QUERIES) &&
            verifier.VerifyVector(queries()) &&
            verifier.VerifyVectorOfTables(queries()) &&
+           VerifyField<uint8_t>(verifier, VT_INCLUDE_DIAGNOSTICS, 1) &&
            verifier.EndTable();
   }
   SampleVolSurfacesRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -71,6 +80,9 @@ struct SampleVolSurfacesRequestBuilder {
   void add_queries(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolQuerySpec>>> queries) {
     fbb_.AddOffset(SampleVolSurfacesRequest::VT_QUERIES, queries);
   }
+  void add_include_diagnostics(bool include_diagnostics) {
+    fbb_.AddElement<uint8_t>(SampleVolSurfacesRequest::VT_INCLUDE_DIAGNOSTICS, static_cast<uint8_t>(include_diagnostics), 0);
+  }
   explicit SampleVolSurfacesRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -87,28 +99,33 @@ struct SampleVolSurfacesRequestBuilder {
 inline ::flatbuffers::Offset<SampleVolSurfacesRequest> CreateSampleVolSurfacesRequest(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolQuerySpec>>> queries = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::VolQuerySpec>>> queries = 0,
+    bool include_diagnostics = false) {
   SampleVolSurfacesRequestBuilder builder_(_fbb);
   builder_.add_queries(queries);
   builder_.add_pricing(pricing);
+  builder_.add_include_diagnostics(include_diagnostics);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<SampleVolSurfacesRequest> CreateSampleVolSurfacesRequestDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Pricing> pricing = 0,
-    const std::vector<::flatbuffers::Offset<quantra::VolQuerySpec>> *queries = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::VolQuerySpec>> *queries = nullptr,
+    bool include_diagnostics = false) {
   auto queries__ = queries ? _fbb.CreateVector<::flatbuffers::Offset<quantra::VolQuerySpec>>(*queries) : 0;
   return quantra::CreateSampleVolSurfacesRequest(
       _fbb,
       pricing,
-      queries__);
+      queries__,
+      include_diagnostics);
 }
 
 ::flatbuffers::Offset<SampleVolSurfacesRequest> CreateSampleVolSurfacesRequest(::flatbuffers::FlatBufferBuilder &_fbb, const SampleVolSurfacesRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline SampleVolSurfacesRequestT::SampleVolSurfacesRequestT(const SampleVolSurfacesRequestT &o)
-      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr) {
+      : pricing((o.pricing) ? new quantra::PricingT(*o.pricing) : nullptr),
+        include_diagnostics(o.include_diagnostics) {
   queries.reserve(o.queries.size());
   for (const auto &queries_ : o.queries) { queries.emplace_back((queries_) ? new quantra::VolQuerySpecT(*queries_) : nullptr); }
 }
@@ -116,6 +133,7 @@ inline SampleVolSurfacesRequestT::SampleVolSurfacesRequestT(const SampleVolSurfa
 inline SampleVolSurfacesRequestT &SampleVolSurfacesRequestT::operator=(SampleVolSurfacesRequestT o) FLATBUFFERS_NOEXCEPT {
   std::swap(pricing, o.pricing);
   std::swap(queries, o.queries);
+  std::swap(include_diagnostics, o.include_diagnostics);
   return *this;
 }
 
@@ -130,6 +148,7 @@ inline void SampleVolSurfacesRequest::UnPackTo(SampleVolSurfacesRequestT *_o, co
   (void)_resolver;
   { auto _e = pricing(); if (_e) { if(_o->pricing) { _e->UnPackTo(_o->pricing.get(), _resolver); } else { _o->pricing = std::unique_ptr<quantra::PricingT>(_e->UnPack(_resolver)); } } else if (_o->pricing) { _o->pricing.reset(); } }
   { auto _e = queries(); if (_e) { _o->queries.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->queries[_i]) { _e->Get(_i)->UnPackTo(_o->queries[_i].get(), _resolver); } else { _o->queries[_i] = std::unique_ptr<quantra::VolQuerySpecT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->queries.resize(0); } }
+  { auto _e = include_diagnostics(); _o->include_diagnostics = _e; }
 }
 
 inline ::flatbuffers::Offset<SampleVolSurfacesRequest> SampleVolSurfacesRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SampleVolSurfacesRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -142,10 +161,12 @@ inline ::flatbuffers::Offset<SampleVolSurfacesRequest> CreateSampleVolSurfacesRe
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SampleVolSurfacesRequestT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _pricing = _o->pricing ? CreatePricing(_fbb, _o->pricing.get(), _rehasher) : 0;
   auto _queries = _fbb.CreateVector<::flatbuffers::Offset<quantra::VolQuerySpec>> (_o->queries.size(), [](size_t i, _VectorArgs *__va) { return CreateVolQuerySpec(*__va->__fbb, __va->__o->queries[i].get(), __va->__rehasher); }, &_va );
+  auto _include_diagnostics = _o->include_diagnostics;
   return quantra::CreateSampleVolSurfacesRequest(
       _fbb,
       _pricing,
-      _queries);
+      _queries,
+      _include_diagnostics);
 }
 
 inline const quantra::SampleVolSurfacesRequest *GetSampleVolSurfacesRequest(const void *buf) {

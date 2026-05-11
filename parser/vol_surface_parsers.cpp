@@ -17,9 +17,15 @@
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
+#include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/math/optimization/endcriteria.hpp>
+
+#include "sabr_calibrate_cache.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -1243,8 +1249,186 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             return entry;
         }
 
-        case quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec:
-            QUANTRA_ERROR("SwaptionSabrCalibrateSpec not implemented yet for vol id: " + id);
+        case quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
+            auto* payload = wrapper->payload_as_SwaptionSabrCalibrateSpec();
+            if (!payload || !payload->base()) {
+                QUANTRA_ERROR("SwaptionSabrCalibrateSpec base missing for vol id: " + id);
+            }
+            const auto* b = payload->base();
+            validateIrVolBaseCommon(b, id);
+
+            // SABR via Hagan returns lognormal Black vol. Normal SABR is a
+            // separate model with its own engine-pairing rules; reject for v1.
+            if (b->volatility_type() == quantra::enums::VolatilityType_Normal) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrCalibrateSpec only supports Lognormal/ShiftedLognormal vol type "
+                    "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
+            }
+
+            // v1 rejects user-supplied per-strike weights. QuantLib 1.41
+            // exposes only a cube-level vega-weighted flag (see
+            // vega_weighted_smile_fit). Silently ignoring weight values would
+            // be a misleading no-op; reject outright.
+            if (payload->weights() && payload->weights()->values() &&
+                payload->weights()->values()->size() > 0) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrCalibrateSpec.weights: per-strike weights not supported in v1; "
+                    "use vega_weighted_smile_fit instead, for vol id: " + id);
+            }
+
+            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            double disp = b->displacement();
+            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+
+            if (!payload->expiries() || !payload->tenors() || !payload->strikes()) {
+                QUANTRA_ERROR("SwaptionSabrCalibrateSpec expiries/tenors/strikes missing for vol id: " + id);
+            }
+            int nExp = static_cast<int>(payload->expiries()->size());
+            int nTen = static_cast<int>(payload->tenors()->size());
+            int nStr = static_cast<int>(payload->strikes()->size());
+            if (nExp <= 0 || nTen <= 0 || nStr <= 0) {
+                QUANTRA_ERROR("SwaptionSabrCalibrateSpec expiries/tenors/strikes empty for vol id: " + id);
+            }
+            // QuantLib's XabrSwaptionVolatilityCube QL_REQUIREs at least 2
+            // option times and 2 swap lengths to construct its internal
+            // interpolators. Reject undersized grids at parse time with a
+            // clear message rather than deferring to a deep QL_REQUIRE crash.
+            if (nExp < 2 || nTen < 2) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrCalibrateSpec requires at least 2 expiries and 2 tenors "
+                    "for QuantLib cube interpolation, for vol id: " + id);
+            }
+            // SABR-cube needs at least 3 spread points per smile to fit 3 free
+            // parameters (alpha, nu, rho) when beta is fixed, plus a 4th when
+            // beta is free.
+            const int minStrikes = (payload->beta_fixed() ? 3 : 4);
+            if (nStr < minStrikes) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrCalibrateSpec requires at least " +
+                    std::to_string(minStrikes) + " strike spreads for the chosen beta_fixed setting "
+                    "for vol id: " + id);
+            }
+
+            std::vector<QuantLib::Period> expiries;
+            expiries.reserve(nExp);
+            for (auto it = payload->expiries()->begin(); it != payload->expiries()->end(); ++it) {
+                expiries.push_back(toQlPeriod(*it));
+            }
+            std::vector<QuantLib::Period> tenors;
+            tenors.reserve(nTen);
+            for (auto it = payload->tenors()->begin(); it != payload->tenors()->end(); ++it) {
+                tenors.push_back(toQlPeriod(*it));
+            }
+            if (!std::is_sorted(expiries.begin(), expiries.end())) {
+                QUANTRA_ERROR("SwaptionSabrCalibrateSpec expiries must be sorted ascending for vol id: " + id);
+            }
+            {
+                auto dup = std::adjacent_find(
+                    expiries.begin(), expiries.end(),
+                    [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
+                if (dup != expiries.end()) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec expiries must be strictly increasing for vol id: " + id);
+                }
+            }
+            if (!std::is_sorted(tenors.begin(), tenors.end())) {
+                QUANTRA_ERROR("SwaptionSabrCalibrateSpec tenors must be sorted ascending for vol id: " + id);
+            }
+            {
+                auto dup = std::adjacent_find(
+                    tenors.begin(), tenors.end(),
+                    [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
+                if (dup != tenors.end()) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec tenors must be strictly increasing for vol id: " + id);
+                }
+            }
+
+            std::vector<double> strikeSpreads;
+            strikeSpreads.reserve(nStr);
+            for (auto it = payload->strikes()->begin(); it != payload->strikes()->end(); ++it) {
+                strikeSpreads.push_back(*it);
+            }
+            if (!std::is_sorted(strikeSpreads.begin(), strikeSpreads.end())) {
+                QUANTRA_ERROR(
+                    "SwaptionSabrCalibrateSpec strikes (spreads from ATM) must be sorted ascending "
+                    "for vol id: " + id);
+            }
+            {
+                auto dup = std::adjacent_find(
+                    strikeSpreads.begin(), strikeSpreads.end(),
+                    [](double a, double b) { return !(a < b); });
+                if (dup != strikeSpreads.end()) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec strikes must be strictly increasing for vol id: " + id);
+                }
+            }
+            for (double s : strikeSpreads) {
+                if (!std::isfinite(s)) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec strikes must be finite for vol id: " + id);
+                }
+            }
+
+            const auto* t = payload->vols();
+            validateTensor3D(t, nExp, nTen, nStr, id);
+            const int expected = nExp * nTen * nStr;
+            std::vector<double> marketVols;
+            marketVols.reserve(expected);
+            for (int k = 0; k < expected; ++k) {
+                double v = resolveTensorValue(t, k, quotes, id);
+                if (!std::isfinite(v) || v <= 0.0) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec vol must be > 0 and finite for vol id: " + id);
+                }
+                marketVols.push_back(v);
+            }
+
+            const double betaValue = payload->beta_value();
+            if (payload->beta_fixed()) {
+                if (!(betaValue >= 0.0 && betaValue <= 1.0)) {
+                    QUANTRA_ERROR(
+                        "SwaptionSabrCalibrateSpec beta_value must be in [0, 1] when beta_fixed=true "
+                        "for vol id: " + id);
+                }
+            }
+
+            // Defer handle construction until finalizeSwaptionVolEntryForPricing
+            // injects ATM forwards. The QuantLib cube uses forwards internally
+            // to convert strike spreads to absolute strikes during calibration,
+            // and the swap_index_id + curve identities are not in scope at
+            // parse time.
+            SwaptionVolEntry entry;
+            entry.qlVolType = qlType;
+            entry.displacement = disp;
+            entry.referenceDate = ref;
+            entry.calendar = cal;
+            entry.businessDayConvention = bdc;
+            entry.dayCounter = dc;
+            entry.volKind = quantra::enums::SwaptionVolKind_SabrCalibrate;
+            entry.constantVol = std::numeric_limits<double>::quiet_NaN();
+            entry.expiries = std::move(expiries);
+            entry.tenors = std::move(tenors);
+            entry.swapIndexId = wrapperSwapIndexId;
+            // strikeKind = Absolute is the runtime contract: sampling uses
+            // absolute strikes at query time. The spread vector is stored on
+            // sabrStrikeSpreads where it cannot collide with the sampler's
+            // bounds checks on entry.strikes (see vol_surface_parsers.h).
+            entry.strikeKind = quantra::enums::SwaptionStrikeKind_Absolute;
+            entry.allowExternalAtm = false;
+            entry.sabrStrikeSpreads = std::move(strikeSpreads);
+            entry.sabrMarketVolsFlat = std::move(marketVols);
+            entry.sabrBetaFixed = payload->beta_fixed();
+            entry.sabrBetaValue = betaValue;
+            entry.sabrVegaWeightedSmileFit = payload->vega_weighted_smile_fit();
+            entry.nExp = nExp;
+            entry.nTen = nTen;
+            entry.nStrikes = nStr;
+            return entry;
+        }
 
         default:
             QUANTRA_ERROR("Unknown SwaptionVolPayload type for vol id: " + id);
@@ -1804,6 +1988,243 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
     out.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
     out.atmForwardsFlat = atmForwardsFlat;
     return out;
+}
+
+namespace {
+
+// Linearly interpolate per-node ATM vol at spread=0 from the market vol grid.
+// Strike spreads are sorted ascending; bracket the zero spread, and linearly
+// interpolate the two adjacent vols. Flat-extends if all spreads are positive
+// or all negative.
+double interpolateAtmVolAtSpreadZero(
+    const std::vector<double>& strikeSpreads,
+    const double* nodeVols,
+    int nStrikes) {
+    if (nStrikes <= 0) {
+        QUANTRA_ERROR("SwaptionSabrCalibrateSpec internal error: empty strike grid");
+    }
+    if (nStrikes == 1) return nodeVols[0];
+    if (strikeSpreads.front() >= 0.0) return nodeVols[0];
+    if (strikeSpreads.back() <= 0.0) return nodeVols[nStrikes - 1];
+    // Find lo, hi such that strikeSpreads[lo] < 0 <= strikeSpreads[hi].
+    auto it = std::lower_bound(strikeSpreads.begin(), strikeSpreads.end(), 0.0);
+    int hi = static_cast<int>(it - strikeSpreads.begin());
+    int lo = hi - 1;
+    double x0 = strikeSpreads[lo], x1 = strikeSpreads[hi];
+    double w = (0.0 - x0) / (x1 - x0);
+    return nodeVols[lo] * (1.0 - w) + nodeVols[hi] * w;
+}
+
+} // namespace
+
+SwaptionVolEntry withSwaptionSabrCalibrateAtm(
+    const SwaptionVolEntry& base,
+    const std::vector<double>& atmForwardsFlat,
+    const std::shared_ptr<QuantLib::SwapIndex>& swapIndexBase,
+    const std::string& cubeCacheKey) {
+    if (base.volKind != quantra::enums::SwaptionVolKind_SabrCalibrate) {
+        return base;
+    }
+    if (base.nExp <= 0 || base.nTen <= 0 || base.nStrikes <= 0) {
+        QUANTRA_ERROR("Invalid SABR calibrate dimensions while building handle");
+    }
+    const int nExp = base.nExp;
+    const int nTen = base.nTen;
+    const int nStr = base.nStrikes;
+    const int expected2d = nExp * nTen;
+    const int expected3d = nExp * nTen * nStr;
+    if (static_cast<int>(atmForwardsFlat.size()) != expected2d) {
+        QUANTRA_ERROR("ATM forward matrix size mismatch for SABR calibrate cube");
+    }
+    if (static_cast<int>(base.sabrMarketVolsFlat.size()) != expected3d) {
+        QUANTRA_ERROR("SABR market vol tensor size mismatch in calibrate finalize");
+    }
+    if (static_cast<int>(base.sabrStrikeSpreads.size()) != nStr) {
+        QUANTRA_ERROR("SABR strike spread vector size mismatch in calibrate finalize");
+    }
+    if (!swapIndexBase) {
+        QUANTRA_ERROR("SABR calibrate finalize requires a non-null swap_index_base");
+    }
+    if (base.swapIndexId.empty()) {
+        QUANTRA_ERROR("Building SABR calibrate handle requires swapIndexId to be set");
+    }
+
+    // Cache lookup. Empty cache key is a sentinel for "do not cache" (used by
+    // sanity hooks); we always build a fresh cube in that case.
+    auto& cache = SabrCalibrateCache::instance();
+    std::shared_ptr<const SabrCalibratedCube> cached;
+    if (!cubeCacheKey.empty()) {
+        cached = cache.tryGet(cubeCacheKey);
+    }
+
+    auto produceEntry = [&](std::shared_ptr<const SabrCalibratedCube> cube) -> SwaptionVolEntry {
+        SwaptionVolEntry out = base;
+        out.handle = cube->handle;
+        out.atmForwardsFlat = atmForwardsFlat;
+        out.sabrAlpha = cube->alpha;
+        out.sabrBeta = cube->beta;
+        out.sabrRho = cube->rho;
+        out.sabrNu = cube->nu;
+        out.sabrPerNodeRmse = cube->perNodeRmse;
+        out.sabrPerNodeMaxError = cube->perNodeMaxError;
+        out.sabrPerNodeEndCriteria = cube->perNodeEndCriteria;
+        return out;
+    };
+
+    if (cached) {
+        return produceEntry(cached);
+    }
+
+    // -----------------------------------------------------------------------
+    // Build the per-node ATM vol structure that the QL cube takes as its
+    // atmVolStructure handle.
+    //
+    // The cube treats the user-supplied vols as ATM + spread, so we must give
+    // it (a) an ATM matrix evaluated at each (expiry, tenor) node and (b) the
+    // per-(strike, expiry, tenor) vol spreads (vols - ATM). The ATM vol at
+    // each node is recovered by linearly interpolating the user's strike grid
+    // at spread = 0 — this works regardless of whether 0.0 is in the grid.
+    // -----------------------------------------------------------------------
+    std::vector<std::vector<double>> atmVols2d(nExp, std::vector<double>(nTen, 0.0));
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            const double* nodeVols = &base.sabrMarketVolsFlat[(i * nTen + j) * nStr];
+            atmVols2d[i][j] = interpolateAtmVolAtSpreadZero(base.sabrStrikeSpreads, nodeVols, nStr);
+            if (!(atmVols2d[i][j] > 0.0)) {
+                QUANTRA_ERROR(
+                    "SABR calibrate: interpolated ATM vol at (expiryIdx=" + std::to_string(i) +
+                    ", tenorIdx=" + std::to_string(j) + ") is non-positive");
+            }
+        }
+    }
+    QuantLib::Matrix atmVolMatrix(nExp, nTen, 0.0);
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            atmVolMatrix[i][j] = atmVols2d[i][j];
+        }
+    }
+    QuantLib::Matrix shifts;
+    if (base.displacement != 0.0) {
+        shifts = QuantLib::Matrix(nExp, nTen, base.displacement);
+    }
+    auto atmMatrix = std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
+        base.referenceDate, base.calendar, base.businessDayConvention,
+        base.expiries, base.tenors, atmVolMatrix, base.dayCounter, false, base.qlVolType, shifts);
+    QuantLib::Handle<QuantLib::SwaptionVolatilityStructure> atmVolHandle(atmMatrix);
+
+    // Vol spreads as Handle<Quote>. Outer dim is options*tenors row-major
+    // (j*nSwapTenors + k), inner dim is strikes — matches the QL cube convention.
+    std::vector<QuantLib::Spread> strikeSpreadsQl(
+        base.sabrStrikeSpreads.begin(), base.sabrStrikeSpreads.end());
+    std::vector<std::vector<QuantLib::Handle<QuantLib::Quote>>> volSpreads;
+    volSpreads.reserve(static_cast<size_t>(expected2d));
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            std::vector<QuantLib::Handle<QuantLib::Quote>> row;
+            row.reserve(nStr);
+            const double atm = atmVols2d[i][j];
+            for (int k = 0; k < nStr; ++k) {
+                const double v = base.sabrMarketVolsFlat[(i * nTen + j) * nStr + k];
+                row.push_back(QuantLib::Handle<QuantLib::Quote>(
+                    std::make_shared<QuantLib::SimpleQuote>(v - atm)));
+            }
+            volSpreads.push_back(std::move(row));
+        }
+    }
+
+    // Parameters guess: 4 params per node in QL internal order {alpha, beta, nu, rho}.
+    // For each parameter we provide a starting guess and a per-cube fixed flag.
+    // We let the SABR optimizer pick sensible defaults for alpha/nu/rho via
+    // its built-in heuristics (passing the typical 0.04 / 0.4 / 0.0 levels).
+    std::vector<std::vector<QuantLib::Handle<QuantLib::Quote>>> parametersGuess;
+    parametersGuess.reserve(static_cast<size_t>(expected2d));
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            std::vector<QuantLib::Handle<QuantLib::Quote>> row;
+            row.reserve(4);
+            // alpha
+            row.push_back(QuantLib::Handle<QuantLib::Quote>(
+                std::make_shared<QuantLib::SimpleQuote>(0.04)));
+            // beta
+            row.push_back(QuantLib::Handle<QuantLib::Quote>(
+                std::make_shared<QuantLib::SimpleQuote>(base.sabrBetaValue)));
+            // nu
+            row.push_back(QuantLib::Handle<QuantLib::Quote>(
+                std::make_shared<QuantLib::SimpleQuote>(0.4)));
+            // rho
+            row.push_back(QuantLib::Handle<QuantLib::Quote>(
+                std::make_shared<QuantLib::SimpleQuote>(0.0)));
+            parametersGuess.push_back(std::move(row));
+        }
+    }
+    // Fixed flags follow the same internal {alpha, beta, nu, rho} order.
+    std::vector<bool> isParameterFixed = {false, base.sabrBetaFixed, false, false};
+
+    // Build and force calibration so sparseSabrParameters() is populated.
+    auto qlCube =
+        std::make_shared<QuantLib::SabrSwaptionVolatilityCube>(
+            atmVolHandle,
+            base.expiries,
+            base.tenors,
+            strikeSpreadsQl,
+            volSpreads,
+            swapIndexBase,
+            swapIndexBase,        // shortSwapIndexBase = swapIndexBase for v1 (single SwapIndex)
+            base.sabrVegaWeightedSmileFit,
+            parametersGuess,
+            isParameterFixed,
+            /*isAtmCalibrated=*/false);
+    qlCube->enableExtrapolation();
+
+    // Triggers per-node calibration. Throws on convergence/tolerance failure.
+    QuantLib::Matrix browsed = qlCube->sparseSabrParameters();
+    // browse() shape: rows = swapLengths.size() * optionTimes.size(), one row per
+    // (swapTenorIdx, optionIdx); columns = [swapLength, optionTime, alpha, beta,
+    // nu, rho, forward, rmsError, maxError, endCriteria]. We re-index into our
+    // row-major (i_expiry, j_tenor) layout.
+    if (static_cast<int>(browsed.rows()) != expected2d || browsed.columns() < 10) {
+        QUANTRA_ERROR(
+            "SABR calibrate: unexpected sparseSabrParameters shape " +
+            std::to_string(browsed.rows()) + "x" + std::to_string(browsed.columns()));
+    }
+    auto out = std::make_shared<SabrCalibratedCube>();
+    out->handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlCube);
+    out->alpha.assign(expected2d, 0.0);
+    out->beta.assign(expected2d, 0.0);
+    out->rho.assign(expected2d, 0.0);
+    out->nu.assign(expected2d, 0.0);
+    out->perNodeRmse.assign(expected2d, 0.0);
+    out->perNodeMaxError.assign(expected2d, 0.0);
+    out->perNodeEndCriteria.assign(expected2d, static_cast<int>(QuantLib::EndCriteria::None));
+    out->calibratedForwards.assign(expected2d, 0.0);
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            // browse() row layout is (swapLengthIdx * optionTimes.size() + optionIdx),
+            // per Cube::browse() in QL source: result[i*optionTimes_.size()+j][...].
+            const std::size_t row =
+                static_cast<std::size_t>(j) * static_cast<std::size_t>(nExp) +
+                static_cast<std::size_t>(i);
+            const int k = i * nTen + j;
+            out->alpha[k] = browsed[row][2];
+            out->beta[k]  = browsed[row][3];
+            // QL browse layer order (per XabrSwaptionVolatilityCube::Cube
+            // setLayer calls): 0=alpha, 1=beta, 2=nu, 3=rho, 4=forward,
+            // 5=rmsError, 6=maxError, 7=endCriteria. browse() emits these as
+            // columns 2..9. We translate QL's internal {alpha,beta,nu,rho} to
+            // our schema field order {alpha,beta,rho,nu} here.
+            out->nu[k]    = browsed[row][4];
+            out->rho[k]   = browsed[row][5];
+            out->calibratedForwards[k] = browsed[row][6];
+            out->perNodeRmse[k] = browsed[row][7];
+            out->perNodeMaxError[k] = browsed[row][8];
+            out->perNodeEndCriteria[k] = static_cast<int>(browsed[row][9]);
+        }
+    }
+
+    if (!cubeCacheKey.empty()) {
+        cache.put(cubeCacheKey, out);
+    }
+    return produceEntry(out);
 }
 
 SwaptionVolEntry withSwaptionSabrParamsAtm(

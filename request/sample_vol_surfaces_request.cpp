@@ -10,6 +10,7 @@
 #include "common_parser.h"
 #include "error.h"
 #include "swaption_vol_runtime.h"
+#include "swaption_vol_diagnostics.h"
 
 using namespace QuantLib;
 using namespace quantra;
@@ -428,7 +429,8 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 // shared finalizeSwaptionVolEntryForPricing path.
                 const bool needsForwardResolution =
                     volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM ||
-                    volEntry.volKind == enums::SwaptionVolKind_SabrParams;
+                    volEntry.volKind == enums::SwaptionVolKind_SabrParams ||
+                    volEntry.volKind == enums::SwaptionVolKind_SabrCalibrate;
                 if (needsForwardResolution) {
                     if (!q->discounting_curve_id() || q->discounting_curve_id()->str().empty() ||
                         !q->forwarding_curve_id() || q->forwarding_curve_id()->str().empty()) {
@@ -447,7 +449,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         reg,
                         Handle<YieldTermStructure>(dIt->second->currentLink()),
                         Handle<YieldTermStructure>(fIt->second->currentLink()),
-                        false);
+                        false,
+                        q->discounting_curve_id()->str(),
+                        q->forwarding_curve_id()->str());
                 }
 
                 if (volEntry.handle.empty()) {
@@ -979,9 +983,90 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
             QUANTRA_ERROR("SampleVolSurfacesRequest produced no results");
         }
 
+        std::vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>> diagnosticsOffs;
+        if (request->include_diagnostics()) {
+            // Collect unique SABR-kind vol_ids (in first-seen order) along with
+            // the curve ids supplied by the query. Diagnostics are emitted only
+            // for SABR surfaces — other vol kinds don't fit the schema's SABR-
+            // shaped diagnostics block.
+            struct DiagJob {
+                std::string volId;
+                std::string discountCurveId;
+                std::string forwardingCurveId;
+            };
+            std::vector<DiagJob> jobs;
+            std::unordered_map<std::string, int> seen;
+            for (flatbuffers::uoffset_t qi = 0; qi < request->queries()->size(); ++qi) {
+                const auto* q = request->queries()->Get(qi);
+                if (!q || !q->vol_id()) continue;
+                std::string vid = q->vol_id()->str();
+                if (vid.empty()) continue;
+                auto it = reg.volatility.swaptionVols.find(vid);
+                if (it == reg.volatility.swaptionVols.end()) continue;
+                const auto& e = it->second;
+                if (e.volKind != enums::SwaptionVolKind_SabrCalibrate &&
+                    e.volKind != enums::SwaptionVolKind_SabrParams) {
+                    continue;
+                }
+                if (seen.count(vid)) continue;
+                seen[vid] = static_cast<int>(jobs.size());
+                DiagJob j;
+                j.volId = vid;
+                if (q->discounting_curve_id()) j.discountCurveId = q->discounting_curve_id()->str();
+                if (q->forwarding_curve_id()) j.forwardingCurveId = q->forwarding_curve_id()->str();
+                jobs.push_back(j);
+            }
+
+            for (const auto& job : jobs) {
+                auto it = reg.volatility.swaptionVols.find(job.volId);
+                if (it == reg.volatility.swaptionVols.end()) continue;
+                SwaptionVolEntry entry = it->second;
+                std::vector<std::string> warnings;
+                bool ok = true;
+                try {
+                    auto dIt = reg.rates.curves.find(job.discountCurveId);
+                    auto fIt = reg.rates.curves.find(job.forwardingCurveId);
+                    if (dIt == reg.rates.curves.end() || fIt == reg.rates.curves.end()) {
+                        // Sampler couldn't resolve curves for this query; emit
+                        // partial diagnostics rather than abort the response.
+                        warnings.push_back(
+                            "diagnostics: curve ids for vol_id '" + job.volId +
+                            "' not resolvable from any query; skipping full finalize");
+                        ok = false;
+                    } else {
+                        entry = finalizeSwaptionVolEntryForPricing(
+                            entry, nullptr, reg,
+                            Handle<YieldTermStructure>(dIt->second->currentLink()),
+                            Handle<YieldTermStructure>(fIt->second->currentLink()),
+                            false,
+                            job.discountCurveId,
+                            job.forwardingCurveId);
+                    }
+                } catch (const std::exception& e) {
+                    warnings.push_back(
+                        std::string("diagnostics: finalize failed for vol_id '") +
+                        job.volId + "': " + e.what());
+                    ok = false;
+                }
+                if (ok) {
+                    diagnosticsOffs.push_back(
+                        buildSwaptionVolDiagnostics(*builder, job.volId, entry, warnings));
+                } else {
+                    diagnosticsOffs.push_back(
+                        buildPartialSwaptionVolDiagnostics(
+                            *builder, job.volId, it->second.volKind, warnings));
+                }
+            }
+        }
+
         auto resultsVec = builder->CreateVector(results);
+        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>>> diagVec = 0;
+        if (!diagnosticsOffs.empty()) {
+            diagVec = builder->CreateVector(diagnosticsOffs);
+        }
         SampleVolSurfacesResponseBuilder rb(*builder);
         rb.add_results(resultsVec);
+        if (diagVec.o != 0) rb.add_diagnostics(diagVec);
         return rb.Finish();
     } catch (const std::exception& e) {
         return buildRequestErrorResponse(e.what());

@@ -8,6 +8,10 @@ namespace quantra;
 table SampleVolSurfacesRequest {
     pricing:Pricing (required);
     queries:[VolQuerySpec] (required);
+    /// When true, the response carries one SwaptionVolDiagnostics block per
+    /// unique SABR-kind vol surface referenced by `queries`. Default false to
+    /// keep wire size and serialization cost down for clients that don't need it.
+    include_diagnostics:bool = false;
 }
 
 root_type SampleVolSurfacesRequest;

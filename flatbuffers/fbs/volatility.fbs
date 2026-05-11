@@ -100,6 +100,18 @@ table SwaptionSabrParamsSpec {
 }
 
 /// SABR calibrate swaption volatility.
+///
+/// Strike axis interpretation: `strikes` are spreads from the per-node ATM
+/// forward (rate units, e.g. -0.02 = -200bp). The same spread vector applies
+/// at every (expiry, tenor) node, matching QuantLib's XabrSwaptionVolatilityCube
+/// API. 0.0 spread (true ATM) is not required to be in the grid — per-node ATM
+/// vols are interpolated from the user grid at spread=0.
+///
+/// `vols` is row-major nExp*nTen*nStrikes; values are absolute market vols.
+///
+/// `weights` is rejected in v1 — set `vega_weighted_smile_fit=true` for
+/// vega-weighted fitting instead. Per-strike non-uniform weights are not
+/// exposed by QuantLib 1.41's calibrator.
 table SwaptionSabrCalibrateSpec {
     base:IrVolBaseSpec;
     expiries:[Period];
@@ -108,7 +120,12 @@ table SwaptionSabrCalibrateSpec {
     vols:QuoteTensor3D;
     beta_fixed:bool = true;
     beta_value:double = 0.5;
+    /// Reserved. Must be empty/absent in v1; otherwise parse-time rejection.
     weights:QuoteTensor3D;
+    /// When true, the SABR calibrator weights residuals by Black vega. This is
+    /// the standard "vega-weighted smile fit" QL flag (cube-level, not per
+    /// strike).
+    vega_weighted_smile_fit:bool = false;
 }
 
 /// Union of swaption vol payload types.

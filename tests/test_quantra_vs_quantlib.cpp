@@ -3478,66 +3478,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
         QuantraError);
 }
 
-TEST_F(QuantraComparisonTest, Swaption_SabrParams_CalibrateCaseStillNotImplemented) {
-    // Sanity check: the SwaptionSabrCalibrateSpec branch in parseSwaptionVol
-    // remains "not implemented yet" — Step 5 territory, intentionally untouched
-    // in this step.
-    flatbuffers::grpc::MessageBuilder b;
-    auto refDate = b.CreateString("2025-01-15");
-    quantra::IrVolBaseSpecBuilder bb(b);
-    bb.add_reference_date(refDate);
-    bb.add_calendar(quantra::enums::Calendar_TARGET);
-    bb.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    bb.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
-    bb.add_shape(quantra::enums::VolSurfaceShape_SabrCalibrate);
-    bb.add_volatility_type(quantra::enums::VolatilityType_Lognormal);
-    auto base = bb.Finish();
-
-    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
-    auto e1Off = e1.Finish();
-    quantra::PeriodBuilder t5(b); t5.add_n(5); t5.add_unit(quantra::enums::TimeUnit_Years);
-    auto t5Off = t5.Finish();
-    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off});
-    auto tenVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{t5Off});
-    auto strikes = b.CreateVector(std::vector<double>{0.02, 0.03, 0.04});
-
-    auto values = b.CreateVector(std::vector<double>{0.20, 0.21, 0.22});
-    quantra::QuoteTensor3DBuilder tb(b);
-    tb.add_n_1(1); tb.add_n_2(1); tb.add_n_3(3);
-    tb.add_values(values);
-    auto tensor = tb.Finish();
-
-    quantra::SwaptionSabrCalibrateSpecBuilder sb(b);
-    sb.add_base(base);
-    sb.add_expiries(expVec);
-    sb.add_tenors(tenVec);
-    sb.add_strikes(strikes);
-    sb.add_vols(tensor);
-    auto sabrPayload = sb.Finish();
-
-    auto swapIdx = b.CreateString("EUR_SWAP_6M");
-    quantra::SwaptionVolSpecBuilder swp(b);
-    swp.add_swap_index_id(swapIdx);
-    swp.add_payload_type(quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec);
-    swp.add_payload(sabrPayload.Union());
-    auto swpPayload = swp.Finish();
-
-    auto vol_id = b.CreateString("sabr_calibrate");
-    quantra::VolSurfaceSpecBuilder vsBuilder(b);
-    vsBuilder.add_id(vol_id);
-    vsBuilder.add_payload_type(quantra::VolPayload_SwaptionVolSpec);
-    vsBuilder.add_payload(swpPayload.Union());
-    b.Finish(vsBuilder.Finish());
-
-    try {
-        quantra::parseSwaptionVol(
-            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr);
-        FAIL() << "expected SwaptionSabrCalibrateSpec to throw";
-    } catch (const QuantraError& e) {
-        EXPECT_NE(std::string(e.what()).find("not implemented yet"), std::string::npos)
-            << "actual: " << e.what();
-    }
-}
+// Step 5 lands the SwaptionSabrCalibrateSpec path. The obsolete
+// "Swaption_SabrParams_CalibrateCaseStillNotImplemented" guard from Steps 0-4
+// has been removed; formal calibrate-path tests arrive in Step 6.
 
 // ======================== SWAPTION (Bachelier / Normal vols) ========================
 TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {

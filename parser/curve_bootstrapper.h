@@ -25,6 +25,11 @@ namespace quantra {
 struct BootstrappedCurves {
     std::unordered_map<std::string,
         std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> handles;
+    /// Canonical cache keys per curve id. Populated only when the curve cache
+    /// is enabled (i.e. CurveCache::enabled() && curveBump == 0). Missing
+    /// entries are valid and signal "no cache key available — downstream
+    /// caches should bypass for this curve".
+    std::unordered_map<std::string, std::string> keys;
 };
 
 /**
