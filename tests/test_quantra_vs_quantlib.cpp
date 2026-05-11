@@ -69,6 +69,13 @@
 #include "swaption_model_calibration.h"
 #include "pricing_registry.h"
 #include "cms_leg_parser.h"
+#include "calibrate_swaption_vol_pricing_request.h"
+#include "calibrate_swaption_vol_request_generated.h"
+#include "calibrate_swaption_vol_response_generated.h"
+#include "diagnostics_generated.h"
+#include "sabr_calibrate_cache.h"
+#include "sabr_calibrate_cache_key.h"
+#include "swaption_vol_runtime.h"
 
 namespace quantra { namespace testing {
 
@@ -1108,6 +1115,112 @@ protected:
         quantra::SwaptionVolSpecBuilder swpBuilder(b);
         swpBuilder.add_swap_index_id(swapIndexIdOff);
         swpBuilder.add_payload_type(quantra::SwaptionVolPayload_SwaptionSabrParamsSpec);
+        swpBuilder.add_payload(sabrPayload.Union());
+        auto swpPayload = swpBuilder.Finish();
+
+        auto vol_id = b.CreateString(id);
+        quantra::VolSurfaceSpecBuilder vsBuilder(b);
+        vsBuilder.add_id(vol_id);
+        vsBuilder.add_payload_type(quantra::VolPayload_SwaptionVolSpec);
+        vsBuilder.add_payload(swpPayload.Union());
+        return vsBuilder.Finish();
+    }
+
+    // Build a SwaptionSabrCalibrateSpec surface. Mirrors buildSwaptionSabrParamsSurface
+    // for the calibrate path. `marketVolsFlat` is row-major (nExp * nTen * nStrikes).
+    // The dimension overrides drive the dim-mismatch validation tests; pass -1 to
+    // use the natural sizes from the periods/strike vectors. `addNonEmptyWeights`
+    // emits a non-empty weights tensor to exercise the v1 weights-rejection path.
+    flatbuffers::Offset<quantra::VolSurfaceSpec> buildSwaptionSabrCalibrateSurface(
+        flatbuffers::grpc::MessageBuilder& b, const std::string& id,
+        const std::vector<QuantLib::Period>& expiries,
+        const std::vector<QuantLib::Period>& tenors,
+        const std::vector<double>& strikeSpreads,
+        const std::vector<double>& marketVolsFlat,
+        bool betaFixed = true,
+        double betaValue = 0.5,
+        bool vegaWeightedSmileFit = false,
+        const std::string& swapIndexId = "EUR_SWAP_6M",
+        quantra::enums::VolatilityType volType = quantra::enums::VolatilityType_Lognormal,
+        double displacement = 0.0,
+        const std::string& refDate = "2025-01-15",
+        int n1Override = -1,
+        int n2Override = -1,
+        int n3Override = -1,
+        bool addNonEmptyWeights = false) {
+
+        auto ref_date = b.CreateString(refDate);
+        quantra::IrVolBaseSpecBuilder baseBuilder(b);
+        baseBuilder.add_reference_date(ref_date);
+        baseBuilder.add_calendar(quantra::enums::Calendar_TARGET);
+        baseBuilder.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        baseBuilder.add_day_counter(quantra::enums::DayCounter_Actual365Fixed);
+        baseBuilder.add_shape(quantra::enums::VolSurfaceShape_SabrCalibrate);
+        baseBuilder.add_volatility_type(volType);
+        baseBuilder.add_displacement(displacement);
+        auto base = baseBuilder.Finish();
+
+        std::vector<flatbuffers::Offset<quantra::Period>> expOffsets;
+        for (const auto& p : expiries) {
+            quantra::PeriodBuilder pb(b);
+            pb.add_n(p.length());
+            pb.add_unit(toFbTimeUnit(p.units()));
+            expOffsets.push_back(pb.Finish());
+        }
+        std::vector<flatbuffers::Offset<quantra::Period>> tenOffsets;
+        for (const auto& p : tenors) {
+            quantra::PeriodBuilder pb(b);
+            pb.add_n(p.length());
+            pb.add_unit(toFbTimeUnit(p.units()));
+            tenOffsets.push_back(pb.Finish());
+        }
+
+        const int nExp = static_cast<int>(expiries.size());
+        const int nTen = static_cast<int>(tenors.size());
+        const int nStr = static_cast<int>(strikeSpreads.size());
+        const int n1 = n1Override > 0 ? n1Override : nExp;
+        const int n2 = n2Override > 0 ? n2Override : nTen;
+        const int n3 = n3Override > 0 ? n3Override : nStr;
+
+        auto strikesVec = b.CreateVector(strikeSpreads);
+        auto volsVec = b.CreateVector(marketVolsFlat);
+        quantra::QuoteTensor3DBuilder tBuilder(b);
+        tBuilder.add_n_1(n1);
+        tBuilder.add_n_2(n2);
+        tBuilder.add_n_3(n3);
+        tBuilder.add_values(volsVec);
+        auto tensor = tBuilder.Finish();
+
+        flatbuffers::Offset<quantra::QuoteTensor3D> weightsTensor = 0;
+        if (addNonEmptyWeights) {
+            std::vector<double> w(static_cast<size_t>(nExp * nTen * nStr), 1.0);
+            auto wVec = b.CreateVector(w);
+            quantra::QuoteTensor3DBuilder wb(b);
+            wb.add_n_1(nExp);
+            wb.add_n_2(nTen);
+            wb.add_n_3(nStr);
+            wb.add_values(wVec);
+            weightsTensor = wb.Finish();
+        }
+
+        auto expVec = b.CreateVector(expOffsets);
+        auto tenVec = b.CreateVector(tenOffsets);
+        quantra::SwaptionSabrCalibrateSpecBuilder sb(b);
+        sb.add_base(base);
+        sb.add_expiries(expVec);
+        sb.add_tenors(tenVec);
+        sb.add_strikes(strikesVec);
+        sb.add_vols(tensor);
+        sb.add_beta_fixed(betaFixed);
+        sb.add_beta_value(betaValue);
+        if (weightsTensor.o != 0) sb.add_weights(weightsTensor);
+        sb.add_vega_weighted_smile_fit(vegaWeightedSmileFit);
+        auto sabrPayload = sb.Finish();
+
+        auto swapIndexIdOff = b.CreateString(swapIndexId);
+        quantra::SwaptionVolSpecBuilder swpBuilder(b);
+        swpBuilder.add_swap_index_id(swapIndexIdOff);
+        swpBuilder.add_payload_type(quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec);
         swpBuilder.add_payload(sabrPayload.Union());
         auto swpPayload = swpBuilder.Finish();
 
