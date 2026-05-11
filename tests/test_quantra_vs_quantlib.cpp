@@ -3591,9 +3591,1181 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
         QuantraError);
 }
 
-// Step 5 lands the SwaptionSabrCalibrateSpec path. The obsolete
-// "Swaption_SabrParams_CalibrateCaseStillNotImplemented" guard from Steps 0-4
-// has been removed; formal calibrate-path tests arrive in Step 6.
+// ======================== SWAPTION (SABR Calibrate) ========================
+//
+// Step 6 — formal test suite for the calibrate path.
+//
+// All cases reuse the synthetic 2x2 SabrSyntheticGrid declared above. The
+// round-trip case computes synthetic market vols from the known SABR
+// parameter grid using QuantLib::SabrSmileSection (the same Hagan formula
+// the calibrator fits against), drives them through the standalone
+// /calibrate-swaption-vol handler, and confirms the recovered (alpha, beta,
+// rho, nu) match the originals to within tight tolerance on noiseless data.
+
+namespace {
+
+// Compute synthetic market vols for the calibrate-path round-trip test.
+// `forwards` is row-major nExp*nTen, `spreads` is per-strike. Returns a
+// row-major nExp*nTen*nStrikes vector ready to feed into a
+// SwaptionSabrCalibrateSpec.
+std::vector<double> sabrSyntheticMarketVols(
+    const SabrSyntheticGrid& g,
+    const std::vector<double>& forwards,
+    const std::vector<QuantLib::Real>& timesToExpiry,
+    const std::vector<double>& spreads,
+    double displacement = 0.0) {
+    const int nExp = static_cast<int>(g.expiries.size());
+    const int nTen = static_cast<int>(g.tenors.size());
+    const int nStr = static_cast<int>(spreads.size());
+    std::vector<double> vols(static_cast<size_t>(nExp * nTen * nStr), 0.0);
+    for (int i = 0; i < nExp; ++i) {
+        for (int j = 0; j < nTen; ++j) {
+            const int k = i * nTen + j;
+            // SabrSmileSection parameter order: alpha, beta, nu, rho.
+            std::vector<QuantLib::Real> params{g.alpha[k], g.beta[k], g.nu[k], g.rho[k]};
+            QuantLib::SabrSmileSection section(
+                timesToExpiry[k], forwards[k], params, displacement,
+                QuantLib::ShiftedLognormal);
+            for (int s = 0; s < nStr; ++s) {
+                vols[k * nStr + s] = section.volatility(forwards[k] + spreads[s]);
+            }
+        }
+    }
+    return vols;
+}
+
+} // namespace
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters) {
+    // Correctness anchor: feed exact SABR-formula vols into the calibrate
+    // path; LM should recover the original parameters near-exactly.
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+
+    // ---- Phase 1: finalize a SabrParams surface to obtain per-node ATM
+    // forwards from the production code path. The same forwards will be
+    // used by the calibrate finalize, guaranteeing the synthetic vols line
+    // up with the calibrator's strike axis.
+    std::vector<double> forwards;
+    std::vector<QuantLib::Real> tte;
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto curve = buildLongCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        auto paramsSurface = buildSwaptionSabrParamsSurface(
+            b, "sabr_params_seed", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
+        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
+        auto indices = buildIndicesVector(b);
+        auto swapIndices = buildSwapIndicesVector(b);
+        auto asof = b.CreateString("2025-01-15");
+        auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+        b.Finish(pricing);
+
+        QuantLib::Settings::instance().evaluationDate() = evaluationDate_;
+        auto reg = quantra::PricingRegistryBuilder().build(
+            flatbuffers::GetRoot<quantra::Pricing>(b.GetBufferPointer()));
+        auto& entry = reg.volatility.swaptionVols.at("sabr_params_seed");
+        auto dCurve = reg.rates.curves.at("discount");
+        QuantLib::Handle<QuantLib::YieldTermStructure> dHandle(dCurve->currentLink());
+        auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
+            entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+        forwards = finalEntry.atmForwardsFlat;
+        ASSERT_EQ(forwards.size(), 4u);
+        tte.resize(4);
+        for (int i = 0; i < 2; ++i) {
+            QuantLib::Date exercise = finalEntry.calendar.advance(
+                finalEntry.referenceDate, finalEntry.expiries[i],
+                finalEntry.businessDayConvention);
+            double t = finalEntry.dayCounter.yearFraction(finalEntry.referenceDate, exercise);
+            tte[i * 2 + 0] = t;
+            tte[i * 2 + 1] = t;
+        }
+    }
+
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    // ---- Phase 2: drive the synthetic vols through /calibrate-swaption-vol.
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto calibSurface = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate", g.expiries, g.tenors, spreads, syntheticVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{calibSurface});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+    auto volIdOff = b.CreateString("sabr_calibrate");
+    auto discIdOff = b.CreateString("discount");
+    auto fwdIdOff = b.CreateString("discount");
+    quantra::CalibrateSwaptionVolRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_vol_id(volIdOff);
+    rb.add_discounting_curve_id(discIdOff);
+    rb.add_forwarding_curve_id(fwdIdOff);
+    b.Finish(rb.Finish());
+
+    CalibrateSwaptionVolPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto respOff = handler.request(
+        outBuilder,
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
+    outBuilder->Finish(respOff);
+    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
+        outBuilder->GetBufferPointer());
+    ASSERT_NE(resp, nullptr);
+    ASSERT_NE(resp->diagnostics(), nullptr);
+    auto* diag = resp->diagnostics();
+    ASSERT_NE(diag->alpha_per_node(), nullptr);
+    ASSERT_EQ(diag->alpha_per_node()->size(), 4u);
+
+    // Tolerances: alpha/rho/nu within 1e-4 absolute on noiseless Hagan data;
+    // beta exactly equal because beta_fixed=true clamps it during the fit.
+    for (int k = 0; k < 4; ++k) {
+        EXPECT_NEAR(diag->alpha_per_node()->Get(k), g.alpha[k], 1e-4) << "alpha node " << k;
+        EXPECT_DOUBLE_EQ(diag->beta_per_node()->Get(k), g.beta[k]) << "beta node " << k;
+        EXPECT_NEAR(diag->rho_per_node()->Get(k), g.rho[k], 1e-4) << "rho node " << k;
+        EXPECT_NEAR(diag->nu_per_node()->Get(k), g.nu[k], 1e-4) << "nu node " << k;
+    }
+
+    auto* calib = diag->calibration();
+    ASSERT_NE(calib, nullptr);
+    EXPECT_TRUE(calib->converged());
+    EXPECT_LT(calib->overall_rmse(), 1e-6);
+    ASSERT_EQ(calib->per_node_rmse()->size(), 4u);
+    for (int k = 0; k < 4; ++k) {
+        EXPECT_LT(calib->per_node_rmse()->Get(k), 1e-6) << "rmse node " << k;
+    }
+
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsMismatchedDimensions) {
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    const std::vector<double> okVols(2 * 2 * 5, 0.20);
+
+    // Tensor n_1/n_2/n_3 dims declared incorrectly relative to expiries/tenors/strikes.
+    flatbuffers::grpc::MessageBuilder b;
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_dim_bad", g.expiries, g.tenors, spreads, okVols,
+        true, 0.5, false, "EUR_SWAP_6M",
+        quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
+        /*n1Override=*/3, /*n2Override=*/2, /*n3Override=*/5);
+    b.Finish(vs);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
+        QuantraError);
+
+    // Strike count too small for beta_fixed=true (needs >=3) — also rejected.
+    flatbuffers::grpc::MessageBuilder b2;
+    const std::vector<double> shortSpreads{0.0, 0.01};
+    const std::vector<double> shortVols(2 * 2 * 2, 0.20);
+    auto vs2 = buildSwaptionSabrCalibrateSurface(
+        b2, "sabr_calibrate_strikes_short", g.expiries, g.tenors, shortSpreads, shortVols);
+    b2.Finish(vs2);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b2.GetBufferPointer()), nullptr),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonPositiveVols) {
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> badVols(2 * 2 * 5, 0.20);
+    badVols[7] = 0.0;
+    flatbuffers::grpc::MessageBuilder b;
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_zero_vol", g.expiries, g.tenors, spreads, badVols);
+    b.Finish(vs);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
+        QuantraError);
+
+    std::vector<double> negVols(2 * 2 * 5, 0.20);
+    negVols[3] = -0.01;
+    flatbuffers::grpc::MessageBuilder b2;
+    auto vs2 = buildSwaptionSabrCalibrateSurface(
+        b2, "sabr_calibrate_neg_vol", g.expiries, g.tenors, spreads, negVols);
+    b2.Finish(vs2);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b2.GetBufferPointer()), nullptr),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNormalVolType) {
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> okVols(2 * 2 * 5, 0.01); // normal-scale, but rejection happens before vol shape check
+    flatbuffers::grpc::MessageBuilder b;
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_normal", g.expiries, g.tenors, spreads, okVols,
+        true, 0.5, false, "EUR_SWAP_6M",
+        quantra::enums::VolatilityType_Normal, 0.0);
+    b.Finish(vs);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsOisSwapIndex) {
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    const std::vector<double> okVols(2 * 2 * 5, 0.20);
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    // Indices vector includes EUR_6M plus USD_SOFR (the OIS underlying).
+    std::vector<flatbuffers::Offset<quantra::IndexDef>> idxDefs;
+    idxDefs.push_back(buildIndexDef_EUR6M(b));
+    idxDefs.push_back(buildIndexDef_USD_SOFR(b));
+    auto indices = b.CreateVector(idxDefs);
+    auto swapIndices = buildSwapIndicesVector(b, /*includeEur6m=*/true, /*includeOis=*/true);
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_ois", g.expiries, g.tenors, spreads, okVols,
+        true, 0.5, false, /*swapIndexId=*/"USD_SOFR_OIS");
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+    b.Finish(pricing);
+
+    // Rejection lives at registry-build time (vol-kind cross-check against
+    // swap_indices), not at parseSwaptionVol time.
+    EXPECT_THROW(
+        quantra::PricingRegistryBuilder().build(
+            flatbuffers::GetRoot<quantra::Pricing>(b.GetBufferPointer())),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsTooSmallGrid) {
+    // Single expiry violates the >= 2x2 minimum required by QuantLib's cube
+    // interpolators.
+    std::vector<QuantLib::Period> oneExp{QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors{
+        QuantLib::Period(5, QuantLib::Years), QuantLib::Period(10, QuantLib::Years)};
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    const std::vector<double> vols(1 * 2 * 5, 0.20);
+    flatbuffers::grpc::MessageBuilder b;
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_thin", oneExp, tenors, spreads, vols);
+    b.Finish(vs);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonEmptyWeights) {
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    const std::vector<double> okVols(2 * 2 * 5, 0.20);
+    flatbuffers::grpc::MessageBuilder b;
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_weights", g.expiries, g.tenors, spreads, okVols,
+        true, 0.5, false, "EUR_SWAP_6M",
+        quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
+        -1, -1, -1, /*addNonEmptyWeights=*/true);
+    b.Finish(vs);
+    EXPECT_THROW(
+        quantra::parseSwaptionVol(
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
+        QuantraError);
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
+    // Direct cache-state observability: clear, populate via finalize with a
+    // synthetic key, observe size() transitions, confirm key sensitivity.
+    SabrCalibrateCache::instance().clear();
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 0u);
+
+    // Build a SwaptionVolEntry and a swap-index base via the production path,
+    // then call withSwaptionSabrCalibrateAtm twice with the same explicit key.
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    // Use synthetic vols so the calibrator has a clean target.
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_cache", g.expiries, g.tenors, spreads, syntheticVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+    b.Finish(pricing);
+
+    QuantLib::Settings::instance().evaluationDate() = evaluationDate_;
+    auto reg = quantra::PricingRegistryBuilder().build(
+        flatbuffers::GetRoot<quantra::Pricing>(b.GetBufferPointer()));
+    auto entry = reg.volatility.swaptionVols.at("sabr_calibrate_cache");
+    auto dCurve = reg.rates.curves.at("discount");
+    QuantLib::Handle<QuantLib::YieldTermStructure> dHandle(dCurve->currentLink());
+
+    // Compute the same forwards the production path would, by hand.
+    auto& sidx = reg.rates.swapIndices.get(entry.swapIndexId);
+    auto computedForwards = quantra::computeServerAtmForwards(
+        entry, sidx, reg.rates.indices, dHandle, dHandle);
+    auto swapIndexBase = reg.rates.swapIndices.getIborSwapIndexWithCurves(
+        entry.swapIndexId, entry.tenors.front(), reg.rates.indices, dHandle, dHandle);
+
+    // First call: MISS + PUT, size 0 -> 1.
+    auto out1 = quantra::withSwaptionSabrCalibrateAtm(
+        entry, computedForwards, swapIndexBase, "test-key-A");
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 1u);
+    EXPECT_EQ(out1.sabrAlpha.size(), 4u);
+
+    // Second call same key: HIT, size still 1.
+    auto out2 = quantra::withSwaptionSabrCalibrateAtm(
+        entry, computedForwards, swapIndexBase, "test-key-A");
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 1u);
+    // Cache HIT must return the same calibrated parameters.
+    ASSERT_EQ(out2.sabrAlpha.size(), out1.sabrAlpha.size());
+    for (size_t k = 0; k < out1.sabrAlpha.size(); ++k) {
+        EXPECT_DOUBLE_EQ(out2.sabrAlpha[k], out1.sabrAlpha[k]);
+        EXPECT_DOUBLE_EQ(out2.sabrRho[k], out1.sabrRho[k]);
+        EXPECT_DOUBLE_EQ(out2.sabrNu[k], out1.sabrNu[k]);
+    }
+
+    // Third call different key: MISS + PUT, size grows to 2.
+    auto out3 = quantra::withSwaptionSabrCalibrateAtm(
+        entry, computedForwards, swapIndexBase, "test-key-B");
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 2u);
+    EXPECT_EQ(out3.sabrAlpha.size(), 4u);
+
+    // Empty cache key bypasses cache entirely: size unchanged.
+    auto out4 = quantra::withSwaptionSabrCalibrateAtm(
+        entry, computedForwards, swapIndexBase, "");
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 2u);
+    EXPECT_EQ(out4.sabrAlpha.size(), 4u);
+
+    // Key sensitivity: perturb one market-vol cell by 1bp and confirm the
+    // canonical cache key changes. Same for a different curve cache key.
+    auto entryPerturbed = entry;
+    entryPerturbed.sabrMarketVolsFlat[2] += 0.0001;
+    const std::string keyA = quantra::buildSabrCalibrateCacheKey(
+        entry, computedForwards, "disc-key-1", "fwd-key-1");
+    const std::string keyAPert = quantra::buildSabrCalibrateCacheKey(
+        entryPerturbed, computedForwards, "disc-key-1", "fwd-key-1");
+    EXPECT_NE(keyA, keyAPert);
+    const std::string keyB = quantra::buildSabrCalibrateCacheKey(
+        entry, computedForwards, "disc-key-2", "fwd-key-1");
+    EXPECT_NE(keyA, keyB);
+
+    // Bypass-when-curve-cache-disabled: finalize via the production path
+    // with curve cache disabled (default in tests). Cache size stays put
+    // because cube key is empty.
+    const size_t sizeBefore = SabrCalibrateCache::instance().size();
+    auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
+        entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), sizeBefore);
+    EXPECT_EQ(finalEntry.sabrAlpha.size(), 4u);
+
+    SabrCalibrateCache::instance().clear();
+    EXPECT_EQ(SabrCalibrateCache::instance().size(), 0u);
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_SwaptionSabrCalibrateReturnsFiniteVols) {
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_sample", g.expiries, g.tenors, spreads, syntheticVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(2); e2.add_unit(quantra::enums::TimeUnit_Years);
+    auto e2Off = e2.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b);
+    expSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+    expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    quantra::PeriodBuilder t5(b); t5.add_n(5); t5.add_unit(quantra::enums::TimeUnit_Years);
+    auto t5Off = t5.Finish();
+    quantra::PeriodBuilder t10(b); t10.add_n(10); t10.add_unit(quantra::enums::TimeUnit_Years);
+    auto t10Off = t10.Finish();
+    auto tenVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{t5Off, t10Off});
+    quantra::TenorGridBuilder tenGridB(b); tenGridB.add_tenors(tenVec);
+    auto tenGrid = tenGridB.Finish();
+    quantra::DateGridSpecBuilder tenSpecB(b);
+    tenSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+    tenSpecB.add_grid(tenGrid.Union());
+    auto tenSpec = tenSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{0.02, 0.03, 0.04});
+    quantra::StrikeGridBuilder sgb(b);
+    sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike);
+    sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+
+    auto disc = b.CreateString("discount");
+    auto fwd = b.CreateString("discount");
+    auto volId = b.CreateString("sabr_calibrate_sample");
+    auto swapIdx = b.CreateString("EUR_SWAP_6M");
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_Swaption);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_tenor_grid(tenSpec);
+    qsb.add_strike_grid(strikeGrid);
+    qsb.add_swap_index_id(swapIdx);
+    qsb.add_discounting_curve_id(disc);
+    qsb.add_forwarding_curve_id(fwd);
+    auto query = qsb.Finish();
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    b.Finish(rb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer());
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(outBuilder, req);
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer());
+    ASSERT_EQ(resp->results()->size(), 1u);
+    auto r = resp->results()->Get(0);
+    if (r->error() != nullptr) {
+        FAIL() << "sample failed: "
+               << (r->error()->error_message() ? r->error()->error_message()->c_str() : "(no msg)");
+    }
+    ASSERT_EQ(r->vols()->size(), 12u);
+    for (flatbuffers::uoffset_t i = 0; i < r->vols()->size(); ++i) {
+        double v = r->vols()->Get(i);
+        EXPECT_TRUE(std::isfinite(v)) << "non-finite vol at index " << i;
+        EXPECT_GT(v, 0.0) << "non-positive vol at index " << i;
+    }
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsPath) {
+    // Architectural invariant: SabrCalibrate and SabrParams converge into the
+    // same SwaptionVolEntry post-finalize, so pricing the same swaption
+    // through either surface (with the same parameters) must produce the
+    // same NPV within tolerance.
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    const double notional = 1000000.0;
+    const double strike = 0.04;
+
+    // ---- Pre-finalize SabrParams to get authoritative forwards.
+    std::vector<double> forwards;
+    std::vector<QuantLib::Real> tte;
+    {
+        flatbuffers::grpc::MessageBuilder b;
+        auto curve = buildLongCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        auto paramsSurface = buildSwaptionSabrParamsSurface(
+            b, "sabr_params_seed", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
+        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
+        auto indices = buildIndicesVector(b);
+        auto swapIndices = buildSwapIndicesVector(b);
+        auto asof = b.CreateString("2025-01-15");
+        auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+        b.Finish(pricing);
+
+        QuantLib::Settings::instance().evaluationDate() = evaluationDate_;
+        auto reg = quantra::PricingRegistryBuilder().build(
+            flatbuffers::GetRoot<quantra::Pricing>(b.GetBufferPointer()));
+        auto& entry = reg.volatility.swaptionVols.at("sabr_params_seed");
+        auto dCurve = reg.rates.curves.at("discount");
+        QuantLib::Handle<QuantLib::YieldTermStructure> dHandle(dCurve->currentLink());
+        auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
+            entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+        forwards = finalEntry.atmForwardsFlat;
+        tte.resize(4);
+        for (int i = 0; i < 2; ++i) {
+            QuantLib::Date exercise = finalEntry.calendar.advance(
+                finalEntry.referenceDate, finalEntry.expiries[i],
+                finalEntry.businessDayConvention);
+            double t = finalEntry.dayCounter.yearFraction(finalEntry.referenceDate, exercise);
+            tte[i * 2 + 0] = t;
+            tte[i * 2 + 1] = t;
+        }
+    }
+
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    auto buildPriceRequest = [&](bool useCalibrate) {
+        auto b = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto ts = buildLongCurve(*b, "discount");
+        auto curves = b->CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        flatbuffers::Offset<quantra::VolSurfaceSpec> volSurface;
+        if (useCalibrate) {
+            volSurface = buildSwaptionSabrCalibrateSurface(
+                *b, "sabr_vol", g.expiries, g.tenors, spreads, syntheticVols);
+        } else {
+            volSurface = buildSwaptionSabrParamsSurface(
+                *b, "sabr_vol", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
+        }
+        auto vols = b->CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        auto model = buildSwaptionModel(*b, "black_model", quantra::enums::IrModelType_Black);
+        auto models = b->CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+        auto indices = buildIndicesVector(*b);
+        auto swapIndices = buildSwapIndicesVector(*b);
+        auto asof = b->CreateString("2025-01-15");
+        auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models);
+
+        auto feff = b->CreateString("2026-01-17");
+        auto fterm = b->CreateString("2031-01-17");
+        quantra::ScheduleBuilder fsb(*b);
+        fsb.add_effective_date(feff);
+        fsb.add_termination_date(fterm);
+        fsb.add_calendar(quantra::enums::Calendar_TARGET);
+        fsb.add_frequency(quantra::enums::Frequency_Annual);
+        fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        auto fixedSch = fsb.Finish();
+        quantra::SwapFixedLegBuilder flb(*b);
+        flb.add_notional(notional);
+        flb.add_schedule(fixedSch);
+        flb.add_rate(strike);
+        flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
+        flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto fixedLeg = flb.Finish();
+
+        auto fleff = b->CreateString("2026-01-17");
+        auto flterm = b->CreateString("2031-01-17");
+        quantra::ScheduleBuilder flsb(*b);
+        flsb.add_effective_date(fleff);
+        flsb.add_termination_date(flterm);
+        flsb.add_calendar(quantra::enums::Calendar_TARGET);
+        flsb.add_frequency(quantra::enums::Frequency_Semiannual);
+        flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        auto floatSch = flsb.Finish();
+        auto idx6m = buildIndexRef(*b, "EUR_6M");
+        quantra::SwapFloatingLegBuilder flgb(*b);
+        flgb.add_notional(notional);
+        flgb.add_schedule(floatSch);
+        flgb.add_index(idx6m);
+        flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        flgb.add_spread(0.0);
+        flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto floatLeg = flgb.Finish();
+
+        quantra::VanillaSwapBuilder vsb(*b);
+        vsb.add_swap_type(quantra::enums::SwapType_Payer);
+        vsb.add_fixed_leg(fixedLeg);
+        vsb.add_floating_leg(floatLeg);
+        auto uswap = vsb.Finish();
+
+        auto exd = b->CreateString("2026-01-15");
+        quantra::SwaptionBuilder swb(*b);
+        swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+        swb.add_underlying(uswap.Union());
+        swb.add_exercise_date(exd);
+        swb.add_exercise_type(quantra::enums::ExerciseType_European);
+        swb.add_settlement_type(quantra::enums::SettlementType_Physical);
+        auto swaption = swb.Finish();
+
+        auto dc = b->CreateString("discount");
+        auto vol_id = b->CreateString("sabr_vol");
+        auto model_id = b->CreateString("black_model");
+        quantra::PriceSwaptionBuilder psb(*b);
+        psb.add_swaption(swaption);
+        psb.add_discounting_curve(dc);
+        psb.add_forwarding_curve(dc);
+        psb.add_volatility(vol_id);
+        psb.add_model(model_id);
+        auto psbOff = psb.Finish();
+        auto swaptions = b->CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+
+        quantra::PriceSwaptionRequestBuilder rb(*b);
+        rb.add_pricing(pricing);
+        rb.add_swaptions(swaptions);
+        b->Finish(rb.Finish());
+        return b;
+    };
+
+    auto runPrice = [&](bool useCalibrate) {
+        auto b = buildPriceRequest(useCalibrate);
+        SwaptionPricingRequest req;
+        auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto resp = req.request(
+            respB,
+            flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b->GetBufferPointer()));
+        respB->Finish(resp);
+        return flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(
+                   respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    };
+
+    double npvParams = runPrice(/*useCalibrate=*/false);
+    double npvCalibrate = runPrice(/*useCalibrate=*/true);
+    EXPECT_TRUE(std::isfinite(npvParams));
+    EXPECT_GT(npvParams, 0.0);
+    EXPECT_TRUE(std::isfinite(npvCalibrate));
+    EXPECT_GT(npvCalibrate, 0.0);
+    // Tolerance reflects calibrator rounding and Hagan-vs-cube interpolation
+    // residual; 5bp of NPV is comfortable for noiseless data.
+    EXPECT_NEAR(npvCalibrate, npvParams, std::max(1.0, npvParams * 1e-4));
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejected) {
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+    const double notional = 1000000.0;
+    const double strike = 0.04;
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto ts = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto volSurface = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_vol", g.expiries, g.tenors, spreads, syntheticVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models);
+
+    auto feff = b.CreateString("2026-01-17");
+    auto fterm = b.CreateString("2031-01-17");
+    quantra::ScheduleBuilder fsb(b);
+    fsb.add_effective_date(feff);
+    fsb.add_termination_date(fterm);
+    fsb.add_calendar(quantra::enums::Calendar_TARGET);
+    fsb.add_frequency(quantra::enums::Frequency_Annual);
+    fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto fixedSch = fsb.Finish();
+    quantra::SwapFixedLegBuilder flb(b);
+    flb.add_notional(notional);
+    flb.add_schedule(fixedSch);
+    flb.add_rate(strike);
+    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
+    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto fixedLeg = flb.Finish();
+
+    auto fleff = b.CreateString("2026-01-17");
+    auto flterm = b.CreateString("2031-01-17");
+    quantra::ScheduleBuilder flsb(b);
+    flsb.add_effective_date(fleff);
+    flsb.add_termination_date(flterm);
+    flsb.add_calendar(quantra::enums::Calendar_TARGET);
+    flsb.add_frequency(quantra::enums::Frequency_Semiannual);
+    flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    auto floatSch = flsb.Finish();
+    auto idx6m = buildIndexRef(b, "EUR_6M");
+    quantra::SwapFloatingLegBuilder flgb(b);
+    flgb.add_notional(notional);
+    flgb.add_schedule(floatSch);
+    flgb.add_index(idx6m);
+    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
+    flgb.add_spread(0.0);
+    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto floatLeg = flgb.Finish();
+
+    quantra::VanillaSwapBuilder vsb(b);
+    vsb.add_swap_type(quantra::enums::SwapType_Payer);
+    vsb.add_fixed_leg(fixedLeg);
+    vsb.add_floating_leg(floatLeg);
+    auto uswap = vsb.Finish();
+
+    auto exd = b.CreateString("2026-01-15");
+    quantra::SwaptionBuilder swb(b);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
+    swb.add_exercise_date(exd);
+    swb.add_exercise_type(quantra::enums::ExerciseType_European);
+    swb.add_settlement_type(quantra::enums::SettlementType_Physical);
+    auto swaption = swb.Finish();
+
+    auto dc = b.CreateString("discount");
+    auto vol_id = b.CreateString("sabr_vol");
+    auto model_id = b.CreateString("bachelier_model");
+    quantra::PriceSwaptionBuilder psb(b);
+    psb.add_swaption(swaption);
+    psb.add_discounting_curve(dc);
+    psb.add_forwarding_curve(dc);
+    psb.add_volatility(vol_id);
+    psb.add_model(model_id);
+    auto psbOff = psb.Finish();
+    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+
+    quantra::PriceSwaptionRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_swaptions(swaptions);
+    b.Finish(rb.Finish());
+
+    SwaptionPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    EXPECT_THROW(
+        req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
+        QuantraError);
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_SwaptionSabrCalibrateDiagnosticsPopulated) {
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    auto buildSampleRequest = [&](bool includeDiagnostics) {
+        auto b = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto curve = buildLongCurve(*b, "discount");
+        auto curves = b->CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        auto vs = buildSwaptionSabrCalibrateSurface(
+            *b, "sabr_calibrate_diag", g.expiries, g.tenors, spreads, syntheticVols);
+        auto vols = b->CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+        auto indices = buildIndicesVector(*b);
+        auto swapIndices = buildSwapIndicesVector(*b);
+        auto asof = b->CreateString("2025-01-15");
+        auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+        quantra::PeriodBuilder e1(*b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
+        auto e1Off = e1.Finish();
+        quantra::PeriodBuilder e2(*b); e2.add_n(2); e2.add_unit(quantra::enums::TimeUnit_Years);
+        auto e2Off = e2.Finish();
+        auto expVec = b->CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off});
+        quantra::TenorGridBuilder expGridB(*b); expGridB.add_tenors(expVec);
+        auto expGrid = expGridB.Finish();
+        quantra::DateGridSpecBuilder expSpecB(*b);
+        expSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+        expSpecB.add_grid(expGrid.Union());
+        auto expSpec = expSpecB.Finish();
+
+        quantra::PeriodBuilder t5(*b); t5.add_n(5); t5.add_unit(quantra::enums::TimeUnit_Years);
+        auto t5Off = t5.Finish();
+        quantra::PeriodBuilder t10(*b); t10.add_n(10); t10.add_unit(quantra::enums::TimeUnit_Years);
+        auto t10Off = t10.Finish();
+        auto tenVec = b->CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{t5Off, t10Off});
+        quantra::TenorGridBuilder tenGridB(*b); tenGridB.add_tenors(tenVec);
+        auto tenGrid = tenGridB.Finish();
+        quantra::DateGridSpecBuilder tenSpecB(*b);
+        tenSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+        tenSpecB.add_grid(tenGrid.Union());
+        auto tenSpec = tenSpecB.Finish();
+
+        auto strikeVals = b->CreateVector(std::vector<double>{0.02, 0.03, 0.04});
+        quantra::StrikeGridBuilder sgb(*b);
+        sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike);
+        sgb.add_strikes(strikeVals);
+        auto strikeGrid = sgb.Finish();
+
+        auto disc = b->CreateString("discount");
+        auto fwd = b->CreateString("discount");
+        auto volId = b->CreateString("sabr_calibrate_diag");
+        auto swapIdx = b->CreateString("EUR_SWAP_6M");
+        quantra::VolQuerySpecBuilder qsb(*b);
+        qsb.add_vol_id(volId);
+        qsb.add_surface_type(quantra::VolSurfaceType_Swaption);
+        qsb.add_expiry_grid(expSpec);
+        qsb.add_tenor_grid(tenSpec);
+        qsb.add_strike_grid(strikeGrid);
+        qsb.add_swap_index_id(swapIdx);
+        qsb.add_discounting_curve_id(disc);
+        qsb.add_forwarding_curve_id(fwd);
+        auto query = qsb.Finish();
+        auto queries = b->CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+        quantra::SampleVolSurfacesRequestBuilder rb(*b);
+        rb.add_pricing(pricing);
+        rb.add_queries(queries);
+        rb.add_include_diagnostics(includeDiagnostics);
+        b->Finish(rb.Finish());
+        return b;
+    };
+
+    auto runSample = [&](bool includeDiagnostics) {
+        auto b = buildSampleRequest(includeDiagnostics);
+        SampleVolSurfacesRequestHandler handler;
+        auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto out = handler.request(
+            outBuilder,
+            flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b->GetBufferPointer()));
+        outBuilder->Finish(out);
+        return std::make_pair(
+            outBuilder,
+            flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(outBuilder->GetBufferPointer()));
+    };
+
+    // include_diagnostics=false: response carries no diagnostics vector.
+    auto noDiag = runSample(false);
+    auto* respNo = noDiag.second;
+    EXPECT_TRUE(respNo->diagnostics() == nullptr || respNo->diagnostics()->size() == 0u)
+        << "diagnostics array unexpectedly present when include_diagnostics=false";
+
+    // include_diagnostics=true: one populated SwaptionVolDiagnostics with full
+    // surface block + calibration sub-block + converged=true.
+    auto withDiag = runSample(true);
+    auto* respYes = withDiag.second;
+    ASSERT_NE(respYes->diagnostics(), nullptr);
+    ASSERT_EQ(respYes->diagnostics()->size(), 1u);
+    auto* d = respYes->diagnostics()->Get(0);
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->kind(), quantra::enums::SwaptionVolKind_SabrCalibrate);
+    ASSERT_NE(d->alpha_per_node(), nullptr);
+    EXPECT_EQ(d->alpha_per_node()->size(), 4u);
+    ASSERT_NE(d->beta_per_node(), nullptr);
+    ASSERT_NE(d->rho_per_node(), nullptr);
+    ASSERT_NE(d->nu_per_node(), nullptr);
+    ASSERT_NE(d->forward_per_node(), nullptr);
+    ASSERT_NE(d->atm_vol_per_node(), nullptr);
+    auto* calib = d->calibration();
+    ASSERT_NE(calib, nullptr) << "calibration sub-block missing on SabrCalibrate";
+    EXPECT_TRUE(calib->converged());
+    EXPECT_TRUE(std::isfinite(calib->overall_rmse()));
+    ASSERT_NE(calib->per_node_rmse(), nullptr);
+    EXPECT_EQ(calib->per_node_rmse()->size(), 4u);
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, SampleVolSurfaces_SwaptionSabrParamsDiagnosticsHasNoCalibrationBlock) {
+    SabrSyntheticGrid g;
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto vs = buildSwaptionSabrParamsSurface(
+        b, "sabr_params_diag", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+    quantra::PeriodBuilder e1(b); e1.add_n(1); e1.add_unit(quantra::enums::TimeUnit_Years);
+    auto e1Off = e1.Finish();
+    quantra::PeriodBuilder e2(b); e2.add_n(2); e2.add_unit(quantra::enums::TimeUnit_Years);
+    auto e2Off = e2.Finish();
+    auto expVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{e1Off, e2Off});
+    quantra::TenorGridBuilder expGridB(b); expGridB.add_tenors(expVec);
+    auto expGrid = expGridB.Finish();
+    quantra::DateGridSpecBuilder expSpecB(b);
+    expSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+    expSpecB.add_grid(expGrid.Union());
+    auto expSpec = expSpecB.Finish();
+
+    quantra::PeriodBuilder t5(b); t5.add_n(5); t5.add_unit(quantra::enums::TimeUnit_Years);
+    auto t5Off = t5.Finish();
+    quantra::PeriodBuilder t10(b); t10.add_n(10); t10.add_unit(quantra::enums::TimeUnit_Years);
+    auto t10Off = t10.Finish();
+    auto tenVec = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{t5Off, t10Off});
+    quantra::TenorGridBuilder tenGridB(b); tenGridB.add_tenors(tenVec);
+    auto tenGrid = tenGridB.Finish();
+    quantra::DateGridSpecBuilder tenSpecB(b);
+    tenSpecB.add_grid_type(quantra::DateGrid_TenorGrid);
+    tenSpecB.add_grid(tenGrid.Union());
+    auto tenSpec = tenSpecB.Finish();
+
+    auto strikeVals = b.CreateVector(std::vector<double>{0.03});
+    quantra::StrikeGridBuilder sgb(b);
+    sgb.add_axis(quantra::VolStrikeAxis_AbsoluteStrike);
+    sgb.add_strikes(strikeVals);
+    auto strikeGrid = sgb.Finish();
+
+    auto disc = b.CreateString("discount");
+    auto fwd = b.CreateString("discount");
+    auto volId = b.CreateString("sabr_params_diag");
+    auto swapIdx = b.CreateString("EUR_SWAP_6M");
+    quantra::VolQuerySpecBuilder qsb(b);
+    qsb.add_vol_id(volId);
+    qsb.add_surface_type(quantra::VolSurfaceType_Swaption);
+    qsb.add_expiry_grid(expSpec);
+    qsb.add_tenor_grid(tenSpec);
+    qsb.add_strike_grid(strikeGrid);
+    qsb.add_swap_index_id(swapIdx);
+    qsb.add_discounting_curve_id(disc);
+    qsb.add_forwarding_curve_id(fwd);
+    auto query = qsb.Finish();
+    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolQuerySpec>>{query});
+    quantra::SampleVolSurfacesRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_queries(queries);
+    rb.add_include_diagnostics(true);
+    b.Finish(rb.Finish());
+
+    SampleVolSurfacesRequestHandler handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto out = handler.request(
+        outBuilder,
+        flatbuffers::GetRoot<quantra::SampleVolSurfacesRequest>(b.GetBufferPointer()));
+    outBuilder->Finish(out);
+    auto resp = flatbuffers::GetRoot<quantra::SampleVolSurfacesResponse>(
+        outBuilder->GetBufferPointer());
+    ASSERT_NE(resp->diagnostics(), nullptr);
+    ASSERT_EQ(resp->diagnostics()->size(), 1u);
+    auto* d = resp->diagnostics()->Get(0);
+    EXPECT_EQ(d->kind(), quantra::enums::SwaptionVolKind_SabrParams);
+    // SABR-params surface: surface block populated, calibration sub-block null.
+    ASSERT_NE(d->alpha_per_node(), nullptr);
+    EXPECT_EQ(d->alpha_per_node()->size(), 4u);
+    ASSERT_NE(d->forward_per_node(), nullptr);
+    ASSERT_NE(d->atm_vol_per_node(), nullptr);
+    EXPECT_EQ(d->calibration(), nullptr)
+        << "params-path diagnostics must not carry a calibration sub-block";
+}
+
+TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_DiagnosticsEmitsHighRmseWarnings) {
+    // Construct a deliberately non-SABR-shaped market vol cube (vol levels far
+    // apart at neighbouring strikes — Hagan can't fit cleanly) and expect at
+    // least one warning naming high RMSE on a node. Threshold (50bp RMSE) lives
+    // in swaption_vol_diagnostics.cpp.
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    // Per-node strike-vol pattern is a symmetric W around a 20% ATM with
+    // ±100 bp amplitude. SABR (Hagan, beta_fixed=0.5) cannot fit a W shape
+    // — best fit is a flat/skewed smile, leaving residuals around 70-90 bp
+    // per strike. That lands above the 50 bp diagnostics warning threshold
+    // but below QuantLib's 1% rmsError hard throw inside
+    // XabrSwaptionVolatilityCube::performCalculations, so calibration
+    // completes and the warnings array is populated.
+    std::vector<double> badVols;
+    badVols.reserve(2 * 2 * 5);
+    for (int n = 0; n < 4; ++n) {
+        badVols.insert(badVols.end(), {0.21, 0.19, 0.21, 0.19, 0.21});
+    }
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_warn", g.expiries, g.tenors, spreads, badVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+    auto volIdOff = b.CreateString("sabr_calibrate_warn");
+    auto discIdOff = b.CreateString("discount");
+    auto fwdIdOff = b.CreateString("discount");
+    quantra::CalibrateSwaptionVolRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_vol_id(volIdOff);
+    rb.add_discounting_curve_id(discIdOff);
+    rb.add_forwarding_curve_id(fwdIdOff);
+    b.Finish(rb.Finish());
+
+    CalibrateSwaptionVolPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto respOff = handler.request(
+        outBuilder,
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
+    outBuilder->Finish(respOff);
+    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
+        outBuilder->GetBufferPointer());
+    ASSERT_NE(resp, nullptr);
+    auto* d = resp->diagnostics();
+    ASSERT_NE(d, nullptr);
+    ASSERT_NE(d->warnings(), nullptr);
+    EXPECT_GT(d->warnings()->size(), 0u)
+        << "expected at least one warning on a deliberately bad SABR fit";
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, CalibrateSwaptionVolEndpoint_HappyPath) {
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto curve = buildLongCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+    auto vs = buildSwaptionSabrCalibrateSurface(
+        b, "sabr_calibrate_endpoint", g.expiries, g.tenors, spreads, syntheticVols);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+    auto volIdOff = b.CreateString("sabr_calibrate_endpoint");
+    auto discIdOff = b.CreateString("discount");
+    auto fwdIdOff = b.CreateString("discount");
+    quantra::CalibrateSwaptionVolRequestBuilder rb(b);
+    rb.add_pricing(pricing);
+    rb.add_vol_id(volIdOff);
+    rb.add_discounting_curve_id(discIdOff);
+    rb.add_forwarding_curve_id(fwdIdOff);
+    b.Finish(rb.Finish());
+
+    CalibrateSwaptionVolPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    auto respOff = handler.request(
+        outBuilder,
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
+    outBuilder->Finish(respOff);
+    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
+        outBuilder->GetBufferPointer());
+    ASSERT_NE(resp, nullptr);
+    ASSERT_NE(resp->vol_id(), nullptr);
+    EXPECT_EQ(resp->vol_id()->str(), "sabr_calibrate_endpoint");
+    auto* d = resp->diagnostics();
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->kind(), quantra::enums::SwaptionVolKind_SabrCalibrate);
+    ASSERT_NE(d->alpha_per_node(), nullptr);
+    EXPECT_EQ(d->alpha_per_node()->size(), 4u);
+    auto* calib = d->calibration();
+    ASSERT_NE(calib, nullptr);
+    EXPECT_TRUE(calib->converged());
+    SabrCalibrateCache::instance().clear();
+}
+
+TEST_F(QuantraComparisonTest, CalibrateSwaptionVolEndpoint_RejectsBadInputs) {
+    SabrCalibrateCache::instance().clear();
+    SabrSyntheticGrid g;
+    const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
+    std::vector<double> forwards(4, 0.03);
+    std::vector<QuantLib::Real> tte(4, 1.0);
+    auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
+
+    auto buildBaseContext = [&](
+            std::function<void(flatbuffers::grpc::MessageBuilder&,
+                               std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>&)> volSurfaceFn,
+            const std::string& volId,
+            const std::string& discId,
+            const std::string& fwdId) {
+        auto b = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        auto curve = buildLongCurve(*b, "discount");
+        auto curves = b->CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>> volSurfaces;
+        volSurfaceFn(*b, volSurfaces);
+        auto vols = b->CreateVector(volSurfaces);
+        auto indices = buildIndicesVector(*b);
+        auto swapIndices = buildSwapIndicesVector(*b);
+        auto asof = b->CreateString("2025-01-15");
+        auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+
+        auto volIdOff = b->CreateString(volId);
+        auto discIdOff = b->CreateString(discId);
+        auto fwdIdOff = b->CreateString(fwdId);
+        quantra::CalibrateSwaptionVolRequestBuilder rb(*b);
+        rb.add_pricing(pricing);
+        rb.add_vol_id(volIdOff);
+        rb.add_discounting_curve_id(discIdOff);
+        rb.add_forwarding_curve_id(fwdIdOff);
+        b->Finish(rb.Finish());
+        return b;
+    };
+
+    auto callHandler = [](flatbuffers::grpc::MessageBuilder& msgB) {
+        CalibrateSwaptionVolPricingRequest handler;
+        auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        return handler.request(
+            outBuilder,
+            flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(msgB.GetBufferPointer()));
+    };
+
+    // (a) vol_id absent from the registry -> NOT_FOUND.
+    {
+        auto msgB = buildBaseContext(
+            [&](flatbuffers::grpc::MessageBuilder& b,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>& v) {
+                v.push_back(buildSwaptionSabrCalibrateSurface(
+                    b, "sabr_calibrate_present", g.expiries, g.tenors, spreads, syntheticVols));
+            },
+            /*volId=*/"sabr_calibrate_missing",
+            /*discId=*/"discount",
+            /*fwdId=*/"discount");
+        EXPECT_THROW(callHandler(*msgB), QuantraNotFound);
+    }
+
+    // (b) vol_id resolves to AtmMatrix2D (non-SabrCalibrate) -> INVALID_ARGUMENT.
+    {
+        std::vector<double> atmVols{0.20, 0.21, 0.22, 0.23};
+        auto msgB = buildBaseContext(
+            [&](flatbuffers::grpc::MessageBuilder& b,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>& v) {
+                v.push_back(buildSwaptionVolAtmMatrixSurface(
+                    b, "atm_matrix", g.expiries, g.tenors, atmVols));
+            },
+            /*volId=*/"atm_matrix",
+            /*discId=*/"discount",
+            /*fwdId=*/"discount");
+        EXPECT_THROW(callHandler(*msgB), QuantraInvalidArgument);
+    }
+
+    // (c) vol_id resolves to SabrParams (also non-SabrCalibrate) -> INVALID_ARGUMENT.
+    {
+        auto msgB = buildBaseContext(
+            [&](flatbuffers::grpc::MessageBuilder& b,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>& v) {
+                v.push_back(buildSwaptionSabrParamsSurface(
+                    b, "sabr_params_only", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu));
+            },
+            /*volId=*/"sabr_params_only",
+            /*discId=*/"discount",
+            /*fwdId=*/"discount");
+        EXPECT_THROW(callHandler(*msgB), QuantraInvalidArgument);
+    }
+
+    // (d) discounting_curve_id missing from registry -> INVALID_ARGUMENT.
+    {
+        auto msgB = buildBaseContext(
+            [&](flatbuffers::grpc::MessageBuilder& b,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>& v) {
+                v.push_back(buildSwaptionSabrCalibrateSurface(
+                    b, "sabr_calibrate_present", g.expiries, g.tenors, spreads, syntheticVols));
+            },
+            /*volId=*/"sabr_calibrate_present",
+            /*discId=*/"missing_curve",
+            /*fwdId=*/"discount");
+        EXPECT_THROW(callHandler(*msgB), QuantraInvalidArgument);
+    }
+
+    // (e) forwarding_curve_id missing from registry -> INVALID_ARGUMENT.
+    {
+        auto msgB = buildBaseContext(
+            [&](flatbuffers::grpc::MessageBuilder& b,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>& v) {
+                v.push_back(buildSwaptionSabrCalibrateSurface(
+                    b, "sabr_calibrate_present", g.expiries, g.tenors, spreads, syntheticVols));
+            },
+            /*volId=*/"sabr_calibrate_present",
+            /*discId=*/"discount",
+            /*fwdId=*/"missing_fwd_curve");
+        EXPECT_THROW(callHandler(*msgB), QuantraInvalidArgument);
+    }
+    SabrCalibrateCache::instance().clear();
+}
 
 // ======================== SWAPTION (Bachelier / Normal vols) ========================
 TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
