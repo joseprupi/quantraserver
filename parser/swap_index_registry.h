@@ -55,7 +55,7 @@ public:
     const SwapIndexRuntime& get(const std::string& id) const {
         auto it = data_.find(id);
         if (it == data_.end()) {
-            QUANTRA_ERROR("Unknown swap index id: " + id);
+            QUANTRA_NOT_FOUND("Unknown swap index id: " + id);
         }
         return it->second;
     }

@@ -10,7 +10,7 @@ namespace quantra {
 
 CdsPriceResult CdsPricingService::price(const quantra::PriceCDS* tradePricing, const PricingRegistry& reg) const {
     if (!tradePricing) {
-        QUANTRA_ERROR("PriceCDS entry is required");
+        QUANTRA_INVALID_ARGUMENT("PriceCDS entry is required");
     }
 
     CDSParser cdsParser;
@@ -18,25 +18,25 @@ CdsPriceResult CdsPricingService::price(const quantra::PriceCDS* tradePricing, c
 
     auto discountIt = reg.rates.curves.find(tradePricing->discounting_curve()->str());
     if (discountIt == reg.rates.curves.end()) {
-        QUANTRA_ERROR("Discounting curve not found: " + tradePricing->discounting_curve()->str());
+        QUANTRA_NOT_FOUND("Discounting curve not found: " + tradePricing->discounting_curve()->str());
     }
     if (!tradePricing->credit_curve_id()) {
-        QUANTRA_ERROR("credit_curve_id is required");
+        QUANTRA_INVALID_ARGUMENT("credit_curve_id is required");
     }
     auto creditIt = reg.credit.creditCurveSpecs.find(tradePricing->credit_curve_id()->str());
     if (creditIt == reg.credit.creditCurveSpecs.end()) {
-        QUANTRA_ERROR("Credit curve not found: " + tradePricing->credit_curve_id()->str());
+        QUANTRA_NOT_FOUND("Credit curve not found: " + tradePricing->credit_curve_id()->str());
     }
     if (!tradePricing->model()) {
-        QUANTRA_ERROR("model is required for CDS pricing");
+        QUANTRA_INVALID_ARGUMENT("model is required for CDS pricing");
     }
     auto modelIt = reg.volatility.models.find(tradePricing->model()->str());
     if (modelIt == reg.volatility.models.end()) {
-        QUANTRA_ERROR("Model not found: " + tradePricing->model()->str());
+        QUANTRA_NOT_FOUND("Model not found: " + tradePricing->model()->str());
     }
     const auto* model = modelIt->second;
     if (model->payload_type() != quantra::ModelPayload_CdsModelSpec) {
-        QUANTRA_ERROR("Model payload is not CdsModelSpec for model: " + tradePricing->model()->str());
+        QUANTRA_INVALID_ARGUMENT("Model payload is not CdsModelSpec for model: " + tradePricing->model()->str());
     }
 
     auto creditCurveSpec = creditIt->second;

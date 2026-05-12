@@ -28,19 +28,19 @@ flatbuffers::Offset<PriceCapFloorResponse> CapFloorPricingRequest::request(
     {
         auto dIt = reg.rates.curves.find(it->discounting_curve()->str());
         if (dIt == reg.rates.curves.end())
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
 
         auto fIt = reg.rates.curves.find(it->forwarding_curve()->str());
         if (fIt == reg.rates.curves.end())
-            QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve not found: " + it->forwarding_curve()->str());
 
         auto vIt = reg.volatility.optionletVols.find(it->volatility()->str());
         if (vIt == reg.volatility.optionletVols.end())
-            QUANTRA_ERROR("Optionlet vol not found: " + it->volatility()->str());
+            QUANTRA_NOT_FOUND("Optionlet vol not found: " + it->volatility()->str());
 
         auto mIt = reg.volatility.models.find(it->model()->str());
         if (mIt == reg.volatility.models.end())
-            QUANTRA_ERROR("Model not found: " + it->model()->str());
+            QUANTRA_NOT_FOUND("Model not found: " + it->model()->str());
 
         cap_floor_parser.linkForwardingTermStructure(fIt->second->currentLink());
         auto capFloor = cap_floor_parser.parse(it->cap_floor(), reg.rates.indices);

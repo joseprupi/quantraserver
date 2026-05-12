@@ -144,7 +144,7 @@ public:
                           << " error=" << e.what()
                           << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Quantra error");
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, e.what());
                 responder_.FinishWithError(status, this);
             }
             catch (std::exception &e)

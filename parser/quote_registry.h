@@ -33,7 +33,7 @@ public:
         if (typeIt == types_.end()) {
             types_[id] = type;
         } else if (typeIt->second != type) {
-            QUANTRA_ERROR("Quote id '" + id + "' has conflicting types");
+            QUANTRA_INVALID_ARGUMENT("Quote id '" + id + "' has conflicting types");
         }
     }
 
@@ -44,7 +44,7 @@ public:
     QuantLib::Handle<QuantLib::Quote> getHandle(const std::string& id) const {
         auto it = quotes_.find(id);
         if (it == quotes_.end()) {
-            QUANTRA_ERROR("Unknown quote id: " + id);
+            QUANTRA_NOT_FOUND("Unknown quote id: " + id);
         }
         return QuantLib::Handle<QuantLib::Quote>(it->second);
     }
@@ -52,14 +52,14 @@ public:
     QuantLib::Handle<QuantLib::Quote> getHandle(const std::string& id, quantra::QuoteType expected) const {
         auto it = quotes_.find(id);
         if (it == quotes_.end()) {
-            QUANTRA_ERROR("Unknown quote id: " + id);
+            QUANTRA_NOT_FOUND("Unknown quote id: " + id);
         }
         auto typeIt = types_.find(id);
         if (typeIt == types_.end()) {
-            QUANTRA_ERROR("Quote id '" + id + "' missing type");
+            QUANTRA_INVALID_ARGUMENT("Quote id '" + id + "' missing type");
         }
         if (typeIt->second != expected) {
-            QUANTRA_ERROR("Quote id '" + id + "' has wrong type");
+            QUANTRA_INVALID_ARGUMENT("Quote id '" + id + "' has wrong type");
         }
         return QuantLib::Handle<QuantLib::Quote>(it->second);
     }

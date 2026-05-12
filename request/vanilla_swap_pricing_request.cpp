@@ -25,7 +25,7 @@ flatbuffers::Offset<PriceVanillaSwapResponse> VanillaSwapPricingRequest::request
 {
     EvalDateGuard evalDateGuard;
     if (!request || !request->pricing() || !request->pricing()->as_of_date()) {
-        QUANTRA_ERROR("PriceVanillaSwapRequest requires pricing.as_of_date");
+        QUANTRA_INVALID_ARGUMENT("PriceVanillaSwapRequest requires pricing.as_of_date");
     }
     Date as_of_date = DateToQL(request->pricing()->as_of_date()->str());
     Settings::instance().evaluationDate() = as_of_date;

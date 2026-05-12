@@ -24,7 +24,7 @@ flatbuffers::Offset<PriceZeroCouponInflationSwapResponse> ZeroCouponInflationSwa
     const PriceZeroCouponInflationSwapRequest* request) const {
     EvalDateGuard evalDateGuard;
     if (!request || !request->pricing() || !request->pricing()->as_of_date()) {
-        QUANTRA_ERROR("PriceZeroCouponInflationSwapRequest requires pricing.as_of_date");
+        QUANTRA_INVALID_ARGUMENT("PriceZeroCouponInflationSwapRequest requires pricing.as_of_date");
     }
     Date asOf = DateToQL(request->pricing()->as_of_date()->str());
     Settings::instance().evaluationDate() = asOf;

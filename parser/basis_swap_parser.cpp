@@ -7,22 +7,22 @@ std::shared_ptr<QuantLib::Swap> BasisSwapParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (!swap) {
-        QUANTRA_ERROR("BasisSwap not found");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap not found");
     }
     if (!swap->leg1()) {
-        QUANTRA_ERROR("BasisSwap leg1 not found");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap leg1 not found");
     }
     if (!swap->leg2()) {
-        QUANTRA_ERROR("BasisSwap leg2 not found");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap leg2 not found");
     }
     if (!swap->leg1()->schedule() || !swap->leg2()->schedule()) {
-        QUANTRA_ERROR("BasisSwap leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap leg schedule not found");
     }
     if (!swap->leg1()->index() || !swap->leg1()->index()->id()) {
-        QUANTRA_ERROR("BasisSwap leg1 index.id is required");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap leg1 index.id is required");
     }
     if (!swap->leg2()->index() || !swap->leg2()->index()->id()) {
-        QUANTRA_ERROR("BasisSwap leg2 index.id is required");
+        QUANTRA_INVALID_ARGUMENT("BasisSwap leg2 index.id is required");
     }
 
     ScheduleParser scheduleParser;
@@ -56,7 +56,7 @@ std::shared_ptr<QuantLib::Swap> BasisSwapParser::parse(
     if (swap->swap_type() == quantra::enums::SwapType_Receiver) {
         payer = {false, true}; // receive leg1 / pay leg2
     } else if (swap->swap_type() != quantra::enums::SwapType_Payer) {
-        QUANTRA_ERROR("Invalid basis swap type");
+        QUANTRA_INVALID_ARGUMENT("Invalid basis swap type");
     }
 
     return std::make_shared<QuantLib::Swap>(legs, payer);

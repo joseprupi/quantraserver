@@ -44,7 +44,7 @@ QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
 
 QuantLib::Period toQlPeriod(const quantra::Period* p) {
     if (!p) {
-        QUANTRA_ERROR("Calibration Period is null");
+        QUANTRA_INVALID_ARGUMENT("Calibration Period is null");
     }
     return QuantLib::Period(p->n(), TimeUnitToQL(p->unit()));
 }
@@ -64,7 +64,7 @@ std::vector<QuantLib::Period> selectPeriods(
     if (!fallback.empty()) {
         return fallback;
     }
-    QUANTRA_ERROR("Hull-White calibration requires non-empty " + label + " grid");
+    QUANTRA_INVALID_ARGUMENT("Hull-White calibration requires non-empty " + label + " grid");
     return {};
 }
 
@@ -81,11 +81,11 @@ double marketVolAtNode(
             v = volEntry.handle->volatility(expiry, tenor, 0.0, true);
             break;
         default:
-            QUANTRA_ERROR(
+            QUANTRA_INVALID_ARGUMENT(
                 "Hull-White calibration supports only SwaptionVolKind Constant and AtmMatrix2D");
     }
     if (!(v > 0.0) || !std::isfinite(v)) {
-        QUANTRA_ERROR("Invalid market swaption vol extracted for calibration node");
+        QUANTRA_INVALID_ARGUMENT("Invalid market swaption vol extracted for calibration node");
     }
     return v;
 }
@@ -116,7 +116,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
 
     if (!calibSpec || !calibSpec->swaption_vol_id() || !calibSpec->discount_curve_id() ||
         !calibSpec->forwarding_curve_id() || !calibSpec->swap_index_id()) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "SwaptionHwCalibrationSpec requires swaption_vol_id, discount_curve_id, forwarding_curve_id, and swap_index_id");
     }
 
@@ -127,37 +127,37 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
 
     auto vIt = reg.volatility.swaptionVols.find(volId);
     if (vIt == reg.volatility.swaptionVols.end()) {
-        QUANTRA_ERROR("Calibration swaption vol not found: " + volId);
+        QUANTRA_NOT_FOUND("Calibration swaption vol not found: " + volId);
     }
     const auto& volEntry = vIt->second;
     if (volEntry.handle.empty()) {
-        QUANTRA_ERROR("Calibration swaption vol handle is empty: " + volId);
+        QUANTRA_INVALID_ARGUMENT("Calibration swaption vol handle is empty: " + volId);
     }
 
     auto cIt = reg.rates.curves.find(discountCurveId);
     if (cIt == reg.rates.curves.end() || !cIt->second || cIt->second->empty()) {
-        QUANTRA_ERROR("Calibration discount curve not found: " + discountCurveId);
+        QUANTRA_NOT_FOUND("Calibration discount curve not found: " + discountCurveId);
     }
     QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve(cIt->second->currentLink());
     auto fIt = reg.rates.curves.find(forwardingCurveId);
     if (fIt == reg.rates.curves.end() || !fIt->second || fIt->second->empty()) {
-        QUANTRA_ERROR("Calibration forwarding curve not found: " + forwardingCurveId);
+        QUANTRA_NOT_FOUND("Calibration forwarding curve not found: " + forwardingCurveId);
     }
     QuantLib::Handle<QuantLib::YieldTermStructure> forwardingCurve(fIt->second->currentLink());
 
     if (!reg.rates.swapIndices.has(swapIndexId)) {
-        QUANTRA_ERROR("Calibration swap index not found: " + swapIndexId);
+        QUANTRA_NOT_FOUND("Calibration swap index not found: " + swapIndexId);
     }
     const auto& sidx = reg.rates.swapIndices.get(swapIndexId);
     if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-        QUANTRA_ERROR("Hull-White calibration currently supports Ibor swap_index_id only");
+        QUANTRA_INVALID_ARGUMENT("Hull-White calibration currently supports Ibor swap_index_id only");
     }
     // Guard against convention drift: helper constructor cannot fully encode non-standard swap conventions.
     if (sidx.fixedDateRule != QuantLib::DateGeneration::Forward ||
         sidx.fixedBdc != QuantLib::ModifiedFollowing ||
         sidx.fixedTermBdc != QuantLib::ModifiedFollowing ||
         sidx.fixedEom) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Hull-White calibration currently supports swap indices with Forward generation, "
             "ModifiedFollowing conventions, and fixed_eom=false");
     }
@@ -171,7 +171,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     auto expiries = selectPeriods(calibSpec->expiries(), fallbackExpiries, "expiries");
     auto tenors = selectPeriods(calibSpec->tenors(), fallbackTenors, "tenors");
     if (expiries.empty() || tenors.empty()) {
-        QUANTRA_ERROR("Calibration grid is empty");
+        QUANTRA_INVALID_ARGUMENT("Calibration grid is empty");
     }
     const int gridRows = static_cast<int>(expiries.size());
     const int gridCols = static_cast<int>(tenors.size());
@@ -184,16 +184,16 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
            << " (max rows=" << kMaxCalibrationGridRows
            << ", max cols=" << kMaxCalibrationGridCols
            << ", max points=" << kMaxCalibrationGridPoints << ")";
-        QUANTRA_ERROR(os.str());
+        QUANTRA_INVALID_ARGUMENT(os.str());
     }
 
     auto ibor = reg.rates.indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
     if (sidx.fixedCalendar != ibor->fixingCalendar()) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Hull-White calibration requires swap index fixed_calendar to match IBOR fixing calendar");
     }
     if (sidx.floatCalendar != ibor->fixingCalendar()) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Hull-White calibration requires swap index float_calendar to match IBOR fixing calendar");
     }
     QuantLib::Period fixedLegTenor = frequencyToPeriod(sidx.fixedFrequency);
@@ -231,13 +231,13 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         }
     }
     if (helpers.empty()) {
-        QUANTRA_ERROR("No calibration helpers were built");
+        QUANTRA_INVALID_ARGUMENT("No calibration helpers were built");
     }
 
     const bool calibrateA = calibSpec->calibrate_a();
     const bool calibrateSigma = calibSpec->calibrate_sigma();
     if (!calibrateA && !calibrateSigma) {
-        QUANTRA_ERROR("At least one of calibrate_a or calibrate_sigma must be true");
+        QUANTRA_INVALID_ARGUMENT("At least one of calibrate_a or calibrate_sigma must be true");
     }
 
     auto hwModel = QuantLib::ext::make_shared<QuantLib::HullWhite>(
@@ -246,7 +246,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     for (auto& h : helpers) {
         auto blackHelper = QuantLib::ext::dynamic_pointer_cast<QuantLib::BlackCalibrationHelper>(h);
         if (!blackHelper) {
-            QUANTRA_ERROR("Unexpected helper type during Hull-White calibration");
+            QUANTRA_INVALID_ARGUMENT("Unexpected helper type during Hull-White calibration");
         }
         blackHelper->setPricingEngine(engine);
     }
@@ -269,7 +269,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
 
     const auto params = hwModel->params();
     if (params.size() < 2) {
-        QUANTRA_ERROR("HullWhite calibration returned invalid parameter vector");
+        QUANTRA_INVALID_ARGUMENT("HullWhite calibration returned invalid parameter vector");
     }
 
     double err2 = 0.0;

@@ -32,7 +32,7 @@ flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondPricingReq
 
         if (term_structure == reg.rates.curves.end())
         {
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
         }
 
         std::shared_ptr<QuantLib::FixedRateBond> bond = bond_parser.parse(it->fixed_rate_bond());

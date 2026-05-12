@@ -45,7 +45,7 @@ inline QuantLib::Currency CurrencyFromString(const std::string& ccy) {
     if (ccy == "KRW") return QuantLib::KRWCurrency();
     if (ccy == "TWD") return QuantLib::TWDCurrency();
     // Fallback: treat as EUR (you could also throw here)
-    QUANTRA_ERROR("Unsupported currency: " + ccy);
+    QUANTRA_INVALID_ARGUMENT("Unsupported currency: " + ccy);
     return QuantLib::EURCurrency(); // unreachable
 }
 
@@ -69,10 +69,10 @@ public:
         for (auto it = indices->begin(); it != indices->end(); ++it) {
             const auto* def = *it;
             if (!def->id()) {
-                QUANTRA_ERROR("IndexDef.id is required");
+                QUANTRA_INVALID_ARGUMENT("IndexDef.id is required");
             }
             if (!def->name()) {
-                QUANTRA_ERROR("IndexDef.name is required");
+                QUANTRA_INVALID_ARGUMENT("IndexDef.name is required");
             }
 
             std::string id = def->id()->str();
@@ -85,7 +85,7 @@ public:
 
             // Parse conventions
             if (!def->tenor()) {
-                QUANTRA_ERROR("IndexDef.tenor is required for id: " + id);
+                QUANTRA_INVALID_ARGUMENT("IndexDef.tenor is required for id: " + id);
             }
             int tenorN = def->tenor()->n();
             QuantLib::TimeUnit tenorUnit = TimeUnitToQL(def->tenor()->unit());

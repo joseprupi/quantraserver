@@ -46,7 +46,7 @@ Handle<YieldTermStructure> TermStructurePointParser::resolveCurve(
 ) const {
     if (!ref || !ref->id()) return Handle<YieldTermStructure>();
     if (!curves) {
-        QUANTRA_ERROR("Curve dependency '" + ref->id()->str() +
+        QUANTRA_INVALID_ARGUMENT("Curve dependency '" + ref->id()->str() +
                       "' specified but CurveRegistry is null");
     }
     return curves->get(ref->id()->str());
@@ -71,7 +71,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     if (point_type == quantra::Point_DepositHelper) {
         auto point = static_cast<const quantra::DepositHelper*>(data);
         if (!point->tenor()) {
-            QUANTRA_ERROR("DepositHelper.tenor is required");
+            QUANTRA_INVALID_ARGUMENT("DepositHelper.tenor is required");
         }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
@@ -153,15 +153,15 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     else if (point_type == quantra::Point_SwapHelper) {
         auto point = static_cast<const quantra::SwapHelper*>(data);
         if (!point->tenor()) {
-            QUANTRA_ERROR("SwapHelper.tenor is required");
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.tenor is required");
         }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
-            QUANTRA_ERROR("IndexRegistry is required for SwapHelper");
+            QUANTRA_INVALID_ARGUMENT("IndexRegistry is required for SwapHelper");
         }
         if (!point->float_index() || !point->float_index()->id()) {
-            QUANTRA_ERROR("SwapHelper.float_index.id is required");
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.float_index.id is required");
         }
 
         std::string indexId = point->float_index()->id()->str();
@@ -169,7 +169,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // Hard error: projection_curve is not supported for SwapHelper
         if (point->deps() && point->deps()->projection_curve() &&
             point->deps()->projection_curve()->id()) {
-            QUANTRA_ERROR(
+            QUANTRA_INVALID_ARGUMENT(
                 "projection_curve is not supported for SwapHelper. "
                 "QuantLib's SwapRateHelper::setTermStructure() overrides the index "
                 "forwarding handle with the curve being bootstrapped. "
@@ -242,15 +242,15 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     else if (point_type == quantra::Point_OISHelper) {
         auto point = static_cast<const quantra::OISHelper*>(data);
         if (!point->tenor()) {
-            QUANTRA_ERROR("OISHelper.tenor is required");
+            QUANTRA_INVALID_ARGUMENT("OISHelper.tenor is required");
         }
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
-            QUANTRA_ERROR("IndexRegistry is required for OISHelper");
+            QUANTRA_INVALID_ARGUMENT("IndexRegistry is required for OISHelper");
         }
         if (!point->overnight_index() || !point->overnight_index()->id()) {
-            QUANTRA_ERROR("OISHelper.overnight_index.id is required");
+            QUANTRA_INVALID_ARGUMENT("OISHelper.overnight_index.id is required");
         }
 
         std::string indexId = point->overnight_index()->id()->str();
@@ -258,7 +258,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // Hard error: projection_curve is not supported for OISHelper
         if (point->deps() && point->deps()->projection_curve() &&
             point->deps()->projection_curve()->id()) {
-            QUANTRA_ERROR(
+            QUANTRA_INVALID_ARGUMENT(
                 "projection_curve is not supported for OISHelper. "
                 "QuantLib's OISRateHelper::setTermStructure() overrides the overnight "
                 "index forwarding handle with the curve being bootstrapped. "
@@ -292,10 +292,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
-            QUANTRA_ERROR("IndexRegistry is required for DatedOISHelper");
+            QUANTRA_INVALID_ARGUMENT("IndexRegistry is required for DatedOISHelper");
         }
         if (!point->overnight_index() || !point->overnight_index()->id()) {
-            QUANTRA_ERROR("DatedOISHelper.overnight_index.id is required");
+            QUANTRA_INVALID_ARGUMENT("DatedOISHelper.overnight_index.id is required");
         }
 
         std::string indexId = point->overnight_index()->id()->str();
@@ -303,7 +303,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // Hard error: projection_curve is not supported for DatedOISHelper
         if (point->deps() && point->deps()->projection_curve() &&
             point->deps()->projection_curve()->id()) {
-            QUANTRA_ERROR(
+            QUANTRA_INVALID_ARGUMENT(
                 "projection_curve is not supported for DatedOISHelper. "
                 "QuantLib's OISRateHelper overrides the overnight index forwarding "
                 "handle with the curve being bootstrapped. "
@@ -348,16 +348,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // Stubs for basis / FX / XCCY
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_TenorBasisSwapHelper) {
-        QUANTRA_ERROR("TenorBasisSwapHelper: schema-ready but not implemented.");
+        QUANTRA_INVALID_ARGUMENT("TenorBasisSwapHelper: schema-ready but not implemented.");
     }
     else if (point_type == quantra::Point_FxSwapHelper) {
-        QUANTRA_ERROR("FxSwapHelper: schema-ready but not implemented.");
+        QUANTRA_INVALID_ARGUMENT("FxSwapHelper: schema-ready but not implemented.");
     }
     else if (point_type == quantra::Point_CrossCcyBasisHelper) {
-        QUANTRA_ERROR("CrossCcyBasisHelper: schema-ready but not implemented.");
+        QUANTRA_INVALID_ARGUMENT("CrossCcyBasisHelper: schema-ready but not implemented.");
     }
 
-    QUANTRA_ERROR("Unknown point type: " + std::to_string(point_type));
+    QUANTRA_INVALID_ARGUMENT("Unknown point type: " + std::to_string(point_type));
     return nullptr;
 }
 

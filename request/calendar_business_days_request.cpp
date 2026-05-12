@@ -25,13 +25,13 @@ flatbuffers::Offset<quantra::CalendarBusinessDaysResponse> CalendarBusinessDaysR
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const quantra::CalendarBusinessDaysRequest* request) const {
     if (!request || !request->start_date() || !request->end_date()) {
-        QUANTRA_ERROR("CalendarBusinessDaysRequest.start_date and end_date are required");
+        QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest.start_date and end_date are required");
     }
 
     Date startDate = DateToQL(request->start_date()->str());
     Date endDate = DateToQL(request->end_date()->str());
     if (startDate > endDate) {
-        QUANTRA_ERROR("CalendarBusinessDaysRequest.start_date must be <= end_date");
+        QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest.start_date must be <= end_date");
     }
 
     const Calendar calendar = CalendarToQL(request->calendar());

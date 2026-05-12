@@ -13,7 +13,7 @@ CalibrateSwaptionModelPricingRequest::request(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const quantra::CalibrateSwaptionModelRequest* request) const {
     if (!request || !request->pricing() || !request->model_id()) {
-        QUANTRA_ERROR("CalibrateSwaptionModelRequest requires pricing and model_id");
+        QUANTRA_INVALID_ARGUMENT("CalibrateSwaptionModelRequest requires pricing and model_id");
     }
 
     quantra::PricingRegistryBuilder regBuilder;
@@ -25,11 +25,11 @@ CalibrateSwaptionModelPricingRequest::request(
     quantra::SwaptionModelParser modelParser;
     auto mIt = reg.volatility.models.find(modelId);
     if (mIt == reg.volatility.models.end()) {
-        QUANTRA_ERROR("Model not found: " + modelId);
+        QUANTRA_NOT_FOUND("Model not found: " + modelId);
     }
     const auto* spec = modelParser.parse(mIt->second, modelId);
     if (spec->model_type() != quantra::enums::IrModelType_HullWhiteLattice) {
-        QUANTRA_ERROR("Model '" + modelId + "' must be HullWhiteLattice for calibration");
+        QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' must be HullWhiteLattice for calibration");
     }
 
     const quantra::SwaptionHwCalibrationSpec* calibSpec = request->calibration();
@@ -37,7 +37,7 @@ CalibrateSwaptionModelPricingRequest::request(
         calibSpec = spec->hw_calibration();
     }
     if (!calibSpec) {
-        QUANTRA_ERROR("Calibration spec is required (request.calibration or model.hw_calibration)");
+        QUANTRA_INVALID_ARGUMENT("Calibration spec is required (request.calibration or model.hw_calibration)");
     }
 
     auto result = quantra::calibrateHullWhiteFromSwaptionVol(reg, calibSpec, asOf);

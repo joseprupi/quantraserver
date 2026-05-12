@@ -66,17 +66,17 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
     {
         auto dIt = reg.rates.curves.find(it->discounting_curve()->str());
         if (dIt == reg.rates.curves.end())
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
 
         auto fIt = reg.rates.curves.find(it->forwarding_curve()->str());
         if (fIt == reg.rates.curves.end())
-            QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve not found: " + it->forwarding_curve()->str());
 
         auto vIt = reg.volatility.swaptionVols.find(it->volatility()->str());
         if (vIt == reg.volatility.swaptionVols.end())
-            QUANTRA_ERROR("Swaption vol not found: " + it->volatility()->str());
+            QUANTRA_NOT_FOUND("Swaption vol not found: " + it->volatility()->str());
         if (vIt->second.referenceDate == QuantLib::Date()) {
-            QUANTRA_ERROR("Swaption vol has invalid referenceDate: " + it->volatility()->str());
+            QUANTRA_INVALID_ARGUMENT("Swaption vol has invalid referenceDate: " + it->volatility()->str());
         }
         if (vIt->second.referenceDate != asOf) {
             std::ostringstream err;
@@ -84,12 +84,12 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 << ") must equal swaption vol referenceDate ("
                 << QuantLib::io::iso_date(vIt->second.referenceDate)
                 << ") for vol '" << it->volatility()->str() << "'";
-            QUANTRA_ERROR(err.str());
+            QUANTRA_INVALID_ARGUMENT(err.str());
         }
 
         auto mIt = reg.volatility.models.find(it->model()->str());
         if (mIt == reg.volatility.models.end())
-            QUANTRA_ERROR("Model not found: " + it->model()->str());
+            QUANTRA_NOT_FOUND("Model not found: " + it->model()->str());
         const std::string modelId = it->model()->str();
         const auto* swaptionModelSpec = modelParser.parse(mIt->second, it->model()->str());
         const auto modelType = swaptionModelSpec->model_type();
@@ -99,50 +99,50 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             (modelType == quantra::enums::IrModelType_Black ||
              modelType == quantra::enums::IrModelType_Bachelier ||
              modelType == quantra::enums::IrModelType_ShiftedBlack)) {
-            QUANTRA_ERROR("Swaption exercise type Bermudan/American requires HullWhiteLattice model");
+            QUANTRA_INVALID_ARGUMENT("Swaption exercise type Bermudan/American requires HullWhiteLattice model");
         }
         if (modelType == quantra::enums::IrModelType_HullWhiteLattice &&
             swaptionModelSpec->param_mode() == quantra::enums::ModelParamMode_Calibrate) {
             const auto* calibSpec = swaptionModelSpec->hw_calibration();
             if (!calibSpec) {
-                QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
             }
             if (!calibSpec->discount_curve_id() || !calibSpec->forwarding_curve_id() ||
                 !calibSpec->swaption_vol_id() || !calibSpec->swap_index_id()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' hw_calibration must include discount_curve_id, forwarding_curve_id, "
                     "swaption_vol_id, and swap_index_id");
             }
             if (calibSpec->discount_curve_id()->str() != it->discounting_curve()->str()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' hw_calibration.discount_curve_id must match trade discounting_curve");
             }
             if (calibSpec->forwarding_curve_id()->str() != it->forwarding_curve()->str()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' hw_calibration.forwarding_curve_id must match trade forwarding_curve");
             }
             if (calibSpec->swaption_vol_id()->str() != it->volatility()->str()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' hw_calibration.swaption_vol_id must match trade volatility");
             }
             const std::string calibSwapIndexId = calibSpec->swap_index_id()->str();
             if (!reg.rates.swapIndices.has(calibSwapIndexId)) {
-                QUANTRA_ERROR(
+                QUANTRA_NOT_FOUND(
                     "Model '" + modelId + "' hw_calibration.swap_index_id not found in pricing.swap_indices");
             }
             const auto* sw = it->swaption();
             if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
             }
             std::string tradeFloatIndexId = modelParser.extractTradeFloatIndexId(sw);
             if (tradeFloatIndexId.empty()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' param_mode=Calibrate requires trade floating index id for compatibility checks");
             }
             const auto& sidx = reg.rates.swapIndices.get(calibSwapIndexId);
             if (sidx.floatIndexId != tradeFloatIndexId) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Model '" + modelId + "' hw_calibration.swap_index_id float_index_id does not match "
                     "trade floating index");
             }
@@ -175,7 +175,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
                 swaptionModelSpec->param_mode() == quantra::enums::ModelParamMode_Calibrate) {
                 const auto* calibSpec = swaptionModelSpec->hw_calibration();
                 if (!calibSpec) {
-                    QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+                    QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
                 }
                 // Rebump greeks keep model parameters fixed: calibration is done once per model_id
                 // and reused for bumped/rolled evaluations within the same request.
@@ -241,7 +241,7 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         auto resolveCalibratedHw = [&]() -> const HwCalibResult& {
             const auto* calibSpec = swaptionModelSpec->hw_calibration();
             if (!calibSpec) {
-                QUANTRA_ERROR("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' param_mode=Calibrate requires hw_calibration");
             }
             // Reuse calibrated params for all valuations in this request (including rebump/theta).
             HwCalibResult res = pricingServices.calibrateHullWhite(
@@ -283,11 +283,11 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
 
             auto dItB = booted.handles.find(it->discounting_curve()->str());
             if (dItB == booted.handles.end())
-                QUANTRA_ERROR("Discounting curve not found (rebump): " + it->discounting_curve()->str());
+                QUANTRA_NOT_FOUND("Discounting curve not found (rebump): " + it->discounting_curve()->str());
 
             auto fItB = booted.handles.find(it->forwarding_curve()->str());
             if (fItB == booted.handles.end())
-                QUANTRA_ERROR("Forwarding curve not found (rebump): " + it->forwarding_curve()->str());
+                QUANTRA_NOT_FOUND("Forwarding curve not found (rebump): " + it->forwarding_curve()->str());
 
             IndexRegistryBuilder indexBuilder;
             IndexRegistry idx = indexBuilder.build(request->pricing()->rates()->indices());

@@ -39,7 +39,7 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const PriceEquityOptionRequest* request) const {
     if (!request || !request->pricing()) {
-        QUANTRA_ERROR("PriceEquityOptionRequest.pricing is required");
+        QUANTRA_INVALID_ARGUMENT("PriceEquityOptionRequest.pricing is required");
     }
 
     PricingRegistryBuilder regBuilder;
@@ -50,35 +50,35 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
     EquityModelParser modelParser;
 
     if (!request->options()) {
-        QUANTRA_ERROR("PriceEquityOptionRequest.options is required");
+        QUANTRA_INVALID_ARGUMENT("PriceEquityOptionRequest.options is required");
     }
 
     std::vector<flatbuffers::Offset<EquityOptionResponse>> out;
     for (const auto* p : *request->options()) {
         if (!p || !p->option()) {
-            QUANTRA_ERROR("PriceEquityOption.option is required");
+            QUANTRA_INVALID_ARGUMENT("PriceEquityOption.option is required");
         }
         if (!p->discounting_curve() || !p->volatility() || !p->model()) {
-            QUANTRA_ERROR("PriceEquityOption requires discounting_curve, volatility, and model");
+            QUANTRA_INVALID_ARGUMENT("PriceEquityOption requires discounting_curve, volatility, and model");
         }
 
         ParsedEquityOption opt = optionParser.parse(p->option());
         auto uIt = underlyings.find(opt.underlyingId);
         if (uIt == underlyings.end()) {
-            QUANTRA_ERROR("Equity underlying not found: " + opt.underlyingId);
+            QUANTRA_NOT_FOUND("Equity underlying not found: " + opt.underlyingId);
         }
 
         auto dIt = reg.rates.curves.find(p->discounting_curve()->str());
         if (dIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Discounting curve not found: " + p->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + p->discounting_curve()->str());
         }
         auto vIt = reg.volatility.blackVols.find(p->volatility()->str());
         if (vIt == reg.volatility.blackVols.end()) {
-            QUANTRA_ERROR("Black vol not found: " + p->volatility()->str());
+            QUANTRA_NOT_FOUND("Black vol not found: " + p->volatility()->str());
         }
         auto mIt = reg.volatility.models.find(p->model()->str());
         if (mIt == reg.volatility.models.end()) {
-            QUANTRA_ERROR("Model not found: " + p->model()->str());
+            QUANTRA_NOT_FOUND("Model not found: " + p->model()->str());
         }
         const auto* model = modelParser.parse(mIt->second, p->model()->str());
         const auto& underlying = uIt->second;
@@ -94,7 +94,7 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
         std::shared_ptr<QuantLib::OneAssetOption> oneAssetOption;
         if (opt.hasBarrier) {
             if (model->model_type() != quantra::enums::EquityModelType_BlackScholesAnalytic) {
-                QUANTRA_ERROR("Equity barrier option currently requires model_type=BlackScholesAnalytic");
+                QUANTRA_INVALID_ARGUMENT("Equity barrier option currently requires model_type=BlackScholesAnalytic");
             }
             auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
                 opt.barrierType,
@@ -112,12 +112,12 @@ flatbuffers::Offset<PriceEquityOptionResponse> EquityOptionPricingRequest::reque
             } else if (model->model_type() == quantra::enums::EquityModelType_BinomialCRR) {
                 int steps = model->binomial_steps();
                 if (steps <= 0) {
-                    QUANTRA_ERROR("EquityVanillaModelSpec.binomial_steps must be > 0");
+                    QUANTRA_INVALID_ARGUMENT("EquityVanillaModelSpec.binomial_steps must be > 0");
                 }
                 vanilla->setPricingEngine(
                     std::make_shared<QuantLib::BinomialVanillaEngine<QuantLib::CoxRossRubinstein>>(process, steps));
             } else {
-                QUANTRA_ERROR("Unsupported EquityModelType");
+                QUANTRA_INVALID_ARGUMENT("Unsupported EquityModelType");
             }
             instrument = vanilla;
             oneAssetOption = vanilla;

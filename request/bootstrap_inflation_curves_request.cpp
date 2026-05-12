@@ -17,10 +17,10 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const BootstrapInflationCurvesRequest* request) const {
     if (!request || !request->pricing()) {
-        QUANTRA_ERROR("BootstrapInflationCurvesRequest.pricing is required");
+        QUANTRA_INVALID_ARGUMENT("BootstrapInflationCurvesRequest.pricing is required");
     }
     if (!request->queries()) {
-        QUANTRA_ERROR("BootstrapInflationCurvesRequest.queries is required");
+        QUANTRA_INVALID_ARGUMENT("BootstrapInflationCurvesRequest.queries is required");
     }
 
     PricingRegistry reg;
@@ -41,16 +41,16 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
 
         try {
             if (!pricingBuildError.empty()) {
-                QUANTRA_ERROR(pricingBuildError);
+                QUANTRA_INVALID_ARGUMENT(pricingBuildError);
             }
             if (curveId.empty()) {
-                QUANTRA_ERROR("InflationCurveQuerySpec.curve_id is required");
+                QUANTRA_INVALID_ARGUMENT("InflationCurveQuerySpec.curve_id is required");
             }
             if (!query->grid()) {
-                QUANTRA_ERROR("InflationCurveQuerySpec.grid is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("InflationCurveQuerySpec.grid is required for curve_id: " + curveId);
             }
             if (!query->measures() || query->measures()->size() == 0) {
-                QUANTRA_ERROR("InflationCurveQuerySpec.measures is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("InflationCurveQuerySpec.measures is required for curve_id: " + curveId);
             }
 
             // Find curve handle in either map.
@@ -59,22 +59,22 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
             const bool hasZ = (zIt != reg.inflation.zeroInflationCurves.end());
             const bool hasY = (yIt != reg.inflation.yoyInflationCurves.end());
             if (!hasZ && !hasY) {
-                QUANTRA_ERROR("Inflation curve id not found in PricingRegistry: " + curveId);
+                QUANTRA_NOT_FOUND("Inflation curve id not found in PricingRegistry: " + curveId);
             }
             if (hasZ && hasY) {
-                QUANTRA_ERROR("Inflation curve id exists as both zero and YoY: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("Inflation curve id exists as both zero and YoY: " + curveId);
             }
 
             std::shared_ptr<QuantLib::ZeroInflationTermStructure> zc;
             std::shared_ptr<QuantLib::YoYInflationTermStructure> yy;
             if (hasZ) {
                 if (!zIt->second || zIt->second->empty()) {
-                    QUANTRA_ERROR("Zero inflation curve handle has no linked curve for id: " + curveId);
+                    QUANTRA_INVALID_ARGUMENT("Zero inflation curve handle has no linked curve for id: " + curveId);
                 }
                 zc = zIt->second->currentLink();
             } else {
                 if (!yIt->second || yIt->second->empty()) {
-                    QUANTRA_ERROR("YoY inflation curve handle has no linked curve for id: " + curveId);
+                    QUANTRA_INVALID_ARGUMENT("YoY inflation curve handle has no linked curve for id: " + curveId);
                 }
                 yy = yIt->second->currentLink();
             }
@@ -85,7 +85,7 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
 
             auto metaIt = reg.inflation.curveMetadata.find(curveId);
             if (metaIt == reg.inflation.curveMetadata.end()) {
-                QUANTRA_ERROR("Inflation curve metadata missing for id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("Inflation curve metadata missing for id: " + curveId);
             }
             const auto& meta = metaIt->second;
 
@@ -95,7 +95,7 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
                 err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOfDate)
                     << ") must equal inflation curve referenceDate ("
                     << io::iso_date(referenceDate) << ") for curve '" << curveId << "'";
-                QUANTRA_ERROR(err.str());
+                QUANTRA_INVALID_ARGUMENT(err.str());
             }
 
             if (allowExtrapolation) {
@@ -124,7 +124,7 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
                 const int maxPoints = (options && options->max_points() > 0) ? options->max_points() : 50000;
                 gridDates = grid_utils::BuildRangeGrid(query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
             } else {
-                QUANTRA_ERROR("DateGridSpec.grid is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required for curve_id: " + curveId);
             }
 
             std::vector<flatbuffers::Offset<flatbuffers::String>> gridDateStrings;
@@ -144,17 +144,17 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
                     if (!allowExtrapolation) {
                         Date maxDate = hasZ ? zc->maxDate() : yy->maxDate();
                         if (d > maxDate) {
-                            QUANTRA_ERROR("Date is outside inflation curve support");
+                            QUANTRA_INVALID_ARGUMENT("Date is outside inflation curve support");
                         }
                     }
                     if (measure == enums::InflationCurveMeasure_ZeroRate) {
-                        if (!hasZ) QUANTRA_ERROR("ZeroRate measure requires a zero inflation curve");
+                        if (!hasZ) QUANTRA_INVALID_ARGUMENT("ZeroRate measure requires a zero inflation curve");
                         values.push_back(zc->zeroRate(d));
                     } else if (measure == enums::InflationCurveMeasure_YoYRate) {
-                        if (!hasY) QUANTRA_ERROR("YoYRate measure requires a YoY inflation curve");
+                        if (!hasY) QUANTRA_INVALID_ARGUMENT("YoYRate measure requires a YoY inflation curve");
                         values.push_back(yy->yoyRate(d));
                     } else {
-                        QUANTRA_ERROR("Unsupported InflationCurveMeasure for curve_id: " + curveId);
+                        QUANTRA_INVALID_ARGUMENT("Unsupported InflationCurveMeasure for curve_id: " + curveId);
                     }
                 }
 

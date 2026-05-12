@@ -38,11 +38,11 @@ flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondPric
         auto pricer = pricers_map.find(it->coupon_pricer()->str());
 
         if (discounting_term_structure == reg.rates.curves.end())
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
         if (forwarding_term_structure == reg.rates.curves.end())
-            QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve not found: " + it->forwarding_curve()->str());
         if (pricer == pricers_map.end())
-            QUANTRA_ERROR("Coupon pricer not found: " + it->coupon_pricer()->str());
+            QUANTRA_NOT_FOUND("Coupon pricer not found: " + it->coupon_pricer()->str());
 
         // Link forwarding curve and parse bond with IndexRegistry
         bond_parser.linkForwardingTermStructure(forwarding_term_structure->second->currentLink());

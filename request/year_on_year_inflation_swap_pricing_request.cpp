@@ -24,7 +24,7 @@ flatbuffers::Offset<PriceYearOnYearInflationSwapResponse> YearOnYearInflationSwa
     const PriceYearOnYearInflationSwapRequest* request) const {
     EvalDateGuard evalDateGuard;
     if (!request || !request->pricing() || !request->pricing()->as_of_date()) {
-        QUANTRA_ERROR("PriceYearOnYearInflationSwapRequest requires pricing.as_of_date");
+        QUANTRA_INVALID_ARGUMENT("PriceYearOnYearInflationSwapRequest requires pricing.as_of_date");
     }
     Date asOf = DateToQL(request->pricing()->as_of_date()->str());
     Settings::instance().evaluationDate() = asOf;

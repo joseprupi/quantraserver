@@ -28,15 +28,15 @@ flatbuffers::Offset<PriceBasisSwapResponse> BasisSwapPricingRequest::request(
     for (auto it = request->swaps()->begin(); it != request->swaps()->end(); ++it) {
         auto discIt = reg.rates.curves.find(it->discounting_curve()->str());
         if (discIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
         }
         auto fwd1It = reg.rates.curves.find(it->forwarding_curve_leg1()->str());
         if (fwd1It == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Forwarding curve leg1 not found: " + it->forwarding_curve_leg1()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve leg1 not found: " + it->forwarding_curve_leg1()->str());
         }
         auto fwd2It = reg.rates.curves.find(it->forwarding_curve_leg2()->str());
         if (fwd2It == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Forwarding curve leg2 not found: " + it->forwarding_curve_leg2()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve leg2 not found: " + it->forwarding_curve_leg2()->str());
         }
 
         parser.linkForwardingTermStructures(

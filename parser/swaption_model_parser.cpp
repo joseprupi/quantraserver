@@ -8,14 +8,14 @@ const quantra::SwaptionModelSpec* SwaptionModelParser::parse(
     const quantra::ModelSpec* model,
     const std::string& modelId) const {
     if (!model) {
-        QUANTRA_ERROR("Model '" + modelId + "' not found");
+        QUANTRA_NOT_FOUND("Model '" + modelId + "' not found");
     }
     if (model->payload_type() != quantra::ModelPayload_SwaptionModelSpec) {
-        QUANTRA_ERROR("Model '" + modelId + "' is not a SwaptionModelSpec");
+        QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' is not a SwaptionModelSpec");
     }
     const auto* spec = model->payload_as_SwaptionModelSpec();
     if (!spec) {
-        QUANTRA_ERROR("Model '" + modelId + "' has null SwaptionModelSpec payload");
+        QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' has null SwaptionModelSpec payload");
     }
     return spec;
 }

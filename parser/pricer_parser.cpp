@@ -3,17 +3,17 @@
 std::shared_ptr<QuantLib::IborCouponPricer> PricerParser::parse(const quantra::CouponPricer *pricer)
 {
     if (!pricer) {
-        QUANTRA_ERROR("Coupon pricer not found");
+        QUANTRA_INVALID_ARGUMENT("Coupon pricer not found");
     }
 
     const auto* black_ibor_pricer = pricer->black_ibor_coupon_pricer();
     if (!black_ibor_pricer) {
-        QUANTRA_ERROR("Coupon pricer black_ibor_coupon_pricer not found");
+        QUANTRA_INVALID_ARGUMENT("Coupon pricer black_ibor_coupon_pricer not found");
     }
 
     const auto* optionlet_volatility = black_ibor_pricer->optionlet_volatility();
     if (!optionlet_volatility) {
-        QUANTRA_ERROR("Coupon pricer optionlet_volatility not found");
+        QUANTRA_INVALID_ARGUMENT("Coupon pricer optionlet_volatility not found");
     }
 
     auto ibor_coupon_pricer = std::make_shared<QuantLib::BlackIborCouponPricer>();

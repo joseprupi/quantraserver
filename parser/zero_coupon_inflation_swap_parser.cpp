@@ -16,7 +16,7 @@ QuantLib::CPI::InterpolationType toQlInterpolation(quantra::enums::CPIInterpolat
         case quantra::enums::CPIInterpolationType_Linear:
             return QuantLib::CPI::Linear;
     }
-    QUANTRA_ERROR("Unsupported CPI interpolation type");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CPI interpolation type");
     return QuantLib::CPI::AsIndex;
 }
 
@@ -26,22 +26,22 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
     const quantra::ZeroCouponInflationSwap* swap,
     const std::shared_ptr<QuantLib::ZeroInflationIndex>& inflationIndex) {
     if (!swap) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap not found");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap not found");
     }
     if (!swap->start_date()) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap start_date not found");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap start_date not found");
     }
     if (!swap->maturity_date()) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap maturity_date not found");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap maturity_date not found");
     }
     if (!swap->observation_lag()) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap observation_lag not found");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap observation_lag not found");
     }
     if (!swap->inflation_index_id() || swap->inflation_index_id()->str().empty()) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap inflation_index_id is required");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap inflation_index_id is required");
     }
     if (!inflationIndex) {
-        QUANTRA_ERROR("ZeroCouponInflationSwap inflation index not available");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap inflation index not available");
     }
 
     QuantLib::ZeroCouponInflationSwap::Type swapType;
@@ -53,7 +53,7 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
             swapType = QuantLib::ZeroCouponInflationSwap::Receiver;
             break;
         default:
-            QUANTRA_ERROR("Invalid zero coupon inflation swap type");
+            QUANTRA_INVALID_ARGUMENT("Invalid zero coupon inflation swap type");
     }
 
     return std::make_shared<QuantLib::ZeroCouponInflationSwap>(

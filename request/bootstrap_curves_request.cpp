@@ -29,10 +29,10 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const BootstrapCurvesRequest* request) const {
     if (!request || !request->pricing()) {
-        QUANTRA_ERROR("BootstrapCurvesRequest.pricing is required");
+        QUANTRA_INVALID_ARGUMENT("BootstrapCurvesRequest.pricing is required");
     }
     if (!request->queries()) {
-        QUANTRA_ERROR("BootstrapCurvesRequest.queries is required");
+        QUANTRA_INVALID_ARGUMENT("BootstrapCurvesRequest.queries is required");
     }
 
     PricingRegistry reg;
@@ -53,31 +53,31 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
 
         try {
             if (!pricingBuildError.empty()) {
-                QUANTRA_ERROR(pricingBuildError);
+                QUANTRA_INVALID_ARGUMENT(pricingBuildError);
             }
             if (curveId.empty()) {
-                QUANTRA_ERROR("CurveQuerySpec.curve_id is required");
+                QUANTRA_INVALID_ARGUMENT("CurveQuerySpec.curve_id is required");
             }
             if (!query->grid()) {
-                QUANTRA_ERROR("CurveQuerySpec.grid is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("CurveQuerySpec.grid is required for curve_id: " + curveId);
             }
             if (!query->measures() || query->measures()->size() == 0) {
-                QUANTRA_ERROR("CurveQuerySpec.measures is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("CurveQuerySpec.measures is required for curve_id: " + curveId);
             }
 
             auto regIt = reg.rates.curves.find(curveId);
             if (regIt == reg.rates.curves.end() || !regIt->second || regIt->second->empty()) {
-                QUANTRA_ERROR("Curve id not found in PricingRegistry: " + curveId);
+                QUANTRA_NOT_FOUND("Curve id not found in PricingRegistry: " + curveId);
             }
             auto curve = regIt->second->currentLink();
             if (!curve) {
-                QUANTRA_ERROR("Curve handle has no linked curve for id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("Curve handle has no linked curve for id: " + curveId);
             }
 
             const auto* rates = request->pricing()->rates();
             const auto* tsSpec = findCurveSpecById(rates ? rates->curves() : nullptr, curveId);
             if (!tsSpec) {
-                QUANTRA_ERROR("curve_id '" + curveId + "' not found in pricing.rates.curves");
+                QUANTRA_NOT_FOUND("curve_id '" + curveId + "' not found in pricing.rates.curves");
             }
 
             const auto* options = query->options();
@@ -100,7 +100,7 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                 const int maxPoints = (options && options->max_points() > 0) ? options->max_points() : 50000;
                 gridDates = buildRangeGrid(query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
             } else {
-                QUANTRA_ERROR("DateGridSpec.grid is required for curve_id: " + curveId);
+                QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required for curve_id: " + curveId);
             }
 
             std::vector<flatbuffers::Offset<flatbuffers::String>> gridDateStrings;
@@ -125,7 +125,7 @@ flatbuffers::Offset<BootstrapCurvesResponse> BootstrapCurvesRequestHandler::requ
                             curve, gridDates, query->fwd(), gridCalendar, gridBdc, curveCalendar);
                         break;
                     default:
-                        QUANTRA_ERROR("Unsupported CurveMeasure for curve_id: " + curveId);
+                        QUANTRA_INVALID_ARGUMENT("Unsupported CurveMeasure for curve_id: " + curveId);
                 }
 
                 auto valuesVec = builder->CreateVector(values);
@@ -218,13 +218,13 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
         auto point = points->Get(i);
         Date maturityDate;
         if (auto deposit = point->point_as_DepositHelper()) {
-            if (!deposit->tenor()) QUANTRA_ERROR("DepositHelper.tenor is required");
+            if (!deposit->tenor()) QUANTRA_INVALID_ARGUMENT("DepositHelper.tenor is required");
             QuantLib::Period tenor(
                 deposit->tenor()->n(),
                 TimeUnitToQL(deposit->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor, ConventionToQL(deposit->business_day_convention()));
         } else if (auto swap = point->point_as_SwapHelper()) {
-            if (!swap->tenor()) QUANTRA_ERROR("SwapHelper.tenor is required");
+            if (!swap->tenor()) QUANTRA_INVALID_ARGUMENT("SwapHelper.tenor is required");
             QuantLib::Period tenor(
                 swap->tenor()->n(),
                 TimeUnitToQL(swap->tenor()->unit()));
@@ -242,7 +242,7 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
                 maturityDate = DateToQL(bond->schedule()->termination_date()->str());
             }
         } else if (auto ois = point->point_as_OISHelper()) {
-            if (!ois->tenor()) QUANTRA_ERROR("OISHelper.tenor is required");
+            if (!ois->tenor()) QUANTRA_INVALID_ARGUMENT("OISHelper.tenor is required");
             QuantLib::Period tenor(
                 ois->tenor()->n(),
                 TimeUnitToQL(ois->tenor()->unit()));
@@ -250,19 +250,19 @@ std::vector<Date> BootstrapCurvesRequestHandler::extractPillarDatesFromHelpers(
         } else if (auto datedOis = point->point_as_DatedOISHelper()) {
             maturityDate = DateToQL(datedOis->end_date()->str());
         } else if (auto basis = point->point_as_TenorBasisSwapHelper()) {
-            if (!basis->tenor()) QUANTRA_ERROR("TenorBasisSwapHelper.tenor is required");
+            if (!basis->tenor()) QUANTRA_INVALID_ARGUMENT("TenorBasisSwapHelper.tenor is required");
             QuantLib::Period tenor(
                 basis->tenor()->n(),
                 TimeUnitToQL(basis->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto fx = point->point_as_FxSwapHelper()) {
-            if (!fx->tenor()) QUANTRA_ERROR("FxSwapHelper.tenor is required");
+            if (!fx->tenor()) QUANTRA_INVALID_ARGUMENT("FxSwapHelper.tenor is required");
             QuantLib::Period tenor(
                 fx->tenor()->n(),
                 TimeUnitToQL(fx->tenor()->unit()));
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto xccy = point->point_as_CrossCcyBasisHelper()) {
-            if (!xccy->tenor()) QUANTRA_ERROR("CrossCcyBasisHelper.tenor is required");
+            if (!xccy->tenor()) QUANTRA_INVALID_ARGUMENT("CrossCcyBasisHelper.tenor is required");
             QuantLib::Period tenor(
                 xccy->tenor()->n(),
                 TimeUnitToQL(xccy->tenor()->unit()));

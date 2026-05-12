@@ -24,7 +24,7 @@ flatbuffers::Offset<quantra::CalendarAdvanceResponse> CalendarAdvanceRequestHand
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const quantra::CalendarAdvanceRequest* request) const {
     if (!request || !request->date()) {
-        QUANTRA_ERROR("CalendarAdvanceRequest.date is required");
+        QUANTRA_INVALID_ARGUMENT("CalendarAdvanceRequest.date is required");
     }
 
     const Date inputDate = DateToQL(request->date()->str());

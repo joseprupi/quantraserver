@@ -22,7 +22,7 @@ QuantLib::Barrier::Type toQlBarrierType(quantra::enums::EquityBarrierType t) {
         case quantra::enums::EquityBarrierType_UpOut:
             return QuantLib::Barrier::UpOut;
     }
-    QUANTRA_ERROR("Unsupported EquityBarrierType");
+    QUANTRA_INVALID_ARGUMENT("Unsupported EquityBarrierType");
     return QuantLib::Barrier::DownOut;
 }
 
@@ -30,29 +30,29 @@ QuantLib::Barrier::Type toQlBarrierType(quantra::enums::EquityBarrierType t) {
 
 ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option) const {
     if (!option) {
-        QUANTRA_ERROR("PriceEquityOption.option is required");
+        QUANTRA_INVALID_ARGUMENT("PriceEquityOption.option is required");
     }
     if (!option->trade_id()) {
-        QUANTRA_ERROR("EquityOption.trade_id is required");
+        QUANTRA_INVALID_ARGUMENT("EquityOption.trade_id is required");
     }
     if (!option->underlying_id()) {
-        QUANTRA_ERROR("EquityOption.underlying_id is required");
+        QUANTRA_INVALID_ARGUMENT("EquityOption.underlying_id is required");
     }
 
     if (option->exercise_type() != quantra::EquityExercise_EquityEuropeanExercise) {
-        QUANTRA_ERROR("EquityOption currently supports only EquityEuropeanExercise");
+        QUANTRA_INVALID_ARGUMENT("EquityOption currently supports only EquityEuropeanExercise");
     }
     const auto* ex = option->exercise_as_EquityEuropeanExercise();
     if (!ex || !ex->expiry_date()) {
-        QUANTRA_ERROR("EquityEuropeanExercise.expiry_date is required");
+        QUANTRA_INVALID_ARGUMENT("EquityEuropeanExercise.expiry_date is required");
     }
 
     if (option->payoff_type() != quantra::EquityPayoff_EquityPlainVanillaPayoff) {
-        QUANTRA_ERROR("EquityOption currently supports only EquityPlainVanillaPayoff");
+        QUANTRA_INVALID_ARGUMENT("EquityOption currently supports only EquityPlainVanillaPayoff");
     }
     const auto* po = option->payoff_as_EquityPlainVanillaPayoff();
     if (!po) {
-        QUANTRA_ERROR("EquityPlainVanillaPayoff is required");
+        QUANTRA_INVALID_ARGUMENT("EquityPlainVanillaPayoff is required");
     }
 
     ParsedEquityOption parsed;
@@ -67,7 +67,7 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
     if (option->barrier()) {
         const auto* b = option->barrier();
         if (b->monitoring() != quantra::enums::EquityBarrierMonitoring_Continuous) {
-            QUANTRA_ERROR("Equity barrier option currently supports only Continuous monitoring");
+            QUANTRA_INVALID_ARGUMENT("Equity barrier option currently supports only Continuous monitoring");
         }
         parsed.hasBarrier = true;
         parsed.barrierType = toQlBarrierType(b->barrier_type());

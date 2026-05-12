@@ -5,10 +5,10 @@ std::shared_ptr<QuantLib::FloatingRateBond> FloatingRateBondParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (bond == NULL)
-        QUANTRA_ERROR("Floating Rate Bond not found");
+        QUANTRA_INVALID_ARGUMENT("Floating Rate Bond not found");
 
     if (!bond->index() || !bond->index()->id())
-        QUANTRA_ERROR("FloatingRateBond index.id is required");
+        QUANTRA_INVALID_ARGUMENT("FloatingRateBond index.id is required");
 
     ScheduleParser schedule_parser;
 

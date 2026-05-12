@@ -162,7 +162,7 @@ std::vector<std::string> CurveBootstrapper::topoSort(
     }
 
     if (order.size() != indeg.size()) {
-        QUANTRA_ERROR("Curve dependency graph has a cycle.");
+        QUANTRA_INVALID_ARGUMENT("Curve dependency graph has a cycle.");
     }
 
     return order;
@@ -179,7 +179,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     double curveBump
 ) const {
     if (!curves || curves->size() == 0) {
-        QUANTRA_ERROR("curves is required (at least one curve)");
+        QUANTRA_INVALID_ARGUMENT("curves is required (at least one curve)");
     }
 
     // ---- 1. Build QuoteRegistry ----
@@ -187,7 +187,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     if (quotes) {
         for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
             auto q = quotes->Get(i);
-            if (!q->id()) QUANTRA_ERROR("QuoteSpec.id is required");
+            if (!q->id()) QUANTRA_INVALID_ARGUMENT("QuoteSpec.id is required");
             double v = q->value();
             if (q->quote_type() == quantra::QuoteType_Curve) {
                 v += curveBump;
@@ -204,7 +204,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     std::unordered_map<std::string, const quantra::TermStructure*> curveIndex;
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); i++) {
         auto ts = curves->Get(i);
-        if (!ts->id()) QUANTRA_ERROR("TermStructure.id is required for multi-curve bootstrapping");
+        if (!ts->id()) QUANTRA_INVALID_ARGUMENT("TermStructure.id is required for multi-curve bootstrapping");
         curveIndex[ts->id()->str()] = ts;
     }
 
@@ -243,7 +243,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         auto it = curveIndex.find(id);
         if (it == curveIndex.end()) {
             if (curveReg.has(id)) continue;
-            QUANTRA_ERROR("Curve id '" + id + "' referenced in dependencies but not provided");
+            QUANTRA_INVALID_ARGUMENT("Curve id '" + id + "' referenced in dependencies but not provided");
         }
 
         const auto* ts = it->second;

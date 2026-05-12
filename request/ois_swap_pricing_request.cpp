@@ -26,11 +26,11 @@ flatbuffers::Offset<PriceOisSwapResponse> OisSwapPricingRequest::request(
     for (auto it = request->swaps()->begin(); it != request->swaps()->end(); ++it) {
         auto discIt = reg.rates.curves.find(it->discounting_curve()->str());
         if (discIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Discounting curve not found: " + it->discounting_curve()->str());
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + it->discounting_curve()->str());
         }
         auto fwdIt = reg.rates.curves.find(it->forwarding_curve()->str());
         if (fwdIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Forwarding curve not found: " + it->forwarding_curve()->str());
+            QUANTRA_NOT_FOUND("Forwarding curve not found: " + it->forwarding_curve()->str());
         }
 
         parser.linkForwardingTermStructure(fwdIt->second->currentLink());

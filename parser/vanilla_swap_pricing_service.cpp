@@ -14,27 +14,27 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
     const PricingRegistry& reg,
     const QuantLib::Date& asOf) const {
     if (!tradePricing || !tradePricing->vanilla_swap()) {
-        QUANTRA_ERROR("PriceVanillaSwap entry requires vanilla_swap");
+        QUANTRA_INVALID_ARGUMENT("PriceVanillaSwap entry requires vanilla_swap");
     }
 
     auto discountIt = reg.rates.curves.find(tradePricing->discounting_curve()->str());
     if (discountIt == reg.rates.curves.end()) {
-        QUANTRA_ERROR("Discounting curve not found: " + tradePricing->discounting_curve()->str());
+        QUANTRA_NOT_FOUND("Discounting curve not found: " + tradePricing->discounting_curve()->str());
     }
     auto forwardIt = reg.rates.curves.find(tradePricing->forwarding_curve()->str());
     if (forwardIt == reg.rates.curves.end()) {
-        QUANTRA_ERROR("Forwarding curve not found: " + tradePricing->forwarding_curve()->str());
+        QUANTRA_NOT_FOUND("Forwarding curve not found: " + tradePricing->forwarding_curve()->str());
     }
 
     const auto* trade = tradePricing->vanilla_swap();
     if (!trade->fixed_leg()) {
-        QUANTRA_ERROR("VanillaSwap fixed_leg not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg not found");
     }
 
     const bool hasIborFloatLeg = (trade->floating_leg() != nullptr);
     const bool hasCmsLeg = (trade->cms_leg() != nullptr);
     if (hasIborFloatLeg == hasCmsLeg) {
-        QUANTRA_ERROR("VanillaSwap must contain exactly one of floating_leg or cms_leg");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap must contain exactly one of floating_leg or cms_leg");
     }
 
     VanillaSwapParser swapParser;
@@ -61,18 +61,18 @@ VanillaSwapPriceResult VanillaSwapPricingService::price(
     const auto* fixedLegFb = trade->fixed_leg();
     const auto* cmsLegFb = trade->cms_leg();
     if (!fixedLegFb->schedule()) {
-        QUANTRA_ERROR("VanillaSwap fixed_leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
     }
     if (!cmsLegFb->swaption_vol_id()) {
-        QUANTRA_ERROR("CMS leg requires swaption_vol_id");
+        QUANTRA_INVALID_ARGUMENT("CMS leg requires swaption_vol_id");
     }
 
     auto volIt = reg.volatility.swaptionVols.find(cmsLegFb->swaption_vol_id()->str());
     if (volIt == reg.volatility.swaptionVols.end()) {
-        QUANTRA_ERROR("CMS leg swaption vol not found: " + cmsLegFb->swaption_vol_id()->str());
+        QUANTRA_NOT_FOUND("CMS leg swaption vol not found: " + cmsLegFb->swaption_vol_id()->str());
     }
     if (volIt->second.referenceDate != asOf) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Strict mode: pricing.as_of_date must equal CMS swaption vol referenceDate for vol '" +
             cmsLegFb->swaption_vol_id()->str() + "'");
     }

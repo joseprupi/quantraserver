@@ -3,7 +3,7 @@
 std::shared_ptr<QuantLib::CreditDefaultSwap> CDSParser::parse(const quantra::CDS *cds)
 {
     if (cds == NULL)
-        QUANTRA_ERROR("CDS not found");
+        QUANTRA_INVALID_ARGUMENT("CDS not found");
 
     ScheduleParser schedule_parser;
     auto schedule = schedule_parser.parse(cds->schedule());
@@ -109,7 +109,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
     const QuoteRegistry* quoteRegistry)
 {
     if (credit_curve == NULL)
-        QUANTRA_ERROR("CreditCurveSpec not found");
+        QUANTRA_INVALID_ARGUMENT("CreditCurveSpec not found");
 
     double recoveryRate = credit_curve->recovery_rate();
     double flatHazardRate = credit_curve->flat_hazard_rate();
@@ -117,7 +117,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
 
     DayCounter curveDc = DayCounterToQL(credit_curve->day_counter());
     if (credit_curve->calendar() == quantra::enums::Calendar_NullCalendar) {
-        QUANTRA_ERROR("CreditCurveSpec.calendar is required");
+        QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.calendar is required");
     }
     Calendar curveCal = CalendarToQL(credit_curve->calendar());
 
@@ -166,7 +166,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
     {
         auto quote = creditQuotes->Get(i);
         if (!quote->tenor()) {
-            QUANTRA_ERROR("CdsQuote.tenor is required");
+            QUANTRA_INVALID_ARGUMENT("CdsQuote.tenor is required");
         }
         QuantLib::Period tenor(
             quote->tenor()->n(),
@@ -174,7 +174,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
         QuantLib::Handle<QuantLib::Quote> quoteHandle;
         if (quote->quote_id() && quote->quote_id()->size() > 0) {
             if (!quoteRegistry) {
-                QUANTRA_ERROR("Quote registry required for credit quote_id");
+                QUANTRA_INVALID_ARGUMENT("Quote registry required for credit quote_id");
             }
             quoteHandle = quoteRegistry->getHandle(quote->quote_id()->str(), quantra::QuoteType_Credit);
         }
@@ -182,7 +182,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> CreditCurveParser::pa
         switch (quote->quote_type()) {
             case quantra::enums::CdsQuoteType_Upfront: {
                 if (quote->running_coupon() == 0.0) {
-                    QUANTRA_ERROR("CdsQuote.running_coupon is required for upfront quotes");
+                    QUANTRA_INVALID_ARGUMENT("CdsQuote.running_coupon is required for upfront quotes");
                 }
                 auto upfrontQuote = quoteHandle;
                 if (upfrontQuote.empty()) {

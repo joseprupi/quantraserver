@@ -29,11 +29,11 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     double bump)
 {
     if (ts == nullptr)
-        QUANTRA_ERROR("TermStructure not found");
+        QUANTRA_INVALID_ARGUMENT("TermStructure not found");
 
     auto points = ts->points();
     if (!points || points->size() == 0)
-        QUANTRA_ERROR("Empty list of points for term structure");
+        QUANTRA_INVALID_ARGUMENT("Empty list of points for term structure");
 
     bool hasZeroPoints = false;
     for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
@@ -63,11 +63,11 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
             auto pw = points->Get(i);
             if (pw->point_type() != quantra::Point_ZeroRatePoint) {
-                QUANTRA_ERROR("ZeroRatePoint cannot be mixed with bootstrap helpers");
+                QUANTRA_INVALID_ARGUMENT("ZeroRatePoint cannot be mixed with bootstrap helpers");
             }
             auto p = pw->point_as_ZeroRatePoint();
             if (!p) {
-                QUANTRA_ERROR("ZeroRatePoint is null");
+                QUANTRA_INVALID_ARGUMENT("ZeroRatePoint is null");
             }
 
             Date d;
@@ -75,12 +75,12 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
                 d = DateToQL(p->date()->str());
             } else {
                 if (!p->tenor()) {
-                    QUANTRA_ERROR("ZeroRatePoint.tenor is required when date is not provided");
+                    QUANTRA_INVALID_ARGUMENT("ZeroRatePoint.tenor is required when date is not provided");
                 }
                 int tenorN = p->tenor()->n();
                 auto tenorUnit = p->tenor()->unit();
                 if (tenorN <= 0) {
-                    QUANTRA_ERROR("ZeroRatePoint requires date or tenor");
+                    QUANTRA_INVALID_ARGUMENT("ZeroRatePoint requires date or tenor");
                 }
                 auto cal = CalendarToQL(p->calendar());
                 auto bdc = ConventionToQL(p->business_day_convention());
@@ -108,7 +108,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         auto type  = points->Get(i)->point_type();
         auto helper = pointParser.parse(type, point, quotes, curves, indices, bump);
         if (!helper)
-            QUANTRA_ERROR("Failed to parse term structure point at index " + std::to_string(i));
+            QUANTRA_INVALID_ARGUMENT("Failed to parse term structure point at index " + std::to_string(i));
         instruments.push_back(helper);
     }
 
@@ -149,7 +149,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
                 ref, instruments, dc,
                 PiecewiseYieldCurve<ForwardRate, BackwardFlat>::bootstrap_type(tolerance));
         default:
-            QUANTRA_ERROR("Unsupported BootstrapTrait for BackwardFlat");
+            QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait for BackwardFlat");
         }
         break;
 
@@ -168,7 +168,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
                 ref, instruments, dc,
                 PiecewiseYieldCurve<ForwardRate, ForwardFlat>::bootstrap_type(tolerance));
         default:
-            QUANTRA_ERROR("Unsupported BootstrapTrait for ForwardFlat");
+            QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait for ForwardFlat");
         }
         break;
 
@@ -187,7 +187,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
                 ref, instruments, dc,
                 PiecewiseYieldCurve<ForwardRate, Linear>::bootstrap_type(tolerance));
         default:
-            QUANTRA_ERROR("Unsupported BootstrapTrait for Linear");
+            QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait for Linear");
         }
         break;
 
@@ -206,7 +206,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
                 ref, instruments, dc,
                 PiecewiseYieldCurve<ForwardRate, LogLinear>::bootstrap_type(tolerance));
         default:
-            QUANTRA_ERROR("Unsupported BootstrapTrait for LogLinear");
+            QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait for LogLinear");
         }
         break;
 
@@ -222,12 +222,12 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
             return std::make_shared<PiecewiseYieldCurve<ForwardRate, LogCubic>>(
                 ref, instruments, dc, MonotonicLogCubic());
         default:
-            QUANTRA_ERROR("Unsupported BootstrapTrait for LogCubic");
+            QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait for LogCubic");
         }
         break;
 
     default:
-        QUANTRA_ERROR("Unsupported Interpolator");
+        QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator");
     }
 
     return nullptr;
@@ -244,7 +244,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildZeroCurve(
     Frequency frequency)
 {
     if (dates.size() != zeroRates.size() || dates.empty()) {
-        QUANTRA_ERROR("Zero curve requires matching non-empty date/rate vectors");
+        QUANTRA_INVALID_ARGUMENT("Zero curve requires matching non-empty date/rate vectors");
     }
 
     DayCounter dc = DayCounterToQL(ts->day_counter());
@@ -266,7 +266,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildZeroCurve(
         return std::make_shared<InterpolatedZeroCurve<ForwardFlat>>(
             dates, zeroRates, dc, Calendar(), ForwardFlat(), compounding, frequency);
     default:
-        QUANTRA_ERROR("Unsupported Interpolator for zero curve");
+        QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator for zero curve");
     }
 
     return nullptr;

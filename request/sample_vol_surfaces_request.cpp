@@ -103,7 +103,7 @@ std::vector<Date> buildDateGrid(
     BusinessDayConvention fallbackBdc,
     enums::BusinessDayConvention fallbackFbBdc) {
     if (!gridSpec) {
-        QUANTRA_ERROR("DateGridSpec is required");
+        QUANTRA_INVALID_ARGUMENT("DateGridSpec is required");
     }
     std::vector<Date> dates;
     GridConventions gc = resolveGridConventions(
@@ -115,14 +115,14 @@ std::vector<Date> buildDateGrid(
     if (gridSpec->grid_type() == DateGrid_TenorGrid) {
         auto grid = gridSpec->grid_as_TenorGrid();
         if (!grid || !grid->tenors()) {
-            QUANTRA_ERROR("TenorGrid.tenors is required");
+            QUANTRA_INVALID_ARGUMENT("TenorGrid.tenors is required");
         }
         dates.reserve(grid->tenors()->size());
         for (flatbuffers::uoffset_t i = 0; i < grid->tenors()->size(); ++i) {
             auto t = grid->tenors()->Get(i);
             QuantLib::Period p(t->n(), TimeUnitToQL(t->unit()));
             if (p.length() == 0 && p.units() != Days) {
-                QUANTRA_ERROR("TenorGrid only allows zero period as 0 Days");
+                QUANTRA_INVALID_ARGUMENT("TenorGrid only allows zero period as 0 Days");
             }
             Date d = calendar.advance(referenceDate, p, bdc);
             dates.push_back(d);
@@ -130,7 +130,7 @@ std::vector<Date> buildDateGrid(
     } else if (gridSpec->grid_type() == DateGrid_RangeGrid) {
         auto grid = gridSpec->grid_as_RangeGrid();
         if (!grid || !grid->end_date()) {
-            QUANTRA_ERROR("RangeGrid.end_date is required");
+            QUANTRA_INVALID_ARGUMENT("RangeGrid.end_date is required");
         }
         Date startDate = grid->start_date() ? DateToQL(grid->start_date()->str()) : asOfDate;
         Date endDate = DateToQL(grid->end_date()->str());
@@ -146,14 +146,14 @@ std::vector<Date> buildDateGrid(
             bool accepted = (!businessDaysOnly || calendar.isBusinessDay(current));
             if (accepted) {
                 if (hasLastAccepted && current == lastAcceptedDate) {
-                    QUANTRA_ERROR("RangeGrid produced duplicate points; check step and conventions");
+                    QUANTRA_INVALID_ARGUMENT("RangeGrid produced duplicate points; check step and conventions");
                 }
                 dates.push_back(current);
                 lastAcceptedDate = current;
                 hasLastAccepted = true;
             }
             if (static_cast<int>(dates.size()) > maxPoints) {
-                QUANTRA_ERROR("Grid too large (>" + std::to_string(maxPoints) + " points)");
+                QUANTRA_INVALID_ARGUMENT("Grid too large (>" + std::to_string(maxPoints) + " points)");
             }
             if (stepUnit == Days) {
                 current = current + stepNumber;
@@ -162,13 +162,13 @@ std::vector<Date> buildDateGrid(
             } else {
                 Date next = calendar.advance(current, step, bdc);
                 if (next <= current) {
-                    QUANTRA_ERROR("RangeGrid step does not advance dates; check step and conventions");
+                    QUANTRA_INVALID_ARGUMENT("RangeGrid step does not advance dates; check step and conventions");
                 }
                 current = next;
             }
         }
     } else {
-        QUANTRA_ERROR("DateGridSpec.grid is required");
+        QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required");
     }
     return dates;
 }
@@ -177,7 +177,7 @@ void validateStrictlyIncreasingDates(const std::vector<Date>& dates, const std::
     if (dates.empty()) return;
     for (size_t i = 1; i < dates.size(); ++i) {
         if (!(dates[i] > dates[i - 1])) {
-            QUANTRA_ERROR(label + " must be strictly increasing after conventions");
+            QUANTRA_INVALID_ARGUMENT(label + " must be strictly increasing after conventions");
         }
     }
 }
@@ -186,7 +186,7 @@ void validateStrictlyIncreasingStrikes(const std::vector<double>& strikes) {
     if (strikes.empty()) return;
     for (size_t i = 1; i < strikes.size(); ++i) {
         if (!(strikes[i] > strikes[i - 1])) {
-            QUANTRA_ERROR("strike_grid.strikes must be strictly increasing");
+            QUANTRA_INVALID_ARGUMENT("strike_grid.strikes must be strictly increasing");
         }
     }
 }
@@ -194,11 +194,11 @@ void validateStrictlyIncreasingStrikes(const std::vector<double>& strikes) {
 std::vector<QuantLib::Period> buildTenorPeriods(
     const DateGridSpec* gridSpec) {
     if (!gridSpec || gridSpec->grid_type() != DateGrid_TenorGrid) {
-        QUANTRA_ERROR("Swaption tenor_grid must be a TenorGrid");
+        QUANTRA_INVALID_ARGUMENT("Swaption tenor_grid must be a TenorGrid");
     }
     auto grid = gridSpec->grid_as_TenorGrid();
     if (!grid || !grid->tenors() || grid->tenors()->size() == 0) {
-        QUANTRA_ERROR("Swaption tenor_grid.tenors is required");
+        QUANTRA_INVALID_ARGUMENT("Swaption tenor_grid.tenors is required");
     }
     std::vector<QuantLib::Period> periods;
     periods.reserve(grid->tenors()->size());
@@ -232,12 +232,12 @@ double safeOptionTime(const DayCounter& dc, const Date& evalDate, const Date& ex
 int resolveSelectorIndex(int idx, int size, const std::string& name, bool required) {
     if (idx < 0) {
         if (required) {
-            QUANTRA_ERROR(name + " is required for selected output_mode");
+            QUANTRA_INVALID_ARGUMENT(name + " is required for selected output_mode");
         }
         return 0;
     }
     if (idx >= size) {
-        QUANTRA_ERROR(name + " out of range: " + std::to_string(idx) +
+        QUANTRA_INVALID_ARGUMENT(name + " out of range: " + std::to_string(idx) +
                      " (size=" + std::to_string(size) + ")");
     }
     return idx;
@@ -253,7 +253,7 @@ flatbuffers::Offset<quantra::Period> toFbPeriod(flatbuffers::grpc::MessageBuilde
 void checkPointBudget(int64_t points, const QueryOptions* options) {
     int maxPoints = (options && options->max_points() > 0) ? options->max_points() : 50000;
     if (points > maxPoints) {
-        QUANTRA_ERROR("Query exceeds max_points: " + std::to_string(points) +
+        QUANTRA_INVALID_ARGUMENT("Query exceeds max_points: " + std::to_string(points) +
                       " > " + std::to_string(maxPoints));
     }
 }
@@ -300,7 +300,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
 
     try {
         if (!request || !request->pricing() || !request->queries() || request->queries()->size() == 0) {
-            QUANTRA_ERROR("SampleVolSurfacesRequest.pricing and non-empty queries are required");
+            QUANTRA_INVALID_ARGUMENT("SampleVolSurfacesRequest.pricing and non-empty queries are required");
         }
 
         PricingRegistry reg = PricingRegistryBuilder().build(request->pricing());
@@ -314,10 +314,10 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
 
         try {
             if (volId.empty()) {
-                QUANTRA_ERROR("VolQuerySpec.vol_id is required");
+                QUANTRA_INVALID_ARGUMENT("VolQuerySpec.vol_id is required");
             }
             if (!q->strike_grid() || !q->strike_grid()->strikes() || q->strike_grid()->strikes()->size() == 0) {
-                QUANTRA_ERROR("VolQuerySpec.strike_grid.strikes is required");
+                QUANTRA_INVALID_ARGUMENT("VolQuerySpec.strike_grid.strikes is required");
             }
 
             std::vector<flatbuffers::Offset<flatbuffers::String>> expiriesOut;
@@ -341,11 +341,11 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
             if (q->surface_type() == VolSurfaceType_Swaption) {
                 auto vIt = reg.volatility.swaptionVols.find(volId);
                 if (vIt == reg.volatility.swaptionVols.end()) {
-                    QUANTRA_ERROR("Swaption vol not found: " + volId);
+                    QUANTRA_NOT_FOUND("Swaption vol not found: " + volId);
                 }
                 SwaptionVolEntry volEntry = vIt->second;
                 if (volEntry.referenceDate == Date()) {
-                    QUANTRA_ERROR("Swaption vol has invalid referenceDate: " + volId);
+                    QUANTRA_INVALID_ARGUMENT("Swaption vol has invalid referenceDate: " + volId);
                 }
                 const auto* options = q->options();
                 const bool strictMode = !options || options->strict();
@@ -354,13 +354,13 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal swaption vol referenceDate ("
                         << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
-                    QUANTRA_ERROR(err.str());
+                    QUANTRA_INVALID_ARGUMENT(err.str());
                 }
                 if (!q->tenor_grid()) {
-                    QUANTRA_ERROR("VolQuerySpec.tenor_grid is required for swaption sampling");
+                    QUANTRA_INVALID_ARGUMENT("VolQuerySpec.tenor_grid is required for swaption sampling");
                 }
                 if (!q->expiry_grid()) {
-                    QUANTRA_ERROR("VolQuerySpec.expiry_grid is required for swaption sampling");
+                    QUANTRA_INVALID_ARGUMENT("VolQuerySpec.expiry_grid is required for swaption sampling");
                 }
                 canonicalStrikeKind = volEntry.strikeKind;
                 sampleReferenceDate = volEntry.referenceDate;
@@ -368,17 +368,17 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 allowExtrapolationUsed = allowExtrapolation;
 
                 if (volEntry.swapIndexId.empty()) {
-                    QUANTRA_ERROR("Swaption surface is missing required swap_index_id");
+                    QUANTRA_INVALID_ARGUMENT("Swaption surface is missing required swap_index_id");
                 }
                 std::string swapIndexId = volEntry.swapIndexId;
                 if (q->swap_index_id() && !q->swap_index_id()->str().empty()) {
                     swapIndexId = q->swap_index_id()->str();
                 }
                 if (volEntry.swapIndexId != swapIndexId) {
-                    QUANTRA_ERROR("VolQuerySpec.swap_index_id does not match surface swap_index_id");
+                    QUANTRA_INVALID_ARGUMENT("VolQuerySpec.swap_index_id does not match surface swap_index_id");
                 }
                 if (!reg.rates.swapIndices.has(swapIndexId)) {
-                    QUANTRA_ERROR("Missing swap index definition for id: " + swapIndexId);
+                    QUANTRA_NOT_FOUND("Missing swap index definition for id: " + swapIndexId);
                 }
                 const SwapIndexRuntime& sidx = reg.rates.swapIndices.get(swapIndexId);
                 usedCalendar = sidx.fixedCalendarFb;
@@ -419,7 +419,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 VolStrikeAxis axis = requestedStrikeAxis;
                 if (volEntry.strikeKind == enums::SwaptionStrikeKind_Absolute &&
                     axis == VolStrikeAxis_SpreadFromATM) {
-                    QUANTRA_ERROR("SpreadFromATM strike axis requested for Absolute-strike swaption vol");
+                    QUANTRA_INVALID_ARGUMENT("SpreadFromATM strike axis requested for Absolute-strike swaption vol");
                 }
 
                 // SpreadFromATM smile cubes and SABR-params surfaces both need
@@ -434,14 +434,14 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (needsForwardResolution) {
                     if (!q->discounting_curve_id() || q->discounting_curve_id()->str().empty() ||
                         !q->forwarding_curve_id() || q->forwarding_curve_id()->str().empty()) {
-                        QUANTRA_ERROR(
+                        QUANTRA_INVALID_ARGUMENT(
                             "SpreadFromATM/SABR swaption sampling requires "
                             "discounting_curve_id and forwarding_curve_id");
                     }
                     auto dIt = reg.rates.curves.find(q->discounting_curve_id()->str());
                     auto fIt = reg.rates.curves.find(q->forwarding_curve_id()->str());
                     if (dIt == reg.rates.curves.end() || fIt == reg.rates.curves.end()) {
-                        QUANTRA_ERROR("Sampling curve ids not found for ATM computation");
+                        QUANTRA_NOT_FOUND("Sampling curve ids not found for ATM computation");
                     }
                     volEntry = finalizeSwaptionVolEntryForPricing(
                         volEntry,
@@ -487,18 +487,18 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     } else if (m == VolOutputMode_TermSlice) {
                         expIdx = resolveSelectorIndex(q->slice_expiry_index(), static_cast<int>(expiries.size()), "slice_expiry_index", true);
                         if (!q->slice_strike_is_set()) {
-                            QUANTRA_ERROR("TermSlice requires slice_strike_is_set=true");
+                            QUANTRA_INVALID_ARGUMENT("TermSlice requires slice_strike_is_set=true");
                         }
                         if (!std::isfinite(q->slice_strike())) {
-                            QUANTRA_ERROR("TermSlice requires finite slice_strike");
+                            QUANTRA_INVALID_ARGUMENT("TermSlice requires finite slice_strike");
                         }
                     } else if (m == VolOutputMode_ExpirySlice) {
                         tenIdx = resolveSelectorIndex(q->slice_tenor_index(), static_cast<int>(tenors.size()), "slice_tenor_index", true);
                         if (!q->slice_strike_is_set()) {
-                            QUANTRA_ERROR("ExpirySlice requires slice_strike_is_set=true");
+                            QUANTRA_INVALID_ARGUMENT("ExpirySlice requires slice_strike_is_set=true");
                         }
                         if (!std::isfinite(q->slice_strike())) {
-                            QUANTRA_ERROR("ExpirySlice requires finite slice_strike");
+                            QUANTRA_INVALID_ARGUMENT("ExpirySlice requires finite slice_strike");
                         }
                     }
                 };
@@ -522,12 +522,12 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 if (volEntry.strikeKind == enums::SwaptionStrikeKind_SpreadFromATM) {
                     if (!q->discounting_curve_id() || q->discounting_curve_id()->str().empty() ||
                         !q->forwarding_curve_id() || q->forwarding_curve_id()->str().empty()) {
-                        QUANTRA_ERROR("SpreadFromATM requires discounting_curve_id/forwarding_curve_id");
+                        QUANTRA_INVALID_ARGUMENT("SpreadFromATM requires discounting_curve_id/forwarding_curve_id");
                     }
                     auto dIt = reg.rates.curves.find(q->discounting_curve_id()->str());
                     auto fIt = reg.rates.curves.find(q->forwarding_curve_id()->str());
                     if (dIt == reg.rates.curves.end() || fIt == reg.rates.curves.end()) {
-                        QUANTRA_ERROR("Sampling curve ids not found for ATM computation");
+                        QUANTRA_NOT_FOUND("Sampling curve ids not found for ATM computation");
                     }
                     std::vector<Date> atmExpiries;
                     std::vector<QuantLib::Period> atmTenors;
@@ -611,12 +611,12 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                         }
                         if (!allowExtrapolation && !volEntry.strikes.empty()) {
                             if (spread < volEntry.strikes.front() || spread > volEntry.strikes.back()) {
-                                QUANTRA_ERROR("Strike/spread is outside smile cube strike support");
+                                QUANTRA_INVALID_ARGUMENT("Strike/spread is outside smile cube strike support");
                             }
                         }
                     } else if (!allowExtrapolation && !volEntry.strikes.empty()) {
                         if (absStrike < volEntry.strikes.front() || absStrike > volEntry.strikes.back()) {
-                            QUANTRA_ERROR("Strike is outside swaption vol strike support");
+                            QUANTRA_INVALID_ARGUMENT("Strike is outside swaption vol strike support");
                         }
                     }
 
@@ -627,7 +627,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                             Date maxExp = sidx.fixedCalendar.advance(
                                 volEntry.referenceDate, volEntry.expiries.back(), sidx.fixedBdc);
                             if (dates.exercise < minExp || dates.exercise > maxExp) {
-                                QUANTRA_ERROR("Expiry is outside swaption vol support");
+                                QUANTRA_INVALID_ARGUMENT("Expiry is outside swaption vol support");
                             }
                         }
                     }
@@ -655,7 +655,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 auto checkTenorSupport = [&](double swapLength, const std::pair<double, double>& bounds) {
                     const double eps = 1.0e-12;
                     if (swapLength < bounds.first - eps || swapLength > bounds.second + eps) {
-                        QUANTRA_ERROR("Tenor is outside swaption vol support");
+                        QUANTRA_INVALID_ARGUMENT("Tenor is outside swaption vol support");
                     }
                 };
 
@@ -764,39 +764,39 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     }
                     nExpOut = static_cast<int>(expiries.size()); nTenOut = 1; nStrOut = 1;
                 } else {
-                    QUANTRA_ERROR("Unsupported VolOutputMode");
+                    QUANTRA_INVALID_ARGUMENT("Unsupported VolOutputMode");
                 }
 
                 volTypeOut = fromQlVolType(volEntry.qlVolType, volEntry.displacement);
             } else if (q->surface_type() == VolSurfaceType_EquityBlack) {
                 auto vIt = reg.volatility.blackVols.find(volId);
                 if (vIt == reg.volatility.blackVols.end()) {
-                    QUANTRA_ERROR("Black vol not found: " + volId);
+                    QUANTRA_NOT_FOUND("Black vol not found: " + volId);
                 }
                 const BlackVolEntry& volEntry = vIt->second;
 
                 if (!q->expiry_grid()) {
-                    QUANTRA_ERROR("VolQuerySpec.expiry_grid is required for equity black sampling");
+                    QUANTRA_INVALID_ARGUMENT("VolQuerySpec.expiry_grid is required for equity black sampling");
                 }
                 if (q->output_mode() != VolOutputMode_Cube) {
-                    QUANTRA_ERROR("EquityBlack sampling supports Cube output_mode only");
+                    QUANTRA_INVALID_ARGUMENT("EquityBlack sampling supports Cube output_mode only");
                 }
                 if (q->strike_grid()->axis() == VolStrikeAxis_SpreadFromATM) {
-                    QUANTRA_ERROR("EquityBlack sampling supports AbsoluteStrike axis only");
+                    QUANTRA_INVALID_ARGUMENT("EquityBlack sampling supports AbsoluteStrike axis only");
                 }
                 if (q->tenor_grid()) {
-                    QUANTRA_ERROR("tenor_grid is not valid for equity black sampling");
+                    QUANTRA_INVALID_ARGUMENT("tenor_grid is not valid for equity black sampling");
                 }
                 if (q->swap_index_id() && !q->swap_index_id()->str().empty()) {
-                    QUANTRA_ERROR("swap_index_id is not valid for equity black sampling");
+                    QUANTRA_INVALID_ARGUMENT("swap_index_id is not valid for equity black sampling");
                 }
                 if ((q->discounting_curve_id() && !q->discounting_curve_id()->str().empty()) ||
                     (q->forwarding_curve_id() && !q->forwarding_curve_id()->str().empty())) {
-                    QUANTRA_ERROR(
+                    QUANTRA_INVALID_ARGUMENT(
                         "discounting_curve_id/forwarding_curve_id are not valid for equity black sampling");
                 }
                 if (q->slice_expiry_index() >= 0 || q->slice_tenor_index() >= 0 || q->slice_strike_is_set()) {
-                    QUANTRA_ERROR("EquityBlack query does not support slice selectors");
+                    QUANTRA_INVALID_ARGUMENT("EquityBlack query does not support slice selectors");
                 }
                 const auto* options = q->options();
                 const bool strictMode = !options || options->strict();
@@ -805,7 +805,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal equity black vol referenceDate ("
                         << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
-                    QUANTRA_ERROR(err.str());
+                    QUANTRA_INVALID_ARGUMENT(err.str());
                 }
                 sampleReferenceDate = volEntry.referenceDate;
                 const bool allowExtrapolation = !options || options->allow_extrapolation();
@@ -843,12 +843,12 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 for (const auto& d : expiries) {
                     for (double strike : strikesOut) {
                         if (!allowExtrapolation && d > volEntry.handle->maxDate()) {
-                            QUANTRA_ERROR("Expiry is outside equity black vol support");
+                            QUANTRA_INVALID_ARGUMENT("Expiry is outside equity black vol support");
                         }
                         if (!allowExtrapolation) {
                             // Strike support bounds are term-structure dependent in QuantLib implementations.
                             if (strike < volEntry.handle->minStrike() || strike > volEntry.handle->maxStrike()) {
-                                QUANTRA_ERROR("Strike is outside equity black vol support");
+                                QUANTRA_INVALID_ARGUMENT("Strike is outside equity black vol support");
                             }
                         }
                         volsOut.push_back(volEntry.handle->blackVol(d, strike));
@@ -860,7 +860,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
             } else if (q->surface_type() == VolSurfaceType_Optionlet) {
                 auto vIt = reg.volatility.optionletVols.find(volId);
                 if (vIt == reg.volatility.optionletVols.end()) {
-                    QUANTRA_ERROR("Optionlet vol not found: " + volId);
+                    QUANTRA_NOT_FOUND("Optionlet vol not found: " + volId);
                 }
                 const OptionletVolEntry& volEntry = vIt->second;
                 const auto* options = q->options();
@@ -870,19 +870,19 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                     err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
                         << ") must equal optionlet vol referenceDate ("
                         << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
-                    QUANTRA_ERROR(err.str());
+                    QUANTRA_INVALID_ARGUMENT(err.str());
                 }
                 if (q->strike_grid()->axis() == VolStrikeAxis_SpreadFromATM) {
-                    QUANTRA_ERROR("Optionlet sampling supports AbsoluteStrike axis only");
+                    QUANTRA_INVALID_ARGUMENT("Optionlet sampling supports AbsoluteStrike axis only");
                 }
                 if (q->output_mode() != VolOutputMode_Cube) {
-                    QUANTRA_ERROR("Optionlet sampling supports Cube output_mode only");
+                    QUANTRA_INVALID_ARGUMENT("Optionlet sampling supports Cube output_mode only");
                 }
                 if (q->swap_index_id() && !q->swap_index_id()->str().empty()) {
-                    QUANTRA_ERROR("swap_index_id is not valid for optionlet sampling");
+                    QUANTRA_INVALID_ARGUMENT("swap_index_id is not valid for optionlet sampling");
                 }
                 if (q->slice_expiry_index() >= 0 || q->slice_tenor_index() >= 0 || q->slice_strike_is_set()) {
-                    QUANTRA_ERROR("Optionlet query does not support slice selectors");
+                    QUANTRA_INVALID_ARGUMENT("Optionlet query does not support slice selectors");
                 }
                 const bool allowExtrapolation = !options || options->allow_extrapolation();
                 sampleReferenceDate = volEntry.referenceDate;
@@ -914,11 +914,11 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 for (const auto& d : expiries) {
                     for (double strike : strikesOut) {
                         if (!allowExtrapolation && d > volEntry.handle->maxDate()) {
-                            QUANTRA_ERROR("Expiry is outside optionlet vol support");
+                            QUANTRA_INVALID_ARGUMENT("Expiry is outside optionlet vol support");
                         }
                         if (!allowExtrapolation) {
                             if (strike < volEntry.handle->minStrike() || strike > volEntry.handle->maxStrike()) {
-                                QUANTRA_ERROR("Strike is outside optionlet vol support");
+                                QUANTRA_INVALID_ARGUMENT("Strike is outside optionlet vol support");
                             }
                         }
                         volsOut.push_back(volEntry.handle->volatility(d, strike));
@@ -929,7 +929,7 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 nStrOut = static_cast<int>(strikesOut.size());
                 volTypeOut = fromQlVolType(volEntry.qlVolType, volEntry.displacement);
             } else {
-                QUANTRA_ERROR("Unknown VolSurfaceType");
+                QUANTRA_INVALID_ARGUMENT("Unknown VolSurfaceType");
             }
 
             auto volIdOffset = builder->CreateString(volId);
