@@ -226,7 +226,6 @@ COPY --from=builder /etc/ld.so.conf.d/quantra-deps.conf /etc/ld.so.conf.d/
 RUN ldconfig
 
 COPY --from=builder /src/build/server/sync_server /app/sync_server
-COPY --from=builder /src/build/examples /app/examples
 
 # Install quantra process manager with dependencies
 COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
