@@ -1,6 +1,6 @@
 # Quantra
 
-Quantra is a QuantLib-based pricing service built for parallel execution. It exposes pricing functionality over gRPC with FlatBuffers, and it also includes an optional HTTP/JSON gateway for easier integration and generated OpenAPI documentation.
+Quantra is a QuantLib-based pricing service built for parallel execution. It exposes pricing functionality over gRPC with FlatBuffers and through an HTTP/JSON gateway for easier integration and generated OpenAPI documentation.
 
 ## Why This Exists
 
@@ -10,11 +10,9 @@ QuantLib is powerful, but it is not naturally suited to high-concurrency service
 
 - A C++ pricing server built on QuantLib
 - A gRPC API using FlatBuffers messages
-- An optional JSON/HTTP gateway in `jsonserver/`
+- A JSON/HTTP gateway in `jsonserver/`
 - A C++ client in `client/`
 - A Python client package in `quantra-python/`
-- Build, schema generation, and process-management tooling in `scripts/` and `tools/quantra-manager/`
-- Integration and parity tests in `tests/`
 
 ## Supported Pricing Coverage
 
@@ -40,25 +38,46 @@ See `examples/data/` for sample payloads.
 The main runtime model is a multi-process gRPC service fronted by Envoy:
 
 ```text
-client -> Envoy (:50051) -> sync_server workers (:50055+)
+JSON client -> json_server (:8080) -> Envoy (:50051) -> sync_server workers (:50055+)
+gRPC client -----------------------> Envoy (:50051) -> sync_server workers (:50055+)
 ```
-
-Typical local or container workflow:
-
-1. Build schemas and binaries
-2. Start the gRPC worker cluster with `quantra`
-3. Optionally run `json_server` to expose HTTP/JSON endpoints
 
 ## Quick Start
 
-### Docker
+### Container Image
 
-The default production image starts the gRPC cluster and exposes port `50051`.
+The published GHCR image starts both the JSON API and the gRPC/Envoy endpoint:
+
+- HTTP/JSON API: `8080`
+- gRPC/Envoy endpoint: `50051`
 
 ```bash
-docker build -t quantra .
-docker run --rm -p 50051:50051 quantra
+docker pull ghcr.io/joseprupi/quantra-server:0.1.1
+
+docker run --rm \
+  -p 8080:8080 \
+  -p 50051:50051 \
+  ghcr.io/joseprupi/quantra-server:0.1.1
 ```
+
+Check the running service:
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/meta
+```
+
+Change the worker count with `QUANTRA_WORKERS`:
+
+```bash
+docker run --rm \
+  -e QUANTRA_WORKERS=2 \
+  -p 8080:8080 \
+  -p 50051:50051 \
+  ghcr.io/joseprupi/quantra-server:0.1.1
+```
+
+The public API reference is available at <https://quantra.io/docs/api>.
 
 ### Local Build
 
@@ -67,13 +86,6 @@ See `docs/build.md` for environment setup details. Once dependencies are availab
 ```bash
 ./scripts/build.sh Release
 ./scripts/quantra start --workers 4 --foreground
-```
-
-### Optional JSON Gateway
-
-The JSON server is built as a separate binary and connects to the gRPC endpoint:
-
-```bash
 ./build/jsonserver/json_server localhost:50051 8080
 ```
 
