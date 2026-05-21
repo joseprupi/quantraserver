@@ -225,8 +225,10 @@ COPY --from=builder /opt/quantra-deps/lib /opt/quantra-deps/lib
 COPY --from=builder /etc/ld.so.conf.d/quantra-deps.conf /etc/ld.so.conf.d/
 RUN ldconfig
 
-RUN mkdir -p /app/build/server
+RUN mkdir -p /app/build/server /app/build/jsonserver
 COPY --from=builder /src/build/server/sync_server /app/build/server/sync_server
+COPY --from=builder /src/build/jsonserver/json_server /app/build/jsonserver/json_server
+COPY --from=builder /src/flatbuffers/fbs /app/flatbuffers/fbs
 
 # Install quantra process manager with dependencies
 COPY tools/quantra-manager/requirements.txt /tmp/quantra-requirements.txt
@@ -234,12 +236,33 @@ RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
 COPY tools/quantra-manager/quantra /usr/local/bin/quantra
 RUN chmod +x /usr/local/bin/quantra
 
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -eu' \
+    ': "${QUANTRA_WORKERS:=4}"' \
+    ': "${QUANTRA_GRPC_TARGET:=127.0.0.1:50051}"' \
+    ': "${QUANTRA_HTTP_PORT:=8080}"' \
+    ': "${QUANTRA_STARTUP_WAIT:=3}"' \
+    'quantra start --workers "$QUANTRA_WORKERS" --foreground &' \
+    'QUANTRA_PID=$!' \
+    'sleep "$QUANTRA_STARTUP_WAIT"' \
+    'if ! kill -0 "$QUANTRA_PID" 2>/dev/null; then' \
+    '    echo "Quantra gRPC cluster failed to start." >&2' \
+    '    wait "$QUANTRA_PID"' \
+    'fi' \
+    'exec /app/build/jsonserver/json_server "$QUANTRA_GRPC_TARGET" "$QUANTRA_HTTP_PORT"' \
+    > /usr/local/bin/quantra-container-entrypoint && \
+    chmod +x /usr/local/bin/quantra-container-entrypoint
+
 WORKDIR /app
 ENV LD_LIBRARY_PATH=/opt/quantra-deps/lib
 ENV QUANTRA_HOME=/app
 ENV QUANTRA_STATE_DIR=/app/.quantra
+ENV QUANTRA_ENVOY_ADMIN=http://127.0.0.1:9901
+ENV QUANTRA_FBS_DIR=/app/flatbuffers/fbs
+ENV QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
 
-EXPOSE 50051
+EXPOSE 50051 8080
 
-# Default: start 4 workers with Envoy load balancing in foreground mode
-CMD ["quantra", "start", "--workers", "4", "--foreground"]
+# Default: start the gRPC cluster and JSON API in one runtime container.
+CMD ["/usr/local/bin/quantra-container-entrypoint"]
