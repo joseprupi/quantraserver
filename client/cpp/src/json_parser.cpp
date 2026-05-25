@@ -44,56 +44,68 @@ public:
         include_dir_ = Config::GetFbsIncludeDir();
         include_dirs_[0] = include_dir_.c_str();
         include_dirs_[1] = nullptr;
-        LoadAllSchemas();
+        // Build the calling (main) thread's parser set eagerly so a missing or
+        // malformed schema fails fast at startup rather than on the first
+        // request handled by a worker thread.
+        EnsureThreadParsers();
     }
-    
+
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> ParseRequest(
-        ProductType type, 
+        ProductType type,
         const std::string& json
     ) {
-        auto& parser = request_parsers_.at(type);
-        
+        auto& parser = EnsureThreadParsers().request_parsers.at(type);
+
         if (!parser->Parse(json.c_str(), include_dirs_)) {
             throw JsonParseException("JSON parse error for " +
                 std::string(ProductTypeToString(type)) + ": " + parser->error_);
         }
-        
+
         return std::make_shared<flatbuffers::grpc::MessageBuilder>(
             std::move(parser->builder_)
         );
     }
-    
+
     std::string GenerateResponse(ProductType type, const uint8_t* buffer) {
-        auto& parser = response_parsers_.at(type);
-        
+        auto& parser = EnsureThreadParsers().response_parsers.at(type);
+
         std::string json;
         // FlatBuffers v24+: GenText returns const char* (nullptr = success)
         const char* error = flatbuffers::GenText(*parser, buffer, &json);
-        
+
         if (error != nullptr) {
             throw JsonRuntimeException("Failed to generate JSON for " +
                 std::string(ProductTypeToString(type)) + ": " + error);
         }
-        
+
         return json;
     }
 
 private:
+    struct ThreadParsers {
+        std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> request_parsers;
+        std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> response_parsers;
+    };
+
     const char* include_dirs_[2];
     std::string fbs_dir_;
     std::string include_dir_;
-    std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> request_parsers_;
-    std::map<ProductType, std::shared_ptr<flatbuffers::Parser>> response_parsers_;
-    
-    void LoadAllSchemas() {
-        const auto& schemas = GetProductSchemas();
-        
-        for (const auto& [type, schema] : schemas) {
-            request_parsers_[type] = LoadSchema(schema.request_file);
-            response_parsers_[type] = LoadSchema(schema.response_file);
+
+    // Returns the current thread's parser set, loading the schemas on first use.
+    ThreadParsers& EnsureThreadParsers() {
+        thread_local ThreadParsers parsers;
+        thread_local bool loaded = false;
+        if (!loaded) {
+            const auto& schemas = GetProductSchemas();
+            for (const auto& [type, schema] : schemas) {
+                parsers.request_parsers[type] = LoadSchema(schema.request_file);
+                parsers.response_parsers[type] = LoadSchema(schema.response_file);
+            }
+            loaded = true;
         }
+        return parsers;
     }
-    
+
     std::shared_ptr<flatbuffers::Parser> LoadSchema(const char* filename) {
         auto parser = std::make_shared<flatbuffers::Parser>();
         parser->opts.strict_json = true;
