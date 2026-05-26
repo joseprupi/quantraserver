@@ -2,8 +2,10 @@
 #define QUANTRASERVER_FIXED_RATE_BOND_HANDLER_H
 
 #include "call_data_base.h"
+#include "product_endpoint.h"
 #include "product_registry.h"
-#include "fixed_rate_bond_pricing_request.h"
+#include "fixed_rate_bond_mapper.h"
+#include "fixed_rate_bond_pricer.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 
@@ -11,12 +13,25 @@ using quantra::PriceFixedRateBondRequest;
 using quantra::PriceFixedRateBondResponse;
 using quantra::PriceFixedRateBondResponseBuilder;
 
+/// Pilot product: fixed-rate bond. The endpoint glue (Verify → mapper.toInputs →
+/// registry → context → pricer.price → mapper.toResponse) lives in the generic
+/// ProductEndpoint template; the handler only binds the four types and registers.
+using FixedRateBondEndpoint = quantra::ProductEndpoint<
+    PriceFixedRateBondRequest,
+    PriceFixedRateBondResponse,
+    quantra::FixedRateBondMapper,
+    quantra::FixedRateBondPricer>;
+
+/// Backward-compatible alias for existing call sites (tests) that referenced
+/// the legacy FixedRateBondPricingRequest type directly.
+using FixedRateBondPricingRequest = FixedRateBondEndpoint;
+
 /**
- * PriceFixedRateBondData - Async handler for fixed rate bond pricing.
+ * PriceFixedRateBondData - Async gRPC handler for fixed-rate bond pricing.
  */
 class PriceFixedRateBondData : public CallDataGeneric<
     PriceFixedRateBondRequest,
-    FixedRateBondPricingRequest,
+    FixedRateBondEndpoint,
     PriceFixedRateBondResponse,
     PriceFixedRateBondResponseBuilder>
 {
@@ -29,7 +44,7 @@ public:
     void RequestCall() override
     {
         service_->RequestPriceFixedRateBond(
-            &ctx_, &request_msg, &responder_, 
+            &ctx_, &request_msg, &responder_,
             cq_, cq_, this);
     }
 
