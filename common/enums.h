@@ -16,5 +16,6 @@ QuantLib::DateGeneration::Rule DateGenerationToQL(const quantra::enums::DateGene
 QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compounding);
 QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging);
 QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::SettlementMethod method);
+QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType);
 
 #endif //ENUMS_H
