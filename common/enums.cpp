@@ -332,4 +332,17 @@ QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::Settleme
     QUANTRA_ERROR("Settlement method not found");
 }
 
+QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType)
+{
+    switch (swapType)
+    {
+    case quantra::enums::SwapType_Payer:
+        return QuantLib::VanillaSwap::Payer;
+    case quantra::enums::SwapType_Receiver:
+        return QuantLib::VanillaSwap::Receiver;
+    }
+
+    QUANTRA_ERROR("Swap type not found");
+}
+
 #pragma GCC diagnostic pop

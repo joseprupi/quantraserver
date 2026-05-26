@@ -17,7 +17,7 @@
 #include <iomanip>
 
 #include "fixed_rate_bond_handler.h"
-#include "vanilla_swap_pricing_request.h"
+#include "vanilla_swap_handler.h"
 #include "fra_pricing_request.h"
 #include "cap_floor_pricing_request.h"
 #include "swaption_pricing_request.h"
