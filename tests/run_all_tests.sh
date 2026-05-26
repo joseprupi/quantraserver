@@ -64,12 +64,19 @@ run_test() {
     echo "  $name"
     echo "════════════════════════════════════════════"
     echo "  Role: $role"
-    if bash -lc "$cmd" 2>&1 | tee "$logfile"; then
+    # Capture suite output and exit code separately. Previously this was
+    # `if bash -lc ... | tee ...; then`, which evaluated tee's exit (always 0)
+    # under the default no-pipefail shell — every crashed suite reported PASS.
+    local rc
+    bash -lc "$cmd" > "$logfile" 2>&1
+    rc=$?
+    cat "$logfile"
+    if [ "$rc" -eq 0 ]; then
         echo -e "${GREEN}✓ PASSED${NC}"
         SUITE_STATUS[$idx]="PASS"
         ((PASSED++))
     else
-        echo -e "${RED}✗ FAILED${NC}"
+        echo -e "${RED}✗ FAILED${NC} (exit $rc)"
         SUITE_STATUS[$idx]="FAIL"
         ((FAILED++))
     fi
