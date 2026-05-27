@@ -19,6 +19,8 @@ QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::Settleme
 QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType);
 QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
     const quantra::enums::SwapType swapType);
+QuantLib::YearOnYearInflationSwap::Type YearOnYearInflationSwapTypeToQL(
+    const quantra::enums::SwapType swapType);
 QuantLib::CPI::InterpolationType CPIInterpolationToQL(
     const quantra::enums::CPIInterpolationType interpolation);
 

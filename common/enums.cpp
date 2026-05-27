@@ -359,6 +359,20 @@ QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
     QUANTRA_ERROR("Zero coupon inflation swap type not found");
 }
 
+QuantLib::YearOnYearInflationSwap::Type YearOnYearInflationSwapTypeToQL(
+    const quantra::enums::SwapType swapType)
+{
+    switch (swapType)
+    {
+    case quantra::enums::SwapType_Payer:
+        return QuantLib::YearOnYearInflationSwap::Payer;
+    case quantra::enums::SwapType_Receiver:
+        return QuantLib::YearOnYearInflationSwap::Receiver;
+    }
+
+    QUANTRA_ERROR("Year-on-year inflation swap type not found");
+}
+
 QuantLib::CPI::InterpolationType CPIInterpolationToQL(
     const quantra::enums::CPIInterpolationType interpolation)
 {
