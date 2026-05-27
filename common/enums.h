@@ -23,5 +23,7 @@ QuantLib::YearOnYearInflationSwap::Type YearOnYearInflationSwapTypeToQL(
     const quantra::enums::SwapType swapType);
 QuantLib::CPI::InterpolationType CPIInterpolationToQL(
     const quantra::enums::CPIInterpolationType interpolation);
+QuantLib::Protection::Side ProtectionSideToQL(
+    const quantra::enums::ProtectionSide side);
 
 #endif //ENUMS_H

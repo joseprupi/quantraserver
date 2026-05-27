@@ -389,4 +389,18 @@ QuantLib::CPI::InterpolationType CPIInterpolationToQL(
     QUANTRA_ERROR("CPI interpolation type not found");
 }
 
+QuantLib::Protection::Side ProtectionSideToQL(
+    const quantra::enums::ProtectionSide side)
+{
+    switch (side)
+    {
+    case quantra::enums::ProtectionSide_Buyer:
+        return QuantLib::Protection::Buyer;
+    case quantra::enums::ProtectionSide_Seller:
+        return QuantLib::Protection::Seller;
+    }
+
+    QUANTRA_ERROR("Protection side not found");
+}
+
 #pragma GCC diagnostic pop
