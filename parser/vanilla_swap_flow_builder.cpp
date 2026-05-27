@@ -6,6 +6,7 @@
 #include <ql/cashflows/fixedratecoupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include "common.h"
 
 namespace quantra {
 
@@ -21,9 +22,9 @@ VanillaSwapFlowsBuildResult buildVanillaSwapFlows(
         auto coupon = std::dynamic_pointer_cast<QuantLib::FixedRateCoupon>(cf);
         if (coupon && !coupon->hasOccurred(asOf)) {
             std::ostringstream osPayment, osStart, osEnd;
-            osPayment << QuantLib::io::iso_date(coupon->date());
-            osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-            osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
+            osPayment << DateToIso(coupon->date());
+            osStart << DateToIso(coupon->accrualStartDate());
+            osEnd << DateToIso(coupon->accrualEndDate());
 
             auto paymentDate = builder->CreateString(osPayment.str());
             auto accrualStart = builder->CreateString(osStart.str());
@@ -50,10 +51,10 @@ VanillaSwapFlowsBuildResult buildVanillaSwapFlows(
         auto coupon = std::dynamic_pointer_cast<QuantLib::FloatingRateCoupon>(cf);
         if (coupon && !coupon->hasOccurred(asOf)) {
             std::ostringstream osPayment, osStart, osEnd, osFixing;
-            osPayment << QuantLib::io::iso_date(coupon->date());
-            osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-            osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
-            osFixing << QuantLib::io::iso_date(coupon->fixingDate());
+            osPayment << DateToIso(coupon->date());
+            osStart << DateToIso(coupon->accrualStartDate());
+            osEnd << DateToIso(coupon->accrualEndDate());
+            osFixing << DateToIso(coupon->fixingDate());
 
             auto paymentDate = builder->CreateString(osPayment.str());
             auto accrualStart = builder->CreateString(osStart.str());

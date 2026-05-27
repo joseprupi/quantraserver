@@ -17,5 +17,9 @@ QuantLib::Compounding CompoundingToQL(const quantra::enums::Compounding compound
 QuantLib::RateAveraging::Type RateAveragingToQL(const quantra::enums::RateAveragingType averaging);
 QuantLib::Settlement::Method SettlementMethodToQL(const quantra::enums::SettlementMethod method);
 QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType);
+QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
+    const quantra::enums::SwapType swapType);
+QuantLib::CPI::InterpolationType CPIInterpolationToQL(
+    const quantra::enums::CPIInterpolationType interpolation);
 
 #endif //ENUMS_H

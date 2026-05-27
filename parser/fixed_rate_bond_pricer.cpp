@@ -12,17 +12,11 @@
 #include <ql/utilities/dataformatters.hpp>
 
 #include "error.h"
+#include "common.h"
 
 namespace quantra {
 
 namespace {
-
-/// ISO yyyy-mm-dd, matching what bond_flow_builder emits on the FB side.
-std::string isoDate(const QuantLib::Date& d) {
-    std::ostringstream os;
-    os << QuantLib::io::iso_date(d);
-    return os.str();
-}
 
 std::vector<FixedRateBondFlowPlain> extractFlows(
     const QuantLib::Leg& cashflows,
@@ -36,8 +30,8 @@ std::vector<FixedRateBondFlowPlain> extractFlows(
             FixedRateBondFlowPlain f;
             f.amount = coupon->amount();
             f.rate = coupon->rate();
-            f.accrualStartDate = isoDate(coupon->accrualStartDate());
-            f.accrualEndDate = isoDate(coupon->accrualEndDate());
+            f.accrualStartDate = DateToIso(coupon->accrualStartDate());
+            f.accrualEndDate = DateToIso(coupon->accrualEndDate());
             if (!coupon->hasOccurred(asOf)) {
                 f.kind = FixedRateBondFlowPlain::Kind::Interest;
                 f.discount = discountCurve->discount(coupon->date());
@@ -58,7 +52,7 @@ std::vector<FixedRateBondFlowPlain> extractFlows(
             f.amount = cash->amount();
             f.discount = discountCurve->discount(cash->date());
             f.price = f.amount * f.discount;
-            f.paymentDate = isoDate(cash->date());
+            f.paymentDate = DateToIso(cash->date());
             out.push_back(std::move(f));
         }
     }

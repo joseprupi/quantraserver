@@ -11,6 +11,7 @@
 #include "error.h"
 #include "swaption_vol_runtime.h"
 #include "swaption_vol_diagnostics.h"
+#include "common.h"
 
 using namespace QuantLib;
 using namespace quantra;
@@ -221,7 +222,7 @@ enums::VolatilityType fromQlVolType(QuantLib::VolatilityType t, double displacem
 
 std::string toIso(const Date& d) {
     std::ostringstream os;
-    os << io::iso_date(d);
+    os << DateToIso(d);
     return os.str();
 }
 
@@ -351,9 +352,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 const bool strictMode = !options || options->strict();
                 if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
-                    err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
+                    err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
                         << ") must equal swaption vol referenceDate ("
-                        << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                        << DateToIso(volEntry.referenceDate) << ") for vol '" << volId << "'";
                     QUANTRA_ERROR(err.str());
                 }
                 if (!q->tenor_grid()) {
@@ -802,9 +803,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 const bool strictMode = !options || options->strict();
                 if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
-                    err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
+                    err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
                         << ") must equal equity black vol referenceDate ("
-                        << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                        << DateToIso(volEntry.referenceDate) << ") for vol '" << volId << "'";
                     QUANTRA_ERROR(err.str());
                 }
                 sampleReferenceDate = volEntry.referenceDate;
@@ -867,9 +868,9 @@ flatbuffers::Offset<SampleVolSurfacesResponse> SampleVolSurfacesRequestHandler::
                 const bool strictMode = !options || options->strict();
                 if (strictMode && volEntry.referenceDate != asOf) {
                     std::ostringstream err;
-                    err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOf)
+                    err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
                         << ") must equal optionlet vol referenceDate ("
-                        << io::iso_date(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                        << DateToIso(volEntry.referenceDate) << ") for vol '" << volId << "'";
                     QUANTRA_ERROR(err.str());
                 }
                 if (q->strike_grid()->axis() == VolStrikeAxis_SpreadFromATM) {

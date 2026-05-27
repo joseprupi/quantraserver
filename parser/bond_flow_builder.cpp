@@ -4,6 +4,7 @@
 #include <ql/cashflows/fixedratecoupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include "common.h"
 
 namespace quantra {
 
@@ -12,9 +13,7 @@ namespace {
 flatbuffers::Offset<flatbuffers::String> makeDate(
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
     const QuantLib::Date& d) {
-    std::ostringstream os;
-    os << QuantLib::io::iso_date(d);
-    return builder->CreateString(os.str());
+    return builder->CreateString(DateToIso(d));
 }
 
 } // namespace

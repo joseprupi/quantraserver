@@ -23,16 +23,11 @@
 #include <ql/utilities/dataformatters.hpp>
 
 #include "error.h"
+#include "common.h"
 
 namespace quantra {
 
 namespace {
-
-std::string isoDate(const QuantLib::Date& d) {
-    std::ostringstream os;
-    os << QuantLib::io::iso_date(d);
-    return os.str();
-}
 
 /// Look up a curve in the registry and return its relinkable handle.
 const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& findCurve(
@@ -145,9 +140,9 @@ void extractFixedLegFlows(
         }
         VanillaSwapFlowPlain f;
         f.isFloating = false;
-        f.paymentDate = isoDate(coupon->date());
-        f.accrualStartDate = isoDate(coupon->accrualStartDate());
-        f.accrualEndDate = isoDate(coupon->accrualEndDate());
+        f.paymentDate = DateToIso(coupon->date());
+        f.accrualStartDate = DateToIso(coupon->accrualStartDate());
+        f.accrualEndDate = DateToIso(coupon->accrualEndDate());
         f.amount = coupon->amount();
         f.accrualYearFraction = coupon->accrualPeriod();
         f.gearing = 1.0;
@@ -177,15 +172,15 @@ void extractFloatingLegFlows(
         }
         VanillaSwapFlowPlain f;
         f.isFloating = true;
-        f.paymentDate = isoDate(coupon->date());
-        f.accrualStartDate = isoDate(coupon->accrualStartDate());
-        f.accrualEndDate = isoDate(coupon->accrualEndDate());
+        f.paymentDate = DateToIso(coupon->date());
+        f.accrualStartDate = DateToIso(coupon->accrualStartDate());
+        f.accrualEndDate = DateToIso(coupon->accrualEndDate());
         f.amount = coupon->amount();
         f.accrualYearFraction = coupon->accrualPeriod();
         f.gearing = coupon->gearing();
         f.discount = discountCurve.discount(coupon->date());
         f.presentValue = f.amount * f.discount;
-        f.fixingDate = isoDate(coupon->fixingDate());
+        f.fixingDate = DateToIso(coupon->fixingDate());
 
         double fixing = std::numeric_limits<double>::quiet_NaN();
         bool hasCmsSwapRate = false;

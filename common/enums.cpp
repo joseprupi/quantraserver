@@ -345,4 +345,34 @@ QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType
     QUANTRA_ERROR("Swap type not found");
 }
 
+QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
+    const quantra::enums::SwapType swapType)
+{
+    switch (swapType)
+    {
+    case quantra::enums::SwapType_Payer:
+        return QuantLib::ZeroCouponInflationSwap::Payer;
+    case quantra::enums::SwapType_Receiver:
+        return QuantLib::ZeroCouponInflationSwap::Receiver;
+    }
+
+    QUANTRA_ERROR("Zero coupon inflation swap type not found");
+}
+
+QuantLib::CPI::InterpolationType CPIInterpolationToQL(
+    const quantra::enums::CPIInterpolationType interpolation)
+{
+    switch (interpolation)
+    {
+    case quantra::enums::CPIInterpolationType_AsIndex:
+        return QuantLib::CPI::AsIndex;
+    case quantra::enums::CPIInterpolationType_Flat:
+        return QuantLib::CPI::Flat;
+    case quantra::enums::CPIInterpolationType_Linear:
+        return QuantLib::CPI::Linear;
+    }
+
+    QUANTRA_ERROR("CPI interpolation type not found");
+}
+
 #pragma GCC diagnostic pop

@@ -49,7 +49,7 @@ public:
 
         // Metadata
         auto refDate = curve->referenceDate();
-        data.reference_date = dateToString(refDate);
+        data.reference_date = DateToIso(refDate);
         data.day_counter = static_cast<uint8_t>(ts->day_counter());
         data.interpolator = static_cast<uint8_t>(ts->interpolator());
 
@@ -67,7 +67,7 @@ public:
         data.discount_factors.reserve(pillarDates.size());
 
         for (const auto& dt : pillarDates) {
-            data.dates.push_back(dateToString(dt));
+            data.dates.push_back(DateToIso(dt));
             data.discount_factors.push_back(curve->discount(dt));
         }
 
@@ -141,12 +141,6 @@ public:
     }
 
 private:
-
-    static std::string dateToString(const QuantLib::Date& d) {
-        std::ostringstream os;
-        os << QuantLib::io::iso_date(d);
-        return os.str();
-    }
 
     /**
      * Try to extract actual pillar dates from a PiecewiseYieldCurve.

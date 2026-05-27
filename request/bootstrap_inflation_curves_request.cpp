@@ -5,6 +5,7 @@
 #include "common_parser.h"
 #include "error.h"
 #include "grid_utils.h"
+#include "common.h"
 
 using namespace QuantLib;
 using namespace quantra;
@@ -92,9 +93,9 @@ flatbuffers::Offset<BootstrapInflationCurvesResponse> BootstrapInflationCurvesRe
             Date referenceDate = hasZ ? zc->referenceDate() : yy->referenceDate();
             if (strictMode && referenceDate != asOfDate) {
                 std::ostringstream err;
-                err << "Strict mode: pricing.as_of_date (" << io::iso_date(asOfDate)
+                err << "Strict mode: pricing.as_of_date (" << DateToIso(asOfDate)
                     << ") must equal inflation curve referenceDate ("
-                    << io::iso_date(referenceDate) << ") for curve '" << curveId << "'";
+                    << DateToIso(referenceDate) << ") for curve '" << curveId << "'";
                 QUANTRA_ERROR(err.str());
             }
 

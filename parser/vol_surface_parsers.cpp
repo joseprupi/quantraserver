@@ -33,6 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include "common.h"
 
 namespace quantra {
 
@@ -1768,7 +1769,7 @@ BlackVolEntry parseBlackVol(
                         if (price < lowerBound - tolerance || price > upperBound + tolerance) {
                             std::ostringstream msg;
                             msg << "SurfaceFromPrices price violates Black-Scholes bounds at expiry="
-                                << QuantLib::io::iso_date(expiry)
+                                << DateToIso(expiry)
                                 << ", strike=" << strike
                                 << ", price=" << price
                                 << ", lower=" << lowerBound
