@@ -171,6 +171,11 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
     // ==========================================================================
     // Parse models (optional)
+    //
+    // We populate both the legacy FB-pointer map and the plain-domain mirror
+    // for every entry. Existing consumers (cap_floor, swaption, equity,
+    // calibrate_swaption, cds) keep reading from the legacy map; future
+    // cutovers consume `modelDomains`.
     // ==========================================================================
     if (volatility && volatility->models()) {
         for (auto it = volatility->models()->begin(); it != volatility->models()->end(); ++it) {
@@ -179,17 +184,95 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 QUANTRA_ERROR("ModelSpec.id is required");
             }
             std::string id = spec->id()->str();
-            
+
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
                 QUANTRA_ERROR("ModelSpec.payload is required for model id: " + id);
             }
 
             reg.volatility.models[id] = spec;
+
+            // Plain-domain mirror. Mirror enums are bit-compatible with the
+            // FB enums by construction (see parser/model_domain.h); QL types
+            // (Period) are constructed via TimeUnitToQL (D16).
+            ModelDomain domain;
+            domain.id = id;
+            switch (spec->payload_type()) {
+                case quantra::ModelPayload_CapFloorModelSpec: {
+                    const auto* p = spec->payload_as_CapFloorModelSpec();
+                    CapFloorModelDomain d;
+                    d.model_type = static_cast<IrModelTypeKind>(p->model_type());
+                    domain.payload = d;
+                    break;
+                }
+                case quantra::ModelPayload_SwaptionModelSpec: {
+                    const auto* p = spec->payload_as_SwaptionModelSpec();
+                    SwaptionModelDomain d;
+                    d.model_type = static_cast<IrModelTypeKind>(p->model_type());
+                    d.hw_a = p->hw_a();
+                    d.hw_sigma = p->hw_sigma();
+                    d.lattice_steps = p->lattice_steps();
+                    d.param_mode = static_cast<ModelParamModeKind>(p->param_mode());
+                    if (const auto* c = p->hw_calibration()) {
+                        SwaptionHwCalibrationDomain hw;
+                        if (c->swaption_vol_id()) hw.swaption_vol_id = c->swaption_vol_id()->str();
+                        if (c->discount_curve_id()) hw.discount_curve_id = c->discount_curve_id()->str();
+                        if (c->forwarding_curve_id()) hw.forwarding_curve_id = c->forwarding_curve_id()->str();
+                        if (c->swap_index_id()) hw.swap_index_id = c->swap_index_id()->str();
+                        if (c->expiries()) {
+                            for (auto pit = c->expiries()->begin(); pit != c->expiries()->end(); ++pit) {
+                                hw.expiries.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+                            }
+                        }
+                        if (c->tenors()) {
+                            for (auto pit = c->tenors()->begin(); pit != c->tenors()->end(); ++pit) {
+                                hw.tenors.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+                            }
+                        }
+                        hw.calibrate_a = c->calibrate_a();
+                        hw.calibrate_sigma = c->calibrate_sigma();
+                        hw.a_init = c->a_init();
+                        hw.sigma_init = c->sigma_init();
+                        hw.max_iterations = c->max_iterations();
+                        hw.function_evaluations = c->function_evaluations();
+                        hw.end_criteria_eps = c->end_criteria_eps();
+                        d.hw_calibration = std::move(hw);
+                    }
+                    domain.payload = std::move(d);
+                    break;
+                }
+                case quantra::ModelPayload_CdsModelSpec: {
+                    const auto* p = spec->payload_as_CdsModelSpec();
+                    CdsModelDomain d;
+                    d.engine_type = static_cast<CdsEngineTypeKind>(p->engine_type());
+                    d.include_settlement_date_flows = p->include_settlement_date_flows();
+                    d.isda_numerical_fix = static_cast<CdsIsdaNumericalFixKind>(p->isda_numerical_fix());
+                    d.isda_accrual_bias = static_cast<CdsIsdaAccrualBiasKind>(p->isda_accrual_bias());
+                    d.isda_forwards_in_coupon_period =
+                        static_cast<CdsIsdaForwardsInCouponPeriodKind>(p->isda_forwards_in_coupon_period());
+                    domain.payload = d;
+                    break;
+                }
+                case quantra::ModelPayload_EquityVanillaModelSpec: {
+                    const auto* p = spec->payload_as_EquityVanillaModelSpec();
+                    EquityVanillaModelDomain d;
+                    d.model_type = static_cast<EquityModelTypeKind>(p->model_type());
+                    d.binomial_steps = p->binomial_steps();
+                    domain.payload = d;
+                    break;
+                }
+                default:
+                    QUANTRA_ERROR("Unknown ModelPayload type for model id: " + id);
+            }
+            reg.volatility.modelDomains.emplace(id, std::move(domain));
         }
     }
 
     // ==========================================================================
     // Register credit curve specs (optional)
+    //
+    // We populate both the legacy FB-pointer map and the plain-domain mirror
+    // for every entry. Existing consumers (cds_pricing_service) keep reading
+    // from the legacy map; future cutovers consume `creditCurves`.
     // ==========================================================================
     if (credit && credit->credit_curves()) {
         for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end(); ++it) {
@@ -200,7 +283,53 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             if (!spec->reference_date()) {
                 QUANTRA_ERROR("CreditCurveSpec.reference_date is required");
             }
-            reg.credit.creditCurveSpecs.emplace(spec->id()->str(), spec);
+            std::string id = spec->id()->str();
+            reg.credit.creditCurveSpecs.emplace(id, spec);
+
+            // Plain-domain mirror. QL conversions (Calendar/DayCounter/BDC/
+            // Frequency/DateGeneration::Rule/TimeUnit) go through
+            // common/enums.* (D16); date strings via DateToQL (D17). Mirror
+            // enum kinds (HelperModel/QuoteType/Interpolator) are
+            // bit-compatible with the FB enums (see credit_curve_domain.h).
+            CreditCurveDomain d;
+            d.id = id;
+            d.reference_date = DateToQL(spec->reference_date()->str());
+            d.calendar = CalendarToQL(spec->calendar());
+            d.day_counter = DayCounterToQL(spec->day_counter());
+            d.recovery_rate = spec->recovery_rate();
+            d.curve_interpolator =
+                static_cast<CreditCurveInterpolatorKind>(spec->curve_interpolator());
+            if (const auto* h = spec->helper_conventions()) {
+                CdsHelperConventionsDomain hc;
+                hc.settlement_days = h->settlement_days();
+                hc.frequency = FrequencyToQL(h->frequency());
+                hc.business_day_convention = ConventionToQL(h->business_day_convention());
+                hc.date_generation_rule = DateGenerationToQL(h->date_generation_rule());
+                hc.last_period_day_counter = DayCounterToQL(h->last_period_day_counter());
+                hc.settles_accrual = h->settles_accrual();
+                hc.pays_at_default_time = h->pays_at_default_time();
+                hc.rebates_accrual = h->rebates_accrual();
+                hc.helper_model = static_cast<CdsHelperModelKind>(h->helper_model());
+                d.helper_conventions = hc;
+            }
+            d.flat_hazard_rate = spec->flat_hazard_rate();
+            if (const auto* qs = spec->quotes()) {
+                d.quotes.reserve(qs->size());
+                for (auto qit = qs->begin(); qit != qs->end(); ++qit) {
+                    CdsQuoteDomain q;
+                    if (qit->tenor()) {
+                        q.tenor = QuantLib::Period(qit->tenor()->n(),
+                                                   TimeUnitToQL(qit->tenor()->unit()));
+                    }
+                    q.quote_type = static_cast<CdsQuoteTypeKind>(qit->quote_type());
+                    if (qit->quote_id()) q.quote_id = qit->quote_id()->str();
+                    q.quoted_par_spread = qit->quoted_par_spread();
+                    q.quoted_upfront = qit->quoted_upfront();
+                    q.running_coupon = qit->running_coupon();
+                    d.quotes.push_back(std::move(q));
+                }
+            }
+            reg.credit.creditCurves.emplace(id, std::move(d));
         }
     }
 

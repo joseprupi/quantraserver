@@ -24,6 +24,8 @@
 #include "credit_curve_generated.h"
 #include "coupon_pricer_generated.h"
 #include "model_generated.h"
+#include "credit_curve_domain.h"
+#include "model_domain.h"
 #include "index_registry.h"
 #include "swap_index_registry.h"
 #include "quote_registry.h"
@@ -64,14 +66,24 @@ struct RatesRegistry {
 };
 
 struct CreditRegistry {
+    // Legacy: raw FlatBuffers pointer. Kept until every consumer has been
+    // cut over to the plain-domain map below.
     std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
+    // Plain-domain mirror, populated alongside `creditCurveSpecs` for every
+    // entry on every request. New consumers must read from this map.
+    std::map<std::string, CreditCurveDomain> creditCurves;
 };
 
 struct VolatilityRegistry {
     std::map<std::string, OptionletVolEntry> optionletVols;
     std::map<std::string, SwaptionVolEntry> swaptionVols;
     std::map<std::string, BlackVolEntry> blackVols;
+    // Legacy: raw FlatBuffers pointer. Kept until every consumer has been
+    // cut over to the plain-domain map below.
     std::map<std::string, const quantra::ModelSpec*> models;
+    // Plain-domain mirror, populated alongside `models` for every entry on
+    // every request. New consumers must read from this map.
+    std::map<std::string, ModelDomain> modelDomains;
 };
 
 struct InflationRegistry {
