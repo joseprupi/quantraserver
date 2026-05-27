@@ -265,7 +265,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             std::string asOfDate;
             auto evalDate = QuantLib::Settings::instance().evaluationDate();
             std::ostringstream os;
-            os << QuantLib::io::iso_date(evalDate);
+            os << DateToIso(evalDate);
             asOfDate = os.str();
 
             std::string key = CurveKeyBuilder::compute(

@@ -14,7 +14,7 @@ namespace {
 
 std::string dateToIsoString(const Date& d) {
     std::ostringstream os;
-    os << io::iso_date(d);
+    os << DateToIso(d);
     return os.str();
 }
 

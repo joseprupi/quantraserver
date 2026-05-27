@@ -25,6 +25,7 @@
 #include <ql/instruments/vanillaswap.hpp>
 #include <limits>
 #include <unordered_map>
+#include "common.h"
 
 using namespace QuantLib;
 using namespace quantra;
@@ -80,9 +81,9 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
         }
         if (vIt->second.referenceDate != asOf) {
             std::ostringstream err;
-            err << "Strict mode: pricing.as_of_date (" << QuantLib::io::iso_date(asOf)
+            err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
                 << ") must equal swaption vol referenceDate ("
-                << QuantLib::io::iso_date(vIt->second.referenceDate)
+                << DateToIso(vIt->second.referenceDate)
                 << ") for vol '" << it->volatility()->str() << "'";
             QUANTRA_ERROR(err.str());
         }
@@ -403,11 +404,11 @@ flatbuffers::Offset<PriceSwaptionResponse> SwaptionPricingRequest::request(
             }
 
             std::ostringstream expOs;
-            expOs << QuantLib::io::iso_date(exerciseDate);
+            expOs << DateToIso(exerciseDate);
             usedExpiry = expOs.str();
 
             std::ostringstream tenOs;
-            tenOs << QuantLib::io::iso_date(startDate) << "->" << QuantLib::io::iso_date(endDate);
+            tenOs << DateToIso(startDate) << "->" << DateToIso(endDate);
             usedTenor = tenOs.str();
         } catch (...) {
             // best-effort debug, ignore failures

@@ -2,13 +2,14 @@
 
 #include <algorithm>
 #include <sstream>
+#include "common.h"
 
 namespace quantra {
 namespace grid_utils {
 
 std::string ToIsoDate(const QuantLib::Date& d) {
     std::ostringstream os;
-    os << QuantLib::io::iso_date(d);
+    os << DateToIso(d);
     return os.str();
 }
 

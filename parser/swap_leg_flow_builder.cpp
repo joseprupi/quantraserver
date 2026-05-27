@@ -3,6 +3,7 @@
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include "common.h"
 
 namespace quantra {
 
@@ -17,13 +18,13 @@ flatbuffers::Offset<SwapLegFlow> buildSwapLegFlow(
 
     auto coupon = std::dynamic_pointer_cast<QuantLib::Coupon>(cf);
     std::ostringstream osPayment, osStart, osEnd;
-    osPayment << QuantLib::io::iso_date(cf->date());
+    osPayment << DateToIso(cf->date());
     auto paymentDate = builder.CreateString(osPayment.str());
     flatbuffers::Offset<flatbuffers::String> accrualStart = 0;
     flatbuffers::Offset<flatbuffers::String> accrualEnd = 0;
     if (coupon) {
-        osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-        osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
+        osStart << DateToIso(coupon->accrualStartDate());
+        osEnd << DateToIso(coupon->accrualEndDate());
         accrualStart = builder.CreateString(osStart.str());
         accrualEnd = builder.CreateString(osEnd.str());
     }
@@ -36,7 +37,7 @@ flatbuffers::Offset<SwapLegFlow> buildSwapLegFlow(
     auto frc = std::dynamic_pointer_cast<QuantLib::FloatingRateCoupon>(coupon);
     if (frc) {
         std::ostringstream osFix;
-        osFix << QuantLib::io::iso_date(frc->fixingDate());
+        osFix << DateToIso(frc->fixingDate());
         fixingDate = builder.CreateString(osFix.str());
         indexFixing = frc->indexFixing();
         spread = frc->spread();

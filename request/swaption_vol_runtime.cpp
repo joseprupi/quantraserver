@@ -6,6 +6,7 @@
 #include <ql/utilities/dataformatters.hpp>
 
 #include "sabr_calibrate_cache_key.h"
+#include "common.h"
 
 namespace {
 
@@ -188,12 +189,12 @@ void validateTradeAgainstSwapIndex(
             std::ostringstream err;
             err << "Swap index '" << swapIndexId
                 << "' spot_days mismatch against trade start convention: expected start "
-                << QuantLib::io::iso_date(expectedStart) << " from exercise "
-                << QuantLib::io::iso_date(tradeExerciseDate)
-                << " (adjusted: " << QuantLib::io::iso_date(tradeExerciseAdjusted) << ")"
+                << DateToIso(expectedStart) << " from exercise "
+                << DateToIso(tradeExerciseDate)
+                << " (adjusted: " << DateToIso(tradeExerciseAdjusted) << ")"
                 << " with spot_days=" << sidx.spotDays
-                << ", but trade start is " << QuantLib::io::iso_date(tradeStartDate)
-                << " (adjusted: " << QuantLib::io::iso_date(tradeStartAdjusted) << ")";
+                << ", but trade start is " << DateToIso(tradeStartDate)
+                << " (adjusted: " << DateToIso(tradeStartAdjusted) << ")";
             QUANTRA_ERROR(err.str());
         }
     }

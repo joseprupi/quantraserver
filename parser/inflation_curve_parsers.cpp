@@ -445,7 +445,7 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
             const QuantLib::Date baseDate = QuantLib::inflationPeriod(ref - availLag, freq).first;
             if (!hasFixingForDate(idxSpec->fixings(), baseDate)) {
                 std::ostringstream baseDateMsg;
-                baseDateMsg << QuantLib::io::iso_date(baseDate);
+                baseDateMsg << DateToIso(baseDate);
                 QUANTRA_ERROR("Zero inflation base fixing unavailable for curve id '" + id +
                               "': provide InflationIndexSpec.fixings for " + baseDateMsg.str());
             }

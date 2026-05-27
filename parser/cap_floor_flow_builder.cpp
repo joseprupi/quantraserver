@@ -2,6 +2,7 @@
 
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include "common.h"
 
 namespace quantra {
 
@@ -18,10 +19,10 @@ std::vector<flatbuffers::Offset<CapFloorLet>> buildCapFloorDetails(
         }
 
         std::ostringstream osPayment, osStart, osEnd, osFixing;
-        osPayment << QuantLib::io::iso_date(coupon->date());
-        osStart << QuantLib::io::iso_date(coupon->accrualStartDate());
-        osEnd << QuantLib::io::iso_date(coupon->accrualEndDate());
-        osFixing << QuantLib::io::iso_date(coupon->fixingDate());
+        osPayment << DateToIso(coupon->date());
+        osStart << DateToIso(coupon->accrualStartDate());
+        osEnd << DateToIso(coupon->accrualEndDate());
+        osFixing << DateToIso(coupon->fixingDate());
 
         CapFloorLetBuilder b(*builder);
         b.add_payment_date(builder->CreateString(osPayment.str()));
