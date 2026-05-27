@@ -26,7 +26,7 @@
 #include "sample_vol_surfaces_request.h"
 #include "bootstrap_inflation_curves_request.h"
 #include "zero_coupon_inflation_swap_handler.h"
-#include "year_on_year_inflation_swap_pricing_request.h"
+#include "year_on_year_inflation_swap_handler.h"
 #include "equity_option_pricing_request.h"
 #include "vol_surface_parsers.h"
 
