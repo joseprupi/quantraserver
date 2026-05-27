@@ -21,7 +21,7 @@
 #include "fra_pricing_request.h"
 #include "cap_floor_pricing_request.h"
 #include "swaption_pricing_request.h"
-#include "cds_pricing_request.h"
+#include "cds_handler.h"
 #include "bootstrap_curves_request.h"
 #include "sample_vol_surfaces_request.h"
 #include "bootstrap_inflation_curves_request.h"
