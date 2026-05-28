@@ -2,8 +2,10 @@
 #define QUANTRASERVER_CALENDAR_ADVANCE_HANDLER_H
 
 #include "call_data_base.h"
+#include "product_endpoint.h"
 #include "product_registry.h"
-#include "calendar_advance_request.h"
+#include "calendar_advance_mapper.h"
+#include "calendar_advance_pricer.h"
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
 
@@ -11,9 +13,18 @@ using quantra::CalendarAdvanceRequest;
 using quantra::CalendarAdvanceResponse;
 using quantra::CalendarAdvanceResponseBuilder;
 
+/// Generic endpoint binding for the CalendarAdvance utility. The
+/// FlatBuffers→domain→QuantLib→FlatBuffers glue lives in ProductEndpoint;
+/// the handler only picks the four types and registers itself.
+using CalendarAdvanceEndpoint = quantra::ProductEndpoint<
+    CalendarAdvanceRequest,
+    CalendarAdvanceResponse,
+    quantra::CalendarAdvanceMapper,
+    quantra::CalendarAdvancePricer>;
+
 class CalendarAdvanceData : public CallDataGeneric<
     CalendarAdvanceRequest,
-    CalendarAdvanceRequestHandler,
+    CalendarAdvanceEndpoint,
     CalendarAdvanceResponse,
     CalendarAdvanceResponseBuilder>
 {
