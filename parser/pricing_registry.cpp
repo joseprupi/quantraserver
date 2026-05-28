@@ -9,6 +9,7 @@
 #include <ql/settings.hpp>
 
 #include "curve_bootstrapper.h"
+#include "equity_underlying_registry.h"
 #include "index_registry_builder.h"
 #include "swap_index_registry.h"
 #include "enums.h"
@@ -84,6 +85,18 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     reg.rates.curveKeys = booted.keys;
     for (auto& kv : booted.handles) {
         reg.rates.curves.emplace(kv.first, kv.second);
+    }
+
+    // ==========================================================================
+    // Parse equity domain (optional)
+    //
+    // Equity underlyings reference dividend yield curves bootstrapped above, so
+    // this block runs after `rates.curves` is populated. Output is plain (no
+    // FB pointers) — consumed by EquityOptionPricer via `reg.equity`.
+    // ==========================================================================
+    if (pricing->equity()) {
+        EquityUnderlyingRegistryBuilder equityBuilder;
+        reg.equity.equityUnderlyings = equityBuilder.build(pricing->equity(), reg);
     }
 
     // ==========================================================================

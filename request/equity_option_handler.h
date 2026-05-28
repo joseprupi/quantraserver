@@ -2,18 +2,33 @@
 #define QUANTRASERVER_EQUITY_OPTION_HANDLER_H
 
 #include "call_data_base.h"
-#include "product_registry.h"
-#include "equity_option_pricing_request.h"
-#include "price_equity_option_request_generated.h"
+#include "equity_option_mapper.h"
+#include "equity_option_pricer.h"
 #include "equity_option_response_generated.h"
+#include "price_equity_option_request_generated.h"
+#include "product_endpoint.h"
+#include "product_registry.h"
 
 using quantra::PriceEquityOptionRequest;
 using quantra::PriceEquityOptionResponse;
 using quantra::PriceEquityOptionResponseBuilder;
 
+/// Generic endpoint binding for the EquityOption product.
+using EquityOptionEndpoint = quantra::ProductEndpoint<
+    PriceEquityOptionRequest,
+    PriceEquityOptionResponse,
+    quantra::EquityOptionMapper,
+    quantra::EquityOptionPricer>;
+
+/// Transitional alias for any caller that still names the legacy type.
+using EquityOptionPricingRequest = EquityOptionEndpoint;
+
+/**
+ * PriceEquityOptionData - Async handler for EquityOption pricing.
+ */
 class PriceEquityOptionData : public CallDataGeneric<
     PriceEquityOptionRequest,
-    EquityOptionPricingRequest,
+    EquityOptionEndpoint,
     PriceEquityOptionResponse,
     PriceEquityOptionResponseBuilder> {
 public:

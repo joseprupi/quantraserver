@@ -445,4 +445,48 @@ QuantLib::CapFloor::Type CapFloorTypeToQL(const quantra::enums::CapFloorType cap
     QUANTRA_ERROR("Cap/Floor type not found");
 }
 
+QuantLib::Option::Type EquityOptionTypeToQL(const quantra::enums::EquityOptionType optionType)
+{
+    switch (optionType)
+    {
+    case quantra::enums::EquityOptionType_Call:
+        return QuantLib::Option::Call;
+    case quantra::enums::EquityOptionType_Put:
+        return QuantLib::Option::Put;
+    }
+
+    QUANTRA_ERROR("Equity option type not found");
+}
+
+QuantLib::Barrier::Type EquityBarrierTypeToQL(const quantra::enums::EquityBarrierType barrierType)
+{
+    switch (barrierType)
+    {
+    case quantra::enums::EquityBarrierType_DownIn:
+        return QuantLib::Barrier::DownIn;
+    case quantra::enums::EquityBarrierType_UpIn:
+        return QuantLib::Barrier::UpIn;
+    case quantra::enums::EquityBarrierType_DownOut:
+        return QuantLib::Barrier::DownOut;
+    case quantra::enums::EquityBarrierType_UpOut:
+        return QuantLib::Barrier::UpOut;
+    }
+
+    QUANTRA_ERROR("Equity barrier type not found");
+}
+
+QuantLib::Settlement::Type EquitySettlementTypeToQL(
+    const quantra::enums::EquitySettlementType settlement)
+{
+    switch (settlement)
+    {
+    case quantra::enums::EquitySettlementType_Physical:
+        return QuantLib::Settlement::Physical;
+    case quantra::enums::EquitySettlementType_Cash:
+        return QuantLib::Settlement::Cash;
+    }
+
+    QUANTRA_ERROR("Equity settlement type not found");
+}
+
 #pragma GCC diagnostic pop

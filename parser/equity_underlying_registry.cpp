@@ -1,6 +1,7 @@
 #include "equity_underlying_registry.h"
 
 #include "error.h"
+#include "pricing_registry.h"
 
 namespace quantra {
 
