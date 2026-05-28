@@ -1,4 +1,5 @@
 #include <ql/quantlib.hpp>
+#include <ql/instruments/capfloor.hpp>
 
 #include "enums_generated.h"
 #include "common.h"
@@ -28,5 +29,6 @@ QuantLib::CPI::InterpolationType CPIInterpolationToQL(
 QuantLib::Protection::Side ProtectionSideToQL(
     const quantra::enums::ProtectionSide side);
 QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType);
+QuantLib::CapFloor::Type CapFloorTypeToQL(const quantra::enums::CapFloorType capFloorType);
 
 #endif //ENUMS_H

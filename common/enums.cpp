@@ -430,4 +430,19 @@ QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType)
     QUANTRA_ERROR("FRA type not found");
 }
 
+QuantLib::CapFloor::Type CapFloorTypeToQL(const quantra::enums::CapFloorType capFloorType)
+{
+    switch (capFloorType)
+    {
+    case quantra::enums::CapFloorType_Cap:
+        return QuantLib::CapFloor::Cap;
+    case quantra::enums::CapFloorType_Floor:
+        return QuantLib::CapFloor::Floor;
+    case quantra::enums::CapFloorType_Collar:
+        return QuantLib::CapFloor::Collar;
+    }
+
+    QUANTRA_ERROR("Cap/Floor type not found");
+}
+
 #pragma GCC diagnostic pop
