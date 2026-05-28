@@ -49,25 +49,6 @@ QuantLib::Period toQlPeriod(const quantra::Period* p) {
     return QuantLib::Period(p->n(), TimeUnitToQL(p->unit()));
 }
 
-std::vector<QuantLib::Period> selectPeriods(
-    const flatbuffers::Vector<flatbuffers::Offset<quantra::Period>>* fromSpec,
-    const std::vector<QuantLib::Period>& fallback,
-    const std::string& label) {
-    if (fromSpec && fromSpec->size() > 0) {
-        std::vector<QuantLib::Period> out;
-        out.reserve(fromSpec->size());
-        for (auto it = fromSpec->begin(); it != fromSpec->end(); ++it) {
-            out.push_back(toQlPeriod(*it));
-        }
-        return out;
-    }
-    if (!fallback.empty()) {
-        return fallback;
-    }
-    QUANTRA_ERROR("Hull-White calibration requires non-empty " + label + " grid");
-    return {};
-}
-
 double marketVolAtNode(
     const quantra::SwaptionVolEntry& volEntry,
     const QuantLib::Period& expiry,
@@ -110,20 +91,57 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     const PricingRegistry& reg,
     const quantra::SwaptionHwCalibrationSpec* calibSpec,
     const QuantLib::Date asOf) {
-    g_hwCalibrationCallCount.fetch_add(1);
-    EvalDateGuard evalGuard;
-    QuantLib::Settings::instance().evaluationDate() = asOf;
-
     if (!calibSpec || !calibSpec->swaption_vol_id() || !calibSpec->discount_curve_id() ||
         !calibSpec->forwarding_curve_id() || !calibSpec->swap_index_id()) {
         QUANTRA_ERROR(
             "SwaptionHwCalibrationSpec requires swaption_vol_id, discount_curve_id, forwarding_curve_id, and swap_index_id");
     }
 
-    const std::string volId = calibSpec->swaption_vol_id()->str();
-    const std::string discountCurveId = calibSpec->discount_curve_id()->str();
-    const std::string forwardingCurveId = calibSpec->forwarding_curve_id()->str();
-    const std::string swapIndexId = calibSpec->swap_index_id()->str();
+    SwaptionHwCalibrationDomain domain;
+    domain.swaption_vol_id = calibSpec->swaption_vol_id()->str();
+    domain.discount_curve_id = calibSpec->discount_curve_id()->str();
+    domain.forwarding_curve_id = calibSpec->forwarding_curve_id()->str();
+    domain.swap_index_id = calibSpec->swap_index_id()->str();
+    if (calibSpec->expiries() && calibSpec->expiries()->size() > 0) {
+        domain.expiries.reserve(calibSpec->expiries()->size());
+        for (auto it = calibSpec->expiries()->begin(); it != calibSpec->expiries()->end(); ++it) {
+            domain.expiries.push_back(toQlPeriod(*it));
+        }
+    }
+    if (calibSpec->tenors() && calibSpec->tenors()->size() > 0) {
+        domain.tenors.reserve(calibSpec->tenors()->size());
+        for (auto it = calibSpec->tenors()->begin(); it != calibSpec->tenors()->end(); ++it) {
+            domain.tenors.push_back(toQlPeriod(*it));
+        }
+    }
+    domain.calibrate_a = calibSpec->calibrate_a();
+    domain.calibrate_sigma = calibSpec->calibrate_sigma();
+    domain.a_init = calibSpec->a_init();
+    domain.sigma_init = calibSpec->sigma_init();
+    domain.max_iterations = calibSpec->max_iterations();
+    domain.function_evaluations = calibSpec->function_evaluations();
+    domain.end_criteria_eps = calibSpec->end_criteria_eps();
+    return calibrateHullWhiteFromSwaptionVol(reg, domain, asOf);
+}
+
+HwCalibResult calibrateHullWhiteFromSwaptionVol(
+    const PricingRegistry& reg,
+    const SwaptionHwCalibrationDomain& calibSpec,
+    const QuantLib::Date asOf) {
+    g_hwCalibrationCallCount.fetch_add(1);
+    EvalDateGuard evalGuard;
+    QuantLib::Settings::instance().evaluationDate() = asOf;
+
+    if (calibSpec.swaption_vol_id.empty() || calibSpec.discount_curve_id.empty() ||
+        calibSpec.forwarding_curve_id.empty() || calibSpec.swap_index_id.empty()) {
+        QUANTRA_ERROR(
+            "SwaptionHwCalibrationSpec requires swaption_vol_id, discount_curve_id, forwarding_curve_id, and swap_index_id");
+    }
+
+    const std::string& volId = calibSpec.swaption_vol_id;
+    const std::string& discountCurveId = calibSpec.discount_curve_id;
+    const std::string& forwardingCurveId = calibSpec.forwarding_curve_id;
+    const std::string& swapIndexId = calibSpec.swap_index_id;
 
     auto vIt = reg.volatility.swaptionVols.find(volId);
     if (vIt == reg.volatility.swaptionVols.end()) {
@@ -168,8 +186,16 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         fallbackExpiries = volEntry.expiries;
         fallbackTenors = volEntry.tenors;
     }
-    auto expiries = selectPeriods(calibSpec->expiries(), fallbackExpiries, "expiries");
-    auto tenors = selectPeriods(calibSpec->tenors(), fallbackTenors, "tenors");
+    auto pickGrid = [&](const std::vector<QuantLib::Period>& fromSpec,
+                        const std::vector<QuantLib::Period>& fallback,
+                        const std::string& label) {
+        if (!fromSpec.empty()) return fromSpec;
+        if (!fallback.empty()) return fallback;
+        QUANTRA_ERROR("Hull-White calibration requires non-empty " + label + " grid");
+        return std::vector<QuantLib::Period>{};
+    };
+    auto expiries = pickGrid(calibSpec.expiries, fallbackExpiries, "expiries");
+    auto tenors = pickGrid(calibSpec.tenors, fallbackTenors, "tenors");
     if (expiries.empty() || tenors.empty()) {
         QUANTRA_ERROR("Calibration grid is empty");
     }
@@ -234,14 +260,14 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         QUANTRA_ERROR("No calibration helpers were built");
     }
 
-    const bool calibrateA = calibSpec->calibrate_a();
-    const bool calibrateSigma = calibSpec->calibrate_sigma();
+    const bool calibrateA = calibSpec.calibrate_a;
+    const bool calibrateSigma = calibSpec.calibrate_sigma;
     if (!calibrateA && !calibrateSigma) {
         QUANTRA_ERROR("At least one of calibrate_a or calibrate_sigma must be true");
     }
 
     auto hwModel = QuantLib::ext::make_shared<QuantLib::HullWhite>(
-        discountCurve, calibSpec->a_init(), calibSpec->sigma_init());
+        discountCurve, calibSpec.a_init, calibSpec.sigma_init);
     auto engine = QuantLib::ext::make_shared<QuantLib::JamshidianSwaptionEngine>(hwModel);
     for (auto& h : helpers) {
         auto blackHelper = QuantLib::ext::dynamic_pointer_cast<QuantLib::BlackCalibrationHelper>(h);
@@ -253,11 +279,11 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
 
     QuantLib::LevenbergMarquardt lm;
     QuantLib::EndCriteria endCriteria(
-        calibSpec->function_evaluations(),
-        calibSpec->max_iterations(),
-        calibSpec->end_criteria_eps(),
-        calibSpec->end_criteria_eps(),
-        calibSpec->end_criteria_eps());
+        calibSpec.function_evaluations,
+        calibSpec.max_iterations,
+        calibSpec.end_criteria_eps,
+        calibSpec.end_criteria_eps,
+        calibSpec.end_criteria_eps);
     std::vector<bool> fixParams = { !calibrateA, !calibrateSigma };
     hwModel->calibrate(
         helpers,
