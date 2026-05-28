@@ -20,7 +20,7 @@
 #include "vanilla_swap_handler.h"
 #include "fra_pricing_request.h"
 #include "cap_floor_pricing_request.h"
-#include "swaption_pricing_request.h"
+#include "swaption_handler.h"
 #include "cds_handler.h"
 #include "bootstrap_curves_request.h"
 #include "sample_vol_surfaces_request.h"

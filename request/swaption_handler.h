@@ -2,21 +2,33 @@
 #define QUANTRASERVER_SWAPTION_HANDLER_H
 
 #include "call_data_base.h"
-#include "product_registry.h"
-#include "swaption_pricing_request.h"
 #include "price_swaption_request_generated.h"
+#include "product_endpoint.h"
+#include "product_registry.h"
+#include "swaption_mapper.h"
+#include "swaption_pricer.h"
 #include "swaption_response_generated.h"
 
 using quantra::PriceSwaptionRequest;
 using quantra::PriceSwaptionResponse;
 using quantra::PriceSwaptionResponseBuilder;
 
-/**
- * PriceSwaptionData - Async handler for Swaption pricing.
- */
+/// Wave-A product: swaption. Mirrors the CDS/YYIIS/ZCIIS cutovers — the
+/// generic ProductEndpoint template owns the Verify → mapper.toInputs →
+/// registry → context → pricer.price → mapper.toResponse glue.
+using SwaptionEndpoint = quantra::ProductEndpoint<
+    PriceSwaptionRequest,
+    PriceSwaptionResponse,
+    quantra::SwaptionMapper,
+    quantra::SwaptionPricer>;
+
+/// Backward-compatible alias for existing call sites (tests) that referenced
+/// the legacy SwaptionPricingRequest type directly.
+using SwaptionPricingRequest = SwaptionEndpoint;
+
 class PriceSwaptionData : public CallDataGeneric<
     PriceSwaptionRequest,
-    SwaptionPricingRequest,
+    SwaptionEndpoint,
     PriceSwaptionResponse,
     PriceSwaptionResponseBuilder>
 {
@@ -29,7 +41,7 @@ public:
     void RequestCall() override
     {
         service_->RequestPriceSwaption(
-            &ctx_, &request_msg, &responder_, 
+            &ctx_, &request_msg, &responder_,
             cq_, cq_, this);
     }
 
