@@ -27,7 +27,7 @@
 #include "bootstrap_inflation_curves_request.h"
 #include "zero_coupon_inflation_swap_handler.h"
 #include "year_on_year_inflation_swap_handler.h"
-#include "equity_option_pricing_request.h"
+#include "equity_option_handler.h"
 #include "vol_surface_parsers.h"
 
 #include "price_fixed_rate_bond_request_generated.h"

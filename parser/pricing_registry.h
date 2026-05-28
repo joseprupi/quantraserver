@@ -25,6 +25,7 @@
 #include "coupon_pricer_generated.h"
 #include "model_generated.h"
 #include "credit_curve_domain.h"
+#include "equity_underlying_registry.h"
 #include "model_domain.h"
 #include "coupon_pricer_domain.h"
 #include "index_registry.h"
@@ -92,6 +93,12 @@ struct VolatilityRegistry {
     std::map<std::string, ModelDomain> modelDomains;
 };
 
+struct EquityRegistry {
+    /// Plain-domain registry of equity underlyings keyed by id, populated
+    /// from pricing.equity.equity_underlyings via EquityUnderlyingRegistryBuilder.
+    std::unordered_map<std::string, EquityUnderlyingRuntime> equityUnderlyings;
+};
+
 struct InflationRegistry {
     std::map<std::string, std::shared_ptr<QuantLib::InflationIndex>> inflationIndices;
     std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>> zeroInflationCurves;
@@ -116,6 +123,7 @@ struct PricingRegistry {
     RatesRegistry rates;
     CreditRegistry credit;
     VolatilityRegistry volatility;
+    EquityRegistry equity;
     InflationRegistry inflation;
     PricingRequestOptions options;
 };

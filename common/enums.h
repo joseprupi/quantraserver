@@ -1,5 +1,7 @@
 #include <ql/quantlib.hpp>
+#include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/capfloor.hpp>
+#include <ql/option.hpp>
 
 #include "enums_generated.h"
 #include "common.h"
@@ -30,5 +32,9 @@ QuantLib::Protection::Side ProtectionSideToQL(
     const quantra::enums::ProtectionSide side);
 QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType);
 QuantLib::CapFloor::Type CapFloorTypeToQL(const quantra::enums::CapFloorType capFloorType);
+QuantLib::Option::Type EquityOptionTypeToQL(const quantra::enums::EquityOptionType optionType);
+QuantLib::Barrier::Type EquityBarrierTypeToQL(const quantra::enums::EquityBarrierType barrierType);
+QuantLib::Settlement::Type EquitySettlementTypeToQL(
+    const quantra::enums::EquitySettlementType settlement);
 
 #endif //ENUMS_H

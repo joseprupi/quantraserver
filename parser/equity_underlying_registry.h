@@ -9,9 +9,10 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 #include "pricing_generated.h"
-#include "pricing_registry.h"
 
 namespace quantra {
+
+struct PricingRegistry;
 
 struct EquityUnderlyingRuntime {
     QuantLib::Handle<QuantLib::Quote> spot;
