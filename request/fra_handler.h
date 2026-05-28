@@ -2,8 +2,10 @@
 #define QUANTRASERVER_FRA_HANDLER_H
 
 #include "call_data_base.h"
+#include "product_endpoint.h"
 #include "product_registry.h"
-#include "fra_pricing_request.h"
+#include "fra_mapper.h"
+#include "fra_pricer.h"
 #include "price_fra_request_generated.h"
 #include "fra_response_generated.h"
 
@@ -11,12 +13,24 @@ using quantra::PriceFRARequest;
 using quantra::PriceFRAResponse;
 using quantra::PriceFRAResponseBuilder;
 
+/// Generic endpoint binding for the FRA product. The
+/// FlatBuffers→domain→QuantLib→FlatBuffers glue lives in ProductEndpoint;
+/// the handler only picks the four types and registers itself.
+using FraEndpoint = quantra::ProductEndpoint<
+    PriceFRARequest,
+    PriceFRAResponse,
+    quantra::FraMapper,
+    quantra::FraPricer>;
+
+/// Transitional alias for any caller that still names the legacy type.
+using FRAPricingRequest = FraEndpoint;
+
 /**
  * PriceFRAData - Async handler for FRA pricing.
  */
 class PriceFRAData : public CallDataGeneric<
     PriceFRARequest,
-    FRAPricingRequest,
+    FraEndpoint,
     PriceFRAResponse,
     PriceFRAResponseBuilder>
 {
@@ -29,7 +43,7 @@ public:
     void RequestCall() override
     {
         service_->RequestPriceFRA(
-            &ctx_, &request_msg, &responder_, 
+            &ctx_, &request_msg, &responder_,
             cq_, cq_, this);
     }
 

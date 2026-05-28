@@ -417,4 +417,17 @@ QuantLib::Protection::Side ProtectionSideToQL(
     QUANTRA_ERROR("Protection side not found");
 }
 
+QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType)
+{
+    switch (fraType)
+    {
+    case quantra::enums::FRAType_Long:
+        return QuantLib::Position::Long;
+    case quantra::enums::FRAType_Short:
+        return QuantLib::Position::Short;
+    }
+
+    QUANTRA_ERROR("FRA type not found");
+}
+
 #pragma GCC diagnostic pop

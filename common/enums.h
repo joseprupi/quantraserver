@@ -27,5 +27,6 @@ QuantLib::CPI::InterpolationType CPIInterpolationToQL(
     const quantra::enums::CPIInterpolationType interpolation);
 QuantLib::Protection::Side ProtectionSideToQL(
     const quantra::enums::ProtectionSide side);
+QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType);
 
 #endif //ENUMS_H
