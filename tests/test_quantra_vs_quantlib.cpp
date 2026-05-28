@@ -18,7 +18,7 @@
 
 #include "fixed_rate_bond_handler.h"
 #include "vanilla_swap_handler.h"
-#include "fra_pricing_request.h"
+#include "fra_handler.h"
 #include "cap_floor_pricing_request.h"
 #include "swaption_handler.h"
 #include "cds_handler.h"
