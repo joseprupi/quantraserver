@@ -335,10 +335,44 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
     // ==========================================================================
     // Coupon pricers (optional)
+    //
+    // We populate both the legacy FB-pointer vector and the plain-domain map
+    // for every entry. Existing consumers (the legacy floating-rate-bond
+    // request handler) keep reading from the legacy vector; new consumers
+    // read `couponPricerDomains`. Enum conversion routes through
+    // common/enums.* exclusively.
     // ==========================================================================
     if (rates && rates->coupon_pricers()) {
         for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end(); ++it) {
-            reg.rates.couponPricers.emplace_back(*it);
+            const auto* spec = *it;
+            reg.rates.couponPricers.emplace_back(spec);
+
+            if (!spec->id()) {
+                QUANTRA_ERROR("CouponPricer.id is required");
+            }
+            std::string id = spec->id()->str();
+
+            const auto* black = spec->black_ibor_coupon_pricer();
+            if (!black) {
+                QUANTRA_ERROR("CouponPricer '" + id +
+                              "' is missing black_ibor_coupon_pricer payload");
+            }
+            const auto* ov = black->optionlet_volatility();
+            if (!ov) {
+                QUANTRA_ERROR("CouponPricer '" + id +
+                              "' is missing optionlet_volatility block");
+            }
+
+            CouponPricerDomain domain;
+            domain.id = id;
+            BlackIborCouponPricerDomain d;
+            d.settlement_days = ov->settlement_days();
+            d.calendar = CalendarToQL(ov->calendar());
+            d.business_day_convention = ConventionToQL(ov->business_day_convention());
+            d.volatility = ov->volatility();
+            d.day_counter = DayCounterToQL(ov->day_counter());
+            domain.payload = std::move(d);
+            reg.rates.couponPricerDomains.emplace(id, std::move(domain));
         }
     }
 

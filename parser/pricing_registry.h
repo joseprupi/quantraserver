@@ -26,6 +26,7 @@
 #include "model_generated.h"
 #include "credit_curve_domain.h"
 #include "model_domain.h"
+#include "coupon_pricer_domain.h"
 #include "index_registry.h"
 #include "swap_index_registry.h"
 #include "quote_registry.h"
@@ -62,7 +63,12 @@ struct RatesRegistry {
     std::unordered_map<std::string, std::string> curveKeys;
     IndexRegistry indices;
     SwapIndexRegistry swapIndices;
+    // Legacy: raw FlatBuffers pointers. Kept until every consumer has been
+    // cut over to the plain-domain map below.
     std::vector<const quantra::CouponPricer*> couponPricers;
+    // Plain-domain mirror, populated alongside `couponPricers` for every
+    // entry on every request. New consumers must read from this map.
+    std::map<std::string, CouponPricerDomain> couponPricerDomains;
 };
 
 struct CreditRegistry {
