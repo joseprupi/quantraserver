@@ -25,19 +25,11 @@
 
 #include <ql/time/date.hpp>
 
+#include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
 
 namespace quantra {
-
-/// Sample measure identifier. Values mirror the wire-format
-/// enums::InflationCurveMeasure (ZeroRate=0, YoYRate=1); the mapper
-/// translates between the two so the pricer can stay free of any
-/// *_generated.h header.
-enum class InflationCurveSampleMeasure : std::int8_t {
-    ZeroRate = 0,
-    YoYRate = 1,
-};
 
 /// One inflation curve to sample, lifted out of the FlatBuffers request by
 /// the mapper. `gridDates` is pre-resolved relative to the curve's

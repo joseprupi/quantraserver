@@ -30,19 +30,11 @@
 #include <ql/time/period.hpp>
 #include <ql/time/timeunit.hpp>
 
+#include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
 
 namespace quantra {
-
-/// Sample measure identifier. Values mirror the wire-format CurveMeasure
-/// (DF=0, ZERO=1, FWD=2); the mapper translates between the two so the
-/// pricer can stay free of any *_generated.h header.
-enum class CurveSampleMeasure : std::int8_t {
-    DiscountFactor = 0,
-    ZeroRate = 1,
-    ForwardRate = 2,
-};
 
 /// Per-measure config for zero-rate sampling, fully resolved by the mapper.
 struct ZeroSampleSpec {

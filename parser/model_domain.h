@@ -10,10 +10,10 @@
  * future) need not include any *_generated.h header. Populated by
  * PricingRegistryBuilder alongside the legacy FB pointer.
  *
- * The Kind enums mirror the FB enums exactly (values must match — single
- * source of truth lives in *_generated.h; this comment marks the invariant).
- * Where a field has a natural QuantLib type (Period vectors in the HW
- * calibration spec), the QL type is used directly.
+ * The *Kind enums used below live in common/enums_domain.h, where they are
+ * value-locked to their FlatBuffers counterparts. Where a field has a natural
+ * QuantLib type (Period vectors in the HW calibration spec), the QL type is
+ * used directly.
  */
 
 #include <cstdint>
@@ -24,51 +24,9 @@
 
 #include <ql/time/period.hpp>
 
+#include "enums_domain.h"
+
 namespace quantra {
-
-/// Mirrors enums::IrModelType (values must match).
-enum class IrModelTypeKind : std::int8_t {
-    Black = 0,
-    ShiftedBlack = 1,
-    Bachelier = 2,
-    HullWhiteLattice = 3,
-};
-
-/// Mirrors enums::ModelParamMode (values must match).
-enum class ModelParamModeKind : std::int8_t {
-    Explicit = 0,
-    Calibrate = 1,
-};
-
-/// Mirrors enums::EquityModelType (values must match).
-enum class EquityModelTypeKind : std::int8_t {
-    BlackScholesAnalytic = 0,
-    BinomialCRR = 1,
-};
-
-/// Mirrors enums::CdsEngineType (values must match).
-enum class CdsEngineTypeKind : std::int8_t {
-    MidPoint = 0,
-    ISDA = 1,
-};
-
-/// Mirrors enums::CdsIsdaNumericalFix (values must match).
-enum class CdsIsdaNumericalFixKind : std::int8_t {
-    None = 0,
-    Taylor = 1,
-};
-
-/// Mirrors enums::CdsIsdaAccrualBias (values must match).
-enum class CdsIsdaAccrualBiasKind : std::int8_t {
-    HalfDayBias = 0,
-    NoBias = 1,
-};
-
-/// Mirrors enums::CdsIsdaForwardsInCouponPeriod (values must match).
-enum class CdsIsdaForwardsInCouponPeriodKind : std::int8_t {
-    Flat = 0,
-    Piecewise = 1,
-};
 
 struct CapFloorModelDomain {
     IrModelTypeKind model_type = IrModelTypeKind::Black;

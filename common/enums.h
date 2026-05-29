@@ -17,6 +17,7 @@ QuantLib::BusinessDayConvention ConventionToQL(const quantra::enums::BusinessDay
 // enum-conversion single-source rule.
 quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit);
 quantra::enums::VolatilityType VolatilityTypeToFb(QuantLib::VolatilityType type, double displacement);
+quantra::enums::EquitySettlementType EquitySettlementTypeToFb(QuantLib::Settlement::Type type);
 QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter);
 QuantLib::Frequency FrequencyToQL(const quantra::enums::Frequency frequency);
 QuantLib::Period FrequencyToPeriod(QuantLib::Frequency frequency);

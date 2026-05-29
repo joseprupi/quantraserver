@@ -489,6 +489,19 @@ QuantLib::Settlement::Type EquitySettlementTypeToQL(
     QUANTRA_ERROR("Equity settlement type not found");
 }
 
+quantra::enums::EquitySettlementType EquitySettlementTypeToFb(QuantLib::Settlement::Type type)
+{
+    switch (type)
+    {
+    case QuantLib::Settlement::Physical:
+        return quantra::enums::EquitySettlementType_Physical;
+    case QuantLib::Settlement::Cash:
+        return quantra::enums::EquitySettlementType_Cash;
+    }
+
+    QUANTRA_ERROR("Equity settlement type not found");
+}
+
 quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit)
 {
     switch (timeUnit)
