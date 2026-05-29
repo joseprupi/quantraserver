@@ -5,10 +5,10 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (fra == NULL)
-        QUANTRA_ERROR("FRA not found");
+        QUANTRA_INVALID_ARGUMENT("FRA not found");
 
     if (!fra->index() || !fra->index()->id())
-        QUANTRA_ERROR("FRA index.id is required");
+        QUANTRA_INVALID_ARGUMENT("FRA index.id is required");
 
     // Parse dates
     Date startDate = DateToQL(fra->start_date()->str());
@@ -24,7 +24,7 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
             position = QuantLib::Position::Short;
             break;
         default:
-            QUANTRA_ERROR("Invalid FRA type");
+            QUANTRA_INVALID_ARGUMENT("Invalid FRA type");
     }
 
     // Resolve index from registry and clone with forwarding curve

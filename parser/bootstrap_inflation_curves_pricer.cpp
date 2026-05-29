@@ -56,7 +56,7 @@ BootstrapInflationCurvesPerCurve sampleQuery(
         err << "Strict mode: pricing.as_of_date (" << DateToIso(query.asOfDate)
             << ") must equal inflation curve referenceDate ("
             << DateToIso(referenceDate) << ") for curve '" << query.curveId << "'";
-        QUANTRA_ERROR(err.str());
+        QUANTRA_INVALID_ARGUMENT(err.str());
     }
 
     if (query.allowExtrapolation) {
@@ -78,17 +78,17 @@ BootstrapInflationCurvesPerCurve sampleQuery(
             if (!query.allowExtrapolation) {
                 QuantLib::Date maxDate = hasZ ? zc->maxDate() : yy->maxDate();
                 if (d > maxDate) {
-                    QUANTRA_ERROR("Date is outside inflation curve support");
+                    QUANTRA_INVALID_ARGUMENT("Date is outside inflation curve support");
                 }
             }
             if (measure == InflationCurveSampleMeasure::ZeroRate) {
-                if (!hasZ) QUANTRA_ERROR("ZeroRate measure requires a zero inflation curve");
+                if (!hasZ) QUANTRA_INVALID_ARGUMENT("ZeroRate measure requires a zero inflation curve");
                 series.values.push_back(zc->zeroRate(d));
             } else if (measure == InflationCurveSampleMeasure::YoYRate) {
-                if (!hasY) QUANTRA_ERROR("YoYRate measure requires a YoY inflation curve");
+                if (!hasY) QUANTRA_INVALID_ARGUMENT("YoYRate measure requires a YoY inflation curve");
                 series.values.push_back(yy->yoyRate(d));
             } else {
-                QUANTRA_ERROR("Unsupported InflationCurveMeasure for curve_id: " + query.curveId);
+                QUANTRA_INVALID_ARGUMENT("Unsupported InflationCurveMeasure for curve_id: " + query.curveId);
             }
         }
         out.series.push_back(std::move(series));

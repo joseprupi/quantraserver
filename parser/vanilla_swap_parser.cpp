@@ -5,13 +5,13 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (swap == NULL)
-        QUANTRA_ERROR("VanillaSwap not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap not found");
 
     if (swap->fixed_leg() == NULL)
-        QUANTRA_ERROR("VanillaSwap fixed_leg not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg not found");
 
     if (swap->floating_leg() == NULL)
-        QUANTRA_ERROR("VanillaSwap floating_leg not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg not found");
 
     QuantLib::VanillaSwap::Type swapType;
     switch (swap->swap_type()) {
@@ -22,12 +22,12 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
             swapType = QuantLib::VanillaSwap::Receiver;
             break;
         default:
-            QUANTRA_ERROR("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
     }
 
     auto fixedLeg = swap->fixed_leg();
     if (fixedLeg->schedule() == NULL)
-        QUANTRA_ERROR("VanillaSwap fixed_leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
 
     ScheduleParser scheduleParser;
     auto fixedSchedule = scheduleParser.parse(fixedLeg->schedule());
@@ -39,10 +39,10 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
     // Parse floating leg
     auto floatingLeg = swap->floating_leg();
     if (floatingLeg->schedule() == NULL)
-        QUANTRA_ERROR("VanillaSwap floating_leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg schedule not found");
 
     if (!floatingLeg->index() || !floatingLeg->index()->id())
-        QUANTRA_ERROR("VanillaSwap floating_leg index.id is required");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg index.id is required");
 
     auto floatingSchedule = scheduleParser.parse(floatingLeg->schedule());
 

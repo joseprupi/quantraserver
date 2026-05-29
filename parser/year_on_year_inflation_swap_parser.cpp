@@ -16,7 +16,7 @@ QuantLib::CPI::InterpolationType toQlInterpolation(quantra::enums::CPIInterpolat
         case quantra::enums::CPIInterpolationType_Linear:
             return QuantLib::CPI::Linear;
     }
-    QUANTRA_ERROR("Unsupported CPI interpolation type");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CPI interpolation type");
     return QuantLib::CPI::AsIndex;
 }
 
@@ -26,22 +26,22 @@ std::shared_ptr<QuantLib::YearOnYearInflationSwap> YearOnYearInflationSwapParser
     const quantra::YearOnYearInflationSwap* swap,
     const std::shared_ptr<QuantLib::YoYInflationIndex>& inflationIndex) {
     if (!swap) {
-        QUANTRA_ERROR("YearOnYearInflationSwap not found");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap not found");
     }
     if (!swap->fixed_schedule()) {
-        QUANTRA_ERROR("YearOnYearInflationSwap fixed_schedule not found");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap fixed_schedule not found");
     }
     if (!swap->yoy_schedule()) {
-        QUANTRA_ERROR("YearOnYearInflationSwap yoy_schedule not found");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap yoy_schedule not found");
     }
     if (!swap->observation_lag()) {
-        QUANTRA_ERROR("YearOnYearInflationSwap observation_lag not found");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap observation_lag not found");
     }
     if (!swap->inflation_index_id() || swap->inflation_index_id()->str().empty()) {
-        QUANTRA_ERROR("YearOnYearInflationSwap inflation_index_id is required");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap inflation_index_id is required");
     }
     if (!inflationIndex) {
-        QUANTRA_ERROR("YearOnYearInflationSwap inflation index not available");
+        QUANTRA_NOT_FOUND("YearOnYearInflationSwap inflation index not available");
     }
 
     QuantLib::YearOnYearInflationSwap::Type swapType;
@@ -53,7 +53,7 @@ std::shared_ptr<QuantLib::YearOnYearInflationSwap> YearOnYearInflationSwapParser
             swapType = QuantLib::YearOnYearInflationSwap::Receiver;
             break;
         default:
-            QUANTRA_ERROR("Invalid year-on-year inflation swap type");
+            QUANTRA_INVALID_ARGUMENT("Invalid year-on-year inflation swap type");
     }
 
     ScheduleParser scheduleParser;

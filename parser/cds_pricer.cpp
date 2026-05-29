@@ -40,7 +40,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
     const QuoteRegistry& quoteRegistry) {
 
     if (curve.calendar.empty()) {
-        QUANTRA_ERROR("CreditCurveSpec.calendar is required");
+        QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.calendar is required");
     }
 
     if (curve.flat_hazard_rate > 0.0 || curve.quotes.empty()) {
@@ -81,7 +81,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
         switch (quote.quote_type) {
             case CdsQuoteTypeKind::Upfront: {
                 if (quote.running_coupon == 0.0) {
-                    QUANTRA_ERROR("CdsQuote.running_coupon is required for upfront quotes");
+                    QUANTRA_INVALID_ARGUMENT("CdsQuote.running_coupon is required for upfront quotes");
                 }
                 auto upfrontQuote = quoteHandle;
                 if (upfrontQuote.empty()) {

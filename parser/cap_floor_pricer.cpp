@@ -33,7 +33,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     switch (model.model_type) {
         case IrModelTypeKind::Bachelier:
             if (volEntry.qlVolType != QuantLib::Normal) {
-                QUANTRA_ERROR("Model '" + modelId + "': Bachelier requires Normal vols, "
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Bachelier requires Normal vols, "
                               "but vol has type ShiftedLognormal");
             }
             return std::make_shared<QuantLib::BachelierCapFloorEngine>(
@@ -41,7 +41,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
 
         case IrModelTypeKind::Black:
             if (volEntry.displacement != 0.0) {
-                QUANTRA_ERROR("Model '" + modelId + "': Black requires displacement=0, "
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Black requires displacement=0, "
                               "but vol has displacement=" + std::to_string(volEntry.displacement));
             }
             return std::make_shared<QuantLib::BlackCapFloorEngine>(
@@ -49,7 +49,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
 
         case IrModelTypeKind::ShiftedBlack:
             if (volEntry.displacement <= 0.0) {
-                QUANTRA_ERROR("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
                               "but vol has displacement=" + std::to_string(volEntry.displacement));
             }
             // BlackCapFloorEngine reads displacement from the vol structure.
@@ -57,9 +57,9 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
                 discountCurve, volEntry.handle);
 
         case IrModelTypeKind::HullWhiteLattice:
-            QUANTRA_ERROR("Model '" + modelId + "': HullWhiteLattice is not supported for cap/floor");
+            QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': HullWhiteLattice is not supported for cap/floor");
     }
-    QUANTRA_ERROR("Model '" + modelId + "': Unknown IrModelType value " +
+    QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value " +
                   std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }
@@ -83,9 +83,9 @@ std::shared_ptr<QuantLib::CapFloor> buildCapFloor(
         case QuantLib::CapFloor::Floor:
             return std::make_shared<QuantLib::Floor>(leg, strikes);
         case QuantLib::CapFloor::Collar:
-            QUANTRA_ERROR("Collar not yet supported - use separate Cap and Floor");
+            QUANTRA_INVALID_ARGUMENT("Collar not yet supported - use separate Cap and Floor");
     }
-    QUANTRA_ERROR("Invalid CapFloor type");
+    QUANTRA_INVALID_ARGUMENT("Invalid CapFloor type");
     return nullptr;
 }
 

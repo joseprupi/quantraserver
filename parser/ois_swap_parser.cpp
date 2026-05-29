@@ -5,13 +5,13 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (swap == NULL)
-        QUANTRA_ERROR("OisSwap not found");
+        QUANTRA_INVALID_ARGUMENT("OisSwap not found");
 
     if (swap->fixed_leg() == NULL)
-        QUANTRA_ERROR("OisSwap fixed_leg not found");
+        QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg not found");
 
     if (swap->overnight_leg() == NULL)
-        QUANTRA_ERROR("OisSwap overnight_leg not found");
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg not found");
 
     QuantLib::OvernightIndexedSwap::Type swapType;
     switch (swap->swap_type()) {
@@ -22,14 +22,14 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
             swapType = QuantLib::OvernightIndexedSwap::Receiver;
             break;
         default:
-            QUANTRA_ERROR("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
     }
 
     ScheduleParser scheduleParser;
 
     auto fixedLeg = swap->fixed_leg();
     if (fixedLeg->schedule() == NULL)
-        QUANTRA_ERROR("OisSwap fixed_leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
 
     auto fixedSchedule = scheduleParser.parse(fixedLeg->schedule());
     double fixedNotional = fixedLeg->notional();
@@ -38,10 +38,10 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
 
     auto overnightLeg = swap->overnight_leg();
     if (overnightLeg->schedule() == NULL)
-        QUANTRA_ERROR("OisSwap overnight_leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg schedule not found");
 
     if (!overnightLeg->index() || !overnightLeg->index()->id())
-        QUANTRA_ERROR("OisSwap overnight_leg index.id is required");
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg index.id is required");
 
     auto overnightSchedule = scheduleParser.parse(overnightLeg->schedule());
     double overnightNotional = overnightLeg->notional();

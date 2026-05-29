@@ -75,7 +75,7 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
     std::shared_ptr<QuantLib::OneAssetOption> oneAssetOption;
     if (trade.hasBarrier) {
         if (equityModel->model_type != EquityModelTypeKind::BlackScholesAnalytic) {
-            QUANTRA_ERROR("Equity barrier option currently requires model_type=BlackScholesAnalytic");
+            QUANTRA_INVALID_ARGUMENT("Equity barrier option currently requires model_type=BlackScholesAnalytic");
         }
         auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
             trade.barrierType,
@@ -97,7 +97,7 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
             case EquityModelTypeKind::BinomialCRR: {
                 int steps = equityModel->binomial_steps;
                 if (steps <= 0) {
-                    QUANTRA_ERROR("EquityVanillaModelSpec.binomial_steps must be > 0");
+                    QUANTRA_INVALID_ARGUMENT("EquityVanillaModelSpec.binomial_steps must be > 0");
                 }
                 vanilla->setPricingEngine(
                     std::make_shared<
@@ -106,7 +106,7 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
                 break;
             }
             default:
-                QUANTRA_ERROR("Unsupported EquityModelType");
+                QUANTRA_INVALID_ARGUMENT("Unsupported EquityModelType");
         }
         instrument = vanilla;
         oneAssetOption = vanilla;

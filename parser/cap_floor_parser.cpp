@@ -6,13 +6,13 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (capFloor == NULL)
-        QUANTRA_ERROR("CapFloor not found");
+        QUANTRA_INVALID_ARGUMENT("CapFloor not found");
 
     if (capFloor->schedule() == NULL)
-        QUANTRA_ERROR("CapFloor schedule not found");
+        QUANTRA_INVALID_ARGUMENT("CapFloor schedule not found");
 
     if (!capFloor->index() || !capFloor->index()->id())
-        QUANTRA_ERROR("CapFloor index.id is required");
+        QUANTRA_INVALID_ARGUMENT("CapFloor index.id is required");
 
     // Parse schedule
     ScheduleParser scheduleParser;
@@ -40,10 +40,10 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(
             instrument = std::make_shared<QuantLib::Floor>(leg, strikes);
             break;
         case quantra::enums::CapFloorType_Collar:
-            QUANTRA_ERROR("Collar not yet supported - use separate Cap and Floor");
+            QUANTRA_INVALID_ARGUMENT("Collar not yet supported - use separate Cap and Floor");
             break;
         default:
-            QUANTRA_ERROR("Invalid CapFloor type");
+            QUANTRA_INVALID_ARGUMENT("Invalid CapFloor type");
     }
 
     return instrument;

@@ -15,15 +15,15 @@ std::unordered_map<std::string, EquityUnderlyingRuntime> EquityUnderlyingRegistr
 
     for (const auto* u : *equity->equity_underlyings()) {
         if (!u || !u->id()) {
-            QUANTRA_ERROR("pricing.equity.equity_underlyings[].id is required");
+            QUANTRA_INVALID_ARGUMENT("pricing.equity.equity_underlyings[].id is required");
         }
         if (!u->spot_quote_id() || !u->dividend_yield_curve_id()) {
-            QUANTRA_ERROR("EquityUnderlyingSpec requires spot_quote_id and dividend_yield_curve_id");
+            QUANTRA_INVALID_ARGUMENT("EquityUnderlyingSpec requires spot_quote_id and dividend_yield_curve_id");
         }
 
         auto divIt = reg.rates.curves.find(u->dividend_yield_curve_id()->str());
         if (divIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Dividend yield curve not found: " + u->dividend_yield_curve_id()->str());
+            QUANTRA_NOT_FOUND("Dividend yield curve not found: " + u->dividend_yield_curve_id()->str());
         }
 
         EquityUnderlyingRuntime runtime;

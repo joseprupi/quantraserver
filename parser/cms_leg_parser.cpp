@@ -25,7 +25,7 @@ QuantLib::GFunctionFactory::YieldCurveModel toYieldCurveModel(
         case quantra::enums::CmsYieldCurveModel_NonParallelShifts:
             return QuantLib::GFunctionFactory::NonParallelShifts;
     }
-    QUANTRA_ERROR("Unsupported CMS yield_curve_model");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CMS yield_curve_model");
     return QuantLib::GFunctionFactory::Standard;
 }
 
@@ -38,22 +38,22 @@ QuantLib::Leg CmsLegParser::parse(
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const {
     if (!leg) {
-        QUANTRA_ERROR("CMS leg not found");
+        QUANTRA_INVALID_ARGUMENT("CMS leg not found");
     }
     if (!leg->schedule()) {
-        QUANTRA_ERROR("CMS leg schedule not found");
+        QUANTRA_INVALID_ARGUMENT("CMS leg schedule not found");
     }
     if (!leg->swap_index_id()) {
-        QUANTRA_ERROR("CMS leg swap_index_id is required");
+        QUANTRA_INVALID_ARGUMENT("CMS leg swap_index_id is required");
     }
     if (!leg->swap_tenor()) {
-        QUANTRA_ERROR("CMS leg swap_tenor is required");
+        QUANTRA_INVALID_ARGUMENT("CMS leg swap_tenor is required");
     }
     if (!leg->swaption_vol_id()) {
-        QUANTRA_ERROR("CMS leg swaption_vol_id is required");
+        QUANTRA_INVALID_ARGUMENT("CMS leg swaption_vol_id is required");
     }
     if (leg->cap() >= 0.0 || leg->floor() >= 0.0) {
-        QUANTRA_ERROR("CMS leg cap/floor is not supported in v1");
+        QUANTRA_INVALID_ARGUMENT("CMS leg cap/floor is not supported in v1");
     }
 
     ScheduleParser scheduleParser;
@@ -87,7 +87,7 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
     const quantra::SwaptionVolEntry& volEntry,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const {
     if (!leg || !leg->swaption_vol_id()) {
-        QUANTRA_ERROR("CMS leg swaption_vol_id is required");
+        QUANTRA_INVALID_ARGUMENT("CMS leg swaption_vol_id is required");
     }
     if (volEntry.handle.empty()) {
         QUANTRA_ERROR("CMS leg swaption vol handle is empty");
@@ -99,7 +99,7 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
     const auto qlYcModel = toYieldCurveModel(ycModel);
     const double mr = ps ? ps->mean_reversion() : 0.03;
     if (!(mr >= 0.0) || !std::isfinite(mr)) {
-        QUANTRA_ERROR("CMS leg mean_reversion must be non-negative");
+        QUANTRA_INVALID_ARGUMENT("CMS leg mean_reversion must be non-negative");
     }
     auto meanReversion = QuantLib::Handle<QuantLib::Quote>(
         QuantLib::ext::make_shared<QuantLib::SimpleQuote>(mr));
@@ -130,16 +130,16 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
 
             if (!std::isfinite(lowerLimit) || !std::isfinite(upperLimit) ||
                 !(upperLimit > lowerLimit)) {
-                QUANTRA_ERROR("CMS leg Hagan numeric requires upper_limit > lower_limit");
+                QUANTRA_INVALID_ARGUMENT("CMS leg Hagan numeric requires upper_limit > lower_limit");
             }
             if (!std::isfinite(precision) || !(precision > 0.0)) {
-                QUANTRA_ERROR("CMS leg hagan_precision must be positive");
+                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_precision must be positive");
             }
 
             const double hardUpperLimit =
                 hardUpperLimitRaw > 0.0 ? hardUpperLimitRaw : std::numeric_limits<double>::max();
             if (!std::isfinite(hardUpperLimit) || hardUpperLimit <= upperLimit) {
-                QUANTRA_ERROR("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
+                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
             }
             result.used.haganLowerLimit = lowerLimit;
             result.used.haganUpperLimit = upperLimit;
@@ -156,7 +156,7 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
             return result;
         }
     }
-    QUANTRA_ERROR("Unsupported CMS pricer type");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CMS pricer type");
     return result;
 }
 

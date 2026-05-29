@@ -64,7 +64,7 @@ std::vector<QuantLib::Date> BuildTenorGrid(
     const QuantLib::Calendar& fallbackCalendar,
     bool forceCalendarAdvance) {
     if (!grid || !grid->tenors() || grid->tenors()->size() == 0) {
-        QUANTRA_ERROR("TenorGrid.tenors is required");
+        QUANTRA_INVALID_ARGUMENT("TenorGrid.tenors is required");
     }
 
     std::vector<QuantLib::Date> dates;
@@ -82,11 +82,11 @@ std::vector<QuantLib::Date> BuildTenorGrid(
     for (flatbuffers::uoffset_t i = 0; i < grid->tenors()->size(); ++i) {
         auto tenor = grid->tenors()->Get(i);
         if (!tenor) {
-            QUANTRA_ERROR("TenorGrid.tenors[] contains null");
+            QUANTRA_INVALID_ARGUMENT("TenorGrid.tenors[] contains null");
         }
         QuantLib::Period p(tenor->n(), TimeUnitToQL(tenor->unit()));
         if (p.length() == 0 && p.units() != QuantLib::Days) {
-            QUANTRA_ERROR("TenorGrid only allows zero period as 0 Days");
+            QUANTRA_INVALID_ARGUMENT("TenorGrid only allows zero period as 0 Days");
         }
         QuantLib::Date d = useCalendar
             ? calendar.advance(referenceDate, p, bdc)
@@ -102,7 +102,7 @@ std::vector<QuantLib::Date> BuildRangeGrid(
     const QuantLib::Date& asOfDate,
     int maxPoints) {
     if (!grid || !grid->end_date()) {
-        QUANTRA_ERROR("RangeGrid.end_date is required");
+        QUANTRA_INVALID_ARGUMENT("RangeGrid.end_date is required");
     }
 
     QuantLib::Date startDate = grid->start_date() ? DateToQL(grid->start_date()->str()) : asOfDate;
@@ -125,7 +125,7 @@ std::vector<QuantLib::Date> BuildRangeGrid(
             dates.push_back(current);
         }
         if (static_cast<int>(dates.size()) > maxPoints) {
-            QUANTRA_ERROR("Grid too large (>" + std::to_string(maxPoints) + " points).");
+            QUANTRA_INVALID_ARGUMENT("Grid too large (>" + std::to_string(maxPoints) + " points).");
         }
         if (stepUnit == QuantLib::Days) {
             current = current + stepNumber;

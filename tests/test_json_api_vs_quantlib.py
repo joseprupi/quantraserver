@@ -2706,8 +2706,164 @@ def test_product(client: ApiClient, product: str, json_file: Path, ql_pricer) ->
     except Exception as e:
         import traceback
         result["error"] = f"{str(e)}\n{traceback.format_exc()}"
-    
+
     return result
+
+
+# =============================================================================
+# Error-contract suite
+#
+# Locks the error-type policy at the HTTP boundary: every throw site is one of
+# QuantraNotFound / QuantraInvalidArgument / QuantraNotImplemented /
+# QuantraError, which CallDataGeneric maps to gRPC NOT_FOUND / INVALID_ARGUMENT /
+# UNIMPLEMENTED / ABORTED and the JSON gateway maps to HTTP 404 / 400 / 501 / 500.
+# These scenarios drive product-pricing endpoints with malformed, missing-
+# reference, or unsupported-feature requests and assert the resulting HTTP status:
+#
+#   404 (QuantraNotFound)        - a referenced id (curve, model, vol, credit
+#                                  curve) is well-formed but absent from pricing.
+#   400 (QuantraInvalidArgument) - the request is malformed (empty required
+#                                  list, missing required field) OR references a
+#                                  thing of the WRONG KIND (a model id that
+#                                  resolves to the wrong variant).
+#   501 (QuantraNotImplemented)  - a valid, well-formed request for a feature
+#                                  that is not built yet (e.g. a schema-ready but
+#                                  unimplemented curve helper). The request is
+#                                  understood; the feature simply does not exist.
+#
+# Product-pricing endpoints are used on purpose: their throws propagate to the
+# gRPC status. The sample-vol-surfaces and bootstrap-curves per-query paths
+# instead catch and fold errors into per-item result fields, so they would not
+# surface an HTTP status and are not exercised here.
+# =============================================================================
+
+def _ec_post_status(client: ApiClient, product: str, request: dict):
+    endpoint = client.ENDPOINTS[product]
+    r = client.session.post(
+        f"{client.base_url}/{endpoint}",
+        json=_normalize_period_fields_for_api(copy.deepcopy(request)),
+    )
+    return r.status_code, r.text
+
+
+def _ec_set_field(arr_key, field, value):
+    def f(req):
+        req[arr_key][0][field] = value
+        return req
+    return f
+
+
+def _ec_del_field(arr_key, field):
+    def f(req):
+        req[arr_key][0].pop(field, None)
+        return req
+    return f
+
+
+def _ec_empty_list(arr_key):
+    def f(req):
+        req[arr_key] = []
+        return req
+    return f
+
+
+def _ec_flip_model_type(new_type):
+    def f(req):
+        for m in req["pricing"].get("models", []):
+            m["payload_type"] = new_type
+        return req
+    return f
+
+
+def _ec_unimplemented_curve_point():
+    # Replace the first curve's first point with a schema-ready-but-unbuilt
+    # helper (FxSwapHelper). The point parses into a valid FlatBuffer, then the
+    # term-structure point parser throws QuantraNotImplemented when the curve is
+    # built during pricing -> gRPC UNIMPLEMENTED -> HTTP 501. FxSwapHelper is
+    # used because it has no FlatBuffer-required fields, so an empty payload is
+    # accepted by the JSON parser and the throw is reached deterministically.
+    def f(req):
+        req["pricing"]["curves"][0]["points"][0] = {
+            "point_type": "FxSwapHelper",
+            "point": {},
+        }
+        return req
+    return f
+
+
+def run_error_contract_suite(client: ApiClient, data_dir: Path):
+    # (label, product, filename, expected_http_status, mutate_fn)
+    scenarios = [
+        # ---- 404 NOT_FOUND: referenced id absent from pricing ----
+        ("ec:404 fixed_rate_bond discounting_curve missing", "fixed_rate_bond",
+         "fixed_rate_bond_request.json", 404, _ec_set_field("bonds", "discounting_curve", "no_such_curve")),
+        ("ec:404 floating_rate_bond forwarding_curve missing", "floating_rate_bond",
+         "floating_rate_bond_request.json", 404, _ec_set_field("bonds", "forwarding_curve", "no_such_curve")),
+        ("ec:404 vanilla_swap discounting_curve missing", "vanilla_swap",
+         "vanilla_swap_request.json", 404, _ec_set_field("swaps", "discounting_curve", "no_such_curve")),
+        ("ec:404 fra forwarding_curve missing", "fra",
+         "fra_request.json", 404, _ec_set_field("fras", "forwarding_curve", "no_such_curve")),
+        ("ec:404 swaption model missing", "swaption",
+         "swaption_request.json", 404, _ec_set_field("swaptions", "model", "no_such_model")),
+        ("ec:404 swaption volatility missing", "swaption",
+         "swaption_request.json", 404, _ec_set_field("swaptions", "volatility", "no_such_vol")),
+        ("ec:404 cap_floor model missing", "cap_floor",
+         "cap_floor_request.json", 404, _ec_set_field("cap_floors", "model", "no_such_model")),
+        ("ec:404 cds credit_curve missing", "cds",
+         "cds_request.json", 404, _ec_set_field("cds_list", "credit_curve_id", "no_such_credit")),
+        # ---- 400 INVALID_ARGUMENT: wrong-kind reference (id resolves to wrong variant) ----
+        ("ec:400 swaption model is wrong kind", "swaption",
+         "swaption_request.json", 400, _ec_flip_model_type("CapFloorModelSpec")),
+        ("ec:400 cap_floor model is wrong kind", "cap_floor",
+         "cap_floor_request.json", 400, _ec_flip_model_type("SwaptionModelSpec")),
+        # ---- 400 INVALID_ARGUMENT: malformed request (empty list / missing required field) ----
+        ("ec:400 fixed_rate_bond empty bonds list", "fixed_rate_bond",
+         "fixed_rate_bond_request.json", 400, _ec_empty_list("bonds")),
+        ("ec:400 vanilla_swap empty swaps list", "vanilla_swap",
+         "vanilla_swap_request.json", 400, _ec_empty_list("swaps")),
+        ("ec:400 swaption missing required model field", "swaption",
+         "swaption_request.json", 400, _ec_del_field("swaptions", "model")),
+        ("ec:400 fixed_rate_bond missing discounting_curve field", "fixed_rate_bond",
+         "fixed_rate_bond_request.json", 400, _ec_del_field("bonds", "discounting_curve")),
+        # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
+        ("ec:501 swaption curve uses unimplemented helper", "swaption",
+         "swaption_request.json", 501, _ec_unimplemented_curve_point()),
+    ]
+
+    results = []
+    print(f"\n{'='*70}")
+    print("ERROR-CONTRACT SUITE (HTTP status per error-type policy)")
+    print(f"{'='*70}")
+    for label, product, filename, expected, mutate in scenarios:
+        result = {
+            "product": label, "file": filename, "passed": False,
+            "quantra_npv": None, "quantlib_npv": None, "diff": None, "error": None,
+        }
+        filepath = data_dir / filename
+        if not filepath.exists():
+            result["error"] = f"{filepath} not found"
+            results.append(result)
+            print(f"  ❌ {label}: {result['error']}")
+            continue
+        try:
+            with open(filepath) as fh:
+                req = json.load(fh)
+            req = mutate(req)
+            status, body = _ec_post_status(client, product, req)
+            if status == expected:
+                result["passed"] = True
+                result["quantra_npv"] = float(status)
+                result["quantlib_npv"] = float(expected)
+                result["diff"] = 0.0
+                print(f"  ✓ {label}: HTTP {status}")
+            else:
+                result["error"] = f"expected HTTP {expected}, got {status}: {body[:160]}"
+                print(f"  ✗ {label}: expected {expected}, got {status} :: {body[:160]}")
+        except Exception as e:
+            result["error"] = str(e)
+            print(f"  ❌ {label}: {e}")
+        results.append(result)
+    return results
 
 
 def main():
@@ -2859,6 +3015,10 @@ def main():
     else:
         status = "✓ PASS" if yyiis_result["passed"] else "✗ FAIL"
         print(f"  Status:       {status}")
+
+    # Error-contract scenarios (HTTP status per error-type policy)
+    results.extend(run_error_contract_suite(client, data_dir))
+
     # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")

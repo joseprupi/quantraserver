@@ -34,7 +34,7 @@ const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& findCurve(
     const PricingRegistry& reg, const std::string& id) {
     auto it = reg.rates.curves.find(id);
     if (it == reg.rates.curves.end()) {
-        QUANTRA_ERROR("Curve not found: " + id);
+        QUANTRA_NOT_FOUND("Curve not found: " + id);
     }
     return *it->second;
 }
@@ -51,7 +51,7 @@ QuantLib::GFunctionFactory::YieldCurveModel toYieldCurveModel(
         case quantra::enums::CmsYieldCurveModel_NonParallelShifts:
             return QuantLib::GFunctionFactory::NonParallelShifts;
     }
-    QUANTRA_ERROR("Unsupported CMS yield_curve_model");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CMS yield_curve_model");
     return QuantLib::GFunctionFactory::Standard;
 }
 
@@ -70,7 +70,7 @@ CmsPricerBuildResult buildCmsPricer(
     }
     const auto qlYcModel = toYieldCurveModel(params.yieldCurveModel);
     if (!(params.meanReversion >= 0.0) || !std::isfinite(params.meanReversion)) {
-        QUANTRA_ERROR("CMS leg mean_reversion must be non-negative");
+        QUANTRA_INVALID_ARGUMENT("CMS leg mean_reversion must be non-negative");
     }
     auto meanReversion = QuantLib::Handle<QuantLib::Quote>(
         QuantLib::ext::make_shared<QuantLib::SimpleQuote>(params.meanReversion));
@@ -97,17 +97,17 @@ CmsPricerBuildResult buildCmsPricer(
 
             if (!std::isfinite(lowerLimit) || !std::isfinite(upperLimit) ||
                 !(upperLimit > lowerLimit)) {
-                QUANTRA_ERROR("CMS leg Hagan numeric requires upper_limit > lower_limit");
+                QUANTRA_INVALID_ARGUMENT("CMS leg Hagan numeric requires upper_limit > lower_limit");
             }
             if (!std::isfinite(precision) || !(precision > 0.0)) {
-                QUANTRA_ERROR("CMS leg hagan_precision must be positive");
+                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_precision must be positive");
             }
 
             const double hardUpperLimit = hardUpperLimitRaw > 0.0
                 ? hardUpperLimitRaw
                 : std::numeric_limits<double>::max();
             if (!std::isfinite(hardUpperLimit) || hardUpperLimit <= upperLimit) {
-                QUANTRA_ERROR("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
+                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
             }
             result.used.haganLowerLimit = lowerLimit;
             result.used.haganUpperLimit = upperLimit;
@@ -119,7 +119,7 @@ CmsPricerBuildResult buildCmsPricer(
             return result;
         }
     }
-    QUANTRA_ERROR("Unsupported CMS pricer type");
+    QUANTRA_INVALID_ARGUMENT("Unsupported CMS pricer type");
     return result;
 }
 
@@ -267,10 +267,10 @@ VanillaSwapPerSwap priceCmsBranch(
 
     auto volIt = reg.volatility.swaptionVols.find(trade.cms.swaptionVolId);
     if (volIt == reg.volatility.swaptionVols.end()) {
-        QUANTRA_ERROR("CMS leg swaption vol not found: " + trade.cms.swaptionVolId);
+        QUANTRA_NOT_FOUND("CMS leg swaption vol not found: " + trade.cms.swaptionVolId);
     }
     if (volIt->second.referenceDate != ctx.asOf) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Strict mode: pricing.as_of_date must equal CMS swaption vol referenceDate for vol '" +
             trade.cms.swaptionVolId + "'");
     }

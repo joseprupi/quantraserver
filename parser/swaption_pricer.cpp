@@ -63,10 +63,10 @@ SwaptionVolEntry finalizeVolEntry(
         return raw;
     }
     if (raw.referenceDate == QuantLib::Date()) {
-        QUANTRA_ERROR("Swaption vol surface requires a valid referenceDate");
+        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires a valid referenceDate");
     }
     if (raw.swapIndexId.empty()) {
-        QUANTRA_ERROR("Swaption vol surface requires swap_index_id for forward resolution");
+        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires swap_index_id for forward resolution");
     }
 
     if (isSmileCubeSpread) {
@@ -83,13 +83,13 @@ SwaptionVolEntry finalizeVolEntry(
     }
 
     if (!reg.rates.swapIndices.has(raw.swapIndexId)) {
-        QUANTRA_ERROR("Missing swap index definition for id: " + raw.swapIndexId);
+        QUANTRA_NOT_FOUND("Missing swap index definition for id: " + raw.swapIndexId);
     }
     const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
 
     // Trade-context validation: float-index match and spot-days alignment.
     if (!trade.tradeFloatIndexId.empty() && trade.tradeFloatIndexId != sidx.floatIndexId) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Swap index '" + raw.swapIndexId + "' float_index_id '" + sidx.floatIndexId +
             "' does not match swaption floating index '" + trade.tradeFloatIndexId + "'");
     }
@@ -110,7 +110,7 @@ SwaptionVolEntry finalizeVolEntry(
                 << " with spot_days=" << sidx.spotDays
                 << ", but trade start is " << DateToIso(trade.underlyingStartDate)
                 << " (adjusted: " << DateToIso(tradeStartAdjusted) << ")";
-            QUANTRA_ERROR(err.str());
+            QUANTRA_INVALID_ARGUMENT(err.str());
         }
     }
 
@@ -122,7 +122,7 @@ SwaptionVolEntry finalizeVolEntry(
     }
     if (isSabrCalibrate) {
         if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-            QUANTRA_ERROR(
+            QUANTRA_NOT_IMPLEMENTED(
                 "SABR calibrate finalize: swap index '" + raw.swapIndexId +
                 "' is not an Ibor swap index (OIS-shaped SABR calibrate not "
                 "supported in v1)");
@@ -159,7 +159,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     if (model.model_type == IrModelTypeKind::Bachelier &&
         (volEntry.volKind == quantra::enums::SwaptionVolKind_SabrParams ||
          volEntry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate)) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Model '" + modelId + "': Bachelier engine cannot be paired with SABR vol surface "
             "(SABR via Hagan returns lognormal Black vol). Use Black or ShiftedBlack instead.");
     }
@@ -168,18 +168,18 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
         case IrModelTypeKind::Bachelier:
 #if QL_HAS_BACHELIER_SWAPTION_ENGINE
             if (volEntry.qlVolType != QuantLib::Normal) {
-                QUANTRA_ERROR("Model '" + modelId + "': Bachelier requires Normal vols");
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Bachelier requires Normal vols");
             }
             return std::make_shared<QuantLib::BachelierSwaptionEngine>(
                 discountCurve, volEntry.handle);
 #else
-            QUANTRA_ERROR("Model '" + modelId + "': BachelierSwaptionEngine not available "
+            QUANTRA_NOT_IMPLEMENTED("Model '" + modelId + "': BachelierSwaptionEngine not available "
                           "in this QuantLib version (requires QuantLib 1.20+)");
 #endif
 
         case IrModelTypeKind::Black:
             if (volEntry.displacement != 0.0) {
-                QUANTRA_ERROR("Model '" + modelId + "': Black requires displacement=0, "
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Black requires displacement=0, "
                               "but vol has displacement=" + std::to_string(volEntry.displacement));
             }
             return std::make_shared<QuantLib::BlackSwaptionEngine>(
@@ -187,7 +187,7 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
 
         case IrModelTypeKind::ShiftedBlack:
             if (volEntry.displacement <= 0.0) {
-                QUANTRA_ERROR("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
+                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
                               "but vol has displacement=" + std::to_string(volEntry.displacement));
             }
             return std::make_shared<QuantLib::BlackSwaptionEngine>(
@@ -204,13 +204,13 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
                 sigma = calibrated->sigma;
             }
             if (model.lattice_steps <= 0) {
-                QUANTRA_ERROR("HullWhiteLattice requires lattice_steps > 0");
+                QUANTRA_INVALID_ARGUMENT("HullWhiteLattice requires lattice_steps > 0");
             }
             auto hwModel = std::make_shared<QuantLib::HullWhite>(discountCurve, a, sigma);
             return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, model.lattice_steps);
         }
     }
-    QUANTRA_ERROR("Model '" + modelId + "': Unknown IrModelType value " +
+    QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value " +
                   std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }
@@ -226,7 +226,7 @@ void validateTradeAgainstModel(
     // the SwaptionInstrumentBuilder; the validation only needs the model side.
     if (model.model_type != IrModelTypeKind::HullWhiteLattice &&
         model.param_mode == ModelParamModeKind::Calibrate) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' param_mode=Calibrate is only supported for HullWhiteLattice");
     }
     if (model.model_type != IrModelTypeKind::HullWhiteLattice) {
@@ -236,43 +236,43 @@ void validateTradeAgainstModel(
         return;
     }
     if (!model.hw_calibration) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' param_mode=Calibrate requires hw_calibration");
     }
     const auto& calib = *model.hw_calibration;
     if (calib.discount_curve_id.empty() || calib.forwarding_curve_id.empty() ||
         calib.swaption_vol_id.empty() || calib.swap_index_id.empty()) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Model '" + trade.modelId + "' hw_calibration must include discount_curve_id, "
             "forwarding_curve_id, swaption_vol_id, and swap_index_id");
     }
     if (calib.discount_curve_id != trade.discountingCurveId) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' hw_calibration.discount_curve_id must match trade discounting_curve");
     }
     if (calib.forwarding_curve_id != trade.forwardingCurveId) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' hw_calibration.forwarding_curve_id must match trade forwarding_curve");
     }
     if (calib.swaption_vol_id != trade.volatilityId) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' hw_calibration.swaption_vol_id must match trade volatility");
     }
     if (!reg.rates.swapIndices.has(calib.swap_index_id)) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_NOT_FOUND("Model '" + trade.modelId +
                       "' hw_calibration.swap_index_id not found in pricing.swap_indices");
     }
     if (!trade.underlyingIsVanillaSwap) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
     }
     if (trade.tradeFloatIndexId.empty()) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' param_mode=Calibrate requires trade floating index id for compatibility checks");
     }
     const auto& sidx = reg.rates.swapIndices.get(calib.swap_index_id);
     if (sidx.floatIndexId != trade.tradeFloatIndexId) {
-        QUANTRA_ERROR("Model '" + trade.modelId +
+        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
                       "' hw_calibration.swap_index_id float_index_id does not match "
                       "trade floating index");
     }
@@ -304,18 +304,18 @@ SwaptionResult SwaptionPricer::price(const SwaptionInputs& inputs,
     for (const auto& trade : inputs.trades) {
         auto dIt = reg.rates.curves.find(trade.discountingCurveId);
         if (dIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Discounting curve not found: " + trade.discountingCurveId);
+            QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
         }
         auto fIt = reg.rates.curves.find(trade.forwardingCurveId);
         if (fIt == reg.rates.curves.end()) {
-            QUANTRA_ERROR("Forwarding curve not found: " + trade.forwardingCurveId);
+            QUANTRA_NOT_FOUND("Forwarding curve not found: " + trade.forwardingCurveId);
         }
         auto vIt = reg.volatility.swaptionVols.find(trade.volatilityId);
         if (vIt == reg.volatility.swaptionVols.end()) {
-            QUANTRA_ERROR("Swaption vol not found: " + trade.volatilityId);
+            QUANTRA_NOT_FOUND("Swaption vol not found: " + trade.volatilityId);
         }
         if (vIt->second.referenceDate == QuantLib::Date()) {
-            QUANTRA_ERROR("Swaption vol has invalid referenceDate: " + trade.volatilityId);
+            QUANTRA_INVALID_ARGUMENT("Swaption vol has invalid referenceDate: " + trade.volatilityId);
         }
         if (vIt->second.referenceDate != ctx.asOf) {
             std::ostringstream err;
@@ -323,15 +323,15 @@ SwaptionResult SwaptionPricer::price(const SwaptionInputs& inputs,
                 << ") must equal swaption vol referenceDate ("
                 << DateToIso(vIt->second.referenceDate)
                 << ") for vol '" << trade.volatilityId << "'";
-            QUANTRA_ERROR(err.str());
+            QUANTRA_INVALID_ARGUMENT(err.str());
         }
         auto mIt = reg.volatility.modelDomains.find(trade.modelId);
         if (mIt == reg.volatility.modelDomains.end()) {
-            QUANTRA_ERROR("Model not found: " + trade.modelId);
+            QUANTRA_NOT_FOUND("Model not found: " + trade.modelId);
         }
         const auto* modelDomain = std::get_if<SwaptionModelDomain>(&mIt->second.payload);
         if (modelDomain == nullptr) {
-            QUANTRA_ERROR("Model '" + trade.modelId + "' is not a swaption model");
+            QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId + "' is not a swaption model");
         }
 
         validateTradeAgainstModel(trade, *modelDomain, reg);

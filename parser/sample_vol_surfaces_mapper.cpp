@@ -167,7 +167,7 @@ flatbuffers::Offset<quantra::Period> toFbPeriod(
 SampleVolSurfacesInputs SampleVolSurfacesMapper::toInputs(
     const quantra::SampleVolSurfacesRequest* req) const {
     if (!req || !req->pricing() || !req->queries() || req->queries()->size() == 0) {
-        QUANTRA_ERROR("SampleVolSurfacesRequest.pricing and non-empty queries are required");
+        QUANTRA_INVALID_ARGUMENT("SampleVolSurfacesRequest.pricing and non-empty queries are required");
     }
     SampleVolSurfacesInputs inputs;
     inputs.includeDiagnostics = req->include_diagnostics();

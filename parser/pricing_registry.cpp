@@ -28,10 +28,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // Validation
     // ==========================================================================
     if (!pricing) {
-        QUANTRA_ERROR("Pricing not found");
+        QUANTRA_INVALID_ARGUMENT("Pricing not found");
     }
     if (!pricing->as_of_date()) {
-        QUANTRA_ERROR("as_of_date is required");
+        QUANTRA_INVALID_ARGUMENT("as_of_date is required");
     }
 
     // Set evaluation date
@@ -47,7 +47,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     if (pricing->quotes()) {
         for (auto it = pricing->quotes()->begin(); it != pricing->quotes()->end(); ++it) {
             if (!it->id()) {
-                QUANTRA_ERROR("QuoteSpec.id is required");
+                QUANTRA_INVALID_ARGUMENT("QuoteSpec.id is required");
             }
             std::string id = it->id()->str();
             auto sq = std::make_shared<QuantLib::SimpleQuote>(it->value());
@@ -76,7 +76,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // Parse Curves (dependency-aware via CurveBootstrapper)
     // ==========================================================================
     if (!rates || !rates->curves()) {
-        QUANTRA_ERROR("pricing.rates.curves is required (at least one curve needed)");
+        QUANTRA_INVALID_ARGUMENT("pricing.rates.curves is required (at least one curve needed)");
     }
 
     CurveBootstrapper bootstrapper;
@@ -125,7 +125,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         for (auto it = volatility->vol_surfaces()->begin(); it != volatility->vol_surfaces()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
-                QUANTRA_ERROR("VolSurfaceSpec.id is required");
+                QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.id is required");
             }
             std::string id = spec->id()->str();
 
@@ -143,10 +143,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                     break;
 
                 case quantra::VolPayload_NONE:
-                    QUANTRA_ERROR("VolSurfaceSpec.payload is required for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.payload is required for vol id: " + id);
 
                 default:
-                    QUANTRA_ERROR("Unknown VolPayload type for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT("Unknown VolPayload type for vol id: " + id);
             }
         }
     }
@@ -158,12 +158,12 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             entry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate;
         if (needsSwapIndex) {
             if (entry.swapIndexId.empty()) {
-                QUANTRA_ERROR(
+                QUANTRA_INVALID_ARGUMENT(
                     "Swaption vol '" + kv.first +
                     "' requires swap_index_id (forward-aware surface)");
             }
             if (!reg.rates.swapIndices.has(entry.swapIndexId)) {
-                QUANTRA_ERROR(
+                QUANTRA_NOT_FOUND(
                     "Swaption vol '" + kv.first + "' references unknown swap_index_id: " +
                     entry.swapIndexId);
             }
@@ -177,7 +177,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         if (entry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate) {
             const auto& sidx = reg.rates.swapIndices.get(entry.swapIndexId);
             if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-                QUANTRA_ERROR(
+                QUANTRA_NOT_IMPLEMENTED(
                     "Swaption vol '" + kv.first +
                     "' uses SabrCalibrate with swap_index_id '" + entry.swapIndexId +
                     "' which is not an Ibor swap index; OIS swap index support for the "
@@ -196,12 +196,12 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         for (auto it = volatility->models()->begin(); it != volatility->models()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
-                QUANTRA_ERROR("ModelSpec.id is required");
+                QUANTRA_INVALID_ARGUMENT("ModelSpec.id is required");
             }
             std::string id = spec->id()->str();
 
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
-                QUANTRA_ERROR("ModelSpec.payload is required for model id: " + id);
+                QUANTRA_INVALID_ARGUMENT("ModelSpec.payload is required for model id: " + id);
             }
 
             // Plain-domain mirror. Mirror enums are bit-compatible with the
@@ -274,7 +274,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                     break;
                 }
                 default:
-                    QUANTRA_ERROR("Unknown ModelPayload type for model id: " + id);
+                    QUANTRA_INVALID_ARGUMENT("Unknown ModelPayload type for model id: " + id);
             }
             reg.volatility.modelDomains.emplace(id, std::move(domain));
         }
@@ -283,17 +283,17 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Register credit curve specs (optional)
     //
-    // Consumers (cds_pricing_service) read the plain-domain `creditCurves` map
+    // Consumers (cds_pricer) read the plain-domain `creditCurves` map
     // populated below.
     // ==========================================================================
     if (credit && credit->credit_curves()) {
         for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
-                QUANTRA_ERROR("CreditCurveSpec.id is required");
+                QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.id is required");
             }
             if (!spec->reference_date()) {
-                QUANTRA_ERROR("CreditCurveSpec.reference_date is required");
+                QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.reference_date is required");
             }
             std::string id = spec->id()->str();
 
@@ -354,18 +354,18 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
         for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
-                QUANTRA_ERROR("CouponPricer.id is required");
+                QUANTRA_INVALID_ARGUMENT("CouponPricer.id is required");
             }
             std::string id = spec->id()->str();
 
             const auto* black = spec->black_ibor_coupon_pricer();
             if (!black) {
-                QUANTRA_ERROR("CouponPricer '" + id +
+                QUANTRA_INVALID_ARGUMENT("CouponPricer '" + id +
                               "' is missing black_ibor_coupon_pricer payload");
             }
             const auto* ov = black->optionlet_volatility();
             if (!ov) {
-                QUANTRA_ERROR("CouponPricer '" + id +
+                QUANTRA_INVALID_ARGUMENT("CouponPricer '" + id +
                               "' is missing optionlet_volatility block");
             }
 
