@@ -23,7 +23,7 @@
 #include "swaption_handler.h"
 #include "cds_handler.h"
 #include "bootstrap_curves_handler.h"
-#include "sample_vol_surfaces_request.h"
+#include "sample_vol_surfaces_handler.h"
 #include "bootstrap_inflation_curves_handler.h"
 #include "zero_coupon_inflation_swap_handler.h"
 #include "year_on_year_inflation_swap_handler.h"

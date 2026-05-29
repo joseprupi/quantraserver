@@ -12,6 +12,11 @@
 QuantLib::TimeUnit TimeUnitToQL(const quantra::enums::TimeUnit timeUnit);
 QuantLib::Calendar CalendarToQL(const quantra::enums::Calendar calendar);
 QuantLib::BusinessDayConvention ConventionToQL(const quantra::enums::BusinessDayConvention dayConvention);
+
+// Reverse maps (QuantLib -> FlatBuffers enum). Centralized here per the
+// enum-conversion single-source rule.
+quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit);
+quantra::enums::VolatilityType VolatilityTypeToFb(QuantLib::VolatilityType type, double displacement);
 QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter);
 QuantLib::Frequency FrequencyToQL(const quantra::enums::Frequency frequency);
 QuantLib::Period FrequencyToPeriod(QuantLib::Frequency frequency);

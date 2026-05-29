@@ -489,4 +489,34 @@ QuantLib::Settlement::Type EquitySettlementTypeToQL(
     QUANTRA_ERROR("Equity settlement type not found");
 }
 
+quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit)
+{
+    switch (timeUnit)
+    {
+    case QuantLib::Days:
+        return quantra::enums::TimeUnit_Days;
+    case QuantLib::Weeks:
+        return quantra::enums::TimeUnit_Weeks;
+    case QuantLib::Months:
+        return quantra::enums::TimeUnit_Months;
+    case QuantLib::Years:
+        return quantra::enums::TimeUnit_Years;
+    default:
+        return quantra::enums::TimeUnit_Days;
+    }
+}
+
+quantra::enums::VolatilityType VolatilityTypeToFb(QuantLib::VolatilityType type, double displacement)
+{
+    if (type == QuantLib::Normal)
+    {
+        return quantra::enums::VolatilityType_Normal;
+    }
+    if (displacement != 0.0)
+    {
+        return quantra::enums::VolatilityType_ShiftedLognormal;
+    }
+    return quantra::enums::VolatilityType_Lognormal;
+}
+
 #pragma GCC diagnostic pop
