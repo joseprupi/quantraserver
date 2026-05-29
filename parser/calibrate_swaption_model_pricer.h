@@ -15,8 +15,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * calibrate_swaption_model_mapper.{h,cpp}. The pricer reads market data only
  * through the shared helper (which consumes the plain registry fields
- * reg.rates.curves, reg.rates.swapIndices, reg.volatility.swaptionVols); it
- * never touches reg.volatility.models.
+ * reg.rates.curves, reg.rates.swapIndices, reg.volatility.swaptionVols).
  */
 
 #include <string>

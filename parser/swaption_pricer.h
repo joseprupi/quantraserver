@@ -9,8 +9,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * swaption_mapper.{h,cpp}. The pricer reads market data exclusively from the
  * plain-domain registry fields (reg.volatility.modelDomains,
- * reg.volatility.swaptionVols, reg.rates.swapIndices, reg.rates.curves); it
- * never touches reg.volatility.models (legacy raw-FB-pointer field).
+ * reg.volatility.swaptionVols, reg.rates.swapIndices, reg.rates.curves).
  *
  * Rebump greeks need to re-bootstrap curves with a parallel bump and rebuild
  * indices and the QL Swaption against those bumped curves. Both operations

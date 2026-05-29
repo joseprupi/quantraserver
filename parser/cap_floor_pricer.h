@@ -10,8 +10,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * cap_floor_mapper.{h,cpp}. The pricer reads market data exclusively from the
  * plain-domain registry fields (reg.rates.curves, reg.rates.indices,
- * reg.volatility.optionletVols, reg.volatility.modelDomains); it never touches
- * reg.volatility.models (legacy raw-FB-pointer field).
+ * reg.volatility.optionletVols, reg.volatility.modelDomains).
  */
 
 #include <string>

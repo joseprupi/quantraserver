@@ -9,8 +9,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * floating_rate_bond_mapper.{h,cpp}. The pricer reads market data exclusively
  * from the plain-domain registry fields (reg.rates.curves, reg.rates.indices,
- * reg.rates.couponPricerDomains); it never touches reg.rates.couponPricers
- * (legacy raw-FB-pointer vector).
+ * reg.rates.couponPricerDomains).
  */
 
 #include <cstdint>

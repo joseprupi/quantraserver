@@ -6,6 +6,10 @@
 
 #include "pricing_registry.h"
 
+#include "credit_curve_generated.h"
+#include "coupon_pricer_generated.h"
+#include "model_generated.h"
+
 #include <ql/settings.hpp>
 
 #include "curve_bootstrapper.h"
@@ -185,10 +189,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Parse models (optional)
     //
-    // We populate both the legacy FB-pointer map and the plain-domain mirror
-    // for every entry. Existing consumers (cap_floor, swaption, equity,
-    // calibrate_swaption, cds) keep reading from the legacy map; future
-    // cutovers consume `modelDomains`.
+    // Consumers (cap_floor, swaption, equity, calibrate_swaption, cds) read the
+    // plain-domain `modelDomains` map populated below.
     // ==========================================================================
     if (volatility && volatility->models()) {
         for (auto it = volatility->models()->begin(); it != volatility->models()->end(); ++it) {
@@ -201,8 +203,6 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
                 QUANTRA_ERROR("ModelSpec.payload is required for model id: " + id);
             }
-
-            reg.volatility.models[id] = spec;
 
             // Plain-domain mirror. Mirror enums are bit-compatible with the
             // FB enums by construction (see parser/model_domain.h); QL types
@@ -283,9 +283,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Register credit curve specs (optional)
     //
-    // We populate both the legacy FB-pointer map and the plain-domain mirror
-    // for every entry. Existing consumers (cds_pricing_service) keep reading
-    // from the legacy map; future cutovers consume `creditCurves`.
+    // Consumers (cds_pricing_service) read the plain-domain `creditCurves` map
+    // populated below.
     // ==========================================================================
     if (credit && credit->credit_curves()) {
         for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end(); ++it) {
@@ -297,7 +296,6 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 QUANTRA_ERROR("CreditCurveSpec.reference_date is required");
             }
             std::string id = spec->id()->str();
-            reg.credit.creditCurveSpecs.emplace(id, spec);
 
             // Plain-domain mirror. QL conversions (Calendar/DayCounter/BDC/
             // Frequency/DateGeneration::Rule/TimeUnit) go through
@@ -349,17 +347,12 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Coupon pricers (optional)
     //
-    // We populate both the legacy FB-pointer vector and the plain-domain map
-    // for every entry. Existing consumers (the legacy floating-rate-bond
-    // request handler) keep reading from the legacy vector; new consumers
-    // read `couponPricerDomains`. Enum conversion routes through
-    // common/enums.* exclusively.
+    // Consumers read the plain-domain `couponPricerDomains` map populated
+    // below. Enum conversion routes through common/enums.* exclusively.
     // ==========================================================================
     if (rates && rates->coupon_pricers()) {
         for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end(); ++it) {
             const auto* spec = *it;
-            reg.rates.couponPricers.emplace_back(spec);
-
             if (!spec->id()) {
                 QUANTRA_ERROR("CouponPricer.id is required");
             }
