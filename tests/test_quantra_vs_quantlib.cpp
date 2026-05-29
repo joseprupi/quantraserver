@@ -69,7 +69,7 @@
 #include "swaption_model_calibration.h"
 #include "pricing_registry.h"
 #include "cms_leg_parser.h"
-#include "calibrate_swaption_vol_pricing_request.h"
+#include "calibrate_swaption_vol_handler.h"
 #include "calibrate_swaption_vol_request_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
 #include "diagnostics_generated.h"
