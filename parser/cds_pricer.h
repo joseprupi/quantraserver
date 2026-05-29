@@ -9,8 +9,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * cds_mapper.{h,cpp}. The pricer reads market data exclusively from the
  * plain-domain registry fields (reg.credit.creditCurves,
- * reg.volatility.modelDomains); it never touches reg.credit.creditCurveSpecs
- * or reg.volatility.models.
+ * reg.volatility.modelDomains).
  */
 
 #include <memory>

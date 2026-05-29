@@ -25,7 +25,7 @@
  * enforces this with a literal grep. All wire-format conversion lives in
  * sample_vol_surfaces_mapper.{h,cpp}. The pricer reads market data only through
  * the plain registry fields reg.volatility.{swaptionVols,optionletVols,blackVols},
- * reg.rates.{curves,swapIndices,indices}; it never touches reg.volatility.models.
+ * reg.rates.{curves,swapIndices,indices}.
  */
 
 #include <cstdint>

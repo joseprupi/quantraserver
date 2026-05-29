@@ -21,9 +21,6 @@
 #include "vol_surface_parsers.h"
 #include "common_generated.h"
 #include "pricing_generated.h"
-#include "credit_curve_generated.h"
-#include "coupon_pricer_generated.h"
-#include "model_generated.h"
 #include "credit_curve_domain.h"
 #include "equity_underlying_registry.h"
 #include "model_domain.h"
@@ -64,20 +61,12 @@ struct RatesRegistry {
     std::unordered_map<std::string, std::string> curveKeys;
     IndexRegistry indices;
     SwapIndexRegistry swapIndices;
-    // Legacy: raw FlatBuffers pointers. Kept until every consumer has been
-    // cut over to the plain-domain map below.
-    std::vector<const quantra::CouponPricer*> couponPricers;
-    // Plain-domain mirror, populated alongside `couponPricers` for every
-    // entry on every request. New consumers must read from this map.
+    // Plain-domain coupon pricers, populated for every entry on every request.
     std::map<std::string, CouponPricerDomain> couponPricerDomains;
 };
 
 struct CreditRegistry {
-    // Legacy: raw FlatBuffers pointer. Kept until every consumer has been
-    // cut over to the plain-domain map below.
-    std::map<std::string, const quantra::CreditCurveSpec*> creditCurveSpecs;
-    // Plain-domain mirror, populated alongside `creditCurveSpecs` for every
-    // entry on every request. New consumers must read from this map.
+    // Plain-domain credit curves, populated for every entry on every request.
     std::map<std::string, CreditCurveDomain> creditCurves;
 };
 
@@ -85,11 +74,7 @@ struct VolatilityRegistry {
     std::map<std::string, OptionletVolEntry> optionletVols;
     std::map<std::string, SwaptionVolEntry> swaptionVols;
     std::map<std::string, BlackVolEntry> blackVols;
-    // Legacy: raw FlatBuffers pointer. Kept until every consumer has been
-    // cut over to the plain-domain map below.
-    std::map<std::string, const quantra::ModelSpec*> models;
-    // Plain-domain mirror, populated alongside `models` for every entry on
-    // every request. New consumers must read from this map.
+    // Plain-domain models, populated for every entry on every request.
     std::map<std::string, ModelDomain> modelDomains;
 };
 
