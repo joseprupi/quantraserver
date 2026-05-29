@@ -65,7 +65,7 @@
 #include "index_generated.h"
 #include "swap_index_generated.h"
 #include "quotes_generated.h"
-#include "calibrate_swaption_model_pricing_request.h"
+#include "calibrate_swaption_model_handler.h"
 #include "swaption_model_calibration.h"
 #include "pricing_registry.h"
 #include "cms_leg_parser.h"
