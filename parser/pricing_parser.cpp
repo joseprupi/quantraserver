@@ -3,7 +3,7 @@
 // void PricingParser::parse(const quantra::Pricing *pricing)
 // {
 //     if (pricing == NULL)
-//         QUANTRA_ERROR("Pricing not found");
+//         QUANTRA_INVALID_ARGUMENT("Pricing not found");
 
 //     this->parse_term_structure(pricing->curves());
 // }

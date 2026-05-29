@@ -7,7 +7,7 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
     const quantra::IndexRegistry& indices)
 {
     if (swaption == NULL)
-        QUANTRA_ERROR("Swaption not found");
+        QUANTRA_INVALID_ARGUMENT("Swaption not found");
 
     const auto exerciseType = swaption->exercise_type();
     const bool needsSingleExerciseDate =
@@ -17,11 +17,11 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
         (exerciseType == quantra::enums::ExerciseType_Bermudan);
 
     if (needsSingleExerciseDate && swaption->exercise_date() == NULL)
-        QUANTRA_ERROR("Swaption exercise_date not found");
+        QUANTRA_INVALID_ARGUMENT("Swaption exercise_date not found");
 
     if (needsExerciseDateSet) {
         if (swaption->exercise_dates() == NULL || swaption->exercise_dates()->size() < 2) {
-            QUANTRA_ERROR("Swaption Bermudan requires exercise_dates with at least 2 dates");
+            QUANTRA_INVALID_ARGUMENT("Swaption Bermudan requires exercise_dates with at least 2 dates");
         }
     }
 
@@ -36,7 +36,7 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
         for (flatbuffers::uoffset_t i = 0; i < swaption->exercise_dates()->size(); ++i) {
             auto* exDate = swaption->exercise_dates()->Get(i);
             if (!exDate) {
-                QUANTRA_ERROR("Swaption exercise_dates contains null entry");
+                QUANTRA_INVALID_ARGUMENT("Swaption exercise_dates contains null entry");
             }
             bermudanExerciseDates.push_back(DateToQL(exDate->str()));
         }
@@ -45,12 +45,12 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
         const QuantLib::Date evalDate = QuantLib::Settings::instance().evaluationDate();
         for (size_t i = 1; i < bermudanExerciseDates.size(); ++i) {
             if (bermudanExerciseDates[i] <= bermudanExerciseDates[i - 1]) {
-                QUANTRA_ERROR("Swaption Bermudan exercise_dates must be strictly increasing");
+                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be strictly increasing");
             }
         }
         for (const auto& d : bermudanExerciseDates) {
             if (d < evalDate) {
-                QUANTRA_ERROR("Swaption Bermudan exercise_dates must be on/after evaluation date");
+                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be on/after evaluation date");
             }
         }
     }
@@ -60,7 +60,7 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
     switch (swaption->underlying_type()) {
         case quantra::SwaptionUnderlying_VanillaSwap: {
             auto underlying = swaption->underlying_as_VanillaSwap();
-            if (!underlying) QUANTRA_ERROR("Swaption underlying VanillaSwap not found");
+            if (!underlying) QUANTRA_INVALID_ARGUMENT("Swaption underlying VanillaSwap not found");
             VanillaSwapParser swapParser;
             swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
             underlyingSwap = swapParser.parse(underlying, indices);
@@ -68,16 +68,16 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
         }
         case quantra::SwaptionUnderlying_OisSwap: {
             auto underlying = swaption->underlying_as_OisSwap();
-            if (!underlying) QUANTRA_ERROR("Swaption underlying OisSwap not found");
+            if (!underlying) QUANTRA_INVALID_ARGUMENT("Swaption underlying OisSwap not found");
             OisSwapParser swapParser;
             swapParser.linkForwardingTermStructure(forwarding_term_structure_.currentLink());
             underlyingSwap = swapParser.parse(underlying, indices);
             break;
         }
         case quantra::SwaptionUnderlying_NONE:
-            QUANTRA_ERROR("Swaption underlying not found");
+            QUANTRA_INVALID_ARGUMENT("Swaption underlying not found");
         default:
-            QUANTRA_ERROR("Invalid swaption underlying type");
+            QUANTRA_INVALID_ARGUMENT("Invalid swaption underlying type");
     }
 
     // Create exercise based on type
@@ -96,7 +96,7 @@ std::shared_ptr<QuantLib::Swaption> SwaptionParser::parse(
             );
             break;
         default:
-            QUANTRA_ERROR("Invalid exercise type");
+            QUANTRA_INVALID_ARGUMENT("Invalid exercise type");
     }
 
     // Parse settlement type

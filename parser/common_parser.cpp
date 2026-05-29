@@ -3,7 +3,7 @@
 std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedule *schedule)
 {
     if (schedule == NULL)
-        QUANTRA_ERROR("Schedule not found");
+        QUANTRA_INVALID_ARGUMENT("Schedule not found");
 
     return std::make_shared<QuantLib::Schedule>(
         DateToQL(schedule->effective_date()->str()),
@@ -20,7 +20,7 @@ std::shared_ptr<YieldStruct> YieldParser::parse(const quantra::Yield *yield)
 {
 
     if (yield == NULL)
-        QUANTRA_ERROR("Yield not found");
+        QUANTRA_INVALID_ARGUMENT("Yield not found");
 
     return std::make_shared<YieldStruct>(
         YieldStruct{
@@ -32,10 +32,10 @@ std::shared_ptr<YieldStruct> YieldParser::parse(const quantra::Yield *yield)
 std::shared_ptr<PricingStruct> PricingParser::parse(const quantra::Pricing *pricing)
 {
     if (pricing == NULL)
-        QUANTRA_ERROR("Pricing not found");
+        QUANTRA_INVALID_ARGUMENT("Pricing not found");
     
     if (!pricing->as_of_date())
-        QUANTRA_ERROR("as_of_date is required");
+        QUANTRA_INVALID_ARGUMENT("as_of_date is required");
 
     const auto* rates = pricing->rates();
     const auto* options = pricing->options();

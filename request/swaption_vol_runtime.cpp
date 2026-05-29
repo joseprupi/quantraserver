@@ -174,7 +174,7 @@ void validateTradeAgainstSwapIndex(
     if (trade == nullptr) return;
     std::string tradeIndexId = getTradeFloatingIndexId(trade);
     if (!tradeIndexId.empty() && tradeIndexId != sidx.floatIndexId) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "Swap index '" + swapIndexId + "' float_index_id '" + sidx.floatIndexId +
             "' does not match swaption floating index '" + tradeIndexId + "'");
     }
@@ -195,7 +195,7 @@ void validateTradeAgainstSwapIndex(
                 << " with spot_days=" << sidx.spotDays
                 << ", but trade start is " << DateToIso(tradeStartDate)
                 << " (adjusted: " << DateToIso(tradeStartAdjusted) << ")";
-            QUANTRA_ERROR(err.str());
+            QUANTRA_INVALID_ARGUMENT(err.str());
         }
     }
 }
@@ -239,10 +239,10 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         return raw;
     }
     if (raw.referenceDate == QuantLib::Date()) {
-        QUANTRA_ERROR("Swaption vol surface requires a valid referenceDate");
+        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires a valid referenceDate");
     }
     if (raw.swapIndexId.empty()) {
-        QUANTRA_ERROR("Swaption vol surface requires swap_index_id for forward resolution");
+        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires swap_index_id for forward resolution");
     }
 
     if (isSmileCubeSpread) {
@@ -263,7 +263,7 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     }
 
     if (!reg.rates.swapIndices.has(raw.swapIndexId)) {
-        QUANTRA_ERROR("Missing swap index definition for id: " + raw.swapIndexId);
+        QUANTRA_NOT_FOUND("Missing swap index definition for id: " + raw.swapIndexId);
     }
     const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
     validateTradeAgainstSwapIndex(trade, raw.swapIndexId, sidx);
@@ -276,7 +276,7 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     }
     if (isSabrCalibrate) {
         if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-            QUANTRA_ERROR(
+            QUANTRA_NOT_IMPLEMENTED(
                 "SABR calibrate finalize: swap index '" + raw.swapIndexId +
                 "' is not an Ibor swap index (OIS-shaped SABR calibrate not "
                 "supported in v1)");

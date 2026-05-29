@@ -41,7 +41,7 @@ public:
     std::shared_ptr<QuantLib::InterestRateIndex> get(const std::string& id) const {
         auto it = indices_.find(id);
         if (it == indices_.end()) {
-            QUANTRA_ERROR("Unknown index id: " + id);
+            QUANTRA_NOT_FOUND("Unknown index id: " + id);
         }
         return it->second;
     }
@@ -51,7 +51,7 @@ public:
         auto base = get(id);
         auto ibor = std::dynamic_pointer_cast<QuantLib::IborIndex>(base);
         if (!ibor) {
-            QUANTRA_ERROR("Index '" + id + "' is not an IborIndex");
+            QUANTRA_INVALID_ARGUMENT("Index '" + id + "' is not an IborIndex");
         }
         return ibor;
     }
@@ -61,7 +61,7 @@ public:
         auto base = get(id);
         auto on = std::dynamic_pointer_cast<QuantLib::OvernightIndex>(base);
         if (!on) {
-            QUANTRA_ERROR("Index '" + id + "' is not an OvernightIndex");
+            QUANTRA_INVALID_ARGUMENT("Index '" + id + "' is not an OvernightIndex");
         }
         return on;
     }

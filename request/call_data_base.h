@@ -136,6 +136,17 @@ public:
                 auto status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
                 responder_.FinishWithError(status, this);
             }
+            catch (QuantraNotImplemented &e)
+            {
+                std::cerr << "[grpc] Quantra not-implemented"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << std::endl;
+                status_ = FINISH;
+                auto status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, e.what());
+                responder_.FinishWithError(status, this);
+            }
             catch (QuantraError &e)
             {
                 std::cerr << "[grpc] Quantra exception"

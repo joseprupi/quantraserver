@@ -57,13 +57,13 @@ YearOnYearInflationSwapPerSwap priceTrade(const YearOnYearInflationSwapTrade& tr
                                           bool includeFlows) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
-        QUANTRA_ERROR("Discounting curve not found: " + trade.discountingCurveId);
+        QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
     }
 
     auto curveIt = reg.inflation.yoyInflationCurves.find(trade.inflationCurveId);
     if (curveIt == reg.inflation.yoyInflationCurves.end() ||
         !curveIt->second || curveIt->second->empty()) {
-        QUANTRA_ERROR("YoY inflation curve not found: " + trade.inflationCurveId);
+        QUANTRA_NOT_FOUND("YoY inflation curve not found: " + trade.inflationCurveId);
     }
 
     auto metaIt = reg.inflation.curveMetadata.find(trade.inflationCurveId);
@@ -71,22 +71,22 @@ YearOnYearInflationSwapPerSwap priceTrade(const YearOnYearInflationSwapTrade& tr
         QUANTRA_ERROR("Inflation curve metadata not found: " + trade.inflationCurveId);
     }
     if (metaIt->second.kind != enums::InflationCurveKind_YoYInflation) {
-        QUANTRA_ERROR("Inflation curve is not YoY inflation: " + trade.inflationCurveId);
+        QUANTRA_INVALID_ARGUMENT("Inflation curve is not YoY inflation: " + trade.inflationCurveId);
     }
     if (metaIt->second.indexId != trade.inflationIndexId) {
-        QUANTRA_ERROR(
+        QUANTRA_INVALID_ARGUMENT(
             "YearOnYearInflationSwap inflation_index_id does not match inflation_curve '" +
             trade.inflationCurveId + "'");
     }
 
     auto indexIt = reg.inflation.inflationIndices.find(trade.inflationIndexId);
     if (indexIt == reg.inflation.inflationIndices.end()) {
-        QUANTRA_ERROR("Inflation index not found: " + trade.inflationIndexId);
+        QUANTRA_NOT_FOUND("Inflation index not found: " + trade.inflationIndexId);
     }
     auto inflationIndex =
         std::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(indexIt->second);
     if (!inflationIndex) {
-        QUANTRA_ERROR("Inflation index is not YoY inflation: " + trade.inflationIndexId);
+        QUANTRA_INVALID_ARGUMENT("Inflation index is not YoY inflation: " + trade.inflationIndexId);
     }
 
     auto swap = std::make_shared<QuantLib::YearOnYearInflationSwap>(

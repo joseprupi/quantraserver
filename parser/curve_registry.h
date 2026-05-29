@@ -33,7 +33,7 @@ public:
     QuantLib::Handle<QuantLib::YieldTermStructure> get(const std::string& id) const {
         auto it = curves_.find(id);
         if (it == curves_.end()) {
-            QUANTRA_ERROR("Unknown curve id: " + id);
+            QUANTRA_NOT_FOUND("Unknown curve id: " + id);
         }
         return it->second;
     }
