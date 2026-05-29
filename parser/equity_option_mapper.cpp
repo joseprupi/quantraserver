@@ -9,20 +9,6 @@ namespace quantra {
 
 namespace {
 
-/// Translate the QL settlement type back to the FB enum for the response. The
-/// mapping is the inverse of EquitySettlementTypeToQL; values are aligned by
-/// construction in enums.fbs (Physical=0, Cash=1) but we surface the mapping
-/// explicitly so a future divergence in either enum surface is caught here.
-quantra::enums::EquitySettlementType qlSettlementToFb(QuantLib::Settlement::Type t) {
-    switch (t) {
-        case QuantLib::Settlement::Physical:
-            return quantra::enums::EquitySettlementType_Physical;
-        case QuantLib::Settlement::Cash:
-            return quantra::enums::EquitySettlementType_Cash;
-    }
-    QUANTRA_ERROR("Equity settlement type not found");
-}
-
 EquityOptionTrade extractTrade(const quantra::PriceEquityOption* pricing) {
     if (pricing == nullptr) {
         QUANTRA_INVALID_ARGUMENT("PriceEquityOption entry is null");
@@ -105,7 +91,7 @@ flatbuffers::Offset<quantra::PriceEquityOptionResponse> EquityOptionMapper::toRe
         rb.add_implied_volatility(t.impliedVolatility);
         rb.add_used_spot(t.usedSpot);
         rb.add_used_strike(t.usedStrike);
-        rb.add_used_settlement(qlSettlementToFb(t.usedSettlement));
+        rb.add_used_settlement(EquitySettlementTypeToFb(t.usedSettlement));
         offsets.push_back(rb.Finish());
     }
 

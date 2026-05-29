@@ -36,18 +36,18 @@
 #include <ql/time/period.hpp>
 
 #include "enums.h"
+#include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
 #include "vol_surface_parsers.h"
 
 namespace quantra {
 
-// Plain mirror enums (BootstrapCurves-style, scoped to this product). Integer
-// values mirror the FlatBuffers vol_query enums so the mapper translates 1:1.
-enum class SampleSurfaceType : std::int8_t { Swaption = 0, Optionlet = 1, EquityBlack = 2 };
-enum class SampleStrikeAxis : std::int8_t { AbsoluteStrike = 0, SpreadFromATM = 1 };
-enum class SampleOutputMode : std::int8_t { Cube = 0, SmileSlice = 1, TermSlice = 2, ExpirySlice = 3 };
-enum class SampleExpiryKind : std::int8_t { ExerciseDate = 0, GridDate = 1 };
+// SampleSurfaceType / SampleStrikeAxis / SampleOutputMode / SampleExpiryKind
+// mirror the FlatBuffers vol_query enums and live (value-locked) in
+// common/enums_domain.h. SampleDateGridKind is an internal discriminator for
+// which date-grid arm the mapper populated (no schema enum counterpart), so it
+// stays local here.
 enum class SampleDateGridKind : std::int8_t { None = 0, Tenor = 1, Range = 2 };
 
 /// Plain mirror of one quantra::Period grid entry. The unit is kept as the

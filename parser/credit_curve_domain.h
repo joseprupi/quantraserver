@@ -10,12 +10,11 @@
  * legacy FB pointer (kept until each consumer is cut over).
  *
  * Enum kinds (HelperModel / QuoteType / Interpolator) without a natural
- * QuantLib equivalent are mirrored here as scoped enums whose underlying
- * integer values match the FB enums exactly (single source of truth: the
- * *_generated.h header; this comment marks the invariant). Conversion from
- * FB->QL for the fields that do have QL counterparts (Calendar, DayCounter,
+ * QuantLib equivalent live in common/enums_domain.h, where they are
+ * value-locked to their FlatBuffers counterparts. Conversion from FB->QL for
+ * the fields that do have QL counterparts (Calendar, DayCounter,
  * BusinessDayConvention, Frequency, DateGeneration::Rule) goes through
- * common/enums.* (D16).
+ * common/enums.*.
  */
 
 #include <cstdint>
@@ -31,30 +30,9 @@
 #include <ql/time/frequency.hpp>
 #include <ql/time/period.hpp>
 
+#include "enums_domain.h"
+
 namespace quantra {
-
-/// Mirrors enums::CdsHelperModel (values must match).
-enum class CdsHelperModelKind : std::int8_t {
-    MidPoint = 0,
-    ISDA = 1,
-};
-
-/// Mirrors enums::CdsQuoteType (values must match).
-enum class CdsQuoteTypeKind : std::int8_t {
-    ParSpread = 0,
-    Upfront = 1,
-};
-
-/// Mirrors enums::Interpolator (values must match). Credit curves only
-/// dispatch on Linear / BackwardFlat / LogLinear today; other interpolators
-/// remain in the enum so the mirror stays in lockstep with the FB schema.
-enum class CreditCurveInterpolatorKind : std::int8_t {
-    BackwardFlat = 0,
-    ForwardFlat = 1,
-    Linear = 2,
-    LogCubic = 3,
-    LogLinear = 4,
-};
 
 struct CdsHelperConventionsDomain {
     int settlement_days = 0;
