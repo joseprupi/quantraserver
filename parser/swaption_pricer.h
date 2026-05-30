@@ -15,15 +15,15 @@
  * indices and the QL Swaption against those bumped curves. The curve/index
  * re-bootstrap is upstream of the pricer in the legacy code path (it consumes
  * raw FB tables for curves/quotes/indices). To keep the pricer FB-free without
- * losing byte-identical rebump semantics, the mapper hands the pricer one
- * opaque callable — `bootstrapWithBump` on the inputs — that closes over the
- * FB request. The QL Swaption itself is rebuilt from the plain-domain
- * SwaptionInstrument carried on each trade, so the pricer needs no FB indirection
- * for the instrument: it reconstructs the swaption against the (possibly bumped)
- * forwarding curve and IndexRegistry directly.
+ * losing byte-identical rebump semantics, the mapper EAGERLY pre-builds the
+ * small fixed set of bumped/rolled market snapshots (SwaptionRebumpMarkets) and
+ * hands them to the pricer as plain data on the inputs — no callable, no FB
+ * indirection. The QL Swaption itself is rebuilt from the plain-domain
+ * SwaptionInstrument carried on each trade, so the pricer reconstructs the
+ * swaption against the selected (possibly bumped) forwarding curve and
+ * IndexRegistry directly.
  */
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -43,6 +43,7 @@
 #include "ois_swap_pricer.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "swaption_rebump.h"
 #include "vanilla_swap_pricer.h"
 #include "vol_surface_parsers.h"
 
@@ -77,22 +78,33 @@ struct SwaptionInstrument {
     OisSwapTrade oisUnderlying;
 };
 
-/// Snapshot of the rebumped market state. Closures capturing the FB request
-/// in the mapper produce one of these per rebump step (parallel curve bump or
-/// roll). `indices` is the freshly built IndexRegistry — necessary because
-/// the IBOR/OIS indices are bound to the (now bumped) forwarding curves.
+/// Snapshot of one rebumped market state. The mapper eagerly bootstraps one of
+/// these per distinct rebump scenario (parallel curve bump up/down or eval-date
+/// roll). `indices` is the freshly built IndexRegistry — necessary because the
+/// IBOR/OIS indices are bound to the (now bumped) forwarding curves. Every
+/// snapshot's curves are bootstrapped at the SAME evaluation date the pricer
+/// later sets when pricing against them, so the rebump greeks are byte-identical
+/// to the legacy re-bootstrap-on-demand path.
 struct SwaptionRebumpedMarket {
     BootstrappedCurves curves;
     IndexRegistry indices;
 };
 
-/// Closure provided by the mapper that re-bootstraps every curve in the
-/// request with a parallel `curveBump` (in absolute units) applied to every
-/// quote, and rebuilds the IndexRegistry against those bumped curves. The
-/// caller is responsible for setting Settings::instance().evaluationDate()
-/// to the rebump date *before* invoking this — the bootstrap reads the
-/// evaluation date as the implicit reference date for each curve.
-using SwaptionRebumpFn = std::function<SwaptionRebumpedMarket(double curveBump)>;
+/// The fixed set of pre-built market snapshots the rebump greeks need. The
+/// mapper populates these (and sets `present`) only when the request asks for
+/// rebump greeks; otherwise they are left default and unused. The two vol-bump
+/// legs (curveBump==0, rollDays==0) deliberately have no snapshot here — they
+/// price against the base registry curves at asOf, which are already bootstrapped
+/// identically.
+///   - curveUp:   parallel +curveBump @ asOf            (DV01/gamma up leg)
+///   - curveDown: parallel -curveBump @ asOf            (DV01/gamma down leg)
+///   - roll:      bump 0 @ asOf + rollDays              (theta leg)
+struct SwaptionRebumpMarkets {
+    SwaptionRebumpedMarket curveUp;
+    SwaptionRebumpedMarket curveDown;
+    SwaptionRebumpedMarket roll;
+    bool present = false;
+};
 
 /// Plain SwaptionTrade — everything the pricer needs to value one swaption,
 /// pre-parsed by the mapper. Carries:
@@ -127,9 +139,10 @@ struct SwaptionTrade {
 struct SwaptionInputs {
     std::vector<SwaptionTrade> trades;
     bool includeDiagnostics = false;
-    /// Re-bootstrap-and-reindex closure. Required when rebump greeks are
-    /// active (reg.options.swaptionPricingRebump); unused otherwise.
-    SwaptionRebumpFn bootstrapWithBump;
+    /// Pre-built bumped/rolled market snapshots. Populated by the mapper only
+    /// when rebump greeks are active (reg.options.swaptionPricingRebump); the
+    /// `present` flag is false otherwise. Plain data — no callable.
+    SwaptionRebumpMarkets rebumpMarkets;
 };
 
 /// Per-trade pricing result. Mirrors the SwaptionResponse FB schema exactly so

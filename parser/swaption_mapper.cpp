@@ -3,11 +3,14 @@
 #include <memory>
 #include <string>
 
+#include <ql/settings.hpp>
+
 #include "common.h"
 #include "common_parser.h"
 #include "curve_bootstrapper.h"
 #include "enums.h"
 #include "error.h"
+#include "eval_date_guard.h"
 #include "index_registry_builder.h"
 #include "swaption_generated.h"
 #include "swaption_vol_diagnostics.h"
@@ -268,21 +271,46 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
         inputs.trades.push_back(extractTrade(*it));
     }
 
-    // Capture FB pointers needed by the rebump path. The pricer invokes this
-    // closure only when reg.options.swaptionPricingRebump is true.
+    // Eagerly pre-build the rebump market snapshots when (and only when) the
+    // request asks for rebump greeks. The pricer is FB-free and consumes these
+    // as plain data — no callable. Each snapshot's curves are bootstrapped at
+    // the SAME evaluation date the pricer later sets when pricing against them:
+    //   curveUp/curveDown @ asOf, roll @ asOf + rollDays. This equivalence is
+    // what makes the eager snapshots byte-identical to the legacy lazy path.
+    //
+    // EVAL-DATE ORDERING: toInputs runs BEFORE the registry build sets the
+    // evaluation date to asOf, so we set it ourselves per snapshot (the
+    // bootstrap reads Settings::evaluationDate() as the implicit reference) and
+    // use an EvalDateGuard to restore on exit, leaking nothing into the build.
     const auto* pricing = req->pricing();
-    inputs.bootstrapWithBump = [pricing](double curveBump) {
-        SwaptionRebumpedMarket out;
-        CurveBootstrapper bootstrapper;
-        out.curves = bootstrapper.bootstrapAll(
-            pricing->rates()->curves(),
-            pricing->quotes(),
-            pricing->rates()->indices(),
-            curveBump);
-        IndexRegistryBuilder indexBuilder;
-        out.indices = indexBuilder.build(pricing->rates()->indices());
-        return out;
-    };
+    const auto* options = pricing ? pricing->options() : nullptr;
+    if (options && options->swaption_pricing_rebump()) {
+        if (!pricing->as_of_date()) {
+            QUANTRA_INVALID_ARGUMENT("as_of_date is required");
+        }
+        const QuantLib::Date asOf = DateToQL(pricing->as_of_date()->str());
+        const auto& cfg = kSwaptionRebumpConfig;
+
+        auto buildSnapshot = [&](double curveBump, QuantLib::Date evalDate) {
+            QuantLib::Settings::instance().evaluationDate() = evalDate;
+            SwaptionRebumpedMarket out;
+            CurveBootstrapper bootstrapper;
+            out.curves = bootstrapper.bootstrapAll(
+                pricing->rates()->curves(),
+                pricing->quotes(),
+                pricing->rates()->indices(),
+                curveBump);
+            IndexRegistryBuilder indexBuilder;
+            out.indices = indexBuilder.build(pricing->rates()->indices());
+            return out;
+        };
+
+        EvalDateGuard guard;
+        inputs.rebumpMarkets.curveUp = buildSnapshot(cfg.curveBump, asOf);
+        inputs.rebumpMarkets.curveDown = buildSnapshot(-cfg.curveBump, asOf);
+        inputs.rebumpMarkets.roll = buildSnapshot(0.0, asOf + cfg.rollDays);
+        inputs.rebumpMarkets.present = true;
+    }
 
     return inputs;
 }

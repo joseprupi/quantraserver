@@ -541,30 +541,60 @@ SwaptionResult SwaptionPricer::price(const SwaptionInputs& inputs,
             }
         }
 
-        // Closure that re-prices the swaption with optional curve/vol/eval-date
+        // Re-prices the swaption with optional curve/vol/eval-date
         // perturbations. Reuses cached HW calibration and the mapper-supplied
-        // bootstrap callable to keep the rebump path entirely FB-free.
+        // pre-built market snapshots to keep the rebump path entirely FB-free.
+        // Scenario -> snapshot selection (the whole numerical ballgame):
+        //   curveBump>0                 -> curveUp   (+bump @ asOf)
+        //   curveBump<0                 -> curveDown (-bump @ asOf)
+        //   rollDays>0                  -> roll      (bump 0 @ asOf+rollDays)
+        //   curveBump==0 && rollDays==0 -> base registry curves @ asOf (vol bumps)
         auto priceWithRebump = [&](double curveBump, double volBump, int rollDays) {
             EvalDateGuard evalGuard;
             QuantLib::Date eval = ctx.asOf + rollDays;
             QuantLib::Settings::instance().evaluationDate() = eval;
 
-            if (!inputs.bootstrapWithBump) {
-                QUANTRA_ERROR("Rebump greeks requested but bootstrapWithBump callable is unset");
+            if (!inputs.rebumpMarkets.present) {
+                QUANTRA_ERROR("Rebump greeks requested but rebump market snapshots are unset");
             }
-            auto rebumped = inputs.bootstrapWithBump(curveBump);
-            auto dItB = rebumped.curves.handles.find(trade.discountingCurveId);
-            if (dItB == rebumped.curves.handles.end()) {
-                QUANTRA_ERROR("Discounting curve not found (rebump): " + trade.discountingCurveId);
-            }
-            auto fItB = rebumped.curves.handles.find(trade.forwardingCurveId);
-            if (fItB == rebumped.curves.handles.end()) {
-                QUANTRA_ERROR("Forwarding curve not found (rebump): " + trade.forwardingCurveId);
-            }
-            QuantLib::Handle<QuantLib::YieldTermStructure> bDiscount(dItB->second->currentLink());
-            QuantLib::Handle<QuantLib::YieldTermStructure> bForwarding(fItB->second->currentLink());
 
-            auto bumpSwap = buildSwaptionInstrument(trade.instrument, rebumped.indices, bForwarding);
+            QuantLib::Handle<QuantLib::YieldTermStructure> bDiscount;
+            QuantLib::Handle<QuantLib::YieldTermStructure> bForwarding;
+            const IndexRegistry* bumpIndices = nullptr;
+
+            if (curveBump != 0.0 || rollDays != 0) {
+                const SwaptionRebumpedMarket& market =
+                    (curveBump > 0.0)   ? inputs.rebumpMarkets.curveUp
+                    : (curveBump < 0.0) ? inputs.rebumpMarkets.curveDown
+                                        : inputs.rebumpMarkets.roll;
+                auto dItB = market.curves.handles.find(trade.discountingCurveId);
+                if (dItB == market.curves.handles.end()) {
+                    QUANTRA_ERROR("Discounting curve not found (rebump): " + trade.discountingCurveId);
+                }
+                auto fItB = market.curves.handles.find(trade.forwardingCurveId);
+                if (fItB == market.curves.handles.end()) {
+                    QUANTRA_ERROR("Forwarding curve not found (rebump): " + trade.forwardingCurveId);
+                }
+                bDiscount = QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
+                bForwarding = QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
+                bumpIndices = &market.indices;
+            } else {
+                // Vol-bump legs: base registry curves at asOf — bootstrapped
+                // identically to a fresh bump-0 @ asOf snapshot.
+                auto dItB = reg.rates.curves.find(trade.discountingCurveId);
+                if (dItB == reg.rates.curves.end()) {
+                    QUANTRA_ERROR("Discounting curve not found (rebump): " + trade.discountingCurveId);
+                }
+                auto fItB = reg.rates.curves.find(trade.forwardingCurveId);
+                if (fItB == reg.rates.curves.end()) {
+                    QUANTRA_ERROR("Forwarding curve not found (rebump): " + trade.forwardingCurveId);
+                }
+                bDiscount = QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
+                bForwarding = QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
+                bumpIndices = &reg.rates.indices;
+            }
+
+            auto bumpSwap = buildSwaptionInstrument(trade.instrument, *bumpIndices, bForwarding);
 
             SwaptionVolEntry volEntryBumped = bumpSwaptionVolEntry(volEntry, volBump);
             const bool forceAtmRecompute = (curveBump != 0.0) || (rollDays != 0);
