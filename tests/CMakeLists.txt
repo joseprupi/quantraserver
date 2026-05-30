@@ -44,12 +44,17 @@ file(GLOB COMMON_SOURCES ${CMAKE_SOURCE_DIR}/common/*.cpp)
 # =============================================================================
 # Test: Quantra vs QuantLib Comparison (Unit Tests)
 # =============================================================================
-add_executable(test_quantra_vs_quantlib 
-    test_quantra_vs_quantlib.cpp
+# The parity suite was split per-product (refactor 6a). All cases share
+# tests/parity/parity_fixture.h and still build into ONE gtest binary so
+# run_all_tests Suite 1 continues to report the full case count.
+file(GLOB PARITY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/parity/*.cpp)
+add_executable(test_quantra_vs_quantlib
+    ${PARITY_SOURCES}
     ${REQUEST_SOURCES}
     ${PARSER_SOURCES}
     ${COMMON_SOURCES}
 )
+target_include_directories(test_quantra_vs_quantlib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/parity)
 target_link_libraries(test_quantra_vs_quantlib 
     ${GRPC_ALL_LIBS} 
     flatbuffers 
