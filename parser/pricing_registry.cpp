@@ -206,7 +206,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
             // Plain-domain mirror. Mirror enums are bit-compatible with the
             // FB enums by construction (see parser/model_domain.h); QL types
-            // (Period) are constructed via TimeUnitToQL (D16).
+            // (Period) are constructed via TimeUnitToQL.
             ModelDomain domain;
             domain.id = id;
             switch (spec->payload_type()) {
@@ -299,7 +299,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
 
             // Plain-domain mirror. QL conversions (Calendar/DayCounter/BDC/
             // Frequency/DateGeneration::Rule/TimeUnit) go through
-            // common/enums.* (D16); date strings via DateToQL (D17). Mirror
+            // common/enums.*; date strings via DateToQL. Mirror
             // enum kinds (HelperModel/QuoteType/Interpolator) are
             // bit-compatible with the FB enums (see credit_curve_domain.h).
             CreditCurveDomain d;

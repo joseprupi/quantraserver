@@ -228,4 +228,13 @@ BootstrapInflationCurvesMapper::toResponse(
     return rb.Finish();
 }
 
+void BootstrapInflationCurvesMapper::onRegistryBuildError(
+    BootstrapInflationCurvesInputs& inputs, const std::string& message) const {
+    for (auto& q : inputs.queries) {
+        if (q.prebuiltError.empty()) {
+            q.prebuiltError = message;
+        }
+    }
+}
+
 } // namespace quantra

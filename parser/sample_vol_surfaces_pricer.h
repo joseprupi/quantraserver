@@ -15,10 +15,17 @@
  * matching the legacy handler. SABR diagnostics are emitted as plain finalized
  * entries for the mapper to serialize.
  *
- * Grid construction is registry-dependent (the fallback calendar and reference
- * date come from the resolved vol entry / swap index), so it runs here on the
- * plain grid-spec mirrors the mapper lifted out of the FlatBuffers request,
- * rather than in the mapper.
+ * Date-grid resolution happens HERE in the pricer, not in the mapper, because
+ * it is registry-dependent: the fallback calendar, business-day convention and
+ * reference date used to turn the request's tenor/range grid specs into
+ * concrete dates come from the resolved vol entry and its swap-index runtime —
+ * objects that only exist after the registry is built. The mapper therefore
+ * only lifts the raw grid specs out of the FlatBuffers request into plain
+ * mirrors (SampleDateGridSpec) and leaves the date math to the pricer, which
+ * also keeps per-query error attribution exact. This is the opposite of the
+ * inflation-curve bootstrap, whose grids depend only on the curve spec's own
+ * reference_date (already in the request), so that mapper pre-resolves the
+ * grid dates itself.
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_pricer_boundary.sh)
@@ -100,6 +107,11 @@ struct SampleQueryOptions {
 struct SampleVolSurfacesQuery {
     std::string volId;
     SampleSurfaceType surfaceType = SampleSurfaceType::Swaption;
+
+    /// Pre-resolved per-query error. Set by the mapper's onRegistryBuildError
+    /// hook when registry construction failed; the pricer short-circuits such
+    /// queries straight to a per-item error entry instead of sampling.
+    std::string prebuiltError;
 
     bool hasStrikeGrid = false;
     bool hasStrikes = false;

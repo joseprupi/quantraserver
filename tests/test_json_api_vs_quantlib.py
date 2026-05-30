@@ -2731,10 +2731,16 @@ def test_product(client: ApiClient, product: str, json_file: Path, ql_pricer) ->
 #                                  unimplemented curve helper). The request is
 #                                  understood; the feature simply does not exist.
 #
-# Product-pricing endpoints are used on purpose: their throws propagate to the
-# gRPC status. The sample-vol-surfaces and bootstrap-curves per-query paths
-# instead catch and fold errors into per-item result fields, so they would not
-# surface an HTTP status and are not exercised here.
+# Most scenarios drive product-pricing endpoints on purpose: their throws
+# propagate to the gRPC status. The sample-vol-surfaces and bootstrap-curves
+# query endpoints instead follow a per-item error contract: a malformed
+# TOP-LEVEL request (e.g. empty queries) still hard-fails with an HTTP status,
+# but a per-query failure (a missing referenced id, or a market that fails to
+# build) is folded into that item's own error field and returned at HTTP 200.
+# The two sample-vol scenarios below lock exactly that split — the first asserts
+# the 400 on empty top-level input, the second asserts a 200 carrying a per-item
+# error entry. Scenarios may pair the expected HTTP status with an optional body
+# validator (6th tuple element) for the per-item-body assertion.
 # =============================================================================
 
 def _ec_post_status(client: ApiClient, product: str, request: dict):
@@ -2765,6 +2771,34 @@ def _ec_empty_list(arr_key):
         req[arr_key] = []
         return req
     return f
+
+
+def _ec_body_has_per_item_error(item_id_field, item_id, error_field="error"):
+    """Body validator for the per-item error contract (list/query endpoints).
+
+    Returns None when the response body is HTTP-200 JSON whose results list
+    carries an entry identified by item_id_field == item_id with a non-empty
+    error string; otherwise returns a human-readable failure reason. The error
+    table is serialized by the JSON gateway as {"error_message": "..."}.
+    """
+    def check(body_text):
+        try:
+            body = json.loads(body_text)
+        except Exception as e:
+            return f"response body is not JSON: {e} :: {body_text[:160]}"
+        results = body.get("results")
+        if not isinstance(results, list) or not results:
+            return f"expected non-empty 'results' list, got: {body_text[:160]}"
+        for entry in results:
+            if entry.get(item_id_field) == item_id:
+                err = entry.get(error_field) or {}
+                msg = err.get("error_message")
+                if isinstance(msg, str) and msg.strip():
+                    return None
+                return (f"result for {item_id_field}={item_id!r} has no non-empty "
+                        f"error_message: {json.dumps(entry)[:200]}")
+        return f"no result entry for {item_id_field}={item_id!r} in: {body_text[:200]}"
+    return check
 
 
 def _ec_flip_model_type(new_type):
@@ -2828,13 +2862,30 @@ def run_error_contract_suite(client: ApiClient, data_dir: Path):
         # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
         ("ec:501 swaption curve uses unimplemented helper", "swaption",
          "swaption_request.json", 501, _ec_unimplemented_curve_point()),
+        # ---- sample-vol-surfaces per-item error contract (list/query endpoint) ----
+        # (A) Malformed TOP-LEVEL input -> transport error. Empty queries trips
+        #     toInputs validation, which propagates as INVALID_ARGUMENT -> HTTP 400.
+        ("ec:400 sample_vol_surfaces empty queries list", "sample_vol_surfaces",
+         "sample_vol_surfaces_request.json", 400, _ec_empty_list("queries")),
+        # (B) Per-item failure -> HTTP 200 with a per-item error entry. Pointing a
+        #     query at a non-existent vol-surface id resolves the top-level request
+        #     fine but fails when that query is sampled, so the error is folded into
+        #     that result's error field rather than failing the whole batch.
+        ("ec:200 sample_vol_surfaces per-item error on missing vol id", "sample_vol_surfaces",
+         "sample_vol_surfaces_request.json", 200,
+         _ec_set_field("queries", "vol_id", "no_such_vol_surface_xyz"),
+         _ec_body_has_per_item_error("vol_id", "no_such_vol_surface_xyz")),
     ]
 
     results = []
     print(f"\n{'='*70}")
     print("ERROR-CONTRACT SUITE (HTTP status per error-type policy)")
     print(f"{'='*70}")
-    for label, product, filename, expected, mutate in scenarios:
+    for scenario in scenarios:
+        label, product, filename, expected, mutate = scenario[:5]
+        # Optional 6th element: a body validator returning None on success or a
+        # failure reason string. Used by the per-item (HTTP 200) error scenarios.
+        body_check = scenario[5] if len(scenario) > 5 else None
         result = {
             "product": label, "file": filename, "passed": False,
             "quantra_npv": None, "quantlib_npv": None, "diff": None, "error": None,
@@ -2850,15 +2901,20 @@ def run_error_contract_suite(client: ApiClient, data_dir: Path):
                 req = json.load(fh)
             req = mutate(req)
             status, body = _ec_post_status(client, product, req)
-            if status == expected:
-                result["passed"] = True
-                result["quantra_npv"] = float(status)
-                result["quantlib_npv"] = float(expected)
-                result["diff"] = 0.0
-                print(f"  ✓ {label}: HTTP {status}")
-            else:
+            if status != expected:
                 result["error"] = f"expected HTTP {expected}, got {status}: {body[:160]}"
                 print(f"  ✗ {label}: expected {expected}, got {status} :: {body[:160]}")
+            else:
+                detail = body_check(body) if body_check is not None else None
+                if detail is None:
+                    result["passed"] = True
+                    result["quantra_npv"] = float(status)
+                    result["quantlib_npv"] = float(expected)
+                    result["diff"] = 0.0
+                    print(f"  ✓ {label}: HTTP {status}")
+                else:
+                    result["error"] = f"HTTP {status} as expected but body check failed: {detail}"
+                    print(f"  ✗ {label}: HTTP {status} but body check failed :: {detail}")
         except Exception as e:
             result["error"] = str(e)
             print(f"  ❌ {label}: {e}")
