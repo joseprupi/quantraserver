@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <variant>
 
+#include <ql/exercise.hpp>
+#include <ql/instruments/fixedvsfloatingswap.hpp>
 #include <ql/instruments/overnightindexedswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
@@ -17,6 +19,7 @@
 #include <ql/pricingengines/swaption/treeswaptionengine.hpp>
 #include <ql/settings.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include <ql/utilities/null.hpp>
 #include <ql/version.hpp>
 
 #include "common.h"
@@ -38,6 +41,139 @@
 namespace quantra {
 
 namespace {
+
+/// Build the underlying QL swap from the plain instrument. Reproduces
+/// VanillaSwapParser::parse / OisSwapParser::parse construction exactly — same
+/// argument order, same index cloning against the forwarding handle, same
+/// notional-mismatch warning — so the swaption prices byte-identically.
+std::shared_ptr<QuantLib::FixedVsFloatingSwap> buildUnderlyingSwap(
+    const SwaptionInstrument& inst,
+    const IndexRegistry& indices,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) {
+    if (inst.underlyingIsVanilla) {
+        const auto& v = inst.vanillaUnderlying;
+        auto iborIndex = indices.getIborWithCurve(v.ibor.indexId, forwarding);
+        if (v.fixed.notional != v.ibor.notional) {
+            std::cout << "Warning: Fixed and floating notionals differ. Using fixed notional."
+                      << std::endl;
+        }
+        return std::make_shared<QuantLib::VanillaSwap>(
+            v.swapType,
+            v.fixed.notional,
+            v.fixed.schedule,
+            v.fixed.rate,
+            v.fixed.dayCounter,
+            v.ibor.schedule,
+            iborIndex,
+            v.ibor.spread,
+            v.ibor.dayCounter);
+    }
+
+    const auto& o = inst.oisUnderlying;
+    auto overnightIndex = indices.getOvernightWithCurve(o.overnight.indexId, forwarding);
+    QuantLib::Natural lookbackDays = o.overnight.lookbackDays < 0
+        ? QuantLib::Null<QuantLib::Natural>()
+        : static_cast<QuantLib::Natural>(o.overnight.lookbackDays);
+    QuantLib::Natural lockoutDays =
+        static_cast<QuantLib::Natural>(o.overnight.lockoutDays);
+    if (o.fixed.notional != o.overnight.notional) {
+        std::cout << "Warning: Fixed and overnight notionals differ. Using fixed notional."
+                  << std::endl;
+    }
+    return std::make_shared<QuantLib::OvernightIndexedSwap>(
+        o.swapType,
+        o.fixed.notional,
+        o.fixed.schedule,
+        o.fixed.rate,
+        o.fixed.dayCounter,
+        o.overnight.schedule,
+        overnightIndex,
+        o.overnight.spread,
+        o.overnight.paymentLag,
+        o.overnight.paymentConvention,
+        o.overnight.paymentCalendar,
+        o.overnight.telescopicValueDates,
+        o.overnight.averagingMethod,
+        lookbackDays,
+        lockoutDays,
+        o.overnight.applyObservationShift);
+}
+
+/// FB-free reconstruction of the QuantLib::Swaption from the plain instrument.
+/// Reproduces the legacy SwaptionParser::parse step-for-step: exercise-date
+/// validation, underlying-swap construction, exercise object, settlement type,
+/// and final assembly. The evaluation-date-dependent pieces (American exercise
+/// reference, Bermudan date checks) read Settings::evaluationDate() live, so the
+/// theta-leg rebuild under a rolled eval date matches parse() exactly. Called at
+/// both the base and rebump valuation sites in place of the old closure.
+std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
+    const SwaptionInstrument& inst,
+    const IndexRegistry& indices,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) {
+    const auto exerciseType = inst.exerciseType;
+    const bool needsSingleExerciseDate =
+        (exerciseType == quantra::enums::ExerciseType_European ||
+         exerciseType == quantra::enums::ExerciseType_American);
+    const bool needsExerciseDateSet =
+        (exerciseType == quantra::enums::ExerciseType_Bermudan);
+
+    if (needsSingleExerciseDate && !inst.hasExerciseDate)
+        QUANTRA_INVALID_ARGUMENT("Swaption exercise_date not found");
+
+    if (needsExerciseDateSet) {
+        if (inst.bermudanExerciseDates.size() < 2) {
+            QUANTRA_INVALID_ARGUMENT("Swaption Bermudan requires exercise_dates with at least 2 dates");
+        }
+        const QuantLib::Date evalDate = QuantLib::Settings::instance().evaluationDate();
+        for (size_t i = 1; i < inst.bermudanExerciseDates.size(); ++i) {
+            if (inst.bermudanExerciseDates[i] <= inst.bermudanExerciseDates[i - 1]) {
+                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be strictly increasing");
+            }
+        }
+        for (const auto& d : inst.bermudanExerciseDates) {
+            if (d < evalDate) {
+                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be on/after evaluation date");
+            }
+        }
+    }
+
+    auto underlyingSwap = buildUnderlyingSwap(inst, indices, forwarding);
+
+    std::shared_ptr<QuantLib::Exercise> exercise;
+    switch (exerciseType) {
+        case quantra::enums::ExerciseType_European:
+            exercise = std::make_shared<QuantLib::EuropeanExercise>(inst.exerciseDate);
+            break;
+        case quantra::enums::ExerciseType_Bermudan:
+            exercise = std::make_shared<QuantLib::BermudanExercise>(inst.bermudanExerciseDates);
+            break;
+        case quantra::enums::ExerciseType_American:
+            exercise = std::make_shared<QuantLib::AmericanExercise>(
+                QuantLib::Settings::instance().evaluationDate(),
+                inst.exerciseDate);
+            break;
+        default:
+            QUANTRA_INVALID_ARGUMENT("Invalid exercise type");
+    }
+
+    QuantLib::Settlement::Type settlementType;
+    switch (inst.settlementType) {
+        case quantra::enums::SettlementType_Physical:
+            settlementType = QuantLib::Settlement::Physical;
+            break;
+        case quantra::enums::SettlementType_Cash:
+            settlementType = QuantLib::Settlement::Cash;
+            break;
+        default:
+            settlementType = QuantLib::Settlement::Physical;
+    }
+
+    return std::make_shared<QuantLib::Swaption>(
+        underlyingSwap,
+        exercise,
+        settlementType,
+        inst.settlementMethod);
+}
 
 /**
  * Plain-domain finalize for a SwaptionVolEntry. Mirrors
@@ -223,7 +359,7 @@ void validateTradeAgainstModel(
     const PricingRegistry& reg) {
     // Exercise type vs model: Bermudan/American is HullWhiteLattice only.
     // The pricer carries the raw FB enum (see swaption.fbs) plumbed through
-    // the SwaptionInstrumentBuilder; the validation only needs the model side.
+    // the plain SwaptionInstrument; the validation only needs the model side.
     if (model.model_type != IrModelTypeKind::HullWhiteLattice &&
         model.param_mode == ModelParamModeKind::Calibrate) {
         QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
@@ -339,7 +475,7 @@ SwaptionResult SwaptionPricer::price(const SwaptionInputs& inputs,
         // Build the base QL Swaption against the (un-bumped) forwarding curve.
         QuantLib::Handle<QuantLib::YieldTermStructure> forwardingHandle(fIt->second->currentLink());
         QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle(dIt->second->currentLink());
-        auto swaption = trade.buildSwaption(reg.rates.indices, forwardingHandle);
+        auto swaption = buildSwaptionInstrument(trade.instrument, reg.rates.indices, forwardingHandle);
 
         // Resolve the vol entry (finalize SABR/spread-from-ATM surfaces with
         // server-computed ATM forwards). Run once per trade for the base path.
@@ -428,7 +564,7 @@ SwaptionResult SwaptionPricer::price(const SwaptionInputs& inputs,
             QuantLib::Handle<QuantLib::YieldTermStructure> bDiscount(dItB->second->currentLink());
             QuantLib::Handle<QuantLib::YieldTermStructure> bForwarding(fItB->second->currentLink());
 
-            auto bumpSwap = trade.buildSwaption(rebumped.indices, bForwarding);
+            auto bumpSwap = buildSwaptionInstrument(trade.instrument, rebumped.indices, bForwarding);
 
             SwaptionVolEntry volEntryBumped = bumpSwaptionVolEntry(volEntry, volBump);
             const bool forceAtmRecompute = (curveBump != 0.0) || (rollDays != 0);

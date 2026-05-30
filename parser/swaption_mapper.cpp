@@ -9,7 +9,7 @@
 #include "enums.h"
 #include "error.h"
 #include "index_registry_builder.h"
-#include "swaption_parser.h"
+#include "swaption_generated.h"
 #include "swaption_vol_diagnostics.h"
 
 namespace quantra {
@@ -64,6 +64,149 @@ QuantLib::Date getTradeUnderlyingStartDate(const quantra::Swaption* sw) {
     return {};
 }
 
+/// Lift the FB VanillaSwap underlying into a plain VanillaSwapTrade. Mirrors
+/// VanillaSwapParser::parse field-for-field (IBOR branch only — the swaption
+/// underlying was never a CMS swap) so the pricer rebuilds it byte-identically.
+VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
+    if (swap == nullptr)
+        QUANTRA_INVALID_ARGUMENT("Swaption underlying VanillaSwap not found");
+    if (swap->fixed_leg() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg not found");
+    if (swap->floating_leg() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg not found");
+
+    VanillaSwapTrade trade;
+    trade.branch = VanillaSwapTrade::Branch::Ibor;
+    switch (swap->swap_type()) {
+        case quantra::enums::SwapType_Payer:
+            trade.swapType = QuantLib::VanillaSwap::Payer;
+            break;
+        case quantra::enums::SwapType_Receiver:
+            trade.swapType = QuantLib::VanillaSwap::Receiver;
+            break;
+        default:
+            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+    }
+
+    ScheduleParser scheduleParser;
+
+    auto fixedLeg = swap->fixed_leg();
+    if (fixedLeg->schedule() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
+    trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
+    trade.fixed.notional = fixedLeg->notional();
+    trade.fixed.rate = fixedLeg->rate();
+    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter());
+
+    auto floatingLeg = swap->floating_leg();
+    if (floatingLeg->schedule() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg schedule not found");
+    if (!floatingLeg->index() || !floatingLeg->index()->id())
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg index.id is required");
+    trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
+    trade.ibor.notional = floatingLeg->notional();
+    trade.ibor.indexId = floatingLeg->index()->id()->str();
+    trade.ibor.spread = floatingLeg->spread();
+    trade.ibor.dayCounter = DayCounterToQL(floatingLeg->day_counter());
+    return trade;
+}
+
+/// Lift the FB OisSwap underlying into a plain OisSwapTrade. Mirrors
+/// OisSwapParser::parse field-for-field so the pricer rebuilds it byte-identically.
+OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
+    if (swap == nullptr)
+        QUANTRA_INVALID_ARGUMENT("Swaption underlying OisSwap not found");
+    if (swap->fixed_leg() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg not found");
+    if (swap->overnight_leg() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg not found");
+
+    OisSwapTrade trade;
+    switch (swap->swap_type()) {
+        case quantra::enums::SwapType_Payer:
+            trade.swapType = QuantLib::OvernightIndexedSwap::Payer;
+            break;
+        case quantra::enums::SwapType_Receiver:
+            trade.swapType = QuantLib::OvernightIndexedSwap::Receiver;
+            break;
+        default:
+            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+    }
+
+    ScheduleParser scheduleParser;
+
+    auto fixedLeg = swap->fixed_leg();
+    if (fixedLeg->schedule() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
+    trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
+    trade.fixed.notional = fixedLeg->notional();
+    trade.fixed.rate = fixedLeg->rate();
+    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter());
+
+    auto overnightLeg = swap->overnight_leg();
+    if (overnightLeg->schedule() == nullptr)
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg schedule not found");
+    if (!overnightLeg->index() || !overnightLeg->index()->id())
+        QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg index.id is required");
+    trade.overnight.schedule = *scheduleParser.parse(overnightLeg->schedule());
+    trade.overnight.notional = overnightLeg->notional();
+    trade.overnight.indexId = overnightLeg->index()->id()->str();
+    trade.overnight.spread = overnightLeg->spread();
+    trade.overnight.paymentConvention = ConventionToQL(overnightLeg->payment_convention());
+    trade.overnight.paymentCalendar = CalendarToQL(overnightLeg->payment_calendar());
+    trade.overnight.paymentLag = overnightLeg->payment_lag();
+    trade.overnight.averagingMethod = RateAveragingToQL(overnightLeg->averaging_method());
+    trade.overnight.lookbackDays = overnightLeg->lookback_days();
+    trade.overnight.lockoutDays = overnightLeg->lockout_days();
+    trade.overnight.applyObservationShift = overnightLeg->apply_observation_shift();
+    trade.overnight.telescopicValueDates = overnightLeg->telescopic_value_dates();
+    return trade;
+}
+
+/// Lift the whole FB swaption table into the plain SwaptionInstrument. Reads
+/// every field SwaptionParser::parse consumes (exercise dates, settlement,
+/// underlying). The eval-date-dependent validation stays in the pricer's
+/// buildSwaptionInstrument so the theta-leg rebuild behaves exactly as the
+/// legacy per-call parse().
+SwaptionInstrument extractInstrument(const quantra::Swaption* sw) {
+    SwaptionInstrument inst;
+    inst.exerciseType = sw->exercise_type();
+
+    inst.hasExerciseDate = (sw->exercise_date() != nullptr);
+    if (inst.hasExerciseDate) {
+        inst.exerciseDate = DateToQL(sw->exercise_date()->str());
+    }
+    if (sw->exercise_dates() != nullptr) {
+        inst.bermudanExerciseDates.reserve(sw->exercise_dates()->size());
+        for (flatbuffers::uoffset_t i = 0; i < sw->exercise_dates()->size(); ++i) {
+            auto* exDate = sw->exercise_dates()->Get(i);
+            if (!exDate) {
+                QUANTRA_INVALID_ARGUMENT("Swaption exercise_dates contains null entry");
+            }
+            inst.bermudanExerciseDates.push_back(DateToQL(exDate->str()));
+        }
+    }
+
+    inst.settlementType = sw->settlement_type();
+    inst.settlementMethod = SettlementMethodToQL(sw->settlement_method());
+
+    switch (sw->underlying_type()) {
+        case quantra::SwaptionUnderlying_VanillaSwap:
+            inst.underlyingIsVanilla = true;
+            inst.vanillaUnderlying = extractVanillaUnderlying(sw->underlying_as_VanillaSwap());
+            break;
+        case quantra::SwaptionUnderlying_OisSwap:
+            inst.underlyingIsVanilla = false;
+            inst.oisUnderlying = extractOisUnderlying(sw->underlying_as_OisSwap());
+            break;
+        case quantra::SwaptionUnderlying_NONE:
+            QUANTRA_INVALID_ARGUMENT("Swaption underlying not found");
+        default:
+            QUANTRA_INVALID_ARGUMENT("Invalid swaption underlying type");
+    }
+    return inst;
+}
+
 SwaptionTrade extractTrade(const quantra::PriceSwaption* pricing) {
     if (pricing == nullptr) {
         QUANTRA_INVALID_ARGUMENT("PriceSwaption entry is null");
@@ -97,19 +240,11 @@ SwaptionTrade extractTrade(const quantra::PriceSwaption* pricing) {
     trade.underlyingIsVanillaSwap =
         sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap;
 
-    // Capture the FB swaption pointer in the builder closure. The pricer
-    // invokes this once for the base path and again per rebump step against
-    // bumped forwarding curves and a freshly built IndexRegistry — re-parsing
-    // is required because the legacy SwaptionParser binds the underlying
-    // swap's floating leg to the forwarding curve via a RelinkableHandle.
-    const quantra::Swaption* swPtr = sw;
-    trade.buildSwaption =
-        [swPtr](const IndexRegistry& indices,
-                const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) {
-            SwaptionParser parser;
-            parser.linkForwardingTermStructure(forwarding.currentLink());
-            return parser.parse(swPtr, indices);
-        };
+    // Lift the swaption into the plain instrument. The pricer rebuilds the QL
+    // Swaption from it for the base path and again per rebump step against the
+    // bumped forwarding curve and freshly built IndexRegistry — reproducing the
+    // legacy per-call SwaptionParser::parse, but without re-reading FlatBuffers.
+    trade.instrument = extractInstrument(sw);
 
     return trade;
 }
