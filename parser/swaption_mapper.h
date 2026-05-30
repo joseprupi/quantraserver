@@ -3,8 +3,8 @@
 
 /**
  * SwaptionMapper — the one place swaption flatbuffers live. Decodes a
- * PriceSwaptionRequest into plain SwaptionInputs (including the rebump and
- * per-trade swaption-builder closures captured over the FB request) and
+ * PriceSwaptionRequest into plain SwaptionInputs (including, when rebump greeks
+ * are requested, the eagerly pre-built bumped/rolled market snapshots) and
  * serializes a SwaptionResult back into a PriceSwaptionResponse.
  */
 
