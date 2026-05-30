@@ -52,6 +52,11 @@ extract_case_count() {
             n="$(sed -n 's/^Pricer boundary OK (\([0-9]\+\) files checked)$/\1/p' "$logfile" | head -1)"
             [ -n "$n" ] && echo "$n" || echo "?"
             ;;
+        concurrency)
+            # Concurrency test prints "TOTAL SCENARIOS: passed/total" (total =
+            # number of concurrent requests fired at one endpoint).
+            awk '/^TOTAL SCENARIOS:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
+            ;;
         *)
             echo "?"
             ;;
@@ -95,6 +100,7 @@ run_test() {
         json) SUITE_CASE_LABELS[$idx]="scenarios" ;;
         python) SUITE_CASE_LABELS[$idx]="scenarios" ;;
         boundary) SUITE_CASE_LABELS[$idx]="files" ;;
+        concurrency) SUITE_CASE_LABELS[$idx]="requests" ;;
         *) SUITE_CASE_LABELS[$idx]="items" ;;
     esac
     rm -f "$logfile"
@@ -300,11 +306,35 @@ else
     ((FAILED++))
 fi
 
+# Test 5: JSON gateway concurrency / parser thread-safety
+CONCURRENCY_TEST="${SCRIPT_DIR}/test_json_concurrency.py"
+if [ -f "$CONCURRENCY_TEST" ]; then
+    if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        run_test 5 \
+            "5. JSON Concurrency" \
+            "Gateway thread-safety: many concurrent requests to one endpoint return identical results" \
+            concurrency \
+            "python3 ${CONCURRENCY_TEST} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data"
+    else
+        skip_test 5 \
+            "5. JSON Concurrency" \
+            "Gateway thread-safety under concurrent load" \
+            "JSON server not running"
+        ((FAILED++))
+    fi
+else
+    skip_test 5 \
+        "5. JSON Concurrency" \
+        "Gateway thread-safety under concurrent load" \
+        "Test file not found"
+    ((FAILED++))
+fi
+
 # Summary
 TOTAL=$((PASSED + FAILED))
 TOTAL_CASES=0
 KNOWN_CASES=1
-for idx in 0 1 2 3 4; do
+for idx in 0 1 2 3 4 5; do
     if [[ "${SUITE_CASES[$idx]}" =~ ^[0-9]+$ ]]; then
         TOTAL_CASES=$((TOTAL_CASES + SUITE_CASES[$idx]))
     else
@@ -326,7 +356,7 @@ echo "╚═══════════════════════�
 echo ""
 printf "%-28s %-8s %-12s %s\n" "Suite" "Status" "Coverage" "Role"
 printf "%-28s %-8s %-12s %s\n" "-----" "------" "--------" "----"
-for idx in 0 1 2 3 4; do
+for idx in 0 1 2 3 4 5; do
     printf "%-28s %-8s %-12s %s\n" \
         "${SUITE_NAMES[$idx]}" \
         "${SUITE_STATUS[$idx]}" \
