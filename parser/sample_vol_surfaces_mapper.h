@@ -7,8 +7,9 @@
  * query's surface id, family, grids, options and selectors lifted into plain
  * mirrors) and serializes a SampleVolSurfacesResult back into a
  * SampleVolSurfacesResponse, including the SwaptionVolDiagnostics sub-tables
- * via the shared diagnostics builders. toErrorResponse reproduces the legacy
- * top-level error shape (one per-query VolSurfaceSample carrying the message).
+ * via the shared diagnostics builders. A registry-build failure is folded into
+ * each query's per-item error via onRegistryBuildError, so the response stays a
+ * per-query VolSurfaceSample list (HTTP 200) rather than a whole-batch error.
  */
 
 #include "flatbuffers/grpc.h"
@@ -27,10 +28,13 @@ public:
         flatbuffers::grpc::MessageBuilder& builder,
         const SampleVolSurfacesResult& result) const;
 
-    flatbuffers::Offset<quantra::SampleVolSurfacesResponse> toErrorResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const quantra::SampleVolSurfacesRequest* req,
-        const std::string& message) const;
+    /// Registry-build-failure hook used by the generic ProductEndpoint glue.
+    /// Folds the build-error message into each query's per-item error field so
+    /// the pricer reports it as a per-query VolSurfaceSample Error entry (HTTP
+    /// 200 list) rather than letting the failure surface as a transport-level
+    /// error.
+    void onRegistryBuildError(SampleVolSurfacesInputs& inputs,
+                              const std::string& message) const;
 };
 
 } // namespace quantra

@@ -91,6 +91,14 @@ std::vector<flatbuffers::Offset<quantra::FlowsWrapper>> buildFloatingBondFlows(
                 auto accrualEndDate = makeDate(builder, coupon->accrualEndDate());
                 auto flowInterestBuilder = quantra::FlowInterestBuilder(*builder);
                 flowInterestBuilder.add_amount(coupon->amount());
+                // KNOWN PRE-EXISTING SCHEMA BUG: FlowInterest.fixing_date is a
+                // string field, so add_fixing_date() expects a string offset
+                // (a uint32). Here it is fed coupon->indexFixing(), a double
+                // rate, which is silently truncated to uint32 and written as a
+                // bogus string offset. This is preserved byte-for-byte to avoid
+                // a behavioural change; the real fix (carry the fixing rate in a
+                // proper numeric field, or the fixing date as an ISO string)
+                // requires a .fbs schema change and is out of scope here.
                 flowInterestBuilder.add_fixing_date(coupon->indexFixing());
                 flowInterestBuilder.add_accrual_start_date(accrualStartDate);
                 flowInterestBuilder.add_accrual_end_date(accrualEndDate);

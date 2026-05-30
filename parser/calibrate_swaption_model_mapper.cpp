@@ -10,7 +10,7 @@ namespace {
 
 /// Mirror of the FB SwaptionHwCalibrationSpec table into its plain-domain
 /// counterpart. Matches the conversion PricingRegistryBuilder performs for
-/// the model's embedded hw_calibration block (periods via TimeUnitToQL, D16).
+/// the model's embedded hw_calibration block (periods via TimeUnitToQL).
 SwaptionHwCalibrationDomain toCalibrationDomain(
     const quantra::SwaptionHwCalibrationSpec* c) {
     SwaptionHwCalibrationDomain hw;

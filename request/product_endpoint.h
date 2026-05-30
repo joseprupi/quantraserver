@@ -1,7 +1,9 @@
 #ifndef QUANTRA_PRODUCT_ENDPOINT_H
 #define QUANTRA_PRODUCT_ENDPOINT_H
 
+#include <exception>
 #include <memory>
+#include <string>
 #include <type_traits>
 
 #include "flatbuffers/grpc.h"
@@ -26,6 +28,29 @@ template <class T>
 struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>>
     : std::true_type {};
 
+/// Detects whether a Mapper exposes an
+/// `onRegistryBuildError(Inputs&, const std::string&) const` hook. This is the
+/// single opt-in policy that distinguishes list/query endpoints (whose
+/// response is a list of per-item outcomes) from single-result endpoints.
+///
+/// When present, ProductEndpoint wraps registry/context construction in a
+/// try/catch: on failure it calls the hook, which folds the build-error
+/// message into each query's per-item error field, and then lets the pricer
+/// run its normal per-item path (every item ends up carrying the error). The
+/// response is a normal HTTP 200 list of per-item errors rather than a
+/// transport-level error. When the hook is absent, the registry is built
+/// without a try/catch, so a build failure propagates as a transport error —
+/// the behaviour every single-result product relies on.
+template <class Mapper, class Inputs, class = void>
+struct has_build_error_hook : std::false_type {};
+
+template <class Mapper, class Inputs>
+struct has_build_error_hook<
+    Mapper, Inputs,
+    std::void_t<decltype(std::declval<const Mapper&>().onRegistryBuildError(
+        std::declval<Inputs&>(), std::declval<const std::string&>()))>>
+    : std::true_type {};
+
 } // namespace detail
 
 /**
@@ -47,6 +72,14 @@ struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>>
  * calendar lookups), registry/context construction is elided; the pricer
  * still receives default-constructed `reg`/`ctx` to keep the signature
  * uniform across products.
+ *
+ * List/query endpoints (e.g. inflation-curve bootstrap, vol-surface sampling)
+ * opt into a single extra policy by exposing a mapper `onRegistryBuildError`
+ * hook (see detail::has_build_error_hook): a registry-build failure is folded
+ * into each query's per-item error and reported as a per-item outcome at HTTP
+ * 200, rather than surfacing as a transport error. A malformed top-level
+ * request (mapper.toInputs throwing) always propagates as a transport error,
+ * for every product.
  */
 template <class Req, class Resp, class Mapper, class Pricer>
 class ProductEndpoint : public QuantraRequest<Req, Resp> {
@@ -60,8 +93,22 @@ public:
         PricingRegistry reg;
         PricingContext ctx;
         if constexpr (detail::has_pricing<Req>::value) {
-            reg = PricingRegistryBuilder{}.build(req->pricing());
-            ctx = makeContext(req->pricing(), reg);
+            if constexpr (detail::has_build_error_hook<Mapper, decltype(inputs)>::value) {
+                // List/query endpoint: a registry-build failure becomes a
+                // per-item error on every query (the pricer then emits them),
+                // so the response stays a per-item list at HTTP 200.
+                try {
+                    reg = PricingRegistryBuilder{}.build(req->pricing());
+                    ctx = makeContext(req->pricing(), reg);
+                } catch (const std::exception& e) {
+                    mapper_.onRegistryBuildError(inputs, e.what());
+                }
+            } else {
+                // Single-result endpoint: a build failure propagates as a
+                // transport-level error.
+                reg = PricingRegistryBuilder{}.build(req->pricing());
+                ctx = makeContext(req->pricing(), reg);
+            }
         }
         auto result = pricer_.price(inputs, reg, ctx);
         return mapper_.toResponse(*builder, result);

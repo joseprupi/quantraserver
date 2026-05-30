@@ -282,42 +282,13 @@ SampleVolSurfacesMapper::toResponse(
     return rb.Finish();
 }
 
-flatbuffers::Offset<quantra::SampleVolSurfacesResponse>
-SampleVolSurfacesMapper::toErrorResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const quantra::SampleVolSurfacesRequest* req,
-    const std::string& message) const {
-    std::vector<flatbuffers::Offset<quantra::VolSurfaceSample>> errorResults;
-    if (req && req->queries() && req->queries()->size() > 0) {
-        errorResults.reserve(req->queries()->size());
-        for (flatbuffers::uoffset_t qi = 0; qi < req->queries()->size(); ++qi) {
-            const auto* q = req->queries()->Get(qi);
-            std::string volId = (q && q->vol_id()) ? q->vol_id()->str() : "";
-            auto volIdOffset = builder.CreateString(volId);
-            auto errMsg = builder.CreateString(message);
-            quantra::ErrorBuilder eb(builder);
-            eb.add_error_message(errMsg);
-            auto errOffset = eb.Finish();
-            quantra::VolSurfaceSampleBuilder out(builder);
-            out.add_vol_id(volIdOffset);
-            out.add_error(errOffset);
-            errorResults.push_back(out.Finish());
+void SampleVolSurfacesMapper::onRegistryBuildError(
+    SampleVolSurfacesInputs& inputs, const std::string& message) const {
+    for (auto& q : inputs.queries) {
+        if (q.prebuiltError.empty()) {
+            q.prebuiltError = message;
         }
-    } else {
-        auto volIdOffset = builder.CreateString("");
-        auto errMsg = builder.CreateString(message);
-        quantra::ErrorBuilder eb(builder);
-        eb.add_error_message(errMsg);
-        auto errOffset = eb.Finish();
-        quantra::VolSurfaceSampleBuilder out(builder);
-        out.add_vol_id(volIdOffset);
-        out.add_error(errOffset);
-        errorResults.push_back(out.Finish());
     }
-    auto resultsVec = builder.CreateVector(errorResults);
-    quantra::SampleVolSurfacesResponseBuilder rb(builder);
-    rb.add_results(resultsVec);
-    return rb.Finish();
 }
 
 } // namespace quantra

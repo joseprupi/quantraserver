@@ -881,6 +881,14 @@ SampleVolSurfacesResult SampleVolSurfacesPricer::price(
 
     SampleVolSurfacesResult result;
     for (const auto& q : inputs.queries) {
+        if (!q.prebuiltError.empty()) {
+            VolSurfaceSampleResult err;
+            err.volId = q.volId;
+            err.hasError = true;
+            err.error = q.prebuiltError;
+            result.samples.push_back(std::move(err));
+            continue;
+        }
         try {
             result.samples.push_back(priceOneQuery(q, reg, asOf));
         } catch (const std::exception& e) {
@@ -890,10 +898,6 @@ SampleVolSurfacesResult SampleVolSurfacesPricer::price(
             err.error = e.what();
             result.samples.push_back(std::move(err));
         }
-    }
-
-    if (result.samples.empty()) {
-        QUANTRA_ERROR("SampleVolSurfacesRequest produced no results");
     }
 
     if (inputs.includeDiagnostics) {

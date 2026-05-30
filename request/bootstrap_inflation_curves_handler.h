@@ -23,47 +23,16 @@ using quantra::BootstrapInflationCurvesResponseBuilder;
 
 namespace quantra {
 
-/// Endpoint binding for the BootstrapInflationCurves query. Mirrors the
-/// generic ProductEndpoint glue but additionally catches registry-build
-/// failures and embeds the message into each query's per-item error,
-/// preserving the legacy response shape (top-level response with per-curve
-/// Error entries rather than a transport-level INVALID_ARGUMENT).
-class BootstrapInflationCurvesEndpoint
-    : public QuantraRequest<BootstrapInflationCurvesRequest,
-                            BootstrapInflationCurvesResponse> {
-public:
-    flatbuffers::Offset<BootstrapInflationCurvesResponse> request(
-        std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
-        const BootstrapInflationCurvesRequest* req) const override
-    {
-        EvalDateGuard guard;
-        auto inputs = mapper_.toInputs(req);
-
-        PricingRegistry reg;
-        PricingContext ctx;
-        std::string buildError;
-        try {
-            reg = PricingRegistryBuilder{}.build(req->pricing());
-            ctx = makeContext(req->pricing(), reg);
-        } catch (const std::exception& e) {
-            buildError = e.what();
-        }
-        if (!buildError.empty()) {
-            for (auto& q : inputs.queries) {
-                if (q.prebuiltError.empty()) {
-                    q.prebuiltError = buildError;
-                }
-            }
-        }
-
-        auto result = pricer_.price(inputs, reg, ctx);
-        return mapper_.toResponse(*builder, result);
-    }
-
-private:
-    BootstrapInflationCurvesMapper mapper_;
-    BootstrapInflationCurvesPricer pricer_;
-};
+/// Endpoint binding for the BootstrapInflationCurves query. This is a
+/// list/query endpoint: it uses the generic ProductEndpoint glue and opts into
+/// the registry-build-error policy via BootstrapInflationCurvesMapper's
+/// onRegistryBuildError hook, so a build failure is reported as per-curve Error
+/// entries (HTTP 200 list) rather than as a transport-level error.
+using BootstrapInflationCurvesEndpoint = ProductEndpoint<
+    BootstrapInflationCurvesRequest,
+    BootstrapInflationCurvesResponse,
+    BootstrapInflationCurvesMapper,
+    BootstrapInflationCurvesPricer>;
 
 } // namespace quantra
 
