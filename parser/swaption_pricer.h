@@ -12,14 +12,15 @@
  * reg.volatility.swaptionVols, reg.rates.swapIndices, reg.rates.curves).
  *
  * Rebump greeks need to re-bootstrap curves with a parallel bump and rebuild
- * indices and the QL Swaption against those bumped curves. Both operations
- * are upstream of the pricer in the legacy code path (they consume raw FB
- * tables for curves/quotes/indices/swaption schedule). To keep the pricer
- * FB-free without losing byte-identical rebump semantics, the mapper hands
- * the pricer two opaque callables — `bootstrapWithBump` on the inputs, and
- * `buildSwaption` on each trade — that close over the FB request. The pricer
- * invokes them through the std::function indirection and never sees the
- * underlying request types.
+ * indices and the QL Swaption against those bumped curves. The curve/index
+ * re-bootstrap is upstream of the pricer in the legacy code path (it consumes
+ * raw FB tables for curves/quotes/indices). To keep the pricer FB-free without
+ * losing byte-identical rebump semantics, the mapper hands the pricer one
+ * opaque callable — `bootstrapWithBump` on the inputs — that closes over the
+ * FB request. The QL Swaption itself is rebuilt from the plain-domain
+ * SwaptionInstrument carried on each trade, so the pricer needs no FB indirection
+ * for the instrument: it reconstructs the swaption against the (possibly bumped)
+ * forwarding curve and IndexRegistry directly.
  */
 
 #include <functional>
@@ -34,22 +35,47 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/date.hpp>
 
+#include <ql/instruments/swaption.hpp>
+
 #include "curve_bootstrapper.h"
+#include "enums.h"
 #include "index_registry.h"
+#include "ois_swap_pricer.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "vanilla_swap_pricer.h"
 #include "vol_surface_parsers.h"
 
 namespace quantra {
 
-/// Closure provided by the mapper that builds a fresh QL Swaption against a
-/// caller-supplied IndexRegistry and forwarding-curve handle. Captures the FB
-/// swaption table from the request; the pricer never sees it. Reused both
-/// for the base valuation and for each rebump step (where the forwarding
-/// curve has been bumped or rolled).
-using SwaptionInstrumentBuilder = std::function<std::shared_ptr<QuantLib::Swaption>(
-    const IndexRegistry& indices,
-    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve)>;
+/// Plain-domain swaption instrument — everything SwaptionParser.parse reads,
+/// lifted out of the FB request by the mapper. The pricer reconstructs the
+/// QuantLib::Swaption from this against a (possibly bumped) forwarding-curve
+/// handle and IndexRegistry, reproducing the legacy parse() byte-for-byte. The
+/// eval-date-dependent pieces (American exercise reference date, Bermudan
+/// date validation) are evaluated at construction time, so the same instrument
+/// rebuilds correctly under the rolled evaluation date of the theta leg.
+struct SwaptionInstrument {
+    quantra::enums::ExerciseType exerciseType =
+        quantra::enums::ExerciseType_European;
+    /// True when the FB swaption carried a single exercise_date. Mirrors the
+    /// legacy `exercise_date() != NULL` requiredness check for European/American.
+    bool hasExerciseDate = false;
+    /// Single exercise date (European/American). Default Date() when absent.
+    QuantLib::Date exerciseDate;
+    /// Bermudan exercise date set. Empty when the FB field was absent.
+    std::vector<QuantLib::Date> bermudanExerciseDates;
+    quantra::enums::SettlementType settlementType =
+        quantra::enums::SettlementType_Physical;
+    QuantLib::Settlement::Method settlementMethod = QuantLib::Settlement::PhysicalOTC;
+
+    /// Underlying swap. Exactly one branch is populated, selected by
+    /// underlyingIsVanilla. The vanilla branch is always the IBOR leg —
+    /// SwaptionParser only ever built the IBOR underlying.
+    bool underlyingIsVanilla = true;
+    VanillaSwapTrade vanillaUnderlying;
+    OisSwapTrade oisUnderlying;
+};
 
 /// Snapshot of the rebumped market state. Closures capturing the FB request
 /// in the mapper produce one of these per rebump step (parallel curve bump or
@@ -74,8 +100,8 @@ using SwaptionRebumpFn = std::function<SwaptionRebumpedMarket(double curveBump)>
 ///   - Plain validation context (trade floating-index id, exercise date, swap
 ///     start date) used by finalizeSwaptionVolEntryForPricing's spot-days
 ///     and float-index consistency checks
-///   - A SwaptionInstrumentBuilder closure that reconstructs the QL Swaption
-///     against a possibly-bumped forwarding curve.
+///   - A plain SwaptionInstrument from which the pricer reconstructs the QL
+///     Swaption against a possibly-bumped forwarding curve.
 struct SwaptionTrade {
     std::string discountingCurveId;
     std::string forwardingCurveId;
@@ -95,7 +121,7 @@ struct SwaptionTrade {
     /// reject the OIS branch in HW Calibrate mode, matching legacy.
     bool underlyingIsVanillaSwap = true;
 
-    SwaptionInstrumentBuilder buildSwaption;
+    SwaptionInstrument instrument;
 };
 
 struct SwaptionInputs {
