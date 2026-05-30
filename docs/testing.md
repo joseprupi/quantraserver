@@ -33,8 +33,11 @@ The runner:
 
 ### JSON API tests
 
-- script: `tests/test_json_api_vs_quantlib.py`
-- purpose: exercise representative HTTP scenarios against the running JSON gateway
+- suite: `tests/contract/` (pytest)
+- run: `python3 -m pytest tests/contract/ --url http://localhost:8080 --data-dir examples/data`
+- purpose: exercise representative HTTP scenarios against the running JSON gateway —
+  per-product parity (API NPV vs QuantLib reference pricers) plus the HTTP
+  error-contract assertions
 
 ### Python client tests
 

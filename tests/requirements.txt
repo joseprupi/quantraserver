@@ -10,3 +10,5 @@ requests
 QuantLib==1.41
 grpcio==1.60.0
 flatbuffers==24.12.23
+# pytest drives the JSON contract/parity suite (suite 3, tests/contract/).
+pytest==8.3.4

@@ -42,6 +42,14 @@ extract_case_count() {
         json)
             awk '/^TOTAL SCENARIOS:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
             ;;
+        pytest)
+            # Parse pytest's summary line, e.g. "=== 37 passed in 1.23s ===" ->
+            # 37. tail -1 picks the final summary if collection/warnings emit
+            # earlier "N passed" fragments. Defaults to ? when absent (failure).
+            local n
+            n="$(grep -oE '[0-9]+ passed' "$logfile" | tail -1 | grep -oE '[0-9]+')"
+            [ -n "$n" ] && echo "$n" || echo "?"
+            ;;
         python)
             awk '/^Total scenarios:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
             ;;
@@ -98,6 +106,7 @@ run_test() {
     case "$kind" in
         gtest) SUITE_CASE_LABELS[$idx]="cases" ;;
         json) SUITE_CASE_LABELS[$idx]="scenarios" ;;
+        pytest) SUITE_CASE_LABELS[$idx]="tests" ;;
         python) SUITE_CASE_LABELS[$idx]="scenarios" ;;
         boundary) SUITE_CASE_LABELS[$idx]="files" ;;
         concurrency) SUITE_CASE_LABELS[$idx]="requests" ;;
@@ -255,19 +264,15 @@ if ! kill -0 $GRPC_PID 2>/dev/null; then
     start_servers
 fi
 
-# Test 3: JSON API contract + representative parity
-JSON_TEST=""
-for f in test_json_api_vs_quantlib.py test_json_files_vs_quantlib.py; do
-    [ -f "${SCRIPT_DIR}/${f}" ] && JSON_TEST="${SCRIPT_DIR}/${f}" && break
-done
-
-if [ -n "$JSON_TEST" ]; then
+# Test 3: JSON API contract + representative parity (pytest, tests/contract/)
+CONTRACT_DIR="${SCRIPT_DIR}/contract"
+if [ -d "$CONTRACT_DIR" ]; then
     if curl -s http://localhost:8080/health > /dev/null 2>&1; then
         run_test 3 \
             "3. JSON HTTP API" \
             "HTTP contract coverage plus representative end-to-end parity scenarios" \
-            json \
-            "python3 ${JSON_TEST} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data"
+            pytest \
+            "cd ${WORKSPACE} && python3 -m pytest ${CONTRACT_DIR} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data -q"
     else
         skip_test 3 \
             "3. JSON HTTP API" \
@@ -279,7 +284,7 @@ else
     skip_test 3 \
         "3. JSON HTTP API" \
         "HTTP contract coverage plus representative end-to-end parity scenarios" \
-        "Test file not found"
+        "Contract test dir not found"
     ((FAILED++))
 fi
 
