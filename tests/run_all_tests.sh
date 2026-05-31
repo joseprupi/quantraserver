@@ -71,6 +71,18 @@ extract_case_count() {
     esac
 }
 
+# Emit one stable, greppable line describing a finished suite. No color codes
+# or box characters: downstream tooling does `grep '^RESULT '` and parses with
+# simple key=value splitting. A genuinely unparsed count (extract_case_count
+# returned "?") is reported as "unknown" so the value still parses cleanly.
+emit_result() {
+    local idx="$1"
+    local count="${SUITE_CASES[$idx]}"
+    [ "$count" = "?" ] && count="unknown"
+    printf 'RESULT suite=%s name="%s" status=%s count=%s unit=%s\n' \
+        "$idx" "${SUITE_NAMES[$idx]}" "${SUITE_STATUS[$idx]}" "$count" "${SUITE_CASE_LABELS[$idx]}"
+}
+
 run_test() {
     local idx="$1"
     local name="$2"
@@ -113,6 +125,7 @@ run_test() {
         *) SUITE_CASE_LABELS[$idx]="items" ;;
     esac
     rm -f "$logfile"
+    emit_result "$idx"
 }
 
 skip_test() {
@@ -131,6 +144,7 @@ skip_test() {
     SUITE_STATUS[$idx]="SKIP"
     SUITE_CASES[$idx]="0"
     SUITE_CASE_LABELS[$idx]="cases"
+    emit_result "$idx"
 }
 
 start_servers() {
@@ -368,6 +382,12 @@ for idx in 0 1 2 3 4 5; do
         "${SUITE_CASES[$idx]} ${SUITE_CASE_LABELS[$idx]}" \
         "${SUITE_ROLES[$idx]}"
 done
+echo ""
+
+# Machine-readable aggregate (mirrors the box above). Greppable verbatim via
+# `grep '^SUMMARY '`; the per-suite RESULT lines were emitted as each suite ran.
+printf 'SUMMARY suites_passed=%s suites_failed=%s total_cases=%s\n' \
+    "${PASSED}" "${FAILED}" "${TOTAL_CASES}"
 echo ""
 
 if [ "$FAILED" -eq 0 ]; then
