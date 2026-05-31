@@ -67,7 +67,7 @@ target_link_libraries(test_quantra_vs_quantlib
 # =============================================================================
 # Test: Server-Client Integration Tests
 # =============================================================================
-add_executable(test_server_client test_server_client.cpp)
+add_executable(test_server_client integration/test_server_client.cpp)
 target_link_libraries(test_server_client 
     ${GRPC_ALL_LIBS} 
     flatbuffers 
