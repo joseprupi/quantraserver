@@ -26,6 +26,12 @@
 #include "zero_coupon_inflation_swap_handler.h"
 #include "year_on_year_inflation_swap_handler.h"
 #include "equity_option_handler.h"
+#include "floating_rate_bond_handler.h"
+#include "ois_swap_handler.h"
+#include "basis_swap_handler.h"
+#include "calendar_business_days_handler.h"
+#include "calendar_holidays_handler.h"
+#include "calendar_advance_handler.h"
 #include "vol_surface_parsers.h"
 
 #include "price_fixed_rate_bond_request_generated.h"
@@ -1291,6 +1297,53 @@ protected:
         msBuilder.add_payload_type(quantra::ModelPayload_SwaptionModelSpec);
         msBuilder.add_payload(smPayload.Union());
         return msBuilder.Finish();
+    }
+
+    // Build a CouponPricer vector with a single BlackIborCouponPricer wrapping a
+    // ConstantOptionletVolatility. Mirrors the conventions the FloatingRateBond
+    // pricer feeds into QuantLib (settlement_days/calendar/bdc/vol/day_counter),
+    // so a zero-vol pricer leaves plain-vanilla floating coupons unchanged.
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::CouponPricer>>>
+    buildCouponPricerVector(
+        flatbuffers::grpc::MessageBuilder& b,
+        const std::string& id,
+        double vol = 0.0,
+        int settlementDays = 2,
+        quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+        quantra::enums::BusinessDayConvention bdc =
+            quantra::enums::BusinessDayConvention_ModifiedFollowing,
+        quantra::enums::DayCounter dayCounter =
+            quantra::enums::DayCounter_Actual365Fixed) {
+        quantra::ConstantOptionletVolatilityBuilder ovb(b);
+        ovb.add_settlement_days(settlementDays);
+        ovb.add_calendar(calendar);
+        ovb.add_business_day_convention(bdc);
+        ovb.add_volatility(vol);
+        ovb.add_day_counter(dayCounter);
+        auto ov = ovb.Finish();
+
+        quantra::BlackIborCouponPricerBuilder bcb(b);
+        bcb.add_optionlet_volatility(ov);
+        auto bc = bcb.Finish();
+
+        auto cpId = b.CreateString(id);
+        quantra::CouponPricerBuilder cpb(b);
+        cpb.add_id(cpId);
+        cpb.add_black_ibor_coupon_pricer(bc);
+        auto cp = cpb.Finish();
+
+        return b.CreateVector(
+            std::vector<flatbuffers::Offset<quantra::CouponPricer>>{cp});
+    }
+
+    // Build an indices vector containing the EUR 6M Ibor index (needed by the
+    // curve's SwapHelpers) plus the USD SOFR overnight index used by OIS swaps.
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>>
+    buildIndicesVectorWithSofr(flatbuffers::grpc::MessageBuilder& b) {
+        std::vector<flatbuffers::Offset<quantra::IndexDef>> defs;
+        defs.push_back(buildIndexDef_EUR6M(b));
+        defs.push_back(buildIndexDef_USD_SOFR(b));
+        return b.CreateVector(defs);
     }
 
     QuantLib::Date evaluationDate_;
