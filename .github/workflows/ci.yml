@@ -44,4 +44,4 @@ jobs:
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             "$CI_IMAGE" \
-            bash -lc 'export DEPS_INSTALL_PREFIX=/opt/quantra-deps && python3 -m pip install --break-system-packages --no-cache-dir requests QuantLib grpcio grpcio-tools flatbuffers && ./scripts/build.sh Release && bash tests/run_all_tests.sh'
+            bash -lc 'export DEPS_INSTALL_PREFIX=/opt/quantra-deps && python3 -m pip install --break-system-packages --no-cache-dir -r tests/requirements.txt && ./scripts/build.sh Release && bash tests/run_all_tests.sh'
