@@ -47,10 +47,12 @@ No server, no network.
 
 - `parity_fixture.h` — shared gtest fixture: includes every product handler and
   the helpers for building QuantLib reference objects.
-- `<product>_test.cpp` — one file per product (fixed_rate_bond, vanilla_swap,
-  fra, cap_floor, swaption, cds, equity_option, the two inflation swaps, the two
-  swaption calibrations, bootstrap_curves, bootstrap_inflation_curves,
-  sample_vol_surfaces).
+- `<product>_test.cpp` — one file per product (fixed_rate_bond,
+  floating_rate_bond, vanilla_swap, ois_swap, basis_swap, fra, cap_floor,
+  swaption, cds, equity_option, the two inflation swaps, the two swaption
+  calibrations, bootstrap_curves, bootstrap_inflation_curves,
+  sample_vol_surfaces, and the calendar utilities calendar_business_days,
+  calendar_holidays, calendar_advance).
 
 All of these compile into **one** binary, `build/tests/test_quantra_vs_quantlib`
 (see `CMakeLists.txt`).
