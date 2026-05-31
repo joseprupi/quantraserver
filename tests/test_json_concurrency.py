@@ -28,55 +28,8 @@ import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 
-# The example payloads use the legacy flat "pricing" shape; the API expects the
-# nested domain-grouped shape. These two helpers mirror the reshape used by
-# tests/test_json_api_vs_quantlib.py, copied here to keep this test dependency-free.
-def _reshape_pricing_for_api(pricing: dict) -> dict:
-    if not isinstance(pricing, dict):
-        return pricing
-    if any(k in pricing for k in ("rates", "credit", "volatility", "equity", "inflation", "options")):
-        return pricing
-    out = dict(pricing)
-    groups = {
-        "rates": ("indices", "swap_indices", "curves", "coupon_pricers"),
-        "credit": ("credit_curves",),
-        "volatility": ("vol_surfaces", "models"),
-        "equity": ("equity_underlyings",),
-        "inflation": ("inflation_indices", "inflation_curves"),
-        "options": ("bond_pricing_details", "bond_pricing_flows",
-                    "swaption_pricing_details", "swaption_pricing_rebump"),
-    }
-    for group, fields in groups.items():
-        bucket = {}
-        for key in fields:
-            if key in out:
-                bucket[key] = out.pop(key)
-        if bucket:
-            out[group] = bucket
-    return out
-
-
-def _normalize_period_fields_for_api(obj):
-    if isinstance(obj, list):
-        return [_normalize_period_fields_for_api(v) for v in obj]
-    if not isinstance(obj, dict):
-        return obj
-    out = {k: _normalize_period_fields_for_api(v) for k, v in obj.items()}
-    if set(out.keys()) == {"tenor"} and isinstance(out["tenor"], dict):
-        if "n" in out["tenor"] and "unit" in out["tenor"]:
-            return out["tenor"]
-    if "tenor_number" in out and "tenor_time_unit" in out and "tenor" not in out:
-        n, u = out.pop("tenor_number"), out.pop("tenor_time_unit")
-        if not out:
-            return {"n": n, "unit": u}
-        out["tenor"] = {"n": n, "unit": u}
-    if "float_tenor_number" in out and "float_tenor_time_unit" in out and "float_tenor" not in out:
-        out["float_tenor"] = {"n": out.pop("float_tenor_number"), "unit": out.pop("float_tenor_time_unit")}
-    if "pricing" in out and isinstance(out["pricing"], dict):
-        out["pricing"] = _reshape_pricing_for_api(out["pricing"])
-    return out
-
-
+# The example payloads are stored in the canonical nested schema, so they are
+# POSTed verbatim — exactly what a real client sends.
 def post_json(url: str, payload: dict, timeout: float = 30.0):
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -101,7 +54,7 @@ def main() -> int:
 
     endpoint = f"{args.url.rstrip('/')}/{args.route}"
     with open(os.path.join(args.data_dir, args.request_file)) as f:
-        payload = _normalize_period_fields_for_api(json.load(f))
+        payload = json.load(f)
 
     # Warm-up establishes the expected (reference) response.
     ref_status, ref_body = post_json(endpoint, payload)

@@ -10,7 +10,6 @@ Reference helpers (parse_date, get_*, build_curve_from_json, ql enums, and
 _make_multicurve_exogenous_request) come from ql_reference.
 """
 
-import copy
 import json
 from pathlib import Path
 
@@ -19,7 +18,7 @@ import QuantLib as ql
 from ql_reference import (
     ApiClient,
     _make_multicurve_exogenous_request,
-    _normalize_period_fields_for_api,
+    _reference_pricing_view,
     _period_n_unit,
     get_calendar,
     get_convention,
@@ -55,14 +54,14 @@ def check_bootstrap_curves(client: ApiClient, data_dir: Path) -> dict:
         # Call API
         response = client.session.post(
             f"{client.base_url}/bootstrap-curves", 
-            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+            json=request
         ).json()
         if "results" not in response:
             result["error"] = response.get("error", "bootstrap-curves response missing 'results'")
             return result
         
         # Build QuantLib curve from request
-        pricing = request["pricing"]
+        pricing = _reference_pricing_view(request)
         as_of = parse_date(pricing["as_of_date"])
         ql.Settings.instance().evaluationDate = as_of
 
@@ -181,7 +180,7 @@ def check_bootstrap_curves_multicurve_exogenous(client: ApiClient) -> dict:
         request = _make_multicurve_exogenous_request()
         resp = client.session.post(
             f"{client.base_url}/bootstrap-curves",
-            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+            json=request
         )
 
         if resp.status_code != 200:
@@ -273,12 +272,12 @@ def check_bootstrap_curves_missing_dependency_fails(client: ApiClient) -> dict:
     try:
         request = _make_multicurve_exogenous_request()
         # Drop the discount curve so EUR_6M references a missing EUR_OIS
-        request["pricing"]["curves"] = [request["pricing"]["curves"][1]]
+        request["pricing"]["rates"]["curves"] = [request["pricing"]["rates"]["curves"][1]]
         request["queries"] = [request["queries"][1]]
 
         resp = client.session.post(
             f"{client.base_url}/bootstrap-curves",
-            json=_normalize_period_fields_for_api(copy.deepcopy(request))
+            json=request
         )
 
         # Accept either:
@@ -325,64 +324,115 @@ def check_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
         "error": None
     }
     try:
-        request = {
-            "pricing": {
-                "as_of_date": "2025-01-15",
-                "indices": [{
-                    "id": "EUR_6M", "name": "Euribor", "index_type": "Ibor",
-                    "tenor_number": 6, "tenor_time_unit": "Months",
-                    "fixing_days": 2, "calendar": "TARGET",
+        request = json.loads(r"""
+{
+    "pricing": {
+        "as_of_date": "2025-01-15",
+        "rates": {
+            "indices": [
+                {
+                    "id": "EUR_6M",
+                    "name": "Euribor",
+                    "index_type": "Ibor",
+                    "fixing_days": 2,
+                    "calendar": "TARGET",
                     "business_day_convention": "ModifiedFollowing",
-                    "day_counter": "Actual360", "currency": "EUR"
-                }],
-                "curves": [{
-                    "id": "DISC", "reference_date": "2025-01-15",
-                    "day_counter": "Actual365Fixed", "interpolator": "LogLinear",
+                    "day_counter": "Actual360",
+                    "currency": "EUR",
+                    "tenor": {
+                        "n": 6,
+                        "unit": "Months"
+                    }
+                }
+            ],
+            "curves": [
+                {
+                    "id": "DISC",
+                    "reference_date": "2025-01-15",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "LogLinear",
                     "bootstrap_trait": "Discount",
-                    "points": [{
-                        "point_type": "DepositHelper",
-                        "point": {
-                            "rate": 0.03, "tenor_number": 6, "tenor_time_unit": "Months",
-                            "fixing_days": 2, "calendar": "TARGET",
-                            "business_day_convention": "ModifiedFollowing",
-                            "day_counter": "Actual360"
+                    "points": [
+                        {
+                            "point_type": "DepositHelper",
+                            "point": {
+                                "rate": 0.03,
+                                "fixing_days": 2,
+                                "calendar": "TARGET",
+                                "business_day_convention": "ModifiedFollowing",
+                                "day_counter": "Actual360",
+                                "tenor": {
+                                    "n": 6,
+                                    "unit": "Months"
+                                }
+                            }
                         }
-                    }]
-                }]
-            },
-            "inflation": {
-                "inflation_indices": [{
-                    "id": "EUHICP", "family_name": "EU HICP", "currency": "EUR",
-                    "calendar": "TARGET", "day_counter": "Actual365Fixed",
-                    "frequency": "Monthly",
-                    "availability_lag": {"n": 2, "unit": "Months"},
-                    "observation_lag": {"n": 3, "unit": "Months"},
-                    "interpolated": True, "revised": False, "kind": "ZeroInflation",
-                    "fixings": [
-                        {"date": "2024-10-01", "value": 100.0},
-                        {"date": "2024-11-01", "value": 100.2},
-                        {"date": "2024-12-01", "value": 100.4}
                     ]
-                }],
-                "inflation_curves": [{
+                }
+            ]
+        },
+        "inflation": {
+            "inflation_indices": [
+                {
+                    "id": "EUHICP",
+                    "family_name": "EU HICP",
+                    "currency": "EUR",
+                    "calendar": "TARGET",
+                    "day_counter": "Actual365Fixed",
+                    "frequency": "Monthly",
+                    "availability_lag": {
+                        "n": 2,
+                        "unit": "Months"
+                    },
+                    "observation_lag": {
+                        "n": 3,
+                        "unit": "Months"
+                    },
+                    "interpolated": true,
+                    "revised": false,
+                    "kind": "ZeroInflation",
+                    "fixings": [
+                        {
+                            "date": "2024-10-01",
+                            "value": 100.0
+                        },
+                        {
+                            "date": "2024-11-01",
+                            "value": 100.2
+                        },
+                        {
+                            "date": "2024-12-01",
+                            "value": 100.4
+                        }
+                    ]
+                }
+            ],
+            "inflation_curves": [
+                {
                     "id": "HICP_ZC",
                     "reference_date": "2025-01-15",
                     "calendar": "TARGET",
                     "business_day_convention": "ModifiedFollowing",
                     "day_counter": "Actual365Fixed",
                     "interpolator": "Linear",
-                    "bootstrap_accuracy": 1.0e-12,
+                    "bootstrap_accuracy": 1e-12,
                     "kind": "ZeroInflation",
                     "index_id": "EUHICP",
                     "discount_curve_id": "DISC",
-                    "allow_extrapolation": True,
+                    "allow_extrapolation": true,
                     "points": [
                         {
                             "point_type": "ZeroCouponInflationSwapHelper",
                             "point": {
-                                "quote_value": 0.0200,
-                                "swap_observation_lag": {"n": 3, "unit": "Months"},
-                                "tenor": {"n": 1, "unit": "Years"},
+                                "quote_value": 0.02,
+                                "swap_observation_lag": {
+                                    "n": 3,
+                                    "unit": "Months"
+                                },
+                                "tenor": {
+                                    "n": 1,
+                                    "unit": "Years"
+                                },
                                 "calendar": "TARGET",
                                 "payment_convention": "ModifiedFollowing",
                                 "day_counter": "Actual365Fixed",
@@ -392,9 +442,15 @@ def check_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
                         {
                             "point_type": "ZeroCouponInflationSwapHelper",
                             "point": {
-                                "quote_value": 0.0210,
-                                "swap_observation_lag": {"n": 3, "unit": "Months"},
-                                "tenor": {"n": 2, "unit": "Years"},
+                                "quote_value": 0.021,
+                                "swap_observation_lag": {
+                                    "n": 3,
+                                    "unit": "Months"
+                                },
+                                "tenor": {
+                                    "n": 2,
+                                    "unit": "Years"
+                                },
                                 "calendar": "TARGET",
                                 "payment_convention": "ModifiedFollowing",
                                 "day_counter": "Actual365Fixed",
@@ -402,21 +458,37 @@ def check_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
                             }
                         }
                     ]
-                }]
-            },
-            "queries": [{
-                "curve_id": "HICP_ZC",
-                "measures": ["ZeroRate"],
-                "grid": {
-                    "grid_type": "TenorGrid",
-                    "grid": {
-                        "tenors": [{"n": 1, "unit": "Years"}, {"n": 2, "unit": "Years"}],
-                        "calendar": "TARGET",
-                        "business_day_convention": "ModifiedFollowing"
-                    }
                 }
-            }]
+            ]
         }
+    },
+    "queries": [
+        {
+            "curve_id": "HICP_ZC",
+            "measures": [
+                "ZeroRate"
+            ],
+            "grid": {
+                "grid_type": "TenorGrid",
+                "grid": {
+                    "tenors": [
+                        {
+                            "n": 1,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 2,
+                            "unit": "Years"
+                        }
+                    ],
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing"
+                }
+            }
+        }
+    ]
+}
+""")
 
         response = client.price("bootstrap_inflation_curves", request)
         results = response.get("results", [])
@@ -452,69 +524,107 @@ def check_bootstrap_inflation_curves_rejects_legacy_payload(client: ApiClient) -
         "diff": 0.0,
         "error": None,
     }
-    request = {
-        "pricing": {
-            "as_of_date": "2025-01-15",
-            "curves": [{
-                "id": "DISC",
-                "reference_date": "2025-01-15",
-                "day_counter": "Actual365Fixed",
-                "interpolator": "LogLinear",
-                "bootstrap_trait": "Discount",
-                "points": [{
-                    "point_type": "DepositHelper",
-                    "point": {
-                        "rate": 0.03,
-                        "tenor": {"n": 6, "unit": "Months"},
-                        "fixing_days": 2,
-                        "calendar": "TARGET",
-                        "business_day_convention": "ModifiedFollowing",
-                        "day_counter": "Actual360",
-                    },
-                }],
-            }]
+    request = json.loads(r"""
+{
+    "pricing": {
+        "as_of_date": "2025-01-15",
+        "rates": {
+            "curves": [
+                {
+                    "id": "DISC",
+                    "reference_date": "2025-01-15",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [
+                        {
+                            "point_type": "DepositHelper",
+                            "point": {
+                                "rate": 0.03,
+                                "tenor": {
+                                    "n": 6,
+                                    "unit": "Months"
+                                },
+                                "fixing_days": 2,
+                                "calendar": "TARGET",
+                                "business_day_convention": "ModifiedFollowing",
+                                "day_counter": "Actual360"
+                            }
+                        }
+                    ]
+                }
+            ]
         },
         "inflation": {
-            "inflation_indices": [{
-                "id": "EUHICP",
-                "family_name": "EU HICP",
-                "currency": "EUR",
-                "calendar": "TARGET",
-                "day_counter": "Actual365Fixed",
-                "frequency": "Monthly",
-                "availability_lag": {"n": 2, "unit": "Months"},
-                "observation_lag": {"n": 3, "unit": "Months"},
-                "interpolated": True,
-                "revised": False,
-                "kind": "ZeroInflation",
-            }],
-            "inflation_curves": [{
-                "base": {
-                    "id": "HICP_ZC",
-                    "reference_date": "2025-01-15",
+            "inflation_indices": [
+                {
+                    "id": "EUHICP",
+                    "family_name": "EU HICP",
+                    "currency": "EUR",
                     "calendar": "TARGET",
-                    "business_day_convention": "ModifiedFollowing",
                     "day_counter": "Actual365Fixed",
-                    "kind": "ZeroInflation",
-                    "index_id": "EUHICP",
-                },
-                "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
-                "payload": {
-                    "pillars": [
-                        {"maturity": {"n": 1, "unit": "Years"}, "quote_value": 0.0200}
-                    ]
-                },
-            }]
-        },
-        "queries": [{
+                    "frequency": "Monthly",
+                    "availability_lag": {
+                        "n": 2,
+                        "unit": "Months"
+                    },
+                    "observation_lag": {
+                        "n": 3,
+                        "unit": "Months"
+                    },
+                    "interpolated": true,
+                    "revised": false,
+                    "kind": "ZeroInflation"
+                }
+            ],
+            "inflation_curves": [
+                {
+                    "base": {
+                        "id": "HICP_ZC",
+                        "reference_date": "2025-01-15",
+                        "calendar": "TARGET",
+                        "business_day_convention": "ModifiedFollowing",
+                        "day_counter": "Actual365Fixed",
+                        "kind": "ZeroInflation",
+                        "index_id": "EUHICP"
+                    },
+                    "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
+                    "payload": {
+                        "pillars": [
+                            {
+                                "maturity": {
+                                    "n": 1,
+                                    "unit": "Years"
+                                },
+                                "quote_value": 0.02
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "queries": [
+        {
             "curve_id": "HICP_ZC",
-            "measures": ["ZeroRate"],
+            "measures": [
+                "ZeroRate"
+            ],
             "grid": {
                 "grid_type": "TenorGrid",
-                "grid": {"tenors": [{"n": 1, "unit": "Years"}]},
-            },
-        }],
-    }
+                "grid": {
+                    "tenors": [
+                        {
+                            "n": 1,
+                            "unit": "Years"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
+""")
 
     try:
         client.price("bootstrap_inflation_curves", request)

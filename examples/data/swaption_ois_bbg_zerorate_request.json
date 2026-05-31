@@ -1,450 +1,454 @@
 {
   "pricing": {
     "as_of_date": "2024-08-14",
-    "curves": [
-      {
-        "id": "USD_SOFR",
-        "day_counter": "Actual365Fixed",
-        "interpolator": "Linear",
-        "reference_date": "2024-08-14",
-        "bootstrap_trait": "Discount",
-        "points": [
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.053341,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "compounding": "Continuous",
-              "frequency": "Annual",
-              "tenor": {
-                "n": 1,
-                "unit": "Weeks"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0533585,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 2,
-                "unit": "Weeks"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0533814,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 3,
-                "unit": "Weeks"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0534261,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 1,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0520565,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 2,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0511385,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 3,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0502265,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 4,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.04903,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 5,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.047885,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 6,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.047085,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 7,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0460968,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 8,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0452458,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 9,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0444082,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 10,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.043638,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 11,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.042871,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 12,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.039293,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 18,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.037348,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 2,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.035127,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 3,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0340905,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 4,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0336448,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 5,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.03349,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 6,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.033454,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 7,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.03351,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 8,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0336048,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 9,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0337219,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 10,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0340177,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 12,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0343655,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 15,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.034382,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 20,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.033726,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 25,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.032943,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 30,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.031005,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 40,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "ZeroRatePoint",
-            "point": {
-              "zero_rate": 0.0290915,
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "Following",
-              "tenor": {
-                "n": 50,
-                "unit": "Years"
-              }
-            }
+    "rates": {
+      "indices": [
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "business_day_convention": "Following",
+          "day_counter": "Actual360",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
           }
-        ]
-      }
-    ],
-    "vol_surfaces": [
-      {
-        "id": "usd_sofr_swo_vol",
-        "payload_type": "SwaptionVolSpec",
-        "payload": {
-          "swap_index_id": "USD_SOFR_OIS",
-          "payload_type": "SwaptionVolConstantSpec",
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_SOFR",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2024-08-14",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.053341,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Weeks"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0533585,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Weeks"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0533814,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Weeks"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0534261,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0520565,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0511385,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0502265,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 4,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.04903,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.047885,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.047085,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0460968,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 8,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0452458,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 9,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0444082,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 10,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.043638,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 11,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042871,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 12,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.039293,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 18,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.037348,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.035127,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0340905,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 4,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0336448,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03349,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.033454,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03351,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 8,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0336048,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 9,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0337219,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0340177,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 12,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0343655,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 15,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.034382,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 20,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.033726,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 25,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.032943,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 30,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.031005,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 40,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0290915,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "tenor": {
+                  "n": 50,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "usd_sofr_swo_vol",
+          "payload_type": "SwaptionVolSpec",
           "payload": {
-            "base": {
-              "reference_date": "2024-08-14",
-              "calendar": "UnitedStatesGovernmentBond",
-              "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed",
-              "shape": "Constant",
-              "volatility_type": "Normal",
-              "displacement": 0.0,
-              "constant_vol": 0.010267
+            "swap_index_id": "USD_SOFR_OIS",
+            "payload_type": "SwaptionVolConstantSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2024-08-14",
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "shape": "Constant",
+                "volatility_type": "Normal",
+                "displacement": 0.0,
+                "constant_vol": 0.010267
+              }
             }
           }
         }
-      }
-    ],
-    "models": [
-      {
-        "id": "bachelier_model",
-        "payload_type": "SwaptionModelSpec",
-        "payload": {
-          "model_type": "Bachelier"
+      ],
+      "models": [
+        {
+          "id": "bachelier_model",
+          "payload_type": "SwaptionModelSpec",
+          "payload": {
+            "model_type": "Bachelier"
+          }
         }
-      }
-    ],
-    "indices": [
-      {
-        "id": "USD_SOFR",
-        "name": "SOFR",
-        "index_type": "Overnight",
-        "fixing_days": 0,
-        "calendar": "UnitedStatesGovernmentBond",
-        "business_day_convention": "Following",
-        "day_counter": "Actual360",
-        "currency": "USD",
-        "tenor": {
-          "n": 0,
-          "unit": "Days"
-        }
-      }
-    ]
+      ]
+    }
   },
   "swaptions": [
     {

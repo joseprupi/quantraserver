@@ -1,161 +1,165 @@
 {
   "pricing": {
     "as_of_date": "2025-01-15",
-    "indices": [
-      {
-        "id": "EUR_6M",
-        "name": "Euribor",
-        "index_type": "Ibor",
-        "tenor": {
-          "n": 6,
-          "unit": "Months"
-        },
-        "fixing_days": 2,
-        "calendar": "TARGET",
-        "business_day_convention": "ModifiedFollowing",
-        "day_counter": "Actual360",
-        "end_of_month": false,
-        "currency": "EUR"
-      }
-    ],
-    "swap_indices": [
-      {
-        "id": "EUR_SWAP_6M",
-        "kind": "IborSwapIndex",
-        "spot_days": 2,
-        "calendar": "TARGET",
-        "business_day_convention": "ModifiedFollowing",
-        "end_of_month": false,
-        "fixed_leg": {
-          "fixed_frequency": "Annual",
-          "fixed_day_counter": "Thirty360",
-          "fixed_calendar": "TARGET",
-          "fixed_bdc": "ModifiedFollowing",
-          "fixed_term_bdc": "ModifiedFollowing",
-          "fixed_date_rule": "Forward",
-          "fixed_eom": false
-        },
-        "float_index_id": "EUR_6M",
-        "float_leg": {
-          "float_tenor": {
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_6M",
+          "name": "Euribor",
+          "index_type": "Ibor",
+          "tenor": {
             "n": 6,
             "unit": "Months"
           },
-          "float_calendar": "TARGET",
-          "float_bdc": "ModifiedFollowing",
-          "float_term_bdc": "ModifiedFollowing",
-          "float_date_rule": "Forward",
-          "float_eom": false
+          "fixing_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual360",
+          "end_of_month": false,
+          "currency": "EUR"
         }
-      }
-    ],
-    "curves": [
-      {
-        "id": "discount",
-        "day_counter": "Actual365Fixed",
-        "interpolator": "LogLinear",
-        "bootstrap_trait": "Discount",
-        "reference_date": "2024-08-14",
-        "points": [
-          {
-            "point_type": "DepositHelper",
-            "point": {
-              "rate": 0.03,
-              "tenor": {
-                "n": 6,
-                "unit": "Months"
-              },
-              "fixing_days": 2,
-              "calendar": "TARGET",
-              "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed"
-            }
+      ],
+      "swap_indices": [
+        {
+          "id": "EUR_SWAP_6M",
+          "kind": "IborSwapIndex",
+          "spot_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": false,
+          "fixed_leg": {
+            "fixed_frequency": "Annual",
+            "fixed_day_counter": "Thirty360",
+            "fixed_calendar": "TARGET",
+            "fixed_bdc": "ModifiedFollowing",
+            "fixed_term_bdc": "ModifiedFollowing",
+            "fixed_date_rule": "Forward",
+            "fixed_eom": false
           },
-          {
-            "point_type": "SwapHelper",
-            "point": {
-              "rate": 0.03,
-              "tenor": {
-                "n": 5,
-                "unit": "Years"
-              },
-              "calendar": "TARGET",
-              "sw_fixed_leg_frequency": "Annual",
-              "sw_fixed_leg_convention": "ModifiedFollowing",
-              "sw_fixed_leg_day_counter": "Thirty360",
-              "float_index": {
-                "id": "EUR_6M"
+          "float_index_id": "EUR_6M",
+          "float_leg": {
+            "float_tenor": {
+              "n": 6,
+              "unit": "Months"
+            },
+            "float_calendar": "TARGET",
+            "float_bdc": "ModifiedFollowing",
+            "float_term_bdc": "ModifiedFollowing",
+            "float_date_rule": "Forward",
+            "float_eom": false
+          }
+        }
+      ],
+      "curves": [
+        {
+          "id": "discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "reference_date": "2024-08-14",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.03,
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.03,
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                }
               }
             }
-          }
-        ]
-      }
-    ],
-    "vol_surfaces": [
-      {
-        "id": "swaption_smile_spread",
-        "payload_type": "SwaptionVolSpec",
-        "payload": {
-          "swap_index_id": "EUR_SWAP_6M",
-          "payload_type": "SwaptionVolSmileCubeSpec",
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "swaption_smile_spread",
+          "payload_type": "SwaptionVolSpec",
           "payload": {
-            "base": {
-              "reference_date": "2025-01-15",
-              "calendar": "TARGET",
-              "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual365Fixed",
-              "shape": "SmileCube3D",
-              "volatility_type": "Normal"
-            },
-            "expiries": [
-              {
-                "n": 1,
-                "unit": "Years"
+            "swap_index_id": "EUR_SWAP_6M",
+            "payload_type": "SwaptionVolSmileCubeSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2025-01-15",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "shape": "SmileCube3D",
+                "volatility_type": "Normal"
               },
-              {
-                "n": 2,
-                "unit": "Years"
+              "expiries": [
+                {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              ],
+              "tenors": [
+                {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              ],
+              "strikes": [
+                -0.0025,
+                0.0,
+                0.0025
+              ],
+              "strike_kind": "SpreadFromATM",
+              "vols": {
+                "n_1": 2,
+                "n_2": 2,
+                "n_3": 3,
+                "values": [
+                  0.0055,
+                  0.005,
+                  0.0058,
+                  0.0059,
+                  0.0053,
+                  0.0061,
+                  0.0057,
+                  0.0052,
+                  0.006,
+                  0.0061,
+                  0.0055,
+                  0.0063
+                ]
               }
-            ],
-            "tenors": [
-              {
-                "n": 5,
-                "unit": "Years"
-              },
-              {
-                "n": 10,
-                "unit": "Years"
-              }
-            ],
-            "strikes": [
-              -0.0025,
-              0.0,
-              0.0025
-            ],
-            "strike_kind": "SpreadFromATM",
-            "vols": {
-              "n_1": 2,
-              "n_2": 2,
-              "n_3": 3,
-              "values": [
-                0.0055,
-                0.005,
-                0.0058,
-                0.0059,
-                0.0053,
-                0.0061,
-                0.0057,
-                0.0052,
-                0.006,
-                0.0061,
-                0.0055,
-                0.0063
-              ]
             }
           }
         }
-      }
-    ]
+      ]
+    }
   },
   "queries": [
     {

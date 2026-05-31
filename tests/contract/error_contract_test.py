@@ -27,19 +27,17 @@ asserts the 400 on empty top-level input, the second asserts a 200 carrying a
 per-item error entry (validated by an optional body checker).
 """
 
-import copy
 import json
 
 import pytest
 
-from ql_reference import _normalize_period_fields_for_api
-
 
 def _ec_post_status(client, product, request):
     endpoint = client.ENDPOINTS[product]
+    # Example payloads are stored in the canonical nested schema; POST verbatim.
     r = client.session.post(
         f"{client.base_url}/{endpoint}",
-        json=_normalize_period_fields_for_api(copy.deepcopy(request)),
+        json=request,
     )
     return r.status_code, r.text
 
@@ -95,7 +93,7 @@ def _ec_body_has_per_item_error(item_id_field, item_id, error_field="error"):
 
 def _ec_flip_model_type(new_type):
     def f(req):
-        for m in req["pricing"].get("models", []):
+        for m in req["pricing"].get("volatility", {}).get("models", []):
             m["payload_type"] = new_type
         return req
     return f
@@ -109,7 +107,7 @@ def _ec_unimplemented_curve_point():
     # used because it has no FlatBuffer-required fields, so an empty payload is
     # accepted by the JSON parser and the throw is reached deterministically.
     def f(req):
-        req["pricing"]["curves"][0]["points"][0] = {
+        req["pricing"]["rates"]["curves"][0]["points"][0] = {
             "point_type": "FxSwapHelper",
             "point": {},
         }

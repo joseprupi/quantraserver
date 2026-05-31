@@ -5,8 +5,10 @@ Quantra JSON API vs QuantLib — shared reference harness.
 This module is the correctness anchor for the contract/parity pytest suite
 (tests/contract/). It holds:
 
-  * ApiClient + request normalizers (_normalize_period_fields_for_api /
-    _reshape_pricing_for_api) used to POST example requests to the JSON API.
+  * ApiClient, which POSTs the example requests to the JSON API verbatim
+    (they are stored in the canonical nested schema). A read-only
+    _reference_pricing_view() flattens the nested groups for the QuantLib
+    reference pricers only — it is never used for an API POST.
   * The get_*(...) QuantLib-enum converters and index/curve builders
     (build_ibor_index, build_overnight_index, build_curve_from_json, ...).
   * The independent per-product QuantLib reference pricers
@@ -26,7 +28,6 @@ import requests
 import re
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
-import copy
 
 try:
     import QuantLib as ql
@@ -75,121 +76,35 @@ class ApiClient:
     
     def price(self, product: str, request: dict) -> dict:
         endpoint = self.ENDPOINTS[product]
-        r = self.session.post(
-            f"{self.base_url}/{endpoint}",
-            json=_normalize_period_fields_for_api(copy.deepcopy(request))
-        )
+        # Example payloads are stored in the canonical nested schema, so they are
+        # POSTed verbatim — exactly what a real client sends.
+        r = self.session.post(f"{self.base_url}/{endpoint}", json=request)
         if r.status_code != 200:
             raise Exception(f"API error ({r.status_code}): {r.text[:200]}")
         return r.json()
 
 
-def _normalize_period_fields_for_api(obj):
-    """Recursively convert legacy *_number/*_time_unit period fields to typed Period objects."""
-    if isinstance(obj, list):
-        return [_normalize_period_fields_for_api(v) for v in obj]
-    if isinstance(obj, dict):
-        out = {}
-        for k, v in obj.items():
-            out[k] = _normalize_period_fields_for_api(v)
+def _reference_pricing_view(request: dict) -> dict:
+    """Flat read-only view of a request's pricing for the QuantLib reference pricers.
 
-        # Fix accidental wrapper shape {"tenor": {"n": ..., "unit": ...}} in Period arrays.
-        if set(out.keys()) == {"tenor"} and isinstance(out["tenor"], dict):
-            if "n" in out["tenor"] and "unit" in out["tenor"]:
-                return out["tenor"]
-
-        if "tenor_number" in out and "tenor_time_unit" in out and "tenor" not in out:
-            n = out["tenor_number"]
-            u = out["tenor_time_unit"]
-            del out["tenor_number"]
-            del out["tenor_time_unit"]
-            # Pure period object (e.g. TenorGrid points / vol expiries, tenors)
-            if len(out) == 0:
-                return {"n": n, "unit": u}
-            out["tenor"] = {"n": n, "unit": u}
-
-        if "float_tenor_number" in out and "float_tenor_time_unit" in out and "float_tenor" not in out:
-            out["float_tenor"] = {"n": out["float_tenor_number"], "unit": out["float_tenor_time_unit"]}
-            del out["float_tenor_number"]
-            del out["float_tenor_time_unit"]
-
-        if "pricing" in out and isinstance(out["pricing"], dict):
-            out["pricing"] = _reshape_pricing_for_api(out["pricing"])
-        if "inflation" in out and isinstance(out["inflation"], dict) and "pricing" in out and isinstance(out["pricing"], dict):
-            pricing = out["pricing"]
-            inflation = pricing.get("inflation", {})
-            for key in ("inflation_indices", "inflation_curves"):
-                if key in out["inflation"] and key not in inflation:
-                    inflation[key] = out["inflation"][key]
-            if inflation:
-                pricing["inflation"] = inflation
-            del out["inflation"]
-
-        return out
-    return obj
-
-
-def _reshape_pricing_for_api(pricing: dict) -> dict:
-    """Convert legacy flat Pricing payloads into nested domain-grouped pricing."""
+    The example payloads are stored (and POSTed) in the canonical nested shape
+    (pricing.rates.*, pricing.volatility.*, pricing.credit.*, ...). The
+    independent QuantLib reference pricers below read the legacy flat keys
+    (pricing["curves"], pricing.get("vol_surfaces"), ...). This merges the
+    nested domain groups back up to the top level so the reference pricers see
+    exactly the collections they expect. It is NEVER used for an API POST — the
+    server only ever receives the verbatim nested request.
+    """
+    pricing = request.get("pricing", request)
     if not isinstance(pricing, dict):
         return pricing
-
-    # Already nested.
-    if any(key in pricing for key in ("rates", "credit", "volatility", "equity", "inflation", "options")):
-        return pricing
-
-    out = dict(pricing)
-    rates = {}
-    credit = {}
-    volatility = {}
-    equity = {}
-    inflation = {}
-    options = {}
-
-    rates_fields = ("indices", "swap_indices", "curves", "coupon_pricers")
-    credit_fields = ("credit_curves",)
-    volatility_fields = ("vol_surfaces", "models")
-    equity_fields = ("equity_underlyings",)
-    inflation_fields = ("inflation_indices", "inflation_curves")
-    option_fields = (
-        "bond_pricing_details",
-        "bond_pricing_flows",
-        "swaption_pricing_details",
-        "swaption_pricing_rebump",
-    )
-
-    for key in rates_fields:
-        if key in out:
-            rates[key] = out.pop(key)
-    for key in credit_fields:
-        if key in out:
-            credit[key] = out.pop(key)
-    for key in volatility_fields:
-        if key in out:
-            volatility[key] = out.pop(key)
-    for key in equity_fields:
-        if key in out:
-            equity[key] = out.pop(key)
-    for key in inflation_fields:
-        if key in out:
-            inflation[key] = out.pop(key)
-    for key in option_fields:
-        if key in out:
-            options[key] = out.pop(key)
-
-    if rates:
-        out["rates"] = rates
-    if credit:
-        out["credit"] = credit
-    if volatility:
-        out["volatility"] = volatility
-    if equity:
-        out["equity"] = equity
-    if inflation:
-        out["inflation"] = inflation
-    if options:
-        out["options"] = options
-    return out
+    flat = dict(pricing)
+    for group in ("rates", "credit", "volatility", "equity", "inflation", "options"):
+        section = pricing.get(group)
+        if isinstance(section, dict):
+            for key, value in section.items():
+                flat.setdefault(key, value)
+    return flat
 
 
 def _period_n_unit(container: dict, key: str = "tenor", default_n: int = 0, default_unit: str = "Days"):
@@ -426,7 +341,7 @@ def get_ibor_index(name: str):
 
 def find_index_def(idx_id, request_data):
     """Find an IndexDef in the request's indices array by id."""
-    pricing = request_data.get("pricing", request_data)
+    pricing = _reference_pricing_view(request_data)
     indices = pricing.get("indices", [])
     for idef in indices:
         if idef.get("id") == idx_id:
@@ -633,7 +548,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
 
 def price_fixed_rate_bond_ql(request: dict) -> float:
     """Price fixed rate bond using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     bond_data = request["bonds"][0]
     bond = bond_data["fixed_rate_bond"]
     
@@ -673,7 +588,7 @@ def price_fixed_rate_bond_ql(request: dict) -> float:
 
 def price_floating_rate_bond_ql(request: dict) -> float:
     """Price floating rate bond using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     bond_data = request["bonds"][0]
     bond = bond_data["floating_rate_bond"]
     
@@ -762,7 +677,7 @@ def price_floating_rate_bond_ql(request: dict) -> float:
 
 def price_vanilla_swap_ql(request: dict) -> float:
     """Price vanilla swap using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     swap_data = request["swaps"][0]
     swap = swap_data["vanilla_swap"]
     
@@ -832,7 +747,7 @@ def _build_overnight_index(idx_def: dict, curve):
 
 def price_ois_swap_ql(request: dict) -> float:
     """Price OIS swap using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     swap_data = request["swaps"][0]
     swap = swap_data["ois_swap"]
 
@@ -904,7 +819,7 @@ def price_ois_swap_ql(request: dict) -> float:
 
 def price_basis_swap_ql(request: dict) -> float:
     """Price basis swap as two floating legs using QuantLib::Swap."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     swap_data = request["swaps"][0]
     swap = swap_data["basis_swap"]
 
@@ -952,7 +867,7 @@ def price_basis_swap_ql(request: dict) -> float:
 
 def price_fra_ql(request: dict) -> float:
     """Price FRA using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     fra_data = request["fras"][0]
     fra = fra_data["fra"]
     
@@ -990,7 +905,7 @@ def price_fra_ql(request: dict) -> float:
 
 def price_cap_floor_ql(request: dict) -> float:
     """Price cap/floor using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     cf_data = request["cap_floors"][0]
     cf = cf_data["cap_floor"]
     
@@ -1048,7 +963,7 @@ def price_cap_floor_ql(request: dict) -> float:
 
 def price_swaption_ql(request: dict) -> float:
     """Price swaption using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     sw_data = request["swaptions"][0]
     sw = sw_data["swaption"]
     underlying_type = sw.get("underlying_type")
@@ -1310,7 +1225,7 @@ def price_swaption_ql(request: dict) -> float:
 
 def price_cds_ql(request: dict) -> float:
     """Price CDS using QuantLib."""
-    pricing = request["pricing"]
+    pricing = _reference_pricing_view(request)
     cds_data = request["cds_list"][0]
     cds = cds_data["cds"]
     quote_values = {q["id"]: q.get("value", 0.0) for q in pricing.get("quotes", []) if "id" in q}
@@ -1554,34 +1469,40 @@ def _make_multicurve_exogenous_request() -> dict:
       1) EUR_OIS: OIS discount curve built from OIS helpers
       2) EUR_6M: 6M forwarding curve using swap helper discounting off EUR_OIS (exogenous discount)
     """
-    return {
-        "pricing": {
-            "as_of_date": "2026-01-15",
+    return json.loads(r"""
+{
+    "pricing": {
+        "as_of_date": "2026-01-15",
+        "rates": {
             "indices": [
                 {
                     "id": "EUR_6M",
                     "name": "Euribor",
                     "index_type": "Ibor",
-                    "tenor_number": 6,
-                    "tenor_time_unit": "Months",
                     "fixing_days": 2,
                     "calendar": "TARGET",
                     "business_day_convention": "ModifiedFollowing",
                     "day_counter": "Actual360",
-                    "end_of_month": False,
-                    "currency": "EUR"
+                    "end_of_month": false,
+                    "currency": "EUR",
+                    "tenor": {
+                        "n": 6,
+                        "unit": "Months"
+                    }
                 },
                 {
                     "id": "EUR_ESTR",
                     "name": "ESTR",
                     "index_type": "Overnight",
-                    "tenor_number": 0,
-                    "tenor_time_unit": "Days",
                     "fixing_days": 0,
                     "calendar": "TARGET",
                     "business_day_convention": "Following",
                     "day_counter": "Actual360",
-                    "currency": "EUR"
+                    "currency": "EUR",
+                    "tenor": {
+                        "n": 0,
+                        "unit": "Days"
+                    }
                 }
             ],
             "curves": [
@@ -1594,43 +1515,55 @@ def _make_multicurve_exogenous_request() -> dict:
                         {
                             "point_type": "OISHelper",
                             "point": {
-                                "rate": 0.0300,
-                                "tenor_number": 1,
-                                "tenor_time_unit": "Years",
-                                "overnight_index": {"id": "EUR_ESTR"},
+                                "rate": 0.03,
+                                "overnight_index": {
+                                    "id": "EUR_ESTR"
+                                },
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
                                 "fixed_leg_convention": "ModifiedFollowing",
-                                "fixed_leg_day_counter": "Actual360"
+                                "fixed_leg_day_counter": "Actual360",
+                                "tenor": {
+                                    "n": 1,
+                                    "unit": "Years"
+                                }
                             }
                         },
                         {
                             "point_type": "OISHelper",
                             "point": {
-                                "rate": 0.0290,
-                                "tenor_number": 5,
-                                "tenor_time_unit": "Years",
-                                "overnight_index": {"id": "EUR_ESTR"},
+                                "rate": 0.029,
+                                "overnight_index": {
+                                    "id": "EUR_ESTR"
+                                },
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
                                 "fixed_leg_convention": "ModifiedFollowing",
-                                "fixed_leg_day_counter": "Actual360"
+                                "fixed_leg_day_counter": "Actual360",
+                                "tenor": {
+                                    "n": 5,
+                                    "unit": "Years"
+                                }
                             }
                         },
                         {
                             "point_type": "OISHelper",
                             "point": {
-                                "rate": 0.0280,
-                                "tenor_number": 10,
-                                "tenor_time_unit": "Years",
-                                "overnight_index": {"id": "EUR_ESTR"},
+                                "rate": 0.028,
+                                "overnight_index": {
+                                    "id": "EUR_ESTR"
+                                },
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
                                 "fixed_leg_convention": "ModifiedFollowing",
-                                "fixed_leg_day_counter": "Actual360"
+                                "fixed_leg_day_counter": "Actual360",
+                                "tenor": {
+                                    "n": 10,
+                                    "unit": "Years"
+                                }
                             }
                         }
                     ]
@@ -1644,112 +1577,188 @@ def _make_multicurve_exogenous_request() -> dict:
                         {
                             "point_type": "DepositHelper",
                             "point": {
-                                "rate": 0.0320,
-                                "tenor_number": 6,
-                                "tenor_time_unit": "Months",
+                                "rate": 0.032,
                                 "fixing_days": 2,
                                 "calendar": "TARGET",
                                 "business_day_convention": "ModifiedFollowing",
-                                "day_counter": "Actual360"
+                                "day_counter": "Actual360",
+                                "tenor": {
+                                    "n": 6,
+                                    "unit": "Months"
+                                }
                             }
                         },
                         {
                             "point_type": "SwapHelper",
                             "point": {
-                                "rate": 0.0310,
-                                "tenor_number": 5,
-                                "tenor_time_unit": "Years",
+                                "rate": 0.031,
                                 "calendar": "TARGET",
                                 "sw_fixed_leg_frequency": "Annual",
                                 "sw_fixed_leg_convention": "ModifiedFollowing",
                                 "sw_fixed_leg_day_counter": "Thirty360",
-                                "float_index": {"id": "EUR_6M"},
+                                "float_index": {
+                                    "id": "EUR_6M"
+                                },
                                 "spread": 0.0,
                                 "fwd_start_days": 0,
                                 "deps": {
-                                    "discount_curve": {"id": "EUR_OIS"}
+                                    "discount_curve": {
+                                        "id": "EUR_OIS"
+                                    }
+                                },
+                                "tenor": {
+                                    "n": 5,
+                                    "unit": "Years"
                                 }
                             }
                         }
                     ]
                 }
             ]
-        },
-        "queries": [
-            {
-                "curve_id": "EUR_OIS",
-                "measures": ["DF", "ZERO", "FWD"],
+        }
+    },
+    "queries": [
+        {
+            "curve_id": "EUR_OIS",
+            "measures": [
+                "DF",
+                "ZERO",
+                "FWD"
+            ],
+            "grid": {
+                "grid_type": "TenorGrid",
                 "grid": {
-                    "grid_type": "TenorGrid",
-                    "grid": {
-                        "tenors": [
-                            {"tenor_number": 1, "tenor_time_unit": "Days"},
-                            {"tenor_number": 1, "tenor_time_unit": "Weeks"},
-                            {"tenor_number": 1, "tenor_time_unit": "Months"},
-                            {"tenor_number": 3, "tenor_time_unit": "Months"},
-                            {"tenor_number": 6, "tenor_time_unit": "Months"},
-                            {"tenor_number": 1, "tenor_time_unit": "Years"},
-                            {"tenor_number": 2, "tenor_time_unit": "Years"},
-                            {"tenor_number": 5, "tenor_time_unit": "Years"},
-                            {"tenor_number": 10, "tenor_time_unit": "Years"}
-                        ],
-                        "calendar": "TARGET",
-                        "business_day_convention": "Following"
-                    }
-                },
-                "zero": {
-                    "use_curve_day_counter": True,
-                    "compounding": "Continuous",
-                    "frequency": "Annual"
-                },
-                "fwd": {
-                    "use_curve_day_counter": True,
-                    "compounding": "Simple",
-                    "frequency": "Annual",
-                    "forward_type": "Period",
-                    "tenor_number": 6,
-                    "tenor_time_unit": "Months",
-                    "use_grid_calendar_for_advance": True
+                    "tenors": [
+                        {
+                            "n": 1,
+                            "unit": "Days"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Weeks"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 3,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 6,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 2,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 5,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 10,
+                            "unit": "Years"
+                        }
+                    ],
+                    "calendar": "TARGET",
+                    "business_day_convention": "Following"
                 }
             },
-            {
-                "curve_id": "EUR_6M",
-                "measures": ["DF", "ZERO", "FWD"],
-                "grid": {
-                    "grid_type": "TenorGrid",
-                    "grid": {
-                        "tenors": [
-                            {"tenor_number": 1, "tenor_time_unit": "Days"},
-                            {"tenor_number": 1, "tenor_time_unit": "Weeks"},
-                            {"tenor_number": 1, "tenor_time_unit": "Months"},
-                            {"tenor_number": 3, "tenor_time_unit": "Months"},
-                            {"tenor_number": 6, "tenor_time_unit": "Months"},
-                            {"tenor_number": 1, "tenor_time_unit": "Years"},
-                            {"tenor_number": 2, "tenor_time_unit": "Years"},
-                            {"tenor_number": 5, "tenor_time_unit": "Years"},
-                            {"tenor_number": 10, "tenor_time_unit": "Years"}
-                        ],
-                        "calendar": "TARGET",
-                        "business_day_convention": "Following"
-                    }
-                },
-                "zero": {
-                    "use_curve_day_counter": True,
-                    "compounding": "Continuous",
-                    "frequency": "Annual"
-                },
-                "fwd": {
-                    "use_curve_day_counter": True,
-                    "compounding": "Simple",
-                    "frequency": "Annual",
-                    "forward_type": "Period",
-                    "tenor_number": 6,
-                    "tenor_time_unit": "Months",
-                    "use_grid_calendar_for_advance": True
+            "zero": {
+                "use_curve_day_counter": true,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+            },
+            "fwd": {
+                "use_curve_day_counter": true,
+                "compounding": "Simple",
+                "frequency": "Annual",
+                "forward_type": "Period",
+                "use_grid_calendar_for_advance": true,
+                "tenor": {
+                    "n": 6,
+                    "unit": "Months"
                 }
             }
-        ]
-    }
+        },
+        {
+            "curve_id": "EUR_6M",
+            "measures": [
+                "DF",
+                "ZERO",
+                "FWD"
+            ],
+            "grid": {
+                "grid_type": "TenorGrid",
+                "grid": {
+                    "tenors": [
+                        {
+                            "n": 1,
+                            "unit": "Days"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Weeks"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 3,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 6,
+                            "unit": "Months"
+                        },
+                        {
+                            "n": 1,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 2,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 5,
+                            "unit": "Years"
+                        },
+                        {
+                            "n": 10,
+                            "unit": "Years"
+                        }
+                    ],
+                    "calendar": "TARGET",
+                    "business_day_convention": "Following"
+                }
+            },
+            "zero": {
+                "use_curve_day_counter": true,
+                "compounding": "Continuous",
+                "frequency": "Annual"
+            },
+            "fwd": {
+                "use_curve_day_counter": true,
+                "compounding": "Simple",
+                "frequency": "Annual",
+                "forward_type": "Period",
+                "use_grid_calendar_for_advance": true,
+                "tenor": {
+                    "n": 6,
+                    "unit": "Months"
+                }
+            }
+        }
+    ]
+}
+""")
 
 
 # =============================================================================
