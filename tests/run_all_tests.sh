@@ -14,6 +14,8 @@ PASSED=0
 FAILED=0
 GRPC_PID=""
 JSON_PID=""
+GRPC_CACHE_PID=""
+JSON_CACHE_PID=""
 declare -a SUITE_NAMES
 declare -a SUITE_ROLES
 declare -a SUITE_STATUS
@@ -25,9 +27,13 @@ cleanup() {
     echo "Cleaning up..."
     [ -n "$JSON_PID" ] && kill $JSON_PID 2>/dev/null
     [ -n "$GRPC_PID" ] && kill $GRPC_PID 2>/dev/null
+    [ -n "$JSON_CACHE_PID" ] && kill $JSON_CACHE_PID 2>/dev/null
+    [ -n "$GRPC_CACHE_PID" ] && kill $GRPC_CACHE_PID 2>/dev/null
     # Also kill any orphaned servers
     pkill -f "sync_server 50051" 2>/dev/null
     pkill -f "json_server localhost:50051" 2>/dev/null
+    pkill -f "sync_server 50052" 2>/dev/null
+    pkill -f "json_server localhost:50052" 2>/dev/null
 }
 
 trap cleanup EXIT
@@ -64,6 +70,14 @@ extract_case_count() {
             # Concurrency test prints "TOTAL SCENARIOS: passed/total" (total =
             # number of concurrent requests fired at one endpoint).
             awk '/^TOTAL SCENARIOS:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
+            ;;
+        cache)
+            # Parse "Cache transparency OK (N comparisons checked)" → N (number
+            # of product cache-OFF vs cache-ON comparisons). Default ? when the
+            # success line isn't present (e.g. on failure).
+            local n
+            n="$(sed -n 's/.*Cache transparency OK (\([0-9]\+\) comparisons checked).*/\1/p' "$logfile" | head -1)"
+            [ -n "$n" ] && echo "$n" || echo "?"
             ;;
         *)
             echo "?"
@@ -122,6 +136,7 @@ run_test() {
         python) SUITE_CASE_LABELS[$idx]="scenarios" ;;
         boundary) SUITE_CASE_LABELS[$idx]="files" ;;
         concurrency) SUITE_CASE_LABELS[$idx]="requests" ;;
+        cache) SUITE_CASE_LABELS[$idx]="comparisons" ;;
         *) SUITE_CASE_LABELS[$idx]="items" ;;
     esac
     rm -f "$logfile"
@@ -199,7 +214,58 @@ start_servers() {
         return 1
     fi
     echo "  Health check passed"
-    
+
+    return 0
+}
+
+# Start a second gRPC+JSON server pair with the curve cache ENABLED, on distinct
+# ports (gRPC 50052, HTTP 8081), for Suite 6's cache-OFF vs cache-ON comparison.
+# The cache lives in the pricing engine (the gRPC server), so the cache env vars
+# and the resulting CurveCache hit/miss log lines belong to the gRPC process.
+start_cache_servers() {
+    echo ""
+    echo "Starting cache-ON servers (curve cache enabled)..."
+
+    pkill -f "sync_server 50052" 2>/dev/null
+    pkill -f "json_server localhost:50052" 2>/dev/null
+    sleep 1
+
+    if [ ! -f "${BUILD}/server/sync_server" ] || [ ! -f "${BUILD}/jsonserver/json_server" ]; then
+        echo -e "${RED}ERROR: server binaries not found${NC}"
+        return 1
+    fi
+
+    # gRPC engine: cache enabled + hit/miss logging to /tmp/grpc_cache.log (the
+    # file Suite 6 reads to prove the cache engaged).
+    QUANTRA_CURVE_CACHE_ENABLED=1 QUANTRA_CURVE_CACHE_LOG=1 \
+        ${BUILD}/server/sync_server 50052 > /tmp/grpc_cache.log 2>&1 &
+    GRPC_CACHE_PID=$!
+    sleep 2
+    if ! kill -0 $GRPC_CACHE_PID 2>/dev/null; then
+        echo -e "${RED}ERROR: cache-ON gRPC server failed to start. Check /tmp/grpc_cache.log${NC}"
+        cat /tmp/grpc_cache.log
+        return 1
+    fi
+    echo "  cache-ON gRPC server started (PID: $GRPC_CACHE_PID, port 50052)"
+
+    # JSON gateway pointed at the cache-ON gRPC engine.
+    ${BUILD}/jsonserver/json_server localhost:50052 8081 > /tmp/json_cache.log 2>&1 &
+    JSON_CACHE_PID=$!
+    sleep 2
+    if ! kill -0 $JSON_CACHE_PID 2>/dev/null; then
+        echo -e "${RED}ERROR: cache-ON JSON server failed to start. Check /tmp/json_cache.log${NC}"
+        cat /tmp/json_cache.log
+        return 1
+    fi
+    echo "  cache-ON JSON server started (PID: $JSON_CACHE_PID, port 8081)"
+
+    sleep 1
+    if ! curl -s http://localhost:8081/health > /dev/null 2>&1; then
+        echo -e "${RED}ERROR: cache-ON JSON server health check failed${NC}"
+        return 1
+    fi
+    echo "  cache-ON health check passed"
+
     return 0
 }
 
@@ -349,11 +415,42 @@ else
     ((FAILED++))
 fi
 
+# Test 6: Curve cache correctness (transparency) — cache-OFF vs cache-ON
+CACHING_DIR="${SCRIPT_DIR}/caching"
+if [ -d "$CACHING_DIR" ]; then
+    if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        skip_test 6 \
+            "6. Curve Cache Correctness" \
+            "Cache transparency: cache-OFF and cache-ON results are bit-for-bit identical" \
+            "cache-OFF JSON server not running"
+        ((FAILED++))
+    elif ! start_cache_servers; then
+        echo -e "${RED}Failed to start cache-ON servers.${NC}"
+        skip_test 6 \
+            "6. Curve Cache Correctness" \
+            "Cache transparency: cache-OFF and cache-ON results are bit-for-bit identical" \
+            "cache-ON servers failed to start"
+        ((FAILED++))
+    else
+        run_test 6 \
+            "6. Curve Cache Correctness" \
+            "Cache transparency: cache-OFF and cache-ON results are bit-for-bit identical (gated)" \
+            cache \
+            "cd ${WORKSPACE} && python3 -m pytest ${CACHING_DIR} --url-nocache http://localhost:8080 --url-cache http://localhost:8081 --data-dir ${WORKSPACE}/examples/data --cache-log /tmp/grpc_cache.log -q -s"
+    fi
+else
+    skip_test 6 \
+        "6. Curve Cache Correctness" \
+        "Cache transparency: cache-OFF and cache-ON results are bit-for-bit identical" \
+        "Caching test dir not found"
+    ((FAILED++))
+fi
+
 # Summary
 TOTAL=$((PASSED + FAILED))
 TOTAL_CASES=0
 KNOWN_CASES=1
-for idx in 0 1 2 3 4 5; do
+for idx in 0 1 2 3 4 5 6; do
     if [[ "${SUITE_CASES[$idx]}" =~ ^[0-9]+$ ]]; then
         TOTAL_CASES=$((TOTAL_CASES + SUITE_CASES[$idx]))
     else
@@ -375,7 +472,7 @@ echo "╚═══════════════════════�
 echo ""
 printf "%-28s %-8s %-12s %s\n" "Suite" "Status" "Coverage" "Role"
 printf "%-28s %-8s %-12s %s\n" "-----" "------" "--------" "----"
-for idx in 0 1 2 3 4 5; do
+for idx in 0 1 2 3 4 5 6; do
     printf "%-28s %-8s %-12s %s\n" \
         "${SUITE_NAMES[$idx]}" \
         "${SUITE_STATUS[$idx]}" \

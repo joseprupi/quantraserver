@@ -8,20 +8,21 @@ How the test suite is organized and what every file does.
 bash tests/run_all_tests.sh
 ```
 
-This is the gate. It starts the gRPC server and the JSON gateway, runs the six
-suites below in order, and exits non-zero if any of them fail. It does **not**
-build the project — build first with `./scripts/build.sh`, which produces the
-binaries under `build/` that the runner calls.
+This is the gate. It starts the gRPC server and the JSON gateway (plus a
+second, cache-ON server pair for Suite 6), runs the seven suites below in order,
+and exits non-zero if any of them fail. It does **not** build the project —
+build first with `./scripts/build.sh`, which produces the binaries under
+`build/` that the runner calls.
 
 At the end it prints a human-readable summary box, plus machine-readable lines
 you can grep:
 
 ```
 RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=72 unit=cases
-SUMMARY suites_passed=6 suites_failed=0 total_cases=265
+SUMMARY suites_passed=7 suites_failed=0 total_cases=270
 ```
 
-## The six suites
+## The seven suites
 
 | # | What it checks | How | Files |
 |---|---|---|---|
@@ -31,6 +32,7 @@ SUMMARY suites_passed=6 suites_failed=0 total_cases=265
 | 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` |
 | 4 | The Python client library works against the server | Python, gRPC | `test_python_client.py` |
 | 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `test_json_concurrency.py` |
+| 6 | The curve cache is transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` |
 
 Suites 1 and 3 are the two correctness anchors: both build the equivalent
 instrument in raw QuantLib and compare numbers. Suite 1 tests the C++ code path
@@ -75,10 +77,36 @@ sends — and compares the returned NPV against an independent QuantLib referenc
   / unsupported requests and asserts the HTTP status: 404 (not found),
   400 (invalid argument), 501 (not implemented), 500 (other).
 
+## `caching/` — curve-cache transparency (Suite 6)
+
+pytest. The curve cache (`../parser/curve_cache.h`) is off by default and must
+be invisible: turning it on may not change any result. The suite POSTs each
+representative example payload to two servers — the default cache-OFF server on
+`:8080` and a cache-ON server on `:8081` (`QUANTRA_CURVE_CACHE_ENABLED=1`,
+started by `run_all_tests.sh`'s `start_cache_servers`) — and asserts the
+responses are bit-for-bit identical, then POSTs to the cache-ON server twice
+(warm → hit) and asserts the hit response is identical too. This is **not** a
+QuantLib parity check (that is Suite 3): the cache-OFF server is the reference,
+and transparency is the only property under test.
+
+- `conftest.py` — pytest setup: `--url-nocache` / `--url-cache` / `--data-dir` /
+  `--cache-log`, the two `ApiClient` fixtures (reused from `contract/`), and the
+  terminal-summary hook that emits the greppable comparison count.
+- `cache_correctness_test.py` — the `CASES` table (one row per product) drives
+  `test_cache_transparency`; `test_cache_engaged` reads the cache-ON gRPC log
+  (`/tmp/grpc_cache.log`) and asserts at least one `CurveCache` L1 hit fired, so
+  the suite can't silently pass with caching that never engages. The table is
+  the extension point for D23's bumped-curve (curveBump ≠ 0) cases.
+
+The cache lives in the pricing engine (the gRPC server), so the cache env vars
+and the `[CurveCache] … event=L1_HIT` log lines belong to the gRPC process, not
+the JSON gateway.
+
 ## Top-level files
 
-- `run_all_tests.sh` — the gate (above). Starts/stops servers, runs the six
-  suites, prints the summary + `RESULT`/`SUMMARY` lines.
+- `run_all_tests.sh` — the gate (above). Starts/stops servers (including the
+  cache-ON pair for Suite 6), runs the seven suites, prints the summary +
+  `RESULT`/`SUMMARY` lines.
 - `test_server_client.cpp` — Suite 2. C++ gtest that talks to the gRPC server
   over a real socket. Builds into `build/tests/test_server_client`.
 - `test_python_client.py` — Suite 4. Exercises the Python client library against
