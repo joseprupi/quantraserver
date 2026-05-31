@@ -41,7 +41,7 @@ The runner:
 
 ### Python client tests
 
-- script: `tests/test_python_client.py`
+- script: `tests/client/test_python_client.py`
 - purpose: validate the Python client on representative scenarios
 
 ## Direct Execution

@@ -1,11 +1,14 @@
 #!/bin/bash
 # Quantra Curve Cache Benchmark
 #
-# Usage:
-#   ./tests/run_bench.sh           # run all 3 modes
-#   ./tests/run_bench.sh bond      # single mode
-#   ./tests/run_bench.sh swap
-#   ./tests/run_bench.sh swap2
+# Usage (runnable from anywhere — paths resolve relative to this script):
+#   bash tests/bench/run_bench.sh           # run all 3 modes
+#   bash tests/bench/run_bench.sh bond      # single mode
+#   bash tests/bench/run_bench.sh swap
+#   bash tests/bench/run_bench.sh swap2
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 GRPC_PORT=50055
 HTTP_PORT=8080
@@ -35,11 +38,11 @@ start_servers() {
     env -i PATH="$PATH" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" \
         QUANTRA_CURVE_CACHE_ENABLED=$cache_enabled \
         QUANTRA_CURVE_CACHE_LOG=$( [ "$cache_enabled" = "1" ] && echo "1" || echo "0" ) \
-        ./build/server/sync_server $GRPC_PORT > /tmp/quantra_bench.log 2>&1 &
+        "${WORKSPACE}/build/server/sync_server" $GRPC_PORT > /tmp/quantra_bench.log 2>&1 &
     PID_GRPC=$!
     sleep 1
     [ ! -d "/proc/$PID_GRPC" ] && echo "FATAL: gRPC server died" && return 1
-    ./build/jsonserver/json_server localhost:$GRPC_PORT $HTTP_PORT > /dev/null 2>&1 &
+    "${WORKSPACE}/build/jsonserver/json_server" localhost:$GRPC_PORT $HTTP_PORT > /dev/null 2>&1 &
     PID_HTTP=$!
     wait_for_http || return 1
     return 0
@@ -55,13 +58,13 @@ run_one_mode() {
     # NO CACHE
     echo "  [1/2] no-cache..."
     start_servers 0 || return 1
-    RESULT_NC=$(python3 tests/bench_cache.py --url http://localhost:$HTTP_PORT --tag "no-cache" --mode $mode -n $N_REQUESTS --warmup $WARMUP 2>&1)
+    RESULT_NC=$(python3 "${SCRIPT_DIR}/bench_cache.py" --url http://localhost:$HTTP_PORT --tag "no-cache" --mode $mode -n $N_REQUESTS --warmup $WARMUP 2>&1)
     kill_servers; sleep 3
 
     # WITH CACHE
     echo "  [2/2] with-cache..."
     start_servers 1 || return 1
-    RESULT_C=$(python3 tests/bench_cache.py --url http://localhost:$HTTP_PORT --tag "with-cache" --mode $mode -n $N_REQUESTS --warmup $WARMUP 2>&1)
+    RESULT_C=$(python3 "${SCRIPT_DIR}/bench_cache.py" --url http://localhost:$HTTP_PORT --tag "with-cache" --mode $mode -n $N_REQUESTS --warmup $WARMUP 2>&1)
     kill_servers; sleep 2
 
     # Extract stats

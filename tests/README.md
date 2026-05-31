@@ -28,10 +28,10 @@ SUMMARY suites_passed=7 suites_failed=0 total_cases=270
 |---|---|---|---|
 | 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_pricer_boundary.sh` |
 | 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` |
-| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `test_server_client.cpp` |
+| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` |
 | 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` |
-| 4 | The Python client library works against the server | Python, gRPC | `test_python_client.py` |
-| 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `test_json_concurrency.py` |
+| 4 | The Python client library works against the server | Python, gRPC | `client/test_python_client.py` |
+| 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `concurrency/test_json_concurrency.py` |
 | 6 | The curve cache is transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` |
 
 Suites 1 and 3 are the two correctness anchors: both build the equivalent
@@ -104,29 +104,39 @@ The cache lives in the pricing engine (the gRPC server), so the cache env vars
 and the `[CurveCache] … event=L1_HIT` log lines belong to the gRPC process, not
 the JSON gateway.
 
-## Top-level files
+## `integration/` — gRPC round-trip (Suite 2)
 
-- `run_all_tests.sh` — the gate (above). Starts/stops servers (including the
-  cache-ON pair for Suite 6), runs the seven suites, prints the summary +
-  `RESULT`/`SUMMARY` lines.
 - `test_server_client.cpp` — Suite 2. C++ gtest that talks to the gRPC server
   over a real socket. Builds into `build/tests/test_server_client`.
+
+## `client/` — Python client library (Suite 4)
+
 - `test_python_client.py` — Suite 4. Exercises the Python client library against
   the running server and compares to QuantLib.
+
+## `concurrency/` — gateway thread-safety (Suite 5)
+
 - `test_json_concurrency.py` — Suite 5. Fires many concurrent JSON requests at
   one endpoint and asserts every response is identical (guards the gateway's
   thread-safety).
-- `CMakeLists.txt` — builds the two C++ test binaries
-  (`test_quantra_vs_quantlib` from `parity/`, and `test_server_client`).
-- `requirements.txt` — pinned Python dependencies for the test environment
-  (requests, QuantLib, grpcio, flatbuffers, pytest).
 
-## Benchmark (not part of the gate)
+## `bench/` — curve-cache benchmark (not part of the gate)
 
 - `run_bench.sh` + `bench_cache.py` — measure the curve-cache speedup. These are
   informational only; run them by hand, they are not in the pass/fail gate.
 
 ```bash
-bash tests/run_bench.sh        # all modes
-bash tests/run_bench.sh bond   # one mode
+bash tests/bench/run_bench.sh        # all modes
+bash tests/bench/run_bench.sh bond   # one mode
 ```
+
+## Top-level files
+
+- `run_all_tests.sh` — the gate (above). Starts/stops servers (including the
+  cache-ON pair for Suite 6), runs the seven suites, prints the summary +
+  `RESULT`/`SUMMARY` lines.
+- `CMakeLists.txt` — builds the two C++ test binaries
+  (`test_quantra_vs_quantlib` from `parity/`, and `test_server_client` from
+  `integration/`).
+- `requirements.txt` — pinned Python dependencies for the test environment
+  (requests, QuantLib, grpcio, flatbuffers, pytest).

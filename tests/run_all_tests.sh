@@ -376,7 +376,7 @@ if ! kill -0 $GRPC_PID 2>/dev/null; then
 fi
 
 # Test 4: Python client surface
-PYTHON_TEST="${SCRIPT_DIR}/test_python_client.py"
+PYTHON_TEST="${SCRIPT_DIR}/client/test_python_client.py"
 if [ -f "$PYTHON_TEST" ]; then
     run_test 4 \
         "4. Python gRPC Client" \
@@ -392,7 +392,7 @@ else
 fi
 
 # Test 5: JSON gateway concurrency / parser thread-safety
-CONCURRENCY_TEST="${SCRIPT_DIR}/test_json_concurrency.py"
+CONCURRENCY_TEST="${SCRIPT_DIR}/concurrency/test_json_concurrency.py"
 if [ -f "$CONCURRENCY_TEST" ]; then
     if curl -s http://localhost:8080/health > /dev/null 2>&1; then
         run_test 5 \
