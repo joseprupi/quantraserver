@@ -5,7 +5,8 @@
 #include <ql/types.hpp>
 
 #include "date_convert.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
+#include "yield_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 

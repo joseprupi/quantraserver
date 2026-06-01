@@ -8,7 +8,7 @@
 #include "floating_rate_bond_generated.h"
 #include "enum_convert.h"
 #include "date_convert.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
 #include "index_registry.h"
 
 using namespace QuantLib;

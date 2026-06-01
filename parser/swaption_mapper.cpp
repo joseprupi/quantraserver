@@ -6,7 +6,7 @@
 #include <ql/settings.hpp>
 
 #include "date_convert.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
 #include "curve_bootstrapper.h"
 #include "enum_convert.h"
 #include "error.h"

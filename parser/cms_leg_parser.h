@@ -8,7 +8,7 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 #include "date_convert.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
 #include "error.h"
 #include "index_registry.h"
 #include "swap_index_registry.h"
