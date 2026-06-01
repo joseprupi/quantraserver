@@ -20,7 +20,7 @@
 #include "fixed_rate_bond_generated.h"
 #include "enum_convert.h"
 #include "date_convert.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
 
 using namespace QuantLib;
 using namespace quantra;

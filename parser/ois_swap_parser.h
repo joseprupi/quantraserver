@@ -6,7 +6,7 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 #include "ois_swap_generated.h"
-#include "common_parser.h"
+#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "index_registry.h"
 
