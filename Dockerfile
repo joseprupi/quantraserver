@@ -140,6 +140,13 @@ RUN pip3 install --break-system-packages -r /tmp/quantra-requirements.txt
 COPY tools/quantra-manager/quantra /usr/local/bin/quantra
 RUN chmod +x /usr/local/bin/quantra
 
+# -----------------------------------------------------------------------------
+# Test-gate python deps (suites 3 & 4 in tests/run_all_tests.sh).
+# Pinned to match the C++ QuantLib version above so parity assertions hold.
+# -----------------------------------------------------------------------------
+COPY tests/requirements.txt /tmp/quantra-tests-requirements.txt
+RUN pip3 install --break-system-packages -r /tmp/quantra-tests-requirements.txt
+
 # Create helper scripts
 RUN echo '#!/bin/bash' > /usr/local/bin/regen-flatbuffers.sh && \
     echo 'set -e' >> /usr/local/bin/regen-flatbuffers.sh && \

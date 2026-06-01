@@ -1,100 +1,102 @@
 {
   "pricing": {
     "as_of_date": "2025/01/15",
-    "indices": [
-      {
-        "id": "EUR_6M",
-        "name": "Euribor",
-        "index_type": "Ibor",
-        "fixing_days": 2,
-        "calendar": "TARGET",
-        "business_day_convention": "ModifiedFollowing",
-        "day_counter": "Actual360",
-        "end_of_month": false,
-        "currency": "EUR",
-        "tenor": {
-          "n": 6,
-          "unit": "Months"
-        }
-      }
-    ],
-    "curves": [
-      {
-        "id": "USD_LIBOR_3M",
-        "reference_date": "2025/01/15",
-        "day_counter": "Actual365Fixed",
-        "interpolator": "LogLinear",
-        "bootstrap_trait": "Discount",
-        "points": [
-          {
-            "point_type": "DepositHelper",
-            "point": {
-              "rate": 0.045,
-              "fixing_days": 2,
-              "calendar": "TARGET",
-              "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual360",
-              "tenor": {
-                "n": 3,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "DepositHelper",
-            "point": {
-              "rate": 0.048,
-              "fixing_days": 2,
-              "calendar": "TARGET",
-              "business_day_convention": "ModifiedFollowing",
-              "day_counter": "Actual360",
-              "tenor": {
-                "n": 6,
-                "unit": "Months"
-              }
-            }
-          },
-          {
-            "point_type": "SwapHelper",
-            "point": {
-              "rate": 0.042,
-              "calendar": "TARGET",
-              "sw_fixed_leg_frequency": "Annual",
-              "sw_fixed_leg_convention": "ModifiedFollowing",
-              "sw_fixed_leg_day_counter": "Thirty360",
-              "spread": 0.0,
-              "fwd_start_days": 2,
-              "float_index": {
-                "id": "EUR_6M"
-              },
-              "tenor": {
-                "n": 2,
-                "unit": "Years"
-              }
-            }
-          },
-          {
-            "point_type": "SwapHelper",
-            "point": {
-              "rate": 0.04,
-              "calendar": "TARGET",
-              "sw_fixed_leg_frequency": "Annual",
-              "sw_fixed_leg_convention": "ModifiedFollowing",
-              "sw_fixed_leg_day_counter": "Thirty360",
-              "spread": 0.0,
-              "fwd_start_days": 2,
-              "float_index": {
-                "id": "EUR_6M"
-              },
-              "tenor": {
-                "n": 5,
-                "unit": "Years"
-              }
-            }
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_6M",
+          "name": "Euribor",
+          "index_type": "Ibor",
+          "fixing_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual360",
+          "end_of_month": false,
+          "currency": "EUR",
+          "tenor": {
+            "n": 6,
+            "unit": "Months"
           }
-        ]
-      }
-    ]
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_LIBOR_3M",
+          "reference_date": "2025/01/15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.045,
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.048,
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.042,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 2,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.04,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 2,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
   },
   "queries": [
     {

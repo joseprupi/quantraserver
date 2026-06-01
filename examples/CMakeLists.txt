@@ -1,57 +1,49 @@
 include_directories(
-	/root/grpc/install/include	
+	/root/grpc/install/include
     ${CMAKE_SOURCE_DIR}/grpc
-    ${CMAKE_SOURCE_DIR}/parser 
-    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs 
-    ${CMAKE_SOURCE_DIR}/request 
-    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_SOURCE_DIR}/src/transport
+    ${CMAKE_SOURCE_DIR}/src/mappers
+    ${CMAKE_SOURCE_DIR}/src/evaluators
+    ${CMAKE_SOURCE_DIR}/src/parsers
+    ${CMAKE_SOURCE_DIR}/src/market
+    ${CMAKE_SOURCE_DIR}/src/domain
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
     ${CMAKE_SOURCE_DIR}/client/cpp
     data)
 
 file(GLOB ASYNC_SOURCES  
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp 
-    ${CMAKE_SOURCE_DIR}/common/*.cpp 
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp 
     ./messages.cpp
     data/fixed_rate_bond_request_fbs.cpp
     ./async_client.cpp)
 
 file(GLOB JSON_SOURCES  
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp 
-    ${CMAKE_SOURCE_DIR}/common/*.cpp 
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp 
     ./messages.cpp
     data/fixed_rate_bond_request_fbs.cpp
     ./bond_request_to_json.cpp)
 
 file(GLOB SWAP_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp
-    ${CMAKE_SOURCE_DIR}/common/*.cpp
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/vanilla_swap_request_fbs.cpp
     ./swap_client.cpp)
 
 file(GLOB FRA_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp
-    ${CMAKE_SOURCE_DIR}/common/*.cpp
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/fra_request_fbs.cpp
     ./fra_client.cpp)
 
 file(GLOB CAP_FLOOR_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp
-    ${CMAKE_SOURCE_DIR}/common/*.cpp
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/cap_floor_request_fbs.cpp
     ./cap_floor_client.cpp)
 
 file(GLOB SWAPTION_CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/parser/*.cpp
-    ${CMAKE_SOURCE_DIR}/common/*.cpp
-    ${CMAKE_SOURCE_DIR}/request/*.cpp  
+    ${CMAKE_SOURCE_DIR}/src/*/*.cpp
     ./messages.cpp
     data/swaption_request_fbs.cpp
     ./swaption_client.cpp)

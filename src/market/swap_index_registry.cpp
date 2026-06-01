@@ -1,0 +1,136 @@
+#include "swap_index_registry.h"
+
+namespace quantra {
+
+namespace {
+
+QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
+    switch (f) {
+        case QuantLib::Annual: return QuantLib::Period(1, QuantLib::Years);
+        case QuantLib::Semiannual: return QuantLib::Period(6, QuantLib::Months);
+        case QuantLib::Quarterly: return QuantLib::Period(3, QuantLib::Months);
+        case QuantLib::Monthly: return QuantLib::Period(1, QuantLib::Months);
+        case QuantLib::Bimonthly: return QuantLib::Period(2, QuantLib::Months);
+        case QuantLib::EveryFourthMonth: return QuantLib::Period(4, QuantLib::Months);
+        default: return QuantLib::Period(1, QuantLib::Years);
+    }
+}
+
+} // namespace
+
+std::shared_ptr<QuantLib::SwapIndex> SwapIndexRegistry::getIborSwapIndexWithCurves(
+    const std::string& id,
+    const QuantLib::Period& tenor,
+    const IndexRegistry& indices,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
+    const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const {
+    const auto& sidx = get(id);
+    if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
+        QUANTRA_INVALID_ARGUMENT("Swap index '" + id + "' is not an Ibor swap index");
+    }
+    if (tenor.length() <= 0) {
+        QUANTRA_INVALID_ARGUMENT("CMS swap_tenor must be positive for swap index '" + id + "'");
+    }
+
+    auto ibor = indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
+    QuantLib::Period fixedLegTenor = frequencyToPeriod(sidx.fixedFrequency);
+
+    return std::make_shared<QuantLib::SwapIndex>(
+        id,
+        tenor,
+        static_cast<QuantLib::Natural>(sidx.spotDays),
+        ibor->currency(),
+        sidx.fixedCalendar,
+        fixedLegTenor,
+        sidx.fixedBdc,
+        sidx.fixedDayCounter,
+        ibor,
+        discountCurve);
+}
+
+SwapIndexRegistry SwapIndexRegistryBuilder::build(
+    const flatbuffers::Vector<flatbuffers::Offset<quantra::SwapIndexDef>>* defs,
+    const IndexRegistry& indices) const {
+    SwapIndexRegistry reg;
+    if (!defs) return reg;
+
+    for (auto it = defs->begin(); it != defs->end(); ++it) {
+        const auto* d = *it;
+        if (!d || !d->id()) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.id is required");
+        }
+        if (!d->float_index_id()) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.float_index_id is required");
+        }
+        SwapIndexRuntime r;
+        r.kind = d->kind();
+        r.spotDays = d->spot_days();
+        r.calendar = CalendarToQL(d->calendar());
+        r.bdc = ConventionToQL(d->business_day_convention());
+        r.endOfMonth = d->end_of_month();
+        r.floatIndexId = d->float_index_id()->str();
+
+        // Validate index kind against referenced index definition.
+        if (r.kind == quantra::SwapIndexKind_IborSwapIndex) {
+            indices.getIbor(r.floatIndexId);
+        } else {
+            indices.getOvernight(r.floatIndexId);
+        }
+
+        if (!d->fixed_leg()) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.fixed_leg is required for id: " + d->id()->str());
+        }
+        const auto* f = d->fixed_leg();
+        r.fixedFrequency = FrequencyToQL(f->fixed_frequency());
+        r.fixedDayCounter = DayCounterToQL(f->fixed_day_counter());
+        r.fixedCalendar = CalendarToQL(f->fixed_calendar());
+        r.fixedCalendarFb = f->fixed_calendar();
+        r.fixedBdc = ConventionToQL(f->fixed_bdc());
+        r.fixedBdcFb = f->fixed_bdc();
+        r.fixedTermBdc = ConventionToQL(f->fixed_term_bdc());
+        r.fixedDateRule = DateGenerationToQL(f->fixed_date_rule());
+        r.fixedEom = f->fixed_eom();
+        if (r.calendar != r.fixedCalendar || r.bdc != r.fixedBdc || r.endOfMonth != r.fixedEom) {
+            QUANTRA_INVALID_ARGUMENT(
+                "SwapIndexDef top-level calendar/business_day_convention/end_of_month must match fixed_leg for id: " +
+                d->id()->str());
+        }
+
+        if (!d->float_leg()) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.float_leg is required for id: " + d->id()->str());
+        }
+        const auto* fl = d->float_leg();
+        if (!fl->float_tenor()) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.float_leg.float_tenor is required for id: " + d->id()->str());
+        }
+        r.floatTenor = QuantLib::Period(
+            fl->float_tenor()->n(),
+            TimeUnitToQL(fl->float_tenor()->unit()));
+        r.floatCalendar = CalendarToQL(fl->float_calendar());
+        r.floatBdc = ConventionToQL(fl->float_bdc());
+        r.floatTermBdc = ConventionToQL(fl->float_term_bdc());
+        r.floatDateRule = DateGenerationToQL(fl->float_date_rule());
+        r.floatEom = fl->float_eom();
+
+        if (r.spotDays < 0) {
+            QUANTRA_INVALID_ARGUMENT("SwapIndexDef.spot_days must be >= 0 for id: " + d->id()->str());
+        }
+
+        if (r.kind == quantra::SwapIndexKind_OisSwapIndex) {
+            auto on = indices.getOvernight(r.floatIndexId);
+            if (on->fixingCalendar() != r.fixedCalendar || on->fixingCalendar() != r.floatCalendar) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "OIS swap index calendars must match overnight index calendar for id: " + d->id()->str());
+            }
+            if (r.fixedBdc != r.floatBdc) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "OIS swap index requires fixed_leg.fixed_bdc == float_leg.float_bdc for id: " +
+                    d->id()->str());
+            }
+        }
+        reg.add(d->id()->str(), r);
+    }
+    return reg;
+}
+
+} // namespace quantra

@@ -1,0 +1,14 @@
+# Python deps used by the test gate (tests/run_all_tests.sh suites 3 & 4).
+# Pin QuantLib to the version the C++ engine is built against (1.41 in
+# Dockerfile/deps stage) so parity assertions compare apples to apples.
+# grpcio + flatbuffers pinned to match the C++ versions (gRPC v1.60.0,
+# Flatbuffers v24.12.23) so the Python client (suite 4) speaks the same
+# wire format as the server. Note: PYTHONPATH=...flatbuffers/python in
+# run_all_tests.sh only provides the generated Quantra schemas under
+# flatbuffers/python/quantra; the flatbuffers RUNTIME must be pip-installed.
+requests
+QuantLib==1.41
+grpcio==1.60.0
+flatbuffers==24.12.23
+# pytest drives the JSON contract/parity suite (suite 3, tests/contract/).
+pytest==8.3.4
