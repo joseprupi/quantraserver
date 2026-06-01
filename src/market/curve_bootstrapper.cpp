@@ -308,15 +308,33 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             cache.stats().bootstraps++;
 
-            // Store in L1
-            cache.backend().putL1(key, curve);
+            // Serialize once; reused for both the L2 store and (for Discount
+            // curves) the frozen L1 reconstruction below.
+            auto serialized = CurveSerializer::serialize(curve, ts);
+
+            // Cache a frozen, dependency-free curve in L1 for subsequent hits.
+            // A live PiecewiseYieldCurve observes its helpers, which observe the
+            // discount-curve handle; relinking that handle on a later request
+            // (even to identical data) marks the cached curve dirty and forces a
+            // full re-bootstrap on next use. The reconstructed
+            // InterpolatedDiscountCurve holds only pillar dates and discount
+            // factors — it observes nothing, so it never re-bootstraps.
+            // Only Discount-trait curves reconstruct bit-exactly; other traits
+            // fall back to caching the live curve (today's behavior).
+            std::shared_ptr<QuantLib::YieldTermStructure> toCacheL1 = curve;
+            if (ts->bootstrap_trait() == quantra::enums::BootstrapTrait_Discount) {
+                toCacheL1 = CurveSerializer::reconstruct(serialized);
+            }
+            cache.backend().putL1(key, toCacheL1);
 
             // Store in L2 (serialized DFs — for future Redis)
-            auto serialized = CurveSerializer::serialize(curve, ts);
             cache.backend().putL2(key, serialized);
 
             cache.logEvent(id, key, "MISS_BOOTSTRAP", bootMs);
 
+            // The miss request itself stays on the live curve, so its result is
+            // byte-identical to the no-cache path; only later L1 hits use the
+            // frozen reconstruction.
             out.handles.at(id)->linkTo(curve);
             depKeys[id] = key;
             out.keys[id] = key;
