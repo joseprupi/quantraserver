@@ -7,8 +7,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 
 #include "cap_floor_generated.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "common_parser.h"
 #include "index_registry.h"
 

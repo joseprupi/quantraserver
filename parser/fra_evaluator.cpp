@@ -8,7 +8,7 @@
 #include <ql/instruments/forwardrateagreement.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "error.h"
 
 namespace quantra {

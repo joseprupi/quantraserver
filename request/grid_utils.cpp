@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <sstream>
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra {
 namespace grid_utils {

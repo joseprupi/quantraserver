@@ -1,6 +1,6 @@
 #include "fixed_rate_bond_mapper.h"
 
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "fixed_rate_bond_parser.h"
 

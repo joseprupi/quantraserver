@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "swaption_vol_diagnostics.h"
 

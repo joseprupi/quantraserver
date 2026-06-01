@@ -1,7 +1,7 @@
 #include "basis_swap_mapper.h"
 
 #include "common_parser.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace quantra {

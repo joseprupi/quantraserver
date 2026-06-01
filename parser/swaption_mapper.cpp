@@ -5,10 +5,10 @@
 
 #include <ql/settings.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "common_parser.h"
 #include "curve_bootstrapper.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"

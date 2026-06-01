@@ -1,6 +1,6 @@
 #include "calibrate_swaption_model_mapper.h"
 
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "model_generated.h"
 

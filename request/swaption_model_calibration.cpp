@@ -17,7 +17,7 @@
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
 #include <ql/settings.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "error.h"
 
 namespace {

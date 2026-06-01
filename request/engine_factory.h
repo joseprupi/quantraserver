@@ -24,7 +24,7 @@
 
 #include "model_generated.h"
 #include "vol_surface_parsers.h"
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra {
 

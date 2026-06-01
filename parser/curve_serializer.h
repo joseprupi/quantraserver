@@ -14,8 +14,8 @@
 #include <ql/time/date.hpp>
 
 #include "curve_cache.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "term_structure_generated.h"
 
 namespace quantra {

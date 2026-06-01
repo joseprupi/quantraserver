@@ -5,7 +5,7 @@
 #include <ql/quote.hpp>
 
 #include "quotes_generated.h"
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra {
 

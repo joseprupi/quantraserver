@@ -7,7 +7,7 @@
 // test_quantra_vs_quantlib binary.
 #include "parity_fixture.h"
 
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra { namespace testing {
 

@@ -33,7 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra {
 

@@ -1,7 +1,7 @@
 #include "calendar_holidays_mapper.h"
 
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace quantra {

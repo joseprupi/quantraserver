@@ -16,8 +16,8 @@
 #include "equity_underlying_registry.h"
 #include "index_registry_builder.h"
 #include "swap_index_registry.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "quote_registry.h"
 #include "inflation_curve_parsers.h"
 

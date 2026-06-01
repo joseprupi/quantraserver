@@ -14,7 +14,7 @@
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "error.h"
 #include "model_domain.h"
 

@@ -15,7 +15,7 @@
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/types.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "coupon_pricer_domain.h"
 #include "error.h"
 

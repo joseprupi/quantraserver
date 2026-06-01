@@ -4,7 +4,7 @@
 #include <ql/settings.hpp>
 #include <ql/time/date.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "pricing_registry.h"
 #include "pricing_generated.h"
 

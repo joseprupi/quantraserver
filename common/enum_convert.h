@@ -4,10 +4,10 @@
 #include <ql/option.hpp>
 
 #include "enums_generated.h"
-#include "common.h"
+#include "date_convert.h"
 
-#ifndef ENUMS_H
-#define ENUMS_H
+#ifndef ENUM_CONVERT_H
+#define ENUM_CONVERT_H
 
 QuantLib::TimeUnit TimeUnitToQL(const quantra::enums::TimeUnit timeUnit);
 QuantLib::Calendar CalendarToQL(const quantra::enums::Calendar calendar);
@@ -43,4 +43,4 @@ QuantLib::Barrier::Type EquityBarrierTypeToQL(const quantra::enums::EquityBarrie
 QuantLib::Settlement::Type EquitySettlementTypeToQL(
     const quantra::enums::EquitySettlementType settlement);
 
-#endif //ENUMS_H
+#endif //ENUM_CONVERT_H
