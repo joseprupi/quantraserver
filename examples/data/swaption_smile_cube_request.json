@@ -110,6 +110,25 @@
                   "unit": "Years"
                 }
               }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.03,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 15,
+                  "unit": "Years"
+                }
+              }
             }
           ]
         }
