@@ -81,7 +81,7 @@ sends — and compares the returned NPV against an independent QuantLib referenc
 
 ## `caching/` — curve-cache transparency (Suite 6)
 
-pytest. The curve cache (`../parser/curve_cache.h`) is off by default and must
+pytest. The curve cache (`../src/market/curve_cache.h`) is off by default and must
 be invisible: turning it on may not change any result. The suite POSTs each
 representative example payload to two servers — the default cache-OFF server on
 `:8080` and a cache-ON server on `:8081` (`QUANTRA_CURVE_CACHE_ENABLED=1`,

@@ -277,19 +277,19 @@ echo ""
 echo "Workspace: ${WORKSPACE}"
 echo "Build:     ${BUILD}"
 
-# Suite 0: evaluator boundary guard. Static grep over parser/*_evaluator.{h,cpp};
+# Suite 0: evaluator boundary guard. Static grep over src/evaluators/*_evaluator.{h,cpp};
 # runs before any server starts because no runtime is involved. A red
 # Suite 0 must fail the whole runner — same rc-based pattern as the rest.
 if [ -x "${WORKSPACE}/scripts/check_evaluator_boundary.sh" ]; then
     run_test 0 \
         "0. Evaluator boundary" \
-        "Static guard: no FlatBuffers/gRPC in parser/*_evaluator.{h,cpp}" \
+        "Static guard: no FlatBuffers/gRPC in src/evaluators/*_evaluator.{h,cpp}" \
         boundary \
         "${WORKSPACE}/scripts/check_evaluator_boundary.sh"
 else
     skip_test 0 \
         "0. Evaluator boundary" \
-        "Static guard: no FlatBuffers/gRPC in parser/*_evaluator.{h,cpp}" \
+        "Static guard: no FlatBuffers/gRPC in src/evaluators/*_evaluator.{h,cpp}" \
         "scripts/check_evaluator_boundary.sh not found"
     ((FAILED++))
 fi

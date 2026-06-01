@@ -3,8 +3,8 @@
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/grpc
-    ${CMAKE_SOURCE_DIR}/common
-    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs 
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
     ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
     ${CMAKE_SOURCE_DIR}/client/cpp/include
 )
