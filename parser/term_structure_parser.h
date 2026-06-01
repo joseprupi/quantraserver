@@ -13,8 +13,8 @@
 #include "quote_registry.h"
 #include "curve_registry.h"
 #include "index_registry.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 
 namespace quantra {
 

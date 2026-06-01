@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <chrono>
 
-#include "common.h"
+#include "date_convert.h"
 #include "term_structure_parser.h"
 #include "curve_cache.h"
 #include "curve_cache_key.h"

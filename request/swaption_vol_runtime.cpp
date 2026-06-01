@@ -6,7 +6,7 @@
 #include <ql/utilities/dataformatters.hpp>
 
 #include "sabr_calibrate_cache_key.h"
-#include "common.h"
+#include "date_convert.h"
 
 namespace {
 

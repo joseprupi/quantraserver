@@ -5,8 +5,8 @@
 
 #include <ql/time/calendars/target.hpp>
 
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "grid_utils.h"
 

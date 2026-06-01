@@ -28,8 +28,8 @@
 #include <ql/indexes/swapindex.hpp>
 
 #include "volatility_generated.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "quote_registry.h"
 
 namespace quantra {

@@ -3,7 +3,7 @@
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
-#include "common.h"
+#include "date_convert.h"
 
 namespace quantra {
 

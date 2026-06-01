@@ -7,8 +7,8 @@
 #include <ql/handle.hpp>
 
 #include "term_structure_generated.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "error.h"
 #include "common_parser.h"
 #include "quote_registry.h"

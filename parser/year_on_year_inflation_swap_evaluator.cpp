@@ -6,7 +6,7 @@
 #include <ql/handle.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 
-#include "common.h"   // DateToIso
+#include "date_convert.h"   // DateToIso
 #include "error.h"
 
 namespace quantra {

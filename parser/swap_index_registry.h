@@ -16,7 +16,7 @@
 
 #include "swap_index_generated.h"
 #include "index_registry.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace quantra {

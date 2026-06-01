@@ -19,8 +19,8 @@
 #include <ql/time/period.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "index_registry_builder.h" // CurrencyFromString
 

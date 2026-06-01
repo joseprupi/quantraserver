@@ -4,9 +4,9 @@
 
 #include <ql/types.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "common_parser.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace quantra {

@@ -1,6 +1,6 @@
 #include <ql/quantlib.hpp>
 
-#include "enums.h"
+#include "enum_convert.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"

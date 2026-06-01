@@ -1,8 +1,8 @@
 #include "zero_coupon_inflation_swap_parser.h"
 
-#include "common.h"
+#include "date_convert.h"
 #include "common_parser.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace {

@@ -7,7 +7,7 @@
 #include <ql/handle.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "common_parser.h"
 #include "error.h"
 #include "index_registry.h"

@@ -34,8 +34,8 @@
 #include "pricing_generated.h"
 #include "term_structure_generated.h"
 #include "coupon_pricer_generated.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "schedule_generated.h"
 
 using namespace QuantLib;

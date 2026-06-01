@@ -9,8 +9,8 @@
 #include <ql/time/businessdayconvention.hpp>
 
 #include "curve_query_generated.h"
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 
 namespace quantra {

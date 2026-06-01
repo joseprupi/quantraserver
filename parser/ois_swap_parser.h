@@ -7,7 +7,7 @@
 
 #include "ois_swap_generated.h"
 #include "common_parser.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "index_registry.h"
 
 using namespace QuantLib;

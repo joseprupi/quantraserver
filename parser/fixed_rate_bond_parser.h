@@ -18,8 +18,8 @@
 #include <ql/math/interpolations/loginterpolation.hpp>
 
 #include "fixed_rate_bond_generated.h"
-#include "enums.h"
-#include "common.h"
+#include "enum_convert.h"
+#include "date_convert.h"
 #include "common_parser.h"
 
 using namespace QuantLib;

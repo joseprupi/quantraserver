@@ -20,8 +20,8 @@
 // #include "term_structure_parser.h"
 // //#include "quantra_structs.h"
 // #include "common_generated.h"
-// #include "enums.h"
-// #include "common.h"
+// #include "enum_convert.h"
+// #include "date_convert.h"
 // #include "schedule_generated.h"
 
 // using namespace QuantLib;

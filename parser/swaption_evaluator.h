@@ -38,7 +38,7 @@
 #include <ql/instruments/swaption.hpp>
 
 #include "curve_bootstrapper.h"
-#include "enums.h"
+#include "enum_convert.h"
 #include "index_registry.h"
 #include "ois_swap_evaluator.h"
 #include "pricing_context.h"

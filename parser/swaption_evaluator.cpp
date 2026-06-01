@@ -22,8 +22,8 @@
 #include <ql/utilities/null.hpp>
 #include <ql/version.hpp>
 
-#include "common.h"
-#include "enums.h"
+#include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
 #include "eval_date_guard.h"
 #include "model_domain.h"

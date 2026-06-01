@@ -42,7 +42,7 @@
 #include <ql/time/date.hpp>
 #include <ql/time/period.hpp>
 
-#include "enums.h"
+#include "enum_convert.h"
 #include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"

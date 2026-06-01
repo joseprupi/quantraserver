@@ -12,7 +12,7 @@
 #include <ql/instruments/swap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 
-#include "common.h"
+#include "date_convert.h"
 #include "error.h"
 
 namespace quantra {
