@@ -14,7 +14,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "sample_vol_surfaces_pricer.h"
+#include "sample_vol_surfaces_evaluator.h"
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 

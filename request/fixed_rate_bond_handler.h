@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "fixed_rate_bond_mapper.h"
-#include "fixed_rate_bond_pricer.h"
+#include "fixed_rate_bond_evaluator.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 
@@ -20,7 +20,7 @@ using FixedRateBondEndpoint = quantra::ProductEndpoint<
     PriceFixedRateBondRequest,
     PriceFixedRateBondResponse,
     quantra::FixedRateBondMapper,
-    quantra::FixedRateBondPricer>;
+    quantra::FixedRateBondEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy FixedRateBondPricingRequest type directly.

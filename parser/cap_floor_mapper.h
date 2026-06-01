@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "cap_floor_pricer.h"
+#include "cap_floor_evaluator.h"
 #include "cap_floor_response_generated.h"
 #include "price_cap_floor_request_generated.h"
 

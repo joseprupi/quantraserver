@@ -3,7 +3,7 @@
 
 #include "call_data_base.h"
 #include "equity_option_mapper.h"
-#include "equity_option_pricer.h"
+#include "equity_option_evaluator.h"
 #include "equity_option_response_generated.h"
 #include "price_equity_option_request_generated.h"
 #include "product_endpoint.h"
@@ -18,7 +18,7 @@ using EquityOptionEndpoint = quantra::ProductEndpoint<
     PriceEquityOptionRequest,
     PriceEquityOptionResponse,
     quantra::EquityOptionMapper,
-    quantra::EquityOptionPricer>;
+    quantra::EquityOptionEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using EquityOptionPricingRequest = EquityOptionEndpoint;

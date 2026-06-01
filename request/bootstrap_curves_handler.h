@@ -2,7 +2,7 @@
 #define QUANTRASERVER_BOOTSTRAP_CURVES_HANDLER_H
 
 #include "bootstrap_curves_mapper.h"
-#include "bootstrap_curves_pricer.h"
+#include "bootstrap_curves_evaluator.h"
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
 #include "call_data_base.h"
@@ -21,7 +21,7 @@ using BootstrapCurvesEndpoint = quantra::ProductEndpoint<
     BootstrapCurvesRequest,
     BootstrapCurvesResponse,
     quantra::BootstrapCurvesMapper,
-    quantra::BootstrapCurvesPricer>;
+    quantra::BootstrapCurvesEvaluator>;
 
 /// Transitional alias: the C++ parity test instantiates this name directly.
 using BootstrapCurvesRequestHandler = BootstrapCurvesEndpoint;

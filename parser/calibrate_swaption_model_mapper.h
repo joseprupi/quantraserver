@@ -11,7 +11,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "calibrate_swaption_model_pricer.h"
+#include "calibrate_swaption_model_evaluator.h"
 #include "calibrate_swaption_model_request_generated.h"
 #include "calibrate_swaption_model_response_generated.h"
 

@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "basis_swap_pricer.h"
+#include "basis_swap_evaluator.h"
 #include "basis_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
 

@@ -6,7 +6,7 @@
 #include <string>
 
 #include "bootstrap_inflation_curves_mapper.h"
-#include "bootstrap_inflation_curves_pricer.h"
+#include "bootstrap_inflation_curves_evaluator.h"
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
 #include "call_data_base.h"
@@ -32,7 +32,7 @@ using BootstrapInflationCurvesEndpoint = ProductEndpoint<
     BootstrapInflationCurvesRequest,
     BootstrapInflationCurvesResponse,
     BootstrapInflationCurvesMapper,
-    BootstrapInflationCurvesPricer>;
+    BootstrapInflationCurvesEvaluator>;
 
 } // namespace quantra
 

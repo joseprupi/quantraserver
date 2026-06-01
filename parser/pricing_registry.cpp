@@ -96,7 +96,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     //
     // Equity underlyings reference dividend yield curves bootstrapped above, so
     // this block runs after `rates.curves` is populated. Output is plain (no
-    // FB pointers) — consumed by EquityOptionPricer via `reg.equity`.
+    // FB pointers) — consumed by EquityOptionEvaluator via `reg.equity`.
     // ==========================================================================
     if (pricing->equity()) {
         EquityUnderlyingRegistryBuilder equityBuilder;
@@ -283,7 +283,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     // ==========================================================================
     // Register credit curve specs (optional)
     //
-    // Consumers (cds_pricer) read the plain-domain `creditCurves` map
+    // Consumers (cds_evaluator) read the plain-domain `creditCurves` map
     // populated below.
     // ==========================================================================
     if (credit && credit->credit_curves()) {

@@ -11,7 +11,7 @@
 #include "flatbuffers/grpc.h"
 
 #include "price_year_on_year_inflation_swap_request_generated.h"
-#include "year_on_year_inflation_swap_pricer.h"
+#include "year_on_year_inflation_swap_evaluator.h"
 #include "year_on_year_inflation_swap_response_generated.h"
 
 namespace quantra {

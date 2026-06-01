@@ -11,7 +11,7 @@
 #include "flatbuffers/grpc.h"
 
 #include "price_zero_coupon_inflation_swap_request_generated.h"
-#include "zero_coupon_inflation_swap_pricer.h"
+#include "zero_coupon_inflation_swap_evaluator.h"
 #include "zero_coupon_inflation_swap_response_generated.h"
 
 namespace quantra {

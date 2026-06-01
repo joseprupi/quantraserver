@@ -2,7 +2,7 @@
 #define QUANTRASERVER_CALIBRATE_SWAPTION_MODEL_HANDLER_H
 
 #include "calibrate_swaption_model_mapper.h"
-#include "calibrate_swaption_model_pricer.h"
+#include "calibrate_swaption_model_evaluator.h"
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
@@ -22,7 +22,7 @@ using CalibrateSwaptionModelEndpoint = quantra::ProductEndpoint<
     CalibrateSwaptionModelRequest,
     CalibrateSwaptionModelResponse,
     quantra::CalibrateSwaptionModelMapper,
-    quantra::CalibrateSwaptionModelPricer>;
+    quantra::CalibrateSwaptionModelEvaluator>;
 
 /// Transitional alias: the C++ parity test instantiates this name directly.
 using CalibrateSwaptionModelPricingRequest = CalibrateSwaptionModelEndpoint;

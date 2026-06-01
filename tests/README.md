@@ -26,7 +26,7 @@ SUMMARY suites_passed=7 suites_failed=0 total_cases=270
 
 | # | What it checks | How | Files |
 |---|---|---|---|
-| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_pricer_boundary.sh` |
+| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` |
 | 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` |
 | 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` |
 | 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` |

@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "floating_rate_bond_mapper.h"
-#include "floating_rate_bond_pricer.h"
+#include "floating_rate_bond_evaluator.h"
 #include "price_floating_rate_bond_request_generated.h"
 #include "floating_rate_bond_response_generated.h"
 
@@ -20,7 +20,7 @@ using FloatingRateBondEndpoint = quantra::ProductEndpoint<
     PriceFloatingRateBondRequest,
     PriceFloatingRateBondResponse,
     quantra::FloatingRateBondMapper,
-    quantra::FloatingRateBondPricer>;
+    quantra::FloatingRateBondEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using FloatingRateBondPricingRequest = FloatingRateBondEndpoint;

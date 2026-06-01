@@ -10,7 +10,7 @@
 #include "flatbuffers/grpc.h"
 
 #include "price_vanilla_swap_request_generated.h"
-#include "vanilla_swap_pricer.h"
+#include "vanilla_swap_evaluator.h"
 #include "vanilla_swap_response_generated.h"
 
 namespace quantra {

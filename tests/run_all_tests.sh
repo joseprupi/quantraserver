@@ -60,10 +60,10 @@ extract_case_count() {
             awk '/^Total scenarios:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
             ;;
         boundary)
-            # Parse "Pricer boundary OK (N files checked)" → N. Default to ?
+            # Parse "Evaluator boundary OK (N files checked)" → N. Default to ?
             # when the success line isn't present (e.g. on failure).
             local n
-            n="$(sed -n 's/^Pricer boundary OK (\([0-9]\+\) files checked)$/\1/p' "$logfile" | head -1)"
+            n="$(sed -n 's/^Evaluator boundary OK (\([0-9]\+\) files checked)$/\1/p' "$logfile" | head -1)"
             [ -n "$n" ] && echo "$n" || echo "?"
             ;;
         concurrency)
@@ -277,20 +277,20 @@ echo ""
 echo "Workspace: ${WORKSPACE}"
 echo "Build:     ${BUILD}"
 
-# Suite 0: pricer boundary guard. Static grep over parser/*_pricer.{h,cpp};
+# Suite 0: evaluator boundary guard. Static grep over parser/*_evaluator.{h,cpp};
 # runs before any server starts because no runtime is involved. A red
 # Suite 0 must fail the whole runner — same rc-based pattern as the rest.
-if [ -x "${WORKSPACE}/scripts/check_pricer_boundary.sh" ]; then
+if [ -x "${WORKSPACE}/scripts/check_evaluator_boundary.sh" ]; then
     run_test 0 \
-        "0. Pricer boundary" \
-        "Static guard: no FlatBuffers/gRPC in parser/*_pricer.{h,cpp}" \
+        "0. Evaluator boundary" \
+        "Static guard: no FlatBuffers/gRPC in parser/*_evaluator.{h,cpp}" \
         boundary \
-        "${WORKSPACE}/scripts/check_pricer_boundary.sh"
+        "${WORKSPACE}/scripts/check_evaluator_boundary.sh"
 else
     skip_test 0 \
-        "0. Pricer boundary" \
-        "Static guard: no FlatBuffers/gRPC in parser/*_pricer.{h,cpp}" \
-        "scripts/check_pricer_boundary.sh not found"
+        "0. Evaluator boundary" \
+        "Static guard: no FlatBuffers/gRPC in parser/*_evaluator.{h,cpp}" \
+        "scripts/check_evaluator_boundary.sh not found"
     ((FAILED++))
 fi
 

@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "ois_swap_pricer.h"
+#include "ois_swap_evaluator.h"
 #include "ois_swap_response_generated.h"
 #include "price_ois_swap_request_generated.h"
 

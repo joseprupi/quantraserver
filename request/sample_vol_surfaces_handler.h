@@ -7,7 +7,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "sample_vol_surfaces_mapper.h"
-#include "sample_vol_surfaces_pricer.h"
+#include "sample_vol_surfaces_evaluator.h"
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 
@@ -29,7 +29,7 @@ using SampleVolSurfacesEndpoint = ProductEndpoint<
     SampleVolSurfacesRequest,
     SampleVolSurfacesResponse,
     SampleVolSurfacesMapper,
-    SampleVolSurfacesPricer>;
+    SampleVolSurfacesEvaluator>;
 
 } // namespace quantra
 

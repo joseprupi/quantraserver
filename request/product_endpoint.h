@@ -35,7 +35,7 @@ struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>>
 ///
 /// When present, ProductEndpoint wraps registry/context construction in a
 /// try/catch: on failure it calls the hook, which folds the build-error
-/// message into each query's per-item error field, and then lets the pricer
+/// message into each query's per-item error field, and then lets the evaluator
 /// run its normal per-item path (every item ends up carrying the error). The
 /// response is a normal HTTP 200 list of per-item errors rather than a
 /// transport-level error. When the hook is absent, the registry is built
@@ -55,7 +55,7 @@ struct has_build_error_hook<
 
 /**
  * ProductEndpoint - generic implementation of the QuantraRequest::request()
- * seam, shared by every product handler. Mapper and Pricer are
+ * seam, shared by every product handler. Mapper and Evaluator are
  * default-constructed members; full template instantiation happens at the pilot
  * product.
  *
@@ -65,11 +65,11 @@ struct has_build_error_hook<
  *   mapper.toInputs(req);                     // FlatBuffers -> domain
  *   PricingRegistryBuilder{}.build(pricing);  // market data
  *   makeContext(pricing, reg);                // ambient: asOf/settlement/options
- *   pricer.price(inputs, reg, ctx);           // QuantLib only (no FB / no gRPC)
+ *   evaluator.evaluate(inputs, reg, ctx);     // QuantLib only (no FB / no gRPC)
  *   mapper.toResponse(builder, result);       // domain -> FlatBuffers
  *
  * For utility endpoints whose request carries no Pricing block (e.g. the
- * calendar lookups), registry/context construction is elided; the pricer
+ * calendar lookups), registry/context construction is elided; the evaluator
  * still receives default-constructed `reg`/`ctx` to keep the signature
  * uniform across products.
  *
@@ -81,7 +81,7 @@ struct has_build_error_hook<
  * request (mapper.toInputs throwing) always propagates as a transport error,
  * for every product.
  */
-template <class Req, class Resp, class Mapper, class Pricer>
+template <class Req, class Resp, class Mapper, class Evaluator>
 class ProductEndpoint : public QuantraRequest<Req, Resp> {
 public:
     flatbuffers::Offset<Resp> request(
@@ -95,7 +95,7 @@ public:
         if constexpr (detail::has_pricing<Req>::value) {
             if constexpr (detail::has_build_error_hook<Mapper, decltype(inputs)>::value) {
                 // List/query endpoint: a registry-build failure becomes a
-                // per-item error on every query (the pricer then emits them),
+                // per-item error on every query (the evaluator then emits them),
                 // so the response stays a per-item list at HTTP 200.
                 try {
                     reg = PricingRegistryBuilder{}.build(req->pricing());
@@ -110,13 +110,13 @@ public:
                 ctx = makeContext(req->pricing(), reg);
             }
         }
-        auto result = pricer_.price(inputs, reg, ctx);
+        auto result = evaluator_.evaluate(inputs, reg, ctx);
         return mapper_.toResponse(*builder, result);
     }
 
 private:
     Mapper mapper_;
-    Pricer pricer_;
+    Evaluator evaluator_;
 };
 
 } // namespace quantra

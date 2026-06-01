@@ -3,7 +3,7 @@
 
 #include "call_data_base.h"
 #include "cds_mapper.h"
-#include "cds_pricer.h"
+#include "cds_evaluator.h"
 #include "cds_response_generated.h"
 #include "price_cds_request_generated.h"
 #include "product_endpoint.h"
@@ -21,7 +21,7 @@ using CDSEndpoint = quantra::ProductEndpoint<
     PriceCDSRequest,
     PriceCDSResponse,
     quantra::CdsMapper,
-    quantra::CdsPricer>;
+    quantra::CdsEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy CDSPricingRequest type directly.

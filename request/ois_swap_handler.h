@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "ois_swap_mapper.h"
-#include "ois_swap_pricer.h"
+#include "ois_swap_evaluator.h"
 #include "price_ois_swap_request_generated.h"
 #include "ois_swap_response_generated.h"
 
@@ -20,7 +20,7 @@ using OisSwapEndpoint = quantra::ProductEndpoint<
     PriceOisSwapRequest,
     PriceOisSwapResponse,
     quantra::OisSwapMapper,
-    quantra::OisSwapPricer>;
+    quantra::OisSwapEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using OisSwapPricingRequest = OisSwapEndpoint;

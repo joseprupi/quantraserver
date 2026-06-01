@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "calendar_holidays_pricer.h"
+#include "calendar_holidays_evaluator.h"
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
 

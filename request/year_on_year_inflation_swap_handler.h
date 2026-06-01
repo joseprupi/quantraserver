@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "year_on_year_inflation_swap_mapper.h"
-#include "year_on_year_inflation_swap_pricer.h"
+#include "year_on_year_inflation_swap_evaluator.h"
 #include "price_year_on_year_inflation_swap_request_generated.h"
 #include "year_on_year_inflation_swap_response_generated.h"
 
@@ -21,7 +21,7 @@ using YearOnYearInflationSwapEndpoint = quantra::ProductEndpoint<
     PriceYearOnYearInflationSwapRequest,
     PriceYearOnYearInflationSwapResponse,
     quantra::YearOnYearInflationSwapMapper,
-    quantra::YearOnYearInflationSwapPricer>;
+    quantra::YearOnYearInflationSwapEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy YearOnYearInflationSwapPricingRequest type directly.

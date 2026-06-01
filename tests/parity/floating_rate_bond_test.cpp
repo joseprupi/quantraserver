@@ -13,7 +13,7 @@ namespace quantra { namespace testing {
 namespace {
 
 // Attach a BlackIborCouponPricer with a ConstantOptionletVolatility, mirroring
-// FloatingRateBondPricer::buildBlackIborCouponPricer exactly.
+// FloatingRateBondEvaluator::buildBlackIborCouponPricer exactly.
 void attachIborPricer(const QuantLib::Leg& cashflows, double vol,
                       int settlementDays = 2) {
     auto qlVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(

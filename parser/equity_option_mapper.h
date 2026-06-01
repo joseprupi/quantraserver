@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "equity_option_pricer.h"
+#include "equity_option_evaluator.h"
 #include "equity_option_response_generated.h"
 #include "price_equity_option_request_generated.h"
 
