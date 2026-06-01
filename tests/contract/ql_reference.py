@@ -45,7 +45,7 @@ class ApiClient:
     def _load_endpoints() -> Dict[str, str]:
         # This module lives at <repo>/tests/contract/ql_reference.py, so the
         # repo root is parents[2].
-        header = Path(__file__).resolve().parents[2] / "common" / "product_catalog.h"
+        header = Path(__file__).resolve().parents[2] / "src" / "common" / "product_catalog.h"
         pattern = re.compile(
             r'^\s*X\(\s*\w+,\s*"(?P<key>[^"]+)",\s*"(?P<route>[^"]+)",\s*"[^"]+",\s*"[^"]+"\s*\)'
         )

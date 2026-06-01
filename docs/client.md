@@ -13,7 +13,7 @@ Key files:
 - `client/cpp/include/quantra_client.h`
 - `client/cpp/src/quantra_client.cpp`
 - `client/cpp/src/json_parser.cpp`
-- `common/product_catalog.h`
+- `src/common/product_catalog.h`
 
 ## Usage Modes
 
@@ -90,7 +90,7 @@ If `QUANTRA_FBS_INCLUDE_DIR` is unset, it defaults to the same location as `QUAN
 
 Adding a new product usually requires coordinated changes in:
 
-1. `common/product_catalog.h`
+1. `src/common/product_catalog.h`
 2. `client/cpp/include/quantra_client.h`
 3. `client/cpp/src/quantra_client.cpp`
 4. FlatBuffers request/response schema files

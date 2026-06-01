@@ -24,11 +24,15 @@ endif()
 # =============================================================================
 include_directories(
    ${CMAKE_SOURCE_DIR}/grpc
-   ${CMAKE_SOURCE_DIR}/parser 
-   ${CMAKE_SOURCE_DIR}/flatbuffers/fbs 
+   ${CMAKE_SOURCE_DIR}/src/transport
+   ${CMAKE_SOURCE_DIR}/src/mappers
+   ${CMAKE_SOURCE_DIR}/src/evaluators
+   ${CMAKE_SOURCE_DIR}/src/parsers
+   ${CMAKE_SOURCE_DIR}/src/market
+   ${CMAKE_SOURCE_DIR}/src/domain
+   ${CMAKE_SOURCE_DIR}/src/common
+   ${CMAKE_SOURCE_DIR}/flatbuffers/fbs
    ${CMAKE_SOURCE_DIR}/flatbuffers/cpp
-   ${CMAKE_SOURCE_DIR}/request 
-   ${CMAKE_SOURCE_DIR}/common
    ${CMAKE_SOURCE_DIR}/client/cpp
    ${CMAKE_SOURCE_DIR}/client/cpp/include
    ${CMAKE_SOURCE_DIR}/examples
@@ -37,9 +41,7 @@ include_directories(
 # =============================================================================
 # Collect sources (needed for unit tests)
 # =============================================================================
-file(GLOB REQUEST_SOURCES ${CMAKE_SOURCE_DIR}/request/*.cpp)
-file(GLOB PARSER_SOURCES ${CMAKE_SOURCE_DIR}/parser/*.cpp)
-file(GLOB COMMON_SOURCES ${CMAKE_SOURCE_DIR}/common/*.cpp)
+file(GLOB SRC_SOURCES ${CMAKE_SOURCE_DIR}/src/*/*.cpp)
 
 # =============================================================================
 # Test: Quantra vs QuantLib Comparison (Unit Tests)
@@ -50,9 +52,7 @@ file(GLOB COMMON_SOURCES ${CMAKE_SOURCE_DIR}/common/*.cpp)
 file(GLOB PARITY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/parity/*.cpp)
 add_executable(test_quantra_vs_quantlib
     ${PARITY_SOURCES}
-    ${REQUEST_SOURCES}
-    ${PARSER_SOURCES}
-    ${COMMON_SOURCES}
+    ${SRC_SOURCES}
 )
 target_include_directories(test_quantra_vs_quantlib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/parity)
 target_link_libraries(test_quantra_vs_quantlib 

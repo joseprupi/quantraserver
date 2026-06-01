@@ -1,6 +1,6 @@
 #!/bin/bash
 # check_evaluator_boundary.sh — enforce the one rule: an evaluator must not see
-# FlatBuffers or gRPC. Scope is parser/*_evaluator.{h,cpp} only. Mappers and
+# FlatBuffers or gRPC. Scope is src/evaluators/*_evaluator.{h,cpp} only. Mappers and
 # the legacy *_pricing_service.* files are intentionally out of scope.
 set -euo pipefail
 
@@ -11,7 +11,7 @@ WORKSPACE="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # than the literal pattern) when there are no matches — required so the
 # check is vacuously green on a tree with no evaluators yet.
 shopt -s nullglob
-files=("${WORKSPACE}"/parser/*_evaluator.h "${WORKSPACE}"/parser/*_evaluator.cpp)
+files=("${WORKSPACE}"/src/evaluators/*_evaluator.h "${WORKSPACE}"/src/evaluators/*_evaluator.cpp)
 shopt -u nullglob
 
 violations=0

@@ -33,7 +33,7 @@ from collections import OrderedDict
 WORKSPACE = Path(__file__).parent.parent
 JSON_SCHEMA_DIR = WORKSPACE / "flatbuffers" / "json"
 OUTPUT_DIR = WORKSPACE / "jsonserver" / "openapi"
-PRODUCT_CATALOG_HEADER = WORKSPACE / "common" / "product_catalog.h"
+PRODUCT_CATALOG_HEADER = WORKSPACE / "src" / "common" / "product_catalog.h"
 
 # API Info
 API_INFO = {
@@ -91,7 +91,7 @@ curl -X POST http://localhost:8080/price-fixed-rate-bond \\
     }
 }
 
-# Endpoint metadata keyed by the stable product key from common/product_catalog.h.
+# Endpoint metadata keyed by the stable product key from src/common/product_catalog.h.
 ENDPOINT_METADATA = {
     "fixed_rate_bond": {
         "summary": "Price Fixed Rate Bond",
