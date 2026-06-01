@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "calendar_holidays_mapper.h"
-#include "calendar_holidays_pricer.h"
+#include "calendar_holidays_evaluator.h"
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
 
@@ -20,7 +20,7 @@ using CalendarHolidaysEndpoint = quantra::ProductEndpoint<
     CalendarHolidaysRequest,
     CalendarHolidaysResponse,
     quantra::CalendarHolidaysMapper,
-    quantra::CalendarHolidaysPricer>;
+    quantra::CalendarHolidaysEvaluator>;
 
 class CalendarHolidaysData : public CallDataGeneric<
     CalendarHolidaysRequest,

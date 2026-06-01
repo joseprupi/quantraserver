@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "fra_mapper.h"
-#include "fra_pricer.h"
+#include "fra_evaluator.h"
 #include "price_fra_request_generated.h"
 #include "fra_response_generated.h"
 
@@ -20,7 +20,7 @@ using FraEndpoint = quantra::ProductEndpoint<
     PriceFRARequest,
     PriceFRAResponse,
     quantra::FraMapper,
-    quantra::FraPricer>;
+    quantra::FraEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using FRAPricingRequest = FraEndpoint;

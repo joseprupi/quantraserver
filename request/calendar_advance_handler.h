@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "calendar_advance_mapper.h"
-#include "calendar_advance_pricer.h"
+#include "calendar_advance_evaluator.h"
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
 
@@ -20,7 +20,7 @@ using CalendarAdvanceEndpoint = quantra::ProductEndpoint<
     CalendarAdvanceRequest,
     CalendarAdvanceResponse,
     quantra::CalendarAdvanceMapper,
-    quantra::CalendarAdvancePricer>;
+    quantra::CalendarAdvanceEvaluator>;
 
 class CalendarAdvanceData : public CallDataGeneric<
     CalendarAdvanceRequest,

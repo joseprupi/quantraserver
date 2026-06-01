@@ -11,7 +11,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "bootstrap_inflation_curves_pricer.h"
+#include "bootstrap_inflation_curves_evaluator.h"
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
 

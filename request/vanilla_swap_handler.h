@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "vanilla_swap_mapper.h"
-#include "vanilla_swap_pricer.h"
+#include "vanilla_swap_evaluator.h"
 #include "price_vanilla_swap_request_generated.h"
 #include "vanilla_swap_response_generated.h"
 
@@ -20,7 +20,7 @@ using VanillaSwapEndpoint = quantra::ProductEndpoint<
     PriceVanillaSwapRequest,
     PriceVanillaSwapResponse,
     quantra::VanillaSwapMapper,
-    quantra::VanillaSwapPricer>;
+    quantra::VanillaSwapEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy VanillaSwapPricingRequest type directly.

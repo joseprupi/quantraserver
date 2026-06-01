@@ -12,7 +12,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "calibrate_swaption_vol_pricer.h"
+#include "calibrate_swaption_vol_evaluator.h"
 #include "calibrate_swaption_vol_request_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
 

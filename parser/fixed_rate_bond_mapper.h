@@ -9,7 +9,7 @@
 
 #include "flatbuffers/grpc.h"
 
-#include "fixed_rate_bond_pricer.h"
+#include "fixed_rate_bond_evaluator.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 

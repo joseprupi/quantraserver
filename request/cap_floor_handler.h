@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "cap_floor_mapper.h"
-#include "cap_floor_pricer.h"
+#include "cap_floor_evaluator.h"
 #include "price_cap_floor_request_generated.h"
 #include "cap_floor_response_generated.h"
 
@@ -18,7 +18,7 @@ using CapFloorEndpoint = quantra::ProductEndpoint<
     PriceCapFloorRequest,
     PriceCapFloorResponse,
     quantra::CapFloorMapper,
-    quantra::CapFloorPricer>;
+    quantra::CapFloorEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using CapFloorPricingRequest = CapFloorEndpoint;

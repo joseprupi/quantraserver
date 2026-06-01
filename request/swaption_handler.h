@@ -6,7 +6,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "swaption_mapper.h"
-#include "swaption_pricer.h"
+#include "swaption_evaluator.h"
 #include "swaption_response_generated.h"
 
 using quantra::PriceSwaptionRequest;
@@ -20,7 +20,7 @@ using SwaptionEndpoint = quantra::ProductEndpoint<
     PriceSwaptionRequest,
     PriceSwaptionResponse,
     quantra::SwaptionMapper,
-    quantra::SwaptionPricer>;
+    quantra::SwaptionEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy SwaptionPricingRequest type directly.

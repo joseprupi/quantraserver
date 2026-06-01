@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "basis_swap_mapper.h"
-#include "basis_swap_pricer.h"
+#include "basis_swap_evaluator.h"
 #include "price_basis_swap_request_generated.h"
 #include "basis_swap_response_generated.h"
 
@@ -20,7 +20,7 @@ using BasisSwapEndpoint = quantra::ProductEndpoint<
     PriceBasisSwapRequest,
     PriceBasisSwapResponse,
     quantra::BasisSwapMapper,
-    quantra::BasisSwapPricer>;
+    quantra::BasisSwapEvaluator>;
 
 /// Transitional alias for any caller that still names the legacy type.
 using BasisSwapPricingRequest = BasisSwapEndpoint;

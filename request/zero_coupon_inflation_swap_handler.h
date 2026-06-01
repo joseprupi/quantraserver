@@ -5,7 +5,7 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "zero_coupon_inflation_swap_mapper.h"
-#include "zero_coupon_inflation_swap_pricer.h"
+#include "zero_coupon_inflation_swap_evaluator.h"
 #include "price_zero_coupon_inflation_swap_request_generated.h"
 #include "zero_coupon_inflation_swap_response_generated.h"
 
@@ -21,7 +21,7 @@ using ZeroCouponInflationSwapEndpoint = quantra::ProductEndpoint<
     PriceZeroCouponInflationSwapRequest,
     PriceZeroCouponInflationSwapResponse,
     quantra::ZeroCouponInflationSwapMapper,
-    quantra::ZeroCouponInflationSwapPricer>;
+    quantra::ZeroCouponInflationSwapEvaluator>;
 
 /// Backward-compatible alias for existing call sites (tests) that referenced
 /// the legacy ZeroCouponInflationSwapPricingRequest type directly.
