@@ -4,6 +4,7 @@
 #include <iostream>
 #include <list>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -52,6 +53,40 @@ SabrCalibrateCache::SabrCalibrateCache() : impl_(std::make_unique<Impl>()) {}
 SabrCalibrateCache& SabrCalibrateCache::instance() {
     static SabrCalibrateCache singleton;
     return singleton;
+}
+
+namespace {
+
+// Test-only override. std::nullopt = use the env-derived value below. Written
+// only by parity tests (single-threaded); never set in production, so the hot
+// path reads it as a plain unset optional.
+std::optional<bool>& sabrEnabledOverride() {
+    static std::optional<bool> ov;
+    return ov;
+}
+
+} // namespace
+
+bool SabrCalibrateCache::enabled() {
+    if (const auto& ov = sabrEnabledOverride()) {
+        return *ov;
+    }
+    // Read the env flag once at first call (default off). Mirrors how the curve
+    // cache reads QUANTRA_CURVE_CACHE_ENABLED and how sabrCacheLoggingEnabled()
+    // caches QUANTRA_SABR_CACHE_LOG, avoiding per-request getenv() on the hot path.
+    static const bool kEnabled = []() {
+        const char* v = std::getenv("QUANTRA_SABR_CACHE_ENABLED");
+        return v != nullptr && std::string(v) == "1";
+    }();
+    return kEnabled;
+}
+
+void SabrCalibrateCache::setEnabledOverrideForTesting(std::optional<bool> override) {
+    sabrEnabledOverride() = override;
+}
+
+std::optional<bool> SabrCalibrateCache::enabledOverrideForTesting() {
+    return sabrEnabledOverride();
 }
 
 std::shared_ptr<const SabrCalibratedCube> SabrCalibrateCache::tryGet(const std::string& key) {

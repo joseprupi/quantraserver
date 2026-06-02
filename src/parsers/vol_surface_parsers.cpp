@@ -2051,10 +2051,15 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
     }
 
     // Cache lookup. Empty cache key is a sentinel for "do not cache" (used by
-    // sanity hooks); we always build a fresh cube in that case.
+    // sanity hooks); we always build a fresh cube in that case. The cache is
+    // also gated by QUANTRA_SABR_CACHE_ENABLED (default off) — when disabled we
+    // skip tryGet/put entirely and recalibrate fresh each request. Disabling the
+    // cache does NOT revert to the live cube: we still freeze the calibrated
+    // params into a SwaptionSabrParamsCube below; we just don't store/reuse it.
     auto& cache = SabrCalibrateCache::instance();
+    const bool cacheEnabled = SabrCalibrateCache::enabled() && !cubeCacheKey.empty();
     std::shared_ptr<const SabrCalibratedCube> cached;
-    if (!cubeCacheKey.empty()) {
+    if (cacheEnabled) {
         cached = cache.tryGet(cubeCacheKey);
     }
 
@@ -2189,7 +2194,6 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
             std::to_string(browsed.rows()) + "x" + std::to_string(browsed.columns()));
     }
     auto out = std::make_shared<SabrCalibratedCube>();
-    out->handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlCube);
     out->alpha.assign(expected2d, 0.0);
     out->beta.assign(expected2d, 0.0);
     out->rho.assign(expected2d, 0.0);
@@ -2222,7 +2226,31 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
         }
     }
 
-    if (!cubeCacheKey.empty()) {
+    // qlCube was needed only to run the per-node Levenberg-Marquardt fit and to
+    // extract the calibrated params + forwards above; it is now discarded. We do
+    // NOT cache or return the live cube: it is a LazyObject that observes its
+    // swap index -> underlying curve handle and re-runs the full calibration
+    // whenever that handle is relinked (per-request churn). Instead we freeze the
+    // extracted params + per-node forwards into a SwaptionSabrParamsCube, which
+    // observes nothing and reproduces the calibrated smiles at each node. This is
+    // built identically to the params-provided path in withSwaptionSabrParamsAtm.
+    auto frozenCube = std::make_shared<SwaptionSabrParamsCube>(
+        base.referenceDate,
+        base.calendar,
+        base.businessDayConvention,
+        base.dayCounter,
+        base.qlVolType,
+        base.displacement,
+        base.expiries,
+        base.tenors,
+        out->alpha,
+        out->beta,
+        out->rho,
+        out->nu,
+        out->calibratedForwards);
+    out->handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(frozenCube);
+
+    if (cacheEnabled) {
         cache.put(cubeCacheKey, out);
     }
     return produceEntry(out);

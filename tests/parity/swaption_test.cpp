@@ -1575,9 +1575,31 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonEmptyWeights) {
         QuantraError);
 }
 
+// RAII: force the SABR-calibrate cache enabled for the duration of a scope,
+// restoring whatever override was in effect before on exit. The cache defaults
+// OFF (QUANTRA_SABR_CACHE_ENABLED), so the cache-behavior test must turn it on
+// for real to observe store/reuse; this guard keeps that enable from leaking
+// into any other test.
+namespace {
+struct ScopedSabrCacheEnabled {
+    std::optional<bool> prior;
+    ScopedSabrCacheEnabled()
+        : prior(quantra::SabrCalibrateCache::enabledOverrideForTesting()) {
+        quantra::SabrCalibrateCache::setEnabledOverrideForTesting(true);
+    }
+    ~ScopedSabrCacheEnabled() {
+        quantra::SabrCalibrateCache::setEnabledOverrideForTesting(prior);
+    }
+};
+} // namespace
+
 TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
     // Direct cache-state observability: clear, populate via finalize with a
     // synthetic key, observe size() transitions, confirm key sensitivity.
+    // The cache is default-OFF, so enable it for real for this test (scoped,
+    // restored on exit) — the size-grows assertions below exercise the live
+    // store/reuse path, not a relaxed check.
+    ScopedSabrCacheEnabled sabrCacheOn;
     SabrCalibrateCache::instance().clear();
     EXPECT_EQ(SabrCalibrateCache::instance().size(), 0u);
 
