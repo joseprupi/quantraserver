@@ -235,9 +235,12 @@ start_cache_servers() {
         return 1
     fi
 
-    # gRPC engine: cache enabled + hit/miss logging to /tmp/grpc_cache.log (the
-    # file Suite 6 reads to prove the cache engaged).
+    # gRPC engine: curve + SABR caches enabled, both with hit/miss logging to
+    # /tmp/grpc_cache.log (the file Suite 6 reads to prove the caches engaged).
+    # Enabling the SABR cache here is what makes Suite 6's swaption_smile_cube
+    # case exercise the SABR cache on-vs-off (both default off otherwise).
     QUANTRA_CURVE_CACHE_ENABLED=1 QUANTRA_CURVE_CACHE_LOG=1 \
+    QUANTRA_SABR_CACHE_ENABLED=1 QUANTRA_SABR_CACHE_LOG=1 \
         ${BUILD}/server/sync_server 50052 > /tmp/grpc_cache.log 2>&1 &
     GRPC_CACHE_PID=$!
     sleep 2

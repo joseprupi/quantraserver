@@ -2,6 +2,7 @@
 #define QUANTRA_SABR_CALIBRATE_CACHE_H
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,10 +42,31 @@ struct SabrCalibratedCube {
  * Capacity is small (default 64 entries) and lookups/inserts are guarded by
  * an internal mutex. Cache miss returns an empty optional shared_ptr; on cache
  * hit, the stored entry is touched (LRU bump).
+ *
+ * Configuration via environment variables (mirrors the curve cache):
+ *   QUANTRA_SABR_CACHE_ENABLED=1   Enable store/reuse (default: 0 = off)
+ *   QUANTRA_SABR_CACHE_LOG=1       Log hit/miss events to stderr (default: 0)
+ *
+ * When disabled, callers must skip tryGet/put and build a fresh (frozen) cube
+ * every request; the switch only controls whether results are cached/reused.
  */
 class SabrCalibrateCache {
 public:
     static SabrCalibrateCache& instance();
+
+    /// Whether SABR-calibrate caching is enabled. Reads
+    /// QUANTRA_SABR_CACHE_ENABLED once at first call (default off) and caches it
+    /// in a static const for the hot path. Mirrors QUANTRA_CURVE_CACHE_ENABLED /
+    /// CurveCache::enabled(). A test override, when set, takes precedence.
+    static bool enabled();
+
+    /// Test-only: force enabled() to a fixed value regardless of the env flag.
+    /// std::nullopt restores the normal env-derived behavior. Lets parity tests
+    /// exercise the cache deterministically without depending on the process
+    /// environment (which enabled()'s static-const read latches at first call).
+    /// Use the RAII guard in tests rather than calling this directly.
+    static void setEnabledOverrideForTesting(std::optional<bool> override);
+    static std::optional<bool> enabledOverrideForTesting();
 
     /// Lookup. Returns nullptr on miss.
     std::shared_ptr<const SabrCalibratedCube> tryGet(const std::string& key);
