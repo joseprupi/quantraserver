@@ -289,14 +289,24 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             // --- L2 check (future: Redis) ---
             auto l2data = cache.backend().getL2(key);
             if (l2data.has_value()) {
-                cache.stats().l2_hits++;
-                auto curve = CurveSerializer::reconstruct(l2data.value());
-                cache.backend().putL1(key, curve);
-                cache.logEvent(id, key, "L2_HIT");
-                out.handles.at(id)->linkTo(curve);
-                depKeys[id] = key;
-                out.keys[id] = key;
-                continue;
+                // reconstruct() fails closed on data it cannot rebuild exactly
+                // (e.g. an unsupported interpolator); such an entry must not
+                // serve a hit — treat it as a miss and bootstrap live.
+                std::shared_ptr<QuantLib::YieldTermStructure> reconstructed;
+                try {
+                    reconstructed = CurveSerializer::reconstruct(l2data.value());
+                } catch (const std::exception&) {
+                    reconstructed = nullptr;
+                }
+                if (reconstructed) {
+                    cache.stats().l2_hits++;
+                    cache.backend().putL1(key, reconstructed);
+                    cache.logEvent(id, key, "L2_HIT");
+                    out.handles.at(id)->linkTo(reconstructed);
+                    depKeys[id] = key;
+                    out.keys[id] = key;
+                    continue;
+                }
             }
             cache.stats().l2_misses++;
 
@@ -323,7 +333,14 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             // fall back to caching the live curve (today's behavior).
             std::shared_ptr<QuantLib::YieldTermStructure> toCacheL1 = curve;
             if (ts->bootstrap_trait() == quantra::enums::BootstrapTrait_Discount) {
-                toCacheL1 = CurveSerializer::reconstruct(serialized);
+                try {
+                    toCacheL1 = CurveSerializer::reconstruct(serialized);
+                } catch (const std::exception&) {
+                    // reconstruct() fails closed on data it cannot rebuild
+                    // exactly; cache the live curve instead (pre-freeze
+                    // behavior) rather than failing the request.
+                    toCacheL1 = curve;
+                }
             }
             cache.backend().putL1(key, toCacheL1);
 
