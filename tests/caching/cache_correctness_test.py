@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "contract"))
-from ql_reference import load_json  # noqa: E402
+from ql_reference import ApiClient, load_json  # noqa: E402
 
 
 # (id, product key, example request file, response list key for the priced
@@ -95,6 +95,50 @@ def test_cache_transparency(case, nocache_client, cache_client, data_dir):
     detail = f"NPVs off==warm==hit = {npvs}" if npvs is not None \
         else "response (curve set) off==warm==hit identical"
     print(f"[cache] {case.id}: {detail}")
+
+
+def _post_raw(client: ApiClient, product: str, request: dict):
+    """POST like ApiClient.price but without raising on non-200: returns
+    (status_code, body_text) so error responses can be compared bit-for-bit."""
+    endpoint = ApiClient.ENDPOINTS[product]
+    r = client.session.post(f"{client.base_url}/{endpoint}", json=request)
+    return r.status_code, r.text
+
+
+def test_cache_transparency_beyond_pillar_error(nocache_client, cache_client,
+                                                data_dir):
+    """Error transparency: a request that fails without the cache must fail
+    identically on a cache hit.
+
+    The payload prices a bond whose cashflows run past the discount curve's
+    last pillar, so the live curve throws a QuantLib range error. The frozen
+    L1 reconstruction must preserve that: if it (re-)enabled extrapolation,
+    the cache hit would silently turn the error into an extrapolated number.
+    """
+    request = load_json(data_dir / "fixed_rate_bond_beyond_pillar_request.json")
+
+    off = _post_raw(nocache_client, "fixed_rate_bond", request)   # reference
+    warm = _post_raw(cache_client, "fixed_rate_bond", request)    # populates L1
+    hit = _post_raw(cache_client, "fixed_rate_bond", request)     # serves hit
+
+    # The case only proves error transparency if the reference actually errors;
+    # guard against the payload drifting into a priceable request.
+    assert off[0] != 200, (
+        f"beyond-pillar payload unexpectedly priced on the cache-OFF server "
+        f"(HTTP {off[0]}): the request no longer reaches past the curve's "
+        f"last pillar, so it cannot test error transparency"
+    )
+    assert off == warm, (
+        f"beyond_pillar_error: cache-ON (warm) response differs from cache-OFF "
+        f"— off={off}, warm={warm}"
+    )
+    assert warm == hit, (
+        f"beyond_pillar_error: cache-hit response differs from the warm (miss) "
+        f"response — the frozen curve does not fail like the live one "
+        f"(warm={warm}, hit={hit})"
+    )
+    print(f"[cache] beyond_pillar_error: off==warm==hit = "
+          f"HTTP {off[0]}, body {off[1]!r}")
 
 
 def _count_cache_hits(log_path: Path) -> int:

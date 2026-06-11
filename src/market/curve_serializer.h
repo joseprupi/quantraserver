@@ -136,7 +136,10 @@ public:
             break;
         }
 
-        curve->enableExtrapolation();
+        // No enableExtrapolation(): live curves built by TermStructureParser
+        // never enable it, so a request past the last pillar throws there. The
+        // frozen reconstruction must fail identically, or a cache hit would
+        // silently turn that error into an extrapolated number.
         return curve;
     }
 
