@@ -3,6 +3,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "error.h"
+
 #include <openssl/sha.h>
 
 namespace quantra {
@@ -279,8 +281,21 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         break;
     }
 
-    default:
+    case quantra::Point_NONE:
+        // No payload table — the type byte already written above IS the full
+        // content, so this cannot under-key.
         break;
+
+    default:
+        // A Point type this switch does not cover (a schema addition that
+        // forgot the key builder). Writing only the type byte would under-key:
+        // two different curves would hash to the same key and the cache would
+        // serve wrong prices. Fail closed — the bootstrapper catches this and
+        // skips caching for the curve (bootstrap live, request still succeeds).
+        QUANTRA_ERROR(
+            "curve cache key: unhandled point type " +
+            std::to_string(static_cast<int>(ptype)) +
+            " — point not serializable, curve must not be cached");
     }
 
     return buf.data();
