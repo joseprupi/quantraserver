@@ -41,6 +41,12 @@ Case = namedtuple("Case", "id product filename npv_key")
 CASES = [
     Case("fixed_rate_bond", "fixed_rate_bond",
          "fixed_rate_bond_request.json", "bonds"),
+    # ForwardFlat discount curve: the frozen L1 reconstruction must use the
+    # same inter-pillar interpolation as the live curve. The bond's semiannual
+    # May/Nov-15 coupons fall between the curve's pillars, where a wrong
+    # interpolator drifts even though the pillar DFs match exactly.
+    Case("fixed_rate_bond_forwardflat", "fixed_rate_bond",
+         "fixed_rate_bond_forwardflat_request.json", "bonds"),
     Case("vanilla_swap_multicurve", "vanilla_swap",
          "vanilla_swap_multicurve_request.json", "swaps"),
     Case("swaption", "swaption",

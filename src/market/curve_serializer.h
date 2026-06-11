@@ -11,8 +11,10 @@
 #include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
+#include <ql/math/interpolations/forwardflatinterpolation.hpp>
 #include <ql/time/date.hpp>
 
+#include "error.h"
 #include "curve_cache.h"
 #include "enum_convert.h"
 #include "date_convert.h"
@@ -116,10 +118,8 @@ public:
             break;
 
         case quantra::enums::Interpolator_ForwardFlat:
-            // ForwardFlat on DFs doesn't exist directly — LogLinear is the
-            // standard DF interpolation and produces identical pillars
             curve = std::make_shared<
-                QuantLib::InterpolatedDiscountCurve<QuantLib::LogLinear>>(
+                QuantLib::InterpolatedDiscountCurve<QuantLib::ForwardFlat>>(
                 dates, data.discount_factors, dc);
             break;
 
@@ -130,10 +130,12 @@ public:
             break;
 
         default:
-            curve = std::make_shared<
-                QuantLib::InterpolatedDiscountCurve<QuantLib::LogLinear>>(
-                dates, data.discount_factors, dc);
-            break;
+            // Fail closed: substituting a different interpolator would make a
+            // cache hit price differently than a miss between pillars. Callers
+            // catch this and fall back to caching the live curve.
+            QUANTRA_ERROR(
+                "CurveSerializer::reconstruct: unsupported interpolator enum " +
+                std::to_string(static_cast<int>(data.interpolator)));
         }
 
         // No enableExtrapolation(): live curves built by TermStructureParser
