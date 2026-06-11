@@ -15,8 +15,10 @@ file(GLOB SYNC_SOURCES  ${CMAKE_SOURCE_DIR}/src/*/*.cpp
 
 add_executable(sync_server ${SYNC_SOURCES})
 
-target_link_libraries(sync_server 
-    quantra_grpc 
+target_link_libraries(sync_server
+    quantra_grpc
     QuantLib
+    redis++
+    hiredis
     ${GRPC_ALL_LIBS}
 )

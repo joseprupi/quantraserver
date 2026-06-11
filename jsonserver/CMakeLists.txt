@@ -70,13 +70,15 @@ target_compile_definitions(json_server PRIVATE
     QUANTRA_FLATBUFFERS_VERSION="${QUANTRA_FLATBUFFERS_VERSION}"
     QUANTRA_QUANTLIB_VERSION="${QUANTRA_QUANTLIB_VERSION}"
 )
-target_link_libraries(json_server 
+target_link_libraries(json_server
     quantra_client
     quantra_grpc
-    flatbuffers 
+    flatbuffers
     grpc++
     grpc
     gpr
+    redis++
+    hiredis
     ${Boost_LIBRARIES}
     pthread
 )

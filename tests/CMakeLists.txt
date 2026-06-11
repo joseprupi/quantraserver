@@ -55,11 +55,13 @@ add_executable(test_quantra_vs_quantlib
     ${SRC_SOURCES}
 )
 target_include_directories(test_quantra_vs_quantlib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/parity)
-target_link_libraries(test_quantra_vs_quantlib 
-    ${GRPC_ALL_LIBS} 
-    flatbuffers 
-    quantra_grpc 
+target_link_libraries(test_quantra_vs_quantlib
+    ${GRPC_ALL_LIBS}
+    flatbuffers
+    quantra_grpc
     QuantLib
+    redis++
+    hiredis
     GTest::gtest
     GTest::gtest_main
 )

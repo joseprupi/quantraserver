@@ -5,6 +5,9 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <cstdint>
+#include <cstring>
+#include <stdexcept>
 
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
@@ -140,7 +143,108 @@ public:
         return curve;
     }
 
+    // -------------------------------------------------------------------------
+    // Byte (de)serialization for L2 (Redis) storage.
+    //
+    // Compact, versioned binary layout. Discount factors are written as raw
+    // IEEE-754 doubles (memcpy) so reconstruction is BIT-EXACT — no decimal
+    // round-tripping. Producer and consumer share the same architecture (same
+    // container image), so raw little-endian double layout is portable here.
+    //
+    //   magic    : 4 bytes  "QLC1"
+    //   ref_date : u32 len + bytes
+    //   day_counter, interpolator : u8 each
+    //   n        : u32 (pillar count)
+    //   dates[n] : (u32 len + bytes) each
+    //   dfs[n]   : 8 raw bytes each
+    // -------------------------------------------------------------------------
+    static std::string encode(const CachedCurveData& data) {
+        std::string out;
+        out.reserve(32 + data.dates.size() * 24);
+        appendBytes(out, "QLC1", 4);
+        appendString(out, data.reference_date);
+        out.push_back(static_cast<char>(data.day_counter));
+        out.push_back(static_cast<char>(data.interpolator));
+        appendU32(out, static_cast<uint32_t>(data.dates.size()));
+        for (const auto& d : data.dates) {
+            appendString(out, d);
+        }
+        for (double df : data.discount_factors) {
+            appendBytes(out, reinterpret_cast<const char*>(&df), sizeof(double));
+        }
+        return out;
+    }
+
+    // Throws std::runtime_error on malformed input (caller treats as a miss).
+    static CachedCurveData decode(const std::string& blob) {
+        size_t pos = 0;
+        if (blob.size() < 4 || std::memcmp(blob.data(), "QLC1", 4) != 0) {
+            throw std::runtime_error("CurveSerializer::decode: bad magic");
+        }
+        pos += 4;
+
+        CachedCurveData data;
+        data.reference_date = readString(blob, pos);
+        data.day_counter = static_cast<uint8_t>(readU8(blob, pos));
+        data.interpolator = static_cast<uint8_t>(readU8(blob, pos));
+
+        uint32_t n = readU32(blob, pos);
+        data.dates.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) {
+            data.dates.push_back(readString(blob, pos));
+        }
+        data.discount_factors.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) {
+            data.discount_factors.push_back(readDouble(blob, pos));
+        }
+        return data;
+    }
+
 private:
+
+    static void appendBytes(std::string& out, const char* p, size_t n) {
+        out.append(p, n);
+    }
+    static void appendU32(std::string& out, uint32_t v) {
+        char buf[4];
+        std::memcpy(buf, &v, 4);
+        out.append(buf, 4);
+    }
+    static void appendString(std::string& out, const std::string& s) {
+        appendU32(out, static_cast<uint32_t>(s.size()));
+        out.append(s);
+    }
+
+    static void need(const std::string& blob, size_t pos, size_t n) {
+        if (pos + n > blob.size()) {
+            throw std::runtime_error("CurveSerializer::decode: truncated input");
+        }
+    }
+    static uint8_t readU8(const std::string& blob, size_t& pos) {
+        need(blob, pos, 1);
+        return static_cast<uint8_t>(blob[pos++]);
+    }
+    static uint32_t readU32(const std::string& blob, size_t& pos) {
+        need(blob, pos, 4);
+        uint32_t v;
+        std::memcpy(&v, blob.data() + pos, 4);
+        pos += 4;
+        return v;
+    }
+    static double readDouble(const std::string& blob, size_t& pos) {
+        need(blob, pos, sizeof(double));
+        double v;
+        std::memcpy(&v, blob.data() + pos, sizeof(double));
+        pos += sizeof(double);
+        return v;
+    }
+    static std::string readString(const std::string& blob, size_t& pos) {
+        uint32_t len = readU32(blob, pos);
+        need(blob, pos, len);
+        std::string s(blob.data() + pos, len);
+        pos += len;
+        return s;
+    }
 
     /**
      * Try to extract actual pillar dates from a PiecewiseYieldCurve.

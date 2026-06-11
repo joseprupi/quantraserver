@@ -299,6 +299,12 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 continue;
             }
             cache.stats().l2_misses++;
+            // Only emit L2_MISS when L2 is actually active, so L2-off runs are
+            // unchanged. (An L2 error is logged separately as L2_ERROR by the
+            // Redis backend and also surfaces here as a miss.)
+            if (cache.l2Enabled()) {
+                cache.logEvent(id, key, "L2_MISS");
+            }
 
             // --- Full bootstrap (cache miss) ---
             auto tBootStart = std::chrono::steady_clock::now();

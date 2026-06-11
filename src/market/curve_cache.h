@@ -195,21 +195,59 @@ private:
 
 
 // =============================================================================
+// Cache configuration + backend factory
+// =============================================================================
+
+/**
+ * CurveCacheConfig - Resolved configuration for the curve caching system.
+ * Populated once at startup from environment variables (see CurveCache ctor).
+ */
+struct CurveCacheConfig {
+    bool        l1_enabled = false;  // in-process LRU of live QL curves
+    bool        l2_enabled = false;  // Redis-backed serialized cache
+    size_t      max_entries = 100;   // L1 capacity
+    bool        logging = false;
+
+    // L2 / Redis
+    std::string redis_url;                       // empty => L2 stays no-op
+    std::string key_prefix = "quantra:curvecache:";
+    uint32_t    l2_ttl_seconds = 14400;          // 4h default
+    size_t      redis_pool_size = 8;
+    int         redis_timeout_ms = 200;          // connect + command timeout
+};
+
+/**
+ * Build the cache backend for the given config.
+ *
+ * Defined in curve_cache_redis.cpp (the only TU that pulls in redis-plus-plus):
+ *   - L2 enabled with a redis_url -> layered cache (InProcess L1 + Redis L2)
+ *   - otherwise                   -> plain InProcessCurveCache (today's behavior)
+ *
+ * Per-level enable gating (l1_enabled / l2_enabled) is honored inside the
+ * returned backend, so a disabled level becomes a getX-miss / putX-no-op.
+ */
+std::unique_ptr<CurveCacheBackend> MakeCurveCacheBackend(const CurveCacheConfig& cfg);
+
+
+// =============================================================================
 // Global cache singleton + config
 // =============================================================================
 
 /**
  * CurveCache - Global access point for the curve caching system.
  *
- * Configuration via environment variables:
- *   QUANTRA_CURVE_CACHE_ENABLED=1       Enable caching (default: 0)
+ * Configuration via environment variables (read once at startup):
+ *   QUANTRA_CURVE_CACHE_L1_ENABLED=1     Enable L1 in-process cache (default: 0)
+ *   QUANTRA_CURVE_CACHE_L2_ENABLED=1     Enable L2 Redis cache      (default: 0)
+ *   QUANTRA_CURVE_CACHE_ENABLED=1        Backward-compat alias for L1 (default: 0)
  *   QUANTRA_CURVE_CACHE_MAX_ENTRIES=100  Max L1 entries (default: 100)
- *   QUANTRA_CURVE_CACHE_LOG=1           Log hits/misses to stdout (default: 0)
+ *   QUANTRA_CURVE_CACHE_LOG=1            Log hits/misses to stdout (default: 0)
  *
- * Future L2 config:
- *   QUANTRA_REDIS_HOST=127.0.0.1
- *   QUANTRA_REDIS_PORT=6379
- *   QUANTRA_CURVE_CACHE_TTL_SECONDS=3600
+ *   QUANTRA_REDIS_URL=tcp://127.0.0.1:6379       L2 endpoint (empty => L2 no-op)
+ *   QUANTRA_CURVE_CACHE_L2_KEY_PREFIX=quantra:curvecache:
+ *   QUANTRA_CURVE_CACHE_L2_TTL_SECONDS=14400     L2 entry TTL (default: 4h)
+ *   QUANTRA_REDIS_POOL_SIZE=8                     L2 connection pool size
+ *   QUANTRA_REDIS_TIMEOUT_MS=200                  L2 connect/command timeout
  */
 class CurveCache {
 public:
@@ -218,7 +256,10 @@ public:
         return inst;
     }
 
-    bool enabled() const { return enabled_; }
+    // enabled() == "any caching level active" — gates the cache code path.
+    bool enabled() const { return l1_enabled_ || l2_enabled_; }
+    bool l1Enabled() const { return l1_enabled_; }
+    bool l2Enabled() const { return l2_enabled_; }
     bool logging() const { return logging_; }
 
     CurveCacheBackend& backend() { return *backend_; }
@@ -248,37 +289,80 @@ public:
     }
 
 private:
+    static bool envFlag(const char* name) {
+        const char* v = std::getenv(name);
+        return v && std::string(v) == "1";
+    }
+
     CurveCache() {
-        // Read config from env
-        const char* envEnabled = std::getenv("QUANTRA_CURVE_CACHE_ENABLED");
-        enabled_ = envEnabled && std::string(envEnabled) == "1";
+        CurveCacheConfig cfg;
 
-        const char* envLog = std::getenv("QUANTRA_CURVE_CACHE_LOG");
-        logging_ = envLog && std::string(envLog) == "1";
+        // L1: explicit flag OR backward-compat alias QUANTRA_CURVE_CACHE_ENABLED.
+        cfg.l1_enabled = envFlag("QUANTRA_CURVE_CACHE_L1_ENABLED") ||
+                         envFlag("QUANTRA_CURVE_CACHE_ENABLED");
+        cfg.l2_enabled = envFlag("QUANTRA_CURVE_CACHE_L2_ENABLED");
+        cfg.logging    = envFlag("QUANTRA_CURVE_CACHE_LOG");
 
-        size_t maxEntries = 100;
         const char* envMax = std::getenv("QUANTRA_CURVE_CACHE_MAX_ENTRIES");
         if (envMax) {
             if (auto parsed = detail::ParsePositiveSizeT(envMax)) {
-                maxEntries = *parsed;
+                cfg.max_entries = *parsed;
             } else {
                 std::cerr << "[CurveCache] Invalid QUANTRA_CURVE_CACHE_MAX_ENTRIES='"
-                          << envMax << "'; using default " << maxEntries << std::endl;
+                          << envMax << "'; using default " << cfg.max_entries << std::endl;
             }
         }
 
-        // For now, always create InProcessCurveCache.
-        // When Redis is added, check QUANTRA_REDIS_HOST and create
-        // a layered backend instead.
-        backend_ = std::make_unique<InProcessCurveCache>(maxEntries);
+        // --- L2 / Redis config ---
+        if (const char* url = std::getenv("QUANTRA_REDIS_URL")) {
+            cfg.redis_url = url;
+        }
+        if (const char* prefix = std::getenv("QUANTRA_CURVE_CACHE_L2_KEY_PREFIX")) {
+            if (*prefix) cfg.key_prefix = prefix;
+        }
+        if (const char* ttl = std::getenv("QUANTRA_CURVE_CACHE_L2_TTL_SECONDS")) {
+            if (auto parsed = detail::ParsePositiveSizeT(ttl)) {
+                cfg.l2_ttl_seconds = static_cast<uint32_t>(*parsed);
+            } else {
+                std::cerr << "[CurveCache] Invalid QUANTRA_CURVE_CACHE_L2_TTL_SECONDS='"
+                          << ttl << "'; using default " << cfg.l2_ttl_seconds << std::endl;
+            }
+        }
+        if (const char* poolSize = std::getenv("QUANTRA_REDIS_POOL_SIZE")) {
+            if (auto parsed = detail::ParsePositiveSizeT(poolSize)) {
+                cfg.redis_pool_size = *parsed;
+            }
+        }
+        if (const char* timeout = std::getenv("QUANTRA_REDIS_TIMEOUT_MS")) {
+            if (auto parsed = detail::ParsePositiveSizeT(timeout)) {
+                cfg.redis_timeout_ms = static_cast<int>(*parsed);
+            }
+        }
 
-        if (enabled_) {
-            std::cout << "[CurveCache] Enabled. L1 max_entries=" << maxEntries
-                      << " logging=" << (logging_ ? "on" : "off") << std::endl;
+        l1_enabled_ = cfg.l1_enabled;
+        l2_enabled_ = cfg.l2_enabled;
+        logging_    = cfg.logging;
+
+        backend_ = MakeCurveCacheBackend(cfg);
+
+        if (enabled_()) {
+            std::cout << "[CurveCache] Enabled."
+                      << " L1=" << (l1_enabled_ ? "on" : "off")
+                      << " L2=" << (l2_enabled_ ? "on" : "off")
+                      << " max_entries=" << cfg.max_entries;
+            if (l2_enabled_) {
+                std::cout << " redis_url=" << (cfg.redis_url.empty() ? "(unset)" : cfg.redis_url)
+                          << " key_prefix=" << cfg.key_prefix
+                          << " ttl=" << cfg.l2_ttl_seconds << "s";
+            }
+            std::cout << " logging=" << (logging_ ? "on" : "off") << std::endl;
         }
     }
 
-    bool enabled_ = false;
+    bool enabled_() const { return l1_enabled_ || l2_enabled_; }
+
+    bool l1_enabled_ = false;
+    bool l2_enabled_ = false;
     bool logging_ = false;
     std::unique_ptr<CurveCacheBackend> backend_;
     Stats stats_;

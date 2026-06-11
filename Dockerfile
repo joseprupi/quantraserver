@@ -40,6 +40,8 @@ ARG GRPC_VERSION=v1.60.0
 ARG FLATBUFFERS_VERSION=v24.12.23
 ARG QUANTLIB_VERSION=1.41
 ARG ENVOY_VERSION=1.28.0
+ARG HIREDIS_VERSION=v1.2.0
+ARG REDIS_PLUS_PLUS_VERSION=1.3.13
 
 ENV DEPS_INSTALL_PREFIX=/opt/quantra-deps
 
@@ -112,12 +114,58 @@ RUN echo "=== Building QuantLib ${QUANTLIB_VERSION} ===" && \
     cd /tmp && rm -rf QuantLib-${QUANTLIB_VERSION} QuantLib-${QUANTLIB_VERSION}.tar.gz && \
     ldconfig
 
+# -----------------------------------------------------------------------------
+# hiredis (C client; dependency of redis-plus-plus)
+# -----------------------------------------------------------------------------
+RUN echo "=== Building hiredis ${HIREDIS_VERSION} ===" && \
+    cd /tmp && \
+    git clone -b ${HIREDIS_VERSION} --depth 1 https://github.com/redis/hiredis && \
+    cd hiredis && \
+    mkdir build && \
+    cd build && \
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=${DEPS_INSTALL_PREFIX} \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DDISABLE_TESTS=ON \
+        -GNinja \
+        .. && \
+    ninja -j$(nproc) && \
+    ninja install && \
+    cd /tmp && rm -rf hiredis && \
+    ldconfig
+
+# -----------------------------------------------------------------------------
+# redis-plus-plus (C++17 client; thread-safe connection pool)
+# -----------------------------------------------------------------------------
+RUN echo "=== Building redis-plus-plus ${REDIS_PLUS_PLUS_VERSION} ===" && \
+    cd /tmp && \
+    git clone -b ${REDIS_PLUS_PLUS_VERSION} --depth 1 https://github.com/sewenew/redis-plus-plus && \
+    cd redis-plus-plus && \
+    mkdir build && \
+    cd build && \
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH=${DEPS_INSTALL_PREFIX} \
+        -DCMAKE_INSTALL_PREFIX=${DEPS_INSTALL_PREFIX} \
+        -DREDIS_PLUS_PLUS_CXX_STANDARD=17 \
+        -DREDIS_PLUS_PLUS_BUILD_TEST=OFF \
+        -DREDIS_PLUS_PLUS_BUILD_STATIC=OFF \
+        -GNinja \
+        .. && \
+    ninja -j$(nproc) && \
+    ninja install && \
+    cd /tmp && rm -rf redis-plus-plus && \
+    ldconfig
+
 # Verify installations
 RUN echo "=== Verifying installations ===" && \
     echo "Envoy:" && envoy --version && \
     echo "Flatbuffers:" && ${DEPS_INSTALL_PREFIX}/bin/flatc --version && \
     echo "gRPC libs:" && ls ${DEPS_INSTALL_PREFIX}/lib/libgrpc++.so* | head -2 && \
-    echo "QuantLib:" && ls ${DEPS_INSTALL_PREFIX}/lib/libQuantLib.so* | head -2
+    echo "QuantLib:" && ls ${DEPS_INSTALL_PREFIX}/lib/libQuantLib.so* | head -2 && \
+    echo "hiredis:" && ls ${DEPS_INSTALL_PREFIX}/lib/libhiredis.so* | head -2 && \
+    echo "redis++:" && ls ${DEPS_INSTALL_PREFIX}/lib/libredis++.so* | head -2
 
 # =============================================================================
 # Stage: dev - Development environment
