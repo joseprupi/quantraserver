@@ -1903,56 +1903,6 @@
         },
         "additionalProperties": false
       },
-      "quantra_FlowInterestFloat": {
-        "type": "object",
-        "description": "Floating-rate interest cash flow.",
-        "properties": {
-          "amount": {
-            "type": "number"
-          },
-          "fixing_date": {
-            "type": "string"
-          },
-          "accrual_start_date": {
-            "type": "string"
-          },
-          "accrual_end_date": {
-            "type": "string"
-          },
-          "discount": {
-            "type": "number"
-          },
-          "rate": {
-            "type": "number"
-          },
-          "price": {
-            "type": "number"
-          }
-        },
-        "additionalProperties": false
-      },
-      "quantra_FlowPastInterestFloat": {
-        "type": "object",
-        "description": "Past floating-rate interest for seasoned instruments.",
-        "properties": {
-          "amount": {
-            "type": "number"
-          },
-          "fixing_date": {
-            "type": "string"
-          },
-          "accrual_start_date": {
-            "type": "string"
-          },
-          "accrual_end_date": {
-            "type": "string"
-          },
-          "rate": {
-            "type": "number"
-          }
-        },
-        "additionalProperties": false
-      },
       "quantra_FlowPastInterest": {
         "type": "object",
         "description": "Past fixed interest cash flow.",
@@ -2726,7 +2676,8 @@
         "description": "Futures helper for curve bootstrap.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "Implied rate. Used when futures_price is absent. One of rate,\nfutures_price or quote_id must be provided."
           },
           "future_start_date": {
             "type": "string"
@@ -2747,7 +2698,7 @@
           },
           "futures_price": {
             "type": "number",
-            "description": "Futures price (e.g., 95.25); if set, rate is ignored."
+            "description": "Futures price (e.g., 95.25); when present, rate is ignored."
           },
           "convexity_adjustment": {
             "type": "number",
@@ -2809,7 +2760,8 @@
         "description": "Bond helper for curve bootstrap.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "Bond quote as a rate-style value. Used when price is absent. One of\nrate, price or quote_id must be provided."
           },
           "settlement_days": {
             "type": "integer",
@@ -2839,7 +2791,7 @@
           },
           "price": {
             "type": "number",
-            "description": "Bond price (preferred over rate for clarity)."
+            "description": "Bond (clean) price; when present, rate is ignored."
           },
           "quote_id": {
             "type": "string"

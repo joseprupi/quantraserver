@@ -25,12 +25,14 @@ class BondHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Bond quote as a rate-style value. Used when price is absent. One of
+    # rate, price or quote_id must be provided.
     # BondHelper
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # BondHelper
     def SettlementDays(self):
@@ -92,13 +94,13 @@ class BondHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Bond price (preferred over rate for clarity).
+    # Bond (clean) price; when present, rate is ignored.
     # BondHelper
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # BondHelper
     def QuoteId(self):
@@ -114,7 +116,7 @@ def Start(builder):
     BondHelperStart(builder)
 
 def BondHelperAddRate(builder, rate):
-    builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.PrependFloat64Slot(0, rate, None)
 
 def AddRate(builder, rate):
     BondHelperAddRate(builder, rate)
@@ -168,7 +170,7 @@ def AddIssueDate(builder, issueDate):
     BondHelperAddIssueDate(builder, issueDate)
 
 def BondHelperAddPrice(builder, price):
-    builder.PrependFloat64Slot(9, price, 0.0)
+    builder.PrependFloat64Slot(9, price, None)
 
 def AddPrice(builder, price):
     BondHelperAddPrice(builder, price)
@@ -194,7 +196,7 @@ class BondHelperT(object):
 
     # BondHelperT
     def __init__(self):
-        self.rate = 0.0  # type: float
+        self.rate = None  # type: Optional[float]
         self.settlementDays = 0  # type: int
         self.faceAmount = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
@@ -203,7 +205,7 @@ class BondHelperT(object):
         self.businessDayConvention = 0  # type: int
         self.redemption = 0.0  # type: float
         self.issueDate = None  # type: str
-        self.price = 0.0  # type: float
+        self.price = None  # type: Optional[float]
         self.quoteId = None  # type: str
 
     @classmethod

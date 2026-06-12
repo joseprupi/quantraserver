@@ -5,8 +5,8 @@ namespace quantra;
 
 /// Swap index kind: IBOR or OIS.
 enum SwapIndexKind : byte {
-    IborSwapIndex,
-    OisSwapIndex
+    IborSwapIndex = 0,
+    OisSwapIndex = 1
 }
 
 /// Fixed leg conventions for swap index.

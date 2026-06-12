@@ -109,9 +109,17 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     else if (point_type == quantra::Point_FutureHelper) {
         auto point = static_cast<const quantra::FutureHelper*>(data);
 
-        double rateValue = point->rate();
-        if (point->futures_price() != 0.0) {
-            rateValue = 1.0 - (point->futures_price() / 100.0);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->futures_price().has_value()) {
+            rateValue = 1.0 - (point->futures_price().value() / 100.0);
+        } else if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the value below
+        } else {
+            QUANTRA_INVALID_ARGUMENT(
+                "FutureHelper requires one of futures_price, rate or quote_id");
         }
         rateValue += point->convexity_adjustment();
 
@@ -210,8 +218,18 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto point = static_cast<const quantra::BondHelper*>(data);
         ScheduleParser schedule_parser;
 
-        double px = point->price();
-        if (px == 0.0) px = point->rate();
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double px;
+        if (point->price().has_value()) {
+            px = point->price().value();
+        } else if (point->rate().has_value()) {
+            px = point->rate().value();
+        } else if (has_quote) {
+            px = 0.0; // unused: quote_id supplies the value below
+        } else {
+            QUANTRA_INVALID_ARGUMENT(
+                "BondHelper requires one of price, rate or quote_id");
+        }
 
         auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 

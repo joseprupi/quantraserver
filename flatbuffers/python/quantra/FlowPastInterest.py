@@ -57,7 +57,7 @@ class FlowPastInterest(object):
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def FlowPastInterestStart(builder):
@@ -91,7 +91,7 @@ def AddAccrualEndDate(builder, accrualEndDate):
     FlowPastInterestAddAccrualEndDate(builder, accrualEndDate)
 
 def FlowPastInterestAddRate(builder, rate):
-    builder.PrependFloat32Slot(4, rate, 0.0)
+    builder.PrependFloat64Slot(4, rate, 0.0)
 
 def AddRate(builder, rate):
     FlowPastInterestAddRate(builder, rate)

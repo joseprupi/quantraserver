@@ -2,30 +2,30 @@ namespace quantra.enums;
 
 /// Day count conventions for accrual and discounting.
 enum DayCounter : byte {
-    Actual360,
-    Actual365Fixed,
-    Actual365NoLeap,
-    ActualActual,
-    ActualActualISMA,
-    ActualActualBond,
-    ActualActualISDA,
-    ActualActualHistorical,
-    ActualActual365,
-    ActualActualAFB,
-    ActualActualEuro,
-    Business252,
-    One,
-    Simple,
-    Thirty360,
+    Actual360 = 0,
+    Actual365Fixed = 1,
+    Actual365NoLeap = 2,
+    ActualActual = 3,
+    ActualActualISMA = 4,
+    ActualActualBond = 5,
+    ActualActualISDA = 6,
+    ActualActualHistorical = 7,
+    ActualActual365 = 8,
+    ActualActualAFB = 9,
+    ActualActualEuro = 10,
+    Business252 = 11,
+    One = 12,
+    Simple = 13,
+    Thirty360 = 14,
 }
 
 /// Curve interpolation methods.
 enum Interpolator : byte {
-    BackwardFlat,
-    ForwardFlat,
-    Linear,
-    LogCubic,
-    LogLinear,
+    BackwardFlat = 0,
+    ForwardFlat = 1,
+    Linear = 2,
+    LogCubic = 3,
+    LogLinear = 4,
 }
 
 /// 2D surface interpolation mode.
@@ -36,240 +36,240 @@ enum SurfaceInterpolator2D : byte {
 
 /// Bootstrap trait for curve construction.
 enum BootstrapTrait : byte {
-    Discount,
-    FwdRate,
-    InterpolatedDiscount,
-    InterpolatedFwd,
-    InterpolatedZero,
-    ZeroRate
+    Discount = 0,
+    FwdRate = 1,
+    InterpolatedDiscount = 2,
+    InterpolatedFwd = 3,
+    InterpolatedZero = 4,
+    ZeroRate = 5
 }
 
 /// Time unit for period definitions.
 enum TimeUnit : byte {
-    Days,
-    Hours,
-    Microseconds,
-    Milliseconds,
-    Minutes,
-    Months,
-    Seconds,
-    Weeks,
-    Years,
+    Days = 0,
+    Hours = 1,
+    Microseconds = 2,
+    Milliseconds = 3,
+    Minutes = 4,
+    Months = 5,
+    Seconds = 6,
+    Weeks = 7,
+    Years = 8,
 }
 
 /// Calendar for business-day and holiday rules.
 enum Calendar : byte {
-    Argentina,
-    Australia,
-    BespokeCalendar,
-    Brazil,
-    Canada,
-    China,
-    CzechRepublic,
-    Denmark,
-    Finland,
-    Germany,
-    HongKong,
-    Hungary,
-    Iceland,
-    India,
-    Indonesia,
-    Israel,
-    Italy,
-    Japan,
-    Mexico,
-    NewZealand,
-    Norway,
-    NullCalendar,
-    Poland,
-    Romania,
-    Russia,
-    SaudiArabia,
-    Singapore,
-    Slovakia,
-    SouthAfrica,
-    SouthKorea,
-    Sweden,
-    Switzerland,
-    TARGET,
-    Taiwan,
-    Turkey,
-    Ukraine,
-    UnitedKingdom,
-    UnitedStates,
-    UnitedStatesGovernmentBond,
-    UnitedStatesNERC,
-    UnitedStatesNYSE,
-    UnitedStatesSettlement,
-    WeekendsOnly,
+    Argentina = 0,
+    Australia = 1,
+    BespokeCalendar = 2,
+    Brazil = 3,
+    Canada = 4,
+    China = 5,
+    CzechRepublic = 6,
+    Denmark = 7,
+    Finland = 8,
+    Germany = 9,
+    HongKong = 10,
+    Hungary = 11,
+    Iceland = 12,
+    India = 13,
+    Indonesia = 14,
+    Israel = 15,
+    Italy = 16,
+    Japan = 17,
+    Mexico = 18,
+    NewZealand = 19,
+    Norway = 20,
+    NullCalendar = 21,
+    Poland = 22,
+    Romania = 23,
+    Russia = 24,
+    SaudiArabia = 25,
+    Singapore = 26,
+    Slovakia = 27,
+    SouthAfrica = 28,
+    SouthKorea = 29,
+    Sweden = 30,
+    Switzerland = 31,
+    TARGET = 32,
+    Taiwan = 33,
+    Turkey = 34,
+    Ukraine = 35,
+    UnitedKingdom = 36,
+    UnitedStates = 37,
+    UnitedStatesGovernmentBond = 38,
+    UnitedStatesNERC = 39,
+    UnitedStatesNYSE = 40,
+    UnitedStatesSettlement = 41,
+    WeekendsOnly = 42,
 }
 
 /// Business day convention for date adjustments.
 enum BusinessDayConvention : byte {
-    Following,
-    HalfMonthModifiedFollowing,
-    ModifiedFollowing,
-    ModifiedPreceding,
-    Nearest,
-    Preceding,
-    Unadjusted,
+    Following = 0,
+    HalfMonthModifiedFollowing = 1,
+    ModifiedFollowing = 2,
+    ModifiedPreceding = 3,
+    Nearest = 4,
+    Preceding = 5,
+    Unadjusted = 6,
 }
 
 /// Frequency for periodic schedules.
 enum Frequency : byte {
-    Annual,
-    Bimonthly,
-    Biweekly,
-    Daily,
-    EveryFourthMonth,
-    EveryFourthWeek,
-    Monthly,
-    NoFrequency,
-    Once,
-    OtherFrequency,
-    Quarterly,
-    Semiannual,
-    Weekly
+    Annual = 0,
+    Bimonthly = 1,
+    Biweekly = 2,
+    Daily = 3,
+    EveryFourthMonth = 4,
+    EveryFourthWeek = 5,
+    Monthly = 6,
+    NoFrequency = 7,
+    Once = 8,
+    OtherFrequency = 9,
+    Quarterly = 10,
+    Semiannual = 11,
+    Weekly = 12
 }
 
 /// Date generation rule for schedule construction.
 enum DateGenerationRule : byte {
-    Backward,
-    CDS,
-    Forward,
-    OldCDS,
-    ThirdWednesday,
-    Twentieth,
-    TwentiethIMM,
-    Zero
+    Backward = 0,
+    CDS = 1,
+    Forward = 2,
+    OldCDS = 3,
+    ThirdWednesday = 4,
+    Twentieth = 5,
+    TwentiethIMM = 6,
+    Zero = 7
 }
 
 /// CDS pricing engine type.
 enum CdsEngineType : byte {
-    MidPoint,
-    ISDA
+    MidPoint = 0,
+    ISDA = 1
 }
 
 /// CDS helper model convention.
 enum CdsHelperModel : byte {
-    MidPoint,
-    ISDA
+    MidPoint = 0,
+    ISDA = 1
 }
 
 /// CDS market quote type.
 enum CdsQuoteType : byte {
-    ParSpread,
-    Upfront
+    ParSpread = 0,
+    Upfront = 1
 }
 
 /// CDS ISDA numerical fix convention.
 enum CdsIsdaNumericalFix : byte {
-    None,
-    Taylor
+    None = 0,
+    Taylor = 1
 }
 
 /// CDS ISDA accrual bias convention.
 enum CdsIsdaAccrualBias : byte {
-    HalfDayBias,
-    NoBias
+    HalfDayBias = 0,
+    NoBias = 1
 }
 
 /// CDS ISDA forwards-in-coupon-period convention.
 enum CdsIsdaForwardsInCouponPeriod : byte {
-    Flat,
-    Piecewise
+    Flat = 0,
+    Piecewise = 1
 }
 
 /// Compounding convention for rates.
 enum Compounding : byte {
-    Compounded,
-    Continuous,
-    Simple,
-    SimpleThenCompounded
+    Compounded = 0,
+    Continuous = 1,
+    Simple = 2,
+    SimpleThenCompounded = 3
 }
 
 /// Overnight rate averaging method.
 enum RateAveragingType : byte {
-    Compound,
-    Simple
+    Compound = 0,
+    Simple = 1
 }
 
 /// Swap direction: payer (pay fixed, receive floating) or receiver (receive fixed, pay floating).
 enum SwapType : byte {
-    Payer,
-    Receiver
+    Payer = 0,
+    Receiver = 1
 }
 
 /// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : byte {
-    Long,
-    Short
+    Long = 0,
+    Short = 1
 }
 
 /// Cap/Floor instrument type: cap, floor, or collar.
 enum CapFloorType : byte {
-    Cap,
-    Floor,
-    Collar
+    Cap = 0,
+    Floor = 1,
+    Collar = 2
 }
 
 /// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 enum ExerciseType : byte {
-    European,
-    Bermudan,
-    American
+    European = 0,
+    Bermudan = 1,
+    American = 2
 }
 
 /// Swaption settlement: physical (deliver swap) or cash.
 enum SettlementType : byte {
-    Physical,
-    Cash
+    Physical = 0,
+    Cash = 1
 }
 
 /// Swaption settlement method when settlement_type is Cash.
 enum SettlementMethod : byte {
-    PhysicalOTC,
-    PhysicalCleared,
-    CollateralizedCashPrice,
-    ParYieldCurve
+    PhysicalOTC = 0,
+    PhysicalCleared = 1,
+    CollateralizedCashPrice = 2,
+    ParYieldCurve = 3
 }
 
 /// CDS protection side: buyer or seller.
 enum ProtectionSide : byte {
-    Buyer,
-    Seller
+    Buyer = 0,
+    Seller = 1
 }
 
 /// Volatility quote type: Normal, Lognormal, or ShiftedLognormal.
 enum VolatilityType : byte {
-    Normal,
-    Lognormal,
-    ShiftedLognormal
+    Normal = 0,
+    Lognormal = 1,
+    ShiftedLognormal = 2
 }
 
 /// Volatility surface shape (dimensions and structure).
 enum VolSurfaceShape : byte {
-    Constant,
-    AtmMatrix2D,
-    SmileCube3D,
-    SurfaceFromPrices,
-    SabrParams,
-    SabrCalibrate
+    Constant = 0,
+    AtmMatrix2D = 1,
+    SmileCube3D = 2,
+    SurfaceFromPrices = 3,
+    SabrParams = 4,
+    SabrCalibrate = 5
 }
 
 /// Swaption volatility surface shape.
 enum SwaptionVolKind : byte {
-    Constant,
-    AtmMatrix2D,
-    SmileCube3D,
-    SabrParams,
-    SabrCalibrate
+    Constant = 0,
+    AtmMatrix2D = 1,
+    SmileCube3D = 2,
+    SabrParams = 3,
+    SabrCalibrate = 4
 }
 
 /// Swaption strike convention: absolute or spread from ATM.
 enum SwaptionStrikeKind : byte {
-    Absolute,
-    SpreadFromATM
+    Absolute = 0,
+    SpreadFromATM = 1
 }
 
 /// Inflation curve kind (zero-coupon or year-on-year).
@@ -299,10 +299,10 @@ enum BondPriceType : byte {
 
 /// Interest rate model type.
 enum IrModelType : byte {
-    Black,
-    ShiftedBlack,
-    Bachelier,
-    HullWhiteLattice
+    Black = 0,
+    ShiftedBlack = 1,
+    Bachelier = 2,
+    HullWhiteLattice = 3
 }
 
 /// Model parameter source: explicit values or calibrate from helpers.
@@ -328,8 +328,8 @@ enum CmsYieldCurveModel : byte {
 
 /// Equity option model type.
 enum EquityModelType : byte {
-    BlackScholesAnalytic,
-    BinomialCRR
+    BlackScholesAnalytic = 0,
+    BinomialCRR = 1
 }
 
 /// Equity option payoff type.

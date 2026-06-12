@@ -244,56 +244,6 @@
       },
       "additionalProperties" : false
     },
-    "quantra_FlowInterestFloat" : {
-      "type" : "object",
-      "description" : "Floating-rate interest cash flow.",
-      "properties" : {
-        "amount" : {
-                "type" : "number"
-              },
-        "fixing_date" : {
-                "type" : "string"
-              },
-        "accrual_start_date" : {
-                "type" : "string"
-              },
-        "accrual_end_date" : {
-                "type" : "string"
-              },
-        "discount" : {
-                "type" : "number"
-              },
-        "rate" : {
-                "type" : "number"
-              },
-        "price" : {
-                "type" : "number"
-              }
-      },
-      "additionalProperties" : false
-    },
-    "quantra_FlowPastInterestFloat" : {
-      "type" : "object",
-      "description" : "Past floating-rate interest for seasoned instruments.",
-      "properties" : {
-        "amount" : {
-                "type" : "number"
-              },
-        "fixing_date" : {
-                "type" : "string"
-              },
-        "accrual_start_date" : {
-                "type" : "string"
-              },
-        "accrual_end_date" : {
-                "type" : "string"
-              },
-        "rate" : {
-                "type" : "number"
-              }
-      },
-      "additionalProperties" : false
-    },
     "quantra_FlowPastInterest" : {
       "type" : "object",
       "description" : "Past fixed interest cash flow.",
