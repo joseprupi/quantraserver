@@ -2,7 +2,9 @@
 
 #include <queue>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <iostream>
 
 #include "date_convert.h"
 #include "term_structure_parser.h"
@@ -252,12 +254,18 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             auto t0 = std::chrono::steady_clock::now();
 
             // Compute canonical cache key
-            // depKeys contains keys of already-resolved dependency curves
+            // depKeys contains keys of already-resolved dependency curves.
+            // A dependency with no key was itself unkeyable; omitting its
+            // identity from this curve's key would under-key it the same way,
+            // so unkeyability propagates to dependents.
+            bool keyable = true;
             std::map<std::string, std::string> relevantDepKeys;
             if (deps.count(id)) {
                 for (const auto& depId : deps.at(id)) {
                     if (depKeys.count(depId)) {
                         relevantDepKeys[depId] = depKeys.at(depId);
+                    } else {
+                        keyable = false;
                     }
                 }
             }
@@ -268,8 +276,33 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             os << DateToIso(evalDate);
             asOfDate = os.str();
 
-            std::string key = CurveKeyBuilder::compute(
-                asOfDate, ts, keyCtx, relevantDepKeys);
+            std::string key;
+            if (keyable) {
+                try {
+                    key = CurveKeyBuilder::compute(
+                        asOfDate, ts, keyCtx, relevantDepKeys);
+                } catch (const std::exception& e) {
+                    keyable = false;
+                    // Key-build failure must never fail pricing — it only
+                    // loses caching for this curve. Warn once per process so
+                    // the degradation is visible without flooding logs.
+                    static std::atomic<bool> warned{false};
+                    if (!warned.exchange(true)) {
+                        std::cerr << "[CurveCache] WARNING: cache key build failed"
+                                  << " for curve '" << id << "': " << e.what()
+                                  << " — caching skipped for affected curves"
+                                  << " (logged once per process)" << std::endl;
+                    }
+                }
+            }
+            if (!keyable) {
+                // Fail closed: this curve is simply not cached — no L1/L2 get
+                // or put, no depKeys entry. Bootstrap live; request succeeds.
+                cache.logEvent(id, "", "KEY_BUILD_FAILED_UNCACHED");
+                auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
+                out.handles.at(id)->linkTo(curve);
+                continue;
+            }
 
             auto tKey = std::chrono::steady_clock::now();
             double keyMs = std::chrono::duration<double, std::milli>(tKey - t0).count();
