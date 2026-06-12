@@ -155,6 +155,28 @@ std::optional<std::pair<std::string, std::string>> ParseHostPort(const std::stri
     return std::make_pair(host, port);
 }
 
+// QUANTRA_ENVOY_ADMIN is naturally written as a URL (the Dockerfile defaults it
+// to http://127.0.0.1:9901), so accept both host:port and a scheme-prefixed URL:
+// strip a leading http:// or https:// and anything from the first '/' on before
+// host:port parsing.
+std::optional<std::pair<std::string, std::string>> ParseEnvoyAdminTarget(const std::string& in) {
+    std::string target = TrimWhitespace(in);
+    for (const std::string scheme : {"http://", "https://"}) {
+        if (target.size() > scheme.size() &&
+            std::equal(scheme.begin(), scheme.end(), target.begin(), [](char a, char b) {
+                return a == static_cast<char>(std::tolower(static_cast<unsigned char>(b)));
+            })) {
+            target.erase(0, scheme.size());
+            break;
+        }
+    }
+    const auto slash = target.find('/');
+    if (slash != std::string::npos) {
+        target.erase(slash);
+    }
+    return ParseHostPort(target);
+}
+
 bool ValidateGrpcAddress(const std::string& grpc_address, std::string& error_out) {
     const auto host_port = ParseHostPort(grpc_address);
     if (!host_port) {
@@ -271,10 +293,10 @@ void FillEnvoyClusterHealth(
     envoy["configured"] = true;
     envoy["admin_target"] = envoy_admin_target;
 
-    auto hp = ParseHostPort(envoy_admin_target);
+    auto hp = ParseEnvoyAdminTarget(envoy_admin_target);
     if (!hp) {
         envoy["reachable"] = false;
-        envoy["error"] = "invalid QUANTRA_ENVOY_ADMIN target, expected host:port";
+        envoy["error"] = "invalid QUANTRA_ENVOY_ADMIN target, expected host:port or http://host:port";
         status_out["envoy"] = std::move(envoy);
         return;
     }
