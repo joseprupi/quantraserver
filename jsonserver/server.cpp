@@ -178,6 +178,18 @@ bool IsJsonContentType(const crow::request& req) {
     return ct.find("application/json") != std::string::npos;
 }
 
+constexpr size_t kMaxJsonRequestBytes = 10 * 1024 * 1024;
+
+std::optional<crow::response> RejectInvalidJsonRequest(const crow::request& req) {
+    if (!IsJsonContentType(req)) {
+        return crow::response(415, R"({"error":"Content-Type must be application/json"})");
+    }
+    if (req.body.size() > kMaxJsonRequestBytes) {
+        return crow::response(413, R"({"error":"Request body too large"})");
+    }
+    return std::nullopt;
+}
+
 std::optional<std::string> HttpGetWithTimeout(
     const std::string& host,
     const std::string& port,
@@ -407,6 +419,9 @@ int main(int argc, char** argv) {
                       << "[jsonserver] JSON END " << route << std::endl;
         };
         auto respond = [&](const char* route, const crow::request& req, auto&& fn) {
+            if (auto rejected = RejectInvalidJsonRequest(req)) {
+                return std::move(*rejected);
+            }
             log_json_request(route, req);
             auto r = fn(req.body);
             if (r.status_code >= 400) {
@@ -568,13 +583,6 @@ int main(int argc, char** argv) {
 
         CROW_ROUTE(app, "/bootstrap-inflation-curves").methods("POST"_method)
         ([&](const crow::request& req) {
-            constexpr size_t kMaxInflationRequestBytes = 10 * 1024 * 1024;
-            if (!IsJsonContentType(req)) {
-                return crow::response(415, R"({"error":"Content-Type must be application/json"})");
-            }
-            if (req.body.size() > kMaxInflationRequestBytes) {
-                return crow::response(413, R"({"error":"Request body too large"})");
-            }
             return respond("/bootstrap-inflation-curves", req, [&](const std::string& body) {
                 return client.BootstrapInflationCurvesJSON(body);
             });
@@ -582,6 +590,9 @@ int main(int argc, char** argv) {
 
         CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
         ([&](const crow::request& req) {
+            if (auto rejected = RejectInvalidJsonRequest(req)) {
+                return std::move(*rejected);
+            }
             log_json_request("/sample-vol-surfaces", req);
             auto r = client.SampleVolSurfacesJSON(req.body);
             if (r.status_code >= 400) {
