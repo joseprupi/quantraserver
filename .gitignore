@@ -15,3 +15,6 @@ core
 tmp/*
 .venv/
 logs/
+
+# Python build/cache artifacts
+*.egg-info/
