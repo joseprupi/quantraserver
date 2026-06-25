@@ -48,14 +48,16 @@ table FRAHelper {
 
 /// Futures helper for curve bootstrap.
 table FutureHelper {
-    rate:double;
+    /// Implied rate. Used when futures_price is absent. One of rate,
+    /// futures_price or quote_id must be provided.
+    rate:double = null;
     future_start_date:string;
     future_months:int;
     calendar:enums.Calendar;
     business_day_convention:enums.BusinessDayConvention;
     day_counter:enums.DayCounter;
-    /// Futures price (e.g., 95.25); if set, rate is ignored.
-    futures_price:double;
+    /// Futures price (e.g., 95.25); when present, rate is ignored.
+    futures_price:double = null;
     /// Convexity adjustment added to implied rate.
     convexity_adjustment:double = 0.0;
     quote_id:string;
@@ -80,7 +82,9 @@ table SwapHelper {
 
 /// Bond helper for curve bootstrap.
 table BondHelper {
-    rate:double;
+    /// Bond quote as a rate-style value. Used when price is absent. One of
+    /// rate, price or quote_id must be provided.
+    rate:double = null;
     settlement_days:int;
     face_amount:double;
     schedule:Schedule;
@@ -89,8 +93,8 @@ table BondHelper {
     business_day_convention:enums.BusinessDayConvention;
     redemption:double;
     issue_date:string;
-    /// Bond price (preferred over rate for clarity).
-    price:double;
+    /// Bond (clean) price; when present, rate is ignored.
+    price:double = null;
     quote_id:string;
 }
 

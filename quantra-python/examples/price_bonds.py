@@ -82,7 +82,7 @@ def create_market_data():
         sched.endOfMonth = False
 
         helper = BondHelperT()
-        helper.rate = quote
+        helper.price = quote
         helper.settlementDays = 3
         helper.faceAmount = 100.0
         helper.schedule = sched

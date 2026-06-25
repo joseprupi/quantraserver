@@ -156,9 +156,12 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
 
     case quantra::Point_FutureHelper: {
         auto p = pw->point_as_FutureHelper();
-        double rateValue = p->rate();
-        if (p->futures_price() != 0.0) {
-            rateValue = 1.0 - (p->futures_price() / 100.0);
+        // Same selection as the parser: futures_price presence wins over rate.
+        double rateValue = 0.0;
+        if (p->futures_price().has_value()) {
+            rateValue = 1.0 - (p->futures_price().value() / 100.0);
+        } else if (p->rate().has_value()) {
+            rateValue = p->rate().value();
         }
         rateValue += p->convexity_adjustment();
         buf.writeDouble(resolveQuoteValue(rateValue, p->quote_id(), ctx));
@@ -167,7 +170,10 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
         buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
         buf.writeU8(static_cast<uint8_t>(p->day_counter()));
-        buf.writeDouble(p->futures_price());
+        buf.writeU8(p->futures_price().has_value() ? 1 : 0);
+        buf.writeDouble(p->futures_price().value_or(0.0));
+        buf.writeU8(p->rate().has_value() ? 1 : 0);
+        buf.writeDouble(p->rate().value_or(0.0));
         buf.writeDouble(p->convexity_adjustment());
         break;
     }
@@ -190,9 +196,18 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
 
     case quantra::Point_BondHelper: {
         auto p = pw->point_as_BondHelper();
-        double px = p->price();
-        if (px == 0.0) px = p->rate();
+        // Same selection as the parser: price presence wins over rate.
+        double px = 0.0;
+        if (p->price().has_value()) {
+            px = p->price().value();
+        } else if (p->rate().has_value()) {
+            px = p->rate().value();
+        }
         buf.writeDouble(resolveQuoteValue(px, p->quote_id(), ctx));
+        buf.writeU8(p->price().has_value() ? 1 : 0);
+        buf.writeDouble(p->price().value_or(0.0));
+        buf.writeU8(p->rate().has_value() ? 1 : 0);
+        buf.writeDouble(p->rate().value_or(0.0));
         buf.writeI32(p->settlement_days());
         buf.writeDouble(p->face_amount());
         writeSchedule(buf, p->schedule());
@@ -404,7 +419,7 @@ void CurveKeyBuilder::writeCurveHeader(
     const std::string& asOfDate,
     const quantra::TermStructure* ts)
 {
-    buf.writeTag("yc-key-v1");
+    buf.writeTag("yc-key-v2");
     buf.writeString(asOfDate);
     buf.writeU8(static_cast<uint8_t>(ts->day_counter()));
     buf.writeU8(static_cast<uint8_t>(ts->interpolator()));
@@ -461,7 +476,7 @@ std::string CurveKeyBuilder::compute(
     }
 
     // 5. Hash
-    return "yc:v1:" + sha256hex(buf.data());
+    return "yc:v2:" + sha256hex(buf.data());
 }
 
 } // namespace quantra

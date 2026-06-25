@@ -43,14 +43,14 @@ class FlowNotional(object):
     def Discount(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # FlowNotional
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def FlowNotionalStart(builder):
@@ -72,13 +72,13 @@ def AddAmount(builder, amount):
     FlowNotionalAddAmount(builder, amount)
 
 def FlowNotionalAddDiscount(builder, discount):
-    builder.PrependFloat32Slot(2, discount, 0.0)
+    builder.PrependFloat64Slot(2, discount, 0.0)
 
 def AddDiscount(builder, discount):
     FlowNotionalAddDiscount(builder, discount)
 
 def FlowNotionalAddPrice(builder, price):
-    builder.PrependFloat32Slot(3, price, 0.0)
+    builder.PrependFloat64Slot(3, price, 0.0)
 
 def AddPrice(builder, price):
     FlowNotionalAddPrice(builder, price)

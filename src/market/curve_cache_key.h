@@ -131,15 +131,20 @@ struct KeyContext {
 /**
  * CurveKeyBuilder - Builds deterministic cache keys for yield curve specs.
  *
- * Produces: "yc:v1:<sha256hex>"
+ * Produces: "yc:v2:<sha256hex>"
  *
  * The key captures everything that affects bootstrapping output:
  * - as_of_date
  * - TermStructure config (day counter, interpolator, bootstrap trait, reference date)
- * - All helpers with their full field values (sorted for order-independence)
+ * - All helpers with their full field values (sorted for order-independence),
+ *   including presence flags for optional scalars (BondHelper price/rate,
+ *   FutureHelper futures_price/rate)
  * - Resolved quote values (not quote IDs)
  * - Index definitions referenced by helpers (full conventions)
  * - Dependency curve keys (for multi-curve bootstrap)
+ *
+ * v1 -> v2: optional-scalar presence became part of the point serialization
+ * format; the version bump guarantees old v1 keys cannot collide.
  */
 class CurveKeyBuilder {
 public:
@@ -150,7 +155,7 @@ public:
      * @param ts            The curve spec
      * @param ctx           Pre-built quote/index lookup maps
      * @param depKeys       Keys of dependency curves (sorted by depId)
-     * @return              Key string "yc:v1:<sha256hex>"
+     * @return              Key string "yc:v2:<sha256hex>"
      */
     static std::string compute(
         const std::string& asOfDate,

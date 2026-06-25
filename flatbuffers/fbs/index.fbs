@@ -11,8 +11,8 @@ table Fixing {
 
 /// Whether this is an IBOR (term) or Overnight index.
 enum IndexType : byte {
-    Ibor,
-    Overnight
+    Ibor = 0,
+    Overnight = 1
 }
 
 /// Complete index definition. Registered once per request, referenced by id.

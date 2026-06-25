@@ -33,14 +33,6 @@ struct FlowInterest;
 struct FlowInterestBuilder;
 struct FlowInterestT;
 
-struct FlowInterestFloat;
-struct FlowInterestFloatBuilder;
-struct FlowInterestFloatT;
-
-struct FlowPastInterestFloat;
-struct FlowPastInterestFloatBuilder;
-struct FlowPastInterestFloatT;
-
 struct FlowPastInterest;
 struct FlowPastInterestBuilder;
 struct FlowPastInterestT;
@@ -389,9 +381,9 @@ struct FlowInterestT : public ::flatbuffers::NativeTable {
   std::string fixing_date{};
   std::string accrual_start_date{};
   std::string accrual_end_date{};
-  float discount = 0.0f;
-  float rate = 0.0f;
-  float price = 0.0f;
+  double discount = 0.0;
+  double rate = 0.0;
+  double price = 0.0;
 };
 
 /// Interest cash flow with fixing and accrual metadata.
@@ -419,14 +411,14 @@ struct FlowInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *accrual_end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_END_DATE);
   }
-  float discount() const {
-    return GetField<float>(VT_DISCOUNT, 0.0f);
+  double discount() const {
+    return GetField<double>(VT_DISCOUNT, 0.0);
   }
-  float rate() const {
-    return GetField<float>(VT_RATE, 0.0f);
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
   }
-  float price() const {
-    return GetField<float>(VT_PRICE, 0.0f);
+  double price() const {
+    return GetField<double>(VT_PRICE, 0.0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -437,9 +429,9 @@ struct FlowInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(accrual_start_date()) &&
            VerifyOffset(verifier, VT_ACCRUAL_END_DATE) &&
            verifier.VerifyString(accrual_end_date()) &&
-           VerifyField<float>(verifier, VT_DISCOUNT, 4) &&
-           VerifyField<float>(verifier, VT_RATE, 4) &&
-           VerifyField<float>(verifier, VT_PRICE, 4) &&
+           VerifyField<double>(verifier, VT_DISCOUNT, 8) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<double>(verifier, VT_PRICE, 8) &&
            verifier.EndTable();
   }
   FlowInterestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -463,14 +455,14 @@ struct FlowInterestBuilder {
   void add_accrual_end_date(::flatbuffers::Offset<::flatbuffers::String> accrual_end_date) {
     fbb_.AddOffset(FlowInterest::VT_ACCRUAL_END_DATE, accrual_end_date);
   }
-  void add_discount(float discount) {
-    fbb_.AddElement<float>(FlowInterest::VT_DISCOUNT, discount, 0.0f);
+  void add_discount(double discount) {
+    fbb_.AddElement<double>(FlowInterest::VT_DISCOUNT, discount, 0.0);
   }
-  void add_rate(float rate) {
-    fbb_.AddElement<float>(FlowInterest::VT_RATE, rate, 0.0f);
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(FlowInterest::VT_RATE, rate, 0.0);
   }
-  void add_price(float price) {
-    fbb_.AddElement<float>(FlowInterest::VT_PRICE, price, 0.0f);
+  void add_price(double price) {
+    fbb_.AddElement<double>(FlowInterest::VT_PRICE, price, 0.0);
   }
   explicit FlowInterestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -489,14 +481,14 @@ inline ::flatbuffers::Offset<FlowInterest> CreateFlowInterest(
     ::flatbuffers::Offset<::flatbuffers::String> fixing_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> accrual_start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> accrual_end_date = 0,
-    float discount = 0.0f,
-    float rate = 0.0f,
-    float price = 0.0f) {
+    double discount = 0.0,
+    double rate = 0.0,
+    double price = 0.0) {
   FlowInterestBuilder builder_(_fbb);
-  builder_.add_amount(amount);
   builder_.add_price(price);
   builder_.add_rate(rate);
   builder_.add_discount(discount);
+  builder_.add_amount(amount);
   builder_.add_accrual_end_date(accrual_end_date);
   builder_.add_accrual_start_date(accrual_start_date);
   builder_.add_fixing_date(fixing_date);
@@ -509,9 +501,9 @@ inline ::flatbuffers::Offset<FlowInterest> CreateFlowInterestDirect(
     const char *fixing_date = nullptr,
     const char *accrual_start_date = nullptr,
     const char *accrual_end_date = nullptr,
-    float discount = 0.0f,
-    float rate = 0.0f,
-    float price = 0.0f) {
+    double discount = 0.0,
+    double rate = 0.0,
+    double price = 0.0) {
   auto fixing_date__ = fixing_date ? _fbb.CreateString(fixing_date) : 0;
   auto accrual_start_date__ = accrual_start_date ? _fbb.CreateString(accrual_start_date) : 0;
   auto accrual_end_date__ = accrual_end_date ? _fbb.CreateString(accrual_end_date) : 0;
@@ -528,277 +520,13 @@ inline ::flatbuffers::Offset<FlowInterest> CreateFlowInterestDirect(
 
 ::flatbuffers::Offset<FlowInterest> CreateFlowInterest(::flatbuffers::FlatBufferBuilder &_fbb, const FlowInterestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct FlowInterestFloatT : public ::flatbuffers::NativeTable {
-  typedef FlowInterestFloat TableType;
-  double amount = 0.0;
-  std::string fixing_date{};
-  std::string accrual_start_date{};
-  std::string accrual_end_date{};
-  float discount = 0.0f;
-  float rate = 0.0f;
-  float price = 0.0f;
-};
-
-/// Floating-rate interest cash flow.
-struct FlowInterestFloat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef FlowInterestFloatT NativeTableType;
-  typedef FlowInterestFloatBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_AMOUNT = 4,
-    VT_FIXING_DATE = 6,
-    VT_ACCRUAL_START_DATE = 8,
-    VT_ACCRUAL_END_DATE = 10,
-    VT_DISCOUNT = 12,
-    VT_RATE = 14,
-    VT_PRICE = 16
-  };
-  double amount() const {
-    return GetField<double>(VT_AMOUNT, 0.0);
-  }
-  const ::flatbuffers::String *fixing_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FIXING_DATE);
-  }
-  const ::flatbuffers::String *accrual_start_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_START_DATE);
-  }
-  const ::flatbuffers::String *accrual_end_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_END_DATE);
-  }
-  float discount() const {
-    return GetField<float>(VT_DISCOUNT, 0.0f);
-  }
-  float rate() const {
-    return GetField<float>(VT_RATE, 0.0f);
-  }
-  float price() const {
-    return GetField<float>(VT_PRICE, 0.0f);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_AMOUNT, 8) &&
-           VerifyOffset(verifier, VT_FIXING_DATE) &&
-           verifier.VerifyString(fixing_date()) &&
-           VerifyOffset(verifier, VT_ACCRUAL_START_DATE) &&
-           verifier.VerifyString(accrual_start_date()) &&
-           VerifyOffset(verifier, VT_ACCRUAL_END_DATE) &&
-           verifier.VerifyString(accrual_end_date()) &&
-           VerifyField<float>(verifier, VT_DISCOUNT, 4) &&
-           VerifyField<float>(verifier, VT_RATE, 4) &&
-           VerifyField<float>(verifier, VT_PRICE, 4) &&
-           verifier.EndTable();
-  }
-  FlowInterestFloatT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FlowInterestFloatT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<FlowInterestFloat> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FlowInterestFloatT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct FlowInterestFloatBuilder {
-  typedef FlowInterestFloat Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_amount(double amount) {
-    fbb_.AddElement<double>(FlowInterestFloat::VT_AMOUNT, amount, 0.0);
-  }
-  void add_fixing_date(::flatbuffers::Offset<::flatbuffers::String> fixing_date) {
-    fbb_.AddOffset(FlowInterestFloat::VT_FIXING_DATE, fixing_date);
-  }
-  void add_accrual_start_date(::flatbuffers::Offset<::flatbuffers::String> accrual_start_date) {
-    fbb_.AddOffset(FlowInterestFloat::VT_ACCRUAL_START_DATE, accrual_start_date);
-  }
-  void add_accrual_end_date(::flatbuffers::Offset<::flatbuffers::String> accrual_end_date) {
-    fbb_.AddOffset(FlowInterestFloat::VT_ACCRUAL_END_DATE, accrual_end_date);
-  }
-  void add_discount(float discount) {
-    fbb_.AddElement<float>(FlowInterestFloat::VT_DISCOUNT, discount, 0.0f);
-  }
-  void add_rate(float rate) {
-    fbb_.AddElement<float>(FlowInterestFloat::VT_RATE, rate, 0.0f);
-  }
-  void add_price(float price) {
-    fbb_.AddElement<float>(FlowInterestFloat::VT_PRICE, price, 0.0f);
-  }
-  explicit FlowInterestFloatBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<FlowInterestFloat> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<FlowInterestFloat>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<FlowInterestFloat> CreateFlowInterestFloat(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double amount = 0.0,
-    ::flatbuffers::Offset<::flatbuffers::String> fixing_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> accrual_start_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> accrual_end_date = 0,
-    float discount = 0.0f,
-    float rate = 0.0f,
-    float price = 0.0f) {
-  FlowInterestFloatBuilder builder_(_fbb);
-  builder_.add_amount(amount);
-  builder_.add_price(price);
-  builder_.add_rate(rate);
-  builder_.add_discount(discount);
-  builder_.add_accrual_end_date(accrual_end_date);
-  builder_.add_accrual_start_date(accrual_start_date);
-  builder_.add_fixing_date(fixing_date);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<FlowInterestFloat> CreateFlowInterestFloatDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double amount = 0.0,
-    const char *fixing_date = nullptr,
-    const char *accrual_start_date = nullptr,
-    const char *accrual_end_date = nullptr,
-    float discount = 0.0f,
-    float rate = 0.0f,
-    float price = 0.0f) {
-  auto fixing_date__ = fixing_date ? _fbb.CreateString(fixing_date) : 0;
-  auto accrual_start_date__ = accrual_start_date ? _fbb.CreateString(accrual_start_date) : 0;
-  auto accrual_end_date__ = accrual_end_date ? _fbb.CreateString(accrual_end_date) : 0;
-  return quantra::CreateFlowInterestFloat(
-      _fbb,
-      amount,
-      fixing_date__,
-      accrual_start_date__,
-      accrual_end_date__,
-      discount,
-      rate,
-      price);
-}
-
-::flatbuffers::Offset<FlowInterestFloat> CreateFlowInterestFloat(::flatbuffers::FlatBufferBuilder &_fbb, const FlowInterestFloatT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct FlowPastInterestFloatT : public ::flatbuffers::NativeTable {
-  typedef FlowPastInterestFloat TableType;
-  double amount = 0.0;
-  std::string fixing_date{};
-  std::string accrual_start_date{};
-  std::string accrual_end_date{};
-  float rate = 0.0f;
-};
-
-/// Past floating-rate interest for seasoned instruments.
-struct FlowPastInterestFloat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef FlowPastInterestFloatT NativeTableType;
-  typedef FlowPastInterestFloatBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_AMOUNT = 4,
-    VT_FIXING_DATE = 6,
-    VT_ACCRUAL_START_DATE = 8,
-    VT_ACCRUAL_END_DATE = 10,
-    VT_RATE = 12
-  };
-  double amount() const {
-    return GetField<double>(VT_AMOUNT, 0.0);
-  }
-  const ::flatbuffers::String *fixing_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FIXING_DATE);
-  }
-  const ::flatbuffers::String *accrual_start_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_START_DATE);
-  }
-  const ::flatbuffers::String *accrual_end_date() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_END_DATE);
-  }
-  float rate() const {
-    return GetField<float>(VT_RATE, 0.0f);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<double>(verifier, VT_AMOUNT, 8) &&
-           VerifyOffset(verifier, VT_FIXING_DATE) &&
-           verifier.VerifyString(fixing_date()) &&
-           VerifyOffset(verifier, VT_ACCRUAL_START_DATE) &&
-           verifier.VerifyString(accrual_start_date()) &&
-           VerifyOffset(verifier, VT_ACCRUAL_END_DATE) &&
-           verifier.VerifyString(accrual_end_date()) &&
-           VerifyField<float>(verifier, VT_RATE, 4) &&
-           verifier.EndTable();
-  }
-  FlowPastInterestFloatT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FlowPastInterestFloatT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<FlowPastInterestFloat> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FlowPastInterestFloatT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct FlowPastInterestFloatBuilder {
-  typedef FlowPastInterestFloat Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_amount(double amount) {
-    fbb_.AddElement<double>(FlowPastInterestFloat::VT_AMOUNT, amount, 0.0);
-  }
-  void add_fixing_date(::flatbuffers::Offset<::flatbuffers::String> fixing_date) {
-    fbb_.AddOffset(FlowPastInterestFloat::VT_FIXING_DATE, fixing_date);
-  }
-  void add_accrual_start_date(::flatbuffers::Offset<::flatbuffers::String> accrual_start_date) {
-    fbb_.AddOffset(FlowPastInterestFloat::VT_ACCRUAL_START_DATE, accrual_start_date);
-  }
-  void add_accrual_end_date(::flatbuffers::Offset<::flatbuffers::String> accrual_end_date) {
-    fbb_.AddOffset(FlowPastInterestFloat::VT_ACCRUAL_END_DATE, accrual_end_date);
-  }
-  void add_rate(float rate) {
-    fbb_.AddElement<float>(FlowPastInterestFloat::VT_RATE, rate, 0.0f);
-  }
-  explicit FlowPastInterestFloatBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<FlowPastInterestFloat> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<FlowPastInterestFloat>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<FlowPastInterestFloat> CreateFlowPastInterestFloat(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double amount = 0.0,
-    ::flatbuffers::Offset<::flatbuffers::String> fixing_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> accrual_start_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> accrual_end_date = 0,
-    float rate = 0.0f) {
-  FlowPastInterestFloatBuilder builder_(_fbb);
-  builder_.add_amount(amount);
-  builder_.add_rate(rate);
-  builder_.add_accrual_end_date(accrual_end_date);
-  builder_.add_accrual_start_date(accrual_start_date);
-  builder_.add_fixing_date(fixing_date);
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<FlowPastInterestFloat> CreateFlowPastInterestFloatDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    double amount = 0.0,
-    const char *fixing_date = nullptr,
-    const char *accrual_start_date = nullptr,
-    const char *accrual_end_date = nullptr,
-    float rate = 0.0f) {
-  auto fixing_date__ = fixing_date ? _fbb.CreateString(fixing_date) : 0;
-  auto accrual_start_date__ = accrual_start_date ? _fbb.CreateString(accrual_start_date) : 0;
-  auto accrual_end_date__ = accrual_end_date ? _fbb.CreateString(accrual_end_date) : 0;
-  return quantra::CreateFlowPastInterestFloat(
-      _fbb,
-      amount,
-      fixing_date__,
-      accrual_start_date__,
-      accrual_end_date__,
-      rate);
-}
-
-::flatbuffers::Offset<FlowPastInterestFloat> CreateFlowPastInterestFloat(::flatbuffers::FlatBufferBuilder &_fbb, const FlowPastInterestFloatT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct FlowPastInterestT : public ::flatbuffers::NativeTable {
   typedef FlowPastInterest TableType;
   double amount = 0.0;
   std::string fixing_date{};
   std::string accrual_start_date{};
   std::string accrual_end_date{};
-  float rate = 0.0f;
+  double rate = 0.0;
 };
 
 /// Past fixed interest cash flow.
@@ -824,8 +552,8 @@ struct FlowPastInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *accrual_end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ACCRUAL_END_DATE);
   }
-  float rate() const {
-    return GetField<float>(VT_RATE, 0.0f);
+  double rate() const {
+    return GetField<double>(VT_RATE, 0.0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -836,7 +564,7 @@ struct FlowPastInterest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(accrual_start_date()) &&
            VerifyOffset(verifier, VT_ACCRUAL_END_DATE) &&
            verifier.VerifyString(accrual_end_date()) &&
-           VerifyField<float>(verifier, VT_RATE, 4) &&
+           VerifyField<double>(verifier, VT_RATE, 8) &&
            verifier.EndTable();
   }
   FlowPastInterestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -860,8 +588,8 @@ struct FlowPastInterestBuilder {
   void add_accrual_end_date(::flatbuffers::Offset<::flatbuffers::String> accrual_end_date) {
     fbb_.AddOffset(FlowPastInterest::VT_ACCRUAL_END_DATE, accrual_end_date);
   }
-  void add_rate(float rate) {
-    fbb_.AddElement<float>(FlowPastInterest::VT_RATE, rate, 0.0f);
+  void add_rate(double rate) {
+    fbb_.AddElement<double>(FlowPastInterest::VT_RATE, rate, 0.0);
   }
   explicit FlowPastInterestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -880,10 +608,10 @@ inline ::flatbuffers::Offset<FlowPastInterest> CreateFlowPastInterest(
     ::flatbuffers::Offset<::flatbuffers::String> fixing_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> accrual_start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> accrual_end_date = 0,
-    float rate = 0.0f) {
+    double rate = 0.0) {
   FlowPastInterestBuilder builder_(_fbb);
-  builder_.add_amount(amount);
   builder_.add_rate(rate);
+  builder_.add_amount(amount);
   builder_.add_accrual_end_date(accrual_end_date);
   builder_.add_accrual_start_date(accrual_start_date);
   builder_.add_fixing_date(fixing_date);
@@ -896,7 +624,7 @@ inline ::flatbuffers::Offset<FlowPastInterest> CreateFlowPastInterestDirect(
     const char *fixing_date = nullptr,
     const char *accrual_start_date = nullptr,
     const char *accrual_end_date = nullptr,
-    float rate = 0.0f) {
+    double rate = 0.0) {
   auto fixing_date__ = fixing_date ? _fbb.CreateString(fixing_date) : 0;
   auto accrual_start_date__ = accrual_start_date ? _fbb.CreateString(accrual_start_date) : 0;
   auto accrual_end_date__ = accrual_end_date ? _fbb.CreateString(accrual_end_date) : 0;
@@ -915,8 +643,8 @@ struct FlowNotionalT : public ::flatbuffers::NativeTable {
   typedef FlowNotional TableType;
   std::string date{};
   double amount = 0.0;
-  float discount = 0.0f;
-  float price = 0.0f;
+  double discount = 0.0;
+  double price = 0.0;
 };
 
 /// Notional exchange cash flow.
@@ -935,19 +663,19 @@ struct FlowNotional FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double amount() const {
     return GetField<double>(VT_AMOUNT, 0.0);
   }
-  float discount() const {
-    return GetField<float>(VT_DISCOUNT, 0.0f);
+  double discount() const {
+    return GetField<double>(VT_DISCOUNT, 0.0);
   }
-  float price() const {
-    return GetField<float>(VT_PRICE, 0.0f);
+  double price() const {
+    return GetField<double>(VT_PRICE, 0.0);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_DATE) &&
            verifier.VerifyString(date()) &&
            VerifyField<double>(verifier, VT_AMOUNT, 8) &&
-           VerifyField<float>(verifier, VT_DISCOUNT, 4) &&
-           VerifyField<float>(verifier, VT_PRICE, 4) &&
+           VerifyField<double>(verifier, VT_DISCOUNT, 8) &&
+           VerifyField<double>(verifier, VT_PRICE, 8) &&
            verifier.EndTable();
   }
   FlowNotionalT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -965,11 +693,11 @@ struct FlowNotionalBuilder {
   void add_amount(double amount) {
     fbb_.AddElement<double>(FlowNotional::VT_AMOUNT, amount, 0.0);
   }
-  void add_discount(float discount) {
-    fbb_.AddElement<float>(FlowNotional::VT_DISCOUNT, discount, 0.0f);
+  void add_discount(double discount) {
+    fbb_.AddElement<double>(FlowNotional::VT_DISCOUNT, discount, 0.0);
   }
-  void add_price(float price) {
-    fbb_.AddElement<float>(FlowNotional::VT_PRICE, price, 0.0f);
+  void add_price(double price) {
+    fbb_.AddElement<double>(FlowNotional::VT_PRICE, price, 0.0);
   }
   explicit FlowNotionalBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -986,12 +714,12 @@ inline ::flatbuffers::Offset<FlowNotional> CreateFlowNotional(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> date = 0,
     double amount = 0.0,
-    float discount = 0.0f,
-    float price = 0.0f) {
+    double discount = 0.0,
+    double price = 0.0) {
   FlowNotionalBuilder builder_(_fbb);
-  builder_.add_amount(amount);
   builder_.add_price(price);
   builder_.add_discount(discount);
+  builder_.add_amount(amount);
   builder_.add_date(date);
   return builder_.Finish();
 }
@@ -1000,8 +728,8 @@ inline ::flatbuffers::Offset<FlowNotional> CreateFlowNotionalDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *date = nullptr,
     double amount = 0.0,
-    float discount = 0.0f,
-    float price = 0.0f) {
+    double discount = 0.0,
+    double price = 0.0) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateFlowNotional(
       _fbb,
@@ -1228,88 +956,6 @@ inline ::flatbuffers::Offset<FlowInterest> CreateFlowInterest(::flatbuffers::Fla
       _discount,
       _rate,
       _price);
-}
-
-inline FlowInterestFloatT *FlowInterestFloat::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<FlowInterestFloatT>(new FlowInterestFloatT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void FlowInterestFloat::UnPackTo(FlowInterestFloatT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = amount(); _o->amount = _e; }
-  { auto _e = fixing_date(); if (_e) _o->fixing_date = _e->str(); }
-  { auto _e = accrual_start_date(); if (_e) _o->accrual_start_date = _e->str(); }
-  { auto _e = accrual_end_date(); if (_e) _o->accrual_end_date = _e->str(); }
-  { auto _e = discount(); _o->discount = _e; }
-  { auto _e = rate(); _o->rate = _e; }
-  { auto _e = price(); _o->price = _e; }
-}
-
-inline ::flatbuffers::Offset<FlowInterestFloat> FlowInterestFloat::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FlowInterestFloatT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateFlowInterestFloat(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<FlowInterestFloat> CreateFlowInterestFloat(::flatbuffers::FlatBufferBuilder &_fbb, const FlowInterestFloatT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FlowInterestFloatT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _amount = _o->amount;
-  auto _fixing_date = _o->fixing_date.empty() ? 0 : _fbb.CreateString(_o->fixing_date);
-  auto _accrual_start_date = _o->accrual_start_date.empty() ? 0 : _fbb.CreateString(_o->accrual_start_date);
-  auto _accrual_end_date = _o->accrual_end_date.empty() ? 0 : _fbb.CreateString(_o->accrual_end_date);
-  auto _discount = _o->discount;
-  auto _rate = _o->rate;
-  auto _price = _o->price;
-  return quantra::CreateFlowInterestFloat(
-      _fbb,
-      _amount,
-      _fixing_date,
-      _accrual_start_date,
-      _accrual_end_date,
-      _discount,
-      _rate,
-      _price);
-}
-
-inline FlowPastInterestFloatT *FlowPastInterestFloat::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<FlowPastInterestFloatT>(new FlowPastInterestFloatT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void FlowPastInterestFloat::UnPackTo(FlowPastInterestFloatT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = amount(); _o->amount = _e; }
-  { auto _e = fixing_date(); if (_e) _o->fixing_date = _e->str(); }
-  { auto _e = accrual_start_date(); if (_e) _o->accrual_start_date = _e->str(); }
-  { auto _e = accrual_end_date(); if (_e) _o->accrual_end_date = _e->str(); }
-  { auto _e = rate(); _o->rate = _e; }
-}
-
-inline ::flatbuffers::Offset<FlowPastInterestFloat> FlowPastInterestFloat::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FlowPastInterestFloatT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateFlowPastInterestFloat(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<FlowPastInterestFloat> CreateFlowPastInterestFloat(::flatbuffers::FlatBufferBuilder &_fbb, const FlowPastInterestFloatT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FlowPastInterestFloatT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _amount = _o->amount;
-  auto _fixing_date = _o->fixing_date.empty() ? 0 : _fbb.CreateString(_o->fixing_date);
-  auto _accrual_start_date = _o->accrual_start_date.empty() ? 0 : _fbb.CreateString(_o->accrual_start_date);
-  auto _accrual_end_date = _o->accrual_end_date.empty() ? 0 : _fbb.CreateString(_o->accrual_end_date);
-  auto _rate = _o->rate;
-  return quantra::CreateFlowPastInterestFloat(
-      _fbb,
-      _amount,
-      _fixing_date,
-      _accrual_start_date,
-      _accrual_end_date,
-      _rate);
 }
 
 inline FlowPastInterestT *FlowPastInterest::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

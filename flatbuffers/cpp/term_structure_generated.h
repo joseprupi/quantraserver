@@ -840,13 +840,13 @@ inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelperDirect(
 
 struct FutureHelperT : public ::flatbuffers::NativeTable {
   typedef FutureHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::string future_start_date{};
   int32_t future_months = 0;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  double futures_price = 0.0;
+  ::flatbuffers::Optional<double> futures_price = ::flatbuffers::nullopt;
   double convexity_adjustment = 0.0;
   std::string quote_id{};
 };
@@ -866,8 +866,10 @@ struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CONVEXITY_ADJUSTMENT = 18,
     VT_QUOTE_ID = 20
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// Implied rate. Used when futures_price is absent. One of rate,
+  /// futures_price or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   const ::flatbuffers::String *future_start_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FUTURE_START_DATE);
@@ -884,9 +886,9 @@ struct FutureHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::DayCounter day_counter() const {
     return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
   }
-  /// Futures price (e.g., 95.25); if set, rate is ignored.
-  double futures_price() const {
-    return GetField<double>(VT_FUTURES_PRICE, 0.0);
+  /// Futures price (e.g., 95.25); when present, rate is ignored.
+  ::flatbuffers::Optional<double> futures_price() const {
+    return GetOptional<double, double>(VT_FUTURES_PRICE);
   }
   /// Convexity adjustment added to implied rate.
   double convexity_adjustment() const {
@@ -920,7 +922,7 @@ struct FutureHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(FutureHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(FutureHelper::VT_RATE, rate);
   }
   void add_future_start_date(::flatbuffers::Offset<::flatbuffers::String> future_start_date) {
     fbb_.AddOffset(FutureHelper::VT_FUTURE_START_DATE, future_start_date);
@@ -938,7 +940,7 @@ struct FutureHelperBuilder {
     fbb_.AddElement<int8_t>(FutureHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
   }
   void add_futures_price(double futures_price) {
-    fbb_.AddElement<double>(FutureHelper::VT_FUTURES_PRICE, futures_price, 0.0);
+    fbb_.AddElement<double>(FutureHelper::VT_FUTURES_PRICE, futures_price);
   }
   void add_convexity_adjustment(double convexity_adjustment) {
     fbb_.AddElement<double>(FutureHelper::VT_CONVEXITY_ADJUSTMENT, convexity_adjustment, 0.0);
@@ -959,19 +961,19 @@ struct FutureHelperBuilder {
 
 inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> future_start_date = 0,
     int32_t future_months = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    double futures_price = 0.0,
+    ::flatbuffers::Optional<double> futures_price = ::flatbuffers::nullopt,
     double convexity_adjustment = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   FutureHelperBuilder builder_(_fbb);
   builder_.add_convexity_adjustment(convexity_adjustment);
-  builder_.add_futures_price(futures_price);
-  builder_.add_rate(rate);
+  if(futures_price) { builder_.add_futures_price(*futures_price); }
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_future_months(future_months);
   builder_.add_future_start_date(future_start_date);
@@ -983,13 +985,13 @@ inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelper(
 
 inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     const char *future_start_date = nullptr,
     int32_t future_months = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    double futures_price = 0.0,
+    ::flatbuffers::Optional<double> futures_price = ::flatbuffers::nullopt,
     double convexity_adjustment = 0.0,
     const char *quote_id = nullptr) {
   auto future_start_date__ = future_start_date ? _fbb.CreateString(future_start_date) : 0;
@@ -1214,7 +1216,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
 
 struct BondHelperT : public ::flatbuffers::NativeTable {
   typedef BondHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   int32_t settlement_days = 0;
   double face_amount = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
@@ -1223,7 +1225,7 @@ struct BondHelperT : public ::flatbuffers::NativeTable {
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
   double redemption = 0.0;
   std::string issue_date{};
-  double price = 0.0;
+  ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt;
   std::string quote_id{};
   BondHelperT() = default;
   BondHelperT(const BondHelperT &o);
@@ -1248,8 +1250,10 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_PRICE = 22,
     VT_QUOTE_ID = 24
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// Bond quote as a rate-style value. Used when price is absent. One of
+  /// rate, price or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
@@ -1275,9 +1279,9 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *issue_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ISSUE_DATE);
   }
-  /// Bond price (preferred over rate for clarity).
-  double price() const {
-    return GetField<double>(VT_PRICE, 0.0);
+  /// Bond (clean) price; when present, rate is ignored.
+  ::flatbuffers::Optional<double> price() const {
+    return GetOptional<double, double>(VT_PRICE);
   }
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
@@ -1310,7 +1314,7 @@ struct BondHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(BondHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(BondHelper::VT_RATE, rate);
   }
   void add_settlement_days(int32_t settlement_days) {
     fbb_.AddElement<int32_t>(BondHelper::VT_SETTLEMENT_DAYS, settlement_days, 0);
@@ -1337,7 +1341,7 @@ struct BondHelperBuilder {
     fbb_.AddOffset(BondHelper::VT_ISSUE_DATE, issue_date);
   }
   void add_price(double price) {
-    fbb_.AddElement<double>(BondHelper::VT_PRICE, price, 0.0);
+    fbb_.AddElement<double>(BondHelper::VT_PRICE, price);
   }
   void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
     fbb_.AddOffset(BondHelper::VT_QUOTE_ID, quote_id);
@@ -1355,7 +1359,7 @@ struct BondHelperBuilder {
 
 inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
@@ -1364,14 +1368,14 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     double redemption = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> issue_date = 0,
-    double price = 0.0,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   BondHelperBuilder builder_(_fbb);
-  builder_.add_price(price);
+  if(price) { builder_.add_price(*price); }
   builder_.add_redemption(redemption);
   builder_.add_coupon_rate(coupon_rate);
   builder_.add_face_amount(face_amount);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_issue_date(issue_date);
   builder_.add_schedule(schedule);
@@ -1383,7 +1387,7 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
 
 inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
@@ -1392,7 +1396,7 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
     double redemption = 0.0,
     const char *issue_date = nullptr,
-    double price = 0.0,
+    ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
     const char *quote_id = nullptr) {
   auto issue_date__ = issue_date ? _fbb.CreateString(issue_date) : 0;
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;

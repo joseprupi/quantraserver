@@ -57,21 +57,21 @@ class FlowInterest(object):
     def Discount(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # FlowInterest
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # FlowInterest
     def Price(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def FlowInterestStart(builder):
@@ -105,19 +105,19 @@ def AddAccrualEndDate(builder, accrualEndDate):
     FlowInterestAddAccrualEndDate(builder, accrualEndDate)
 
 def FlowInterestAddDiscount(builder, discount):
-    builder.PrependFloat32Slot(4, discount, 0.0)
+    builder.PrependFloat64Slot(4, discount, 0.0)
 
 def AddDiscount(builder, discount):
     FlowInterestAddDiscount(builder, discount)
 
 def FlowInterestAddRate(builder, rate):
-    builder.PrependFloat32Slot(5, rate, 0.0)
+    builder.PrependFloat64Slot(5, rate, 0.0)
 
 def AddRate(builder, rate):
     FlowInterestAddRate(builder, rate)
 
 def FlowInterestAddPrice(builder, price):
-    builder.PrependFloat32Slot(6, price, 0.0)
+    builder.PrependFloat64Slot(6, price, 0.0)
 
 def AddPrice(builder, price):
     FlowInterestAddPrice(builder, price)

@@ -388,6 +388,17 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 raise ValueError(f"Quote id '{quote_id}' has wrong type for curve")
             return quote_values.get(quote_id, 0.0)
         return point["rate"]
+
+    def resolve_bond_quote(point: dict) -> float:
+        # Mirrors the server's presence-based selection: price wins over rate.
+        quote_id = point.get("quote_id")
+        if quote_id:
+            if quote_types.get(quote_id, "Curve") != "Curve":
+                raise ValueError(f"Quote id '{quote_id}' has wrong type for curve")
+            return quote_values.get(quote_id, 0.0)
+        if "price" in point:
+            return point["price"]
+        return point["rate"]
     if any(p.get("point_type") == "ZeroRatePoint" for p in points):
         dates = []
         rates = []
@@ -514,7 +525,7 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
             
             # Create fixed rate bond helper
             helper = ql.FixedRateBondHelper(
-                ql.QuoteHandle(ql.SimpleQuote(resolve_point_rate(point))),  # Clean price
+                ql.QuoteHandle(ql.SimpleQuote(resolve_bond_quote(point))),  # Clean price
                 point.get("settlement_days", 3),
                 point.get("face_amount", 100.0),
                 schedule,
