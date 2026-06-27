@@ -2,8 +2,10 @@
 #define QUANTRASERVER_CALL_DATA_BASE_H
 
 #include <grpcpp/grpcpp.h>
+#include <cstddef>
 #include <exception>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <typeinfo>
@@ -17,6 +19,38 @@
 
 // Use quantra namespace for QuantraServer
 using quantra::QuantraServer;
+
+namespace quantra { namespace transport {
+
+// gRPC trailers (which carry the status message) are size-capped well below this;
+// keep the real cause text but never blow the trailer budget.
+constexpr std::size_t kMaxStatusMessageLen = 4096;
+
+// Build the gRPC status message from an exception's text: carry the REAL cause to
+// the caller, capping over-long text so the underlying reason still survives.
+inline std::string ErrorStatusMessage(const char *what)
+{
+    std::string msg = (what != nullptr) ? what : "";
+    if (msg.size() > kMaxStatusMessageLen)
+    {
+        msg.resize(kMaxStatusMessageLen);
+        msg += " ...[truncated]";
+    }
+    return msg;
+}
+
+// Extract the caller's request id from inbound gRPC metadata for log tagging.
+// Returns "-" when `x-request-id` is absent so logs grep uniformly.
+inline std::string RequestId(
+    const std::multimap<grpc::string_ref, grpc::string_ref> &metadata)
+{
+    auto it = metadata.find(grpc::string_ref("x-request-id"));
+    if (it != metadata.end())
+        return std::string(it->second.data(), it->second.size());
+    return "-";
+}
+
+}} // namespace quantra::transport
 
 /**
  * CallData - Base class for all async handlers.
@@ -60,7 +94,10 @@ public:
                 return;
             }
 
-            std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder = 
+            const std::string request_id =
+                quantra::transport::RequestId(ctx_.client_metadata());
+
+            std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder =
                 std::make_shared<flatbuffers::grpc::MessageBuilder>();
             try
             {
@@ -72,6 +109,7 @@ public:
                               << " type=" << typeid(Message).name()
                               << " peer=" << ctx_.peer()
                               << " bytes=" << request_msg.size()
+                              << " request_id=" << request_id
                               << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
@@ -92,6 +130,7 @@ public:
                               << " response_type=" << typeid(Response).name()
                               << " peer=" << ctx_.peer()
                               << " bytes=" << reply_.size()
+                              << " request_id=" << request_id
                               << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
@@ -109,9 +148,10 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "QuantLib error");
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
             }
             catch (QuantraNotFound &e)
@@ -120,6 +160,7 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::NOT_FOUND, e.what());
@@ -131,6 +172,7 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
@@ -142,6 +184,7 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, e.what());
@@ -153,9 +196,10 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Quantra error");
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
             }
             catch (std::exception &e)
@@ -164,9 +208,10 @@ public:
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
                           << " error=" << e.what()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error");
+                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
             }
             catch (...)
@@ -174,6 +219,7 @@ public:
                 std::cerr << "[grpc] non-std exception while handling request"
                           << " type=" << typeid(Message).name()
                           << " peer=" << ctx_.peer()
+                          << " request_id=" << request_id
                           << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error");
