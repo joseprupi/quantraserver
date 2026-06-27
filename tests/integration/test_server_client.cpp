@@ -13,6 +13,7 @@
 
 #include "quantraserver.grpc.fb.h"
 #include "quantraserver_generated.h"
+#include "call_data_base.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
 #include "price_zero_coupon_inflation_swap_request_generated.h"
@@ -1467,3 +1468,32 @@ TEST_F(ServerClientTest, Latency_MultipleRequests) {
 }
 
 }} // namespace
+
+TEST(CallDataHelpers, RequestIdDefaultsToDashWhenAbsent) {
+    std::multimap<grpc::string_ref, grpc::string_ref> md;
+    EXPECT_EQ(quantra::transport::RequestId(md), "-");
+}
+
+TEST(CallDataHelpers, RequestIdExtractsHeader) {
+    std::multimap<grpc::string_ref, grpc::string_ref> md;
+    md.emplace(grpc::string_ref("x-request-id"), grpc::string_ref("req-abc-123"));
+    EXPECT_EQ(quantra::transport::RequestId(md), "req-abc-123");
+}
+
+TEST(CallDataHelpers, ErrorStatusMessageCarriesRealCause) {
+    const char *cause = "negative time (-0.5) given";
+    EXPECT_EQ(quantra::transport::ErrorStatusMessage(cause), std::string(cause));
+    EXPECT_NE(quantra::transport::ErrorStatusMessage(cause), std::string("QuantLib error"));
+}
+
+TEST(CallDataHelpers, ErrorStatusMessageHandlesNull) {
+    EXPECT_EQ(quantra::transport::ErrorStatusMessage(nullptr), std::string(""));
+}
+
+TEST(CallDataHelpers, ErrorStatusMessageCapsLongTextButKeepsCause) {
+    std::string big(quantra::transport::kMaxStatusMessageLen + 100, 'x');
+    std::string out = quantra::transport::ErrorStatusMessage(big.c_str());
+    // capped to budget (+ small truncation marker), and the real cause text survives at the front
+    EXPECT_LE(out.size(), quantra::transport::kMaxStatusMessageLen + 32);
+    EXPECT_EQ(out.compare(0, 10, std::string(10, 'x')), 0);
+}
