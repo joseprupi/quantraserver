@@ -59,11 +59,24 @@ CASES = [
          "cds_request.json", "cds_list"),
     Case("bootstrap_curves_forward", "bootstrap_curves",
          "bootstrap_curves_forward.json", None),
+    # ZeroRatePoint discount curve (audit B7): built as an InterpolatedZeroCurve,
+    # NOT a PiecewiseYieldCurve, so the freeze path cannot extract exact pillars.
+    # A cache hit must serve the LIVE curve — never a weekly-resampled
+    # reconstruction — or the bond's semiannual coupons (which fall between the
+    # user's zero nodes and off the weekly resample grid) drift on a hit.
+    Case("fixed_rate_bond_zerorate", "fixed_rate_bond",
+         "fixed_rate_bond_zerorate_request.json", "bonds"),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row
 # works; the fixed-rate bond bootstraps a single deposit/bond curve.
 ENGAGED_CASE = CASES[0]
+
+# The B7 zero-curve row + the curve id its payload bootstraps, probed separately
+# in test_cache_engaged_zero_curve so the transparency assertion above cannot
+# pass trivially with the zero curve unkeyable/uncached.
+ZERO_CURVE_CASE = next(c for c in CASES if c.id == "fixed_rate_bond_zerorate")
+ZERO_CURVE_ID = "usd_zero_curve"
 
 
 def _canonical(response: dict) -> str:
@@ -190,3 +203,42 @@ def test_cache_engaged(cache_client, data_dir, cache_log_path):
         f"the cache-ON gRPC server?"
     )
     print(f"[cache] cache engaged — CurveCache hit logged: {_last_hit_line(cache_log_path)}")
+
+
+def _count_zero_curve_hits(log_path: Path) -> int:
+    if not log_path.exists():
+        return 0
+    return sum(
+        1
+        for line in log_path.read_text(errors="replace").splitlines()
+        if "event=L1_HIT" in line and f"curve={ZERO_CURVE_ID} " in line
+    )
+
+
+def test_cache_engaged_zero_curve(cache_client, data_dir, cache_log_path):
+    """B7 companion to the fixed_rate_bond_zerorate transparency row: prove the
+    ZeroRatePoint (InterpolatedZeroCurve) curve itself actually hits the cache —
+    an L1_HIT line naming its curve id must be logged. Guards against the
+    transparency assertions passing trivially because the zero curve became
+    unkeyable/uncached (e.g. KEY_BUILD_FAILED_UNCACHED)."""
+    request = load_json(data_dir / ZERO_CURVE_CASE.filename)
+
+    before = _count_zero_curve_hits(cache_log_path)
+    cache_client.price(ZERO_CURVE_CASE.product, request)   # warm (may miss)
+    cache_client.price(ZERO_CURVE_CASE.product, request)   # hit
+
+    after = before
+    for _ in range(20):
+        after = _count_zero_curve_hits(cache_log_path)
+        if after > before:
+            break
+        time.sleep(0.1)
+
+    assert after > before, (
+        f"No CurveCache L1 hit for curve={ZERO_CURVE_ID} logged in "
+        f"{cache_log_path} (hits before={before}, after={after}); the "
+        f"ZeroRatePoint curve did not engage the cache, so the B7 "
+        f"transparency case proves nothing."
+    )
+    print(f"[cache] zero curve engaged — L1 hits for {ZERO_CURVE_ID}: "
+          f"{before} -> {after}")

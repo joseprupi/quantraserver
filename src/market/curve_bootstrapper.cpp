@@ -351,34 +351,50 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             cache.stats().bootstraps++;
 
-            // Serialize once; reused for both the L2 store and (for Discount
-            // curves) the frozen L1 reconstruction below.
-            auto serialized = CurveSerializer::serialize(curve, ts);
+            // Freeze/serialize ONLY when the serializer can extract the
+            // curve's actual bootstrap pillars (a PiecewiseYieldCurve built by
+            // TermStructureParser). Otherwise — e.g. a ZeroRatePoint curve,
+            // which is an InterpolatedZeroCurve — serialize() would fall back
+            // to weekly resampling, and an L1/L2 hit would serve an
+            // approximation of the user's nodes instead of the real curve
+            // (audit B7). Such curves cache the LIVE curve (value-exact, same
+            // as the non-Discount-trait branch) and skip the L2 store.
+            bool exactPillars = CurveSerializer::canSerializeExactly(curve, ts);
 
-            // Cache a frozen, dependency-free curve in L1 for subsequent hits.
-            // A live PiecewiseYieldCurve observes its helpers, which observe the
-            // discount-curve handle; relinking that handle on a later request
-            // (even to identical data) marks the cached curve dirty and forces a
-            // full re-bootstrap on next use. The reconstructed
-            // InterpolatedDiscountCurve holds only pillar dates and discount
-            // factors — it observes nothing, so it never re-bootstraps.
-            // Only Discount-trait curves reconstruct bit-exactly; other traits
-            // fall back to caching the live curve (today's behavior).
             std::shared_ptr<QuantLib::YieldTermStructure> toCacheL1 = curve;
-            if (ts->bootstrap_trait() == quantra::enums::BootstrapTrait_Discount) {
-                try {
-                    toCacheL1 = CurveSerializer::reconstruct(serialized);
-                } catch (const std::exception&) {
-                    // reconstruct() fails closed on data it cannot rebuild
-                    // exactly; cache the live curve instead (pre-freeze
-                    // behavior) rather than failing the request.
-                    toCacheL1 = curve;
+            if (exactPillars) {
+                // Serialize once; reused for both the L2 store and (for
+                // Discount curves) the frozen L1 reconstruction below.
+                auto serialized = CurveSerializer::serialize(curve, ts);
+
+                // Cache a frozen, dependency-free curve in L1 for subsequent
+                // hits. A live PiecewiseYieldCurve observes its helpers, which
+                // observe the discount-curve handle; relinking that handle on
+                // a later request (even to identical data) marks the cached
+                // curve dirty and forces a full re-bootstrap on next use. The
+                // reconstructed InterpolatedDiscountCurve holds only pillar
+                // dates and discount factors — it observes nothing, so it
+                // never re-bootstraps.
+                // Only Discount-trait curves reconstruct bit-exactly; other
+                // traits fall back to caching the live curve (today's
+                // behavior).
+                if (ts->bootstrap_trait() == quantra::enums::BootstrapTrait_Discount) {
+                    try {
+                        toCacheL1 = CurveSerializer::reconstruct(serialized);
+                    } catch (const std::exception&) {
+                        // reconstruct() fails closed on data it cannot rebuild
+                        // exactly; cache the live curve instead (pre-freeze
+                        // behavior) rather than failing the request.
+                        toCacheL1 = curve;
+                    }
                 }
+
+                // Store in L2 (serialized DFs — for future Redis). Gated on
+                // exactPillars for the same reason as the freeze: resampled
+                // data must never be reconstructed and served on an L2 hit.
+                cache.backend().putL2(key, serialized);
             }
             cache.backend().putL1(key, toCacheL1);
-
-            // Store in L2 (serialized DFs — for future Redis)
-            cache.backend().putL2(key, serialized);
 
             cache.logEvent(id, key, "MISS_BOOTSTRAP", bootMs);
 
