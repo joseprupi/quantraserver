@@ -27,6 +27,7 @@ committed catalog drifts from the manifest.
 | `generate_catalog.py` | Renders `CATALOG.md` + `catalog.html` from the manifest (computes each case's QuantLib NPV, so it needs the QuantLib Python package — run it inside the test image). |
 | `conftest.py` | Reuses the contract-suite harness: puts `tests/contract` on `sys.path` and provides the same `client` / `data_dir` fixtures (`--url`, `--data-dir`). |
 | `../../examples/data/ir_swaps/` | The curated request JSONs for the IR-swap family. |
+| `../../examples/data/bonds/` | The curated request JSONs for the Bonds family. |
 
 ## How it runs in the gate
 
@@ -53,9 +54,10 @@ python3 -m pytest tests/functional -q \
 ## Adding a case
 
 1. **Write the request JSON** under `examples/data/` — IR-swap cases live in
-   `examples/data/ir_swaps/`. Start from an existing case with the same
-   product. Keep the request self-contained (indices, curves and the trade in
-   one file) and prefer explicit fields over schema defaults.
+   `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`. Start
+   from an existing case with the same product. Keep the request
+   self-contained (indices, curves and the trade in one file) and prefer
+   explicit fields over schema defaults.
 2. **Check the reference supports it.** The manifest's `ql_pricer` names a
    function in `tests/contract/ql_reference.py`; that pricer must genuinely
    honour every field your case varies. If the variation needs a reference
@@ -128,7 +130,48 @@ Legend: ✅ covered · ◐ partial · ☐ planned (expressible, not yet added) �
 - ☐ Negative rates · ☐ flat / steep / inverted curve shapes · ☐ at-par (NPV≈0)
 - ☐ Seasoned swap with past fixings
 
-## Planned / not yet covered
+## Current coverage (Bonds)
+
+* Fixed-rate bonds: coupon at/above/below the curve (par, premium, discount);
+  annual, semiannual and quarterly coupon frequencies; 30/360, Act/Act (Bond
+  basis) and Act/365F accrual day counts; a 0%-coupon (zero-coupon) bullet;
+  the tenor spectrum from a 2Y short note to a 30Y long-dated issue on a
+  curve bootstrapped out to the 30Y par quote.
+* Conventions / mechanics: T+1, T+2 and T+3 settlement; a non-par redemption
+  (101.5) with Preceding payment rolls on an Unadjusted schedule; a
+  seasoned USD Treasury-style bond (past coupon already paid) on the US
+  government bond calendar with a Backward Unadjusted schedule.
+* Curves: deposit+swap bootstrapped discounting and an explicit zero-rate
+  curve.
+* Floating-rate bonds: Euribor 6M semiannual and Euribor 3M quarterly
+  coupons; zero and +40bp spreads; OIS-discounted multicurve
+  (forwarding != discounting); Act/365F bond accrual against the index's
+  Act/360; a bond-level 0-fixing-days override (same-day fixing).
+
+## Planned / not yet covered (Bonds)
+
+These need reference-pricer or engine features that do not exist yet (the
+bond wire schemas carry a single rate, a single redemption and no option
+schedule); they are deliberately not half-implemented:
+
+* **Callable / putable bonds** — no call/put schedule on the wire and no
+  reference pricer for embedded options.
+* **Amortizing / sinking-fund redemption schedules** — the schemas carry one
+  bullet redemption per bond.
+* **Step-up / multi-rate coupon schedules** — `FixedRateBond.rate` is a
+  single number on the wire.
+* **Inflation-linked bonds** — no product endpoint in this catalog format.
+* **Ex-coupon periods** — not on the wire.
+* **Capped / floored / geared floaters** — the server builds its floaters
+  with unit gearing and no caps/floors; the fields are not on the wire.
+* **In-arrears floaters** — expressible on the wire (`in_arrears`), but the
+  reference call path has not been validated for the convexity adjustment,
+  so no case asserts it yet.
+* **Seasoned floaters with historical fixings** — `IndexDef.fixings` exists
+  on the wire and both sides apply them, but no catalog case pins the
+  past-fixing path yet.
+
+## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
 yet; they are deliberately not half-implemented:
@@ -148,6 +191,6 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (bonds, FRAs, caps/floors, swaptions, CDS, inflation)
-  already have representative parity tests in `tests/contract/`; migrating
-  them into this catalog format is future work.
+* **Other families** (FRAs, caps/floors, swaptions, CDS, inflation) already
+  have representative parity tests in `tests/contract/`; migrating them into
+  this catalog format is future work. Bonds are covered above.

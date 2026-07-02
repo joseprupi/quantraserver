@@ -587,16 +587,26 @@ def price_fixed_rate_bond_ql(request: dict) -> float:
         get_convention(sch.get("convention", "ModifiedFollowing")),
         get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(sch.get("date_generation_rule", "Forward")),
-        False
+        # Mirrors the server's ScheduleParser: schedule->end_of_month()
+        # (FlatBuffers schema default false).
+        sch.get("end_of_month", False)
     )
-    
-    # Build bond
+
+    # Build bond. Mirrors the server's FixedRateBondParser, which passes
+    # payment_convention, redemption and issue_date straight into the
+    # QuantLib::FixedRateBond constructor. The fallbacks are the FlatBuffers
+    # wire defaults (payment_convention=Following, redemption=0.0); issue_date
+    # is effectively required on the wire (the server dereferences it).
+    issue_date = bond.get("issue_date")
     ql_bond = ql.FixedRateBond(
         bond.get("settlement_days", 2),
         bond.get("face_amount", 100.0),
         schedule,
         [bond["rate"]],
-        get_day_counter(bond.get("accrual_day_counter", "Thirty360"))
+        get_day_counter(bond.get("accrual_day_counter", "Thirty360")),
+        get_convention(bond.get("payment_convention", "Following")),
+        bond.get("redemption", 0.0),
+        parse_date(issue_date) if issue_date else ql.Date()
     )
     ql_bond.setPricingEngine(ql.DiscountingBondEngine(curve))
     
@@ -632,25 +642,32 @@ def price_floating_rate_bond_ql(request: dict) -> float:
         get_convention(sch.get("convention", "ModifiedFollowing")),
         get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(sch.get("date_generation_rule", "Forward")),
-        False
+        # Mirrors the server's ScheduleParser: schedule->end_of_month()
+        # (FlatBuffers schema default false).
+        sch.get("end_of_month", False)
     )
-    
+
     # Get index info
     idx_ref = bond.get("index", {})
     idx_id = idx_ref.get("id", "EUR_6M") if isinstance(idx_ref, dict) else "EUR_6M"
-    
-    # Resolve index from definitions
+
+    # Resolve the index exactly as the server does: its IndexRegistryBuilder
+    # constructs a generic IborIndex from the request's IndexDef (name, tenor,
+    # fixing days, currency, calendar, convention, end-of-month, day count),
+    # projecting off the forwarding curve. Falls back to the Euribor family
+    # when the request carries no IndexDef (legacy requests).
     idx_def = find_index_def(idx_id, request)
-    period_months = (_period_n_unit(idx_def, "tenor", 6, "Months")[0] if idx_def else 6)
-    
-    # Create index with forecasting curve
-    if period_months == 3:
-        index = ql.Euribor3M(forward_curve)
-    elif period_months == 6:
-        index = ql.Euribor6M(forward_curve)
+    if idx_def:
+        index = build_ibor_index(idx_def, forward_curve)
     else:
-        index = ql.Euribor6M(forward_curve)
-    
+        period_months = 6
+        if "3M" in idx_id:
+            period_months = 3
+        if period_months == 3:
+            index = ql.Euribor3M(forward_curve)
+        else:
+            index = ql.Euribor6M(forward_curve)
+
     # Add any fixings from the IndexDef
     if idx_def:
         for fixing in idx_def.get("fixings", []):
