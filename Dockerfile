@@ -268,6 +268,13 @@ ENV QUANTRA_STATE_DIR=/app/.quantra
 ENV QUANTRA_ENVOY_ADMIN=http://127.0.0.1:9901
 ENV QUANTRA_FBS_DIR=/app/flatbuffers/fbs
 ENV QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
+# Enable the pricing-engine result caches in the shipped image (audit G1).
+# Safe now the freeze paths are value-exact for every curve type (B1-B3, B7):
+# a cache hit is byte-identical to a miss, so identical requests skip
+# re-bootstrapping. Production stage ONLY — the test gate runs in the deps/dev
+# image and starts its own cache-OFF/cache-ON server pairs explicitly.
+ENV QUANTRA_CURVE_CACHE_ENABLED=1
+ENV QUANTRA_SABR_CACHE_ENABLED=1
 
 EXPOSE 50051 8080
 
