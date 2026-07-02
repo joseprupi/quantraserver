@@ -467,20 +467,23 @@ int main(int argc, char** argv) {
                       << req.body << "\n"
                       << "[jsonserver] JSON END " << route << std::endl;
         };
-        // Shared POST wrapper. The caller's X-Request-Id (sanitized) is echoed
-        // back as a response header and forwarded to the gRPC backend by fn so
-        // engine logs correlate with the HTTP caller.
+        // Shared POST wrapper. Every response carries X-Quantra-Api-Version so
+        // callers can detect the server's API version on any call. The
+        // caller's X-Request-Id (sanitized) is echoed back as a response
+        // header and forwarded to the gRPC backend by fn so engine logs
+        // correlate with the HTTP caller.
         auto respond = [&](const char* route, const crow::request& req, auto&& fn) {
             const std::string request_id =
                 SanitizeRequestId(req.get_header_value("X-Request-Id"));
-            auto with_request_id = [&](crow::response resp) {
+            auto with_common_headers = [&](crow::response resp) {
+                resp.set_header("X-Quantra-Api-Version", QUANTRA_API_VERSION);
                 if (!request_id.empty()) {
                     resp.set_header("X-Request-Id", request_id);
                 }
                 return resp;
             };
             if (auto rejected = RejectInvalidJsonRequest(req)) {
-                return with_request_id(std::move(*rejected));
+                return with_common_headers(std::move(*rejected));
             }
             log_json_request(route, req);
             auto r = fn(req.body, request_id);
@@ -491,7 +494,7 @@ int main(int argc, char** argv) {
                                                  : " request_id=" + request_id)
                           << " response=" << r.body << std::endl;
             }
-            return with_request_id(crow::response(r.status_code, r.body));
+            return with_common_headers(crow::response(r.status_code, r.body));
         };
         
         // Health checks
@@ -654,14 +657,15 @@ int main(int argc, char** argv) {
         ([&](const crow::request& req) {
             const std::string request_id =
                 SanitizeRequestId(req.get_header_value("X-Request-Id"));
-            auto with_request_id = [&](crow::response resp) {
+            auto with_common_headers = [&](crow::response resp) {
+                resp.set_header("X-Quantra-Api-Version", QUANTRA_API_VERSION);
                 if (!request_id.empty()) {
                     resp.set_header("X-Request-Id", request_id);
                 }
                 return resp;
             };
             if (auto rejected = RejectInvalidJsonRequest(req)) {
-                return with_request_id(std::move(*rejected));
+                return with_common_headers(std::move(*rejected));
             }
             log_json_request("/sample-vol-surfaces", req);
             auto r = client.SampleVolSurfacesJSON(req.body, request_id);
@@ -675,7 +679,7 @@ int main(int argc, char** argv) {
                 std::cout << "[jsonserver] /sample-vol-surfaces success"
                           << " http_status=" << r.status_code << std::endl;
             }
-            return with_request_id(crow::response(r.status_code, r.body));
+            return with_common_headers(crow::response(r.status_code, r.body));
         });
 
         CROW_ROUTE(app, "/calendar-business-days").methods("POST"_method)
