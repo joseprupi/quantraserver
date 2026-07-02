@@ -126,26 +126,26 @@ public:
     // JSON API - Easy to use, works with any language via HTTP
     // -------------------------------------------------------------------------
     
-    JsonResponse PriceFixedRateBondJSON(const std::string& json);
-    JsonResponse PriceFloatingRateBondJSON(const std::string& json);
-    JsonResponse PriceVanillaSwapJSON(const std::string& json);
-    JsonResponse PriceZeroCouponInflationSwapJSON(const std::string& json);
-    JsonResponse PriceYearOnYearInflationSwapJSON(const std::string& json);
-    JsonResponse PriceOisSwapJSON(const std::string& json);
-    JsonResponse PriceBasisSwapJSON(const std::string& json);
-    JsonResponse PriceFRAJSON(const std::string& json);
-    JsonResponse PriceCapFloorJSON(const std::string& json);
-    JsonResponse PriceSwaptionJSON(const std::string& json);
-    JsonResponse PriceCDSJSON(const std::string& json);
-    JsonResponse BootstrapCurvesJSON(const std::string& json);
-    JsonResponse BootstrapInflationCurvesJSON(const std::string& json);
-    JsonResponse SampleVolSurfacesJSON(const std::string& json);
-    JsonResponse CalendarBusinessDaysJSON(const std::string& json);
-    JsonResponse CalendarHolidaysJSON(const std::string& json);
-    JsonResponse CalendarAdvanceJSON(const std::string& json);
-    JsonResponse CalibrateSwaptionModelJSON(const std::string& json);
-    JsonResponse CalibrateSwaptionVolJSON(const std::string& json);
-    JsonResponse PriceEquityOptionJSON(const std::string& json);
+    JsonResponse PriceFixedRateBondJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceFloatingRateBondJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceVanillaSwapJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceZeroCouponInflationSwapJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceYearOnYearInflationSwapJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceOisSwapJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceBasisSwapJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceFRAJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceCapFloorJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceSwaptionJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceCDSJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse BootstrapCurvesJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse BootstrapInflationCurvesJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse SampleVolSurfacesJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse CalendarBusinessDaysJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse CalendarHolidaysJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse CalendarAdvanceJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse CalibrateSwaptionModelJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse CalibrateSwaptionVolJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceEquityOptionJSON(const std::string& json, const std::string& request_id = "");
     
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance

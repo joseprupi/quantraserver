@@ -6,6 +6,8 @@
 #include "quantra_client.h"
 #include "product_catalog.h"
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
 #include <iostream>
 #include <string_view>
@@ -47,14 +49,37 @@ std::string JsonEscape(std::string_view input) {
     return out;
 }
 
-int GrpcToHttpStatus(grpc::StatusCode code) {
-    switch (code) {
+bool ContainsCaseInsensitive(const std::string& haystack, std::string_view needle) {
+    auto to_lower = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
+    std::string h(haystack.size(), '\0');
+    std::transform(haystack.begin(), haystack.end(), h.begin(), to_lower);
+    std::string n(needle.size(), '\0');
+    std::transform(needle.begin(), needle.end(), n.begin(), to_lower);
+    return h.find(n) != std::string::npos;
+}
+
+int GrpcToHttpStatus(const grpc::Status& status) {
+    switch (status.error_code()) {
         case grpc::StatusCode::INVALID_ARGUMENT: return 400;
         case grpc::StatusCode::UNAUTHENTICATED: return 401;
         case grpc::StatusCode::PERMISSION_DENIED: return 403;
         case grpc::StatusCode::NOT_FOUND: return 404;
         case grpc::StatusCode::ALREADY_EXISTS: return 409;
-        case grpc::StatusCode::RESOURCE_EXHAUSTED: return 429;
+        case grpc::StatusCode::RESOURCE_EXHAUSTED:
+            // The only known RESOURCE_EXHAUSTED source is gRPC's message-size
+            // cap ("Received message larger than max ..."), which is a
+            // payload-size problem, not a rate-limit -> 413. Anything else
+            // keeps the historical 429.
+            if (ContainsCaseInsensitive(status.error_message(), "larger than max") ||
+                ContainsCaseInsensitive(status.error_message(), "message too large")) {
+                return 413;
+            }
+            return 429;
+        // ABORTED carries QuantLib/engine exceptions raised by well-formed but
+        // unpriceable client inputs (bad dates, degenerate schedules, ...).
+        // Those are client-data faults, not server faults -> 422
+        // Unprocessable Entity instead of the old default 500.
+        case grpc::StatusCode::ABORTED: return 422;
         case grpc::StatusCode::UNIMPLEMENTED: return 501;
         case grpc::StatusCode::UNAVAILABLE: return 503;
         case grpc::StatusCode::DEADLINE_EXCEEDED: return 504;
@@ -110,11 +135,16 @@ JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
     if (details.empty()) {
         details = status.error_message();
     }
+    // The documented `error` field carries the REAL cause (same text as
+    // `message`), not the old useless constant "gRPC error".
+    // `code`, `code_name` and `message` are kept for backward compatibility.
+    std::string error_text = details.empty() ? "gRPC error" : details;
     std::string code_name = codeName(status.error_code());
-    oss << R"({"error": "gRPC error", "code": )" << status.error_code()
+    oss << R"({"error": ")" << JsonEscape(error_text)
+        << R"(", "code": )" << status.error_code()
         << R"(, "code_name": ")" << JsonEscape(code_name)
         << R"(", "message": ")" << JsonEscape(details) << R"("})";
-    return {false, GrpcToHttpStatus(status.error_code()), oss.str()};
+    return {false, GrpcToHttpStatus(status), oss.str()};
 }
 
 // =============================================================================
@@ -140,7 +170,9 @@ public:
     }
     JsonParser& GetParser() { return *json_parser_; }
 
-    // Generic JSON call handler
+    // Generic JSON call handler. `request_id` (already sanitized by the HTTP
+    // layer) is forwarded to the backend as `x-request-id` gRPC metadata so
+    // engine log lines correlate with the caller's id.
     template<typename Request, typename Response>
     JsonResponse CallJSON(
         ProductType type,
@@ -149,7 +181,8 @@ public:
             grpc::ClientContext*,
             const flatbuffers::grpc::Message<Request>&,
             flatbuffers::grpc::Message<Response>*
-        )
+        ),
+        const std::string& request_id = ""
     ) {
         try {
             auto builder = json_parser_->ParseRequest(type, json);
@@ -159,6 +192,9 @@ public:
             }
             grpc::ClientContext context;
             SetDefaultDeadline(context);
+            if (!request_id.empty()) {
+                context.AddMetadata("x-request-id", request_id);
+            }
             flatbuffers::grpc::Message<Response> response;
             
             grpc::Status status = (stub_.get()->*rpc)(&context, request, &response);
@@ -258,123 +294,123 @@ bool QuantraClient::WaitForChannelReady(std::chrono::milliseconds timeout) const
 // JSON API Implementation
 // =============================================================================
 
-JsonResponse QuantraClient::PriceFixedRateBondJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceFixedRateBondJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceFixedRateBondRequest, PriceFixedRateBondResponse>(
-        ProductType::FixedRateBond, json, &QuantraServer::Stub::PriceFixedRateBond
+        ProductType::FixedRateBond, json, &QuantraServer::Stub::PriceFixedRateBond, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceFloatingRateBondJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceFloatingRateBondJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceFloatingRateBondRequest, PriceFloatingRateBondResponse>(
-        ProductType::FloatingRateBond, json, &QuantraServer::Stub::PriceFloatingRateBond
+        ProductType::FloatingRateBond, json, &QuantraServer::Stub::PriceFloatingRateBond, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceVanillaSwapJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceVanillaSwapJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceVanillaSwapRequest, PriceVanillaSwapResponse>(
-        ProductType::VanillaSwap, json, &QuantraServer::Stub::PriceVanillaSwap
+        ProductType::VanillaSwap, json, &QuantraServer::Stub::PriceVanillaSwap, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceZeroCouponInflationSwapJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceZeroCouponInflationSwapJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceZeroCouponInflationSwapRequest, PriceZeroCouponInflationSwapResponse>(
-        ProductType::ZeroCouponInflationSwap, json, &QuantraServer::Stub::PriceZeroCouponInflationSwap
+        ProductType::ZeroCouponInflationSwap, json, &QuantraServer::Stub::PriceZeroCouponInflationSwap, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceYearOnYearInflationSwapJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceYearOnYearInflationSwapJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceYearOnYearInflationSwapRequest, PriceYearOnYearInflationSwapResponse>(
-        ProductType::YearOnYearInflationSwap, json, &QuantraServer::Stub::PriceYearOnYearInflationSwap
+        ProductType::YearOnYearInflationSwap, json, &QuantraServer::Stub::PriceYearOnYearInflationSwap, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceOisSwapJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceOisSwapJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceOisSwapRequest, PriceOisSwapResponse>(
-        ProductType::OisSwap, json, &QuantraServer::Stub::PriceOisSwap
+        ProductType::OisSwap, json, &QuantraServer::Stub::PriceOisSwap, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceBasisSwapJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceBasisSwapJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceBasisSwapRequest, PriceBasisSwapResponse>(
-        ProductType::BasisSwap, json, &QuantraServer::Stub::PriceBasisSwap
+        ProductType::BasisSwap, json, &QuantraServer::Stub::PriceBasisSwap, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceFRAJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceFRAJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceFRARequest, PriceFRAResponse>(
-        ProductType::FRA, json, &QuantraServer::Stub::PriceFRA
+        ProductType::FRA, json, &QuantraServer::Stub::PriceFRA, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceCapFloorJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceCapFloorJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceCapFloorRequest, PriceCapFloorResponse>(
-        ProductType::CapFloor, json, &QuantraServer::Stub::PriceCapFloor
+        ProductType::CapFloor, json, &QuantraServer::Stub::PriceCapFloor, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceSwaptionJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceSwaptionJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceSwaptionRequest, PriceSwaptionResponse>(
-        ProductType::Swaption, json, &QuantraServer::Stub::PriceSwaption
+        ProductType::Swaption, json, &QuantraServer::Stub::PriceSwaption, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceCDSJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceCDSJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceCDSRequest, PriceCDSResponse>(
-        ProductType::CDS, json, &QuantraServer::Stub::PriceCDS
+        ProductType::CDS, json, &QuantraServer::Stub::PriceCDS, request_id
     );
 }
 
-JsonResponse QuantraClient::BootstrapCurvesJSON(const std::string& json) {
+JsonResponse QuantraClient::BootstrapCurvesJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<BootstrapCurvesRequest, BootstrapCurvesResponse>(
-        ProductType::BootstrapCurves, json, &QuantraServer::Stub::BootstrapCurves
+        ProductType::BootstrapCurves, json, &QuantraServer::Stub::BootstrapCurves, request_id
     );
 }
 
-JsonResponse QuantraClient::BootstrapInflationCurvesJSON(const std::string& json) {
+JsonResponse QuantraClient::BootstrapInflationCurvesJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<BootstrapInflationCurvesRequest, BootstrapInflationCurvesResponse>(
-        ProductType::BootstrapInflationCurves, json, &QuantraServer::Stub::BootstrapInflationCurves
+        ProductType::BootstrapInflationCurves, json, &QuantraServer::Stub::BootstrapInflationCurves, request_id
     );
 }
 
-JsonResponse QuantraClient::SampleVolSurfacesJSON(const std::string& json) {
+JsonResponse QuantraClient::SampleVolSurfacesJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<SampleVolSurfacesRequest, SampleVolSurfacesResponse>(
-        ProductType::SampleVolSurfaces, json, &QuantraServer::Stub::SampleVolSurfaces
+        ProductType::SampleVolSurfaces, json, &QuantraServer::Stub::SampleVolSurfaces, request_id
     );
 }
 
-JsonResponse QuantraClient::CalendarBusinessDaysJSON(const std::string& json) {
+JsonResponse QuantraClient::CalendarBusinessDaysJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalendarBusinessDaysRequest, CalendarBusinessDaysResponse>(
-        ProductType::CalendarBusinessDays, json, &QuantraServer::Stub::CalendarBusinessDays
+        ProductType::CalendarBusinessDays, json, &QuantraServer::Stub::CalendarBusinessDays, request_id
     );
 }
 
-JsonResponse QuantraClient::CalendarHolidaysJSON(const std::string& json) {
+JsonResponse QuantraClient::CalendarHolidaysJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalendarHolidaysRequest, CalendarHolidaysResponse>(
-        ProductType::CalendarHolidays, json, &QuantraServer::Stub::CalendarHolidays
+        ProductType::CalendarHolidays, json, &QuantraServer::Stub::CalendarHolidays, request_id
     );
 }
 
-JsonResponse QuantraClient::CalendarAdvanceJSON(const std::string& json) {
+JsonResponse QuantraClient::CalendarAdvanceJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalendarAdvanceRequest, CalendarAdvanceResponse>(
-        ProductType::CalendarAdvance, json, &QuantraServer::Stub::CalendarAdvance
+        ProductType::CalendarAdvance, json, &QuantraServer::Stub::CalendarAdvance, request_id
     );
 }
 
-JsonResponse QuantraClient::CalibrateSwaptionModelJSON(const std::string& json) {
+JsonResponse QuantraClient::CalibrateSwaptionModelJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalibrateSwaptionModelRequest, CalibrateSwaptionModelResponse>(
-        ProductType::CalibrateSwaptionModel, json, &QuantraServer::Stub::CalibrateSwaptionModel
+        ProductType::CalibrateSwaptionModel, json, &QuantraServer::Stub::CalibrateSwaptionModel, request_id
     );
 }
 
-JsonResponse QuantraClient::CalibrateSwaptionVolJSON(const std::string& json) {
+JsonResponse QuantraClient::CalibrateSwaptionVolJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<CalibrateSwaptionVolRequest, CalibrateSwaptionVolResponse>(
-        ProductType::CalibrateSwaptionVol, json, &QuantraServer::Stub::CalibrateSwaptionVol
+        ProductType::CalibrateSwaptionVol, json, &QuantraServer::Stub::CalibrateSwaptionVol, request_id
     );
 }
 
-JsonResponse QuantraClient::PriceEquityOptionJSON(const std::string& json) {
+JsonResponse QuantraClient::PriceEquityOptionJSON(const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceEquityOptionRequest, PriceEquityOptionResponse>(
-        ProductType::EquityOption, json, &QuantraServer::Stub::PriceEquityOption
+        ProductType::EquityOption, json, &QuantraServer::Stub::PriceEquityOption, request_id
     );
 }
 
