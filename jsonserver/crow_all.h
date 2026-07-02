@@ -9457,6 +9457,7 @@ namespace crow
               {status::UNSUPPORTED_MEDIA_TYPE, "HTTP/1.1 415 Unsupported Media Type\r\n"},
               {status::RANGE_NOT_SATISFIABLE, "HTTP/1.1 416 Range Not Satisfiable\r\n"},
               {status::EXPECTATION_FAILED, "HTTP/1.1 417 Expectation Failed\r\n"},
+              {422, "HTTP/1.1 422 Unprocessable Entity\r\n"},
               {status::PRECONDITION_REQUIRED, "HTTP/1.1 428 Precondition Required\r\n"},
               {status::TOO_MANY_REQUESTS, "HTTP/1.1 429 Too Many Requests\r\n"},
               {status::UNAVAILABLE_FOR_LEGAL_REASONS, "HTTP/1.1 451 Unavailable For Legal Reasons\r\n"},

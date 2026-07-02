@@ -54,8 +54,20 @@ public:
         ProductType type,
         const std::string& json
     ) {
+        // The body is handed to the flatc parser as a C string below, so an
+        // embedded NUL would silently truncate the request. Reject
+        // it explicitly instead.
+        if (json.find('\0') != std::string::npos) {
+            throw JsonParseException(
+                "request body contains a NUL byte (bodies must be NUL-free JSON text)");
+        }
+
         auto& parser = EnsureThreadParsers().request_parsers.at(type);
 
+        // TODO: flatc's parser error text for malformed JSON can be
+        // misleading ("unknown field ...", spurious "required" complaints,
+        // "input file is empty" for wrong-shape bodies). The wording comes from
+        // the vendored FlatBuffers parser internals — out of scope to fix here.
         if (!parser->Parse(json.c_str(), include_dirs_)) {
             throw JsonParseException("JSON parse error for " +
                 std::string(ProductTypeToString(type)) + ": " + parser->error_);

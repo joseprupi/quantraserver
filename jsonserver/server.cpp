@@ -209,7 +209,34 @@ std::optional<crow::response> RejectInvalidJsonRequest(const crow::request& req)
     if (req.body.size() > kMaxJsonRequestBytes) {
         return crow::response(413, R"({"error":"Request body too large"})");
     }
+    // Reject an empty/whitespace-only body up front: forwarded to the flatc
+    // parser it yields the misleading "input file is empty".
+    if (TrimWhitespace(req.body).empty()) {
+        return crow::response(400, R"({"error":"empty request body"})");
+    }
     return std::nullopt;
+}
+
+// Sanitize a caller-supplied X-Request-Id before it is used as gRPC metadata,
+// echoed as a response header, or written to logs: keep only
+// printable non-space ASCII (drops CR/LF and other control characters) and cap
+// the length. Returns "" when nothing usable remains.
+constexpr size_t kMaxRequestIdLen = 128;
+
+std::string SanitizeRequestId(const std::string& raw) {
+    std::string out;
+    out.reserve(std::min(raw.size(), kMaxRequestIdLen));
+    for (char c : raw) {
+        const unsigned char uc = static_cast<unsigned char>(c);
+        if (uc <= 0x20 || uc >= 0x7f) {
+            continue;
+        }
+        out += c;
+        if (out.size() >= kMaxRequestIdLen) {
+            break;
+        }
+    }
+    return out;
 }
 
 std::optional<std::string> HttpGetWithTimeout(
@@ -440,18 +467,31 @@ int main(int argc, char** argv) {
                       << req.body << "\n"
                       << "[jsonserver] JSON END " << route << std::endl;
         };
+        // Shared POST wrapper. The caller's X-Request-Id (sanitized) is echoed
+        // back as a response header and forwarded to the gRPC backend by fn so
+        // engine logs correlate with the HTTP caller.
         auto respond = [&](const char* route, const crow::request& req, auto&& fn) {
+            const std::string request_id =
+                SanitizeRequestId(req.get_header_value("X-Request-Id"));
+            auto with_request_id = [&](crow::response resp) {
+                if (!request_id.empty()) {
+                    resp.set_header("X-Request-Id", request_id);
+                }
+                return resp;
+            };
             if (auto rejected = RejectInvalidJsonRequest(req)) {
-                return std::move(*rejected);
+                return with_request_id(std::move(*rejected));
             }
             log_json_request(route, req);
-            auto r = fn(req.body);
+            auto r = fn(req.body, request_id);
             if (r.status_code >= 400) {
                 std::cerr << "[jsonserver] backend_error " << route
                           << " http_status=" << r.status_code
+                          << (request_id.empty() ? std::string()
+                                                 : " request_id=" + request_id)
                           << " response=" << r.body << std::endl;
             }
-            return crow::response(r.status_code, r.body);
+            return with_request_id(crow::response(r.status_code, r.body));
         };
         
         // Health checks
@@ -521,152 +561,162 @@ int main(int argc, char** argv) {
         // Pricing endpoints
         CROW_ROUTE(app, "/price-fixed-rate-bond").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-fixed-rate-bond", req, [&](const std::string& body) {
-                return client.PriceFixedRateBondJSON(body);
+            return respond("/price-fixed-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceFixedRateBondJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-floating-rate-bond").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-floating-rate-bond", req, [&](const std::string& body) {
-                return client.PriceFloatingRateBondJSON(body);
+            return respond("/price-floating-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceFloatingRateBondJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-vanilla-swap").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-vanilla-swap", req, [&](const std::string& body) {
-                return client.PriceVanillaSwapJSON(body);
+            return respond("/price-vanilla-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceVanillaSwapJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/price-zero-coupon-inflation-swap").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-zero-coupon-inflation-swap", req, [&](const std::string& body) {
-                return client.PriceZeroCouponInflationSwapJSON(body);
+            return respond("/price-zero-coupon-inflation-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceZeroCouponInflationSwapJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/price-year-on-year-inflation-swap").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-year-on-year-inflation-swap", req, [&](const std::string& body) {
-                return client.PriceYearOnYearInflationSwapJSON(body);
+            return respond("/price-year-on-year-inflation-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceYearOnYearInflationSwapJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/price-ois-swap").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-ois-swap", req, [&](const std::string& body) {
-                return client.PriceOisSwapJSON(body);
+            return respond("/price-ois-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceOisSwapJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/price-basis-swap").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-basis-swap", req, [&](const std::string& body) {
-                return client.PriceBasisSwapJSON(body);
+            return respond("/price-basis-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceBasisSwapJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-fra").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-fra", req, [&](const std::string& body) {
-                return client.PriceFRAJSON(body);
+            return respond("/price-fra", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceFRAJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-cap-floor").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-cap-floor", req, [&](const std::string& body) {
-                return client.PriceCapFloorJSON(body);
+            return respond("/price-cap-floor", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceCapFloorJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-swaption").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-swaption", req, [&](const std::string& body) {
-                return client.PriceSwaptionJSON(body);
+            return respond("/price-swaption", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceSwaptionJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/price-cds").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-cds", req, [&](const std::string& body) {
-                return client.PriceCDSJSON(body);
+            return respond("/price-cds", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceCDSJSON(body, request_id);
             });
         });
         
         CROW_ROUTE(app, "/bootstrap-curves").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/bootstrap-curves", req, [&](const std::string& body) {
-                return client.BootstrapCurvesJSON(body);
+            return respond("/bootstrap-curves", req, [&](const std::string& body, const std::string& request_id) {
+                return client.BootstrapCurvesJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/bootstrap-inflation-curves").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/bootstrap-inflation-curves", req, [&](const std::string& body) {
-                return client.BootstrapInflationCurvesJSON(body);
+            return respond("/bootstrap-inflation-curves", req, [&](const std::string& body, const std::string& request_id) {
+                return client.BootstrapInflationCurvesJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
         ([&](const crow::request& req) {
+            const std::string request_id =
+                SanitizeRequestId(req.get_header_value("X-Request-Id"));
+            auto with_request_id = [&](crow::response resp) {
+                if (!request_id.empty()) {
+                    resp.set_header("X-Request-Id", request_id);
+                }
+                return resp;
+            };
             if (auto rejected = RejectInvalidJsonRequest(req)) {
-                return std::move(*rejected);
+                return with_request_id(std::move(*rejected));
             }
             log_json_request("/sample-vol-surfaces", req);
-            auto r = client.SampleVolSurfacesJSON(req.body);
+            auto r = client.SampleVolSurfacesJSON(req.body, request_id);
             if (r.status_code >= 400) {
                 std::cerr << "[jsonserver] backend_error /sample-vol-surfaces"
                           << " http_status=" << r.status_code
+                          << (request_id.empty() ? std::string()
+                                                 : " request_id=" + request_id)
                           << " response=" << r.body << std::endl;
             } else {
                 std::cout << "[jsonserver] /sample-vol-surfaces success"
                           << " http_status=" << r.status_code << std::endl;
             }
-            return crow::response(r.status_code, r.body);
+            return with_request_id(crow::response(r.status_code, r.body));
         });
 
         CROW_ROUTE(app, "/calendar-business-days").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/calendar-business-days", req, [&](const std::string& body) {
-                return client.CalendarBusinessDaysJSON(body);
+            return respond("/calendar-business-days", req, [&](const std::string& body, const std::string& request_id) {
+                return client.CalendarBusinessDaysJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/calendar-holidays").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/calendar-holidays", req, [&](const std::string& body) {
-                return client.CalendarHolidaysJSON(body);
+            return respond("/calendar-holidays", req, [&](const std::string& body, const std::string& request_id) {
+                return client.CalendarHolidaysJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/calendar-advance").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/calendar-advance", req, [&](const std::string& body) {
-                return client.CalendarAdvanceJSON(body);
+            return respond("/calendar-advance", req, [&](const std::string& body, const std::string& request_id) {
+                return client.CalendarAdvanceJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/calibrate-swaption-model").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/calibrate-swaption-model", req, [&](const std::string& body) {
-                return client.CalibrateSwaptionModelJSON(body);
+            return respond("/calibrate-swaption-model", req, [&](const std::string& body, const std::string& request_id) {
+                return client.CalibrateSwaptionModelJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/calibrate-swaption-vol").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/calibrate-swaption-vol", req, [&](const std::string& body) {
-                return client.CalibrateSwaptionVolJSON(body);
+            return respond("/calibrate-swaption-vol", req, [&](const std::string& body, const std::string& request_id) {
+                return client.CalibrateSwaptionVolJSON(body, request_id);
             });
         });
 
         CROW_ROUTE(app, "/price-equity-option").methods("POST"_method)
         ([&](const crow::request& req) {
-            return respond("/price-equity-option", req, [&](const std::string& body) {
-                return client.PriceEquityOptionJSON(body);
+            return respond("/price-equity-option", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceEquityOptionJSON(body, request_id);
             });
         });
         
