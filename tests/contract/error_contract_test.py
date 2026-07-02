@@ -100,7 +100,7 @@ def _ec_flip_model_type(new_type):
 
 
 def _ec_del_curve_point_field(point_type, field):
-    """Drop `field` from the first curve helper of `point_type` (A5 repro).
+    """Drop `field` from the first curve helper of `point_type`.
 
     Pre-fix these requests SIGSEGV'd the worker (null flatbuffers::String
     deref); post-fix they must return a clean INVALID_ARGUMENT and leave the
@@ -118,7 +118,7 @@ def _ec_del_curve_point_field(point_type, field):
 
 def _ec_future_helper_missing_start_date():
     """Replace the first curve point with a FutureHelper that omits
-    future_start_date (optional in the schema, deref'd by the parser). A5."""
+    future_start_date (optional in the schema, deref'd by the parser)."""
     def f(req):
         req["pricing"]["rates"]["curves"][0]["points"][0] = {
             "point_type": "FutureHelper",
@@ -135,7 +135,7 @@ def _ec_future_helper_missing_start_date():
 
 
 def _ec_abusive_schedule(arr_key, product_key):
-    """Stretch the product schedule to ~300 years Daily (F1 repro: ~108k
+    """Stretch the product schedule to ~300 years Daily (~108k
     implied periods). Must be rejected fast with INVALID_ARGUMENT instead of
     pinning the worker for the full gRPC deadline."""
     def f(req):
@@ -145,6 +145,40 @@ def _ec_abusive_schedule(arr_key, product_key):
         sch["frequency"] = "Daily"
         return req
     return f
+def _ec_set_credit_curve_field(field, value):
+    def f(req):
+        req["pricing"]["credit"]["credit_curves"][0][field] = value
+        return req
+    return f
+
+
+def _ec_set_model_payload_field(field, value):
+    def f(req):
+        for m in req["pricing"].get("volatility", {}).get("models", []):
+            m["payload"][field] = value
+        return req
+    return f
+
+
+def _ec_set_nested_field(arr_key, obj_key, field, value):
+    def f(req):
+        req[arr_key][0][obj_key][field] = value
+        return req
+    return f
+
+
+def _ec_body_contains(substr):
+    """Body validator: the (error) response body must carry substr somewhere.
+
+    Backend errors surface the real exception text in the JSON envelope's
+    `message` field; a plain substring check on the raw body asserts the
+    fail-closed throw was actually reached (not e.g. a parse-layer 400).
+    """
+    def check(body_text):
+        if substr in body_text:
+            return None
+        return f"expected body to contain {substr!r}, got: {body_text[:200]}"
+    return check
 
 
 def _ec_unimplemented_curve_point():
@@ -196,15 +230,40 @@ SCENARIOS = [
      "swaption_request.json", 400, _ec_del_field("swaptions", "model")),
     ("ec:400 fixed_rate_bond missing discounting_curve field", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_del_field("bonds", "discounting_curve")),
-    # ---- 400 INVALID_ARGUMENT: A5 null-deref guards (optional date fields
+    # ---- 400 INVALID_ARGUMENT: null-deref guards (optional date fields
     #      omitted on curve helpers; pre-guard these crashed the worker) ----
     ("ec:400 fixed_rate_bond curve BondHelper missing issue_date", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_del_curve_point_field("BondHelper", "issue_date")),
     ("ec:400 fixed_rate_bond curve FutureHelper missing future_start_date", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_future_helper_missing_start_date()),
-    # ---- 400 INVALID_ARGUMENT: F1 unbounded schedule generation guard ----
+    # ---- 400 INVALID_ARGUMENT: unbounded schedule generation guard ----
     ("ec:400 fixed_rate_bond 300y daily schedule rejected", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_abusive_schedule("bonds", "fixed_rate_bond")),
+    # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
+    # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
+    # and LogCubic used to be silently priced as LogLinear. The complex request
+    # is used because it carries real par-spread quotes (the simple request
+    # takes the flat-hazard branch and never reaches the interpolator switch).
+    ("ec:400 cds credit interpolator ForwardFlat rejected", "cds",
+     "cds_complex_request.json", 400,
+     _ec_set_credit_curve_field("curve_interpolator", "ForwardFlat"),
+     _ec_body_contains("Unsupported credit curve interpolator")),
+    ("ec:400 cds credit interpolator LogCubic rejected", "cds",
+     "cds_complex_request.json", 400,
+     _ec_set_credit_curve_field("curve_interpolator", "LogCubic"),
+     _ec_body_contains("Unsupported credit curve interpolator")),
+    # An out-of-range CDS engine enum (raw integers are accepted by the
+    # FlatBuffers JSON parser) used to silently price with the MidPoint engine.
+    ("ec:400 cds engine type out of range", "cds",
+     "cds_request.json", 400,
+     _ec_set_model_payload_field("engine_type", 99),
+     _ec_body_contains("Unsupported CDS engine type")),
+    # An out-of-range swaption settlement type used to fail open to
+    # Physical settlement.
+    ("ec:400 swaption settlement type out of range", "swaption",
+     "swaption_request.json", 400,
+     _ec_set_nested_field("swaptions", "swaption", "settlement_type", 99),
+     _ec_body_contains("Invalid settlement type")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),

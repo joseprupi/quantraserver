@@ -165,7 +165,9 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
             settlementType = QuantLib::Settlement::Cash;
             break;
         default:
-            settlementType = QuantLib::Settlement::Physical;
+            // Fail closed: an unknown settlement type must not
+            // silently price as Physical (mirrors the exercise-type switch).
+            QUANTRA_INVALID_ARGUMENT("Invalid settlement type");
     }
 
     return std::make_shared<QuantLib::Swaption>(

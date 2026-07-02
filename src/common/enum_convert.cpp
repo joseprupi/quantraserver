@@ -163,7 +163,9 @@ QuantLib::DayCounter DayCounterToQL(const quantra::enums::DayCounter dayCounter)
     case quantra::enums::DayCounter_Actual365Fixed:
         return QuantLib::Actual365Fixed();
     case quantra::enums::DayCounter_Actual365NoLeap:
-        return QuantLib::Actual365Fixed();
+        // must use the NoLeap convention — plain Actual365Fixed
+        // counts Feb 29 and yields wrong year-fractions across leap days.
+        return QuantLib::Actual365Fixed(QuantLib::Actual365Fixed::NoLeap);
     case quantra::enums::DayCounter_ActualActual:
         return QuantLib::ActualActual(QuantLib::ActualActual::ISDA);
     case quantra::enums::DayCounter_ActualActualISMA:
