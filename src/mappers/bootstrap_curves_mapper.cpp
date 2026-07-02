@@ -85,6 +85,10 @@ std::vector<QuantLib::Date> extractPillarDates(
             QuantLib::Date startDate = calendar.advance(referenceDate, startPeriod);
             maturityDate = calendar.advance(startDate, tenor);
         } else if (auto future = point->point_as_FutureHelper()) {
+            if (!future->future_start_date()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "FutureHelper.future_start_date is required");
+            }
             QuantLib::Date startDate = DateToQL(future->future_start_date()->str());
             maturityDate = calendar.advance(
                 startDate, QuantLib::Period(future->future_months(), QuantLib::Months));

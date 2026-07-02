@@ -125,6 +125,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
+        if (!point->future_start_date()) {
+            QUANTRA_INVALID_ARGUMENT("FutureHelper.future_start_date is required");
+        }
+
         return std::make_shared<FuturesRateHelper>(
             q,
             DateToQL(point->future_start_date()->str()),
@@ -232,6 +236,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         }
 
         auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+
+        if (!point->issue_date()) {
+            QUANTRA_INVALID_ARGUMENT("BondHelper.issue_date is required");
+        }
 
         return std::make_shared<FixedRateBondHelper>(
             q,
