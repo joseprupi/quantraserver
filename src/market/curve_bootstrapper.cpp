@@ -357,7 +357,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             // which is an InterpolatedZeroCurve — serialize() would fall back
             // to weekly resampling, and an L1/L2 hit would serve an
             // approximation of the user's nodes instead of the real curve
-            // (audit B7). Such curves cache the LIVE curve (value-exact, same
+            // Such curves cache the LIVE curve (value-exact, same
             // as the non-Discount-trait branch) and skip the L2 store.
             bool exactPillars = CurveSerializer::canSerializeExactly(curve, ts);
 
