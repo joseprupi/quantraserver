@@ -41,6 +41,18 @@ double CurveKeyBuilder::resolveQuoteValue(
             if (it != ctx.quoteValues.end()) {
                 return it->second;
             }
+            // A quote_id was given but does not resolve to a curve quote
+            // (missing from the request, or present with a non-curve quote
+            // type). The parser rejects exactly this situation, so falling
+            // back to the inline value here would key the curve as if the
+            // reference were valid: a request the parser errors on could hash
+            // to the same key as a valid inline-value request and be served a
+            // cached price instead of the error. Fail closed — the
+            // bootstrapper catches this and skips caching for the curve
+            // (bootstrap live; the parser then reports the real error).
+            QUANTRA_ERROR(
+                "curve cache key: quote id '" + id +
+                "' does not resolve to a curve quote — curve must not be cached");
         }
     }
     return inlineValue;
@@ -371,7 +383,17 @@ void CurveKeyBuilder::writeReferencedIndices(
     for (const auto& refId : referencedIds) {
         // O(1) lookup via context map
         auto it = ctx.indexDefs.find(refId);
-        if (it == ctx.indexDefs.end()) continue; // index not found
+        if (it == ctx.indexDefs.end()) {
+            // A helper references an index id with no definition in the
+            // request. Silently skipping it would leave the definition out of
+            // the key entirely (under-keyed): two curves differing only in
+            // that index's conventions or fixings would collide. Fail closed
+            // — the bootstrapper catches this and skips caching for the curve
+            // (bootstrap live; the parser then reports the missing index).
+            QUANTRA_ERROR(
+                "curve cache key: referenced index id '" + refId +
+                "' has no definition — curve must not be cached");
+        }
 
         const auto* def = it->second;
         buf.writeFbString(def->id());
