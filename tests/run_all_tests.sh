@@ -348,14 +348,19 @@ if ! kill -0 $GRPC_PID 2>/dev/null; then
 fi
 
 # Test 3: JSON API contract + representative parity (pytest, tests/contract/)
+# plus the functional parity catalog (pytest, tests/functional/ — manifest-driven
+# API-vs-QuantLib cases; tests/functional/conftest.py reuses the contract
+# fixtures, so both directories run in one pytest invocation. Keep contract
+# first: its conftest registers --url/--data-dir.)
 CONTRACT_DIR="${SCRIPT_DIR}/contract"
+FUNCTIONAL_DIR="${SCRIPT_DIR}/functional"
 if [ -d "$CONTRACT_DIR" ]; then
     if curl -s http://localhost:8080/health > /dev/null 2>&1; then
         run_test 3 \
             "3. JSON HTTP API" \
-            "HTTP contract coverage plus representative end-to-end parity scenarios" \
+            "HTTP contract coverage, end-to-end parity scenarios and the functional parity catalog" \
             pytest \
-            "cd ${WORKSPACE} && python3 -m pytest ${CONTRACT_DIR} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data -q"
+            "cd ${WORKSPACE} && python3 -m pytest ${CONTRACT_DIR} ${FUNCTIONAL_DIR} --url http://localhost:8080 --data-dir ${WORKSPACE}/examples/data -q"
     else
         skip_test 3 \
             "3. JSON HTTP API" \

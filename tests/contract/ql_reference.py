@@ -13,8 +13,10 @@ This module is the correctness anchor for the contract/parity pytest suite
     (build_ibor_index, build_overnight_index, build_curve_from_json, ...).
   * The independent per-product QuantLib reference pricers
     (price_fixed_rate_bond_ql ... price_cds_ql) whose NPVs the API is
-    compared against — these are byte-identical to the legacy monolith and
-    MUST NOT be weakened.
+    compared against — these mirror the legacy monolith (the vanilla swap
+    pricer additionally honours the request's floating IndexDef and a
+    separate forwarding curve, matching the server) and MUST NOT be
+    weakened.
   * _make_multicurve_exogenous_request(), the inline 2-curve bootstrap
     request reused by the bootstrap-curves contract tests.
 
@@ -691,15 +693,25 @@ def price_vanilla_swap_ql(request: dict) -> float:
     pricing = _reference_pricing_view(request)
     swap_data = request["swaps"][0]
     swap = swap_data["vanilla_swap"]
-    
+
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
-    
-    # Build curve
+
+    # Build discounting curve
     curve_id = swap_data.get("discounting_curve", "discount")
     curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
     curve = build_curve_from_json(curve_json, eval_date, request)
-    
+
+    # Forwarding curve for the floating index. Multicurve requests discount on
+    # a separate (typically OIS) curve; single-curve requests point both ids at
+    # the same curve, which keeps this identical to the single-curve behaviour.
+    forward_id = swap_data.get("forwarding_curve", curve_id)
+    if forward_id == curve_id:
+        forward_curve = curve
+    else:
+        forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
+        forward_curve = build_curve_from_json(forward_json, eval_date, request)
+
     # Fixed leg
     fixed_leg = swap["fixed_leg"]
     fixed_sch = fixed_leg["schedule"]
@@ -728,7 +740,15 @@ def price_vanilla_swap_ql(request: dict) -> float:
         False
     )
     
-    index = ql.Euribor6M(curve)
+    # Resolve the floating index exactly as the server does: from the request's
+    # IndexDef (tenor / calendar / conventions), projecting off the forwarding
+    # curve. Falls back to Euribor6M when the request carries no index def.
+    idx_ref = float_leg.get("index", {})
+    idx_id = idx_ref.get("id") if isinstance(idx_ref, dict) else None
+    if idx_id and find_index_def(idx_id, request):
+        index = resolve_index_from_id(idx_id, request, forward_curve)
+    else:
+        index = ql.Euribor6M(forward_curve)
     swap_type = ql.VanillaSwap.Payer if swap["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
     
     ql_swap = ql.VanillaSwap(

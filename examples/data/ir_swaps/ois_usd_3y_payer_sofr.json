@@ -1,0 +1,123 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "day_counter": "Actual360"
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_SOFR_CURVE",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.042,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0395,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0385,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "ois_swap": {
+        "swap_type": "Payer",
+        "fixed_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "UnitedStatesGovernmentBond",
+            "effective_date": "2025-01-17",
+            "termination_date": "2028-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "rate": 0.0405,
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing"
+        },
+        "overnight_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "UnitedStatesGovernmentBond",
+            "effective_date": "2025-01-17",
+            "termination_date": "2028-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "index": {
+            "id": "USD_SOFR"
+          },
+          "spread": 0.0,
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "UnitedStatesGovernmentBond",
+          "averaging_method": "Compound",
+          "lockout_days": 0,
+          "apply_observation_shift": false,
+          "telescopic_value_dates": false
+        }
+      },
+      "discounting_curve": "USD_SOFR_CURVE",
+      "forwarding_curve": "USD_SOFR_CURVE"
+    }
+  ]
+}

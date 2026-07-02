@@ -1,0 +1,244 @@
+"""Functional parity catalog — single source of truth.
+
+Every entry describes one "POST JSON to the server, compare the NPV against an
+independent QuantLib reference pricer" case. The same list drives:
+
+  * tests/functional/test_functional_parity.py — the pytest suite that runs
+    inside the gate (suite 3 of tests/run_all_tests.sh),
+  * tests/functional/generate_catalog.py — the generator that renders the
+    browsable CATALOG.md and catalog.html.
+
+Field reference (all keys required unless noted):
+
+  id          Stable, unique, kebab/snake identifier. Used as the pytest id.
+  product     Product key from src/common/product_catalog.h (picks the HTTP
+              route, e.g. "vanilla_swap" -> POST /vanilla-swap).
+  family      Catalog grouping, e.g. "IR Swaps". New families just work.
+  title       One-line human name shown in the catalog.
+  description What real-world instrument the case represents.
+  request     Request JSON path relative to examples/data/.
+  list_key    Response list holding the instrument NPV ("swaps", "bonds", ...).
+  ql_pricer   Name of the reference pricer function in
+              tests/contract/ql_reference.py (e.g. "price_vanilla_swap_ql").
+  tolerance   Max allowed abs(api_npv - quantlib_npv). Default 0.01 (one cent
+              on notionals of millions — the server and the reference build
+              the same QuantLib objects, so parity is near machine precision).
+  exercises   Short tags describing what the case covers; rendered in the
+              catalog's "What it exercises" column.
+
+To add a case: drop the request JSON under examples/data/ (IR swaps live in
+examples/data/ir_swaps/), append a dict here, regenerate the catalog
+(python3 tests/functional/generate_catalog.py inside the test image) and run
+the gate. See tests/functional/README.md for the full walkthrough.
+"""
+
+DEFAULT_TOLERANCE = 0.01
+
+CASES = [
+    # ------------------------------------------------------------------
+    # IR Swaps — vanilla fixed vs IBOR
+    # ------------------------------------------------------------------
+    {
+        "id": "irs_eur_5y_payer_fixed_30360_vs_euribor6m",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, fixed 30/360 annual vs Euribor 6M",
+        "description": (
+            "Standard EUR interest rate swap: pay 3.20% fixed (annual, "
+            "30/360) and receive Euribor 6M flat (semiannual, Act/360) on "
+            "10m notional, TARGET calendar, Modified Following. Single "
+            "deposit+swap curve used for discounting and projection."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_fixed_30360_vs_euribor6m.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "fixed 30/360 annual", "Euribor6M",
+                      "single curve", "TARGET"],
+    },
+    {
+        "id": "irs_eur_5y_receiver_fixed_30360_vs_euribor6m",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y receiver swap, fixed 30/360 annual vs Euribor 6M",
+        "description": (
+            "The receiver side of the baseline trade: receive 3.40% fixed "
+            "(annual, 30/360), pay Euribor 6M flat. Fixed rate is above the "
+            "5Y par rate, so the NPV is positive for the receiver."
+        ),
+        "request": "ir_swaps/irs_eur_5y_receiver_fixed_30360_vs_euribor6m.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["receiver", "fixed 30/360 annual", "Euribor6M",
+                      "single curve"],
+    },
+    {
+        "id": "irs_eur_7y_payer_fixed_act365_semiannual",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 7Y payer swap, fixed Act/365F semiannual vs Euribor 6M",
+        "description": (
+            "7Y swap with a semiannual Act/365 Fixed coupon on the fixed leg "
+            "(both legs pay on the same semiannual dates). Exercises a "
+            "different fixed-leg day count and payment frequency than the "
+            "market-standard annual 30/360."
+        ),
+        "request": "ir_swaps/irs_eur_7y_payer_fixed_act365_semiannual.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "fixed Act/365F semiannual", "Euribor6M",
+                      "7Y tenor"],
+    },
+    {
+        "id": "irs_eur_4y_payer_vs_euribor3m_quarterly",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 4Y payer swap vs Euribor 3M quarterly",
+        "description": (
+            "4Y swap whose floating leg fixes on Euribor 3M and pays "
+            "quarterly. Exercises resolving a 3M IndexDef (instead of the "
+            "6M default) and a quarterly floating schedule."
+        ),
+        "request": "ir_swaps/irs_eur_4y_payer_vs_euribor3m_quarterly.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "Euribor3M", "quarterly floating leg",
+                      "index tenor variation"],
+    },
+    {
+        "id": "irs_eur_5y_payer_spread25bp_following_backward",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, +25bp floating spread, Following/Backward",
+        "description": (
+            "5Y swap paying 3.30% fixed against Euribor 6M + 25bp. Schedules "
+            "use the Following business-day convention and Backward date "
+            "generation, exercising non-default schedule conventions and a "
+            "non-zero floating spread."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_spread25bp_following_backward.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "floating spread +25bp", "Following convention",
+                      "Backward date generation"],
+    },
+    {
+        "id": "irs_eur_5y_payer_ois_discounted_multicurve",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, OIS-discounted (multicurve)",
+        "description": (
+            "Post-2008 market-standard setup: coupons are projected off a "
+            "Euribor 6M curve (deposit + swap quotes) while cash flows are "
+            "discounted on a separate ESTR OIS curve. Exercises "
+            "discounting_curve != forwarding_curve on a vanilla swap."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_ois_discounted_multicurve.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "multicurve", "OIS discounting",
+                      "separate projection curve", "Euribor6M"],
+    },
+
+    # ------------------------------------------------------------------
+    # IR Swaps — OIS (compounded overnight)
+    # ------------------------------------------------------------------
+    {
+        "id": "ois_eur_5y_payer_estr",
+        "product": "ois_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer OIS vs ESTR (compounded)",
+        "description": (
+            "5Y overnight indexed swap: pay 2.70% fixed (annual, Act/360), "
+            "receive daily-compounded ESTR. The curve is bootstrapped from "
+            "OIS par quotes, so the same instrument family prices the curve "
+            "and the trade."
+        ),
+        "request": "ir_swaps/ois_eur_5y_payer_estr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_ois_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "OIS", "ESTR compounded",
+                      "curve from OIS quotes"],
+    },
+    {
+        "id": "ois_eur_2y_receiver_estr_spread10bp_quarterly",
+        "product": "ois_swap",
+        "family": "IR Swaps",
+        "title": "EUR 2Y receiver OIS vs ESTR + 10bp, quarterly",
+        "description": (
+            "2Y OIS from the receiver side with quarterly payments on both "
+            "legs and a +10bp spread over compounded ESTR on the overnight "
+            "leg. Exercises payment frequency and overnight-leg spread."
+        ),
+        "request": "ir_swaps/ois_eur_2y_receiver_estr_spread10bp_quarterly.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_ois_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["receiver", "OIS", "ESTR compounded",
+                      "overnight spread +10bp", "quarterly payments"],
+    },
+    {
+        "id": "ois_usd_3y_payer_sofr",
+        "product": "ois_swap",
+        "family": "IR Swaps",
+        "title": "USD 3Y payer OIS vs SOFR (compounded)",
+        "description": (
+            "3Y USD SOFR OIS: pay 4.05% fixed (annual, Act/360), receive "
+            "daily-compounded SOFR, on the US government bond (SIFMA) "
+            "calendar. Exercises a non-TARGET calendar and a USD overnight "
+            "index."
+        ),
+        "request": "ir_swaps/ois_usd_3y_payer_sofr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_ois_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "OIS", "SOFR compounded", "USD",
+                      "US government bond calendar"],
+    },
+
+    # ------------------------------------------------------------------
+    # IR Swaps — tenor basis (float vs float)
+    # ------------------------------------------------------------------
+    {
+        "id": "basis_eur_5y_euribor3m_plus5bp_vs_euribor6m",
+        "product": "basis_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y tenor basis: Euribor 3M + 5bp vs Euribor 6M",
+        "description": (
+            "5Y tenor basis swap paying Euribor 3M + 5bp quarterly and "
+            "receiving Euribor 6M flat semiannually, both projected and "
+            "discounted on one curve. Exercises the float-vs-float product "
+            "with a basis spread."
+        ),
+        "request": "ir_swaps/basis_eur_5y_euribor3m_plus5bp_vs_euribor6m.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_basis_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["tenor basis", "Euribor3M vs Euribor6M",
+                      "basis spread +5bp", "single curve"],
+    },
+    {
+        "id": "basis_eur_5y_3m_vs_6m_ois_discounted_multicurve",
+        "product": "basis_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y tenor basis, per-leg curves, OIS-discounted",
+        "description": (
+            "Fully multicurve tenor basis: the 3M leg projects off a 3M "
+            "curve, the 6M leg off a 6M curve, and both legs discount on an "
+            "ESTR OIS curve (three curves in one request). Exercises "
+            "per-leg forwarding curves plus OIS discounting."
+        ),
+        "request": "ir_swaps/basis_eur_5y_3m_vs_6m_ois_discounted_multicurve.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_basis_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["tenor basis", "multicurve", "per-leg projection curves",
+                      "OIS discounting", "three curves"],
+    },
+]
