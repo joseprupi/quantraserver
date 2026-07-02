@@ -99,6 +99,54 @@ def _ec_flip_model_type(new_type):
     return f
 
 
+def _ec_del_curve_point_field(point_type, field):
+    """Drop `field` from the first curve helper of `point_type` (A5 repro).
+
+    Pre-fix these requests SIGSEGV'd the worker (null flatbuffers::String
+    deref); post-fix they must return a clean INVALID_ARGUMENT and leave the
+    server alive for the rest of the suite.
+    """
+    def f(req):
+        for curve in req["pricing"]["rates"]["curves"]:
+            for p in curve.get("points", []):
+                if p.get("point_type") == point_type:
+                    p["point"].pop(field, None)
+                    return req
+        raise AssertionError(f"no {point_type} point found in request")
+    return f
+
+
+def _ec_future_helper_missing_start_date():
+    """Replace the first curve point with a FutureHelper that omits
+    future_start_date (optional in the schema, deref'd by the parser). A5."""
+    def f(req):
+        req["pricing"]["rates"]["curves"][0]["points"][0] = {
+            "point_type": "FutureHelper",
+            "point": {
+                "rate": 0.02,
+                "future_months": 3,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+            },
+        }
+        return req
+    return f
+
+
+def _ec_abusive_schedule(arr_key, product_key):
+    """Stretch the product schedule to ~300 years Daily (F1 repro: ~108k
+    implied periods). Must be rejected fast with INVALID_ARGUMENT instead of
+    pinning the worker for the full gRPC deadline."""
+    def f(req):
+        sch = req[arr_key][0][product_key]["schedule"]
+        sch["effective_date"] = "1901/01/02"
+        sch["termination_date"] = "2199/12/30"
+        sch["frequency"] = "Daily"
+        return req
+    return f
+
+
 def _ec_unimplemented_curve_point():
     # Replace the first curve's first point with a schema-ready-but-unbuilt
     # helper (FxSwapHelper). The point parses into a valid FlatBuffer, then the
@@ -148,6 +196,15 @@ SCENARIOS = [
      "swaption_request.json", 400, _ec_del_field("swaptions", "model")),
     ("ec:400 fixed_rate_bond missing discounting_curve field", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_del_field("bonds", "discounting_curve")),
+    # ---- 400 INVALID_ARGUMENT: A5 null-deref guards (optional date fields
+    #      omitted on curve helpers; pre-guard these crashed the worker) ----
+    ("ec:400 fixed_rate_bond curve BondHelper missing issue_date", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400, _ec_del_curve_point_field("BondHelper", "issue_date")),
+    ("ec:400 fixed_rate_bond curve FutureHelper missing future_start_date", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400, _ec_future_helper_missing_start_date()),
+    # ---- 400 INVALID_ARGUMENT: F1 unbounded schedule generation guard ----
+    ("ec:400 fixed_rate_bond 300y daily schedule rejected", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400, _ec_abusive_schedule("bonds", "fixed_rate_bond")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),
@@ -164,6 +221,14 @@ SCENARIOS = [
      "sample_vol_surfaces_request.json", 200,
      _ec_set_field("queries", "vol_id", "no_such_vol_surface_xyz"),
      _ec_body_has_per_item_error("vol_id", "no_such_vol_surface_xyz")),
+    # ---- bootstrap-curves A5 guard: the curve build and the mapper's
+    #      pillar-date extraction both deref FutureHelper.future_start_date;
+    #      pre-guard this request SIGSEGV'd the worker. Post-guard it must be
+    #      a clean INVALID_ARGUMENT (curve-parse guard fires at the transport
+    #      level before the per-query error fold). ----
+    ("ec:400 bootstrap_curves FutureHelper missing future_start_date",
+     "bootstrap_curves", "bootstrap_curves_tenor_grid.json", 400,
+     _ec_future_helper_missing_start_date()),
 ]
 
 
