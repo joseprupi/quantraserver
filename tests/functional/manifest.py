@@ -127,6 +127,136 @@ CASES = [
                       "Backward date generation"],
     },
     {
+        "id": "irs_eur_1y_payer_vs_euribor6m",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 1Y payer swap, money-market tenor",
+        "description": (
+            "Short-dated 1Y swap: pay 2.90% fixed (a single annual 30/360 "
+            "coupon) against two semiannual Euribor 6M coupons. The curve's "
+            "short end (deposits + 1Y par swap) dominates, exercising the "
+            "shortest tenor a fixed-vs-IBOR swap is quoted at."
+        ),
+        "request": "ir_swaps/irs_eur_1y_payer_vs_euribor6m.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "1Y tenor", "single fixed coupon",
+                      "Euribor6M", "curve short end"],
+    },
+    {
+        "id": "irs_eur_30y_receiver_fixed_30360_vs_euribor6m",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 30Y receiver swap, long-dated",
+        "description": (
+            "Long-dated 30Y swap: receive 3.50% fixed (annual, 30/360), pay "
+            "Euribor 6M flat, on a curve bootstrapped out to the 30Y par "
+            "quote (2Y-30Y swaps). Exercises long-end bootstrapping and "
+            "discounting over 60 semiannual floating periods."
+        ),
+        "request": "ir_swaps/irs_eur_30y_receiver_fixed_30360_vs_euribor6m.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["receiver", "30Y tenor", "long-end curve quotes",
+                      "Euribor6M"],
+    },
+    {
+        "id": "irs_eur_5y_payer_1y_forward_start",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, 1Y forward starting",
+        "description": (
+            "Forward-starting trade: a 5Y payer swap whose schedules begin "
+            "one year after the valuation date (effective 2026-01-19 vs "
+            "as-of 2025-01-15), so every coupon, including the first "
+            "floating fixing, is projected off the curve. The classic "
+            "pre-hedge / delayed-start structure."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_1y_forward_start.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "forward starting", "deferred effective date",
+                      "Euribor6M", "all fixings projected"],
+    },
+    {
+        "id": "irs_eur_3y_payer_vs_euribor1m_monthly",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 3Y payer swap vs Euribor 1M monthly",
+        "description": (
+            "3Y swap whose floating leg fixes on Euribor 1M and pays "
+            "monthly (36 floating coupons), with the curve bootstrapped "
+            "from 1M-indexed par swaps. Exercises the shortest IBOR index "
+            "tenor and a monthly floating schedule."
+        ),
+        "request": "ir_swaps/irs_eur_3y_payer_vs_euribor1m_monthly.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "Euribor1M", "monthly floating leg",
+                      "index tenor variation"],
+    },
+    {
+        "id": "irs_eur_5y_payer_end_of_month_schedules",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, end-of-month schedule rolls",
+        "description": (
+            "5Y swap effective on 2025-02-28 (the last day of February) "
+            "with end_of_month=true on both legs, so coupon dates roll to "
+            "month-ends (Aug 31, Feb 28/29) instead of keeping the 28th. "
+            "Exercises the schedule end-of-month rule end to end."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_end_of_month_schedules.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "end-of-month rule", "month-end effective date",
+                      "Euribor6M"],
+    },
+    {
+        "id": "irs_eur_2y_payer_imm_third_wednesday",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 2Y payer IMM swap (ThirdWednesday dates)",
+        "description": (
+            "IMM-dated 2Y swap running from the March 2025 IMM date "
+            "(2025-03-19) to the March 2027 IMM date, with ThirdWednesday "
+            "date generation on both legs so every coupon date is a third "
+            "Wednesday. Floating leg fixes Euribor 3M quarterly, matching "
+            "the futures-strip style schedule."
+        ),
+        "request": "ir_swaps/irs_eur_2y_payer_imm_third_wednesday.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "IMM dates", "ThirdWednesday date generation",
+                      "Euribor3M", "quarterly floating leg"],
+    },
+    {
+        "id": "irs_gbp_5y_payer_uk_calendar_act365_semiannual",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "GBP 5Y payer swap, UK calendar, Act/365F semiannual",
+        "description": (
+            "GBP-market-style 5Y swap: pay 4.35% fixed (semiannual, "
+            "Act/365F) against a same-day-fixing 6M GBP IBOR-style index, "
+            "both legs on the UnitedKingdom calendar. The curve is "
+            "bootstrapped from UK-calendar deposits and semiannual Act/365F "
+            "par swaps. Exercises a non-TARGET/non-US calendar, zero fixing "
+            "days and GBP fixed-leg conventions."
+        ),
+        "request": "ir_swaps/irs_gbp_5y_payer_uk_calendar_act365_semiannual.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "GBP", "UnitedKingdom calendar",
+                      "fixed Act/365F semiannual", "zero fixing days"],
+    },
+    {
         "id": "irs_eur_5y_payer_ois_discounted_multicurve",
         "product": "vanilla_swap",
         "family": "IR Swaps",
@@ -182,6 +312,24 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["receiver", "OIS", "ESTR compounded",
                       "overnight spread +10bp", "quarterly payments"],
+    },
+    {
+        "id": "ois_eur_5y_payer_estr_payment_lag2",
+        "product": "ois_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer OIS vs ESTR, 2-day payment lag",
+        "description": (
+            "5Y ESTR OIS paying 2.68% fixed with a 2-business-day payment "
+            "lag on the TARGET payment calendar, the standard settlement "
+            "delay for cleared OIS. Coupon payment dates land two business "
+            "days after each accrual period ends on both legs."
+        ),
+        "request": "ir_swaps/ois_eur_5y_payer_estr_payment_lag2.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_ois_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "OIS", "ESTR compounded",
+                      "payment lag 2 days"],
     },
     {
         "id": "ois_usd_3y_payer_sofr",

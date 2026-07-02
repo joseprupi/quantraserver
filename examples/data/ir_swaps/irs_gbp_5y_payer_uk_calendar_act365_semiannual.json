@@ -1,0 +1,163 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "GBP_6M",
+          "name": "GbpIbor6M",
+          "index_type": "Ibor",
+          "currency": "GBP",
+          "tenor": {
+            "n": 6,
+            "unit": "Months"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedKingdom",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual365Fixed",
+          "end_of_month": false
+        }
+      ],
+      "curves": [
+        {
+          "id": "GBP_DISC",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.0445,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.044,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0425,
+                "calendar": "UnitedKingdom",
+                "sw_fixed_leg_frequency": "Semiannual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Actual365Fixed",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "GBP_6M"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.043,
+                "calendar": "UnitedKingdom",
+                "sw_fixed_leg_frequency": "Semiannual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Actual365Fixed",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "GBP_6M"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0435,
+                "calendar": "UnitedKingdom",
+                "sw_fixed_leg_frequency": "Semiannual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Actual365Fixed",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "GBP_6M"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "vanilla_swap": {
+        "swap_type": "Payer",
+        "fixed_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "UnitedKingdom",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Semiannual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "rate": 0.0435,
+          "day_counter": "Actual365Fixed",
+          "payment_convention": "ModifiedFollowing"
+        },
+        "floating_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "UnitedKingdom",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Semiannual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "index": {
+            "id": "GBP_6M"
+          },
+          "spread": 0.0,
+          "day_counter": "Actual365Fixed",
+          "payment_convention": "ModifiedFollowing"
+        }
+      },
+      "discounting_curve": "GBP_DISC",
+      "forwarding_curve": "GBP_DISC"
+    }
+  ]
+}

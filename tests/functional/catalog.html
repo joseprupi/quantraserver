@@ -64,6 +64,48 @@
 <td class="npv">25,392.21</td>
 </tr>
 <tr>
+<td><div class="title">EUR 1Y payer swap, money-market tenor</div><div class="desc">Short-dated 1Y swap: pay 2.90% fixed (a single annual 30/360 coupon) against two semiannual Euribor 6M coupons. The curve&#x27;s short end (deposits + 1Y par swap) dominates, exercising the shortest tenor a fixed-vs-IBOR swap is quoted at.</div></td>
+<td><code>payer</code> <code>1Y tenor</code> <code>single fixed coupon</code> <code>Euribor6M</code> <code>curve short end</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_1y_payer_vs_euribor6m.json">irs_eur_1y_payer_vs_euribor6m.json</a></td>
+<td class="npv">6,833.69</td>
+</tr>
+<tr>
+<td><div class="title">EUR 30Y receiver swap, long-dated</div><div class="desc">Long-dated 30Y swap: receive 3.50% fixed (annual, 30/360), pay Euribor 6M flat, on a curve bootstrapped out to the 30Y par quote (2Y-30Y swaps). Exercises long-end bootstrapping and discounting over 60 semiannual floating periods.</div></td>
+<td><code>receiver</code> <code>30Y tenor</code> <code>long-end curve quotes</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_30y_receiver_fixed_30360_vs_euribor6m.json">irs_eur_30y_receiver_fixed_30360_vs_euribor6m.json</a></td>
+<td class="npv">187,682.38</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer swap, 1Y forward starting</div><div class="desc">Forward-starting trade: a 5Y payer swap whose schedules begin one year after the valuation date (effective 2026-01-19 vs as-of 2025-01-15), so every coupon, including the first floating fixing, is projected off the curve. The classic pre-hedge / delayed-start structure.</div></td>
+<td><code>payer</code> <code>forward starting</code> <code>deferred effective date</code> <code>Euribor6M</code> <code>all fixings projected</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_1y_forward_start.json">irs_eur_5y_payer_1y_forward_start.json</a></td>
+<td class="npv">-62,126.20</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y payer swap vs Euribor 1M monthly</div><div class="desc">3Y swap whose floating leg fixes on Euribor 1M and pays monthly (36 floating coupons), with the curve bootstrapped from 1M-indexed par swaps. Exercises the shortest IBOR index tenor and a monthly floating schedule.</div></td>
+<td><code>payer</code> <code>Euribor1M</code> <code>monthly floating leg</code> <code>index tenor variation</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_3y_payer_vs_euribor1m_monthly.json">irs_eur_3y_payer_vs_euribor1m_monthly.json</a></td>
+<td class="npv">5,064.61</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer swap, end-of-month schedule rolls</div><div class="desc">5Y swap effective on 2025-02-28 (the last day of February) with end_of_month=true on both legs, so coupon dates roll to month-ends (Aug 31, Feb 28/29) instead of keeping the 28th. Exercises the schedule end-of-month rule end to end.</div></td>
+<td><code>payer</code> <code>end-of-month rule</code> <code>month-end effective date</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_end_of_month_schedules.json">irs_eur_5y_payer_end_of_month_schedules.json</a></td>
+<td class="npv">-18,744.73</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y payer IMM swap (ThirdWednesday dates)</div><div class="desc">IMM-dated 2Y swap running from the March 2025 IMM date (2025-03-19) to the March 2027 IMM date, with ThirdWednesday date generation on both legs so every coupon date is a third Wednesday. Floating leg fixes Euribor 3M quarterly, matching the futures-strip style schedule.</div></td>
+<td><code>payer</code> <code>IMM dates</code> <code>ThirdWednesday date generation</code> <code>Euribor3M</code> <code>quarterly floating leg</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_2y_payer_imm_third_wednesday.json">irs_eur_2y_payer_imm_third_wednesday.json</a></td>
+<td class="npv">-174.45</td>
+</tr>
+<tr>
+<td><div class="title">GBP 5Y payer swap, UK calendar, Act/365F semiannual</div><div class="desc">GBP-market-style 5Y swap: pay 4.35% fixed (semiannual, Act/365F) against a same-day-fixing 6M GBP IBOR-style index, both legs on the UnitedKingdom calendar. The curve is bootstrapped from UK-calendar deposits and semiannual Act/365F par swaps. Exercises a non-TARGET/non-US calendar, zero fixing days and GBP fixed-leg conventions.</div></td>
+<td><code>payer</code> <code>GBP</code> <code>UnitedKingdom calendar</code> <code>fixed Act/365F semiannual</code> <code>zero fixing days</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_gbp_5y_payer_uk_calendar_act365_semiannual.json">irs_gbp_5y_payer_uk_calendar_act365_semiannual.json</a></td>
+<td class="npv">-22,338.51</td>
+</tr>
+<tr>
 <td><div class="title">EUR 5Y payer swap, OIS-discounted (multicurve)</div><div class="desc">Post-2008 market-standard setup: coupons are projected off a Euribor 6M curve (deposit + swap quotes) while cash flows are discounted on a separate ESTR OIS curve. Exercises discounting_curve != forwarding_curve on a vanilla swap.</div></td>
 <td><code>payer</code> <code>multicurve</code> <code>OIS discounting</code> <code>separate projection curve</code> <code>Euribor6M</code></td>
 <td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_ois_discounted_multicurve.json">irs_eur_5y_payer_ois_discounted_multicurve.json</a></td>
@@ -80,6 +122,12 @@
 <td><code>receiver</code> <code>OIS</code> <code>ESTR compounded</code> <code>overnight spread +10bp</code> <code>quarterly payments</code></td>
 <td><a href="../../examples/data/ir_swaps/ois_eur_2y_receiver_estr_spread10bp_quarterly.json">ois_eur_2y_receiver_estr_spread10bp_quarterly.json</a></td>
 <td class="npv">760.32</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer OIS vs ESTR, 2-day payment lag</div><div class="desc">5Y ESTR OIS paying 2.68% fixed with a 2-business-day payment lag on the TARGET payment calendar, the standard settlement delay for cleared OIS. Coupon payment dates land two business days after each accrual period ends on both legs.</div></td>
+<td><code>payer</code> <code>OIS</code> <code>ESTR compounded</code> <code>payment lag 2 days</code></td>
+<td><a href="../../examples/data/ir_swaps/ois_eur_5y_payer_estr_payment_lag2.json">ois_eur_5y_payer_estr_payment_lag2.json</a></td>
+<td class="npv">-14,047.30</td>
 </tr>
 <tr>
 <td><div class="title">USD 3Y payer OIS vs SOFR (compounded)</div><div class="desc">3Y USD SOFR OIS: pay 4.05% fixed (annual, Act/360), receive daily-compounded SOFR, on the US government bond (SIFMA) calendar. Exercises a non-TARGET calendar and a USD overnight index.</div></td>
@@ -101,6 +149,6 @@
 </tr>
 </tbody>
 </table>
-<footer>11 cases across 1 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<footer>19 cases across 1 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>

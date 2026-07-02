@@ -1,0 +1,138 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_ESTR",
+          "name": "ESTR",
+          "index_type": "Overnight",
+          "currency": "EUR",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "TARGET",
+          "day_counter": "Actual360"
+        }
+      ],
+      "curves": [
+        {
+          "id": "EUR_OIS",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0275,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0272,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0265,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0258,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "EUR_ESTR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "ois_swap": {
+        "swap_type": "Payer",
+        "fixed_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "rate": 0.0268,
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing"
+        },
+        "overnight_leg": {
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward"
+          },
+          "index": {
+            "id": "EUR_ESTR"
+          },
+          "spread": 0.0,
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 2,
+          "averaging_method": "Compound",
+          "lockout_days": 0,
+          "apply_observation_shift": false,
+          "telescopic_value_dates": false
+        }
+      },
+      "discounting_curve": "EUR_OIS",
+      "forwarding_curve": "EUR_OIS"
+    }
+  ]
+}

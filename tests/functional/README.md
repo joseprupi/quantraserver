@@ -79,11 +79,54 @@ python3 -m pytest tests/functional -q \
 * Vanilla fixed-vs-IBOR: payer/receiver, fixed 30/360 annual and Act/365F
   semiannual, Euribor 6M and 3M, Following + Backward schedule conventions,
   floating spread, and OIS-discounted multicurve.
+* Tenor spectrum: 1Y money-market end, standard 4Y-7Y, and a 30Y long-dated
+  swap on a curve bootstrapped out to the 30Y par quote; plus a 1Y-forward
+  starting 5Y swap (all coupons projected, deferred effective date).
+* Index / frequency variations: Euribor 1M with a monthly floating leg
+  (36 coupons, 1M-indexed par-swap curve) alongside the 3M/6M cases.
+* Schedule mechanics: end-of-month rolls (end_of_month=true from a Feb-28
+  effective date) and IMM-dated schedules (ThirdWednesday generation on both
+  legs, futures-strip style).
+* Calendars / currencies: TARGET, US government bond (SIFMA), and a GBP swap
+  on the UnitedKingdom calendar with same-day fixings and Act/365F
+  semiannual fixed conventions.
 * OIS: compounded ESTR (payer/receiver, annual/quarterly, overnight-leg
-  spread) and compounded SOFR on the US government bond calendar, with curves
-  bootstrapped from OIS par quotes.
+  spread, 2-day payment lag) and compounded SOFR on the US government bond
+  calendar, with curves bootstrapped from OIS par quotes.
 * Tenor basis: Euribor 3M + spread vs Euribor 6M, single-curve and fully
   multicurve (per-leg projection curves + OIS discounting).
+
+## IR-swap coverage checklist
+
+Legend: ✅ covered · ◐ partial · ☐ planned (expressible, not yet added) ·
+⛔ deferred (needs reference/engine work).
+
+**Legs & structure**
+- ✅ Vanilla fixed vs Ibor float · ✅ payer / receiver · ✅ OIS (compounded
+  overnight) · ✅ tenor basis (float vs float) · ✅ forward-starting
+- ☐ Stub periods (short/long first & last coupon) · ☐ zero-coupon swap
+- ⛔ CMS leg · ⛔ amortizing / step-up notional · ⛔ in-arrears / lookback /
+  averaged OIS · ⛔ geared / capped / floored floater
+
+**Conventions**
+- ◐ Fixed day counts (✅ 30/360, Act/365F; ☐ Act/360, Act/Act on fixed leg)
+- ☐ Float-leg day-count sweep
+- ◐ Frequencies (✅ annual / semi / quarterly / monthly across cases; ☐ full matrix)
+- ◐ Business-day conventions (✅ ModifiedFollowing, Following; ☐ Preceding,
+  ModifiedPreceding)
+- ✅ Date generation (Forward, Backward, ThirdWednesday/IMM) · ✅ end-of-month rolls
+- ◐ Calendars (✅ TARGET, UK, US government bond; ☐ Japan, combined/joint)
+- ✅ Payment lag · ☐ settlement-days variations
+
+**Curves & discounting**
+- ✅ Single curve · ✅ OIS-discounted multicurve (independently bootstrapped)
+- ◐ Index tenors (✅ 1M / 3M / 6M; ☐ 12M)
+- ⛔ deps-linked exogenous discounting fidelity · ⛔ cross-currency
+
+**Rates / market / edge**
+- ✅ Positive rates · ✅ short-dated (1Y) · ✅ long-dated (30Y)
+- ☐ Negative rates · ☐ flat / steep / inverted curve shapes · ☐ at-par (NPV≈0)
+- ☐ Seasoned swap with past fixings
 
 ## Planned / not yet covered
 

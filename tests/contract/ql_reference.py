@@ -169,6 +169,9 @@ def get_convention(name: str):
 def get_calendar(name: str):
     mapping = {
         "TARGET": ql.TARGET(),
+        # Mirrors the server's CalendarToQL: QuantLib::UnitedKingdom()
+        # (default Settlement market).
+        "UnitedKingdom": ql.UnitedKingdom(),
         "UnitedStates": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
@@ -180,6 +183,7 @@ def get_date_generation(name: str):
     mapping = {
         "Forward": ql.DateGeneration.Forward,
         "Backward": ql.DateGeneration.Backward,
+        "ThirdWednesday": ql.DateGeneration.ThirdWednesday,
         "TwentiethIMM": ql.DateGeneration.TwentiethIMM,
     }
     return mapping.get(name, ql.DateGeneration.Forward)
@@ -723,9 +727,11 @@ def price_vanilla_swap_ql(request: dict) -> float:
         get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
         get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
-        False
+        # Mirrors the server's ScheduleParser: schedule->end_of_month()
+        # (FlatBuffers schema default false).
+        fixed_sch.get("end_of_month", False)
     )
-    
+
     # Float leg
     float_leg = swap["floating_leg"]
     float_sch = float_leg["schedule"]
@@ -737,7 +743,7 @@ def price_vanilla_swap_ql(request: dict) -> float:
         get_convention(float_sch.get("convention", "ModifiedFollowing")),
         get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(float_sch.get("date_generation_rule", "Forward")),
-        False
+        float_sch.get("end_of_month", False)
     )
     
     # Resolve the floating index exactly as the server does: from the request's
@@ -803,7 +809,8 @@ def price_ois_swap_ql(request: dict) -> float:
         get_convention(fs.get("convention", "ModifiedFollowing")),
         get_convention(fs.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(fs.get("date_generation_rule", "Forward")),
-        False,
+        # Mirrors the server's ScheduleParser: schedule->end_of_month().
+        fs.get("end_of_month", False),
     )
 
     overnight = swap["overnight_leg"]
@@ -816,7 +823,7 @@ def price_ois_swap_ql(request: dict) -> float:
         get_convention(os.get("convention", "ModifiedFollowing")),
         get_convention(os.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(os.get("date_generation_rule", "Forward")),
-        False,
+        os.get("end_of_month", False),
     )
 
     idx_def = find_index_def(overnight["index"]["id"], request)
@@ -881,7 +888,8 @@ def price_basis_swap_ql(request: dict) -> float:
             get_convention(sch.get("convention", "ModifiedFollowing")),
             get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
             get_date_generation(sch.get("date_generation_rule", "Forward")),
-            False,
+            # Mirrors the server's ScheduleParser: schedule->end_of_month().
+            sch.get("end_of_month", False),
         )
         idx_def = find_index_def(leg["index"]["id"], request)
         n, _ = _period_n_unit(idx_def, "tenor", 6, "Months")
