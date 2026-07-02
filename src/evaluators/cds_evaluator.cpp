@@ -1,5 +1,6 @@
 #include "cds_evaluator.h"
 
+#include <string>
 #include <variant>
 
 #include <ql/handle.hpp>
@@ -20,6 +21,20 @@
 namespace quantra {
 
 namespace {
+
+/// Human-readable name for a credit-curve interpolator enum value; used in
+/// fail-closed error messages. Out-of-range values (the raw wire
+/// cast in pricing_registry.cpp) fall through to the numeric form.
+std::string creditCurveInterpolatorName(CreditCurveInterpolatorKind kind) {
+    switch (kind) {
+        case CreditCurveInterpolatorKind::BackwardFlat: return "BackwardFlat";
+        case CreditCurveInterpolatorKind::ForwardFlat: return "ForwardFlat";
+        case CreditCurveInterpolatorKind::Linear: return "Linear";
+        case CreditCurveInterpolatorKind::LogCubic: return "LogCubic";
+        case CreditCurveInterpolatorKind::LogLinear: return "LogLinear";
+    }
+    return "enum value " + std::to_string(static_cast<int>(kind));
+}
 
 /**
  * Bootstrap the default-probability term structure from a plain-domain
@@ -138,23 +153,30 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
         }
     }
 
+    // Fail closed on the interpolator. QuantLib's default-
+    // probability bootstrap only supports flat-forward interpolation, i.e.
+    // LogLinear on survival probabilities. Every other enum value used to
+    // either masquerade as LogLinear silently (ForwardFlat/LogCubic hit the
+    // old `default:` branch) or die inside the bootstrap with an opaque
+    // QuantLib error (Linear/BackwardFlat). All of them — and any
+    // out-of-range value from the raw wire cast — are now rejected with a
+    // clear INVALID_ARGUMENT.
     switch (curve.curve_interpolator) {
-        case CreditCurveInterpolatorKind::Linear:
-            return std::make_shared<
-                QuantLib::PiecewiseDefaultCurve<QuantLib::SurvivalProbability, QuantLib::Linear>>(
-                curve.reference_date, helpers, curve.day_counter);
-        case CreditCurveInterpolatorKind::BackwardFlat:
-            return std::make_shared<
-                QuantLib::PiecewiseDefaultCurve<QuantLib::SurvivalProbability,
-                                                QuantLib::BackwardFlat>>(
-                curve.reference_date, helpers, curve.day_counter);
         case CreditCurveInterpolatorKind::LogLinear:
-        default:
             return std::make_shared<
                 QuantLib::PiecewiseDefaultCurve<QuantLib::SurvivalProbability,
                                                 QuantLib::LogLinear>>(
                 curve.reference_date, helpers, curve.day_counter);
+        case CreditCurveInterpolatorKind::BackwardFlat:
+        case CreditCurveInterpolatorKind::ForwardFlat:
+        case CreditCurveInterpolatorKind::Linear:
+        case CreditCurveInterpolatorKind::LogCubic:
+            break;
     }
+    throw QuantraInvalidArgument(
+        "Unsupported credit curve interpolator: " +
+        creditCurveInterpolatorName(curve.curve_interpolator) +
+        "; the CDS credit-curve bootstrap supports LogLinear only");
 }
 
 /**
@@ -229,12 +251,16 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
                 fwd);
         }
         case CdsEngineTypeKind::MidPoint:
-        default:
             return std::make_shared<QuantLib::MidPointCdsEngine>(
                 creditHandle,
                 recoveryRate,
                 discountHandle);
     }
+    // Fail closed: an out-of-range engine enum from the raw wire
+    // cast must not silently price with the MidPoint engine.
+    throw QuantraInvalidArgument(
+        "Unsupported CDS engine type: enum value " +
+        std::to_string(static_cast<int>(model.engine_type)));
 }
 
 CdsPerTrade priceTrade(const CdsTrade& trade,
