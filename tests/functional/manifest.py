@@ -27,7 +27,8 @@ Field reference (all keys required unless noted):
               catalog's "What it exercises" column.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
-examples/data/ir_swaps/), append a dict here, regenerate the catalog
+examples/data/ir_swaps/, bonds in examples/data/bonds/), append a dict here,
+regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
 """
@@ -388,5 +389,254 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["tenor basis", "multicurve", "per-leg projection curves",
                       "OIS discounting", "three curves"],
+    },
+
+    # ------------------------------------------------------------------
+    # Bonds — fixed-rate
+    # ------------------------------------------------------------------
+    {
+        "id": "frb_eur_5y_at_par_annual_30360",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y fixed-rate bond at the curve (annual 30/360)",
+        "description": (
+            "New-issue 5Y EUR benchmark-style bond: 3.10% annual coupon "
+            "(30/360) on 1m face, TARGET calendar, Modified Following. The "
+            "coupon sits at the curve's 5Y par swap quote, so the bond "
+            "prices close to par. Discounted on a deposit+swap curve."
+        ),
+        "request": "bonds/frb_eur_5y_at_par_annual_30360.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["fixed coupon at the curve", "annual 30/360",
+                      "TARGET", "deposit+swap curve"],
+    },
+    {
+        "id": "frb_eur_7y_premium_semiannual_actactbond",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 7Y premium bond, 5.25% semiannual Act/Act",
+        "description": (
+            "Seasoned-style high-coupon issue: 5.25% paid semiannually "
+            "(ActualActual Bond basis) against a ~3.1% curve, so the bond "
+            "trades well above par. Exercises a semiannual fixed schedule "
+            "and the Act/Act bond-basis accrual day count."
+        ),
+        "request": "bonds/frb_eur_7y_premium_semiannual_actactbond.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["premium bond", "semiannual coupon",
+                      "ActualActualBond accrual", "7Y maturity"],
+    },
+    {
+        "id": "frb_eur_5y_discount_quarterly_act365f",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y discount bond, 1.25% quarterly Act/365F",
+        "description": (
+            "Low-coupon bond issued in a lower-rate era: 1.25% paid "
+            "quarterly (Act/365F) against a ~3.1% curve, so it prices at a "
+            "clear discount to par. Exercises a quarterly fixed schedule "
+            "and Act/365F accrual."
+        ),
+        "request": "bonds/frb_eur_5y_discount_quarterly_act365f.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["discount bond", "quarterly coupon",
+                      "Act/365F accrual"],
+    },
+    {
+        "id": "frb_eur_10y_zero_coupon",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 10Y zero-coupon bond (0% rate, bullet redemption)",
+        "description": (
+            "Pure discount instrument: a 10Y bond with a 0% coupon rate, so "
+            "the only cash flow is the 100 redemption at maturity and the "
+            "NPV is the 10Y discount factor times face. Exercises the "
+            "rate=0 edge and redemption-only pricing."
+        ),
+        "request": "bonds/frb_eur_10y_zero_coupon.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero coupon (rate 0)", "redemption-only cash flow",
+                      "10Y maturity"],
+    },
+    {
+        "id": "frb_eur_2y_settlement_t3_annual_30360",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 2Y short bond, T+3 settlement",
+        "description": (
+            "Short-dated 2Y note paying 3.05% annually (30/360) with "
+            "3-business-day settlement instead of the usual T+2, so the "
+            "bond's own settlement date drives the NPV anchor. Exercises "
+            "the settlement-days field and the curve's short end."
+        ),
+        "request": "bonds/frb_eur_2y_settlement_t3_annual_30360.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["2Y maturity", "settlement days T+3",
+                      "annual 30/360", "curve short end"],
+    },
+    {
+        "id": "frb_eur_30y_long_dated_annual_30360",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 30Y long-dated bond, 3.50% annual",
+        "description": (
+            "Long-end issue: 3.50% annual coupon (30/360) maturing in 30 "
+            "years, discounted on a curve bootstrapped out to the 30Y par "
+            "swap quote (15Y/20Y/30Y pillars). Exercises long-end "
+            "bootstrapping and discounting of 30 coupon dates."
+        ),
+        "request": "bonds/frb_eur_30y_long_dated_annual_30360.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["30Y maturity", "long-end curve quotes",
+                      "annual 30/360"],
+    },
+    {
+        "id": "frb_usd_10y_treasury_semiannual_zero_curve",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "USD 10Y Treasury-style bond on a zero curve",
+        "description": (
+            "US Treasury-style note: 4.25% semiannual coupon (Act/Act Bond "
+            "basis) issued 2024-02-15 and maturing 2034-02-15, so it is "
+            "seasoned at the 2025-01-15 valuation date (one coupon already "
+            "paid). US government bond calendar, Unadjusted backward "
+            "schedule, T+1 settlement, discounted on an explicit "
+            "zero-rate curve. Exercises a non-TARGET calendar, a seasoned "
+            "schedule with past coupons and the zero-curve path."
+        ),
+        "request": "bonds/frb_usd_10y_treasury_semiannual_zero_curve.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["USD", "US government bond calendar", "seasoned bond",
+                      "zero-rate curve", "Backward Unadjusted schedule",
+                      "T+1 settlement"],
+    },
+    {
+        "id": "frb_eur_6y_redemption_101_5_preceding_payments",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 6Y bond, 101.5 redemption, Preceding payments",
+        "description": (
+            "6Y 3.30% annual bond redeemed at 101.5% of face (make-whole "
+            "style premium redemption) whose coupon dates stay unadjusted "
+            "on the 17th but whose payments roll backward (Preceding) when "
+            "that is a weekend — Jan 17 falls on a Saturday in 2026 and a "
+            "Sunday in 2027. Exercises a non-par redemption and a "
+            "non-default payment convention."
+        ),
+        "request": "bonds/frb_eur_6y_redemption_101_5_preceding_payments.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["non-par redemption 101.5", "Preceding payment convention",
+                      "Unadjusted schedule"],
+    },
+
+    # ------------------------------------------------------------------
+    # Bonds — floating-rate
+    # ------------------------------------------------------------------
+    {
+        "id": "frn_eur_5y_euribor6m_flat_semiannual",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y FRN on Euribor 6M flat",
+        "description": (
+            "Plain-vanilla floater: semiannual coupons fixing on Euribor 6M "
+            "flat (Act/360) on 1m face, projected and discounted on the "
+            "same deposit+swap curve, so the bond prices close to par. The "
+            "baseline floating-rate case."
+        ),
+        "request": "bonds/frn_eur_5y_euribor6m_flat_semiannual.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["FRN", "Euribor6M", "zero spread", "single curve"],
+    },
+    {
+        "id": "frn_eur_4y_euribor3m_quarterly_spread40bp",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 4Y FRN, Euribor 3M + 40bp quarterly",
+        "description": (
+            "Credit-spread floater: quarterly coupons paying Euribor 3M "
+            "plus a 40bp margin, with the curve bootstrapped from "
+            "3M-indexed par swaps. Exercises the 3M index tenor, a "
+            "quarterly schedule and a non-zero coupon spread."
+        ),
+        "request": "bonds/frn_eur_4y_euribor3m_quarterly_spread40bp.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["FRN", "Euribor3M", "spread +40bp",
+                      "quarterly coupons"],
+    },
+    {
+        "id": "frn_eur_5y_euribor6m_ois_discounted_multicurve",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y FRN, OIS-discounted (multicurve)",
+        "description": (
+            "Post-2008 multicurve setup on a floater: coupons project off a "
+            "Euribor 6M deposit+swap curve while cash flows discount on a "
+            "separate ESTR OIS curve, so the bond prices above par (OIS "
+            "discounting below the projected coupons). Exercises "
+            "forwarding_curve != discounting_curve on a bond."
+        ),
+        "request": "bonds/frn_eur_5y_euribor6m_ois_discounted_multicurve.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["FRN", "multicurve", "OIS discounting",
+                      "separate projection curve", "Euribor6M"],
+    },
+    {
+        "id": "frn_eur_3y_euribor6m_act365f_accrual",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 3Y FRN, Act/365F accrual vs Act/360 index",
+        "description": (
+            "3Y floater whose coupons accrue on Act/365F while the "
+            "underlying Euribor 6M index stays on its market-standard "
+            "Act/360, so the coupon amounts pick up the day-count "
+            "mismatch. Exercises the bond-level accrual day count "
+            "independently of the index convention."
+        ),
+        "request": "bonds/frn_eur_3y_euribor6m_act365f_accrual.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["FRN", "Act/365F accrual", "index day count mismatch",
+                      "Euribor6M"],
+    },
+    {
+        "id": "frn_eur_2y_euribor6m_same_day_fixing",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 2Y FRN, same-day fixing (0 fixing days)",
+        "description": (
+            "2Y floater whose bond-level fixing_days is 0, overriding the "
+            "index's 2-day fixing lag so every coupon fixes on its accrual "
+            "start date. Exercises the bond-level fixing-days override on "
+            "the floating coupons."
+        ),
+        "request": "bonds/frn_eur_2y_euribor6m_same_day_fixing.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["FRN", "zero fixing days", "same-day fixing",
+                      "Euribor6M"],
     },
 ]

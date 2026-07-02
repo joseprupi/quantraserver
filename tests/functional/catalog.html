@@ -149,6 +149,90 @@
 </tr>
 </tbody>
 </table>
-<footer>19 cases across 1 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<h2>Bonds</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib NPV</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 5Y fixed-rate bond at the curve (annual 30/360)</div><div class="desc">New-issue 5Y EUR benchmark-style bond: 3.10% annual coupon (30/360) on 1m face, TARGET calendar, Modified Following. The coupon sits at the curve&#x27;s 5Y par swap quote, so the bond prices close to par. Discounted on a deposit+swap curve.</div></td>
+<td><code>fixed coupon at the curve</code> <code>annual 30/360</code> <code>TARGET</code> <code>deposit+swap curve</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_5y_at_par_annual_30360.json">frb_eur_5y_at_par_annual_30360.json</a></td>
+<td class="npv">999,841.67</td>
+</tr>
+<tr>
+<td><div class="title">EUR 7Y premium bond, 5.25% semiannual Act/Act</div><div class="desc">Seasoned-style high-coupon issue: 5.25% paid semiannually (ActualActual Bond basis) against a ~3.1% curve, so the bond trades well above par. Exercises a semiannual fixed schedule and the Act/Act bond-basis accrual day count.</div></td>
+<td><code>premium bond</code> <code>semiannual coupon</code> <code>ActualActualBond accrual</code> <code>7Y maturity</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_7y_premium_semiannual_actactbond.json">frb_eur_7y_premium_semiannual_actactbond.json</a></td>
+<td class="npv">1,132,139.23</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y discount bond, 1.25% quarterly Act/365F</div><div class="desc">Low-coupon bond issued in a lower-rate era: 1.25% paid quarterly (Act/365F) against a ~3.1% curve, so it prices at a clear discount to par. Exercises a quarterly fixed schedule and Act/365F accrual.</div></td>
+<td><code>discount bond</code> <code>quarterly coupon</code> <code>Act/365F accrual</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_5y_discount_quarterly_act365f.json">frb_eur_5y_discount_quarterly_act365f.json</a></td>
+<td class="npv">915,982.96</td>
+</tr>
+<tr>
+<td><div class="title">EUR 10Y zero-coupon bond (0% rate, bullet redemption)</div><div class="desc">Pure discount instrument: a 10Y bond with a 0% coupon rate, so the only cash flow is the 100 redemption at maturity and the NPV is the 10Y discount factor times face. Exercises the rate=0 edge and redemption-only pricing.</div></td>
+<td><code>zero coupon (rate 0)</code> <code>redemption-only cash flow</code> <code>10Y maturity</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_10y_zero_coupon.json">frb_eur_10y_zero_coupon.json</a></td>
+<td class="npv">728,959.96</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y short bond, T+3 settlement</div><div class="desc">Short-dated 2Y note paying 3.05% annually (30/360) with 3-business-day settlement instead of the usual T+2, so the bond&#x27;s own settlement date drives the NPV anchor. Exercises the settlement-days field and the curve&#x27;s short end.</div></td>
+<td><code>2Y maturity</code> <code>settlement days T+3</code> <code>annual 30/360</code> <code>curve short end</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_2y_settlement_t3_annual_30360.json">frb_eur_2y_settlement_t3_annual_30360.json</a></td>
+<td class="npv">1,000,799.57</td>
+</tr>
+<tr>
+<td><div class="title">EUR 30Y long-dated bond, 3.50% annual</div><div class="desc">Long-end issue: 3.50% annual coupon (30/360) maturing in 30 years, discounted on a curve bootstrapped out to the 30Y par swap quote (15Y/20Y/30Y pillars). Exercises long-end bootstrapping and discounting of 30 coupon dates.</div></td>
+<td><code>30Y maturity</code> <code>long-end curve quotes</code> <code>annual 30/360</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_30y_long_dated_annual_30360.json">frb_eur_30y_long_dated_annual_30360.json</a></td>
+<td class="npv">1,018,609.91</td>
+</tr>
+<tr>
+<td><div class="title">USD 10Y Treasury-style bond on a zero curve</div><div class="desc">US Treasury-style note: 4.25% semiannual coupon (Act/Act Bond basis) issued 2024-02-15 and maturing 2034-02-15, so it is seasoned at the 2025-01-15 valuation date (one coupon already paid). US government bond calendar, Unadjusted backward schedule, T+1 settlement, discounted on an explicit zero-rate curve. Exercises a non-TARGET calendar, a seasoned schedule with past coupons and the zero-curve path.</div></td>
+<td><code>USD</code> <code>US government bond calendar</code> <code>seasoned bond</code> <code>zero-rate curve</code> <code>Backward Unadjusted schedule</code> <code>T+1 settlement</code></td>
+<td><a href="../../examples/data/bonds/frb_usd_10y_treasury_semiannual_zero_curve.json">frb_usd_10y_treasury_semiannual_zero_curve.json</a></td>
+<td class="npv">101.17</td>
+</tr>
+<tr>
+<td><div class="title">EUR 6Y bond, 101.5 redemption, Preceding payments</div><div class="desc">6Y 3.30% annual bond redeemed at 101.5% of face (make-whole style premium redemption) whose coupon dates stay unadjusted on the 17th but whose payments roll backward (Preceding) when that is a weekend — Jan 17 falls on a Saturday in 2026 and a Sunday in 2027. Exercises a non-par redemption and a non-default payment convention.</div></td>
+<td><code>non-par redemption 101.5</code> <code>Preceding payment convention</code> <code>Unadjusted schedule</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_6y_redemption_101_5_preceding_payments.json">frb_eur_6y_redemption_101_5_preceding_payments.json</a></td>
+<td class="npv">1,021,320.40</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y FRN on Euribor 6M flat</div><div class="desc">Plain-vanilla floater: semiannual coupons fixing on Euribor 6M flat (Act/360) on 1m face, projected and discounted on the same deposit+swap curve, so the bond prices close to par. The baseline floating-rate case.</div></td>
+<td><code>FRN</code> <code>Euribor6M</code> <code>zero spread</code> <code>single curve</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_5y_euribor6m_flat_semiannual.json">frn_eur_5y_euribor6m_flat_semiannual.json</a></td>
+<td class="npv">999,841.67</td>
+</tr>
+<tr>
+<td><div class="title">EUR 4Y FRN, Euribor 3M + 40bp quarterly</div><div class="desc">Credit-spread floater: quarterly coupons paying Euribor 3M plus a 40bp margin, with the curve bootstrapped from 3M-indexed par swaps. Exercises the 3M index tenor, a quarterly schedule and a non-zero coupon spread.</div></td>
+<td><code>FRN</code> <code>Euribor3M</code> <code>spread +40bp</code> <code>quarterly coupons</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_4y_euribor3m_quarterly_spread40bp.json">frn_eur_4y_euribor3m_quarterly_spread40bp.json</a></td>
+<td class="npv">1,015,079.57</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y FRN, OIS-discounted (multicurve)</div><div class="desc">Post-2008 multicurve setup on a floater: coupons project off a Euribor 6M deposit+swap curve while cash flows discount on a separate ESTR OIS curve, so the bond prices above par (OIS discounting below the projected coupons). Exercises forwarding_curve != discounting_curve on a bond.</div></td>
+<td><code>FRN</code> <code>multicurve</code> <code>OIS discounting</code> <code>separate projection curve</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_5y_euribor6m_ois_discounted_multicurve.json">frn_eur_5y_euribor6m_ois_discounted_multicurve.json</a></td>
+<td class="npv">1,018,735.49</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y FRN, Act/365F accrual vs Act/360 index</div><div class="desc">3Y floater whose coupons accrue on Act/365F while the underlying Euribor 6M index stays on its market-standard Act/360, so the coupon amounts pick up the day-count mismatch. Exercises the bond-level accrual day count independently of the index convention.</div></td>
+<td><code>FRN</code> <code>Act/365F accrual</code> <code>index day count mismatch</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_3y_euribor6m_act365f_accrual.json">frn_eur_3y_euribor6m_act365f_accrual.json</a></td>
+<td class="npv">998,658.88</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y FRN, same-day fixing (0 fixing days)</div><div class="desc">2Y floater whose bond-level fixing_days is 0, overriding the index&#x27;s 2-day fixing lag so every coupon fixes on its accrual start date. Exercises the bond-level fixing-days override on the floating coupons.</div></td>
+<td><code>FRN</code> <code>zero fixing days</code> <code>same-day fixing</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_2y_euribor6m_same_day_fixing.json">frn_eur_2y_euribor6m_same_day_fixing.json</a></td>
+<td class="npv">999,856.92</td>
+</tr>
+</tbody>
+</table>
+<footer>32 cases across 2 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>

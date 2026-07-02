@@ -1,0 +1,170 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "curves": [
+        {
+          "id": "usd_zero_curve",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2025-01-15"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0425,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0415,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0405,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.041,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0435,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0445,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 15,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bonds": [
+    {
+      "fixed_rate_bond": {
+        "settlement_days": 1,
+        "face_amount": 100.0,
+        "rate": 0.0425,
+        "accrual_day_counter": "ActualActualBond",
+        "payment_convention": "Following",
+        "redemption": 100.0,
+        "issue_date": "2024-02-15",
+        "schedule": {
+          "calendar": "UnitedStatesGovernmentBond",
+          "effective_date": "2024-02-15",
+          "termination_date": "2034-02-15",
+          "frequency": "Semiannual",
+          "convention": "Unadjusted",
+          "termination_date_convention": "Unadjusted",
+          "date_generation_rule": "Backward"
+        }
+      },
+      "discounting_curve": "usd_zero_curve",
+      "yield": {
+        "day_counter": "Actual365Fixed",
+        "compounding": "Compounded",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}
