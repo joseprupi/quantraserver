@@ -44,7 +44,7 @@ public:
      * Curves built any other way — e.g. a ZeroRatePoint curve, which is an
      * InterpolatedZeroCurve — would be WEEKLY-RESAMPLED by serialize()'s
      * fallback, an approximation that must never be served on a cache hit
-     * (audit B7). Callers must check this before caching serialized/frozen
+     * Callers must check this before caching serialized/frozen
      * data; when false, cache the live curve instead.
      */
     static bool canSerializeExactly(
@@ -63,7 +63,7 @@ public:
      * dense weekly sampling if the downcast fails — an APPROXIMATION of the
      * live curve. Callers that cache the result must gate on
      * canSerializeExactly() first so the fallback is never served on a
-     * cache hit (audit B7).
+     * cache hit.
      */
     static CachedCurveData serialize(
         const std::shared_ptr<QuantLib::YieldTermStructure>& curve,
