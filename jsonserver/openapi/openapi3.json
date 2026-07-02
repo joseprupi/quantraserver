@@ -3,7 +3,7 @@
   "info": {
     "title": "Quantra Pricing API",
     "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "contact": {
       "name": "Quantra API Support",
       "url": "https://github.com/joseprupi/quantraserver"
@@ -77,7 +77,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_FixedRateBondResponse"
+                  "$ref": "#/components/schemas/quantra_PriceFixedRateBondResponse"
                 }
               }
             }
@@ -140,7 +140,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_FloatingRateBondResponse"
+                  "$ref": "#/components/schemas/quantra_PriceFloatingRateBondResponse"
                 }
               }
             }
@@ -203,7 +203,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_VanillaSwapResponse"
+                  "$ref": "#/components/schemas/quantra_PriceVanillaSwapResponse"
                 }
               }
             }
@@ -266,7 +266,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_ZeroCouponInflationSwapResponse"
+                  "$ref": "#/components/schemas/quantra_PriceZeroCouponInflationSwapResponse"
                 }
               }
             }
@@ -329,7 +329,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_YearOnYearInflationSwapResponse"
+                  "$ref": "#/components/schemas/quantra_PriceYearOnYearInflationSwapResponse"
                 }
               }
             }
@@ -392,7 +392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_OisSwapResponse"
+                  "$ref": "#/components/schemas/quantra_PriceOisSwapResponse"
                 }
               }
             }
@@ -455,7 +455,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_BasisSwapResponse"
+                  "$ref": "#/components/schemas/quantra_PriceBasisSwapResponse"
                 }
               }
             }
@@ -518,7 +518,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_FRAResponse"
+                  "$ref": "#/components/schemas/quantra_PriceFRAResponse"
                 }
               }
             }
@@ -581,7 +581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_CapFloorResponse"
+                  "$ref": "#/components/schemas/quantra_PriceCapFloorResponse"
                 }
               }
             }
@@ -644,7 +644,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_SwaptionResponse"
+                  "$ref": "#/components/schemas/quantra_PriceSwaptionResponse"
                 }
               }
             }
@@ -707,7 +707,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_CDSResponse"
+                  "$ref": "#/components/schemas/quantra_PriceCDSResponse"
                 }
               }
             }
@@ -1274,7 +1274,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/quantra_EquityOptionResponse"
+                  "$ref": "#/components/schemas/quantra_PriceEquityOptionResponse"
                 }
               }
             }

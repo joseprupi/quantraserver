@@ -23,9 +23,19 @@ if(NOT QUANTRA_GIT_SHA)
 endif()
 
 string(TIMESTAMP QUANTRA_BUILD_TIME_UTC "%Y-%m-%dT%H:%M:%SZ" UTC)
-set(QUANTRA_API_VERSION "1.0.0")
+
+# API version: single source of truth is the top-level VERSION file. The same
+# file feeds scripts/generate_openapi.py (OpenAPI info.version), so /meta, the
+# X-Quantra-Api-Version response header, and the published spec always agree.
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" QUANTRA_API_VERSION)
+string(STRIP "${QUANTRA_API_VERSION}" QUANTRA_API_VERSION)
+if(QUANTRA_API_VERSION STREQUAL "")
+    message(FATAL_ERROR "VERSION file at ${CMAKE_SOURCE_DIR}/VERSION is empty")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/VERSION")
+
 set(QUANTRA_BACKEND_VERSION "1.0.0")
-set(QUANTRA_OPENAPI_VERSION "1.0.0")
+set(QUANTRA_OPENAPI_VERSION "${QUANTRA_API_VERSION}")
 set(QUANTRA_GRPC_VERSION "unknown")
 set(QUANTRA_FLATBUFFERS_VERSION "unknown")
 set(QUANTRA_QUANTLIB_VERSION "unknown")

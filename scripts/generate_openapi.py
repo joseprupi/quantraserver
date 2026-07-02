@@ -34,6 +34,12 @@ WORKSPACE = Path(__file__).parent.parent
 JSON_SCHEMA_DIR = WORKSPACE / "flatbuffers" / "json"
 OUTPUT_DIR = WORKSPACE / "jsonserver" / "openapi"
 PRODUCT_CATALOG_HEADER = WORKSPACE / "src" / "common" / "product_catalog.h"
+VERSION_FILE = WORKSPACE / "VERSION"
+
+# Single source of truth for the API version: the top-level VERSION file. The
+# same file is read by jsonserver/CMakeLists.txt into QUANTRA_API_VERSION, so
+# /meta, the X-Quantra-Api-Version response header, and this spec always agree.
+API_VERSION = VERSION_FILE.read_text().strip()
 
 # API Info
 API_INFO = {
@@ -83,7 +89,7 @@ curl -X POST http://localhost:8080/price-fixed-rate-bond \\
   -d @examples/data/fixed_rate_bond_request.json
 ```
 """,
-    "version": "1.0.0",
+    "version": API_VERSION,
     "contact": {
         "name": "Quantra API Support",
         "url": "https://github.com/joseprupi/quantraserver"
@@ -196,14 +202,32 @@ ENDPOINT_METADATA = {
 }
 
 
-def schema_name_from_fbs(filename: str) -> str:
-    stem = Path(filename).stem
-    parts = stem.split("_")
-    acronyms = {
-        "fra": "FRA",
-        "cds": "CDS",
-    }
-    return "quantra_" + "".join(acronyms.get(part, part.capitalize()) for part in parts)
+def root_schema_name(filename: str) -> str:
+    """Return the schema name of the .fbs file's root_type.
+
+    Deriving the name from the filename is wrong for responses: e.g.
+    fixed_rate_bond_response.fbs would give quantra_FixedRateBondResponse (one
+    item), but the actual wire root is the wrapper
+    quantra_PriceFixedRateBondResponse { bonds: [...] }. flatc --jsonschema
+    records the root_type as the top-level "$ref" of the generated schema, so
+    read it from there and the documented 200 body always matches the wire.
+    """
+    schema_file = JSON_SCHEMA_DIR / f"{Path(filename).stem}.schema.json"
+    if not schema_file.exists():
+        raise FileNotFoundError(
+            f"JSON schema not found for '{filename}': {schema_file} "
+            "(run ./scripts/generate_schemas.sh first)")
+    # Note: load_json_schema is defined further down; this runs at import time
+    # (via ENDPOINTS), so load the file directly.
+    with open(schema_file, "r") as f:
+        schema = json.load(f)
+    root_ref = schema.get("$ref", "")
+    prefix = "#/definitions/"
+    if not root_ref.startswith(prefix):
+        raise ValueError(
+            f"Cannot determine root_type of '{filename}': top-level $ref "
+            f"missing or malformed in {schema_file} (got '{root_ref}')")
+    return root_ref[len(prefix):]
 
 
 def load_product_catalog() -> Dict[str, Dict[str, str]]:
@@ -220,8 +244,8 @@ def load_product_catalog() -> Dict[str, Dict[str, str]]:
             catalog[entry["key"]] = {
                 "enum": entry["enum"],
                 "path": f'/{entry["route"]}',
-                "request_schema": schema_name_from_fbs(entry["request"]),
-                "response_schema": schema_name_from_fbs(entry["response"]),
+                "request_schema": root_schema_name(entry["request"]),
+                "response_schema": root_schema_name(entry["response"]),
             }
     if not catalog:
         raise ValueError(f"Could not parse any product entries from {PRODUCT_CATALOG_HEADER}")

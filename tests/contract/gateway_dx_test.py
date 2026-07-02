@@ -15,6 +15,9 @@ gateway:
     400 "empty request body" instead of flatc's "input file is empty",
     and a body with an embedded NUL byte is rejected instead of being
     silently truncated at the NUL.
+  * API version visibility: the top-level VERSION file is the single source
+    of truth, surfaced as the X-Quantra-Api-Version response header, /meta's
+    api_version field, and the committed OpenAPI spec's info.version.
 
 The engine log written by run_all_tests.sh (/tmp/grpc.log) is used for the
 log-correlation assertion when it is reachable; otherwise only the response
@@ -23,6 +26,7 @@ header echo is asserted.
 
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -31,6 +35,9 @@ import requests
 
 GRPC_LOG = Path(os.environ.get("QUANTRA_GRPC_LOG", "/tmp/grpc.log"))
 JSON_HEADERS = {"Content-Type": "application/json"}
+
+WORKSPACE = Path(__file__).resolve().parents[2]
+EXPECTED_API_VERSION = (WORKSPACE / "VERSION").read_text().strip()
 
 
 @pytest.fixture(scope="module")
@@ -119,7 +126,7 @@ def test_quantlib_error_maps_to_422_with_real_cause(bond_url, bond_request):
         f"QuantLib input error: expected HTTP 422, got {r.status_code} :: {r.text[:200]}"
     )
     body = r.json()
-    # E3: documented `error` field carries the real message, not "gRPC error".
+    # The documented `error` field carries the real message, not "gRPC error".
     assert body.get("error") and body["error"] != "gRPC error", (
         f"'error' field is not the real cause: {r.text[:200]}"
     )
@@ -157,4 +164,59 @@ def test_body_with_embedded_nul_rejected_400(bond_url, bond_request):
     )
     assert "NUL" in r.json().get("error", ""), (
         f"expected a clear NUL-byte error, got: {r.text[:160]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# API version visibility (single source of truth = VERSION file)
+# ---------------------------------------------------------------------------
+
+def test_api_version_header_on_pricing_response(bond_url, bond_request):
+    r = requests.post(bond_url, data=json.dumps(bond_request), headers=JSON_HEADERS)
+    assert r.status_code == 200, f"expected 200, got {r.status_code} :: {r.text[:160]}"
+    assert r.headers.get("X-Quantra-Api-Version") == EXPECTED_API_VERSION, (
+        f"X-Quantra-Api-Version != VERSION file ({EXPECTED_API_VERSION}): "
+        f"headers={dict(r.headers)}"
+    )
+
+
+def test_api_version_header_on_error_response(bond_url):
+    # The version must be detectable even when the request is rejected.
+    r = requests.post(bond_url, data=b"", headers=JSON_HEADERS)
+    assert r.status_code == 400
+    assert r.headers.get("X-Quantra-Api-Version") == EXPECTED_API_VERSION, (
+        f"X-Quantra-Api-Version missing on error response: headers={dict(r.headers)}"
+    )
+
+
+def test_meta_reports_version_from_version_file(client):
+    r = requests.get(f"{client.base_url}/meta")
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("api_version") == EXPECTED_API_VERSION, (
+        f"/meta api_version != VERSION file ({EXPECTED_API_VERSION}): {r.text[:200]}"
+    )
+
+
+def test_openapi_spec_version_and_response_ref():
+    # Guards regeneration drift: the committed spec must carry the VERSION
+    # file's version, and a pricing endpoint's documented 200 body must be the
+    # response WRAPPER type (the .fbs root_type), not the inner item type.
+    spec_path = WORKSPACE / "jsonserver" / "openapi" / "openapi3.json"
+    with open(spec_path) as fh:
+        spec = json.load(fh)
+    assert spec["info"]["version"] == EXPECTED_API_VERSION, (
+        f"OpenAPI info.version {spec['info']['version']!r} != VERSION file "
+        f"({EXPECTED_API_VERSION})"
+    )
+
+    fbs = (WORKSPACE / "flatbuffers" / "fbs" / "fixed_rate_bond_response.fbs").read_text()
+    match = re.search(r"^\s*root_type\s+(\w+)\s*;", fbs, re.MULTILINE)
+    assert match, "no root_type found in fixed_rate_bond_response.fbs"
+    expected_ref = f"#/components/schemas/quantra_{match.group(1)}"
+
+    responses = spec["paths"]["/price-fixed-rate-bond"]["post"]["responses"]
+    actual_ref = responses["200"]["content"]["application/json"]["schema"]["$ref"]
+    assert actual_ref == expected_ref, (
+        f"documented 200 body {actual_ref} != wire root {expected_ref}"
     )
