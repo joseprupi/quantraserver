@@ -17,6 +17,7 @@ bumped curves (curveBump != 0) cacheable, a bumped variant drops in as a
 one-line CASES addition — no other change needed.
 """
 
+import copy
 import json
 import time
 from collections import namedtuple
@@ -158,6 +159,49 @@ def test_cache_transparency_beyond_pillar_error(nocache_client, cache_client,
     )
     print(f"[cache] beyond_pillar_error: off==warm==hit = "
           f"HTTP {off[0]}, body {off[1]!r}")
+
+
+def test_bogus_quote_id_not_masked_by_warm_cache(nocache_client, cache_client,
+                                                 data_dir):
+    """Reference-error transparency: a helper `quote_id` that resolves to
+    nothing must return the parser's NOT_FOUND error even when the cache is
+    warm with the equivalent inline-value request.
+
+    The cache key stores resolved quote VALUES, never quote ids, and it is
+    built before the request is parsed. A key builder that silently falls
+    back to the helper's inline value when a quote_id does not resolve hashes
+    the bogus request to the same key as the valid inline-value request — so
+    a warm cache would serve a cached price where the no-cache path serves
+    404. The key builder must instead refuse to key the curve (leaving it
+    uncached), letting the parser report the unknown id.
+    """
+    valid = load_json(data_dir / "fixed_rate_bond_request.json")
+
+    # Warm the cache-ON server with the valid inline-value request so that a
+    # key collision with the bogus request below would actually serve a hit.
+    cache_client.price("fixed_rate_bond", valid)
+
+    bogus = copy.deepcopy(valid)
+    point = bogus["pricing"]["rates"]["curves"][0]["points"][0]["point"]
+    point["quote_id"] = "quote-id-that-does-not-exist"
+
+    off = _post_raw(nocache_client, "fixed_rate_bond", bogus)   # reference
+    first = _post_raw(cache_client, "fixed_rate_bond", bogus)   # warm cache
+    second = _post_raw(cache_client, "fixed_rate_bond", bogus)  # again: no
+    # entry may have been created by the first attempt either.
+
+    assert off[0] == 404 and "Unknown quote id" in off[1], (
+        f"cache-OFF reference did not reject the bogus quote_id as NOT_FOUND "
+        f"(got HTTP {off[0]}, body {off[1]!r})"
+    )
+    for label, resp in (("first", first), ("second", second)):
+        assert resp[0] == 404 and "Unknown quote id" in resp[1], (
+            f"bogus_quote_id: {label} POST to the warm cache-ON server did "
+            f"not return the parser's NOT_FOUND — a cached price masked the "
+            f"validation error (got HTTP {resp[0]}, body {resp[1]!r})"
+        )
+    print(f"[cache] bogus_quote_id: off/warm-first/warm-second all "
+          f"HTTP 404, body {off[1]!r}")
 
 
 def _count_cache_hits(log_path: Path) -> int:
