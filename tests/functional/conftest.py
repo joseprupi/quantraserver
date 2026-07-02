@@ -1,25 +1,34 @@
-"""Shared pytest fixtures for the JSON API contract/parity suite.
+"""Fixtures for the functional parity catalog suite (tests/functional).
 
-The suite POSTs the example requests under examples/data to a running JSON
-server and compares the API NPVs against the independent QuantLib reference
-pricers in ql_reference.py. The server is launched by run_all_tests.sh
-(start_servers) before pytest is invoked; --url / --data-dir mirror the old
-monolith CLI flags.
+This suite reuses the contract harness — tests/contract/ql_reference.py
+provides the ApiClient and the independent QuantLib reference pricers — so
+tests/contract is added to sys.path here.
+
+The gate (tests/run_all_tests.sh, suite 3) collects tests/contract and
+tests/functional in one pytest invocation. Both directories' conftests are
+then "initial" conftests, so both pytest_addoption hooks run; registration is
+tolerant of the option already existing so either directory can also be run
+standalone with the same --url/--data-dir flags.
 """
 
+import sys
 from pathlib import Path
 
 import pytest
 
-from ql_reference import ApiClient
+TESTS_DIR = Path(__file__).resolve().parents[1]
+CONTRACT_DIR = TESTS_DIR / "contract"
+if str(CONTRACT_DIR) not in sys.path:
+    sys.path.insert(0, str(CONTRACT_DIR))
+
+from ql_reference import ApiClient  # noqa: E402  (needs sys.path above)
 
 
 def _addoption(parser, *args, **kwargs):
     """Register a CLI option, tolerating prior registration.
 
-    tests/functional/conftest.py registers the same --url/--data-dir options
-    (its suite reuses this harness). When both directories are collected in
-    one pytest run, whichever conftest loads second must not crash.
+    When tests/contract and tests/functional are collected together, whichever
+    conftest loads second would otherwise crash re-registering --url/--data-dir.
     """
     try:
         parser.addoption(*args, **kwargs)
@@ -39,7 +48,7 @@ def pytest_addoption(parser):
         parser,
         "--data-dir",
         action="store",
-        default=str(Path(__file__).resolve().parents[2] / "examples" / "data"),
+        default=str(TESTS_DIR.parent / "examples" / "data"),
         help="Directory holding the example JSON request files.",
     )
 
