@@ -29,6 +29,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/ir_swaps/` | The curated request JSONs for the IR-swap family. |
 | `../../examples/data/bonds/` | The curated request JSONs for the Bonds family. |
 | `../../examples/data/fra/` | The curated request JSONs for the FRA family. |
+| `../../examples/data/cap_floor/` | The curated request JSONs for the Cap/Floor family. |
 
 ## How it runs in the gate
 
@@ -56,7 +57,8 @@ python3 -m pytest tests/functional -q \
 
 1. **Write the request JSON** under `examples/data/` — IR-swap cases live in
    `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`, FRA
-   cases in `examples/data/fra/`. Start
+   cases in `examples/data/fra/`, cap/floor cases in
+   `examples/data/cap_floor/`. Start
    from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -205,6 +207,46 @@ are deliberately not half-implemented:
   server prices the FRA with the index's conventions and ignores these
   trade-level fields, so no case varies them independently of the index.
 
+## Current coverage (Cap/Floor)
+
+* Instruments: caps and floors on quarterly Euribor 3M and semiannual
+  Euribor 6M legs (constant per-trade strike, single notional).
+* Moneyness: strikes bracketing the ~3.1% forwards on both sides — 2% / 5%
+  caps and 2% / 4% floors around a near-the-money 3.10% baseline — so the
+  NPVs span intrinsic-dominated to pure time value.
+* Vol / model pairings: Black on flat 20% and 30% lognormal optionlet vols,
+  Bachelier on an 80bp normal vol, and shifted Black on a 15%
+  shifted-lognormal vol with a 2% displacement.
+* Tenors: 2Y short end, 5Y baseline and a 10Y cap priced out to the curve's
+  10Y par quote.
+* Conventions: trade-level Act/365F payment accrual against the index's
+  Act/360 (day-count mismatch on the caplet coupons).
+* Curves: single deposit+swap curve for projection and discounting, plus an
+  OIS-discounted multicurve cap (forwarding != discounting).
+
+## Planned / not yet covered (Cap/Floor)
+
+These need reference-pricer or engine behaviour that is not there yet; they
+are deliberately not half-implemented:
+
+* **Collars** — the `CapFloorType` enum carries `Collar` on the wire, but
+  the server rejects it ("Collar not yet supported - use separate Cap and
+  Floor"), so no collar case exists.
+* **Volatility term structures / smiles** — the optionlet vol wire spec only
+  accepts a constant vol (the server validates `shape=Constant`); caplet
+  vol term structures, strike-dependent surfaces and stripped caplet
+  surfaces are not expressible.
+* **Quote-referenced vols** — `IrVolBaseSpec.quote_id` lets the server
+  resolve the constant vol from `pricing.quotes`, but the reference pricer
+  reads the inline `constant_vol` only, so no case uses a vol quote id.
+* **Seasoned caps with past fixings** — the first caplet of a seasoned cap
+  needs a historical index fixing; the reference index builder does not
+  apply `IndexDef.fixings` (same caveat as seasoned floaters/FRAs).
+* **Amortizing notionals / per-caplet strike schedules** — the wire carries
+  one notional and one strike per trade.
+* **Digital caps/floors and capped-floored structured coupons** — not on
+  the wire.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -225,6 +267,7 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (caps/floors, swaptions, CDS, inflation) already have
+* **Other families** (swaptions, CDS, inflation) already have
   representative parity tests in `tests/contract/`; migrating them into
-  this catalog format is future work. Bonds and FRAs are covered above.
+  this catalog format is future work. Bonds, FRAs and caps/floors are
+  covered above.

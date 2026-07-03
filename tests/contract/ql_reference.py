@@ -981,19 +981,38 @@ def price_fra_ql(request: dict) -> float:
 
 
 def price_cap_floor_ql(request: dict) -> float:
-    """Price cap/floor using QuantLib."""
+    """Price cap/floor using QuantLib.
+
+    Mirrors the server's cap/floor evaluator:
+      * the index projects off the trade's forwarding_curve while the engine
+        discounts on the trade's discounting_curve,
+      * the IborLeg carries the trade-level payment day counter and payment
+        adjustment (withPaymentDayCounter / withPaymentAdjustment),
+      * the volatility is the referenced OptionletVolSpec rebuilt as a
+        ConstantOptionletVolatility with the spec's own reference date,
+        calendar, convention, day count, volatility type and displacement,
+      * the engine follows the referenced model: Bachelier for normal vols,
+        BlackCapFloorEngine for Black and ShiftedBlack (QuantLib reads the
+        displacement from the vol structure).
+    """
     pricing = _reference_pricing_view(request)
     cf_data = request["cap_floors"][0]
     cf = cf_data["cap_floor"]
-    
+
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
-    
-    # Build curve
-    curve_id = cf_data.get("discounting_curve", "discount")
-    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date, request)
-    
+
+    # Discounting and forwarding curves (may be the same id)
+    disc_id = cf_data.get("discounting_curve", "discount")
+    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), pricing["curves"][0])
+    disc_curve = build_curve_from_json(disc_json, eval_date, request)
+    fwd_id = cf_data.get("forwarding_curve", disc_id)
+    if fwd_id == disc_id:
+        fwd_curve = disc_curve
+    else:
+        fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), pricing["curves"][0])
+        fwd_curve = build_curve_from_json(fwd_json, eval_date, request)
+
     # Build schedule
     sch = cf["schedule"]
     schedule = ql.Schedule(
@@ -1006,35 +1025,65 @@ def price_cap_floor_ql(request: dict) -> float:
         get_date_generation(sch.get("date_generation_rule", "Forward")),
         False
     )
-    
-    # Get index
-    idx = cf.get("index", {})
-    # New schema: index is IndexRef with just id
-    if isinstance(idx, dict) and "id" in idx:
-        idx_def = find_index_def(idx["id"], request)
-        period_months = (_period_n_unit(idx_def, "tenor", 3, "Months")[0] if idx_def else 3)
-    else:
-        period_months = idx.get("period_number", 3)
-    index = ql.Euribor3M(curve) if period_months == 3 else ql.Euribor6M(curve)
-    
-    # Build cap or floor
-    if cf["cap_floor_type"] == "Cap":
-        ql_cf = ql.Cap(ql.IborLeg([cf["notional"]], schedule, index), [cf["strike"]])
-    else:
-        ql_cf = ql.Floor(ql.IborLeg([cf["notional"]], schedule, index), [cf["strike"]])
-    
-    # Get volatility
-    vol = 0.20  # Default
-    for v in pricing.get("volatilities", []):
-        if v["id"] == cf_data.get("volatility"):
-            vol = v.get("constant_vol", 0.20)
-            break
-    
-    vol_handle = ql.OptionletVolatilityStructureHandle(
-        ql.ConstantOptionletVolatility(eval_date, ql.TARGET(), ql.ModifiedFollowing, vol, ql.Actual365Fixed())
+
+    # Index resolved from its IndexDef, projecting off the forwarding curve
+    # (mirrors IndexRegistry::getIborWithCurve on the server).
+    index = resolve_index_from_id(cf["index"]["id"], request, fwd_curve)
+
+    # Floating leg mirrors the server's IborLeg: trade-level payment day
+    # counter and payment adjustment, index-level fixing days.
+    leg = ql.IborLeg(
+        [cf["notional"]],
+        schedule,
+        index,
+        get_day_counter(cf.get("day_counter", "Actual360")),
+        get_convention(cf.get("business_day_convention", "ModifiedFollowing")),
     )
-    ql_cf.setPricingEngine(ql.BlackCapFloorEngine(curve, vol_handle))
-    
+    cf_type = cf["cap_floor_type"]
+    if cf_type == "Cap":
+        ql_cf = ql.Cap(leg, [cf["strike"]])
+    elif cf_type == "Floor":
+        ql_cf = ql.Floor(leg, [cf["strike"]])
+    else:
+        # The server rejects Collar the same way.
+        raise ValueError(f"Unsupported cap/floor type: {cf_type}")
+
+    # Volatility: rebuild the referenced constant optionlet vol spec.
+    vol_base = {}
+    for v in pricing.get("vol_surfaces", []):
+        if v.get("id") == cf_data.get("volatility"):
+            vol_base = v.get("payload", {}).get("base", {})
+            break
+    vol_value = vol_base.get("constant_vol", 0.20)
+    displacement = vol_base.get("displacement", 0.0)
+    # QuantLib encodes Black lognormal vols under ShiftedLognormal; pure
+    # lognormal is displacement == 0 (same mapping as the server).
+    vol_type = ql.Normal if vol_base.get("volatility_type") == "Normal" else ql.ShiftedLognormal
+    vol_ref = parse_date(vol_base.get("reference_date", pricing["as_of_date"]))
+    vol_handle = ql.OptionletVolatilityStructureHandle(
+        ql.ConstantOptionletVolatility(
+            vol_ref,
+            get_calendar(vol_base.get("calendar", "TARGET")),
+            get_convention(vol_base.get("business_day_convention", "ModifiedFollowing")),
+            vol_value,
+            get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
+            vol_type,
+            displacement,
+        )
+    )
+
+    # Engine follows the referenced model (Black / ShiftedBlack / Bachelier).
+    model_type = "Black"
+    for m in pricing.get("models", []):
+        if m.get("id") == cf_data.get("model"):
+            model_type = m.get("payload", {}).get("model_type", "Black")
+            break
+    if model_type == "Bachelier":
+        engine = ql.BachelierCapFloorEngine(disc_curve, vol_handle)
+    else:
+        engine = ql.BlackCapFloorEngine(disc_curve, vol_handle)
+    ql_cf.setPricingEngine(engine)
+
     return ql_cf.NPV()
 
 

@@ -293,6 +293,72 @@
 </tr>
 </tbody>
 </table>
-<footer>41 cases across 3 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<h2>Cap/Floor</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib NPV</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 5Y cap on Euribor 3M, struck near the money</div><div class="desc">Baseline interest rate cap: quarterly caplets on Euribor 3M struck at 3.10%, right at the curve&#x27;s 5Y par level, on 1m notional (TARGET, Act/360, Modified Following). Priced with the Black engine on a flat 20% lognormal optionlet vol, projected and discounted on one deposit+swap curve.</div></td>
+<td><code>cap</code> <code>near-the-money strike</code> <code>Euribor3M</code> <code>quarterly caplets</code> <code>Black lognormal 20%</code> <code>single curve</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_atm_quarterly_euribor3m.json">cap_eur_5y_atm_quarterly_euribor3m.json</a></td>
+<td class="npv">14,707.75</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y cap struck at 2%, deep in the money</div><div class="desc">The baseline 5Y quarterly Euribor 3M cap struck at 2.00%, well below the ~3.1% forwards, so nearly every caplet is in the money and the premium is dominated by intrinsic value. Pins the high-NPV end of the strike spectrum.</div></td>
+<td><code>cap</code> <code>in-the-money strike</code> <code>intrinsic-dominated</code> <code>Euribor3M</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_itm_strike_2pct.json">cap_eur_5y_itm_strike_2pct.json</a></td>
+<td class="npv">49,435.97</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y cap struck at 5%, out of the money</div><div class="desc">The baseline 5Y quarterly Euribor 3M cap struck at 5.00%, far above the ~3.1% forwards, so the premium is pure time value and small relative to notional. Pins the low-NPV tail where a vol or day-count slip is proportionally largest.</div></td>
+<td><code>cap</code> <code>out-of-the-money strike</code> <code>time-value only</code> <code>Euribor3M</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_otm_strike_5pct.json">cap_eur_5y_otm_strike_5pct.json</a></td>
+<td class="npv">1,788.03</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y floor struck at 4%, in the money</div><div class="desc">5Y quarterly floor on Euribor 3M struck at 4.00%, well above the ~3.1% forwards, so the floorlets pay in most scenarios — the classic minimum-yield guarantee a floating-rate investor buys. Exercises the Floor instrument type on the same market data as the cap cases.</div></td>
+<td><code>floor</code> <code>in-the-money strike</code> <code>Euribor3M</code> <code>quarterly floorlets</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/cap_floor/floor_eur_5y_itm_strike_4pct.json">floor_eur_5y_itm_strike_4pct.json</a></td>
+<td class="npv">51,152.52</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y floor struck at 2%, out of the money</div><div class="desc">5Y quarterly floor on Euribor 3M struck at 2.00%, well below the forwards, so it is cheap disaster protection against rates collapsing. Together with the 4% floor it brackets the floor moneyness spectrum.</div></td>
+<td><code>floor</code> <code>out-of-the-money strike</code> <code>Euribor3M</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/cap_floor/floor_eur_5y_otm_strike_2pct.json">floor_eur_5y_otm_strike_2pct.json</a></td>
+<td class="npv">1,554.03</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y cap on normal (Bachelier) vols, 80bp</div><div class="desc">The baseline 5Y quarterly Euribor 3M cap quoted the post-2015 market way: a flat 80bp normal (Bachelier) optionlet vol priced with the Bachelier engine instead of Black. Exercises the Normal volatility type and the model/vol-type pairing end to end.</div></td>
+<td><code>cap</code> <code>Bachelier engine</code> <code>normal vol 80bp</code> <code>Euribor3M</code> <code>vol-type variation</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_bachelier_normal_vol_80bp.json">cap_eur_5y_bachelier_normal_vol_80bp.json</a></td>
+<td class="npv">19,603.29</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y cap on shifted-lognormal vols (2% shift)</div><div class="desc">The baseline 5Y quarterly Euribor 3M cap priced with the shifted Black model: a flat 15% shifted-lognormal optionlet vol with a 2% displacement, the standard quoting convention from the negative-rate era. Exercises the ShiftedLognormal vol type and a non-zero displacement flowing into the Black engine.</div></td>
+<td><code>cap</code> <code>shifted Black</code> <code>displacement 2%</code> <code>shifted-lognormal vol 15%</code> <code>Euribor3M</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_shifted_black_displacement_2pct.json">cap_eur_5y_shifted_black_displacement_2pct.json</a></td>
+<td class="npv">18,540.66</td>
+</tr>
+<tr>
+<td><div class="title">EUR 10Y cap on Euribor 6M, semiannual</div><div class="desc">Long-dated 10Y cap with semiannual caplets on Euribor 6M struck at 3.50%, priced out to the curve&#x27;s 10Y par quote. Exercises the 6M index tenor, a semiannual caplet schedule and 20 caplets across the full curve.</div></td>
+<td><code>cap</code> <code>10Y maturity</code> <code>Euribor6M</code> <code>semiannual caplets</code> <code>index tenor variation</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_10y_euribor6m_semiannual.json">cap_eur_10y_euribor6m_semiannual.json</a></td>
+<td class="npv">32,364.22</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y floor, Act/365F accrual, 30% vol</div><div class="desc">Short-dated 2Y quarterly floor on Euribor 3M struck at 3.00%, accruing Act/365F at the trade level while the index stays on its market-standard Act/360, priced on a higher 30% lognormal vol. Exercises the trade-level payment day count independently of the index convention, a second vol level and the curve&#x27;s short end.</div></td>
+<td><code>floor</code> <code>2Y maturity</code> <code>Act/365F accrual</code> <code>index day count mismatch</code> <code>lognormal vol 30%</code> <code>Euribor3M</code></td>
+<td><a href="../../examples/data/cap_floor/floor_eur_2y_act365f_vol_30pct.json">floor_eur_2y_act365f_vol_30pct.json</a></td>
+<td class="npv">6,634.76</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y cap, OIS-discounted (multicurve)</div><div class="desc">Post-2008 multicurve setup on a cap: semiannual Euribor 6M caplets struck at 3.20% project off a deposit+swap Euribor curve while the premium discounts on a separate, lower ESTR OIS curve. Exercises discounting_curve != forwarding_curve on the cap/floor endpoint.</div></td>
+<td><code>cap</code> <code>multicurve</code> <code>OIS discounting</code> <code>separate projection curve</code> <code>Euribor6M</code> <code>semiannual caplets</code></td>
+<td><a href="../../examples/data/cap_floor/cap_eur_5y_euribor6m_ois_discounted_multicurve.json">cap_eur_5y_euribor6m_ois_discounted_multicurve.json</a></td>
+<td class="npv">12,899.26</td>
+</tr>
+</tbody>
+</table>
+<footer>51 cases across 4 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>
