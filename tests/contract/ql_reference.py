@@ -922,40 +922,61 @@ def price_basis_swap_ql(request: dict) -> float:
 
 
 def price_fra_ql(request: dict) -> float:
-    """Price FRA using QuantLib."""
+    """Price FRA using QuantLib (mirrors src/evaluators/fra_evaluator.cpp).
+
+    The server resolves the forwarding and discounting curve ids
+    independently, clones the request's IndexDef onto the forwarding curve
+    and passes the request's explicit maturity date to
+    QuantLib::ForwardRateAgreement — this reference does the same.
+    """
     pricing = _reference_pricing_view(request)
     fra_data = request["fras"][0]
     fra = fra_data["fra"]
-    
+
     eval_date = parse_date(pricing["as_of_date"])
     ql.Settings.instance().evaluationDate = eval_date
-    
-    # Build curve
-    curve_id = fra_data.get("forwarding_curve", "discount")
-    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
-    curve = build_curve_from_json(curve_json, eval_date, request)
-    
-    # Get index period from JSON
+
+    # Forwarding curve projects the index; discounting curve discounts the
+    # payoff (defaults keep single-curve requests working as before).
+    fwd_id = fra_data.get("forwarding_curve", "discount")
+    fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), pricing["curves"][0])
+    fwd_curve = build_curve_from_json(fwd_json, eval_date, request)
+    disc_id = fra_data.get("discounting_curve", fwd_id)
+    if disc_id == fwd_id:
+        disc_curve = fwd_curve
+    else:
+        disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id), fwd_json)
+        disc_curve = build_curve_from_json(disc_json, eval_date, request)
+
+    # Build the index from its IndexDef (tenor, fixing days, calendar,
+    # conventions, day count) exactly like the server's IndexRegistry, and
+    # link it to the forwarding curve.
     idx = fra.get("index", {})
-    # New schema: index is IndexRef with just id
     if isinstance(idx, dict) and "id" in idx:
         idx_def = find_index_def(idx["id"], request)
-        period_months = (_period_n_unit(idx_def, "tenor", 3, "Months")[0] if idx_def else 3)
+        if idx_def:
+            index = build_ibor_index(idx_def, fwd_curve)
+        else:
+            index = ql.Euribor3M(fwd_curve) if "3M" in idx["id"] else ql.Euribor6M(fwd_curve)
     else:
+        # Legacy inline-index shape.
         period_months = idx.get("period_number", 3)
-    
-    if period_months == 3:
-        index = ql.Euribor3M(curve)
-    else:
-        index = ql.Euribor6M(curve)
-    
+        index = ql.Euribor3M(fwd_curve) if period_months == 3 else ql.Euribor6M(fwd_curve)
+
     start_date = parse_date(fra["start_date"])
     position = ql.Position.Long if fra["fra_type"] == "Long" else ql.Position.Short
-    
-    ql_fra = ql.ForwardRateAgreement(
-        index, start_date, position, fra["strike"], fra["notional"], curve
-    )
-    
+
+    if fra.get("maturity_date"):
+        # Explicit accrual end date, as the server passes it.
+        ql_fra = ql.ForwardRateAgreement(
+            index, start_date, parse_date(fra["maturity_date"]), position,
+            fra["strike"], fra["notional"], disc_curve
+        )
+    else:
+        ql_fra = ql.ForwardRateAgreement(
+            index, start_date, position, fra["strike"], fra["notional"], disc_curve
+        )
+
     return ql_fra.NPV()
 
 

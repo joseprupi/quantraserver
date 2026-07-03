@@ -28,6 +28,7 @@ committed catalog drifts from the manifest.
 | `conftest.py` | Reuses the contract-suite harness: puts `tests/contract` on `sys.path` and provides the same `client` / `data_dir` fixtures (`--url`, `--data-dir`). |
 | `../../examples/data/ir_swaps/` | The curated request JSONs for the IR-swap family. |
 | `../../examples/data/bonds/` | The curated request JSONs for the Bonds family. |
+| `../../examples/data/fra/` | The curated request JSONs for the FRA family. |
 
 ## How it runs in the gate
 
@@ -54,7 +55,8 @@ python3 -m pytest tests/functional -q \
 ## Adding a case
 
 1. **Write the request JSON** under `examples/data/` — IR-swap cases live in
-   `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`. Start
+   `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`, FRA
+   cases in `examples/data/fra/`. Start
    from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -171,6 +173,38 @@ schedule); they are deliberately not half-implemented:
   on the wire and both sides apply them, but no catalog case pins the
   past-fixing path yet.
 
+## Current coverage (FRA)
+
+* Directions: the same 3x6 trade bought (long) and sold (short), pinning the
+  position-type sign convention.
+* Forward periods: 1x4, 3x6, 6x9 and 9x12 on Euribor 3M (the standard
+  quarterly strip, including a weekend-rolled Modified Following maturity),
+  plus a 6x12 on Euribor 6M (6-month accrual, index-tenor variation).
+* Strike vs forward: clearly below (positive NPV), clearly above (negative
+  NPV) and struck at the curve's implied forward (NPV within cents of zero).
+* Conventions: euro-market Act/360 2-day-fixing indices on TARGET, and a
+  GBP-style Act/365F same-day-fixing index on the UnitedKingdom calendar
+  against a mildly inverted deposit curve.
+* Curves: deposit-bootstrapped single-curve pricing and a multicurve case
+  where the forward projects off the Euribor curve while the payoff
+  discounts on a separate lower ESTR-style curve
+  (discounting_curve != forwarding_curve).
+
+## Planned / not yet covered (FRA)
+
+These need reference-pricer or engine behaviour that is not there yet; they
+are deliberately not half-implemented:
+
+* **FRA valued on/after its fixing date (historical fixing)** —
+  `IndexDef.fixings` exists on the wire and the server applies past fixings
+  to its indices, but the reference index builder does not, so no case pins
+  the fixed-rate path yet (same caveat as seasoned floaters in the Bonds
+  family).
+* **Trade-level convention overrides** — the FRA wire table carries its own
+  `day_counter`, `calendar` and `business_day_convention` fields, but the
+  server prices the FRA with the index's conventions and ignores these
+  trade-level fields, so no case varies them independently of the index.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -191,6 +225,6 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (FRAs, caps/floors, swaptions, CDS, inflation) already
-  have representative parity tests in `tests/contract/`; migrating them into
-  this catalog format is future work. Bonds are covered above.
+* **Other families** (caps/floors, swaptions, CDS, inflation) already have
+  representative parity tests in `tests/contract/`; migrating them into
+  this catalog format is future work. Bonds and FRAs are covered above.

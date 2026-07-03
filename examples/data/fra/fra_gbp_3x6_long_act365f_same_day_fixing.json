@@ -1,0 +1,111 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "GBP_3M",
+          "name": "GBPIbor",
+          "index_type": "Ibor",
+          "fixing_days": 0,
+          "calendar": "UnitedKingdom",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual365Fixed",
+          "end_of_month": false,
+          "currency": "GBP",
+          "tenor": {
+            "n": 3,
+            "unit": "Months"
+          }
+        }
+      ],
+      "curves": [
+        {
+          "id": "discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.047,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.0465,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.046,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.0455,
+                "fixing_days": 0,
+                "calendar": "UnitedKingdom",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 9,
+                  "unit": "Months"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fras": [
+    {
+      "fra": {
+        "fra_type": "Long",
+        "notional": 1000000.0,
+        "start_date": "2025-04-15",
+        "maturity_date": "2025-07-15",
+        "strike": 0.0425,
+        "index": {
+          "id": "GBP_3M"
+        },
+        "day_counter": "Actual365Fixed",
+        "calendar": "UnitedKingdom",
+        "business_day_convention": "ModifiedFollowing"
+      },
+      "discounting_curve": "discount",
+      "forwarding_curve": "discount"
+    }
+  ]
+}

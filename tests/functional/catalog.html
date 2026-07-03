@@ -233,6 +233,66 @@
 </tr>
 </tbody>
 </table>
-<footer>32 cases across 2 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<h2>FRA</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib NPV</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 3x6 long FRA, strike below the forward</div><div class="desc">Baseline FRA: buy (go long) the 3x6 period on Euribor 3M at a 2.75% strike against a ~3.13% implied forward, on 1m notional. Accrues 2025-04-17 to 2025-07-17 (spot+3M, TARGET-adjusted), so the long side locks a below-market rate and the NPV is positive. Deposit-bootstrapped upward-sloping curve used for both projection and discounting.</div></td>
+<td><code>long</code> <code>3x6</code> <code>Euribor3M</code> <code>strike below forward</code> <code>positive NPV</code> <code>single curve</code></td>
+<td><a href="../../examples/data/fra/fra_eur_3x6_long_strike_below_forward.json">fra_eur_3x6_long_strike_below_forward.json</a></td>
+<td class="npv">950.62</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3x6 short FRA, same trade sold</div><div class="desc">The sold side of the baseline trade: short the same 3x6 Euribor 3M FRA at 2.75%. Everything else is identical, so the NPV is the exact negative of the long case, pinning the position-type sign convention end to end.</div></td>
+<td><code>short</code> <code>3x6</code> <code>Euribor3M</code> <code>sign flip</code> <code>negative NPV</code></td>
+<td><a href="../../examples/data/fra/fra_eur_3x6_short_strike_below_forward.json">fra_eur_3x6_short_strike_below_forward.json</a></td>
+<td class="npv">-950.62</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1x4 long FRA, front of the curve</div><div class="desc">Short-dated 1x4 FRA on Euribor 3M struck at 3.00%, accruing 2025-02-17 to 2025-05-19 (the 3M anniversary lands on a Saturday and rolls Modified Following to Monday). The nearest quoted FRA period, dominated by the curve&#x27;s 1M-3M deposits.</div></td>
+<td><code>long</code> <code>1x4</code> <code>Euribor3M</code> <code>curve short end</code> <code>weekend-rolled maturity</code></td>
+<td><a href="../../examples/data/fra/fra_eur_1x4_long_euribor3m.json">fra_eur_1x4_long_euribor3m.json</a></td>
+<td class="npv">127.94</td>
+</tr>
+<tr>
+<td><div class="title">EUR 6x9 long FRA, strike above the forward</div><div class="desc">Mid-curve 6x9 FRA on Euribor 3M struck at 3.60%, well above the ~3.24% implied forward, so the long side is locking an above-market rate and the NPV is clearly negative. Accrues 2025-07-17 to 2025-10-17.</div></td>
+<td><code>long</code> <code>6x9</code> <code>Euribor3M</code> <code>strike above forward</code> <code>negative NPV</code></td>
+<td><a href="../../examples/data/fra/fra_eur_6x9_long_strike_above_forward.json">fra_eur_6x9_long_strike_above_forward.json</a></td>
+<td class="npv">-893.90</td>
+</tr>
+<tr>
+<td><div class="title">EUR 9x12 long FRA, furthest standard period</div><div class="desc">9x12 FRA on Euribor 3M struck at 3.30%, accruing 2025-10-17 to 2026-01-19 — the furthest of the standard quarterly FRA strip, priced off the 9M-1Y segment of the deposit curve.</div></td>
+<td><code>long</code> <code>9x12</code> <code>Euribor3M</code> <code>curve 9M-1Y segment</code></td>
+<td><a href="../../examples/data/fra/fra_eur_9x12_long_euribor3m.json">fra_eur_9x12_long_euribor3m.json</a></td>
+<td class="npv">67.91</td>
+</tr>
+<tr>
+<td><div class="title">EUR 6x12 long FRA on Euribor 6M</div><div class="desc">6x12 FRA whose underlying is Euribor 6M instead of the 3M index: a single 6-month accrual period from 2025-07-17 to 2026-01-19, struck at 3.20%. Exercises resolving a 6M IndexDef and the longer accrual fraction in the FRA payoff.</div></td>
+<td><code>long</code> <code>6x12</code> <code>Euribor6M</code> <code>index tenor variation</code> <code>6M accrual period</code></td>
+<td><a href="../../examples/data/fra/fra_eur_6x12_long_euribor6m.json">fra_eur_6x12_long_euribor6m.json</a></td>
+<td class="npv">493.92</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3x6 long FRA struck at the forward (NPV ~ 0)</div><div class="desc">The baseline 3x6 trade struck at the curve&#x27;s own implied forward (3.1319%), so the FRA is at market and the NPV is within a few cents of zero — the fair-value edge case where any sign or day-count slip on either side shows up immediately.</div></td>
+<td><code>long</code> <code>3x6</code> <code>at-the-money strike</code> <code>NPV near zero</code> <code>Euribor3M</code></td>
+<td><a href="../../examples/data/fra/fra_eur_3x6_long_at_forward.json">fra_eur_3x6_long_at_forward.json</a></td>
+<td class="npv">0.03</td>
+</tr>
+<tr>
+<td><div class="title">GBP 3x6 long FRA, Act/365F, same-day fixing</div><div class="desc">GBP-market-style 3x6 FRA: the index fixes same-day (0 fixing days) on the UnitedKingdom calendar and accrues Act/365F instead of the euro-market Act/360, struck at 4.25% against a mildly inverted GBP deposit curve. Accrues 2025-04-15 to 2025-07-15.</div></td>
+<td><code>long</code> <code>3x6</code> <code>GBP</code> <code>UnitedKingdom calendar</code> <code>Act/365F index day count</code> <code>zero fixing days</code> <code>inverted curve</code></td>
+<td><a href="../../examples/data/fra/fra_gbp_3x6_long_act365f_same_day_fixing.json">fra_gbp_3x6_long_act365f_same_day_fixing.json</a></td>
+<td class="npv">606.87</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3x6 long FRA, OIS-discounted (multicurve)</div><div class="desc">The baseline 3x6 Euribor 3M FRA priced multicurve: the forward projects off the Euribor deposit curve while the payoff discounts on a separate, lower ESTR-style curve. Exercises discounting_curve != forwarding_curve on the FRA endpoint.</div></td>
+<td><code>long</code> <code>3x6</code> <code>multicurve</code> <code>OIS discounting</code> <code>separate projection curve</code> <code>Euribor3M</code></td>
+<td><a href="../../examples/data/fra/fra_eur_3x6_long_ois_discounted.json">fra_eur_3x6_long_ois_discounted.json</a></td>
+<td class="npv">951.34</td>
+</tr>
+</tbody>
+</table>
+<footer>41 cases across 3 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>
