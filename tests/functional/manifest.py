@@ -27,8 +27,8 @@ Field reference (all keys required unless noted):
               catalog's "What it exercises" column.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
-examples/data/ir_swaps/, bonds in examples/data/bonds/), append a dict here,
-regenerate the catalog
+examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
+examples/data/fra/), append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
 """
@@ -638,5 +638,172 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["FRN", "zero fixing days", "same-day fixing",
                       "Euribor6M"],
+    },
+    # ------------------------------------------------------------------
+    # FRA — forward rate agreements
+    # ------------------------------------------------------------------
+    {
+        "id": "fra_eur_3x6_long_strike_below_forward",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 3x6 long FRA, strike below the forward",
+        "description": (
+            "Baseline FRA: buy (go long) the 3x6 period on Euribor 3M at a "
+            "2.75% strike against a ~3.13% implied forward, on 1m notional. "
+            "Accrues 2025-04-17 to 2025-07-17 (spot+3M, TARGET-adjusted), "
+            "so the long side locks a below-market rate and the NPV is "
+            "positive. Deposit-bootstrapped upward-sloping curve used for "
+            "both projection and discounting."
+        ),
+        "request": "fra/fra_eur_3x6_long_strike_below_forward.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "3x6", "Euribor3M", "strike below forward",
+                      "positive NPV", "single curve"],
+    },
+    {
+        "id": "fra_eur_3x6_short_strike_below_forward",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 3x6 short FRA, same trade sold",
+        "description": (
+            "The sold side of the baseline trade: short the same 3x6 "
+            "Euribor 3M FRA at 2.75%. Everything else is identical, so the "
+            "NPV is the exact negative of the long case, pinning the "
+            "position-type sign convention end to end."
+        ),
+        "request": "fra/fra_eur_3x6_short_strike_below_forward.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["short", "3x6", "Euribor3M", "sign flip",
+                      "negative NPV"],
+    },
+    {
+        "id": "fra_eur_1x4_long_euribor3m",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 1x4 long FRA, front of the curve",
+        "description": (
+            "Short-dated 1x4 FRA on Euribor 3M struck at 3.00%, accruing "
+            "2025-02-17 to 2025-05-19 (the 3M anniversary lands on a "
+            "Saturday and rolls Modified Following to Monday). The nearest "
+            "quoted FRA period, dominated by the curve's 1M-3M deposits."
+        ),
+        "request": "fra/fra_eur_1x4_long_euribor3m.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "1x4", "Euribor3M", "curve short end",
+                      "weekend-rolled maturity"],
+    },
+    {
+        "id": "fra_eur_6x9_long_strike_above_forward",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 6x9 long FRA, strike above the forward",
+        "description": (
+            "Mid-curve 6x9 FRA on Euribor 3M struck at 3.60%, well above "
+            "the ~3.24% implied forward, so the long side is locking an "
+            "above-market rate and the NPV is clearly negative. Accrues "
+            "2025-07-17 to 2025-10-17."
+        ),
+        "request": "fra/fra_eur_6x9_long_strike_above_forward.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "6x9", "Euribor3M", "strike above forward",
+                      "negative NPV"],
+    },
+    {
+        "id": "fra_eur_9x12_long_euribor3m",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 9x12 long FRA, furthest standard period",
+        "description": (
+            "9x12 FRA on Euribor 3M struck at 3.30%, accruing 2025-10-17 to "
+            "2026-01-19 — the furthest of the standard quarterly FRA strip, "
+            "priced off the 9M-1Y segment of the deposit curve."
+        ),
+        "request": "fra/fra_eur_9x12_long_euribor3m.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "9x12", "Euribor3M", "curve 9M-1Y segment"],
+    },
+    {
+        "id": "fra_eur_6x12_long_euribor6m",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 6x12 long FRA on Euribor 6M",
+        "description": (
+            "6x12 FRA whose underlying is Euribor 6M instead of the 3M "
+            "index: a single 6-month accrual period from 2025-07-17 to "
+            "2026-01-19, struck at 3.20%. Exercises resolving a 6M IndexDef "
+            "and the longer accrual fraction in the FRA payoff."
+        ),
+        "request": "fra/fra_eur_6x12_long_euribor6m.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "6x12", "Euribor6M", "index tenor variation",
+                      "6M accrual period"],
+    },
+    {
+        "id": "fra_eur_3x6_long_at_forward",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 3x6 long FRA struck at the forward (NPV ~ 0)",
+        "description": (
+            "The baseline 3x6 trade struck at the curve's own implied "
+            "forward (3.1319%), so the FRA is at market and the NPV is "
+            "within a few cents of zero — the fair-value edge case where "
+            "any sign or day-count slip on either side shows up immediately."
+        ),
+        "request": "fra/fra_eur_3x6_long_at_forward.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "3x6", "at-the-money strike", "NPV near zero",
+                      "Euribor3M"],
+    },
+    {
+        "id": "fra_gbp_3x6_long_act365f_same_day_fixing",
+        "product": "fra",
+        "family": "FRA",
+        "title": "GBP 3x6 long FRA, Act/365F, same-day fixing",
+        "description": (
+            "GBP-market-style 3x6 FRA: the index fixes same-day "
+            "(0 fixing days) on the UnitedKingdom calendar and accrues "
+            "Act/365F instead of the euro-market Act/360, struck at 4.25% "
+            "against a mildly inverted GBP deposit curve. Accrues "
+            "2025-04-15 to 2025-07-15."
+        ),
+        "request": "fra/fra_gbp_3x6_long_act365f_same_day_fixing.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "3x6", "GBP", "UnitedKingdom calendar",
+                      "Act/365F index day count", "zero fixing days",
+                      "inverted curve"],
+    },
+    {
+        "id": "fra_eur_3x6_long_ois_discounted",
+        "product": "fra",
+        "family": "FRA",
+        "title": "EUR 3x6 long FRA, OIS-discounted (multicurve)",
+        "description": (
+            "The baseline 3x6 Euribor 3M FRA priced multicurve: the forward "
+            "projects off the Euribor deposit curve while the payoff "
+            "discounts on a separate, lower ESTR-style curve. Exercises "
+            "discounting_curve != forwarding_curve on the FRA endpoint."
+        ),
+        "request": "fra/fra_eur_3x6_long_ois_discounted.json",
+        "list_key": "fras",
+        "ql_pricer": "price_fra_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long", "3x6", "multicurve", "OIS discounting",
+                      "separate projection curve", "Euribor3M"],
     },
 ]
