@@ -28,9 +28,10 @@ Field reference (all keys required unless noted):
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
-examples/data/fra/), append a dict here, regenerate the catalog
-(python3 tests/functional/generate_catalog.py inside the test image) and run
-the gate. See tests/functional/README.md for the full walkthrough.
+examples/data/fra/, caps/floors in examples/data/cap_floor/), append a dict
+here, regenerate the catalog (python3 tests/functional/generate_catalog.py
+inside the test image) and run the gate. See tests/functional/README.md for
+the full walkthrough.
 """
 
 DEFAULT_TOLERANCE = 0.01
@@ -805,5 +806,200 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["long", "3x6", "multicurve", "OIS discounting",
                       "separate projection curve", "Euribor3M"],
+    },
+
+    # ------------------------------------------------------------------
+    # Cap/Floor — caps and floors on IBOR legs, constant optionlet vols
+    # ------------------------------------------------------------------
+    {
+        "id": "cap_eur_5y_atm_quarterly_euribor3m",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap on Euribor 3M, struck near the money",
+        "description": (
+            "Baseline interest rate cap: quarterly caplets on Euribor 3M "
+            "struck at 3.10%, right at the curve's 5Y par level, on 1m "
+            "notional (TARGET, Act/360, Modified Following). Priced with "
+            "the Black engine on a flat 20% lognormal optionlet vol, "
+            "projected and discounted on one deposit+swap curve."
+        ),
+        "request": "cap_floor/cap_eur_5y_atm_quarterly_euribor3m.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "near-the-money strike", "Euribor3M",
+                      "quarterly caplets", "Black lognormal 20%",
+                      "single curve"],
+    },
+    {
+        "id": "cap_eur_5y_itm_strike_2pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap struck at 2%, deep in the money",
+        "description": (
+            "The baseline 5Y quarterly Euribor 3M cap struck at 2.00%, "
+            "well below the ~3.1% forwards, so nearly every caplet is in "
+            "the money and the premium is dominated by intrinsic value. "
+            "Pins the high-NPV end of the strike spectrum."
+        ),
+        "request": "cap_floor/cap_eur_5y_itm_strike_2pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "in-the-money strike", "intrinsic-dominated",
+                      "Euribor3M", "Black lognormal 20%"],
+    },
+    {
+        "id": "cap_eur_5y_otm_strike_5pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap struck at 5%, out of the money",
+        "description": (
+            "The baseline 5Y quarterly Euribor 3M cap struck at 5.00%, "
+            "far above the ~3.1% forwards, so the premium is pure time "
+            "value and small relative to notional. Pins the low-NPV tail "
+            "where a vol or day-count slip is proportionally largest."
+        ),
+        "request": "cap_floor/cap_eur_5y_otm_strike_5pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "out-of-the-money strike", "time-value only",
+                      "Euribor3M", "Black lognormal 20%"],
+    },
+    {
+        "id": "floor_eur_5y_itm_strike_4pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y floor struck at 4%, in the money",
+        "description": (
+            "5Y quarterly floor on Euribor 3M struck at 4.00%, well above "
+            "the ~3.1% forwards, so the floorlets pay in most scenarios — "
+            "the classic minimum-yield guarantee a floating-rate investor "
+            "buys. Exercises the Floor instrument type on the same market "
+            "data as the cap cases."
+        ),
+        "request": "cap_floor/floor_eur_5y_itm_strike_4pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["floor", "in-the-money strike", "Euribor3M",
+                      "quarterly floorlets", "Black lognormal 20%"],
+    },
+    {
+        "id": "floor_eur_5y_otm_strike_2pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y floor struck at 2%, out of the money",
+        "description": (
+            "5Y quarterly floor on Euribor 3M struck at 2.00%, well below "
+            "the forwards, so it is cheap disaster protection against "
+            "rates collapsing. Together with the 4% floor it brackets the "
+            "floor moneyness spectrum."
+        ),
+        "request": "cap_floor/floor_eur_5y_otm_strike_2pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["floor", "out-of-the-money strike", "Euribor3M",
+                      "Black lognormal 20%"],
+    },
+    {
+        "id": "cap_eur_5y_bachelier_normal_vol_80bp",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap on normal (Bachelier) vols, 80bp",
+        "description": (
+            "The baseline 5Y quarterly Euribor 3M cap quoted the "
+            "post-2015 market way: a flat 80bp normal (Bachelier) "
+            "optionlet vol priced with the Bachelier engine instead of "
+            "Black. Exercises the Normal volatility type and the "
+            "model/vol-type pairing end to end."
+        ),
+        "request": "cap_floor/cap_eur_5y_bachelier_normal_vol_80bp.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "Bachelier engine", "normal vol 80bp",
+                      "Euribor3M", "vol-type variation"],
+    },
+    {
+        "id": "cap_eur_5y_shifted_black_displacement_2pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap on shifted-lognormal vols (2% shift)",
+        "description": (
+            "The baseline 5Y quarterly Euribor 3M cap priced with the "
+            "shifted Black model: a flat 15% shifted-lognormal optionlet "
+            "vol with a 2% displacement, the standard quoting convention "
+            "from the negative-rate era. Exercises the ShiftedLognormal "
+            "vol type and a non-zero displacement flowing into the Black "
+            "engine."
+        ),
+        "request": "cap_floor/cap_eur_5y_shifted_black_displacement_2pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "shifted Black", "displacement 2%",
+                      "shifted-lognormal vol 15%", "Euribor3M"],
+    },
+    {
+        "id": "cap_eur_10y_euribor6m_semiannual",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 10Y cap on Euribor 6M, semiannual",
+        "description": (
+            "Long-dated 10Y cap with semiannual caplets on Euribor 6M "
+            "struck at 3.50%, priced out to the curve's 10Y par quote. "
+            "Exercises the 6M index tenor, a semiannual caplet schedule "
+            "and 20 caplets across the full curve."
+        ),
+        "request": "cap_floor/cap_eur_10y_euribor6m_semiannual.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "10Y maturity", "Euribor6M",
+                      "semiannual caplets", "index tenor variation"],
+    },
+    {
+        "id": "floor_eur_2y_act365f_vol_30pct",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 2Y floor, Act/365F accrual, 30% vol",
+        "description": (
+            "Short-dated 2Y quarterly floor on Euribor 3M struck at "
+            "3.00%, accruing Act/365F at the trade level while the index "
+            "stays on its market-standard Act/360, priced on a higher "
+            "30% lognormal vol. Exercises the trade-level payment day "
+            "count independently of the index convention, a second vol "
+            "level and the curve's short end."
+        ),
+        "request": "cap_floor/floor_eur_2y_act365f_vol_30pct.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["floor", "2Y maturity", "Act/365F accrual",
+                      "index day count mismatch", "lognormal vol 30%",
+                      "Euribor3M"],
+    },
+    {
+        "id": "cap_eur_5y_euribor6m_ois_discounted_multicurve",
+        "product": "cap_floor",
+        "family": "Cap/Floor",
+        "title": "EUR 5Y cap, OIS-discounted (multicurve)",
+        "description": (
+            "Post-2008 multicurve setup on a cap: semiannual Euribor 6M "
+            "caplets struck at 3.20% project off a deposit+swap Euribor "
+            "curve while the premium discounts on a separate, lower ESTR "
+            "OIS curve. Exercises discounting_curve != forwarding_curve "
+            "on the cap/floor endpoint."
+        ),
+        "request": "cap_floor/cap_eur_5y_euribor6m_ois_discounted_multicurve.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["cap", "multicurve", "OIS discounting",
+                      "separate projection curve", "Euribor6M",
+                      "semiannual caplets"],
     },
 ]
