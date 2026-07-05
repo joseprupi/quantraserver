@@ -359,6 +359,90 @@
 </tr>
 </tbody>
 </table>
-<footer>51 cases across 4 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<h2>Swaption</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib NPV</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption, struck near the money, physical</div><div class="desc">Baseline European swaption: the right to pay 3.10% fixed (annual, 30/360) vs Euribor 6M on 1m notional for 5 years, exercisable in one year, physically settled. The strike sits just below the ~3.16% forward par rate, so the option is close to at the money. Priced with the Black engine on a flat 20% lognormal vol, one deposit+swap curve for projection and discounting.</div></td>
+<td><code>European</code> <code>payer</code> <code>1Y into 5Y</code> <code>near-the-money strike</code> <code>physical settlement</code> <code>Black lognormal 20%</code> <code>single curve</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_near_atm_physical.json">swpt_eur_1y5y_payer_near_atm_physical.json</a></td>
+<td class="npv">12,516.87</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y receiver swaption, same strike</div><div class="desc">The receiver twin of the baseline trade: the right to receive 3.10% fixed for 5 years, exercisable in one year. With the strike below the ~3.16% forward the receiver is slightly out of the money, so its premium sits below the payer&#x27;s — pinning the payer/receiver option-type flag end to end.</div></td>
+<td><code>European</code> <code>receiver</code> <code>1Y into 5Y</code> <code>option-type flip</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_receiver_near_atm.json">swpt_eur_1y5y_receiver_near_atm.json</a></td>
+<td class="npv">9,748.90</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption struck at 2%, deep in the money</div><div class="desc">The baseline 1Y5Y payer struck at 2.00%, more than 100bp below the ~3.16% forward, so exercise is close to certain and the premium is dominated by the intrinsic value of paying below-market fixed. Pins the high-premium end of the strike spectrum.</div></td>
+<td><code>European</code> <code>payer</code> <code>in-the-money strike</code> <code>intrinsic-dominated</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_itm_strike_2pct.json">swpt_eur_1y5y_payer_itm_strike_2pct.json</a></td>
+<td class="npv">51,710.41</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption struck at 4.5%, out of the money</div><div class="desc">The baseline 1Y5Y payer struck at 4.50%, well above the ~3.16% forward, so the premium is pure time value and small relative to notional — the tail where a vol or day-count slip is proportionally largest.</div></td>
+<td><code>European</code> <code>payer</code> <code>out-of-the-money strike</code> <code>time-value only</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_otm_strike_4_5pct.json">swpt_eur_1y5y_payer_otm_strike_4_5pct.json</a></td>
+<td class="npv">521.69</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y5Y payer swaption, long expiry</div><div class="desc">The classic 5Y-into-5Y structure: a payer swaption struck at 3.30% (about 12bp below the ~3.42% forward) exercisable in five years into a 5Y swap. Exercises a long option expiry and the curve segment out to 10 years.</div></td>
+<td><code>European</code> <code>payer</code> <code>5Y into 5Y</code> <code>long expiry</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_5y5y_payer.json">swpt_eur_5y5y_payer.json</a></td>
+<td class="npv">25,568.77</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y10Y payer swaption, long underlying</div><div class="desc">A 2Y option into a 10Y swap struck at 3.30%, right at the ~3.35% forward, on a curve bootstrapped out to the 15Y par quote. Exercises a long underlying tenor (20 semiannual floating coupons after exercise) and the 12-year curve horizon.</div></td>
+<td><code>European</code> <code>payer</code> <code>2Y into 10Y</code> <code>long underlying tenor</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_2y10y_payer.json">swpt_eur_2y10y_payer.json</a></td>
+<td class="npv">31,612.77</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption, cash-settled (par-yield annuity)</div><div class="desc">The baseline 1Y5Y payer settled in cash under the classic pre-2019 EUR convention: the payoff is the swap rate difference times a par-yield cash annuity instead of the curve-discounted swap annuity, so the premium differs measurably from the physical case. Exercises settlement_type=Cash with settlement_method=ParYieldCurve.</div></td>
+<td><code>European</code> <code>payer</code> <code>cash settlement</code> <code>ParYieldCurve annuity</code> <code>Black lognormal 20%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_cash_par_yield.json">swpt_eur_1y5y_payer_cash_par_yield.json</a></td>
+<td class="npv">12,498.85</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption on normal (Bachelier) vols, 80bp</div><div class="desc">The baseline 1Y5Y payer quoted the post-2015 market way: a flat 80bp normal (Bachelier) vol priced with the Bachelier engine instead of Black. Exercises the Normal volatility type and the model/vol-type pairing on the swaption endpoint.</div></td>
+<td><code>European</code> <code>payer</code> <code>Bachelier engine</code> <code>normal vol 80bp</code> <code>vol-type variation</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_bachelier_normal_80bp.json">swpt_eur_1y5y_payer_bachelier_normal_80bp.json</a></td>
+<td class="npv">15,602.84</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption on shifted-lognormal vols (2% shift)</div><div class="desc">The baseline 1Y5Y payer priced with the shifted Black model: a flat 15% shifted-lognormal vol with a 2% displacement, the standard quoting convention from the negative-rate era. Exercises the ShiftedLognormal vol type and a non-zero displacement flowing through the swaption Black engine.</div></td>
+<td><code>European</code> <code>payer</code> <code>shifted Black</code> <code>displacement 2%</code> <code>shifted-lognormal vol 15%</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_shifted_black_2pct.json">swpt_eur_1y5y_payer_shifted_black_2pct.json</a></td>
+<td class="npv">15,054.26</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption on an ATM vol matrix</div><div class="desc">The baseline 1Y5Y payer priced off a 3x3 ATM lognormal vol matrix (expiries 1Y/2Y/5Y x tenors 2Y/7Y/10Y, 18-22%) instead of a single constant vol. The trade&#x27;s ~5Y swap length falls between the 2Y and 7Y tenor pillars, so the priced vol is a genuine surface interpolation, not a grid-node read. Exercises the matrix vol input end to end.</div></td>
+<td><code>European</code> <code>payer</code> <code>ATM vol matrix 3x3</code> <code>surface interpolation</code> <code>Black engine</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_1y5y_payer_atm_matrix_vol.json">swpt_eur_1y5y_payer_atm_matrix_vol.json</a></td>
+<td class="npv">12,956.32</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y5Y payer swaption on an ESTR OIS underlying</div><div class="desc">A European payer swaption whose underlying is a 5Y ESTR OIS (annual fixed Act/360 at 2.65%, close to the ~2.70% forward, vs daily-compounded ESTR), on a curve bootstrapped from OIS par quotes. Cash-settled par-yield, priced with the Bachelier engine on a 70bp normal vol — the post-LIBOR market-standard combination. Exercises the OIS underlying type.</div></td>
+<td><code>European</code> <code>payer</code> <code>OIS underlying</code> <code>ESTR compounded</code> <code>Bachelier engine</code> <code>normal vol 70bp</code> <code>cash settlement</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_ois_1y5y_payer_estr.json">swpt_eur_ois_1y5y_payer_estr.json</a></td>
+<td class="npv">13,928.27</td>
+</tr>
+<tr>
+<td><div class="title">EUR Bermudan payer swaption, 3 annual exercises, Hull-White</div><div class="desc">Bermudan payer swaption on the 5Y underlying (3.10% fixed vs Euribor 6M) exercisable on three annual dates (2026/2027/2028), priced on a Hull-White one-factor lattice with explicit parameters (a=0.03, sigma=0.01, 100 tree steps) on both sides. Exercises the Bermudan exercise schedule and the tree engine.</div></td>
+<td><code>Bermudan</code> <code>payer</code> <code>3 exercise dates</code> <code>Hull-White explicit</code> <code>tree engine 100 steps</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_bermudan_3ex_into_5y_hw_explicit.json">swpt_eur_bermudan_3ex_into_5y_hw_explicit.json</a></td>
+<td class="npv">25,238.39</td>
+</tr>
+<tr>
+<td><div class="title">EUR American payer swaption, 2Y exercise window, Hull-White</div><div class="desc">American payer swaption exercisable continuously from the valuation date until January 2027 into a 5Y swap paying 3.10% fixed, priced on the same explicit-parameter Hull-White lattice (a=0.03, sigma=0.01, 100 steps). Exercises the American exercise window, which both sides anchor at the evaluation date.</div></td>
+<td><code>American</code> <code>payer</code> <code>2Y exercise window</code> <code>Hull-White explicit</code> <code>tree engine 100 steps</code></td>
+<td><a href="../../examples/data/swaption/swpt_eur_american_2y_window_hw_explicit.json">swpt_eur_american_2y_window_hw_explicit.json</a></td>
+<td class="npv">25,719.58</td>
+</tr>
+</tbody>
+</table>
+<footer>64 cases across 5 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>

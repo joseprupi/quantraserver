@@ -1229,7 +1229,19 @@ def price_swaption_ql(request: dict) -> float:
             get_day_counter(float_leg.get("day_counter", "Actual360"))
         )
     
-    exercise = ql.EuropeanExercise(parse_date(sw["exercise_date"]))
+    # Exercise construction mirrors the server's swaption evaluator
+    # (buildSwaptionInstrument): European takes the single exercise_date,
+    # Bermudan the exercise_dates list, and American opens the exercise
+    # window at the evaluation date — the server builds
+    # AmericanExercise(Settings::evaluationDate(), exercise_date).
+    exercise_type = sw.get("exercise_type", "European")
+    if exercise_type == "Bermudan":
+        exercise = ql.BermudanExercise(
+            [parse_date(d) for d in sw["exercise_dates"]])
+    elif exercise_type == "American":
+        exercise = ql.AmericanExercise(eval_date, parse_date(sw["exercise_date"]))
+    else:
+        exercise = ql.EuropeanExercise(parse_date(sw["exercise_date"]))
     settlement_type = sw.get("settlement_type", "Physical")
     settlement_method = sw.get("settlement_method", "PhysicalOTC")
     ql_settlement_type = ql.Settlement.Cash if settlement_type == "Cash" else ql.Settlement.Physical
@@ -1335,17 +1347,34 @@ def price_swaption_ql(request: dict) -> float:
                 )
             )
 
-    model_type = "Black"
+    model_spec = {}
     for m in pricing.get("models", []):
         if m.get("id") == sw_data.get("model"):
-            model_type = m.get("payload", {}).get("model_type", "Black")
+            model_spec = m.get("payload", {})
             break
+    model_type = model_spec.get("model_type", "Black")
 
-    if model_type == "Bachelier":
+    if model_type == "HullWhiteLattice":
+        # Mirrors the server's HullWhiteLattice engine branch: a Hull-White
+        # one-factor model on the discount curve with the explicit hw_a /
+        # hw_sigma parameters, priced on a TreeSwaptionEngine with
+        # lattice_steps time steps (schema defaults: a=0.03, sigma=0.01,
+        # steps=50). param_mode=Calibrate would need the server's
+        # calibration routine reproduced here, so it is not supported.
+        if model_spec.get("param_mode", "Explicit") != "Explicit":
+            raise ValueError(
+                "Reference pricer only supports HullWhiteLattice with "
+                "param_mode=Explicit")
+        hw_model = ql.HullWhite(curve,
+                                model_spec.get("hw_a", 0.03),
+                                model_spec.get("hw_sigma", 0.01))
+        swaption.setPricingEngine(
+            ql.TreeSwaptionEngine(hw_model, int(model_spec.get("lattice_steps", 50))))
+    elif model_type == "Bachelier":
         swaption.setPricingEngine(ql.BachelierSwaptionEngine(curve, vol_handle))
     else:
         swaption.setPricingEngine(ql.BlackSwaptionEngine(curve, vol_handle))
-    
+
     return swaption.NPV()
 
 

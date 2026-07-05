@@ -1,0 +1,267 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_6M",
+          "name": "Euribor",
+          "index_type": "Ibor",
+          "currency": "EUR",
+          "tenor": {
+            "n": 6,
+            "unit": "Months"
+          },
+          "fixing_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual360",
+          "end_of_month": false
+        }
+      ],
+      "curves": [
+        {
+          "id": "discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.027,
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.028,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.029,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0296,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0305,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0313,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0322,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.033,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "tenor": {
+                  "n": 15,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "swpt_vol_shifted_15pct",
+          "payload_type": "SwaptionVolSpec",
+          "payload": {
+            "swap_index_id": "EUR_SWAP_6M",
+            "payload_type": "SwaptionVolConstantSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2025-01-15",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "shape": "Constant",
+                "volatility_type": "ShiftedLognormal",
+                "displacement": 0.02,
+                "constant_vol": 0.15
+              }
+            }
+          }
+        }
+      ],
+      "models": [
+        {
+          "id": "shifted_black_model",
+          "payload_type": "SwaptionModelSpec",
+          "payload": {
+            "model_type": "ShiftedBlack"
+          }
+        }
+      ]
+    }
+  },
+  "swaptions": [
+    {
+      "swaption": {
+        "exercise_type": "European",
+        "settlement_type": "Physical",
+        "settlement_method": "PhysicalOTC",
+        "exercise_date": "2026-01-15",
+        "underlying_type": "VanillaSwap",
+        "underlying": {
+          "swap_type": "Payer",
+          "fixed_leg": {
+            "notional": 1000000.0,
+            "schedule": {
+              "calendar": "TARGET",
+              "effective_date": "2026-01-19",
+              "termination_date": "2031-01-19",
+              "frequency": "Annual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "rate": 0.031,
+            "day_counter": "Thirty360",
+            "payment_convention": "ModifiedFollowing"
+          },
+          "floating_leg": {
+            "notional": 1000000.0,
+            "schedule": {
+              "calendar": "TARGET",
+              "effective_date": "2026-01-19",
+              "termination_date": "2031-01-19",
+              "frequency": "Semiannual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "index": {
+              "id": "EUR_6M"
+            },
+            "spread": 0.0,
+            "day_counter": "Actual360",
+            "payment_convention": "ModifiedFollowing"
+          }
+        }
+      },
+      "discounting_curve": "discount",
+      "forwarding_curve": "discount",
+      "volatility": "swpt_vol_shifted_15pct",
+      "model": "shifted_black_model"
+    }
+  ]
+}
