@@ -443,6 +443,72 @@
 </tr>
 </tbody>
 </table>
-<footer>64 cases across 5 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
+<h2>CDS</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib NPV</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 5Y CDS, buy protection at 100bp, par-spread curve</div><div class="desc">Baseline single-name CDS: buy protection on 10m notional paying a 100bp running coupon (quarterly, Act/360, TwentiethIMM grid, TARGET). The credit curve is bootstrapped from par spread quotes (1Y 80bp to 10Y 130bp, 40% recovery, LogLinear survival) on a deposit+swap discount curve; the 5Y par spread of ~110bp sits above the coupon, so the protection buyer&#x27;s NPV is positive. MidPoint engine.</div></td>
+<td><code>buy protection</code> <code>100bp running coupon</code> <code>par-spread bootstrap</code> <code>recovery 40%</code> <code>MidPoint engine</code> <code>IMM grid</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_100bp_spread_curve.json">cds_eur_5y_buyer_100bp_spread_curve.json</a></td>
+<td class="npv">39,739.83</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS, same trade selling protection</div><div class="desc">The sold side of the baseline trade: sell protection on the same 5Y 100bp contract against the same par-spread credit curve. Everything else is identical, so the NPV is the exact negative of the buy case, pinning the protection-side sign convention end to end.</div></td>
+<td><code>sell protection</code> <code>sign flip</code> <code>100bp running coupon</code> <code>par-spread bootstrap</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_seller_100bp_spread_curve.json">cds_eur_5y_seller_100bp_spread_curve.json</a></td>
+<td class="npv">-39,739.83</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS at the 500bp standard coupon</div><div class="desc">The baseline trade paying the high standard coupon: 500bp running against a curve whose 5Y par spread is ~110bp, so the premium leg dwarfs the protection leg and the buyer&#x27;s NPV is deeply negative (about -1.8m on 10m). In the market this contract would trade with a large upfront paid to the buyer; here the coupon is deliberately left unbalanced to pin the premium-leg scaling.</div></td>
+<td><code>buy protection</code> <code>500bp standard coupon</code> <code>premium-leg dominated</code> <code>negative NPV</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_500bp_running_coupon.json">cds_eur_5y_buyer_500bp_running_coupon.json</a></td>
+<td class="npv">-1,818,082.20</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS with a 2% upfront payment</div><div class="desc">The baseline 100bp trade with a trade-level upfront: the protection buyer also pays 2% of notional (200k) settling on 2025-01-20. Exercises the upfront-bearing instrument constructor and the upfront date on the wire — the NPV drops by roughly the upfront amount relative to the baseline case.</div></td>
+<td><code>buy protection</code> <code>upfront 2%</code> <code>upfront date</code> <code>100bp running coupon</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_100bp_upfront_2pct.json">cds_eur_5y_buyer_100bp_upfront_2pct.json</a></td>
+<td class="npv">-160,181.02</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS on a flat 2% hazard rate</div><div class="desc">The baseline trade priced on a flat-hazard-rate credit curve instead of a bootstrapped one: a constant 2% default intensity (Act/365F) with 40% recovery implies an expected loss rate of ~120bp/yr against the 100bp coupon, so the buyer&#x27;s NPV is positive. Exercises the flat-hazard branch of the credit-curve build (no quotes on the wire).</div></td>
+<td><code>buy protection</code> <code>flat hazard rate 2%</code> <code>no credit quotes</code> <code>recovery 40%</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_flat_hazard_2pct.json">cds_eur_5y_buyer_flat_hazard_2pct.json</a></td>
+<td class="npv">86,914.05</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS with 20% recovery (distressed-debt assumption)</div><div class="desc">The baseline trade with the recovery assumption dropped from 40% to 20%, as quoted for subordinated or distressed names. Recovery enters twice — the par-spread bootstrap and the pricing engine — and because the same par quotes re-anchor the curve, the NPV moves only second-order vs the 40% case; the case pins that both sides apply the same recovery in both places.</div></td>
+<td><code>buy protection</code> <code>recovery 20%</code> <code>recovery in bootstrap and engine</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_recovery_20pct.json">cds_eur_5y_buyer_recovery_20pct.json</a></td>
+<td class="npv">40,152.55</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y CDS, coupon above the short-end par spread</div><div class="desc">A 3Y contract on the baseline curve: the interpolated 3Y par spread (~92bp) sits below the 100bp coupon, so unlike the 5Y case the protection buyer&#x27;s NPV is negative. Exercises a shorter maturity and the front end of the credit curve, where the 1Y 80bp quote dominates.</div></td>
+<td><code>buy protection</code> <code>3Y maturity</code> <code>credit curve short end</code> <code>negative NPV</code></td>
+<td><a href="../../examples/data/cds/cds_eur_3y_buyer_100bp_spread_curve.json">cds_eur_3y_buyer_100bp_spread_curve.json</a></td>
+<td class="npv">-18,558.56</td>
+</tr>
+<tr>
+<td><div class="title">EUR 10Y CDS, long-dated protection</div><div class="desc">A 10Y contract on the baseline curve, priced out to the 10Y 130bp par-spread pillar with the discount curve bootstrapped to its 12Y swap quote. The wide long-end spreads against the 100bp coupon make the buyer&#x27;s NPV strongly positive. Exercises the long end of both the credit and discount curves (~40 quarterly coupons).</div></td>
+<td><code>buy protection</code> <code>10Y maturity</code> <code>credit curve long end</code> <code>long-dated discounting</code></td>
+<td><a href="../../examples/data/cds/cds_eur_10y_buyer_100bp_spread_curve.json">cds_eur_10y_buyer_100bp_spread_curve.json</a></td>
+<td class="npv">227,185.13</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS priced with the ISDA standard-model engine</div><div class="desc">The baseline trade priced with the ISDA engine instead of MidPoint, with the standard settings (Taylor numerical fix, half-day accrual bias, piecewise forwards, settlement-date flows included) and the curve helpers also built in ISDA mode. The premium differs measurably from the MidPoint case on the same market data, pinning the engine selection end to end.</div></td>
+<td><code>buy protection</code> <code>ISDA engine</code> <code>ISDA helper model</code> <code>standard ISDA settings</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_isda_engine.json">cds_eur_5y_buyer_isda_engine.json</a></td>
+<td class="npv">39,758.33</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y CDS, old-style semiannual Act/365F premium leg</div><div class="desc">A pre-big-bang style contract: the 100bp premium accrues semiannually on Act/365F with a Forward-generated schedule from the trade date instead of the quarterly Act/360 TwentiethIMM grid. Exercises the premium-leg frequency, day count and date-generation fields independently of the market-standard conventions.</div></td>
+<td><code>buy protection</code> <code>semiannual premium leg</code> <code>Act/365F accrual</code> <code>Forward date generation</code> <code>non-IMM schedule</code></td>
+<td><a href="../../examples/data/cds/cds_eur_5y_buyer_semiannual_act365f.json">cds_eur_5y_buyer_semiannual_act365f.json</a></td>
+<td class="npv">42,262.19</td>
+</tr>
+</tbody>
+</table>
+<footer>74 cases across 6 family(ies). NPVs are the QuantLib reference values the server must reproduce within 0.01.</footer>
 </body>
 </html>

@@ -29,7 +29,8 @@ Field reference (all keys required unless noted):
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
 examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
-examples/data/swaption/), append a dict here, regenerate the catalog
+examples/data/swaption/, CDS in examples/data/cds/), append a dict here,
+regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
 """
@@ -1258,5 +1259,213 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["American", "payer", "2Y exercise window",
                       "Hull-White explicit", "tree engine 100 steps"],
+    },
+
+    # ------------------------------------------------------------------
+    # CDS — credit default swaps (LogLinear credit-curve bootstrap only;
+    # the server rejects every other credit-curve interpolator)
+    # ------------------------------------------------------------------
+    {
+        "id": "cds_eur_5y_buyer_100bp_spread_curve",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS, buy protection at 100bp, par-spread curve",
+        "description": (
+            "Baseline single-name CDS: buy protection on 10m notional "
+            "paying a 100bp running coupon (quarterly, Act/360, "
+            "TwentiethIMM grid, TARGET). The credit curve is bootstrapped "
+            "from par spread quotes (1Y 80bp to 10Y 130bp, 40% recovery, "
+            "LogLinear survival) on a deposit+swap discount curve; the 5Y "
+            "par spread of ~110bp sits above the coupon, so the protection "
+            "buyer's NPV is positive. MidPoint engine."
+        ),
+        "request": "cds/cds_eur_5y_buyer_100bp_spread_curve.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "100bp running coupon",
+                      "par-spread bootstrap", "recovery 40%",
+                      "MidPoint engine", "IMM grid"],
+    },
+    {
+        "id": "cds_eur_5y_seller_100bp_spread_curve",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS, same trade selling protection",
+        "description": (
+            "The sold side of the baseline trade: sell protection on the "
+            "same 5Y 100bp contract against the same par-spread credit "
+            "curve. Everything else is identical, so the NPV is the exact "
+            "negative of the buy case, pinning the protection-side sign "
+            "convention end to end."
+        ),
+        "request": "cds/cds_eur_5y_seller_100bp_spread_curve.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["sell protection", "sign flip",
+                      "100bp running coupon", "par-spread bootstrap"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_500bp_running_coupon",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS at the 500bp standard coupon",
+        "description": (
+            "The baseline trade paying the high standard coupon: 500bp "
+            "running against a curve whose 5Y par spread is ~110bp, so the "
+            "premium leg dwarfs the protection leg and the buyer's NPV is "
+            "deeply negative (about -1.8m on 10m). In the market this "
+            "contract would trade with a large upfront paid to the buyer; "
+            "here the coupon is deliberately left unbalanced to pin the "
+            "premium-leg scaling."
+        ),
+        "request": "cds/cds_eur_5y_buyer_500bp_running_coupon.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "500bp standard coupon",
+                      "premium-leg dominated", "negative NPV"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_100bp_upfront_2pct",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS with a 2% upfront payment",
+        "description": (
+            "The baseline 100bp trade with a trade-level upfront: the "
+            "protection buyer also pays 2% of notional (200k) settling on "
+            "2025-01-20. Exercises the upfront-bearing instrument "
+            "constructor and the upfront date on the wire — the NPV drops "
+            "by roughly the upfront amount relative to the baseline case."
+        ),
+        "request": "cds/cds_eur_5y_buyer_100bp_upfront_2pct.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "upfront 2%", "upfront date",
+                      "100bp running coupon"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_flat_hazard_2pct",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS on a flat 2% hazard rate",
+        "description": (
+            "The baseline trade priced on a flat-hazard-rate credit curve "
+            "instead of a bootstrapped one: a constant 2% default "
+            "intensity (Act/365F) with 40% recovery implies an expected "
+            "loss rate of ~120bp/yr against the 100bp coupon, so the "
+            "buyer's NPV is positive. Exercises the flat-hazard branch of "
+            "the credit-curve build (no quotes on the wire)."
+        ),
+        "request": "cds/cds_eur_5y_buyer_flat_hazard_2pct.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "flat hazard rate 2%",
+                      "no credit quotes", "recovery 40%"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_recovery_20pct",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS with 20% recovery (distressed-debt assumption)",
+        "description": (
+            "The baseline trade with the recovery assumption dropped from "
+            "40% to 20%, as quoted for subordinated or distressed names. "
+            "Recovery enters twice — the par-spread bootstrap and the "
+            "pricing engine — and because the same par quotes re-anchor "
+            "the curve, the NPV moves only second-order vs the 40% case; "
+            "the case pins that both sides apply the same recovery in "
+            "both places."
+        ),
+        "request": "cds/cds_eur_5y_buyer_recovery_20pct.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "recovery 20%",
+                      "recovery in bootstrap and engine"],
+    },
+    {
+        "id": "cds_eur_3y_buyer_100bp_spread_curve",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 3Y CDS, coupon above the short-end par spread",
+        "description": (
+            "A 3Y contract on the baseline curve: the interpolated 3Y par "
+            "spread (~92bp) sits below the 100bp coupon, so unlike the 5Y "
+            "case the protection buyer's NPV is negative. Exercises a "
+            "shorter maturity and the front end of the credit curve, where "
+            "the 1Y 80bp quote dominates."
+        ),
+        "request": "cds/cds_eur_3y_buyer_100bp_spread_curve.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "3Y maturity",
+                      "credit curve short end", "negative NPV"],
+    },
+    {
+        "id": "cds_eur_10y_buyer_100bp_spread_curve",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 10Y CDS, long-dated protection",
+        "description": (
+            "A 10Y contract on the baseline curve, priced out to the 10Y "
+            "130bp par-spread pillar with the discount curve bootstrapped "
+            "to its 12Y swap quote. The wide long-end spreads against the "
+            "100bp coupon make the buyer's NPV strongly positive. "
+            "Exercises the long end of both the credit and discount "
+            "curves (~40 quarterly coupons)."
+        ),
+        "request": "cds/cds_eur_10y_buyer_100bp_spread_curve.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "10Y maturity",
+                      "credit curve long end", "long-dated discounting"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_isda_engine",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS priced with the ISDA standard-model engine",
+        "description": (
+            "The baseline trade priced with the ISDA engine instead of "
+            "MidPoint, with the standard settings (Taylor numerical fix, "
+            "half-day accrual bias, piecewise forwards, settlement-date "
+            "flows included) and the curve helpers also built in ISDA "
+            "mode. The premium differs measurably from the MidPoint case "
+            "on the same market data, pinning the engine selection end to "
+            "end."
+        ),
+        "request": "cds/cds_eur_5y_buyer_isda_engine.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "ISDA engine",
+                      "ISDA helper model", "standard ISDA settings"],
+    },
+    {
+        "id": "cds_eur_5y_buyer_semiannual_act365f",
+        "product": "cds",
+        "family": "CDS",
+        "title": "EUR 5Y CDS, old-style semiannual Act/365F premium leg",
+        "description": (
+            "A pre-big-bang style contract: the 100bp premium accrues "
+            "semiannually on Act/365F with a Forward-generated schedule "
+            "from the trade date instead of the quarterly Act/360 "
+            "TwentiethIMM grid. Exercises the premium-leg frequency, day "
+            "count and date-generation fields independently of the "
+            "market-standard conventions."
+        ),
+        "request": "cds/cds_eur_5y_buyer_semiannual_act365f.json",
+        "list_key": "cds_list",
+        "ql_pricer": "price_cds_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["buy protection", "semiannual premium leg",
+                      "Act/365F accrual", "Forward date generation",
+                      "non-IMM schedule"],
     },
 ]
