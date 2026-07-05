@@ -30,6 +30,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/bonds/` | The curated request JSONs for the Bonds family. |
 | `../../examples/data/fra/` | The curated request JSONs for the FRA family. |
 | `../../examples/data/cap_floor/` | The curated request JSONs for the Cap/Floor family. |
+| `../../examples/data/swaption/` | The curated request JSONs for the Swaption family. |
 
 ## How it runs in the gate
 
@@ -58,8 +59,8 @@ python3 -m pytest tests/functional -q \
 1. **Write the request JSON** under `examples/data/` — IR-swap cases live in
    `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`, FRA
    cases in `examples/data/fra/`, cap/floor cases in
-   `examples/data/cap_floor/`. Start
-   from an existing case with the same product. Keep the request
+   `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`.
+   Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
 2. **Check the reference supports it.** The manifest's `ql_pricer` names a
@@ -247,6 +248,58 @@ are deliberately not half-implemented:
 * **Digital caps/floors and capped-floored structured coupons** — not on
   the wire.
 
+## Current coverage (Swaption)
+
+* Exercise styles: European payer/receiver; a Bermudan with three annual
+  exercise dates and an American with a 2-year exercise window, both priced
+  on a Hull-White one-factor lattice with explicit parameters (a, sigma,
+  tree steps identical on both sides).
+* Moneyness: strikes bracketing the ~3.16% 1Y5Y forward — 2% deep in the
+  money, near-the-money 3.10%, and 4.5% out of the money — so premiums span
+  intrinsic-dominated to pure time value.
+* Expiry / tenor grid: 1Y into 5Y baseline, 5Y into 5Y (long expiry) and
+  2Y into 10Y (long underlying) on a curve bootstrapped out to the 15Y par
+  quote.
+* Settlement: physical delivery and cash settlement with the par-yield
+  annuity method (settlement_method=ParYieldCurve), which produces a
+  measurably different premium than physical on the same trade.
+* Vol / model pairings: Black on a flat 20% lognormal vol, Bachelier on
+  80bp and 70bp normal vols, shifted Black on a 15% shifted-lognormal vol
+  with a 2% displacement, and Black on a 3x3 ATM vol matrix interpolated at
+  the trade's expiry and swap length.
+* Underlyings: vanilla fixed-vs-Euribor 6M swaps and a daily-compounded
+  ESTR OIS on a curve bootstrapped from OIS par quotes.
+
+## Planned / not yet covered (Swaption)
+
+These need reference-pricer or engine behaviour that is not there yet; they
+are deliberately not half-implemented:
+
+* **Calibrated Hull-White models (param_mode=Calibrate)** — the server
+  calibrates a and sigma to the quoted ATM matrix before pricing; the
+  reference pricer would have to reproduce the whole calibration routine
+  (helpers, optimizer, end criteria), so Bermudan/American cases here use
+  explicit parameters only.
+* **Smile cubes and SABR vol surfaces** — the wire supports 3D smile cubes
+  (fixed-strike and spread-from-ATM), SABR parameter grids and in-server
+  SABR calibration, but the Python reference only rebuilds constant vols
+  and ATM matrices, so no catalog case prices off a smile yet.
+* **Quote-referenced vols** — `IrVolBaseSpec.quote_id` and per-cell ATM
+  matrix `quote_ids` resolve against `pricing.quotes` on the server; the
+  reference pricer handles matrix quote ids but no catalog case exercises
+  the quote indirection yet.
+* **Collateralized cash settlement as a distinct value** — the wire and
+  both pricers accept settlement_method=CollateralizedCashPrice, but with a
+  single discount curve it prices identically to physical delivery, so a
+  case would not pin anything beyond the enum plumbing.
+* **Multicurve swaptions (forwarding != discounting)** — the server prices
+  them, but the reference swaption pricer builds its Ibor index off the
+  discounting curve, so an OIS-discounted swaption case cannot be
+  reference-priced yet (the other families cover multicurve parity).
+* **Swaptions on seasoned underlyings (past fixings)** — the reference
+  index builder does not apply `IndexDef.fixings` (same caveat as seasoned
+  floaters/FRAs/caps).
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -267,7 +320,6 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (swaptions, CDS, inflation) already have
-  representative parity tests in `tests/contract/`; migrating them into
-  this catalog format is future work. Bonds, FRAs and caps/floors are
-  covered above.
+* **Other families** (CDS, inflation) already have representative parity
+  tests in `tests/contract/`; migrating them into this catalog format is
+  future work. Bonds, FRAs, caps/floors and swaptions are covered above.

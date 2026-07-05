@@ -28,10 +28,10 @@ Field reference (all keys required unless noted):
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
-examples/data/fra/, caps/floors in examples/data/cap_floor/), append a dict
-here, regenerate the catalog (python3 tests/functional/generate_catalog.py
-inside the test image) and run the gate. See tests/functional/README.md for
-the full walkthrough.
+examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
+examples/data/swaption/), append a dict here, regenerate the catalog
+(python3 tests/functional/generate_catalog.py inside the test image) and run
+the gate. See tests/functional/README.md for the full walkthrough.
 """
 
 DEFAULT_TOLERANCE = 0.01
@@ -1001,5 +1001,262 @@ CASES = [
         "exercises": ["cap", "multicurve", "OIS discounting",
                       "separate projection curve", "Euribor6M",
                       "semiannual caplets"],
+    },
+
+    # ------------------------------------------------------------------
+    # Swaption — options on vanilla and OIS swaps
+    # ------------------------------------------------------------------
+    {
+        "id": "swpt_eur_1y5y_payer_near_atm_physical",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption, struck near the money, physical",
+        "description": (
+            "Baseline European swaption: the right to pay 3.10% fixed "
+            "(annual, 30/360) vs Euribor 6M on 1m notional for 5 years, "
+            "exercisable in one year, physically settled. The strike sits "
+            "just below the ~3.16% forward par rate, so the option is close "
+            "to at the money. Priced with the Black engine on a flat 20% "
+            "lognormal vol, one deposit+swap curve for projection and "
+            "discounting."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_near_atm_physical.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "1Y into 5Y",
+                      "near-the-money strike", "physical settlement",
+                      "Black lognormal 20%", "single curve"],
+    },
+    {
+        "id": "swpt_eur_1y5y_receiver_near_atm",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y receiver swaption, same strike",
+        "description": (
+            "The receiver twin of the baseline trade: the right to receive "
+            "3.10% fixed for 5 years, exercisable in one year. With the "
+            "strike below the ~3.16% forward the receiver is slightly out "
+            "of the money, so its premium sits below the payer's — pinning "
+            "the payer/receiver option-type flag end to end."
+        ),
+        "request": "swaption/swpt_eur_1y5y_receiver_near_atm.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "receiver", "1Y into 5Y",
+                      "option-type flip", "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_itm_strike_2pct",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption struck at 2%, deep in the money",
+        "description": (
+            "The baseline 1Y5Y payer struck at 2.00%, more than 100bp below "
+            "the ~3.16% forward, so exercise is close to certain and the "
+            "premium is dominated by the intrinsic value of paying "
+            "below-market fixed. Pins the high-premium end of the strike "
+            "spectrum."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_itm_strike_2pct.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "in-the-money strike",
+                      "intrinsic-dominated", "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_otm_strike_4_5pct",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption struck at 4.5%, out of the money",
+        "description": (
+            "The baseline 1Y5Y payer struck at 4.50%, well above the ~3.16% "
+            "forward, so the premium is pure time value and small relative "
+            "to notional — the tail where a vol or day-count slip is "
+            "proportionally largest."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_otm_strike_4_5pct.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "out-of-the-money strike",
+                      "time-value only", "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_5y5y_payer",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 5Y5Y payer swaption, long expiry",
+        "description": (
+            "The classic 5Y-into-5Y structure: a payer swaption struck at "
+            "3.30% (about 12bp below the ~3.42% forward) exercisable in "
+            "five years into a 5Y swap. Exercises a long option expiry and "
+            "the curve segment out to 10 years."
+        ),
+        "request": "swaption/swpt_eur_5y5y_payer.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "5Y into 5Y", "long expiry",
+                      "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_2y10y_payer",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 2Y10Y payer swaption, long underlying",
+        "description": (
+            "A 2Y option into a 10Y swap struck at 3.30%, right at the "
+            "~3.35% forward, on a curve bootstrapped out to the 15Y par "
+            "quote. Exercises a long underlying tenor (20 semiannual "
+            "floating coupons after exercise) and the 12-year curve "
+            "horizon."
+        ),
+        "request": "swaption/swpt_eur_2y10y_payer.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "2Y into 10Y",
+                      "long underlying tenor", "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_cash_par_yield",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption, cash-settled (par-yield annuity)",
+        "description": (
+            "The baseline 1Y5Y payer settled in cash under the classic "
+            "pre-2019 EUR convention: the payoff is the swap rate "
+            "difference times a par-yield cash annuity instead of the "
+            "curve-discounted swap annuity, so the premium differs "
+            "measurably from the physical case. Exercises "
+            "settlement_type=Cash with settlement_method=ParYieldCurve."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_cash_par_yield.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "cash settlement",
+                      "ParYieldCurve annuity", "Black lognormal 20%"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_bachelier_normal_80bp",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption on normal (Bachelier) vols, 80bp",
+        "description": (
+            "The baseline 1Y5Y payer quoted the post-2015 market way: a "
+            "flat 80bp normal (Bachelier) vol priced with the Bachelier "
+            "engine instead of Black. Exercises the Normal volatility type "
+            "and the model/vol-type pairing on the swaption endpoint."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_bachelier_normal_80bp.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "Bachelier engine",
+                      "normal vol 80bp", "vol-type variation"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_shifted_black_2pct",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption on shifted-lognormal vols (2% shift)",
+        "description": (
+            "The baseline 1Y5Y payer priced with the shifted Black model: "
+            "a flat 15% shifted-lognormal vol with a 2% displacement, the "
+            "standard quoting convention from the negative-rate era. "
+            "Exercises the ShiftedLognormal vol type and a non-zero "
+            "displacement flowing through the swaption Black engine."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_shifted_black_2pct.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "shifted Black",
+                      "displacement 2%", "shifted-lognormal vol 15%"],
+    },
+    {
+        "id": "swpt_eur_1y5y_payer_atm_matrix_vol",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption on an ATM vol matrix",
+        "description": (
+            "The baseline 1Y5Y payer priced off a 3x3 ATM lognormal vol "
+            "matrix (expiries 1Y/2Y/5Y x tenors 2Y/7Y/10Y, 18-22%) instead "
+            "of a single constant vol. The trade's ~5Y swap length falls "
+            "between the 2Y and 7Y tenor pillars, so the priced vol is a "
+            "genuine surface interpolation, not a grid-node read. "
+            "Exercises the matrix vol input end to end."
+        ),
+        "request": "swaption/swpt_eur_1y5y_payer_atm_matrix_vol.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "ATM vol matrix 3x3",
+                      "surface interpolation", "Black engine"],
+    },
+    {
+        "id": "swpt_eur_ois_1y5y_payer_estr",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR 1Y5Y payer swaption on an ESTR OIS underlying",
+        "description": (
+            "A European payer swaption whose underlying is a 5Y ESTR OIS "
+            "(annual fixed Act/360 at 2.65%, close to the ~2.70% forward, "
+            "vs daily-compounded ESTR), on a curve bootstrapped from OIS "
+            "par quotes. Cash-settled par-yield, priced with the Bachelier "
+            "engine on a 70bp normal vol — the post-LIBOR market-standard "
+            "combination. Exercises the OIS underlying type."
+        ),
+        "request": "swaption/swpt_eur_ois_1y5y_payer_estr.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "payer", "OIS underlying",
+                      "ESTR compounded", "Bachelier engine",
+                      "normal vol 70bp", "cash settlement"],
+    },
+    {
+        "id": "swpt_eur_bermudan_3ex_into_5y_hw_explicit",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR Bermudan payer swaption, 3 annual exercises, Hull-White",
+        "description": (
+            "Bermudan payer swaption on the 5Y underlying (3.10% fixed vs "
+            "Euribor 6M) exercisable on three annual dates (2026/2027/"
+            "2028), priced on a Hull-White one-factor lattice with "
+            "explicit parameters (a=0.03, sigma=0.01, 100 tree steps) on "
+            "both sides. Exercises the Bermudan exercise schedule and the "
+            "tree engine."
+        ),
+        "request": "swaption/swpt_eur_bermudan_3ex_into_5y_hw_explicit.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["Bermudan", "payer", "3 exercise dates",
+                      "Hull-White explicit", "tree engine 100 steps"],
+    },
+    {
+        "id": "swpt_eur_american_2y_window_hw_explicit",
+        "product": "swaption",
+        "family": "Swaption",
+        "title": "EUR American payer swaption, 2Y exercise window, Hull-White",
+        "description": (
+            "American payer swaption exercisable continuously from the "
+            "valuation date until January 2027 into a 5Y swap paying 3.10% "
+            "fixed, priced on the same explicit-parameter Hull-White "
+            "lattice (a=0.03, sigma=0.01, 100 steps). Exercises the "
+            "American exercise window, which both sides anchor at the "
+            "evaluation date."
+        ),
+        "request": "swaption/swpt_eur_american_2y_window_hw_explicit.json",
+        "list_key": "swaptions",
+        "ql_pricer": "price_swaption_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["American", "payer", "2Y exercise window",
+                      "Hull-White explicit", "tree engine 100 steps"],
     },
 ]
