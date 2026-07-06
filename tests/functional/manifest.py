@@ -1,7 +1,7 @@
 """Functional parity catalog — single source of truth.
 
-Every entry describes one "POST JSON to the server, compare the NPV against an
-independent QuantLib reference pricer" case. The same list drives:
+Every entry describes one "POST JSON to the server, compare the result against
+an independent QuantLib reference" case. The same list drives:
 
   * tests/functional/test_functional_parity.py — the pytest suite that runs
     inside the gate (suite 3 of tests/run_all_tests.sh),
@@ -17,25 +17,42 @@ Field reference (all keys required unless noted):
   title       One-line human name shown in the catalog.
   description What real-world instrument the case represents.
   request     Request JSON path relative to examples/data/.
-  list_key    Response list holding the instrument NPV ("swaps", "bonds", ...).
+  list_key    Response list holding the compared payload ("swaps", "bonds",
+              ... for NPV cases; "results" for /bootstrap-curves series cases).
   ql_pricer   Name of the reference pricer function in
               tests/contract/ql_reference.py (e.g. "price_vanilla_swap_ql").
-  tolerance   Max allowed abs(api_npv - quantlib_npv). Default 0.01 (one cent
-              on notionals of millions — the server and the reference build
-              the same QuantLib objects, so parity is near machine precision).
+  tolerance   Max allowed abs(api - quantlib). Default 0.01 for NPV cases (one
+              cent on notionals of millions — the server and the reference
+              build the same QuantLib objects, so parity is near machine
+              precision). Series cases use SERIES_TOLERANCE (see below).
   exercises   Short tags describing what the case covers; rendered in the
               catalog's "What it exercises" column.
+  compare     Optional. "npv" (default): the reference returns a single float
+              compared against list_key[0].npv. "series": the reference
+              returns the sampled curve values ({series_name: [floats]} keyed
+              like the response's series[].measure, or a flat list for a
+              single series) and every point is compared element-wise.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
 examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
-examples/data/swaption/, CDS in examples/data/cds/), append a dict here,
-regenerate the catalog
+examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
+examples/data/curves/), append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
 """
 
 DEFAULT_TOLERANCE = 0.01
+
+# Tolerance for curve-series cases (zero rates, discount factors and forward
+# rates are O(0.01-1.0), so the NPV default of 0.01 would be meaningless).
+# Both sides construct identical QuantLib objects; the residual differences
+# are bounded by the ~12 significant digits FlatBuffers prints response
+# doubles with and by the two bootstrap accuracies (1e-15 server-side,
+# QuantLib's 1e-12 default in the Python reference), i.e. ~1e-12. 1e-9 keeps
+# three orders of margin over that noise floor while still being far below
+# any economically meaningful gap (1e-9 in a rate is 1e-5 of a basis point).
+SERIES_TOLERANCE = 1e-9
 
 CASES = [
     # ------------------------------------------------------------------
@@ -1467,5 +1484,195 @@ CASES = [
         "exercises": ["buy protection", "semiannual premium leg",
                       "Act/365F accrual", "Forward date generation",
                       "non-IMM schedule"],
+    },
+
+    # ------------------------------------------------------------------
+    # Curves — /bootstrap-curves sampled series (compare="series": every
+    # grid point of every returned series is checked element-wise against
+    # an independently bootstrapped QuantLib curve, tolerance 1e-9)
+    # ------------------------------------------------------------------
+    {
+        "id": "curves_eur_depo_swap_df_zero_tenor_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR deposit+swap curve: discount factors and zero rates",
+        "description": (
+            "Baseline curve query: a EUR curve bootstrapped from 1M/3M/6M "
+            "deposits and 1Y-10Y par swaps (LogLinear discount) sampled at "
+            "ten market tenors (1W to 10Y, TARGET Modified Following) for "
+            "both discount factors and continuously compounded zero rates "
+            "on the curve's own Act/365F day counter."
+        ),
+        "request": "curves/curves_eur_depo_swap_df_zero_tenor_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["deposit+swap bootstrap", "LogLinear discount",
+                      "discount factors", "zero rates continuous",
+                      "tenor grid", "TARGET"],
+    },
+    {
+        "id": "curves_eur_depo_swap_zero_act360_compounded_semiannual",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve zero rates re-expressed Act/360, semiannual",
+        "description": (
+            "The baseline curve's zero rates re-quoted under non-default "
+            "conventions: use_curve_day_counter=false with an Act/360 day "
+            "counter and semiannually compounded rates instead of the "
+            "curve-day-counter continuous default. Exercises the zero-query "
+            "day-count/compounding/frequency overrides end to end."
+        ),
+        "request": "curves/curves_eur_depo_swap_zero_act360_compounded_semiannual.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["zero rates", "day-count override Act/360",
+                      "Compounded/Semiannual", "quote-convention conversion"],
+    },
+    {
+        "id": "curves_eur_depo_swap_fwd_3m_period",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve 3M period forward rates",
+        "description": (
+            "Simple-compounded 3-month forward rates F(d, d+3M) off the "
+            "baseline curve at twelve grid tenors from 1M to 9Y, with the "
+            "3M advance done on the grid's TARGET Modified Following "
+            "calendar — the forward strip a money-market desk reads off a "
+            "curve. Exercises the Period forward type and the tenor "
+            "advance."
+        ),
+        "request": "curves/curves_eur_depo_swap_fwd_3m_period.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["forward rates", "Period 3M", "Simple compounding",
+                      "grid-calendar advance"],
+    },
+    {
+        "id": "curves_eur_depo_swap_fwd_instantaneous_plain_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve instantaneous forwards, calendar-less grid",
+        "description": (
+            "Approximated instantaneous forwards (1-day period, continuous "
+            "compounding) on a tenor grid that names no calendar, so grid "
+            "dates are plain reference-date + tenor arithmetic (some land "
+            "on weekends). Exercises the Instantaneous forward type, the "
+            "1-day epsilon and the no-calendar grid branch."
+        ),
+        "request": "curves/curves_eur_depo_swap_fwd_instantaneous_plain_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["forward rates", "Instantaneous 1D epsilon",
+                      "Continuous compounding", "calendar-less tenor grid"],
+    },
+    {
+        "id": "curves_eur_ois_estr_df_zero_tenor_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR ESTR OIS curve: discount factors and zero rates",
+        "description": (
+            "An ESTR OIS curve bootstrapped from 1Y/2Y/5Y/10Y OIS par "
+            "quotes (daily-compounded overnight index, LogLinear discount) "
+            "sampled for discount factors and continuous zero rates at "
+            "eight tenors. Exercises OIS-helper bootstrapping through the "
+            "curve-sampling endpoint."
+        ),
+        "request": "curves/curves_eur_ois_estr_df_zero_tenor_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["OIS bootstrap", "ESTR", "discount factors",
+                      "zero rates continuous", "inverted short end"],
+    },
+    {
+        "id": "curves_eur_depo_swap_df_daily_range_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve discount factors on a dense daily grid",
+        "description": (
+            "Discount factors sampled every calendar day for six months "
+            "(2025-01-15 to 2025-07-15, 182 points) off the baseline "
+            "curve. Exercises the RangeGrid daily stepping path and dense "
+            "sampling across the deposit-dominated short end, including "
+            "the DF=1 point at the curve's reference date."
+        ),
+        "request": "curves/curves_eur_depo_swap_df_daily_range_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["RangeGrid daily", "182 grid points",
+                      "discount factors", "curve short end"],
+    },
+    {
+        "id": "curves_eur_depo_swap_zero_business_days_range_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve zero rates, business days only, one year",
+        "description": (
+            "Continuous zero rates sampled on every TARGET business day "
+            "for a year (weekends and TARGET holidays such as Good "
+            "Friday, Easter Monday, May 1 and Christmas filtered out — "
+            "~256 points). The first grid date equals the curve reference "
+            "date, exercising the server's clamp of at-or-before-reference "
+            "zero-rate queries to reference+1."
+        ),
+        "request": "curves/curves_eur_depo_swap_zero_business_days_range_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["RangeGrid business days only", "TARGET holiday filter",
+                      "zero rates", "reference-date clamp"],
+    },
+    {
+        "id": "curves_usd_zero_curve_linear_df_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit zero-rate curve (Linear), DF and zero rates",
+        "description": (
+            "A curve defined directly by six explicit continuously "
+            "compounded zero-rate points (no bootstrap) with Linear "
+            "interpolation on the US government bond calendar, sampled for "
+            "discount factors and zero rates at seven tenors. Exercises "
+            "the ZeroRatePoint curve branch and a non-TARGET grid "
+            "calendar."
+        ),
+        "request": "curves/curves_usd_zero_curve_linear_df_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit zero-rate curve", "Linear interpolation",
+                      "US government bond calendar", "discount factors",
+                      "zero rates"],
+    },
+    {
+        "id": "curves_eur_depo_swap_all_measures_tenor_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR curve, all three measures in one query",
+        "description": (
+            "One query returning three aligned series — discount factors, "
+            "continuous zero rates and simple 6M period forwards — at nine "
+            "tenors off the baseline curve. Exercises multi-measure series "
+            "alignment in a single response."
+        ),
+        "request": "curves/curves_eur_depo_swap_all_measures_tenor_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["DF + zero + forward in one query",
+                      "multi-series alignment", "Period 6M forwards"],
     },
 ]

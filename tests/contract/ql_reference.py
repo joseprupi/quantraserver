@@ -1917,6 +1917,182 @@ def _make_multicurve_exogenous_request() -> dict:
 
 
 # =============================================================================
+# Bootstrap-curves series reference (/bootstrap-curves sampling parity)
+# =============================================================================
+
+def _curve_query_grid_dates(grid_spec: dict, reference_date: ql.Date,
+                            as_of_date: ql.Date) -> list:
+    """Mirror the server's date-grid construction (src/market/grid_utils.cpp).
+
+    TenorGrid: when the grid names a calendar, each tenor is
+    calendar.advance(reference_date, tenor, grid bdc); otherwise it is a plain
+    reference_date + tenor. RangeGrid: literal day/week stepping (calendar
+    advance for month/year steps), optionally filtered to business days
+    (WeekendsOnly when no calendar is named).
+    """
+    grid_type = grid_spec["grid_type"]
+    g = grid_spec["grid"]
+
+    if grid_type == "TenorGrid":
+        cal_name = g.get("calendar", "NullCalendar")
+        use_calendar = cal_name != "NullCalendar"
+        if use_calendar:
+            cal = get_calendar(cal_name)
+            bdc = get_convention(g.get("business_day_convention", "Following"))
+        dates = []
+        for t in g["tenors"]:
+            period = ql.Period(int(t.get("n", 0)), get_time_unit(t.get("unit", "Days")))
+            if use_calendar:
+                dates.append(cal.advance(reference_date, period, bdc))
+            else:
+                dates.append(reference_date + period)
+        return dates
+
+    if grid_type == "RangeGrid":
+        start = parse_date(g["start_date"]) if g.get("start_date") else as_of_date
+        end = parse_date(g["end_date"])
+        step_n = max(1, int(g.get("step_number", 1)))
+        step_unit = g.get("step_time_unit", "Days")
+        business_only = g.get("business_days_only", False)
+        cal_name = g.get("calendar", "NullCalendar")
+        if cal_name == "NullCalendar":
+            cal = ql.WeekendsOnly() if business_only else ql.NullCalendar()
+        else:
+            cal = get_calendar(cal_name)
+        bdc = get_convention(g.get("business_day_convention", "Following"))
+        dates = []
+        current = start
+        while current <= end:
+            if not business_only or cal.isBusinessDay(current):
+                dates.append(current)
+            if step_unit == "Days":
+                current = current + step_n
+            elif step_unit == "Weeks":
+                current = current + 7 * step_n
+            else:
+                current = cal.advance(
+                    current, ql.Period(step_n, get_time_unit(step_unit)), bdc)
+        return dates
+
+    raise ValueError(f"Unsupported grid_type: {grid_type}")
+
+
+def _curve_fallback_calendar(curve_json: dict):
+    """Mirror the server's calendarFromTermStructure: the first helper's
+    calendar when it has one, TARGET otherwise."""
+    points = curve_json.get("points", [])
+    if points:
+        cal_name = points[0].get("point", {}).get("calendar")
+        if cal_name:
+            return get_calendar(cal_name)
+    return ql.TARGET()
+
+
+def _resolve_fwd_calendar_bdc(query: dict, curve_json: dict):
+    """Mirror grid_utils ResolveCalendar / ResolveBusinessDayConvention:
+    options override > grid's own calendar/bdc > curve fallback calendar."""
+    options = query.get("options")
+    grid = query.get("grid", {}).get("grid", {})
+    if options and options.get("calendar", "NullCalendar") != "NullCalendar":
+        cal = get_calendar(options["calendar"])
+    elif grid.get("calendar", "NullCalendar") != "NullCalendar":
+        cal = get_calendar(grid["calendar"])
+    else:
+        cal = _curve_fallback_calendar(curve_json)
+    if options is not None:
+        bdc = get_convention(options.get("business_day_convention", "Following"))
+    else:
+        bdc = get_convention(grid.get("business_day_convention", "Following"))
+    return cal, bdc
+
+
+def bootstrap_curves_ql(request: dict) -> dict:
+    """Reference for /bootstrap-curves: build the queried curve independently
+    and sample it exactly the way the server does.
+
+    Returns {measure_name: [values]} for the request's single query, one value
+    per grid date, in the query's measure order. The curve is built with the
+    same machinery the NPV families use (build_curve_from_json); the grid and
+    the per-measure sampling mirror src/market/grid_utils.cpp and
+    src/evaluators/bootstrap_curves_evaluator.cpp:
+
+      * DF    -> curve.discount(d)
+      * ZERO  -> curve.zeroRate(d', dc, compounding, frequency) with d'
+                 clamped to referenceDate+1 when d <= referenceDate; dc is the
+                 curve's own day counter unless use_curve_day_counter=false
+      * FWD   -> curve.forwardRate(d, end, dc, compounding, frequency) where
+                 end is d + eps (Instantaneous) or a calendar advance by the
+                 query tenor (Period), floored at d+1
+    """
+    pricing = _reference_pricing_view(request)
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+
+    queries = request.get("queries") or []
+    if len(queries) != 1:
+        raise ValueError("bootstrap_curves_ql expects exactly one curve query")
+    query = queries[0]
+
+    curve_id = query["curve_id"]
+    curve_json = next(c for c in pricing["curves"] if c["id"] == curve_id)
+    curve = build_curve_from_json(curve_json, as_of, request)
+
+    # The server anchors tenor grids on the curve's own reference date
+    # (TermStructure.reference_date, falling back to as_of_date).
+    grid_ref = (parse_date(curve_json["reference_date"])
+                if curve_json.get("reference_date") else as_of)
+    grid_dates = _curve_query_grid_dates(query["grid"], grid_ref, as_of)
+
+    curve_ref = curve.referenceDate()
+    out = {}
+    for measure in query["measures"]:
+        if measure == "DF":
+            values = [curve.discount(d) for d in grid_dates]
+        elif measure == "ZERO":
+            zq = query.get("zero") or {}
+            dc = (curve.dayCounter() if zq.get("use_curve_day_counter", True)
+                  else get_day_counter(zq.get("day_counter", "Actual365Fixed")))
+            comp = get_compounding(zq.get("compounding", "Continuous"))
+            freq = get_frequency(zq.get("frequency", "Annual"))
+            values = []
+            for d in grid_dates:
+                dd = curve_ref + 1 if d <= curve_ref else d
+                values.append(curve.zeroRate(dd, dc, comp, freq).rate())
+        elif measure == "FWD":
+            fq = query.get("fwd") or {}
+            dc = (curve.dayCounter() if fq.get("use_curve_day_counter", True)
+                  else get_day_counter(fq.get("day_counter", "Actual365Fixed")))
+            comp = get_compounding(fq.get("compounding", "Simple"))
+            freq = get_frequency(fq.get("frequency", "Annual"))
+            instantaneous = (
+                fq.get("forward_type", "Instantaneous") == "Instantaneous")
+            if fq.get("use_grid_calendar_for_advance", True):
+                cal, bdc = _resolve_fwd_calendar_bdc(query, curve_json)
+            else:
+                cal, bdc = _curve_fallback_calendar(curve_json), ql.Following
+            values = []
+            for d in grid_dates:
+                if instantaneous:
+                    eps_n = int(fq.get("instantaneous_eps_number", 1))
+                    eps_unit = fq.get("instantaneous_eps_time_unit", "Days")
+                    if eps_unit == "Days":
+                        end = d + eps_n
+                    else:
+                        end = cal.advance(
+                            d, ql.Period(eps_n, get_time_unit(eps_unit)), bdc)
+                else:
+                    t_n, t_unit = _period_n_unit(fq, "tenor", 0, "Days")
+                    end = cal.advance(d, ql.Period(t_n, get_time_unit(t_unit)), bdc)
+                if end <= d:
+                    end = d + 1
+                values.append(curve.forwardRate(d, end, dc, comp, freq).rate())
+        else:
+            raise ValueError(f"Unsupported curve measure: {measure}")
+        out[measure] = values
+    return out
+
+
+# =============================================================================
 # Response NPV extraction (API side of the parity comparison)
 # =============================================================================
 

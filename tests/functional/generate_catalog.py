@@ -50,17 +50,31 @@ def compute_rows():
     """Price every manifest case with its QuantLib reference pricer.
 
     Returns a list of (family, [row, ...]) pairs preserving manifest order,
-    where each row is the case dict plus a formatted reference NPV.
+    where each row is the case dict plus a formatted reference value: the
+    reference NPV for compare="npv" cases, or a "<series names> series,
+    N grid points" summary for compare="series" cases (whose full point-by-
+    point values live in the test assertion, not the catalog).
     """
     families = []
     by_family = {}
     for case in CASES:
         pricer = getattr(ql_reference, case["ql_pricer"])
         request = load_json(DATA_DIR / case["request"])
-        npv = pricer(request)
         row = dict(case)
-        row["npv"] = npv
-        row["npv_text"] = f"{npv:,.2f}"
+        if case.get("compare", "npv") == "series":
+            expected = pricer(request)
+            if isinstance(expected, dict):
+                names = list(expected)
+                n_points = len(next(iter(expected.values()))) if expected else 0
+            else:
+                names = ["series"]
+                n_points = len(expected)
+            row["npv"] = None
+            row["npv_text"] = f"{'/'.join(names)} series, {n_points} points"
+        else:
+            npv = pricer(request)
+            row["npv"] = npv
+            row["npv_text"] = f"{npv:,.2f}"
         family = case["family"]
         if family not in by_family:
             by_family[family] = []
@@ -70,13 +84,15 @@ def compute_rows():
 
 
 INTRO = (
-    "Every case below is a complete JSON pricing request that is POSTed to "
-    "the running Quantra server and whose returned NPV is asserted to match "
-    "an independent QuantLib reference pricer "
-    "(`tests/contract/ql_reference.py`) within a tolerance of 0.01. The "
-    "cases, groupings and descriptions all come from one place — "
-    "`tests/functional/manifest.py` — and the assertions run inside the "
-    "standard gate (`bash tests/run_all_tests.sh`, suite 3). See "
+    "Every case below is a complete JSON request that is POSTed to the "
+    "running Quantra server and whose response is asserted to match an "
+    "independent QuantLib reference (`tests/contract/ql_reference.py`). "
+    "Pricing cases compare the returned NPV within a tolerance of 0.01; "
+    "curve-sampling cases compare every point of every returned series "
+    "element-wise within 1e-9. The cases, groupings and descriptions all "
+    "come from one place — `tests/functional/manifest.py` — and the "
+    "assertions run inside the standard gate "
+    "(`bash tests/run_all_tests.sh`, suite 3). See "
     "`tests/functional/README.md` for how to add a case."
 )
 
@@ -96,7 +112,7 @@ def build_markdown(rows=None) -> str:
     for family, cases in rows:
         out.append(f"## {family}")
         out.append("")
-        out.append("| Case | What it exercises | Request JSON | QuantLib NPV |")
+        out.append("| Case | What it exercises | Request JSON | QuantLib value |")
         out.append("|---|---|---|---:|")
         for row in cases:
             case_cell = f"**{row['title']}**<br><sub>{row['description']}</sub>"
@@ -156,7 +172,7 @@ def build_html(rows=None) -> str:
         out.append(f"<h2>{html.escape(family)}</h2>")
         out.append("<table>")
         out.append("<thead><tr><th>Case</th><th>What it exercises</th>"
-                   "<th>Request JSON</th><th>QuantLib NPV</th></tr></thead>")
+                   "<th>Request JSON</th><th>QuantLib value</th></tr></thead>")
         out.append("<tbody>")
         for row in cases:
             exercises = " ".join(
@@ -180,8 +196,9 @@ def build_html(rows=None) -> str:
         out.append("</table>")
     out.append(
         f"<footer>{sum(len(c) for _, c in rows)} cases across {len(rows)} "
-        "family(ies). NPVs are the QuantLib reference values the server must "
-        "reproduce within 0.01.</footer>"
+        "family(ies). NPV cells are the QuantLib reference values the server "
+        "must reproduce within 0.01; series cells summarise curve-sampling "
+        "cases whose every point is compared within 1e-9.</footer>"
     )
     out.append("</body>")
     out.append("</html>")
