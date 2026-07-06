@@ -31,6 +31,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/fra/` | The curated request JSONs for the FRA family. |
 | `../../examples/data/cap_floor/` | The curated request JSONs for the Cap/Floor family. |
 | `../../examples/data/swaption/` | The curated request JSONs for the Swaption family. |
+| `../../examples/data/cds/` | The curated request JSONs for the CDS family. |
 
 ## How it runs in the gate
 
@@ -59,7 +60,8 @@ python3 -m pytest tests/functional -q \
 1. **Write the request JSON** under `examples/data/` — IR-swap cases live in
    `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`, FRA
    cases in `examples/data/fra/`, cap/floor cases in
-   `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`.
+   `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`,
+   CDS cases in `examples/data/cds/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -300,6 +302,54 @@ are deliberately not half-implemented:
   index builder does not apply `IndexDef.fixings` (same caveat as seasoned
   floaters/FRAs/caps).
 
+## Current coverage (CDS)
+
+* Directions: the same 5Y 100bp contract buying and selling protection
+  (protection-side sign flip on identical market data).
+* Credit-curve builds: bootstrapped from par spread quotes (1Y 80bp to 10Y
+  130bp, LogLinear survival probabilities) and a flat 2% hazard-rate curve
+  (the no-quotes branch). All cases use the LogLinear credit-curve
+  interpolator — the server intentionally rejects every other value.
+* Coupons / upfront: 100bp running coupon at/around the par spreads, the
+  500bp standard coupon (premium-leg dominated, deeply negative buyer NPV)
+  and a trade-level 2% upfront with an explicit upfront settlement date.
+* Recovery: 40% baseline and a 20% distressed-name assumption (recovery
+  feeds both the par-spread bootstrap and the pricing engine on both sides).
+* Maturities: 3Y (coupon above the short-end par spread, negative buyer
+  NPV), the 5Y baseline and a 10Y priced to the long-end pillars.
+* Engines: MidPoint baseline and the ISDA standard model with its default
+  settings (Taylor numerical fix, half-day accrual bias, piecewise forwards)
+  including ISDA-mode curve helpers.
+* Schedules / day counts: the market-standard quarterly Act/360
+  TwentiethIMM premium grid and an old-style semiannual Act/365F
+  Forward-generated schedule.
+
+## Planned / not yet covered (CDS)
+
+These need reference-pricer or engine behaviour that is not there yet; they
+are deliberately not half-implemented:
+
+* **Credit curves bootstrapped from upfront quotes** — `CdsQuote` carries
+  `quote_type=Upfront` on the wire and the server builds `UpfrontCdsHelper`
+  instances, but the reference pricer's upfront-helper construction has not
+  been validated against the server's (the upfront settlement lag argument
+  is threaded differently by the two builders), so no case bootstraps from
+  upfront quotes yet.
+* **Quote-referenced credit spreads** — `CdsQuote.quote_id` resolves against
+  `pricing.quotes` (`quote_type=Credit`) on the server and the reference
+  supports it, but the catalog cases carry inline `quoted_par_spread`
+  values; the quote indirection is only exercised by
+  `tests/contract/cds_test.py` (loose tolerance) today.
+* **Non-LogLinear credit-curve interpolators** — the server fails closed on
+  every credit-curve interpolator except LogLinear (QuantLib's
+  default-probability bootstrap is survival-log-linear only), so there is
+  nothing to pin beyond the error contract.
+* **ISDA engine convention variations** — the flat-forwards /
+  no-accrual-bias / no-numerical-fix combinations are expressible on both
+  sides, but only the standard settings are pinned so far.
+* **Seasoned CDS (protection start / trade date in the past)** — no case
+  values a contract mid-life yet; all cases start on the valuation date.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -320,6 +370,6 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (CDS, inflation) already have representative parity
-  tests in `tests/contract/`; migrating them into this catalog format is
-  future work. Bonds, FRAs, caps/floors and swaptions are covered above.
+* **Other families** (inflation) already have representative parity tests
+  in `tests/contract/`; migrating them into this catalog format is future
+  work. Bonds, FRAs, caps/floors, swaptions and CDS are covered above.
