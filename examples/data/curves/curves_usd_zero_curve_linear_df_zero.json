@@ -1,0 +1,151 @@
+{
+  "pricing": {
+    "as_of_date": "2025/01/15",
+    "rates": {
+      "indices": [],
+      "curves": [
+        {
+          "id": "USD_ZERO",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.042,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2025-01-15"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0425,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.043,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0435,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.044,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0445,
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "Following",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "USD_ZERO",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            {
+              "n": 6,
+              "unit": "Months"
+            },
+            {
+              "n": 1,
+              "unit": "Years"
+            },
+            {
+              "n": 2,
+              "unit": "Years"
+            },
+            {
+              "n": 3,
+              "unit": "Years"
+            },
+            {
+              "n": 5,
+              "unit": "Years"
+            },
+            {
+              "n": 7,
+              "unit": "Years"
+            },
+            {
+              "n": 10,
+              "unit": "Years"
+            }
+          ],
+          "calendar": "UnitedStatesGovernmentBond",
+          "business_day_convention": "Following"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

@@ -1,12 +1,14 @@
 # Functional parity catalog
 
-A manifest-driven set of end-to-end pricing cases: each case is a complete
-JSON request that is POSTed to the running Quantra server, and the returned
-NPV is asserted to equal an independent QuantLib reference price (computed by
-`tests/contract/ql_reference.py`) within a tight tolerance (default **0.01**).
-The server and the reference are pinned to the same QuantLib version, so the
-observed differences are at machine precision — a real behavioural drift on
-either side fails the gate immediately.
+A manifest-driven set of end-to-end cases: each case is a complete JSON
+request that is POSTed to the running Quantra server, and the response is
+asserted to equal an independent QuantLib reference (computed by
+`tests/contract/ql_reference.py`) within a tight tolerance. Pricing cases
+compare a single NPV (default tolerance **0.01**); curve-sampling cases
+compare every point of every returned series (tolerance **1e-9** — see
+"Comparison modes"). The server and the reference are pinned to the same
+QuantLib version, so the observed differences are at machine precision — a
+real behavioural drift on either side fails the gate immediately.
 
 Browse the catalog:
 
@@ -32,6 +34,37 @@ committed catalog drifts from the manifest.
 | `../../examples/data/cap_floor/` | The curated request JSONs for the Cap/Floor family. |
 | `../../examples/data/swaption/` | The curated request JSONs for the Swaption family. |
 | `../../examples/data/cds/` | The curated request JSONs for the CDS family. |
+| `../../examples/data/curves/` | The curated request JSONs for the Curves family. |
+
+## Comparison modes
+
+The manifest's optional `compare` field selects how a case is asserted;
+existing rows omit it and keep the original behaviour.
+
+* `compare: "npv"` (default) — the response holds one instrument under
+  `list_key` and the reference returns a float:
+  `abs(response[list_key][0].npv - ql) < tolerance`.
+* `compare: "series"` — for endpoints that return sampled curve series
+  (`/bootstrap-curves`): `list_key` names the response list (`results`) and
+  the reference returns the expected values, either
+  `{series_name: [floats]}` keyed like the response's `series[].measure`
+  (`DF`/`ZERO`/`FWD`) or a flat list when there is exactly one series. The
+  driver asserts the series sets match, the lengths match, and
+  `abs(api[i] - ql[i]) < tolerance` for **every** point, reporting the
+  maximum gap on failure.
+
+Series cases use a much tighter tolerance than NPV cases (1e-9, set per case
+in the manifest) because the compared quantities — discount factors, zero
+rates, forward rates — are of order 0.01-1.0. Both sides build identical
+QuantLib objects, so the residual noise is bounded by the ~12 significant
+digits FlatBuffers prints response doubles with plus the two bootstrap
+accuracies (~1e-12 combined); 1e-9 keeps three orders of margin over that
+floor while staying far below anything economically meaningful (1e-9 in a
+rate is 1e-5 of a basis point). Never loosen a series tolerance to make a
+case pass — fix the mismatch instead.
+
+In the generated catalog, series cases show a summary in the value column
+(e.g. `DF/ZERO series, 10 points`) instead of an NPV.
 
 ## How it runs in the gate
 
@@ -61,7 +94,8 @@ python3 -m pytest tests/functional -q \
    `examples/data/ir_swaps/`, bond cases in `examples/data/bonds/`, FRA
    cases in `examples/data/fra/`, cap/floor cases in
    `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`,
-   CDS cases in `examples/data/cds/`.
+   CDS cases in `examples/data/cds/`, curve-sampling cases in
+   `examples/data/curves/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -350,6 +384,61 @@ are deliberately not half-implemented:
 * **Seasoned CDS (protection start / trade date in the past)** — no case
   values a contract mid-life yet; all cases start on the valuation date.
 
+## Current coverage (Curves)
+
+All Curves cases use `compare: "series"`: every point of every returned
+series is checked element-wise against an independently built QuantLib curve
+within 1e-9 (see "Comparison modes").
+
+* Curve builds: a EUR deposit+swap bootstrap (1M/3M/6M deposits, 1Y-10Y par
+  swaps), an ESTR OIS bootstrap (1Y/2Y/5Y/10Y OIS par quotes) — both
+  LogLinear discount — and an explicit zero-rate curve (six continuous
+  zero points, Linear interpolation, US government bond calendar).
+* Measures: discount factors, zero rates (curve-day-counter continuous and
+  a re-quoted Act/360 semiannually compounded variant), period forwards
+  (3M and 6M tenors, simple compounding) and approximated instantaneous
+  forwards (1-day epsilon, continuous), including all three measures
+  aligned in a single query.
+* Grids: market tenor grids on TARGET Modified Following and on the US
+  government bond calendar; a calendar-less tenor grid (plain date
+  arithmetic, weekend grid dates); a dense daily RangeGrid (182 calendar
+  days); and a business-days-only daily RangeGrid over one year (TARGET
+  weekend/holiday filter, ~256 points) whose first date sits on the curve
+  reference date, pinning the server's clamp of at-or-before-reference
+  zero-rate queries to reference+1.
+
+## Planned / not yet covered (Curves)
+
+These need reference behaviour that `build_curve_from_json` /
+`bootstrap_curves_ql` in `tests/contract/ql_reference.py` do not have yet;
+they are deliberately not half-implemented:
+
+* **Non-LogLinear / non-Discount bootstrapped curves** — the server
+  bootstraps every Interpolator x BootstrapTrait combination
+  (Linear/BackwardFlat/ForwardFlat/LogCubic, ZeroYield/ForwardRate traits),
+  but the reference always builds `PiecewiseLogLinearDiscount` for
+  helper-based curves, so only LogLinear+Discount bootstraps can be
+  series-compared today (explicit zero-rate curves honour their
+  interpolator field: the Linear case is covered).
+* **FRA / futures / bond-helper pillars** — `FRAHelper` and `FutureHelper`
+  are not built by the reference curve builder; `BondHelper` is built but
+  has never been validated at series precision.
+* **Non-zero swap-helper forward starts** — the server threads
+  `fwd_start_days` into `SwapRateHelper`; the reference builder does not,
+  so the curve cases keep `fwd_start_days: 0` (NPV families tolerate the
+  tiny difference at 0.01, series cases at 1e-9 cannot).
+* **Exogenous-discounting dependencies (`deps.discount_curve`)** — the
+  reference ignores `deps` (same caveat as the IR-swaps family); the
+  dependency wiring itself is shape-checked by
+  `tests/contract/bootstrap_test.py`.
+* **Multi-curve / multi-query requests** — `bootstrap_curves_ql` samples
+  exactly one query per request; the multi-curve build path is covered by
+  the contract suite.
+* **Pillar-date parity** — the response's `pillar_dates` are not asserted
+  yet, only the sampled series.
+* **Inflation curve sampling** (`/bootstrap-inflation-curves`) — a separate
+  future family.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -372,4 +461,5 @@ yet; they are deliberately not half-implemented:
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
 * **Other families** (inflation) already have representative parity tests
   in `tests/contract/`; migrating them into this catalog format is future
-  work. Bonds, FRAs, caps/floors, swaptions and CDS are covered above.
+  work. Bonds, FRAs, caps/floors, swaptions, CDS and bootstrapped-curve
+  sampling (Curves) are covered above.
