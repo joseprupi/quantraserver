@@ -31,7 +31,10 @@ Representative supported request types include:
 - CDS
 - Equity options
 
-See `examples/data/` for sample payloads.
+See `examples/data/` for sample payloads. For a worked, QuantLib-verified
+example of every product — each one a complete request JSON whose response is
+asserted against an independent QuantLib reference in the test gate — browse
+the [functional parity catalog](tests/functional/CATALOG.md).
 
 ## Architecture
 
@@ -157,8 +160,11 @@ The test suite exercises:
 
 - C++ pricing parity against QuantLib
 - C++ gRPC integration
-- JSON HTTP API scenarios
+- JSON HTTP API scenarios, including the [functional parity catalog](tests/functional/CATALOG.md)
 - Python client scenarios
+
+See `tests/README.md` for how the suites are organized and how to run the
+whole gate in Docker.
 
 ## Repository Map
 
