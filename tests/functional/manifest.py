@@ -45,7 +45,8 @@ examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
 examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
 examples/data/curves/, calendar utilities in examples/data/calendar/,
-inflation swaps in examples/data/inflation/),
+inflation swaps in examples/data/inflation/, equity options in
+examples/data/equity/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -2144,5 +2145,191 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["YYIIS", "pay fixed", "YoY spread +25bp",
                       "positive NPV"],
+    },
+
+    # ------------------------------------------------------------------
+    # Equity — European vanilla options (Black-Scholes-Merton)
+    # ------------------------------------------------------------------
+    {
+        "id": "eqopt_eur_call_atm_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call, at the money",
+        "description": (
+            "Baseline equity option: a European call on a 100.00 spot "
+            "struck at 100.00, expiring in one year, 20% flat Black vol, "
+            "3% continuous risk-free zero curve, zero dividend yield. "
+            "Priced with the analytic Black-Scholes-Merton (European) "
+            "engine on both sides."
+        ),
+        "request": "equity/eqopt_eur_call_atm_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "at-the-money strike",
+                      "analytic BSM engine", "flat 20% vol",
+                      "zero dividend yield"],
+    },
+    {
+        "id": "eqopt_eur_put_atm_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European put, at the money",
+        "description": (
+            "The put twin of the baseline trade: same 100.00 spot, 100.00 "
+            "strike, 1Y expiry, 20% vol and 3% risk-free curve. With zero "
+            "dividends the call and put premiums differ by exactly the "
+            "put-call parity gap, pinning the option-type flag end to end."
+        ),
+        "request": "equity/eqopt_eur_put_atm_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "put", "at-the-money strike",
+                      "option-type flip", "analytic BSM engine"],
+    },
+    {
+        "id": "eqopt_eur_call_itm_k80_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call struck at 80, deep in the money",
+        "description": (
+            "The baseline 1Y call struck at 80.00 against the 100.00 spot, "
+            "so exercise is close to certain and the premium is dominated "
+            "by intrinsic value (spot minus discounted strike). Pins the "
+            "high-premium end of the strike spectrum."
+        ),
+        "request": "equity/eqopt_eur_call_itm_k80_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "in-the-money strike",
+                      "intrinsic-dominated"],
+    },
+    {
+        "id": "eqopt_eur_call_otm_k120_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call struck at 120, out of the money",
+        "description": (
+            "The baseline 1Y call struck at 120.00, 20% above spot, so the "
+            "premium is pure time value and small relative to spot — the "
+            "tail where a vol or day-count slip is proportionally largest."
+        ),
+        "request": "equity/eqopt_eur_call_otm_k120_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "out-of-the-money strike",
+                      "time-value only"],
+    },
+    {
+        "id": "eqopt_eur_put_itm_k120_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European put struck at 120, in the money",
+        "description": (
+            "1Y put struck at 120.00 against the 100.00 spot — the "
+            "protective-put side of the moneyness spectrum, with the "
+            "premium dominated by the intrinsic value of selling 20% above "
+            "market."
+        ),
+        "request": "equity/eqopt_eur_put_itm_k120_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "put", "in-the-money strike",
+                      "intrinsic-dominated"],
+    },
+    {
+        "id": "eqopt_eur_put_otm_k80_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European put struck at 80, out of the money",
+        "description": (
+            "1Y put struck at 80.00, 20% below spot — cheap crash "
+            "protection whose premium is pure time value. Together with "
+            "the 120 put it brackets the put moneyness spectrum."
+        ),
+        "request": "equity/eqopt_eur_put_otm_k80_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "put", "out-of-the-money strike",
+                      "time-value only"],
+    },
+    {
+        "id": "eqopt_eur_call_atm_1y_div_yield_2_5pct",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call with a 2.5% dividend yield",
+        "description": (
+            "The baseline at-the-money 1Y call on an underlying paying a "
+            "2.5% continuous dividend yield: the underlying spec's "
+            "dividend curve is a flat 2.5% zero curve feeding the "
+            "Black-Scholes-Merton process, so the forward drops below "
+            "spot and the call premium falls versus the zero-dividend "
+            "baseline. Pins the dividend-yield leg of the process."
+        ),
+        "request": "equity/eqopt_eur_call_atm_1y_div_yield_2_5pct.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "continuous dividend yield 2.5%",
+                      "BSM dividend leg"],
+    },
+    {
+        "id": "eqopt_eur_put_atm_2y_vol35",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 2Y European put, 35% vol",
+        "description": (
+            "Longer-dated, higher-vol variation: an at-the-money put "
+            "expiring in two years on a flat 35% Black vol. Exercises a "
+            "second vol level and a second expiry on the same market "
+            "data skeleton."
+        ),
+        "request": "equity/eqopt_eur_put_atm_2y_vol35.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "put", "2Y expiry", "flat 35% vol",
+                      "vol/expiry variation"],
+    },
+    {
+        "id": "eqopt_eur_call_atm_3m_short_dated",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 3M European call, short-dated",
+        "description": (
+            "Short-dated variation: the at-the-money call expiring in "
+            "three months (2025-04-15), where the premium is small and "
+            "most sensitive to the day-count handling of the short "
+            "time-to-expiry."
+        ),
+        "request": "equity/eqopt_eur_call_atm_3m_short_dated.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "3M expiry", "short-dated",
+                      "small premium"],
+    },
+    {
+        "id": "eqopt_eur_call_atm_1y_qty100",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call, 100 options",
+        "description": (
+            "The baseline at-the-money 1Y call with quantity 100: the "
+            "response NPV is the per-option premium scaled by the trade's "
+            "quantity on both sides, pinning the quantity field end to "
+            "end (exactly 100x the single-option baseline)."
+        ),
+        "request": "equity/eqopt_eur_call_atm_1y_qty100.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "quantity 100",
+                      "quantity scaling"],
     },
 ]

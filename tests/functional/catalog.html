@@ -719,6 +719,72 @@
 </tr>
 </tbody>
 </table>
-<footer>106 cases across 9 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
+<h2>Equity</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 1Y European call, at the money</div><div class="desc">Baseline equity option: a European call on a 100.00 spot struck at 100.00, expiring in one year, 20% flat Black vol, 3% continuous risk-free zero curve, zero dividend yield. Priced with the analytic Black-Scholes-Merton (European) engine on both sides.</div></td>
+<td><code>European</code> <code>call</code> <code>at-the-money strike</code> <code>analytic BSM engine</code> <code>flat 20% vol</code> <code>zero dividend yield</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_atm_1y.json">eqopt_eur_call_atm_1y.json</a></td>
+<td class="npv">9.41</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European put, at the money</div><div class="desc">The put twin of the baseline trade: same 100.00 spot, 100.00 strike, 1Y expiry, 20% vol and 3% risk-free curve. With zero dividends the call and put premiums differ by exactly the put-call parity gap, pinning the option-type flag end to end.</div></td>
+<td><code>European</code> <code>put</code> <code>at-the-money strike</code> <code>option-type flip</code> <code>analytic BSM engine</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_put_atm_1y.json">eqopt_eur_put_atm_1y.json</a></td>
+<td class="npv">6.46</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European call struck at 80, deep in the money</div><div class="desc">The baseline 1Y call struck at 80.00 against the 100.00 spot, so exercise is close to certain and the premium is dominated by intrinsic value (spot minus discounted strike). Pins the high-premium end of the strike spectrum.</div></td>
+<td><code>European</code> <code>call</code> <code>in-the-money strike</code> <code>intrinsic-dominated</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_itm_k80_1y.json">eqopt_eur_call_itm_k80_1y.json</a></td>
+<td class="npv">23.22</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European call struck at 120, out of the money</div><div class="desc">The baseline 1Y call struck at 120.00, 20% above spot, so the premium is pure time value and small relative to spot — the tail where a vol or day-count slip is proportionally largest.</div></td>
+<td><code>European</code> <code>call</code> <code>out-of-the-money strike</code> <code>time-value only</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_otm_k120_1y.json">eqopt_eur_call_otm_k120_1y.json</a></td>
+<td class="npv">2.77</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European put struck at 120, in the money</div><div class="desc">1Y put struck at 120.00 against the 100.00 spot — the protective-put side of the moneyness spectrum, with the premium dominated by the intrinsic value of selling 20% above market.</div></td>
+<td><code>European</code> <code>put</code> <code>in-the-money strike</code> <code>intrinsic-dominated</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_put_itm_k120_1y.json">eqopt_eur_put_itm_k120_1y.json</a></td>
+<td class="npv">19.22</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European put struck at 80, out of the money</div><div class="desc">1Y put struck at 80.00, 20% below spot — cheap crash protection whose premium is pure time value. Together with the 120 put it brackets the put moneyness spectrum.</div></td>
+<td><code>European</code> <code>put</code> <code>out-of-the-money strike</code> <code>time-value only</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_put_otm_k80_1y.json">eqopt_eur_put_otm_k80_1y.json</a></td>
+<td class="npv">0.86</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European call with a 2.5% dividend yield</div><div class="desc">The baseline at-the-money 1Y call on an underlying paying a 2.5% continuous dividend yield: the underlying spec&#x27;s dividend curve is a flat 2.5% zero curve feeding the Black-Scholes-Merton process, so the forward drops below spot and the call premium falls versus the zero-dividend baseline. Pins the dividend-yield leg of the process.</div></td>
+<td><code>European</code> <code>call</code> <code>continuous dividend yield 2.5%</code> <code>BSM dividend leg</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_atm_1y_div_yield_2_5pct.json">eqopt_eur_call_atm_1y_div_yield_2_5pct.json</a></td>
+<td class="npv">8.00</td>
+</tr>
+<tr>
+<td><div class="title">EUR 2Y European put, 35% vol</div><div class="desc">Longer-dated, higher-vol variation: an at-the-money put expiring in two years on a flat 35% Black vol. Exercises a second vol level and a second expiry on the same market data skeleton.</div></td>
+<td><code>European</code> <code>put</code> <code>2Y expiry</code> <code>flat 35% vol</code> <code>vol/expiry variation</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_put_atm_2y_vol35.json">eqopt_eur_put_atm_2y_vol35.json</a></td>
+<td class="npv">16.20</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3M European call, short-dated</div><div class="desc">Short-dated variation: the at-the-money call expiring in three months (2025-04-15), where the premium is small and most sensitive to the day-count handling of the short time-to-expiry.</div></td>
+<td><code>European</code> <code>call</code> <code>3M expiry</code> <code>short-dated</code> <code>small premium</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_atm_3m_short_dated.json">eqopt_eur_call_atm_3m_short_dated.json</a></td>
+<td class="npv">4.33</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European call, 100 options</div><div class="desc">The baseline at-the-money 1Y call with quantity 100: the response NPV is the per-option premium scaled by the trade&#x27;s quantity on both sides, pinning the quantity field end to end (exactly 100x the single-option baseline).</div></td>
+<td><code>European</code> <code>call</code> <code>quantity 100</code> <code>quantity scaling</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_call_atm_1y_qty100.json">eqopt_eur_call_atm_1y_qty100.json</a></td>
+<td class="npv">941.34</td>
+</tr>
+</tbody>
+</table>
+<footer>116 cases across 10 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
 </body>
 </html>

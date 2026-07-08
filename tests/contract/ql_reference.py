@@ -2610,6 +2610,134 @@ def calendar_advance_ql(request: dict) -> str:
 
 
 # =============================================================================
+# Equity Option Reference Pricer
+# =============================================================================
+
+def price_equity_option_ql(request: dict) -> float:
+    """Price a European equity vanilla option using QuantLib.
+
+    Mirrors the server's equity-option evaluator field for field:
+      * the underlying spec resolves its spot from pricing.quotes
+        (spot_quote_id) and its dividend yield from the referenced curve in
+        pricing.rates.curves, and the trade's discounting_curve is the
+        risk-free leg — the three feed a BlackScholesMertonProcess together
+        with the referenced Black vol,
+      * the volatility is the referenced BlackVolSpec (shape=Constant only,
+        like the server's equity path) rebuilt as a BlackConstantVol with the
+        spec's own reference date, calendar and day count,
+      * the payoff is a PlainVanillaPayoff and the exercise a
+        EuropeanExercise — the only payoff/exercise combination the server's
+        parser accepts today (American/Bermudan and digital payoffs are
+        rejected on the wire),
+      * the engine follows the referenced model: AnalyticEuropeanEngine for
+        BlackScholesAnalytic, BinomialCRRVanillaEngine with the spec's own
+        binomial_steps for BinomialCRR (the server builds
+        BinomialVanillaEngine<CoxRossRubinstein> with the same step count),
+      * the returned NPV is the per-option NPV scaled by the trade's
+        quantity, matching the server's response field.
+
+    Deliberately refuses (raises) what it cannot faithfully reproduce:
+    barrier features and discrete dividends. The wire carries
+    EquityUnderlyingSpec.discrete_dividends, but the server's underlying
+    registry never reads them (options price as if there were none), so a
+    reference that applied them would silently disagree — no catalog case
+    may use them until the server consumes the field.
+    """
+    pricing = _reference_pricing_view(request)
+    opt_data = request["options"][0]
+    opt = opt_data["option"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    if opt.get("barrier"):
+        raise ValueError("Equity barrier options are not reference-priced yet")
+
+    underlying = next(
+        (u for u in pricing.get("equity_underlyings", [])
+         if u.get("id") == opt["underlying_id"]), None)
+    if underlying is None:
+        raise ValueError(f"Equity underlying not found: {opt['underlying_id']}")
+    if underlying.get("discrete_dividends"):
+        raise ValueError(
+            "discrete_dividends are on the wire but the server's underlying "
+            "registry does not consume them; refusing to reference-price them")
+
+    # Spot resolved from pricing.quotes by spot_quote_id (QuoteRegistry).
+    spot_value = next(
+        (q.get("value") for q in pricing.get("quotes", [])
+         if q.get("id") == underlying["spot_quote_id"]), None)
+    if spot_value is None:
+        raise ValueError(f"Unknown quote id: {underlying['spot_quote_id']}")
+    spot = ql.QuoteHandle(ql.SimpleQuote(spot_value))
+
+    # Risk-free = the trade's discounting curve; dividend yield = the
+    # underlying spec's curve. Both are ordinary pricing.rates.curves entries.
+    disc_id = opt_data["discounting_curve"]
+    disc_json = next(c for c in pricing["curves"] if c["id"] == disc_id)
+    risk_free = build_curve_from_json(disc_json, eval_date, request)
+    div_id = underlying["dividend_yield_curve_id"]
+    div_json = next(c for c in pricing["curves"] if c["id"] == div_id)
+    dividend = build_curve_from_json(div_json, eval_date, request)
+
+    # Volatility: the referenced BlackVolSpec rebuilt as a BlackConstantVol
+    # (the server's shape=Constant branch: BlackConstantVol(ref, cal, vol, dc)).
+    vol_spec = next(
+        (v for v in pricing.get("vol_surfaces", [])
+         if v.get("id") == opt_data.get("volatility")), None)
+    if vol_spec is None:
+        raise ValueError(f"Black vol not found: {opt_data.get('volatility')}")
+    vol_base = vol_spec.get("payload", {}).get("base", {})
+    if vol_base.get("shape", "Constant") != "Constant":
+        raise ValueError(
+            "Only shape=Constant BlackVolSpec is reference-priced for equity")
+    black_vol = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(
+        parse_date(vol_base.get("reference_date", pricing["as_of_date"])),
+        get_calendar(vol_base.get("calendar", "TARGET")),
+        vol_base["constant_vol"],
+        get_day_counter(vol_base.get("day_counter", "Actual365Fixed")),
+    ))
+
+    process = ql.BlackScholesMertonProcess(spot, dividend, risk_free, black_vol)
+
+    # Payoff / exercise: the server's parser accepts exactly
+    # EquityPlainVanillaPayoff + EquityEuropeanExercise today.
+    if opt.get("payoff_type") != "EquityPlainVanillaPayoff":
+        raise ValueError(
+            "EquityOption currently supports only EquityPlainVanillaPayoff")
+    po = opt["payoff"]
+    opt_type = ql.Option.Put if po.get("option_type", "Call") == "Put" else ql.Option.Call
+    payoff = ql.PlainVanillaPayoff(opt_type, po["strike"])
+    if opt.get("exercise_type") != "EquityEuropeanExercise":
+        raise ValueError(
+            "EquityOption currently supports only EquityEuropeanExercise")
+    exercise = ql.EuropeanExercise(parse_date(opt["exercise"]["expiry_date"]))
+
+    option = ql.VanillaOption(payoff, exercise)
+
+    # Engine follows the referenced model spec (required on the server).
+    model_spec = next(
+        (m for m in pricing.get("models", [])
+         if m.get("id") == opt_data.get("model")), None)
+    if model_spec is None:
+        raise ValueError(f"Model not found: {opt_data.get('model')}")
+    model_payload = model_spec.get("payload", {})
+    model_type = model_payload.get("model_type", "BlackScholesAnalytic")
+    if model_type == "BlackScholesAnalytic":
+        engine = ql.AnalyticEuropeanEngine(process)
+    elif model_type == "BinomialCRR":
+        steps = int(model_payload.get("binomial_steps", 500))
+        if steps <= 0:
+            raise ValueError("EquityVanillaModelSpec.binomial_steps must be > 0")
+        engine = ql.BinomialCRRVanillaEngine(process, steps)
+    else:
+        raise ValueError(f"Unsupported EquityModelType: {model_type}")
+    option.setPricingEngine(engine)
+
+    return option.NPV() * opt.get("quantity", 1.0)
+
+
+# =============================================================================
 # Response NPV extraction (API side of the parity comparison)
 # =============================================================================
 
