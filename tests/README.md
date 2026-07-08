@@ -4,39 +4,59 @@ How the test suite is organized and what every file does.
 
 ## Running everything
 
+The build dependencies (gRPC, QuantLib, flatc, the pinned Python) live in the
+`quantraserver:test` Docker image, so the canonical way to build and run the
+whole gate — the same command CI runs — is:
+
 ```bash
-bash tests/run_all_tests.sh
+docker run --rm -v "$(pwd):/workspace" -w /workspace quantraserver:test \
+    bash -lc './scripts/build.sh Release && bash tests/run_all_tests.sh'
 ```
 
-This is the gate. It starts the gRPC server and the JSON gateway (plus a
-second, cache-ON server pair for Suite 6), runs the seven suites below in order,
-and exits non-zero if any of them fail. It does **not** build the project —
-build first with `./scripts/build.sh`, which produces the binaries under
-`build/` that the runner calls.
+Inside an environment that already has the dependencies (a shell in that
+image), the two steps are:
+
+```bash
+./scripts/build.sh Release    # produces the binaries under build/
+bash tests/run_all_tests.sh   # the gate
+```
+
+`run_all_tests.sh` is the gate. It starts the gRPC server and the JSON gateway
+(plus a second, cache-ON server pair for Suite 6), runs the seven suites below
+in order, and exits non-zero if any of them fail. It does **not** build the
+project — build first, as above.
 
 At the end it prints a human-readable summary box, plus machine-readable lines
 you can grep:
 
 ```
-RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=72 unit=cases
-SUMMARY suites_passed=7 suites_failed=0 total_cases=270
+RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=112 unit=cases
+SUMMARY suites_passed=7 suites_failed=0 total_cases=478
 ```
 
 ## The seven suites
 
-| # | What it checks | How | Files |
-|---|---|---|---|
-| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` |
-| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` |
-| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` |
-| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` |
-| 4 | The Python client library works against the server | Python, gRPC | `client/test_python_client.py` |
-| 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `concurrency/test_json_concurrency.py` |
-| 6 | The curve cache is transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` |
+Counts are from the current green gate run (`SUMMARY suites_passed=7
+suites_failed=0 total_cases=478`).
+
+| # | What it checks | How | Files | Count |
+|---|---|---|---|---|
+| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` | 40 files |
+| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` | 112 cases |
+| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` | 18 cases |
+| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` + `functional/` | 195 tests |
+| 4 | The Python client library works against the server | Python, gRPC | `client/test_python_client.py` | 7 scenarios |
+| 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `concurrency/test_json_concurrency.py` | 96 requests |
+| 6 | The curve cache is transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` | 10 comparisons |
 
 Suites 1 and 3 are the two correctness anchors: both build the equivalent
 instrument in raw QuantLib and compare numbers. Suite 1 tests the C++ code path
 directly; Suite 3 tests the full JSON-over-HTTP stack a real client uses.
+Within Suite 3, the **[functional parity catalog](functional/README.md)**
+(`functional/`) is the QuantLib-parity showcase: 127 curated cases across 11
+product families, each a complete request JSON asserted against an independent
+QuantLib reference — browse them all in
+[`functional/CATALOG.md`](functional/CATALOG.md).
 
 ## `parity/` — C++ vs QuantLib (Suite 1)
 
@@ -62,6 +82,7 @@ All of these compile into **one** binary, `build/tests/test_quantra_vs_quantlib`
 pytest. POSTs the example payloads from `examples/data/*.json` to a running JSON
 server (default `http://localhost:8080`), verbatim — exactly what a real client
 sends — and compares the returned NPV against an independent QuantLib reference.
+Suite 3 runs `contract/` and `functional/` (next section) together.
 
 - `ql_reference.py` — the correctness anchor. Holds `ApiClient` (POSTs the
   requests), the QuantLib reference pricers, the enum/index/curve builders, and
@@ -78,6 +99,28 @@ sends — and compares the returned NPV against an independent QuantLib referenc
 - `error_contract_test.py` — error contract. Sends malformed / missing-reference
   / unsupported requests and asserts the HTTP status: 404 (not found),
   400 (invalid argument), 501 (not implemented), 500 (other).
+
+## `functional/` — the functional parity catalog (Suite 3)
+
+The QuantLib-parity showcase: a manifest-driven catalog of **127 cases across
+11 product families** (IR swaps, bonds, FRAs, caps/floors, swaptions, CDS,
+curves, calendars, inflation, equity, vol/calibration), each a complete,
+curated request JSON POSTed to the server and asserted against an independent
+QuantLib reference within a tight tolerance. It runs as part of Suite 3, in
+the same pytest invocation as `contract/`.
+
+- [`functional/CATALOG.md`](functional/CATALOG.md) — the browsable catalog:
+  every case with its description, exercise tags, request JSON link and
+  QuantLib value (also available as a self-contained
+  `functional/catalog.html`). This is the best "worked example per product"
+  reference in the repo.
+- [`functional/README.md`](functional/README.md) — how the catalog works:
+  comparison modes and tolerances, per-family coverage and planned lists, and
+  the step-by-step recipe for adding a case.
+
+`CATALOG.md` and `catalog.html` are **generated** from `functional/manifest.py`
+— never edit them by hand; a Suite 3 test fails if they drift from the
+manifest.
 
 ## `caching/` — curve-cache transparency (Suite 6)
 
