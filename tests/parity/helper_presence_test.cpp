@@ -6,9 +6,9 @@
 // selects by presence. These tests pin the new contract:
 //   - a BondHelper carrying the quote in `price` and one carrying the same
 //     value in `rate` must hand QuantLib the identical quote;
-//   - FutureHelper with futures_price present must derive the implied rate
-//     from the price (presence wins over rate), identical to an explicit
-//     rate-only helper quoting the same level;
+//   - FutureHelper with futures_price present hands QuantLib the futures
+//     PRICE as its quote (presence wins over rate), identical to an explicit
+//     rate-only helper quoting the equivalent level via price = 100*(1-rate);
 //   - a helper with neither field nor quote_id must fail with a clear
 //     INVALID_ARGUMENT, not silently bootstrap from zero.
 #include <gtest/gtest.h>
@@ -117,11 +117,12 @@ TEST(BondHelperPresence, AbsentBothIsClearError) {
     }
 }
 
-// futures_price present wins over rate: implied rate = 1 - price/100, the
-// same as an explicit rate-only helper quoting that level.
+// futures_price present wins over rate: the helper's quote is the futures
+// PRICE itself, the same as an explicit rate-only helper quoting the
+// equivalent level via the identity price = 100*(1-rate).
 TEST(FutureHelperPresence, FuturesPricePresenceWinsOverRate) {
     const double price = 95.25;
-    const double implied = 1.0 - price / 100.0;
+    const double equivalentRate = 1.0 - price / 100.0; // 100*(1-rate) == price
     TermStructurePointParser parser;
 
     flatbuffers::FlatBufferBuilder f1, f2;
@@ -131,16 +132,16 @@ TEST(FutureHelperPresence, FuturesPricePresenceWinsOverRate) {
         makeFutureHelper(f1, FutureQuoteSlot::Both, price, 0.99));
     auto viaRate = parser.parse(
         quantra::Point_FutureHelper,
-        makeFutureHelper(f2, FutureQuoteSlot::Rate, 0.0, implied));
+        makeFutureHelper(f2, FutureQuoteSlot::Rate, 0.0, equivalentRate));
 
     ASSERT_NE(viaPrice, nullptr);
     ASSERT_NE(viaRate, nullptr);
-    EXPECT_DOUBLE_EQ(viaPrice->quote()->value(), implied);
+    EXPECT_DOUBLE_EQ(viaPrice->quote()->value(), price);
     EXPECT_DOUBLE_EQ(viaPrice->quote()->value(), viaRate->quote()->value());
 }
 
-// An explicit futures_price of 0.0 is now honored as a real price (implied
-// rate 1.0) instead of being mistaken for "absent" — the sentinel is dead.
+// An explicit futures_price of 0.0 is honored as a real price (quote 0.0)
+// instead of being mistaken for "absent" — the sentinel is dead.
 TEST(FutureHelperPresence, ExplicitZeroPriceIsAPrice) {
     TermStructurePointParser parser;
     flatbuffers::FlatBufferBuilder fbb;
@@ -148,7 +149,7 @@ TEST(FutureHelperPresence, ExplicitZeroPriceIsAPrice) {
         quantra::Point_FutureHelper,
         makeFutureHelper(fbb, FutureQuoteSlot::FuturesPrice, 0.0, 0.0));
     ASSERT_NE(h, nullptr);
-    EXPECT_DOUBLE_EQ(h->quote()->value(), 1.0);
+    EXPECT_DOUBLE_EQ(h->quote()->value(), 0.0);
 }
 
 // Neither futures_price nor rate nor quote_id: clear request error.

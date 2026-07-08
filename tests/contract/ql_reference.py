@@ -407,6 +407,19 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
         if "price" in point:
             return point["price"]
         return point["rate"]
+
+    def resolve_future_price(point: dict) -> float:
+        # Mirrors the server: FuturesRateHelper's quote is the futures PRICE
+        # (0-100 IMM scale). futures_price wins over rate; a quote_id resolves
+        # to the price directly. rate is sugar via price = 100*(1-rate).
+        quote_id = point.get("quote_id")
+        if quote_id:
+            if quote_types.get(quote_id, "Curve") != "Curve":
+                raise ValueError(f"Quote id '{quote_id}' has wrong type for curve")
+            return quote_values.get(quote_id, 0.0)
+        if "futures_price" in point:
+            return point["futures_price"]
+        return 100.0 * (1.0 - point["rate"])
     if any(p.get("point_type") == "ZeroRatePoint" for p in points):
         dates = []
         rates = []
@@ -473,6 +486,25 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 helpers.append(helper)
                 seen_pillars.add(pillar)
         
+        elif point_type == "FutureHelper":
+            # QuantLib FuturesRateHelper: quote is the futures PRICE, convexity
+            # is its own argument (mirrors src/parsers/term_structure_point_parser.cpp).
+            helper = ql.FuturesRateHelper(
+                ql.QuoteHandle(ql.SimpleQuote(resolve_future_price(point))),
+                parse_date(point["future_start_date"]),
+                point.get("future_months", 3),
+                get_calendar(point.get("calendar", "TARGET")),
+                get_convention(point.get("business_day_convention", "ModifiedFollowing")),
+                True,
+                get_day_counter(point.get("day_counter", "Actual360")),
+                ql.QuoteHandle(ql.SimpleQuote(point.get("convexity_adjustment", 0.0))),
+            )
+
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+
         elif point_type == "SwapHelper":
             tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Years")
             tenor_unit = ql.Years if tenor_unit_s == "Years" else ql.Months

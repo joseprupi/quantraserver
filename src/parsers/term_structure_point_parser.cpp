@@ -110,24 +110,30 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto point = static_cast<const quantra::FutureHelper*>(data);
 
         const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
-        double rateValue;
+        // QuantLib's FuturesRateHelper takes the futures PRICE (0-100 IMM
+        // scale) as its quote and handles convexity as a dedicated argument.
+        double priceValue;
         if (point->futures_price().has_value()) {
-            rateValue = 1.0 - (point->futures_price().value() / 100.0);
+            // futures_price takes precedence and is the price itself.
+            priceValue = point->futures_price().value();
         } else if (point->rate().has_value()) {
-            rateValue = point->rate().value();
+            // Definitional futures price<->rate identity: price = 100*(1-rate).
+            priceValue = 100.0 * (1.0 - point->rate().value());
         } else if (has_quote) {
-            rateValue = 0.0; // unused: quote_id supplies the value below
+            priceValue = 0.0; // unused: quote_id supplies the price below
         } else {
             QUANTRA_INVALID_ARGUMENT(
                 "FutureHelper requires one of futures_price, rate or quote_id");
         }
-        rateValue += point->convexity_adjustment();
 
-        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        auto q = resolveQuote(priceValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!point->future_start_date()) {
             QUANTRA_INVALID_ARGUMENT("FutureHelper.future_start_date is required");
         }
+
+        auto convexity = Handle<Quote>(
+            std::make_shared<SimpleQuote>(point->convexity_adjustment()));
 
         return std::make_shared<FuturesRateHelper>(
             q,
@@ -136,7 +142,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             CalendarToQL(point->calendar()),
             ConventionToQL(point->business_day_convention()),
             true,
-            DayCounterToQL(point->day_counter()));
+            DayCounterToQL(point->day_counter()),
+            convexity);
     }
 
     // ------------------------------------------------------------------

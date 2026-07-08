@@ -432,7 +432,9 @@ series is checked element-wise against an independently built QuantLib curve
 within 1e-9 (see "Comparison modes").
 
 * Curve builds: a EUR deposit+swap bootstrap (1M/3M/6M deposits, 1Y-10Y par
-  swaps), an ESTR OIS bootstrap (1Y/2Y/5Y/10Y OIS par quotes) — both
+  swaps), a EUR deposit+futures bootstrap (3M deposit plus a money-market
+  futures contract, IMM start, price 96.50, pinning the FuturesRateHelper
+  pillar), an ESTR OIS bootstrap (1Y/2Y/5Y/10Y OIS par quotes) — all
   LogLinear discount — and an explicit zero-rate curve (six continuous
   zero points, Linear interpolation, US government bond calendar).
 * Measures: discount factors, zero rates (curve-day-counter continuous and
@@ -461,9 +463,10 @@ they are deliberately not half-implemented:
   helper-based curves, so only LogLinear+Discount bootstraps can be
   series-compared today (explicit zero-rate curves honour their
   interpolator field: the Linear case is covered).
-* **FRA / futures / bond-helper pillars** — `FRAHelper` and `FutureHelper`
-  are not built by the reference curve builder; `BondHelper` is built but
-  has never been validated at series precision.
+* **FRA / bond-helper pillars** — `FRAHelper` is not built by the reference
+  curve builder; `BondHelper` is built but has never been validated at
+  series precision. (`FutureHelper` pillars are now covered — see the
+  deposit+futures bootstrap above.)
 * **Non-zero swap-helper forward starts** — the server threads
   `fwd_start_days` into `SwapRateHelper`; the reference builder does not,
   so the curve cases keep `fwd_start_days: 0` (NPV families tolerate the

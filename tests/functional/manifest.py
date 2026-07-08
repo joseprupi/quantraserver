@@ -1627,6 +1627,29 @@ CASES = [
                       "zero rates continuous", "inverted short end"],
     },
     {
+        "id": "curves_eur_depo_future_df_zero_tenor_grid",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR deposit+futures curve: discount factors and zero rates",
+        "description": (
+            "A EUR curve bootstrapped from a 3M deposit and a single "
+            "money-market futures contract (IMM start 2025-03-19, 3 months, "
+            "price 96.50 -> ~3.5%) sampled for discount factors and "
+            "continuous zero rates at five monthly tenors bracketing the "
+            "futures maturity. Pins the FuturesRateHelper pillar to native "
+            "QuantLib: the helper's quote is the futures PRICE and convexity "
+            "is QuantLib's dedicated argument."
+        ),
+        "request": "curves/curves_eur_depo_future_df_zero_tenor_grid.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["deposit+futures bootstrap", "FuturesRateHelper pillar",
+                      "futures price quote", "convexity argument",
+                      "discount factors", "zero rates continuous"],
+    },
+    {
         "id": "curves_eur_depo_swap_df_daily_range_grid",
         "product": "bootstrap_curves",
         "family": "Curves",
