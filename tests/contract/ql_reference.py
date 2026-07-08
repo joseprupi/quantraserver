@@ -24,8 +24,10 @@ The pytest test modules (e.g. bond_test.py, swaption_test.py) import the
 pricers/helpers from here; conftest.py exposes the client/data-dir fixtures.
 """
 
+import bisect
 import json
 import argparse
+import math
 import requests
 import re
 from pathlib import Path
@@ -2735,6 +2737,622 @@ def price_equity_option_ql(request: dict) -> float:
     option.setPricingEngine(engine)
 
     return option.NPV() * opt.get("quantity", 1.0)
+
+
+# =============================================================================
+# Vol surface sampling + calibration references
+# =============================================================================
+
+def _find_vol_surface_spec(pricing: dict, vol_id: str) -> dict:
+    spec = next((v for v in pricing.get("vol_surfaces", [])
+                 if v.get("id") == vol_id), None)
+    if spec is None:
+        raise ValueError(f"Vol surface not found: {vol_id}")
+    return spec
+
+
+def _find_swap_index_def(pricing: dict, swap_index_id: str) -> dict:
+    sidx = next((s for s in pricing.get("swap_indices", [])
+                 if s.get("id") == swap_index_id), None)
+    if sidx is None:
+        raise ValueError(f"Swap index not found: {swap_index_id}")
+    return sidx
+
+
+def _wire_period_to_ql(p: dict) -> ql.Period:
+    n, unit = _period_n_unit(p, "tenor", 0, "Months")
+    return ql.Period(n, get_time_unit(unit))
+
+
+def _frequency_to_period(freq) -> ql.Period:
+    """Mirror of the server's frequencyToPeriod for swap-index fixed legs."""
+    return {
+        ql.Annual: ql.Period(1, ql.Years),
+        ql.Semiannual: ql.Period(6, ql.Months),
+        ql.Quarterly: ql.Period(3, ql.Months),
+        ql.Monthly: ql.Period(1, ql.Months),
+    }[freq]
+
+
+def _ir_vol_base(base: dict):
+    """Decode an IrVolBaseSpec: (ref_date, calendar, bdc, day_counter,
+    vol_type, displacement). Refuses quote-referenced vols (no catalog case
+    exercises the quote indirection)."""
+    if base.get("quote_id"):
+        raise ValueError(
+            "quote-referenced vols are not reference-priced yet (inline "
+            "constant_vol / matrix values only)")
+    return (
+        parse_date(base["reference_date"]),
+        get_calendar(base.get("calendar", "TARGET")),
+        get_convention(base.get("business_day_convention", "ModifiedFollowing")),
+        get_day_counter(base.get("day_counter", "Actual365Fixed")),
+        get_volatility_type(base.get("volatility_type", "Lognormal")),
+        base.get("displacement", 0.0),
+    )
+
+
+def _build_swaption_atm_matrix(inner: dict, ref, cal, bdc, dc, vol_type,
+                               displacement):
+    """Rebuild the server's SwaptionVolatilityMatrix for an AtmMatrixSpec.
+
+    The server constructs the matrix from Periods; the Python bindings only
+    expose the date-based constructor, so the option dates are derived the
+    exact way QuantLib's Period constructor does internally:
+    calendar.advance(reference_date, period, bdc).
+    """
+    expiries = [_wire_period_to_ql(p) for p in inner["expiries"]]
+    tenors = [_wire_period_to_ql(p) for p in inner["tenors"]]
+    vols = inner["vols"]
+    if vols.get("quote_ids"):
+        raise ValueError("quote-referenced matrix vols are not supported here")
+    n_rows, n_cols = vols["n_rows"], vols["n_cols"]
+    matrix = ql.Matrix(n_rows, n_cols)
+    for i in range(n_rows):
+        for j in range(n_cols):
+            matrix[i][j] = vols["values"][i * n_cols + j]
+    option_dates = [cal.advance(ref, p, bdc) for p in expiries]
+    shifts = (ql.Matrix(n_rows, n_cols, displacement)
+              if displacement != 0.0 else ql.Matrix())
+    svm = ql.SwaptionVolatilityMatrix(
+        ref, cal, bdc, option_dates, tenors, matrix, dc, False, vol_type,
+        shifts)
+    return svm, expiries, tenors
+
+
+def _tenor_grid_dates(grid_spec: dict, ref, fallback_cal, fallback_bdc):
+    """Build a TenorGrid's dates the way the sampling evaluator does for
+    optionlet / equity surfaces: calendar.advance(reference_date, p, bdc),
+    with the grid's own calendar/bdc taking effect when the grid sets an
+    explicit calendar, else the surface's own conventions.
+
+    Only TenorGrid is supported (the catalog cases use tenor grids); the
+    reference deliberately raises on RangeGrid rather than approximating the
+    server's stepping loop untested.
+    """
+    if grid_spec.get("grid_type", "TenorGrid") != "TenorGrid":
+        raise ValueError("Only TenorGrid expiry grids are reference-sampled")
+    grid = grid_spec["grid"]
+    if grid.get("calendar"):
+        cal = get_calendar(grid["calendar"])
+        bdc = get_convention(grid.get("business_day_convention", "Following"))
+    else:
+        cal, bdc = fallback_cal, fallback_bdc
+    return [cal.advance(ref, _wire_period_to_ql(p), bdc)
+            for p in grid["tenors"]]
+
+
+def sample_vol_surfaces_ql(request: dict) -> list:
+    """Sample a vol surface exactly like the server's /sample-vol-surfaces.
+
+    Returns the flat `vols` list the response's results[0] must carry,
+    computed from an independently rebuilt QuantLib vol structure sampled at
+    independently recomputed query points. Supported subset (everything else
+    raises rather than approximating):
+
+      * Swaption surfaces of kind Constant (ConstantSwaptionVolatility) and
+        AtmMatrix2D (SwaptionVolatilityMatrix, bilinear in option time and
+        swap length), Cube and ExpirySlice output modes, TenorGrid expiry
+        and tenor grids, AbsoluteStrike axis. Exercise dates, effective swap
+        start/end dates (spot lag + fixed-leg schedule end) and the
+        option-time / swap-length year fractions mirror the evaluator's
+        computation node for node.
+      * Optionlet surfaces (constant vol only — the only shape on the wire),
+        sampled per (grid date, strike).
+      * EquityBlack surfaces of shape Constant (BlackConstantVol) and
+        AtmMatrix2D term vols (BlackVarianceCurve, linear in variance,
+        forceMonotoneVariance=true like the server's parser), sampled per
+        (grid date, strike).
+
+    Not supported (deliberately): smile cubes / SABR sampling (needs the
+    forward-aware cube the swaption family also defers), SpreadFromATM strike
+    axes, RangeGrid grids, SmileSlice/TermSlice modes, quote-referenced vols
+    and multi-query requests.
+    """
+    pricing = _reference_pricing_view(request)
+    queries = request.get("queries", [])
+    if len(queries) != 1:
+        raise ValueError("Reference samples exactly one query per request")
+    q = queries[0]
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    options = q.get("options", {})
+    if options.get("calendar"):
+        raise ValueError("QueryOptions.calendar overrides are not supported")
+    allow_extrapolation = options.get("allow_extrapolation", True)
+    strike_grid = q.get("strike_grid", {})
+    if strike_grid.get("axis", "AbsoluteStrike") != "AbsoluteStrike":
+        raise ValueError("Only AbsoluteStrike sampling is reference-supported")
+    strikes = strike_grid["strikes"]
+
+    surface_type = q.get("surface_type", "Swaption")
+    vol_spec = _find_vol_surface_spec(pricing, q["vol_id"])
+    payload = vol_spec.get("payload", {})
+
+    if surface_type == "Swaption":
+        if vol_spec.get("payload_type") != "SwaptionVolSpec":
+            raise ValueError("vol_id does not reference a SwaptionVolSpec")
+        inner_type = payload.get("payload_type")
+        inner = payload.get("payload", {})
+        base = inner.get("base", {})
+        ref, cal, bdc, dc, vol_type, displacement = _ir_vol_base(base)
+
+        if inner_type == "SwaptionVolConstantSpec":
+            handle = ql.ConstantSwaptionVolatility(
+                ref, cal, bdc, base["constant_vol"], dc, vol_type,
+                displacement)
+        elif inner_type == "SwaptionVolAtmMatrixSpec":
+            handle, _, _ = _build_swaption_atm_matrix(
+                inner, ref, cal, bdc, dc, vol_type, displacement)
+        else:
+            raise ValueError(
+                f"Swaption sampling of {inner_type} is not reference-supported"
+                " (smile cubes and SABR surfaces are deferred)")
+        if allow_extrapolation:
+            handle.enableExtrapolation()
+
+        # Swaption grid dates come from the swap index's fixed-leg
+        # conventions, not the grid's own calendar fields (the evaluator's
+        # TenorGrid branch): exercise = fixed_cal.advance(ref, p, fixed_bdc).
+        sidx = _find_swap_index_def(pricing, payload["swap_index_id"])
+        if q.get("swap_index_id") and q["swap_index_id"] != sidx["id"]:
+            raise ValueError("Query swap_index_id must match the surface's")
+        fixed = sidx["fixed_leg"]
+        fixed_cal = get_calendar(fixed["fixed_calendar"])
+        fixed_bdc = get_convention(fixed["fixed_bdc"])
+        fixed_term_bdc = get_convention(fixed["fixed_term_bdc"])
+        fixed_rule = get_date_generation(fixed["fixed_date_rule"])
+        fixed_eom = fixed.get("fixed_eom", False)
+        fixed_freq = get_frequency(fixed["fixed_frequency"])
+        spot_days = sidx.get("spot_days", 0)
+
+        exp_grid = q["expiry_grid"]
+        if exp_grid.get("grid_type", "TenorGrid") != "TenorGrid":
+            raise ValueError("Only TenorGrid expiry grids are supported")
+        exercises = [fixed_cal.advance(ref, _wire_period_to_ql(p), fixed_bdc)
+                     for p in exp_grid["grid"]["tenors"]]
+        ten_grid = q["tenor_grid"]
+        if ten_grid.get("grid_type", "TenorGrid") != "TenorGrid":
+            raise ValueError("Only TenorGrid tenor grids are supported")
+        tenors = [_wire_period_to_ql(p) for p in ten_grid["grid"]["tenors"]]
+
+        def node_times(exercise, tenor):
+            # Mirrors the evaluator's computeSwaptionDates + sampleVol:
+            # spot-lagged start, fixed-leg schedule end date, option time
+            # from the evaluation date and swap length between start/end,
+            # all on the surface's own day counter.
+            start = exercise
+            if spot_days > 0:
+                start = fixed_cal.advance(exercise, spot_days, ql.Days,
+                                          fixed_bdc)
+            tentative_end = fixed_cal.advance(start, tenor, fixed_term_bdc)
+            schedule = ql.Schedule(
+                start, tentative_end, ql.Period(fixed_freq), fixed_cal,
+                fixed_bdc, fixed_term_bdc, fixed_rule, fixed_eom)
+            option_time = max(1.0e-8, dc.yearFraction(eval_date, exercise))
+            swap_length = max(1.0e-8,
+                              dc.yearFraction(start, schedule.endDate()))
+            return option_time, swap_length
+
+        mode = q.get("output_mode", "Cube")
+        out = []
+        if mode == "Cube":
+            for exercise in exercises:
+                for tenor in tenors:
+                    option_time, swap_length = node_times(exercise, tenor)
+                    for strike in strikes:
+                        out.append(handle.volatility(
+                            option_time, swap_length, strike, True))
+        elif mode == "ExpirySlice":
+            tenor = tenors[q["slice_tenor_index"]]
+            if not q.get("slice_strike_is_set"):
+                raise ValueError("ExpirySlice requires slice_strike_is_set")
+            strike = q["slice_strike"]
+            for exercise in exercises:
+                option_time, swap_length = node_times(exercise, tenor)
+                out.append(handle.volatility(
+                    option_time, swap_length, strike, True))
+        else:
+            raise ValueError(
+                f"Output mode {mode} is not reference-supported")
+        return out
+
+    if surface_type == "Optionlet":
+        if vol_spec.get("payload_type") != "OptionletVolSpec":
+            raise ValueError("vol_id does not reference an OptionletVolSpec")
+        base = payload.get("base", {})
+        ref, cal, bdc, dc, vol_type, displacement = _ir_vol_base(base)
+        handle = ql.ConstantOptionletVolatility(
+            ref, cal, bdc, base["constant_vol"], dc, vol_type, displacement)
+        if allow_extrapolation:
+            handle.enableExtrapolation()
+        dates = _tenor_grid_dates(q["expiry_grid"], ref, cal, bdc)
+        return [handle.volatility(d, strike, True)
+                for d in dates for strike in strikes]
+
+    if surface_type == "EquityBlack":
+        if vol_spec.get("payload_type") != "BlackVolSpec":
+            raise ValueError("vol_id does not reference a BlackVolSpec")
+        base = payload.get("base", {})
+        if base.get("quote_id"):
+            raise ValueError("quote-referenced vols are not supported here")
+        ref = parse_date(base["reference_date"])
+        cal = get_calendar(base.get("calendar", "TARGET"))
+        bdc = get_convention(
+            base.get("business_day_convention", "ModifiedFollowing"))
+        dc = get_day_counter(base.get("day_counter", "Actual365Fixed"))
+        shape = base.get("shape", "Constant")
+        if shape == "Constant":
+            handle = ql.BlackConstantVol(ref, cal, base["constant_vol"], dc)
+        elif shape == "AtmMatrix2D":
+            # Server: pillar dates via cal.advance(ref, p, bdc), then a
+            # BlackVarianceCurve (linear total variance) with
+            # forceMonotoneVariance=true.
+            term_vols = payload["term_vols"]
+            if term_vols.get("quote_ids"):
+                raise ValueError("quote-referenced term vols not supported")
+            pillar_dates = [cal.advance(ref, _wire_period_to_ql(p), bdc)
+                            for p in payload["expiries"]]
+            handle = ql.BlackVarianceCurve(
+                ref, pillar_dates, term_vols["values"], dc, True)
+        else:
+            raise ValueError(
+                f"EquityBlack shape {shape} is not reference-supported")
+        if allow_extrapolation:
+            handle.enableExtrapolation()
+        dates = _tenor_grid_dates(q["expiry_grid"], ref, cal, bdc)
+        return [handle.blackVol(d, strike, True)
+                for d in dates for strike in strikes]
+
+    raise ValueError(f"Unknown surface_type: {surface_type}")
+
+
+def calibrate_swaption_model_ql(request: dict) -> dict:
+    """Run the server's Hull-White swaption calibration independently.
+
+    Mirrors the server's calibration routine step for step: one SwaptionHelper
+    per (expiry, tenor) grid node quoted at the surface's vol for that node
+    (constant vol, or the ATM matrix interpolated at the node), priced on a
+    JamshidianSwaptionEngine over HullWhite(discount_curve, a_init,
+    sigma_init), calibrated with LevenbergMarquardt under
+    EndCriteria(function_evaluations, max_iterations, eps, eps, eps) and the
+    spec's calibrate_a/calibrate_sigma fixed-parameter flags. The helper error
+    metric follows the server's vol-type pairing: PriceError for Normal vols,
+    ImpliedVolError for Black/shifted Black.
+
+    Returns the response fields to compare: hw_a, hw_sigma, rmse (root mean
+    square of the helpers' calibrationError, same metric) and num_helpers.
+
+    Both sides execute the same QuantLib C++ code, so on a well-conditioned
+    problem the calibrated parameters agree to ~1e-11 (see the catalog
+    tolerance note). Ill-conditioned setups — both parameters free against
+    vols no Hull-White model can fit — leave a flat valley in `a` where the
+    two builds stop at measurably different (equally valid) points; such
+    cases are deliberately not in the catalog.
+    """
+    pricing = _reference_pricing_view(request)
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    model = next((m for m in pricing.get("models", [])
+                  if m.get("id") == request["model_id"]), None)
+    if model is None:
+        raise ValueError(f"Model not found: {request['model_id']}")
+    calib = request.get("calibration") or model["payload"].get(
+        "hw_calibration")
+    if not calib:
+        raise ValueError("No calibration spec on request or model")
+
+    disc_json = next(c for c in pricing["curves"]
+                     if c["id"] == calib["discount_curve_id"])
+    discount = build_curve_from_json(disc_json, eval_date, request)
+    fwd_json = next(c for c in pricing["curves"]
+                    if c["id"] == calib["forwarding_curve_id"])
+    forwarding = build_curve_from_json(fwd_json, eval_date, request)
+
+    sidx = _find_swap_index_def(pricing, calib["swap_index_id"])
+    if sidx.get("kind", "IborSwapIndex") != "IborSwapIndex":
+        raise ValueError("Hull-White calibration supports Ibor swap indices")
+    fixed = sidx["fixed_leg"]
+    ibor = resolve_index_from_id(sidx["float_index_id"], request, forwarding)
+
+    vol_spec = _find_vol_surface_spec(pricing, calib["swaption_vol_id"])
+    wrapper = vol_spec["payload"]
+    inner_type = wrapper.get("payload_type")
+    inner = wrapper.get("payload", {})
+    base = inner.get("base", {})
+    ref, cal, bdc, dc, vol_type, displacement = _ir_vol_base(base)
+
+    matrix_expiries = matrix_tenors = None
+    if inner_type == "SwaptionVolConstantSpec":
+        constant_vol = base["constant_vol"]
+
+        def market_vol(expiry, tenor):
+            return constant_vol
+    elif inner_type == "SwaptionVolAtmMatrixSpec":
+        svm, matrix_expiries, matrix_tenors = _build_swaption_atm_matrix(
+            inner, ref, cal, bdc, dc, vol_type, displacement)
+
+        def market_vol(expiry, tenor):
+            # The server calls volatility(Period, Period, 0, extrapolate);
+            # QuantLib resolves the option Period through the structure's own
+            # calendar/bdc, which the Python bindings only expose via the
+            # (Date, Period) overload.
+            return svm.volatility(cal.advance(ref, expiry, bdc), tenor, 0.0,
+                                  True)
+    else:
+        raise ValueError(
+            "Hull-White calibration supports Constant and AtmMatrix2D vols")
+
+    expiries = ([_wire_period_to_ql(p) for p in calib.get("expiries", [])]
+                or matrix_expiries)
+    tenors = ([_wire_period_to_ql(p) for p in calib.get("tenors", [])]
+              or matrix_tenors)
+    if not expiries or not tenors:
+        raise ValueError("Calibration grid is empty")
+
+    error_type = (ql.BlackCalibrationHelper.PriceError
+                  if vol_type == ql.Normal
+                  else ql.BlackCalibrationHelper.ImpliedVolError)
+    fixed_leg_tenor = _frequency_to_period(
+        get_frequency(fixed["fixed_frequency"]))
+    fixed_dc = get_day_counter(fixed["fixed_day_counter"])
+    spot_days = sidx.get("spot_days", 0)
+
+    helpers = []
+    for expiry in expiries:
+        for tenor in tenors:
+            vol_quote = ql.QuoteHandle(
+                ql.SimpleQuote(market_vol(expiry, tenor)))
+            helpers.append(ql.SwaptionHelper(
+                expiry, tenor, vol_quote, ibor, fixed_leg_tenor, fixed_dc,
+                ibor.dayCounter(), discount, error_type, ql.nullDouble(),
+                1.0, vol_type, displacement, spot_days))
+
+    hw = ql.HullWhite(discount, calib.get("a_init", 0.03),
+                      calib.get("sigma_init", 0.01))
+    engine = ql.JamshidianSwaptionEngine(hw)
+    for helper in helpers:
+        helper.setPricingEngine(engine)
+
+    eps = calib.get("end_criteria_eps", 1.0e-8)
+    # Server arg order: EndCriteria(function_evaluations, max_iterations,
+    # eps, eps, eps).
+    end_criteria = ql.EndCriteria(
+        calib.get("function_evaluations", 1000),
+        calib.get("max_iterations", 200), eps, eps, eps)
+    fix_params = [not calib.get("calibrate_a", True),
+                  not calib.get("calibrate_sigma", True)]
+    hw.calibrate(helpers, ql.LevenbergMarquardt(), end_criteria,
+                 ql.NoConstraint(), [], fix_params)
+
+    errors = [h.calibrationError() for h in helpers]
+    rmse = math.sqrt(sum(e * e for e in errors) / len(errors))
+    return {
+        "hw_a": hw.params()[0],
+        "hw_sigma": hw.params()[1],
+        "rmse": rmse,
+        "num_helpers": len(helpers),
+    }
+
+
+def calibrate_swaption_vol_ql(request: dict) -> dict:
+    """Run the server's per-node SABR swaption-cube calibration independently.
+
+    Rebuilds everything the server's SABR-calibrate finalize path builds:
+
+      * per-node ATM forwards as the fair rates of forward-starting vanilla
+        swaps generated from the swap index conventions (spot lag, fixed-leg
+        schedule) on the request's discounting/forwarding curves,
+      * the spread-zero ATM vol matrix (linear interpolation of each node's
+        market vols at spread 0) wrapped in a SwaptionVolatilityMatrix,
+      * the per-node vol spreads, the {alpha 0.04, beta beta_value, nu 0.4,
+        rho 0.0} parameter guesses and the {false, beta_fixed, false, false}
+        fixed flags,
+      * QuantLib's SabrSwaptionVolatilityCube with the same SwapIndex (built
+        on the first grid tenor) and default end criteria, whose
+        sparseSabrParameters() runs the same per-node Levenberg-Marquardt
+        fits the server runs.
+
+    Returns the response diagnostics fields to compare (dotted paths into the
+    response): per-node forward, ATM vol (Hagan vol at the forward on the
+    calibrated parameters), alpha/beta/rho/nu grids, per-node fit RMSE and
+    the overall RMSE. Lognormal, displacement-free surfaces only — the
+    catalog cases keep the smile data well inside SABR's parameter bounds,
+    where the two builds' optimizers agree to ~1e-10 (boundary-pinned fits,
+    e.g. rho -> 1, diverge across builds and are deliberately not cataloged).
+    """
+    pricing = _reference_pricing_view(request)
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    disc_json = next(c for c in pricing["curves"]
+                     if c["id"] == request["discounting_curve_id"])
+    discount = build_curve_from_json(disc_json, eval_date, request)
+    fwd_json = next(c for c in pricing["curves"]
+                    if c["id"] == request["forwarding_curve_id"])
+    forwarding = build_curve_from_json(fwd_json, eval_date, request)
+
+    vol_spec = _find_vol_surface_spec(pricing, request["vol_id"])
+    wrapper = vol_spec["payload"]
+    if wrapper.get("payload_type") != "SwaptionSabrCalibrateSpec":
+        raise ValueError("vol_id must reference a SwaptionSabrCalibrateSpec")
+    inner = wrapper["payload"]
+    base = inner["base"]
+    ref, cal, bdc, dc, vol_type, displacement = _ir_vol_base(base)
+    if vol_type != ql.ShiftedLognormal or displacement != 0.0:
+        raise ValueError(
+            "Only displacement-free lognormal SABR calibration is "
+            "reference-supported")
+
+    sidx = _find_swap_index_def(pricing, wrapper["swap_index_id"])
+    fixed = sidx["fixed_leg"]
+    float_leg = sidx["float_leg"]
+    fixed_cal = get_calendar(fixed["fixed_calendar"])
+    fixed_bdc = get_convention(fixed["fixed_bdc"])
+    fixed_term_bdc = get_convention(fixed["fixed_term_bdc"])
+    fixed_rule = get_date_generation(fixed["fixed_date_rule"])
+    fixed_eom = fixed.get("fixed_eom", False)
+    fixed_freq = get_frequency(fixed["fixed_frequency"])
+    fixed_dc = get_day_counter(fixed["fixed_day_counter"])
+    spot_days = sidx.get("spot_days", 0)
+    ibor = resolve_index_from_id(sidx["float_index_id"], request, forwarding)
+
+    expiries = [_wire_period_to_ql(p) for p in inner["expiries"]]
+    tenors = [_wire_period_to_ql(p) for p in inner["tenors"]]
+    spreads = inner["strikes"]
+    tensor = inner["vols"]
+    if tensor.get("quote_ids"):
+        raise ValueError("quote-referenced SABR vols are not supported here")
+    n_exp, n_ten, n_str = tensor["n_1"], tensor["n_2"], tensor["n_3"]
+    values = tensor["values"]
+
+    # Per-node ATM forwards: the server's computeServerAtmForwards — a
+    # forward-starting vanilla swap per node whose fair rate is the forward.
+    swap_engine = ql.DiscountingSwapEngine(discount)
+    float_tenor = _wire_period_to_ql(float_leg["float_tenor"])
+    forwards = []
+    for expiry in expiries:
+        exercise = fixed_cal.advance(ref, expiry, fixed_bdc)
+        start = exercise
+        if spot_days > 0:
+            start = fixed_cal.advance(exercise, spot_days, ql.Days, fixed_bdc)
+        for tenor in tenors:
+            tentative_end = fixed_cal.advance(start, tenor, fixed_term_bdc)
+            fixed_schedule = ql.Schedule(
+                start, tentative_end, ql.Period(fixed_freq), fixed_cal,
+                fixed_bdc, fixed_term_bdc, fixed_rule, fixed_eom)
+            float_schedule = ql.Schedule(
+                start, fixed_schedule.endDate(), float_tenor,
+                get_calendar(float_leg["float_calendar"]),
+                get_convention(float_leg["float_bdc"]),
+                get_convention(float_leg["float_term_bdc"]),
+                get_date_generation(float_leg["float_date_rule"]),
+                float_leg.get("float_eom", False))
+            swap = ql.VanillaSwap(
+                ql.VanillaSwap.Payer, 1.0, fixed_schedule, 0.0, fixed_dc,
+                float_schedule, ibor, 0.0, ibor.dayCounter())
+            swap.setPricingEngine(swap_engine)
+            forwards.append(swap.fairRate())
+
+    # Spread-zero ATM vols: linear interpolation of each node's market vols
+    # at spread 0 (flat-extended when the grid is one-sided), exactly the
+    # server's interpolateAtmVolAtSpreadZero.
+    def atm_at_spread_zero(node_vols):
+        if len(node_vols) == 1 or spreads[0] >= 0.0:
+            return node_vols[0]
+        if spreads[-1] <= 0.0:
+            return node_vols[-1]
+        hi = bisect.bisect_left(spreads, 0.0)
+        lo = hi - 1
+        w = (0.0 - spreads[lo]) / (spreads[hi] - spreads[lo])
+        return node_vols[lo] * (1.0 - w) + node_vols[hi] * w
+
+    atm_matrix = ql.Matrix(n_exp, n_ten)
+    for i in range(n_exp):
+        for j in range(n_ten):
+            node = values[(i * n_ten + j) * n_str:(i * n_ten + j + 1) * n_str]
+            atm_matrix[i][j] = atm_at_spread_zero(node)
+    option_dates = [cal.advance(ref, p, bdc) for p in expiries]
+    atm_structure = ql.SwaptionVolatilityMatrix(
+        ref, cal, bdc, option_dates, tenors, atm_matrix, dc, False, vol_type,
+        ql.Matrix())
+    atm_handle = ql.SwaptionVolatilityStructureHandle(atm_structure)
+
+    vol_spreads = []
+    for i in range(n_exp):
+        for j in range(n_ten):
+            atm = atm_matrix[i][j]
+            vol_spreads.append([
+                ql.QuoteHandle(ql.SimpleQuote(
+                    values[(i * n_ten + j) * n_str + k] - atm))
+                for k in range(n_str)])
+
+    beta_fixed = inner.get("beta_fixed", True)
+    beta_value = inner.get("beta_value", 0.5)
+    guesses = [[ql.QuoteHandle(ql.SimpleQuote(0.04)),
+                ql.QuoteHandle(ql.SimpleQuote(beta_value)),
+                ql.QuoteHandle(ql.SimpleQuote(0.4)),
+                ql.QuoteHandle(ql.SimpleQuote(0.0))]
+               for _ in range(n_exp * n_ten)]
+    is_fixed = [False, beta_fixed, False, False]
+
+    swap_index = ql.SwapIndex(
+        wrapper["swap_index_id"], tenors[0], spot_days, ibor.currency(),
+        fixed_cal, _frequency_to_period(fixed_freq), fixed_bdc, fixed_dc,
+        ibor, discount)
+    cube = ql.SabrSwaptionVolatilityCube(
+        atm_handle, expiries, tenors, spreads, vol_spreads, swap_index,
+        swap_index, inner.get("vega_weighted_smile_fit", False), guesses,
+        is_fixed, False)
+    cube.enableExtrapolation()
+
+    # browse() row layout is (swapLengthIdx * nOptionTimes + optionIdx) with
+    # QuantLib's internal parameter order {alpha, beta, nu, rho}; re-indexed
+    # into the response's row-major (expiry, tenor) layout and schema field
+    # order, exactly like the server's finalize.
+    browsed = cube.sparseSabrParameters()
+    n_nodes = n_exp * n_ten
+    alpha = [0.0] * n_nodes
+    beta = [0.0] * n_nodes
+    rho = [0.0] * n_nodes
+    nu = [0.0] * n_nodes
+    per_node_rmse = [0.0] * n_nodes
+    for i in range(n_exp):
+        for j in range(n_ten):
+            row = j * n_exp + i
+            k = i * n_ten + j
+            alpha[k] = browsed[row][2]
+            beta[k] = browsed[row][3]
+            nu[k] = browsed[row][4]
+            rho[k] = browsed[row][5]
+            per_node_rmse[k] = browsed[row][7]
+    overall_rmse = math.sqrt(sum(r * r for r in per_node_rmse) / n_nodes)
+
+    # Per-node ATM vol: Hagan vol at the forward on the calibrated params,
+    # with the node's time-to-expiry on the surface's own conventions —
+    # the diagnostics builder's SabrSmileSection.volatility(F).
+    atm_vol = []
+    for i in range(n_exp):
+        exercise = cal.advance(ref, expiries[i], bdc)
+        tte = dc.yearFraction(ref, exercise)
+        for j in range(n_ten):
+            k = i * n_ten + j
+            atm_vol.append(ql.sabrVolatility(
+                forwards[k], forwards[k], tte, alpha[k], beta[k], nu[k],
+                rho[k]))
+
+    return {
+        "diagnostics.forward_per_node": forwards,
+        "diagnostics.atm_vol_per_node": atm_vol,
+        "diagnostics.alpha_per_node": alpha,
+        "diagnostics.beta_per_node": beta,
+        "diagnostics.rho_per_node": rho,
+        "diagnostics.nu_per_node": nu,
+        "diagnostics.calibration.per_node_rmse": per_node_rmse,
+        "diagnostics.calibration.overall_rmse": overall_rmse,
+    }
 
 
 # =============================================================================

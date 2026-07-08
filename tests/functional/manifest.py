@@ -18,7 +18,9 @@ Field reference (all keys required unless noted):
   description What real-world instrument the case represents.
   request     Request JSON path relative to examples/data/.
   list_key    Response list holding the compared payload ("swaps", "bonds",
-              ... for NPV cases; "results" for /bootstrap-curves series cases).
+              ... for NPV cases; "results" for /bootstrap-curves and
+              /sample-vol-surfaces series cases). Omitted (and forbidden) for
+              compare="fields" cases, which compare named response fields.
   ql_pricer   Name of the reference pricer function in
               tests/contract/ql_reference.py (e.g. "price_vanilla_swap_ql").
   tolerance   Max allowed abs(api - quantlib). Default 0.01 for NPV cases (one
@@ -31,14 +33,18 @@ Field reference (all keys required unless noted):
               catalog's "What it exercises" column.
   compare     Optional. "npv" (default): the reference returns a single float
               compared against list_key[0].npv. "series": the reference
-              returns the sampled curve values ({series_name: [floats]} keyed
+              returns the sampled values ({series_name: [floats]} keyed
               like the response's series[].measure, or a flat list for a
-              single series) and every point is compared element-wise.
-              "exact": the reference returns the expected response value
-              verbatim — a list of ISO date strings (calendar business days /
-              holidays, list_key "dates") or a single date string (calendar
-              advance, list_key "advanced_date") — and the response must
-              equal it exactly (order and length included).
+              single series — /sample-vol-surfaces' results[0].vols is
+              compared as that single series) and every point is compared
+              element-wise. "exact": the reference returns the expected
+              response value verbatim — a list of ISO date strings (calendar
+              business days / holidays, list_key "dates") or a single date
+              string (calendar advance, list_key "advanced_date") — and the
+              response must equal it exactly (order and length included).
+              "fields": for calibration endpoints returning a flat result
+              object — the reference returns {dotted.response.path: float or
+              [floats]} and each named field is compared within tolerance.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
@@ -46,7 +52,7 @@ examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
 examples/data/curves/, calendar utilities in examples/data/calendar/,
 inflation swaps in examples/data/inflation/, equity options in
-examples/data/equity/),
+examples/data/equity/, vol sampling and calibration in examples/data/vol/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -62,7 +68,24 @@ DEFAULT_TOLERANCE = 0.01
 # QuantLib's 1e-12 default in the Python reference), i.e. ~1e-12. 1e-9 keeps
 # three orders of margin over that noise floor while still being far below
 # any economically meaningful gap (1e-9 in a rate is 1e-5 of a basis point).
+# Vol-surface sampling cases (closed-form lookups on identically built
+# structures, values O(0.005-0.4)) sit on the same noise floor and use the
+# same tolerance.
 SERIES_TOLERANCE = 1e-9
+
+# Tolerance for calibration-output fields (Hull-White a/sigma, SABR
+# alpha/beta/rho/nu, fit RMSEs — all O(0.001-1.0)). Both sides run the same
+# QuantLib Levenberg-Marquardt code on identical inputs, and every cataloged
+# calibration is deliberately well-conditioned (sharp minimum, parameters
+# well inside their bounds), where the observed cross-side gaps are <3e-12.
+# 1e-7 leaves five orders of headroom for optimizer stopping-point wobble
+# across future compiler/QuantLib-build changes while remaining far below
+# anything economically meaningful (1e-7 in a vol is a thousandth of a basis
+# point). Ill-conditioned calibrations — flat objective valleys or
+# boundary-pinned parameters, where the two builds legitimately stop at
+# visibly different points — are excluded from the catalog instead of being
+# hidden under a loose tolerance (see tests/functional/README.md).
+CALIBRATION_TOLERANCE = 1e-7
 
 CASES = [
     # ------------------------------------------------------------------
@@ -2331,5 +2354,253 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["European", "call", "quantity 100",
                       "quantity scaling"],
+    },
+
+    # ------------------------------------------------------------------
+    # Vol / Calibration — vol-surface sampling (compare="series": every
+    # returned vol is checked element-wise) and calibration endpoints
+    # (compare="fields": the calibrated parameters / fit statistics are
+    # checked field by field). See README for what is deliberately deferred.
+    # ------------------------------------------------------------------
+    {
+        "id": "volsample_swaption_atm_matrix_cube",
+        "product": "sample_vol_surfaces",
+        "family": "Vol / Calibration",
+        "title": "Swaption ATM matrix sampled on an off-pillar cube",
+        "description": (
+            "A 3x3 lognormal ATM swaption vol matrix (1Y/2Y/5Y expiries x "
+            "2Y/5Y/10Y tenors) sampled at a 3x3 query grid whose 18M expiry "
+            "and 3Y expiry rows and 4Y tenor column all sit between the "
+            "pillars, so every returned vol exercises the matrix's bilinear "
+            "interpolation in option time and swap length. Exercise dates, "
+            "spot-lagged swap starts and fixed-leg schedule end dates are "
+            "generated from the swap index conventions on both sides."
+        ),
+        "request": "vol/volsample_swaption_atm_matrix_cube.json",
+        "list_key": "results",
+        "ql_pricer": "sample_vol_surfaces_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["swaption vols", "ATM matrix", "bilinear interpolation",
+                      "off-pillar grid", "Cube output", "swap-index dates"],
+    },
+    {
+        "id": "volsample_swaption_atm_matrix_normal_expiry_slice",
+        "product": "sample_vol_surfaces",
+        "family": "Vol / Calibration",
+        "title": "Normal ATM matrix, ExpirySlice at a fixed tenor",
+        "description": (
+            "A normal (Bachelier) ATM swaption vol matrix (1Y/2Y/5Y x "
+            "5Y/10Y) queried in ExpirySlice mode: the 10Y tenor column is "
+            "selected by index and a fixed slice strike, returning one vol "
+            "per expiry gridpoint (including an off-pillar 30M and an "
+            "interpolated 4Y). Pins the slice selectors and the Normal vol "
+            "type flowing through sampling."
+        ),
+        "request": "vol/volsample_swaption_atm_matrix_normal_expiry_slice.json",
+        "list_key": "results",
+        "ql_pricer": "sample_vol_surfaces_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["swaption vols", "normal vol type", "ExpirySlice",
+                      "slice_tenor_index", "slice_strike",
+                      "off-pillar expiries"],
+    },
+    {
+        "id": "volsample_swaption_constant_cube",
+        "product": "sample_vol_surfaces",
+        "family": "Vol / Calibration",
+        "title": "Constant swaption vol sampled over a strike cube",
+        "description": (
+            "A flat 20% lognormal swaption vol sampled over 2 expiries x 2 "
+            "tenors x 3 strikes. The vol is strike- and node-independent by "
+            "construction, so the case pins the cube flattening (expiry-"
+            "major, then tenor, then strike — 12 points) and the constant-"
+            "vol structure plumbing rather than any interpolation."
+        ),
+        "request": "vol/volsample_swaption_constant_cube.json",
+        "list_key": "results",
+        "ql_pricer": "sample_vol_surfaces_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["swaption vols", "constant vol", "strike axis",
+                      "cube flattening order"],
+    },
+    {
+        "id": "volsample_optionlet_constant_normal",
+        "product": "sample_vol_surfaces",
+        "family": "Vol / Calibration",
+        "title": "Optionlet constant normal vol on a tenor grid",
+        "description": (
+            "A flat 80bp normal (Bachelier) optionlet vol — the only "
+            "optionlet shape the wire accepts — sampled at 1Y/2Y/5Y grid "
+            "dates and two strikes on the surface's own TARGET Modified "
+            "Following conventions. Pins the Optionlet surface branch, its "
+            "date-based sampling and the grid-convention resolution."
+        ),
+        "request": "vol/volsample_optionlet_constant_normal.json",
+        "list_key": "results",
+        "ql_pricer": "sample_vol_surfaces_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["optionlet vols", "constant normal vol 80bp",
+                      "tenor grid dates", "two strikes"],
+    },
+    {
+        "id": "volsample_equity_black_term_curve",
+        "product": "sample_vol_surfaces",
+        "family": "Vol / Calibration",
+        "title": "Equity Black term-vol curve sampled off-pillar",
+        "description": (
+            "An equity Black vol term structure (18%/20%/22%/25% at "
+            "3M/6M/1Y/2Y pillars, a BlackVarianceCurve linear in total "
+            "variance with forced monotonicity) sampled at 2M, 9M and 18M "
+            "grid dates — before the first pillar and between pillars — and "
+            "two strikes (term vols are strike-independent). Pins the "
+            "EquityBlack branch and genuine variance interpolation."
+        ),
+        "request": "vol/volsample_equity_black_term_curve.json",
+        "list_key": "results",
+        "ql_pricer": "sample_vol_surfaces_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["equity Black vols", "term structure",
+                      "variance interpolation", "off-pillar dates"],
+    },
+
+    # ------------------------------------------------------------------
+    # Vol / Calibration — Hull-White swaption model calibration
+    # ------------------------------------------------------------------
+    {
+        "id": "hwcal_eur_atm_matrix_roundtrip",
+        "product": "calibrate_swaption_model",
+        "family": "Vol / Calibration",
+        "title": "Hull-White round-trip: recover a=0.05, sigma=0.008",
+        "description": (
+            "Full two-parameter Hull-White calibration against a 2x2 ATM "
+            "matrix (1Y/2Y into 5Y/7Y) whose market vols were generated "
+            "from HullWhite(a=0.05, sigma=0.008) on the same curve, so the "
+            "objective has one sharp, well-conditioned minimum: the "
+            "calibration (Jamshidian helper pricing, implied-vol error, "
+            "Levenberg-Marquardt from a=0.03/sigma=0.01) must round-trip "
+            "the generating parameters and an ~1e-9 fit RMSE on both sides."
+        ),
+        "request": "vol/hwcal_eur_atm_matrix_roundtrip.json",
+        "ql_pricer": "calibrate_swaption_model_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["Hull-White", "calibrate a and sigma",
+                      "parameter round-trip", "ATM matrix target",
+                      "implied-vol error", "Jamshidian engine"],
+    },
+    {
+        "id": "hwcal_eur_atm_matrix_sigma_only",
+        "product": "calibrate_swaption_model",
+        "family": "Vol / Calibration",
+        "title": "Hull-White sigma-only fit to a market ATM matrix",
+        "description": (
+            "Sigma-only calibration (a fixed at 0.03 via calibrate_a=false, "
+            "sent through the request-level calibration override) against a "
+            "market-style 2x2 lognormal ATM matrix that no Hull-White model "
+            "fits exactly. The one-dimensional problem is well-conditioned, "
+            "so both sides converge to the same sigma and report the same "
+            "irreducible fit RMSE. The grid falls back to the matrix's own "
+            "expiries/tenors."
+        ),
+        "request": "vol/hwcal_eur_atm_matrix_sigma_only.json",
+        "ql_pricer": "calibrate_swaption_model_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["Hull-White", "sigma-only (calibrate_a=false)",
+                      "request-level calibration override",
+                      "matrix fallback grid", "nonzero fit RMSE"],
+    },
+    {
+        "id": "hwcal_eur_constant_normal_sigma_only",
+        "product": "calibrate_swaption_model",
+        "family": "Vol / Calibration",
+        "title": "Hull-White sigma-only fit to flat normal vols",
+        "description": (
+            "Sigma-only calibration against a flat 80bp normal (Bachelier) "
+            "constant vol with an explicit 2x2 expiry/tenor grid in the "
+            "model's calibration spec (constant surfaces carry no fallback "
+            "grid). Normal vols switch the helper error metric to the "
+            "price-error branch on both sides — the server's Normal/"
+            "PriceError pairing — while the 1D problem stays "
+            "well-conditioned."
+        ),
+        "request": "vol/hwcal_eur_constant_normal_sigma_only.json",
+        "ql_pricer": "calibrate_swaption_model_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["Hull-White", "sigma-only", "normal vol 80bp",
+                      "price-error metric", "explicit calibration grid",
+                      "constant vol target"],
+    },
+
+    # ------------------------------------------------------------------
+    # Vol / Calibration — SABR swaption-cube calibration
+    # ------------------------------------------------------------------
+    {
+        "id": "sabrcal_eur_2x2_beta_fixed_exact_fit",
+        "product": "calibrate_swaption_vol",
+        "family": "Vol / Calibration",
+        "title": "SABR per-node calibration, 3-strike exact fit",
+        "description": (
+            "Per-node SABR calibration of a 2x2 (1Y/2Y into 5Y/10Y) smile "
+            "cube quoted at three strike spreads (-100/0/+100bp) with beta "
+            "fixed at 0.5: three free parameters against three points, so "
+            "every node fits exactly (per-node RMSE 0) at interior "
+            "parameters. Compares the per-node forwards, the calibrated "
+            "alpha/beta/rho/nu grids, the Hagan ATM vols and the fit RMSEs."
+        ),
+        "request": "vol/sabrcal_eur_2x2_beta_fixed_exact_fit.json",
+        "ql_pricer": "calibrate_swaption_vol_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["SABR calibrate", "beta fixed 0.5", "exact fit",
+                      "per-node forwards", "alpha/rho/nu grids"],
+    },
+    {
+        "id": "sabrcal_eur_2x2_5strike_roundtrip",
+        "product": "calibrate_swaption_vol",
+        "family": "Vol / Calibration",
+        "title": "SABR round-trip: 5-strike smiles from known parameters",
+        "description": (
+            "The same 2x2 cube quoted at five strike spreads whose vols "
+            "were generated from known interior SABR parameters (alpha "
+            "0.040-0.046, rho -0.25 to -0.18, nu 0.30-0.35, beta 0.5) at "
+            "the curve's own forwards: the per-node fits are overdetermined "
+            "(5 points, 3 free parameters) yet recover the generating "
+            "parameters, leaving only the 1e-8 vol-rounding residual. Pins "
+            "the calibrator against a known answer."
+        ),
+        "request": "vol/sabrcal_eur_2x2_5strike_roundtrip.json",
+        "ql_pricer": "calibrate_swaption_vol_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["SABR calibrate", "parameter round-trip",
+                      "overdetermined fit", "5 strike spreads",
+                      "interior parameters"],
+    },
+    {
+        "id": "sabrcal_eur_2x2_5strike_vega_weighted",
+        "product": "calibrate_swaption_vol",
+        "family": "Vol / Calibration",
+        "title": "SABR round-trip with vega-weighted smile fit",
+        "description": (
+            "The 5-strike round-trip cube refit with "
+            "vega_weighted_smile_fit=true, so the per-node objective "
+            "weights residuals by Black vega instead of equally. On "
+            "SABR-consistent data the fit still recovers the generating "
+            "parameters (to ~1e-7), pinning the vega-weighting flag through "
+            "the calibrator on both sides."
+        ),
+        "request": "vol/sabrcal_eur_2x2_5strike_vega_weighted.json",
+        "ql_pricer": "calibrate_swaption_vol_ql",
+        "tolerance": CALIBRATION_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["SABR calibrate", "vega-weighted fit",
+                      "parameter round-trip", "5 strike spreads"],
     },
 ]

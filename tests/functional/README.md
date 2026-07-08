@@ -4,12 +4,14 @@ A manifest-driven set of end-to-end cases: each case is a complete JSON
 request that is POSTed to the running Quantra server, and the response is
 asserted to equal an independent QuantLib reference (computed by
 `tests/contract/ql_reference.py`) within a tight tolerance. Pricing cases
-compare a single NPV (default tolerance **0.01**); curve-sampling cases
-compare every point of every returned series (tolerance **1e-9**); calendar
-date-utility cases must match the reference **exactly** — see
-"Comparison modes". The server and the reference are pinned to the same
-QuantLib version, so the observed differences are at machine precision — a
-real behavioural drift on either side fails the gate immediately.
+compare a single NPV (default tolerance **0.01**); curve- and vol-surface-
+sampling cases compare every point of every returned series (tolerance
+**1e-9**); calendar date-utility cases must match the reference **exactly**;
+calibration cases compare every calibrated parameter and fit statistic
+(tolerance **1e-7**) — see "Comparison modes". The server and the reference
+are pinned to the same QuantLib version, so the observed differences are at
+machine precision — a real behavioural drift on either side fails the gate
+immediately.
 
 Browse the catalog:
 
@@ -39,6 +41,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/calendar/` | The curated request JSONs for the Calendars family. |
 | `../../examples/data/inflation/` | The curated request JSONs for the Inflation family. |
 | `../../examples/data/equity/` | The curated request JSONs for the Equity family. |
+| `../../examples/data/vol/` | The curated request JSONs for the Vol / Calibration family. |
 
 ## Comparison modes
 
@@ -48,14 +51,15 @@ existing rows omit it and keep the original behaviour.
 * `compare: "npv"` (default) — the response holds one instrument under
   `list_key` and the reference returns a float:
   `abs(response[list_key][0].npv - ql) < tolerance`.
-* `compare: "series"` — for endpoints that return sampled curve series
-  (`/bootstrap-curves`): `list_key` names the response list (`results`) and
-  the reference returns the expected values, either
-  `{series_name: [floats]}` keyed like the response's `series[].measure`
-  (`DF`/`ZERO`/`FWD`) or a flat list when there is exactly one series. The
-  driver asserts the series sets match, the lengths match, and
-  `abs(api[i] - ql[i]) < tolerance` for **every** point, reporting the
-  maximum gap on failure.
+* `compare: "series"` — for endpoints that return sampled value series:
+  `list_key` names the response list (`results`) and the reference returns
+  the expected values, either `{series_name: [floats]}` keyed like the
+  response's `series[].measure` (`DF`/`ZERO`/`FWD` on `/bootstrap-curves`)
+  or a flat list when there is exactly one series —
+  `/sample-vol-surfaces`' flat `results[0].vols` list is compared as that
+  single series. The driver asserts the series sets match, the lengths
+  match, and `abs(api[i] - ql[i]) < tolerance` for **every** point,
+  reporting the maximum gap on failure.
 * `compare: "exact"` — for the calendar date-utility endpoints
   (`/calendar-business-days`, `/calendar-holidays`, `/calendar-advance`),
   which return exact dates rather than floats. The reference returns the
@@ -64,19 +68,40 @@ existing rows omit it and keep the original behaviour.
   `advanced_date` (advance) — and the response must equal it **exactly**:
   same length, same order, same strings. There is no tolerance; exact cases
   carry no `tolerance` field in the manifest (the driver forbids one).
+* `compare: "fields"` — for the calibration endpoints
+  (`/calibrate-swaption-model`, `/calibrate-swaption-vol`), whose response
+  is a flat result object rather than an instrument list. The reference
+  returns `{dotted.response.path: expected}` — e.g. `hw_sigma` or
+  `diagnostics.alpha_per_node` — where each expected value is a float or a
+  list of floats, and the driver asserts every named field is present and
+  matches within the case tolerance (element-wise and length-checked for
+  lists), reporting the worst gap on failure. Fields cases carry no
+  `list_key` (the driver forbids one).
 
 Series cases use a much tighter tolerance than NPV cases (1e-9, set per case
 in the manifest) because the compared quantities — discount factors, zero
-rates, forward rates — are of order 0.01-1.0. Both sides build identical
-QuantLib objects, so the residual noise is bounded by the ~12 significant
-digits FlatBuffers prints response doubles with plus the two bootstrap
-accuracies (~1e-12 combined); 1e-9 keeps three orders of margin over that
-floor while staying far below anything economically meaningful (1e-9 in a
-rate is 1e-5 of a basis point). Never loosen a series tolerance to make a
-case pass — fix the mismatch instead.
+rates, forward rates, volatilities — are of order 0.01-1.0. Both sides build
+identical QuantLib objects, so the residual noise is bounded by the ~12
+significant digits FlatBuffers prints response doubles with plus the two
+bootstrap accuracies (~1e-12 combined); 1e-9 keeps three orders of margin
+over that floor while staying far below anything economically meaningful
+(1e-9 in a rate is 1e-5 of a basis point). Never loosen a series tolerance
+to make a case pass — fix the mismatch instead.
+
+Calibration fields use 1e-7: the compared quantities (Hull-White a/sigma,
+SABR alpha/beta/rho/nu, fit RMSEs) come out of the same QuantLib
+Levenberg-Marquardt code on both sides, and every cataloged calibration is
+deliberately well-conditioned — sharp minimum, parameters well inside their
+bounds — where the measured cross-side gaps are below 3e-12. The extra
+headroom over 1e-9 absorbs optimizer stopping-point wobble across future
+compiler/QuantLib-build changes without ever approaching an economically
+meaningful difference (1e-7 in a vol is a thousandth of a basis point).
+The same honesty rule applies: a case that needs a looser tolerance to pass
+is reporting a real difference — investigate it, never widen the tolerance.
 
 In the generated catalog, series cases show a summary in the value column
-(e.g. `DF/ZERO series, 10 points`) instead of an NPV.
+(e.g. `DF/ZERO series, 10 points`), and calibration cases show the scalar
+fields plus a per-node grid count, instead of an NPV.
 
 ## How it runs in the gate
 
@@ -110,7 +135,8 @@ python3 -m pytest tests/functional -q \
    `examples/data/curves/`, calendar date-utility cases in
    `examples/data/calendar/`, inflation-swap cases in
    `examples/data/inflation/`, equity-option cases in
-   `examples/data/equity/`.
+   `examples/data/equity/`, vol-sampling and calibration cases in
+   `examples/data/vol/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -622,6 +648,91 @@ deliberately not half-implemented:
   echoed by the server but does not change the price, so a Cash case would
   pin only the enum plumbing.
 
+## Current coverage (Vol / Calibration)
+
+Three products: `/sample-vol-surfaces` (compare="series", every returned vol
+checked within 1e-9), `/calibrate-swaption-model` and
+`/calibrate-swaption-vol` (compare="fields", every calibrated parameter and
+fit statistic checked within 1e-7 — see the tolerance rationale under
+"Comparison modes"). All calibration cases are deliberately
+well-conditioned; the measured server-vs-reference gaps are below 3e-12.
+
+* Vol-surface sampling: a lognormal ATM swaption matrix sampled on an
+  off-pillar expiry/tenor cube (genuine bilinear interpolation in option
+  time and swap length, with exercise dates, spot-lagged swap starts and
+  fixed-leg schedule ends regenerated from the swap index conventions on
+  both sides); a normal ATM matrix queried in ExpirySlice mode (slice
+  selectors + fixed slice strike); a constant swaption vol over a
+  2x2x3 strike cube (pins the expiry-major/tenor/strike flattening); a
+  constant 80bp normal optionlet surface on a tenor grid; and an equity
+  Black term-vol curve (BlackVarianceCurve) sampled before the first pillar
+  and between pillars (genuine variance interpolation).
+* Hull-White calibration: a two-parameter round-trip that recovers
+  a=0.05/sigma=0.008 from an ATM matrix generated by that very model (sharp
+  minimum, ~1e-9 fit RMSE); a sigma-only fit (calibrate_a=false, via the
+  request-level calibration override) to a market-style matrix no
+  Hull-White model fits exactly (nonzero irreducible RMSE, matrix fallback
+  grid); and a sigma-only fit to a flat 80bp normal vol with an explicit
+  calibration grid (the Normal/price-error helper branch).
+* SABR cube calibration: a 3-strike beta-fixed exact fit (3 free parameters
+  per node, per-node RMSE 0); a 5-strike overdetermined round-trip whose
+  smiles were generated from known interior SABR parameters at the curve's
+  own forwards (the calibrator must recover them); and the same round-trip
+  with vega_weighted_smile_fit=true. Compared fields: per-node forwards,
+  alpha/beta/rho/nu grids, Hagan ATM vols and the per-node/overall fit
+  RMSEs.
+
+## Deferred / not yet covered (Vol / Calibration)
+
+Honesty matters most in this family — some paths are deliberately NOT
+cataloged because a faithful independent reference either does not exist yet
+or cannot agree with the server more tightly than the effect being tested:
+
+* **Free-(a, sigma) Hull-White calibration against vols the model cannot
+  fit** — measured, not hypothetical: on a market-style ATM matrix the
+  objective has a flat valley in `a`, and the server binary and the Python
+  QuantLib wheel (same version, different compiler builds) stop at
+  different, equally valid points — observed `a` gap ~1.9e-5 with objective
+  values matching to 0.03%, while the same request with `a` held fixed
+  agrees to 1e-13. A tolerance loose enough to absorb that valley would
+  also hide real regressions, so only well-conditioned two-parameter cases
+  (the round-trip) and sigma-only cases are cataloged.
+* **Boundary-pinned SABR fits** — smiles that drive rho to its bound
+  (rho -> 1) showed cross-build gaps up to ~1.6e-6 on the pinned nodes
+  (same flat-direction effect); the cataloged smiles keep parameters well
+  interior. A vega-weighted fit on such ill-fitting data is additionally
+  rejected by QuantLib's global error tolerance on the server.
+* **Smile-cube / SABR surface sampling** (`/sample-vol-surfaces` on
+  SmileCube3D and SabrParams/SabrCalibrate surfaces, SpreadFromATM strike
+  axes) — the reference rebuilds constant, ATM-matrix and equity term
+  structures only; the forward-aware cube reconstruction exists for
+  `/calibrate-swaption-vol` but wiring it through the sampling grid logic
+  (per-mode slices, spread-axis translation) is not validated yet, same
+  deferral as the Swaption pricing family's smile cases.
+* **SmileSlice / TermSlice output modes and RangeGrid vol grids** — on the
+  wire and served, but the reference implements Cube + ExpirySlice on
+  TenorGrids only; slices/grids beyond that raise in the reference rather
+  than approximating the evaluator's stepping loop untested.
+* **Quote-referenced vols** (`quote_id` on vol bases / matrix cells) — the
+  server resolves them against `pricing.quotes`; the reference deliberately
+  raises (same caveat as the Cap/Floor and Equity families).
+* **Shifted-lognormal SABR calibration** (displacement != 0) — expressible
+  on the wire; the reference restricts itself to the displacement-free
+  lognormal path it has validated.
+* **OIS-underlying vol surfaces** (`swap_index_id` of kind OisSwapIndex) —
+  the server computes OIS ATM forwards for sampling, but SABR calibrate
+  rejects OIS swap indices ("not supported in v1") and the reference only
+  builds the Ibor path.
+* **The diagnostics `expiries`/`tenors` period fields** — a genuine server
+  bug found while building this family: the diagnostics builder casts
+  QuantLib's TimeUnit enum (Days=0, Weeks=1, Months=2, Years=3) straight
+  into the schema's alphabetical TimeUnit enum (Days=0, Hours=1,
+  Microseconds=2, Milliseconds=3, ...), so a 1Y expiry serializes as
+  `{"n": 1, "unit": "Milliseconds"}` in every SwaptionVolDiagnostics block
+  (`src/market/swaption_vol_diagnostics.cpp`, `writePeriod`). The catalog
+  cases compare the numeric grids only; the fields can be asserted once the
+  mapper uses the proper enum conversion.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -644,5 +755,6 @@ yet; they are deliberately not half-implemented:
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
 * **Other families**: Bonds, FRAs, caps/floors, swaptions, CDS,
   bootstrapped-curve sampling (Curves), the calendar date utilities
-  (Calendars), the inflation swaps (Inflation) and the equity options
-  (Equity) are covered above.
+  (Calendars), the inflation swaps (Inflation), the equity options
+  (Equity) and the vol-surface sampling / calibration endpoints
+  (Vol / Calibration) are covered above.

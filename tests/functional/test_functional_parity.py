@@ -3,20 +3,27 @@
 Parametrizes over tests/functional/manifest.py: each case's request JSON is
 POSTed to the running server (via the shared `client` fixture) and the
 response is compared against the independent QuantLib reference named in the
-manifest (from tests/contract/ql_reference.py). Three comparison modes:
+manifest (from tests/contract/ql_reference.py). Four comparison modes:
 
   * compare="npv" (default) — the response holds one instrument NPV under
     `list_key`; assert abs(api_npv - ql_npv) < tolerance.
-  * compare="series" — the response holds sampled curve series under
-    `list_key` (e.g. /bootstrap-curves results[0].series[]); the reference
-    returns the expected values ({series_name: [floats]} keyed like the
-    response's `measure`, or a flat list when there is exactly one series)
-    and every point must satisfy abs(api[i] - ql[i]) < tolerance.
+  * compare="series" — the response holds sampled values under `list_key`:
+    either curve series (/bootstrap-curves results[0].series[]) or a sampled
+    vol surface (/sample-vol-surfaces results[0].vols). The reference returns
+    the expected values ({series_name: [floats]} keyed like the response's
+    `measure`, or a flat list when there is exactly one series — the vol
+    `vols` list is treated as that single series) and every point must
+    satisfy abs(api[i] - ql[i]) < tolerance.
   * compare="exact" — for date-utility endpoints (calendar business days /
     holidays / advance): the reference returns the expected value directly —
     a list of ISO date strings or a single date string — and the response
     value under `list_key` must equal it exactly (same length, same order,
     same strings; no tolerance, so exact cases carry no tolerance field).
+  * compare="fields" — for calibration endpoints whose response is a flat
+    result object rather than an instrument list: the reference returns
+    {dotted.response.path: expected} where expected is a float or a list of
+    floats, and every named field must satisfy abs(api - ql) < tolerance
+    (element-wise for lists, same length). Fields cases carry no `list_key`.
 
 Also keeps the committed catalog honest: test_catalog_in_sync regenerates
 CATALOG.md / catalog.html content in memory and asserts it matches the files
@@ -45,12 +52,14 @@ def test_manifest_well_formed(data_dir):
     ids = set()
     for case in CASES:
         compare = case.get("compare", "npv")
-        assert compare in ("npv", "series", "exact"), (
+        assert compare in ("npv", "series", "exact", "fields"), (
             f"{case.get('id')}: unknown compare mode: {case.get('compare')}"
         )
         # Exact cases have no tolerance by construction — the response must
-        # equal the reference value verbatim.
+        # equal the reference value verbatim. Fields cases compare named
+        # response fields, so they carry no list_key.
         needed = required - ({"tolerance"} if compare == "exact" else set())
+        needed -= {"list_key"} if compare == "fields" else set()
         missing = needed - case.keys()
         assert not missing, f"case {case.get('id')} missing keys: {missing}"
         assert case["id"] not in ids, f"duplicate case id: {case['id']}"
@@ -67,6 +76,10 @@ def test_manifest_well_formed(data_dir):
             )
         else:
             assert case["tolerance"] > 0
+        if compare == "fields":
+            assert "list_key" not in case, (
+                f"{case['id']}: fields cases must not carry a list_key"
+            )
         assert case["exercises"], f"{case['id']}: empty exercises list"
 
 
@@ -77,17 +90,23 @@ def test_manifest_well_formed(data_dir):
 def _api_series(response, list_key, case_id):
     """Pull {series_name: [values]} out of a sampled-series response.
 
-    The response's first entry under `list_key` (e.g. /bootstrap-curves
-    results[0]) carries series[] items with a `measure` name and aligned
+    Curve sampling (/bootstrap-curves): the response's first entry under
+    `list_key` carries series[] items with a `measure` name and aligned
     `values`. FlatBuffers JSON omits default enum values, so a missing
     measure means the first enum value, DF.
+
+    Vol-surface sampling (/sample-vol-surfaces): the entry carries one flat
+    `vols` list instead of named series; it is returned as the single series
+    "vols" (the reference returns a flat list for these cases).
     """
     entries = response[list_key]
     assert entries, f"{case_id}: empty '{list_key}' in response"
     entry = entries[0]
     error = entry.get("error")
-    assert not error, f"{case_id}: server returned a per-curve error: {error}"
+    assert not error, f"{case_id}: server returned a per-entry error: {error}"
     series = entry.get("series", [])
+    if not series and "vols" in entry:
+        return {"vols": entry["vols"]}
     assert series, f"{case_id}: no series in response entry"
     return {s.get("measure", "DF"): s["values"] for s in series}
 
@@ -154,6 +173,53 @@ def _assert_exact_parity(case, actual, expected):
         )
 
 
+def _dig(response, path, case_id):
+    """Resolve a dotted field path (e.g. diagnostics.alpha_per_node)."""
+    value = response
+    for part in path.split("."):
+        assert isinstance(value, dict) and part in value, (
+            f"{case_id}: response has no '{path}' field "
+            f"(missing '{part}'; got {sorted(value) if isinstance(value, dict) else type(value).__name__})"
+        )
+        value = value[part]
+    return value
+
+
+def _assert_fields_parity(case, response, expected):
+    """Per-field comparison for calibration responses.
+
+    `expected` maps dotted response paths to floats or lists of floats; every
+    field must be present and match within the case tolerance (element-wise
+    for lists, lengths equal), reporting the worst gap on failure.
+    """
+    case_id, tolerance = case["id"], case["tolerance"]
+    assert isinstance(expected, dict) and expected, (
+        f"{case_id}: fields reference must return a non-empty dict"
+    )
+    max_gap, worst = -1.0, None
+    for path, ql_value in expected.items():
+        api_value = _dig(response, path, case_id)
+        if isinstance(ql_value, list):
+            assert isinstance(api_value, list) and \
+                len(api_value) == len(ql_value), (
+                    f"{case_id}: field '{path}' length "
+                    f"{len(api_value) if isinstance(api_value, list) else 'scalar'}"
+                    f" != reference {len(ql_value)}"
+                )
+            for i, (a, b) in enumerate(zip(api_value, ql_value)):
+                gap = abs(a - b)
+                if gap > max_gap:
+                    max_gap, worst = gap, f"{path}[{i}] api={a} ql={b}"
+        else:
+            gap = abs(api_value - ql_value)
+            if gap > max_gap:
+                max_gap, worst = gap, f"{path} api={api_value} ql={ql_value}"
+    assert max_gap < tolerance, (
+        f"{case_id}: max field gap {max_gap:.6g} at {worst} "
+        f">= tolerance {tolerance}"
+    )
+
+
 @pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
 def test_functional_parity(client, data_dir, case):
     request = load_json(data_dir / case["request"])
@@ -168,6 +234,10 @@ def test_functional_parity(client, data_dir, case):
         _assert_exact_parity(case, response[case["list_key"]], expected)
         return
     tolerance = case["tolerance"]
+    if case.get("compare", "npv") == "fields":
+        expected = pricer(request)
+        _assert_fields_parity(case, response, expected)
+        return
     if case.get("compare", "npv") == "series":
         expected = pricer(request)
         api = _api_series(response, case["list_key"], case["id"])
