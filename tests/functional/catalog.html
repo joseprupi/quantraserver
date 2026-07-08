@@ -28,7 +28,7 @@
 </head>
 <body>
 <h1>Functional Parity Catalog</h1>
-<p class="intro">Every case below is a complete JSON request that is POSTed to the running Quantra server and whose response is asserted to match an independent QuantLib reference (`tests/contract/ql_reference.py`). Pricing cases compare the returned NPV within a tolerance of 0.01; curve-sampling cases compare every point of every returned series element-wise within 1e-9; calendar date-utility cases must match the reference dates exactly (no tolerance). The cases, groupings and descriptions all come from one place — `tests/functional/manifest.py` — and the assertions run inside the standard gate (`bash tests/run_all_tests.sh`, suite 3). See `tests/functional/README.md` for how to add a case.</p>
+<p class="intro">Every case below is a complete JSON request that is POSTed to the running Quantra server and whose response is asserted to match an independent QuantLib reference (`tests/contract/ql_reference.py`). Pricing cases compare the returned NPV within a tolerance of 0.01; curve- and vol-surface-sampling cases compare every point of every returned series element-wise within 1e-9; calendar date-utility cases must match the reference dates exactly (no tolerance); calibration cases compare every calibrated parameter / fit statistic within 1e-7. The cases, groupings and descriptions all come from one place — `tests/functional/manifest.py` — and the assertions run inside the standard gate (`bash tests/run_all_tests.sh`, suite 3). See `tests/functional/README.md` for how to add a case.</p>
 <h2>IR Swaps</h2>
 <table>
 <thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
@@ -785,6 +785,78 @@
 </tr>
 </tbody>
 </table>
-<footer>116 cases across 10 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
+<h2>Vol / Calibration</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">Swaption ATM matrix sampled on an off-pillar cube</div><div class="desc">A 3x3 lognormal ATM swaption vol matrix (1Y/2Y/5Y expiries x 2Y/5Y/10Y tenors) sampled at a 3x3 query grid whose 18M expiry and 3Y expiry rows and 4Y tenor column all sit between the pillars, so every returned vol exercises the matrix&#x27;s bilinear interpolation in option time and swap length. Exercise dates, spot-lagged swap starts and fixed-leg schedule end dates are generated from the swap index conventions on both sides.</div></td>
+<td><code>swaption vols</code> <code>ATM matrix</code> <code>bilinear interpolation</code> <code>off-pillar grid</code> <code>Cube output</code> <code>swap-index dates</code></td>
+<td><a href="../../examples/data/vol/volsample_swaption_atm_matrix_cube.json">volsample_swaption_atm_matrix_cube.json</a></td>
+<td class="npv">vols series, 9 points</td>
+</tr>
+<tr>
+<td><div class="title">Normal ATM matrix, ExpirySlice at a fixed tenor</div><div class="desc">A normal (Bachelier) ATM swaption vol matrix (1Y/2Y/5Y x 5Y/10Y) queried in ExpirySlice mode: the 10Y tenor column is selected by index and a fixed slice strike, returning one vol per expiry gridpoint (including an off-pillar 30M and an interpolated 4Y). Pins the slice selectors and the Normal vol type flowing through sampling.</div></td>
+<td><code>swaption vols</code> <code>normal vol type</code> <code>ExpirySlice</code> <code>slice_tenor_index</code> <code>slice_strike</code> <code>off-pillar expiries</code></td>
+<td><a href="../../examples/data/vol/volsample_swaption_atm_matrix_normal_expiry_slice.json">volsample_swaption_atm_matrix_normal_expiry_slice.json</a></td>
+<td class="npv">vols series, 4 points</td>
+</tr>
+<tr>
+<td><div class="title">Constant swaption vol sampled over a strike cube</div><div class="desc">A flat 20% lognormal swaption vol sampled over 2 expiries x 2 tenors x 3 strikes. The vol is strike- and node-independent by construction, so the case pins the cube flattening (expiry-major, then tenor, then strike — 12 points) and the constant-vol structure plumbing rather than any interpolation.</div></td>
+<td><code>swaption vols</code> <code>constant vol</code> <code>strike axis</code> <code>cube flattening order</code></td>
+<td><a href="../../examples/data/vol/volsample_swaption_constant_cube.json">volsample_swaption_constant_cube.json</a></td>
+<td class="npv">vols series, 12 points</td>
+</tr>
+<tr>
+<td><div class="title">Optionlet constant normal vol on a tenor grid</div><div class="desc">A flat 80bp normal (Bachelier) optionlet vol — the only optionlet shape the wire accepts — sampled at 1Y/2Y/5Y grid dates and two strikes on the surface&#x27;s own TARGET Modified Following conventions. Pins the Optionlet surface branch, its date-based sampling and the grid-convention resolution.</div></td>
+<td><code>optionlet vols</code> <code>constant normal vol 80bp</code> <code>tenor grid dates</code> <code>two strikes</code></td>
+<td><a href="../../examples/data/vol/volsample_optionlet_constant_normal.json">volsample_optionlet_constant_normal.json</a></td>
+<td class="npv">vols series, 6 points</td>
+</tr>
+<tr>
+<td><div class="title">Equity Black term-vol curve sampled off-pillar</div><div class="desc">An equity Black vol term structure (18%/20%/22%/25% at 3M/6M/1Y/2Y pillars, a BlackVarianceCurve linear in total variance with forced monotonicity) sampled at 2M, 9M and 18M grid dates — before the first pillar and between pillars — and two strikes (term vols are strike-independent). Pins the EquityBlack branch and genuine variance interpolation.</div></td>
+<td><code>equity Black vols</code> <code>term structure</code> <code>variance interpolation</code> <code>off-pillar dates</code></td>
+<td><a href="../../examples/data/vol/volsample_equity_black_term_curve.json">volsample_equity_black_term_curve.json</a></td>
+<td class="npv">vols series, 6 points</td>
+</tr>
+<tr>
+<td><div class="title">Hull-White round-trip: recover a=0.05, sigma=0.008</div><div class="desc">Full two-parameter Hull-White calibration against a 2x2 ATM matrix (1Y/2Y into 5Y/7Y) whose market vols were generated from HullWhite(a=0.05, sigma=0.008) on the same curve, so the objective has one sharp, well-conditioned minimum: the calibration (Jamshidian helper pricing, implied-vol error, Levenberg-Marquardt from a=0.03/sigma=0.01) must round-trip the generating parameters and an ~1e-9 fit RMSE on both sides.</div></td>
+<td><code>Hull-White</code> <code>calibrate a and sigma</code> <code>parameter round-trip</code> <code>ATM matrix target</code> <code>implied-vol error</code> <code>Jamshidian engine</code></td>
+<td><a href="../../examples/data/vol/hwcal_eur_atm_matrix_roundtrip.json">hwcal_eur_atm_matrix_roundtrip.json</a></td>
+<td class="npv">hw_a=0.05, hw_sigma=0.008, rmse=1.8986e-09, num_helpers=4</td>
+</tr>
+<tr>
+<td><div class="title">Hull-White sigma-only fit to a market ATM matrix</div><div class="desc">Sigma-only calibration (a fixed at 0.03 via calibrate_a=false, sent through the request-level calibration override) against a market-style 2x2 lognormal ATM matrix that no Hull-White model fits exactly. The one-dimensional problem is well-conditioned, so both sides converge to the same sigma and report the same irreducible fit RMSE. The grid falls back to the matrix&#x27;s own expiries/tenors.</div></td>
+<td><code>Hull-White</code> <code>sigma-only (calibrate_a=false)</code> <code>request-level calibration override</code> <code>matrix fallback grid</code> <code>nonzero fit RMSE</code></td>
+<td><a href="../../examples/data/vol/hwcal_eur_atm_matrix_sigma_only.json">hwcal_eur_atm_matrix_sigma_only.json</a></td>
+<td class="npv">hw_a=0.03, hw_sigma=0.00822145, rmse=0.0247881, num_helpers=4</td>
+</tr>
+<tr>
+<td><div class="title">Hull-White sigma-only fit to flat normal vols</div><div class="desc">Sigma-only calibration against a flat 80bp normal (Bachelier) constant vol with an explicit 2x2 expiry/tenor grid in the model&#x27;s calibration spec (constant surfaces carry no fallback grid). Normal vols switch the helper error metric to the price-error branch on both sides — the server&#x27;s Normal/PriceError pairing — while the 1D problem stays well-conditioned.</div></td>
+<td><code>Hull-White</code> <code>sigma-only</code> <code>normal vol 80bp</code> <code>price-error metric</code> <code>explicit calibration grid</code> <code>constant vol target</code></td>
+<td><a href="../../examples/data/vol/hwcal_eur_constant_normal_sigma_only.json">hwcal_eur_constant_normal_sigma_only.json</a></td>
+<td class="npv">hw_a=0.03, hw_sigma=0.00868798, rmse=0.000293307, num_helpers=4</td>
+</tr>
+<tr>
+<td><div class="title">SABR per-node calibration, 3-strike exact fit</div><div class="desc">Per-node SABR calibration of a 2x2 (1Y/2Y into 5Y/10Y) smile cube quoted at three strike spreads (-100/0/+100bp) with beta fixed at 0.5: three free parameters against three points, so every node fits exactly (per-node RMSE 0) at interior parameters. Compares the per-node forwards, the calibrated alpha/beta/rho/nu grids, the Hagan ATM vols and the fit RMSEs.</div></td>
+<td><code>SABR calibrate</code> <code>beta fixed 0.5</code> <code>exact fit</code> <code>per-node forwards</code> <code>alpha/rho/nu grids</code></td>
+<td><a href="../../examples/data/vol/sabrcal_eur_2x2_beta_fixed_exact_fit.json">sabrcal_eur_2x2_beta_fixed_exact_fit.json</a></td>
+<td class="npv">overall_rmse=6.55643e-16, 4-point grids x7</td>
+</tr>
+<tr>
+<td><div class="title">SABR round-trip: 5-strike smiles from known parameters</div><div class="desc">The same 2x2 cube quoted at five strike spreads whose vols were generated from known interior SABR parameters (alpha 0.040-0.046, rho -0.25 to -0.18, nu 0.30-0.35, beta 0.5) at the curve&#x27;s own forwards: the per-node fits are overdetermined (5 points, 3 free parameters) yet recover the generating parameters, leaving only the 1e-8 vol-rounding residual. Pins the calibrator against a known answer.</div></td>
+<td><code>SABR calibrate</code> <code>parameter round-trip</code> <code>overdetermined fit</code> <code>5 strike spreads</code> <code>interior parameters</code></td>
+<td><a href="../../examples/data/vol/sabrcal_eur_2x2_5strike_roundtrip.json">sabrcal_eur_2x2_5strike_roundtrip.json</a></td>
+<td class="npv">overall_rmse=1.72767e-09, 4-point grids x7</td>
+</tr>
+<tr>
+<td><div class="title">SABR round-trip with vega-weighted smile fit</div><div class="desc">The 5-strike round-trip cube refit with vega_weighted_smile_fit=true, so the per-node objective weights residuals by Black vega instead of equally. On SABR-consistent data the fit still recovers the generating parameters (to ~1e-7), pinning the vega-weighting flag through the calibrator on both sides.</div></td>
+<td><code>SABR calibrate</code> <code>vega-weighted fit</code> <code>parameter round-trip</code> <code>5 strike spreads</code></td>
+<td><a href="../../examples/data/vol/sabrcal_eur_2x2_5strike_vega_weighted.json">sabrcal_eur_2x2_5strike_vega_weighted.json</a></td>
+<td class="npv">overall_rmse=1.68127e-09, 4-point grids x7</td>
+</tr>
+</tbody>
+</table>
+<footer>127 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

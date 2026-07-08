@@ -53,9 +53,11 @@ def compute_rows():
     where each row is the case dict plus a formatted reference value: the
     reference NPV for compare="npv" cases, a "<series names> series,
     N grid points" summary for compare="series" cases (whose full point-by-
-    point values live in the test assertion, not the catalog), or a
+    point values live in the test assertion, not the catalog), a
     "N business days" / "advanced date = YYYY-MM-DD" summary for
-    compare="exact" date-utility cases.
+    compare="exact" date-utility cases, or the scalar fields plus a per-node
+    grid count (e.g. "hw_sigma=0.008, ..., 4-point grids x6") for
+    compare="fields" calibration cases.
     """
     exact_nouns = {
         "calendar_business_days": "business days",
@@ -81,10 +83,24 @@ def compute_rows():
                 names = list(expected)
                 n_points = len(next(iter(expected.values()))) if expected else 0
             else:
-                names = ["series"]
+                names = (["vols"] if case["product"] == "sample_vol_surfaces"
+                         else ["series"])
                 n_points = len(expected)
             row["npv"] = None
             row["npv_text"] = f"{'/'.join(names)} series, {n_points} points"
+        elif case.get("compare", "npv") == "fields":
+            expected = pricer(request)
+            scalars = [f"{path.rsplit('.', 1)[-1]}={value:.6g}"
+                       for path, value in expected.items()
+                       if not isinstance(value, list)]
+            grids = [value for value in expected.values()
+                     if isinstance(value, list)]
+            parts = scalars
+            if grids:
+                parts = parts + [
+                    f"{len(grids[0])}-point grids x{len(grids)}"]
+            row["npv"] = None
+            row["npv_text"] = ", ".join(parts)
         else:
             npv = pricer(request)
             row["npv"] = npv
@@ -102,12 +118,13 @@ INTRO = (
     "running Quantra server and whose response is asserted to match an "
     "independent QuantLib reference (`tests/contract/ql_reference.py`). "
     "Pricing cases compare the returned NPV within a tolerance of 0.01; "
-    "curve-sampling cases compare every point of every returned series "
-    "element-wise within 1e-9; calendar date-utility cases must match the "
-    "reference dates exactly (no tolerance). The cases, groupings and "
-    "descriptions all come from one place — `tests/functional/manifest.py` "
-    "— and the assertions run inside the standard gate "
-    "(`bash tests/run_all_tests.sh`, suite 3). See "
+    "curve- and vol-surface-sampling cases compare every point of every "
+    "returned series element-wise within 1e-9; calendar date-utility cases "
+    "must match the reference dates exactly (no tolerance); calibration "
+    "cases compare every calibrated parameter / fit statistic within 1e-7. "
+    "The cases, groupings and descriptions all come from one place — "
+    "`tests/functional/manifest.py` — and the assertions run inside the "
+    "standard gate (`bash tests/run_all_tests.sh`, suite 3). See "
     "`tests/functional/README.md` for how to add a case."
 )
 
@@ -212,9 +229,11 @@ def build_html(rows=None) -> str:
     out.append(
         f"<footer>{sum(len(c) for _, c in rows)} cases across {len(rows)} "
         "family(ies). NPV cells are the QuantLib reference values the server "
-        "must reproduce within 0.01; series cells summarise curve-sampling "
-        "cases whose every point is compared within 1e-9; calendar cells "
-        "summarise date-utility cases whose dates must match exactly.</footer>"
+        "must reproduce within 0.01; series cells summarise curve- and "
+        "vol-sampling cases whose every point is compared within 1e-9; "
+        "calendar cells summarise date-utility cases whose dates must match "
+        "exactly; calibration cells show the calibrated parameters compared "
+        "field by field within 1e-7.</footer>"
     )
     out.append("</body>")
     out.append("</html>")
