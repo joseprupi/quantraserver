@@ -506,6 +506,10 @@ quantra::enums::EquitySettlementType EquitySettlementTypeToFb(QuantLib::Settleme
 
 quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit)
 {
+    // The schema's enums::TimeUnit is ALPHABETICAL and does NOT share
+    // QuantLib's enum order, so every unit must be mapped explicitly here
+    // (a raw cast mislabels everything but Days). Fail closed on anything
+    // unexpected, matching the other converters.
     switch (timeUnit)
     {
     case QuantLib::Days:
@@ -516,9 +520,19 @@ quantra::enums::TimeUnit TimeUnitToFb(QuantLib::TimeUnit timeUnit)
         return quantra::enums::TimeUnit_Months;
     case QuantLib::Years:
         return quantra::enums::TimeUnit_Years;
-    default:
-        return quantra::enums::TimeUnit_Days;
+    case QuantLib::Hours:
+        return quantra::enums::TimeUnit_Hours;
+    case QuantLib::Minutes:
+        return quantra::enums::TimeUnit_Minutes;
+    case QuantLib::Seconds:
+        return quantra::enums::TimeUnit_Seconds;
+    case QuantLib::Milliseconds:
+        return quantra::enums::TimeUnit_Milliseconds;
+    case QuantLib::Microseconds:
+        return quantra::enums::TimeUnit_Microseconds;
     }
+
+    QUANTRA_ERROR("Time Unit not found");
 }
 
 quantra::enums::VolatilityType VolatilityTypeToFb(QuantLib::VolatilityType type, double displacement)

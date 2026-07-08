@@ -9,6 +9,7 @@
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
 
 #include "common_generated.h"
+#include "enum_convert.h"
 
 namespace quantra {
 
@@ -53,10 +54,10 @@ std::string endCriteriaName(int endCriteria) {
 
 flatbuffers::Offset<quantra::Period> writePeriod(
     flatbuffers::FlatBufferBuilder& fbb, const QuantLib::Period& p) {
-    // The schema's enums::TimeUnit follows QuantLib's enum order; static_cast
-    // is acceptable here (Days=0..Years=4).
-    return quantra::CreatePeriod(
-        fbb, p.length(), static_cast<quantra::enums::TimeUnit>(p.units()));
+    // The schema's enums::TimeUnit is alphabetical and does NOT match
+    // QuantLib's enum order, so the unit must be mapped explicitly (a raw
+    // cast mislabels everything but Days).
+    return quantra::CreatePeriod(fbb, p.length(), TimeUnitToFb(p.units()));
 }
 
 std::vector<flatbuffers::Offset<quantra::Period>> writePeriods(
