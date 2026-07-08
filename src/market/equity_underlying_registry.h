@@ -3,10 +3,13 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <ql/handle.hpp>
 #include <ql/quote.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/date.hpp>
+#include <ql/types.hpp>
 
 #include "pricing_generated.h"
 
@@ -17,6 +20,12 @@ struct PricingRegistry;
 struct EquityUnderlyingRuntime {
     QuantLib::Handle<QuantLib::Quote> spot;
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend;
+    /// Discrete cash dividends declared on the underlying spec (ex-dividend
+    /// date + cash amount). Empty when the spec carries none. These are
+    /// escrowed cash events priced alongside the continuous dividend-yield
+    /// curve, not a substitute for it.
+    std::vector<QuantLib::Date> discreteDividendDates;
+    std::vector<QuantLib::Real> discreteDividendAmounts;
 };
 
 class EquityUnderlyingRegistryBuilder {

@@ -5,11 +5,14 @@
 #include <memory>
 #include <variant>
 
+#include <ql/cashflows/dividend.hpp>
 #include <ql/handle.hpp>
+#include <ql/instruments/dividendschedule.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/payoff.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
+#include <ql/pricingengines/vanilla/analyticdividendeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
@@ -71,11 +74,27 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
     auto process = std::make_shared<QuantLib::BlackScholesMertonProcess>(
         spot, dividend, riskFree, blackVol);
 
+    // Discrete cash dividends declared on the underlying spec, if any. These
+    // are escrowed cash events layered on top of the continuous dividend-yield
+    // curve already baked into the process. When present, the European option
+    // is priced with QuantLib's dividend-aware analytic engine
+    // (AnalyticDividendEuropeanEngine over a FixedDividend schedule); when
+    // absent, the plain no-dividend engines are used unchanged.
+    const bool hasDiscreteDividends = !underlying.discreteDividendDates.empty();
+    QuantLib::DividendSchedule dividendSchedule;
+    if (hasDiscreteDividends) {
+        dividendSchedule = QuantLib::DividendVector(
+            underlying.discreteDividendDates, underlying.discreteDividendAmounts);
+    }
+
     std::shared_ptr<QuantLib::Instrument> instrument;
     std::shared_ptr<QuantLib::OneAssetOption> oneAssetOption;
     if (trade.hasBarrier) {
         if (equityModel->model_type != EquityModelTypeKind::BlackScholesAnalytic) {
             QUANTRA_INVALID_ARGUMENT("Equity barrier option currently requires model_type=BlackScholesAnalytic");
+        }
+        if (hasDiscreteDividends) {
+            QUANTRA_INVALID_ARGUMENT("Discrete cash dividends are not supported for equity barrier options");
         }
         auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
             trade.barrierType,
@@ -91,10 +110,19 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
         auto vanilla = std::make_shared<QuantLib::VanillaOption>(payoff, trade.exercise);
         switch (equityModel->model_type) {
             case EquityModelTypeKind::BlackScholesAnalytic:
-                vanilla->setPricingEngine(
-                    std::make_shared<QuantLib::AnalyticEuropeanEngine>(process));
+                if (hasDiscreteDividends) {
+                    vanilla->setPricingEngine(
+                        std::make_shared<QuantLib::AnalyticDividendEuropeanEngine>(
+                            process, dividendSchedule));
+                } else {
+                    vanilla->setPricingEngine(
+                        std::make_shared<QuantLib::AnalyticEuropeanEngine>(process));
+                }
                 break;
             case EquityModelTypeKind::BinomialCRR: {
+                if (hasDiscreteDividends) {
+                    QUANTRA_INVALID_ARGUMENT("Discrete cash dividends currently require model_type=BlackScholesAnalytic");
+                }
                 int steps = equityModel->binomial_steps;
                 if (steps <= 0) {
                     QUANTRA_INVALID_ARGUMENT("EquityVanillaModelSpec.binomial_steps must be > 0");
