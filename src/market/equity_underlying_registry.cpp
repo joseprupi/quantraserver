@@ -1,5 +1,6 @@
 #include "equity_underlying_registry.h"
 
+#include "date_convert.h"
 #include "error.h"
 #include "pricing_registry.h"
 
@@ -29,6 +30,20 @@ std::unordered_map<std::string, EquityUnderlyingRuntime> EquityUnderlyingRegistr
         EquityUnderlyingRuntime runtime;
         runtime.spot = reg.quoteRegistry.getHandle(u->spot_quote_id()->str());
         runtime.dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(divIt->second->currentLink());
+
+        // Discrete cash dividends: ex-dividend date + cash amount. Carried as
+        // escrowed cash events priced alongside the continuous dividend curve.
+        if (u->discrete_dividends()) {
+            for (const auto* d : *u->discrete_dividends()) {
+                if (!d || !d->ex_date()) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "EquityUnderlyingSpec.discrete_dividends[].ex_date is required");
+                }
+                runtime.discreteDividendDates.push_back(DateToQL(d->ex_date()->str()));
+                runtime.discreteDividendAmounts.push_back(d->amount());
+            }
+        }
+
         out.emplace(u->id()->str(), runtime);
     }
     return out;

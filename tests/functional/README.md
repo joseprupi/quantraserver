@@ -598,9 +598,13 @@ process, payoff, exercise and engine, so parity is at machine precision.
 * Moneyness: calls and puts at at-the-money (100 vs 100 spot), in-the-money
   (call at 80, put at 120) and out-of-the-money (call at 120, put at 80)
   strikes, spanning intrinsic-dominated to pure-time-value premiums.
-* Dividends: a zero-dividend baseline and a 2.5% continuous dividend yield
+* Dividends: a zero-dividend baseline, a 2.5% continuous dividend yield
   (a flat zero curve referenced by the underlying spec's
-  `dividend_yield_curve_id`, feeding the process's dividend leg).
+  `dividend_yield_curve_id`, feeding the process's dividend leg), and
+  discrete cash dividends (`EquityUnderlyingSpec.discrete_dividends`: two
+  2.50 cash dividends before expiry) priced with the escrowed-dividend
+  analytic European engine (`AnalyticDividendEuropeanEngine` over a
+  `FixedDividend` schedule) layered on top of the continuous curve.
 * Vol / expiry: flat 20% and 35% Black vols; 3M, 1Y and 2Y expiries.
 * Engine: the analytic European (Black-Scholes-Merton) engine
   (`model_type=BlackScholesAnalytic`). See the planned list for why the
@@ -620,12 +624,6 @@ deliberately not half-implemented:
 * **Digital payoffs (cash-or-nothing / asset-or-nothing)** — on the wire
   (`EquityCashOrNothingPayoff`, `EquityAssetOrNothingPayoff`) but the
   server's parser accepts only `EquityPlainVanillaPayoff`.
-* **Discrete cash dividends** — `EquityUnderlyingSpec.discrete_dividends`
-  is on the wire, but the server's underlying registry never reads it:
-  options price as if the dividends were not there. The reference pricer
-  deliberately refuses requests carrying discrete dividends rather than
-  reproducing the silent drop; no case may use them until the server
-  consumes the field.
 * **Binomial CRR engine (`model_type=BinomialCRR`)** — the reference
   supports it (it builds the CRR lattice with the model spec's own
   `binomial_steps`, and a manual check showed the NPVs agree at machine

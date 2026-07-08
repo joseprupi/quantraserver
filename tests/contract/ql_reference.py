@@ -2631,19 +2631,26 @@ def price_equity_option_ql(request: dict) -> float:
         EuropeanExercise — the only payoff/exercise combination the server's
         parser accepts today (American/Bermudan and digital payoffs are
         rejected on the wire),
-      * the engine follows the referenced model: AnalyticEuropeanEngine for
-        BlackScholesAnalytic, BinomialCRRVanillaEngine with the spec's own
-        binomial_steps for BinomialCRR (the server builds
+      * discrete cash dividends declared on the underlying spec
+        (EquityUnderlyingSpec.discrete_dividends: ex_date + amount) are
+        turned into a FixedDividend schedule (via DividendVector) and priced
+        with AnalyticDividendEuropeanEngine — the same escrowed-dividend
+        analytic European engine the server now uses. They are layered on
+        top of the continuous dividend-yield curve, which stays in the
+        process. With no discrete dividends the plain no-dividend engines
+        are used, exactly like the server,
+      * the engine follows the referenced model: AnalyticEuropeanEngine
+        (or AnalyticDividendEuropeanEngine when discrete dividends are
+        present) for BlackScholesAnalytic, BinomialCRRVanillaEngine with the
+        spec's own binomial_steps for BinomialCRR (the server builds
         BinomialVanillaEngine<CoxRossRubinstein> with the same step count),
       * the returned NPV is the per-option NPV scaled by the trade's
         quantity, matching the server's response field.
 
     Deliberately refuses (raises) what it cannot faithfully reproduce:
-    barrier features and discrete dividends. The wire carries
-    EquityUnderlyingSpec.discrete_dividends, but the server's underlying
-    registry never reads them (options price as if there were none), so a
-    reference that applied them would silently disagree — no catalog case
-    may use them until the server consumes the field.
+    barrier features, and discrete dividends combined with the binomial
+    model (the server restricts discrete dividends to the analytic
+    BlackScholesAnalytic path).
     """
     pricing = _reference_pricing_view(request)
     opt_data = request["options"][0]
@@ -2660,10 +2667,15 @@ def price_equity_option_ql(request: dict) -> float:
          if u.get("id") == opt["underlying_id"]), None)
     if underlying is None:
         raise ValueError(f"Equity underlying not found: {opt['underlying_id']}")
-    if underlying.get("discrete_dividends"):
-        raise ValueError(
-            "discrete_dividends are on the wire but the server's underlying "
-            "registry does not consume them; refusing to reference-price them")
+
+    # Discrete cash dividends declared on the underlying spec (ex_date +
+    # amount). Escrowed cash events layered on top of the continuous dividend
+    # curve; empty when the spec carries none.
+    div_dates = []
+    div_amounts = []
+    for dd in underlying.get("discrete_dividends", []) or []:
+        div_dates.append(parse_date(dd["ex_date"]))
+        div_amounts.append(dd["amount"])
 
     # Spot resolved from pricing.quotes by spot_quote_id (QuoteRegistry).
     spot_value = next(
@@ -2726,8 +2738,18 @@ def price_equity_option_ql(request: dict) -> float:
     model_payload = model_spec.get("payload", {})
     model_type = model_payload.get("model_type", "BlackScholesAnalytic")
     if model_type == "BlackScholesAnalytic":
-        engine = ql.AnalyticEuropeanEngine(process)
+        if div_dates:
+            # Escrowed discrete-dividend analytic European engine — mirrors
+            # the server's AnalyticDividendEuropeanEngine(process, schedule).
+            schedule = ql.DividendVector(div_dates, div_amounts)
+            engine = ql.AnalyticDividendEuropeanEngine(process, schedule)
+        else:
+            engine = ql.AnalyticEuropeanEngine(process)
     elif model_type == "BinomialCRR":
+        if div_dates:
+            raise ValueError(
+                "Discrete cash dividends currently require "
+                "model_type=BlackScholesAnalytic")
         steps = int(model_payload.get("binomial_steps", 500))
         if steps <= 0:
             raise ValueError("EquityVanillaModelSpec.binomial_steps must be > 0")

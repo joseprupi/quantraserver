@@ -2355,6 +2355,30 @@ CASES = [
         "exercises": ["European", "call", "quantity 100",
                       "quantity scaling"],
     },
+    {
+        "id": "eqopt_eur_call_atm_1y_discrete_div",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European call with two discrete cash dividends",
+        "description": (
+            "The baseline at-the-money 1Y call on an underlying paying two "
+            "2.50 discrete cash dividends (ex-dates 2025-04-15 and "
+            "2025-10-15) before expiry. The underlying spec's "
+            "discrete_dividends are turned into a FixedDividend schedule and "
+            "priced with the escrowed-dividend analytic European engine "
+            "(AnalyticDividendEuropeanEngine) on both sides, layered on top "
+            "of the continuous dividend-yield curve. The escrowed cash lowers "
+            "the effective forward, so the call premium drops well below the "
+            "zero-dividend baseline. Pins the discrete-dividend path end to "
+            "end."
+        ),
+        "request": "equity/eqopt_eur_call_atm_1y_discrete_div.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "call", "discrete cash dividends",
+                      "escrowed-dividend analytic engine"],
+    },
 
     # ------------------------------------------------------------------
     # Vol / Calibration — vol-surface sampling (compare="series": every
