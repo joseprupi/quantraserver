@@ -28,7 +28,7 @@
 </head>
 <body>
 <h1>Functional Parity Catalog</h1>
-<p class="intro">Every case below is a complete JSON request that is POSTed to the running Quantra server and whose response is asserted to match an independent QuantLib reference (`tests/contract/ql_reference.py`). Pricing cases compare the returned NPV within a tolerance of 0.01; curve-sampling cases compare every point of every returned series element-wise within 1e-9. The cases, groupings and descriptions all come from one place — `tests/functional/manifest.py` — and the assertions run inside the standard gate (`bash tests/run_all_tests.sh`, suite 3). See `tests/functional/README.md` for how to add a case.</p>
+<p class="intro">Every case below is a complete JSON request that is POSTed to the running Quantra server and whose response is asserted to match an independent QuantLib reference (`tests/contract/ql_reference.py`). Pricing cases compare the returned NPV within a tolerance of 0.01; curve-sampling cases compare every point of every returned series element-wise within 1e-9; calendar date-utility cases must match the reference dates exactly (no tolerance). The cases, groupings and descriptions all come from one place — `tests/functional/manifest.py` — and the assertions run inside the standard gate (`bash tests/run_all_tests.sh`, suite 3). See `tests/functional/README.md` for how to add a case.</p>
 <h2>IR Swaps</h2>
 <table>
 <thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
@@ -569,6 +569,90 @@
 </tr>
 </tbody>
 </table>
-<footer>83 cases across 7 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9.</footer>
+<h2>Calendars</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">TARGET business days across Easter 2025</div><div class="desc">The business dates from 2025-04-14 to 2025-04-25 on the TARGET calendar, a two-week window containing Good Friday (Apr 18) and Easter Monday (Apr 21) plus a weekend — 8 of the 12 days survive. Both endpoints included (the defaults).</div></td>
+<td><code>business days</code> <code>TARGET</code> <code>Good Friday</code> <code>Easter Monday</code> <code>inclusive endpoints</code></td>
+<td><a href="../../examples/data/calendar/cal_bd_target_easter_2025.json">cal_bd_target_easter_2025.json</a></td>
+<td class="npv">8 business days</td>
+</tr>
+<tr>
+<td><div class="title">US government bond business days around July 4, 2025</div><div class="desc">The business dates from 2025-06-30 to 2025-07-11 on the US government bond (SIFMA) calendar: Independence Day falls on a Friday, so the two-week window keeps 9 of its 10 weekdays. Pins the UnitedStatesGovernmentBond enum mapping on a date-utility endpoint.</div></td>
+<td><code>business days</code> <code>US government bond calendar</code> <code>Independence Day</code> <code>single-holiday week</code></td>
+<td><a href="../../examples/data/calendar/cal_bd_usgovbond_july4_2025.json">cal_bd_usgovbond_july4_2025.json</a></td>
+<td class="npv">9 business days</td>
+</tr>
+<tr>
+<td><div class="title">UK year-end business days, both endpoints excluded</div><div class="desc">The business dates strictly between 2025-12-24 and 2026-01-02 on the UnitedKingdom calendar (include_start and include_end both false). Christmas, Boxing Day and New Year&#x27;s Day drop out, and because both excluded endpoints are themselves business days, only Dec 29-31 remain — pinning the endpoint flags and a year boundary in one case.</div></td>
+<td><code>business days</code> <code>UnitedKingdom calendar</code> <code>exclusive endpoints</code> <code>year boundary</code> <code>Christmas/Boxing Day/New Year</code></td>
+<td><a href="../../examples/data/calendar/cal_bd_uk_year_end_exclusive_ends.json">cal_bd_uk_year_end_exclusive_ends.json</a></td>
+<td class="npv">3 business days</td>
+</tr>
+<tr>
+<td><div class="title">Japan business days through Golden Week 2025</div><div class="desc">The business dates from 2025-04-28 to 2025-05-09 on the Japan calendar: Showa Day (Apr 29), Constitution/Greenery/Children&#x27;s Day (May 3-5) and the May 6 substitute holiday all drop out. Exercises a calendar with substitute-holiday rules that no pricing case in the catalog touches.</div></td>
+<td><code>business days</code> <code>Japan calendar</code> <code>Golden Week</code> <code>substitute holiday</code></td>
+<td><a href="../../examples/data/calendar/cal_bd_japan_golden_week_2025.json">cal_bd_japan_golden_week_2025.json</a></td>
+<td class="npv">7 business days</td>
+</tr>
+<tr>
+<td><div class="title">TARGET holidays for calendar year 2025</div><div class="desc">The holiday list for the whole of 2025 on the TARGET calendar with weekends excluded (the default): New Year&#x27;s Day, Good Friday, Easter Monday, Labour Day, Christmas and St. Stephen&#x27;s Day — six dates. The baseline holidays query.</div></td>
+<td><code>holidays</code> <code>TARGET</code> <code>full calendar year</code> <code>weekends excluded</code></td>
+<td><a href="../../examples/data/calendar/cal_hol_target_2025.json">cal_hol_target_2025.json</a></td>
+<td class="npv">6 holidays</td>
+</tr>
+<tr>
+<td><div class="title">NYSE holidays, first half of 2025</div><div class="desc">The New York Stock Exchange holiday list from 2025-01-01 to 2025-06-30: New Year, the January 9 national day of mourning, Martin Luther King Day, Washington&#x27;s Birthday, Good Friday, Memorial Day and Juneteenth — seven weekday closures. Pins the UnitedStatesNYSE enum mapping (a different holiday set than the SIFMA government bond calendar).</div></td>
+<td><code>holidays</code> <code>NYSE calendar</code> <code>exchange closures</code> <code>US market variant mapping</code></td>
+<td><a href="../../examples/data/calendar/cal_hol_usnyse_2025_h1.json">cal_hol_usnyse_2025_h1.json</a></td>
+<td class="npv">7 holidays</td>
+</tr>
+<tr>
+<td><div class="title">UK festive-season non-business days, weekends included</div><div class="desc">Every non-business day from 2025-12-20 to 2026-01-05 on the UnitedKingdom calendar with include_weekends=true: the December and January weekends interleaved with Christmas, Boxing Day and New Year&#x27;s Day — nine dates across a year boundary. Exercises the include_weekends flag.</div></td>
+<td><code>holidays</code> <code>UnitedKingdom calendar</code> <code>include_weekends</code> <code>year boundary</code></td>
+<td><a href="../../examples/data/calendar/cal_hol_uk_festive_include_weekends.json">cal_hol_uk_festive_include_weekends.json</a></td>
+<td class="npv">9 holidays</td>
+</tr>
+<tr>
+<td><div class="title">TARGET: advance 10 business days across Easter</div><div class="desc">2025-04-14 advanced by 10 business days on TARGET: the count skips two weekends plus Good Friday and Easter Monday, landing on 2025-04-30. Business-day stepping is convention-independent, so this pins the Days unit and the holiday skips themselves.</div></td>
+<td><code>advance</code> <code>10 business days</code> <code>TARGET</code> <code>Easter holidays skipped</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_target_10bd_over_easter.json">cal_adv_target_10bd_over_easter.json</a></td>
+<td class="npv">advanced date = 2025-04-30</td>
+</tr>
+<tr>
+<td><div class="title">TARGET: +1 month, Following rolls into September</div><div class="desc">2025-07-31 plus one month lands on Sunday 2025-08-31; under the Following convention the result rolls forward out of the month to Monday 2025-09-01. Paired with the ModifiedFollowing case on the identical input, this pins the convention difference at a month end.</div></td>
+<td><code>advance</code> <code>1 month</code> <code>Following</code> <code>weekend landing</code> <code>rolls past month end</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_target_1m_following_crosses_month.json">cal_adv_target_1m_following_crosses_month.json</a></td>
+<td class="npv">advanced date = 2025-09-01</td>
+</tr>
+<tr>
+<td><div class="title">TARGET: +1 month, ModifiedFollowing stays in August</div><div class="desc">The same 2025-07-31 plus one month onto Sunday 2025-08-31, but under ModifiedFollowing: rolling forward would leave August, so the date rolls back to Friday 2025-08-29 instead. The counterpart of the Following case — same input, different convention, different month.</div></td>
+<td><code>advance</code> <code>1 month</code> <code>ModifiedFollowing</code> <code>weekend landing</code> <code>rolls back within month</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_target_1m_modfollowing_rolls_back.json">cal_adv_target_1m_modfollowing_rolls_back.json</a></td>
+<td class="npv">advanced date = 2025-08-29</td>
+</tr>
+<tr>
+<td><div class="title">TARGET: +1 month from Jan 31 with end-of-month rule</div><div class="desc">2025-01-31 (the last business day of January) plus one month with end_of_month=true: the end-of-month rule maps it to the last business day of February, 2025-02-28, rather than a plain day-of-month shift. Exercises the end_of_month flag on the wire.</div></td>
+<td><code>advance</code> <code>1 month</code> <code>end-of-month rule</code> <code>month-end roll</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_target_eom_jan31_1m.json">cal_adv_target_eom_jan31_1m.json</a></td>
+<td class="npv">advanced date = 2025-02-28</td>
+</tr>
+<tr>
+<td><div class="title">US government bond: +2 weeks, Preceding off July 4</div><div class="desc">2025-06-20 plus two weeks lands exactly on Independence Day (Friday 2025-07-04); under the Preceding convention the result rolls back to Thursday 2025-07-03. A holiday (not weekend) landing that forces an adjustment, on the Weeks unit and the SIFMA calendar.</div></td>
+<td><code>advance</code> <code>2 weeks</code> <code>Preceding</code> <code>holiday landing</code> <code>US government bond calendar</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_usgovbond_2w_preceding_july4.json">cal_adv_usgovbond_2w_preceding_july4.json</a></td>
+<td class="npv">advanced date = 2025-07-03</td>
+</tr>
+<tr>
+<td><div class="title">UK: +1 year onto a Saturday, Following</div><div class="desc">2025-08-22 plus one year on the UnitedKingdom calendar lands on Saturday 2026-08-22 and rolls Following to Monday 2026-08-24 (the August bank holiday is the following Monday, Aug 31, so the 24th stands). Exercises the Years unit and a weekend adjustment on a non-TARGET calendar.</div></td>
+<td><code>advance</code> <code>1 year</code> <code>Following</code> <code>weekend landing</code> <code>UnitedKingdom calendar</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_uk_1y_weekend_following.json">cal_adv_uk_1y_weekend_following.json</a></td>
+<td class="npv">advanced date = 2026-08-24</td>
+</tr>
+</tbody>
+</table>
+<footer>96 cases across 8 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
 </body>
 </html>

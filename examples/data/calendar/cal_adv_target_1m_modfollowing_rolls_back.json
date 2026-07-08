@@ -1,0 +1,8 @@
+{
+  "calendar": "TARGET",
+  "date": "2025-07-31",
+  "tenor_number": 1,
+  "tenor_unit": "Months",
+  "convention": "ModifiedFollowing",
+  "end_of_month": false
+}

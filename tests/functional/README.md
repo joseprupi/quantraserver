@@ -5,8 +5,9 @@ request that is POSTed to the running Quantra server, and the response is
 asserted to equal an independent QuantLib reference (computed by
 `tests/contract/ql_reference.py`) within a tight tolerance. Pricing cases
 compare a single NPV (default tolerance **0.01**); curve-sampling cases
-compare every point of every returned series (tolerance **1e-9** — see
-"Comparison modes"). The server and the reference are pinned to the same
+compare every point of every returned series (tolerance **1e-9**); calendar
+date-utility cases must match the reference **exactly** — see
+"Comparison modes". The server and the reference are pinned to the same
 QuantLib version, so the observed differences are at machine precision — a
 real behavioural drift on either side fails the gate immediately.
 
@@ -35,6 +36,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/swaption/` | The curated request JSONs for the Swaption family. |
 | `../../examples/data/cds/` | The curated request JSONs for the CDS family. |
 | `../../examples/data/curves/` | The curated request JSONs for the Curves family. |
+| `../../examples/data/calendar/` | The curated request JSONs for the Calendars family. |
 
 ## Comparison modes
 
@@ -52,6 +54,14 @@ existing rows omit it and keep the original behaviour.
   driver asserts the series sets match, the lengths match, and
   `abs(api[i] - ql[i]) < tolerance` for **every** point, reporting the
   maximum gap on failure.
+* `compare: "exact"` — for the calendar date-utility endpoints
+  (`/calendar-business-days`, `/calendar-holidays`, `/calendar-advance`),
+  which return exact dates rather than floats. The reference returns the
+  expected value verbatim — a list of ISO date strings under `list_key`
+  `dates` (business days / holidays) or a single date string under
+  `advanced_date` (advance) — and the response must equal it **exactly**:
+  same length, same order, same strings. There is no tolerance; exact cases
+  carry no `tolerance` field in the manifest (the driver forbids one).
 
 Series cases use a much tighter tolerance than NPV cases (1e-9, set per case
 in the manifest) because the compared quantities — discount factors, zero
@@ -95,7 +105,8 @@ python3 -m pytest tests/functional -q \
    cases in `examples/data/fra/`, cap/floor cases in
    `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`,
    CDS cases in `examples/data/cds/`, curve-sampling cases in
-   `examples/data/curves/`.
+   `examples/data/curves/`, calendar date-utility cases in
+   `examples/data/calendar/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -439,6 +450,56 @@ they are deliberately not half-implemented:
 * **Inflation curve sampling** (`/bootstrap-inflation-curves`) — a separate
   future family.
 
+## Current coverage (Calendars)
+
+All Calendars cases use `compare: "exact"`: the returned date list (business
+days / holidays) or single advanced date must equal the QuantLib reference
+verbatim — no tolerance (see "Comparison modes"). Every case also pins the
+server's calendar-enum mapping (`CalendarToQL`), which the reference mirrors
+entry for entry, including the market variants QuantLib defaults to
+(UnitedKingdom -> Settlement, plain UnitedStates -> Settlement, plus the
+explicit NYSE / GovernmentBond / NERC variants).
+
+* Business days: TARGET across the Easter 2025 holidays, the US government
+  bond (SIFMA) calendar around a Friday July 4, the UnitedKingdom calendar
+  across the Christmas-to-New-Year boundary with both endpoints excluded
+  (include_start / include_end false), and Japan through Golden Week 2025
+  (substitute-holiday rules).
+* Holidays: the full TARGET 2025 holiday list (weekends excluded, the
+  default), the NYSE closures for 2025 H1 (including the January 9 national
+  day of mourning), and the UK festive season with include_weekends=true
+  across a year boundary.
+* Advance: 10 business days over Easter (Days unit); +1 month from a July
+  month-end landing on a Sunday under both Following (rolls into September)
+  and ModifiedFollowing (rolls back into August) on the identical input;
+  +1 month from Jan 31 with end_of_month=true (month-end roll to the last
+  business day of February); +2 weeks landing exactly on Independence Day
+  under Preceding (holiday-forced adjustment, Weeks unit); and +1 year onto
+  a Saturday under Following on the UK calendar (Years unit).
+
+## Planned / not yet covered (Calendars)
+
+These are expressible on the wire (or nearly so) but deliberately not
+half-implemented:
+
+* **Combined / joint calendars** — the `Calendar` enum has no joint-calendar
+  value, so a TARGET+UK style union cannot be requested.
+* **BespokeCalendar** — the enum value exists and the server maps it, but an
+  empty bespoke calendar has no holiday content to pin (and no way to add
+  holidays over the wire), so the reference deliberately rejects it.
+* **Negative tenors (back-shifts) on advance** — `tenor_number` accepts
+  negative values on the wire and the C++ parity suite pins one; no catalog
+  case exercises it yet.
+* **Sub-day tenor units** — the `TimeUnit` enum carries Hours through
+  Microseconds, but `Calendar::advance` is date-resolution; nothing
+  meaningful to pin.
+* **NullCalendar / WeekendsOnly special calendars** — mapped by both sides
+  but degenerate (no holidays / weekends only); not pinned yet.
+* **Remaining business-day conventions on advance** —
+  HalfMonthModifiedFollowing, ModifiedPreceding, Nearest and Unadjusted are
+  on the wire; the catalog pins Following, ModifiedFollowing and Preceding
+  so far.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -461,5 +522,6 @@ yet; they are deliberately not half-implemented:
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
 * **Other families** (inflation) already have representative parity tests
   in `tests/contract/`; migrating them into this catalog format is future
-  work. Bonds, FRAs, caps/floors, swaptions, CDS and bootstrapped-curve
-  sampling (Curves) are covered above.
+  work. Bonds, FRAs, caps/floors, swaptions, CDS, bootstrapped-curve
+  sampling (Curves) and the calendar date utilities (Calendars) are covered
+  above.

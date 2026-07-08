@@ -2093,6 +2093,146 @@ def bootstrap_curves_ql(request: dict) -> dict:
 
 
 # =============================================================================
+# Calendar Utility Reference (exact-match parity cases)
+# =============================================================================
+
+def _calendar_from_enum(name: str):
+    """QuantLib calendar for a wire ``enums.Calendar`` value.
+
+    Mirrors the server's CalendarToQL (src/common/enum_convert.cpp) entry for
+    entry, including the market variants QuantLib defaults to when the C++
+    side default-constructs a calendar (e.g. UnitedKingdom -> Settlement,
+    Germany -> FrankfurtStockExchange, China -> SSE). Note in particular that
+    the plain "UnitedStates" enum maps to the Settlement market on the
+    server, so it does here too.
+
+    Raises on anything unmapped instead of falling back to a default —
+    exact-match calendar cases must never silently compare against the wrong
+    calendar. (BespokeCalendar is deliberately unmapped: an empty bespoke
+    calendar has no holiday content worth pinning.)
+    """
+    mapping = {
+        "Argentina": ql.Argentina,
+        "Australia": ql.Australia,
+        "Brazil": ql.Brazil,
+        "Canada": ql.Canada,
+        "China": ql.China,
+        "CzechRepublic": ql.CzechRepublic,
+        "Denmark": ql.Denmark,
+        "Finland": ql.Finland,
+        "Germany": ql.Germany,
+        "HongKong": ql.HongKong,
+        "Hungary": ql.Hungary,
+        "Iceland": ql.Iceland,
+        "India": ql.India,
+        "Indonesia": ql.Indonesia,
+        "Israel": ql.Israel,
+        "Italy": ql.Italy,
+        "Japan": ql.Japan,
+        "Mexico": ql.Mexico,
+        "NewZealand": ql.NewZealand,
+        "Norway": ql.Norway,
+        "NullCalendar": ql.NullCalendar,
+        "Poland": ql.Poland,
+        "Romania": ql.Romania,
+        "Russia": ql.Russia,
+        "SaudiArabia": ql.SaudiArabia,
+        "Singapore": ql.Singapore,
+        "Slovakia": ql.Slovakia,
+        "SouthAfrica": ql.SouthAfrica,
+        "SouthKorea": ql.SouthKorea,
+        "Sweden": ql.Sweden,
+        "Switzerland": ql.Switzerland,
+        "TARGET": ql.TARGET,
+        "Taiwan": ql.Taiwan,
+        "Turkey": ql.Turkey,
+        "Ukraine": ql.Ukraine,
+        "UnitedKingdom": ql.UnitedKingdom,
+        "WeekendsOnly": ql.WeekendsOnly,
+    }
+    if name in mapping:
+        return mapping[name]()
+    us_markets = {
+        "UnitedStates": ql.UnitedStates.Settlement,
+        "UnitedStatesSettlement": ql.UnitedStates.Settlement,
+        "UnitedStatesNYSE": ql.UnitedStates.NYSE,
+        "UnitedStatesGovernmentBond": ql.UnitedStates.GovernmentBond,
+        "UnitedStatesNERC": ql.UnitedStates.NERC,
+    }
+    if name in us_markets:
+        return ql.UnitedStates(us_markets[name])
+    raise ValueError(f"Calendar enum value not mapped by the reference: {name}")
+
+
+def _iso_date(d: ql.Date) -> str:
+    """Format a QuantLib date the way the server does (io::iso_date)."""
+    return f"{d.year():04d}-{int(d.month()):02d}-{d.dayOfMonth():02d}"
+
+
+def calendar_business_days_ql(request: dict) -> list:
+    """Business dates in [start_date, end_date], as ISO strings.
+
+    Mirrors CalendarBusinessDaysEvaluator: walk every calendar day from
+    start_date to end_date inclusive, skip the endpoints when
+    include_start / include_end are false, and keep the dates the calendar
+    calls business days.
+    """
+    cal = _calendar_from_enum(request.get("calendar", "TARGET"))
+    start = parse_date(request["start_date"])
+    end = parse_date(request["end_date"])
+    include_start = request.get("include_start", True)
+    include_end = request.get("include_end", True)
+    dates = []
+    d = start
+    while d <= end:
+        if not (d == start and not include_start) \
+                and not (d == end and not include_end) \
+                and cal.isBusinessDay(d):
+            dates.append(_iso_date(d))
+        d = d + 1
+    return dates
+
+
+def calendar_holidays_ql(request: dict) -> list:
+    """Holiday dates in [start_date, end_date], as ISO strings.
+
+    Mirrors CalendarHolidaysEvaluator: walk every calendar day in the
+    inclusive range, keep the non-business days, and drop plain weekends
+    unless include_weekends is set (weekend dates that are also listed
+    holidays still count as weekends for this filter, exactly like the
+    server's isWeekend check).
+    """
+    cal = _calendar_from_enum(request.get("calendar", "TARGET"))
+    start = parse_date(request["start_date"])
+    end = parse_date(request["end_date"])
+    include_weekends = request.get("include_weekends", False)
+    dates = []
+    d = start
+    while d <= end:
+        if not cal.isBusinessDay(d):
+            if include_weekends or not cal.isWeekend(d.weekday()):
+                dates.append(_iso_date(d))
+        d = d + 1
+    return dates
+
+
+def calendar_advance_ql(request: dict) -> str:
+    """The advanced date, as an ISO string.
+
+    Mirrors CalendarAdvanceEvaluator/Mapper: Calendar::advance(date,
+    Period(tenor_number, tenor_unit), convention, end_of_month) with the
+    schema defaults (tenor_number 0, Days, Following, end_of_month false).
+    """
+    cal = _calendar_from_enum(request.get("calendar", "TARGET"))
+    date = parse_date(request["date"])
+    period = ql.Period(int(request.get("tenor_number", 0)),
+                       get_time_unit(request.get("tenor_unit", "Days")))
+    convention = get_convention(request.get("convention", "Following"))
+    end_of_month = request.get("end_of_month", False)
+    return _iso_date(cal.advance(date, period, convention, end_of_month))
+
+
+# =============================================================================
 # Response NPV extraction (API side of the parity comparison)
 # =============================================================================
 
