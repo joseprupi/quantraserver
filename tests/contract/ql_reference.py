@@ -1618,6 +1618,383 @@ def price_cds_ql(request: dict) -> float:
     return ql_cds.NPV()
 
 
+# =============================================================================
+# Inflation swaps (ZCIIS / YYIIS)
+# =============================================================================
+#
+# These mirror the server's inflation stack field for field:
+#   * src/parsers/inflation_curve_parsers.cpp — the InflationIndexSpec /
+#     InflationCurveSpec builders (index construction, helper dates, base
+#     fixing, PiecewiseZero/YoYInflationCurve<Linear> bootstrap),
+#   * src/parsers/zero_coupon_inflation_swap_parser.cpp and
+#     year_on_year_inflation_swap_parser.cpp — the trade construction,
+#   * src/evaluators/*_inflation_swap_evaluator.cpp — engine selection
+#     (DiscountingSwapEngine on the trade's discounting curve; the YoY leg
+#     additionally gets a BlackYoYInflationCouponPricer holding the same
+#     nominal curve and no volatility surface).
+
+
+def get_cpi_interpolation(name: str):
+    """Mirror the server's CPIInterpolationType mapping (fbs default AsIndex)."""
+    mapping = {
+        "AsIndex": ql.CPI.AsIndex,
+        "Flat": ql.CPI.Flat,
+        "Linear": ql.CPI.Linear,
+    }
+    return mapping.get(name, ql.CPI.AsIndex)
+
+
+def _inflation_region(currency: str):
+    """QuantLib Region for the server's currency->region mapping.
+
+    The Python bindings expose only CustomRegion (not EURegion/USRegion/...),
+    but a Region contributes nothing numerical — only the index's name, i.e.
+    its fixing-store key — so a CustomRegion carrying the same name as the
+    server's region is an exact behavioural match.
+    """
+    names = {
+        "EUR": ("EU", "EU"),
+        "USD": ("USA", "US"),
+        "GBP": ("UK", "UK"),
+        "AUD": ("Australia", "AU"),
+        "ZAR": ("South Africa", "ZA"),
+    }
+    name, code = names.get(currency, ("N/A", "N/A"))
+    return ql.CustomRegion(name, code)
+
+
+def _find_inflation_index_spec(pricing: dict, index_id: str) -> dict:
+    for spec in pricing.get("inflation_indices", []):
+        if spec.get("id") == index_id:
+            return spec
+    raise ValueError(f"Inflation index spec not found: {index_id}")
+
+
+def _find_inflation_curve_spec(pricing: dict, curve_id: str) -> dict:
+    for spec in pricing.get("inflation_curves", []):
+        if spec.get("id") == curve_id:
+            return spec
+    raise ValueError(f"Inflation curve spec not found: {curve_id}")
+
+
+def _wire_period(container: dict, key: str) -> ql.Period:
+    n, unit = _period_n_unit(container, key)
+    return ql.Period(n, get_time_unit(unit))
+
+
+def _apply_inflation_fixings(index, spec: dict):
+    """Mirror the server: clearFixings(), then add every supplied fixing."""
+    index.clearFixings()
+    for fixing in spec.get("fixings", []) or []:
+        index.addFixing(parse_date(fixing["date"]), fixing["value"])
+
+
+def _build_inflation_index(spec: dict, zero_handle=None, yoy_handle=None):
+    """Inflation index from an InflationIndexSpec (mirrors buildInflationIndex).
+
+    Note the server never passes the spec's `interpolated` flag into the
+    QuantLib index constructor (QuantLib 1.41 dropped that parameter), so the
+    reference does not either. Ratio-based YoY indices
+    (underlying_zero_index_id) are not supported by the reference yet — do
+    not add a catalog case that needs one.
+    """
+    family = spec.get("family_name") or spec["id"]
+    ccy_code = spec.get("currency") or "EUR"
+    region = _inflation_region(ccy_code)
+    ccy = get_currency(ccy_code)
+    freq = get_frequency(spec.get("frequency", "Monthly"))
+    avail_lag = _wire_period(spec, "availability_lag")
+    revised = spec.get("revised", False)
+    if spec.get("kind", "ZeroInflation") == "ZeroInflation":
+        handle = zero_handle if zero_handle is not None \
+            else ql.ZeroInflationTermStructureHandle()
+        index = ql.ZeroInflationIndex(
+            family, region, revised, freq, avail_lag, ccy, handle)
+    else:
+        if spec.get("underlying_zero_index_id"):
+            raise ValueError(
+                "Ratio-based YoY inflation indices are not supported by the "
+                "reference yet")
+        handle = yoy_handle if yoy_handle is not None \
+            else ql.YoYInflationTermStructureHandle()
+        index = ql.YoYInflationIndex(
+            family, region, revised, freq, avail_lag, ccy, handle)
+    _apply_inflation_fixings(index, spec)
+    return index
+
+
+def _inflation_helper_maturity(helper: dict, reference_date, calendar, bdc,
+                               label: str):
+    """Helper maturity, mirroring resolveHelperDates (tenor or end_date).
+
+    The server also accepts explicit start_date+end_date pairs (a dated
+    helper constructor the Python bindings do not expose), so those raise
+    here instead of being silently mispriced.
+    """
+    if helper.get("start_date"):
+        raise ValueError(
+            f"{label}: explicit start/end dated helpers are not supported by "
+            "the reference yet")
+    if helper.get("end_date"):
+        return parse_date(helper["end_date"])
+    return calendar.advance(reference_date, _wire_period(helper, "tenor"), bdc)
+
+
+def _resolve_inflation_quote(helper: dict, request: dict) -> float:
+    """Inline quote_value, or quote_id resolved from pricing.quotes (Curve)."""
+    quote_id = helper.get("quote_id")
+    if quote_id:
+        pricing = request.get("pricing", {})
+        for q in pricing.get("quotes", []):
+            if q.get("id") == quote_id:
+                if q.get("quote_type", "Curve") != "Curve":
+                    raise ValueError(
+                        f"Quote id '{quote_id}' has wrong type for an "
+                        "inflation curve")
+                return q.get("value", 0.0)
+        raise ValueError(f"Quote id not found: {quote_id}")
+    return helper["quote_value"]
+
+
+def _build_zero_inflation_curve(curve_spec: dict, index_spec: dict,
+                                request: dict):
+    """PiecewiseZeroInflation curve from an InflationCurveSpec (ZeroInflation).
+
+    Mirrors the server's build: ZCIIS helpers with per-helper calendar /
+    convention / day counter / observation lag / CPI interpolation, base date
+    = inflationPeriod(reference - availability_lag).start, Linear
+    interpolation (the only interpolator the server accepts), no seasonality.
+    """
+    if curve_spec.get("interpolator", "Linear") != "Linear":
+        raise ValueError("Inflation curves only support the Linear interpolator")
+    ref = parse_date(curve_spec["reference_date"])
+    dc = get_day_counter(curve_spec.get("day_counter", "Actual365Fixed"))
+    accuracy = curve_spec.get("bootstrap_accuracy", 1.0e-12)
+    freq = get_frequency(index_spec.get("frequency", "Monthly"))
+    avail_lag = _wire_period(index_spec, "availability_lag")
+    bare_index = _build_inflation_index(index_spec)
+
+    helpers = []
+    for wrapper in curve_spec["points"]:
+        if wrapper.get("point_type") != "ZeroCouponInflationSwapHelper":
+            raise ValueError(
+                "Zero inflation curves take only ZeroCouponInflationSwapHelper "
+                "points")
+        point = wrapper["point"]
+        calendar = _calendar_from_enum(point.get("calendar", "TARGET"))
+        bdc = get_convention(point.get("payment_convention",
+                                       "ModifiedFollowing"))
+        maturity = _inflation_helper_maturity(
+            point, ref, calendar, bdc, "ZeroCouponInflationSwapHelper")
+        helpers.append(ql.ZeroCouponInflationSwapHelper(
+            ql.QuoteHandle(ql.SimpleQuote(_resolve_inflation_quote(point,
+                                                                   request))),
+            _wire_period(point, "swap_observation_lag"),
+            maturity,
+            calendar,
+            bdc,
+            get_day_counter(point.get("day_counter", "Actual365Fixed")),
+            bare_index,
+            get_cpi_interpolation(point.get("observation_interpolation",
+                                            "AsIndex"))))
+
+    base_date = ql.inflationPeriod(ref - avail_lag, freq)[0]
+    ts = ql.PiecewiseZeroInflation(ref, base_date, freq, dc, helpers, None,
+                                   accuracy)
+    if curve_spec.get("allow_extrapolation", True):
+        ts.enableExtrapolation()
+    else:
+        ts.disableExtrapolation()
+    return ts
+
+
+def _build_yoy_inflation_curve(curve_spec: dict, index_spec: dict,
+                               request: dict, nominal_curve):
+    """PiecewiseYoYInflation curve from an InflationCurveSpec (YoYInflation).
+
+    Mirrors the server: YoY swap helpers carrying the nominal curve named by
+    each helper's nominal_curve_id, base YoY rate read from the index's own
+    stored fixing at inflationPeriod(reference - availability_lag).start.
+    `nominal_curve` maps a curve id to its built YieldTermStructureHandle.
+    """
+    if curve_spec.get("interpolator", "Linear") != "Linear":
+        raise ValueError("Inflation curves only support the Linear interpolator")
+    ref = parse_date(curve_spec["reference_date"])
+    dc = get_day_counter(curve_spec.get("day_counter", "Actual365Fixed"))
+    accuracy = curve_spec.get("bootstrap_accuracy", 1.0e-12)
+    freq = get_frequency(index_spec.get("frequency", "Monthly"))
+    avail_lag = _wire_period(index_spec, "availability_lag")
+    bare_index = _build_inflation_index(index_spec)
+
+    helpers = []
+    for wrapper in curve_spec["points"]:
+        if wrapper.get("point_type") != "YearOnYearInflationSwapHelper":
+            raise ValueError(
+                "YoY inflation curves take only YearOnYearInflationSwapHelper "
+                "points")
+        point = wrapper["point"]
+        calendar = _calendar_from_enum(point.get("calendar", "TARGET"))
+        bdc = get_convention(point.get("payment_convention",
+                                       "ModifiedFollowing"))
+        maturity = _inflation_helper_maturity(
+            point, ref, calendar, bdc, "YearOnYearInflationSwapHelper")
+        helpers.append(ql.YearOnYearInflationSwapHelper(
+            ql.QuoteHandle(ql.SimpleQuote(_resolve_inflation_quote(point,
+                                                                   request))),
+            _wire_period(point, "swap_observation_lag"),
+            maturity,
+            calendar,
+            bdc,
+            get_day_counter(point.get("day_counter", "Actual365Fixed")),
+            bare_index,
+            get_cpi_interpolation(point.get("observation_interpolation",
+                                            "AsIndex")),
+            nominal_curve(point["nominal_curve_id"])))
+
+    base_date = ql.inflationPeriod(ref - avail_lag, freq)[0]
+    base_yoy_rate = bare_index.fixing(base_date)
+    ts = ql.PiecewiseYoYInflation(ref, base_date, base_yoy_rate, freq, dc,
+                                  helpers, None, accuracy)
+    if curve_spec.get("allow_extrapolation", True):
+        ts.enableExtrapolation()
+    else:
+        ts.disableExtrapolation()
+    return ts
+
+
+def _nominal_curve_resolver(pricing: dict, eval_date, request: dict):
+    """id -> YieldTermStructureHandle over pricing.rates.curves, cached."""
+    cache = {}
+
+    def resolve(curve_id: str):
+        if curve_id not in cache:
+            curve_json = next(
+                (c for c in pricing.get("curves", []) if c["id"] == curve_id),
+                None)
+            if curve_json is None:
+                raise ValueError(f"Rates curve not found: {curve_id}")
+            cache[curve_id] = build_curve_from_json(curve_json, eval_date,
+                                                    request)
+        return cache[curve_id]
+
+    return resolve
+
+
+def _build_wire_schedule(sch: dict) -> ql.Schedule:
+    """QuantLib Schedule from a wire Schedule table (mirrors ScheduleParser)."""
+    return ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch.get("frequency", "Annual"))),
+        _calendar_from_enum(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention",
+                               "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        sch.get("end_of_month", False))
+
+
+def price_zero_coupon_inflation_swap_ql(request: dict) -> float:
+    """Price a zero-coupon inflation swap (ZCIIS) using QuantLib."""
+    pricing = _reference_pricing_view(request)
+    swap_data = request["swaps"][0]
+    trade = swap_data["zero_coupon_inflation_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    nominal_curve = _nominal_curve_resolver(pricing, eval_date, request)
+    discount = nominal_curve(swap_data["discounting_curve"])
+
+    curve_spec = _find_inflation_curve_spec(pricing,
+                                            swap_data["inflation_curve"])
+    if curve_spec.get("kind", "ZeroInflation") != "ZeroInflation":
+        raise ValueError("ZCIIS needs a ZeroInflation curve")
+    index_spec = _find_inflation_index_spec(pricing, curve_spec["index_id"])
+    if index_spec["id"] != trade["inflation_index_id"]:
+        raise ValueError(
+            "ZCIIS inflation_index_id does not match the inflation curve's "
+            "index")
+    ts = _build_zero_inflation_curve(curve_spec, index_spec, request)
+    index = _build_inflation_index(
+        index_spec, zero_handle=ql.ZeroInflationTermStructureHandle(ts))
+
+    swap_type = ql.Swap.Payer if trade.get("swap_type", "Payer") == "Payer" \
+        else ql.Swap.Receiver
+    swap = ql.ZeroCouponInflationSwap(
+        swap_type,
+        trade["notional"],
+        parse_date(trade["start_date"]),
+        parse_date(trade["maturity_date"]),
+        _calendar_from_enum(trade.get("fixed_calendar", "TARGET")),
+        get_convention(trade.get("fixed_convention", "ModifiedFollowing")),
+        get_day_counter(trade.get("day_counter", "Actual365Fixed")),
+        trade["fixed_rate"],
+        index,
+        _wire_period(trade, "observation_lag"),
+        get_cpi_interpolation(trade.get("observation_interpolation",
+                                        "AsIndex")),
+        trade.get("adjust_observation_dates", False),
+        _calendar_from_enum(trade.get("inflation_calendar", "NullCalendar")),
+        get_convention(trade.get("inflation_convention", "Following")))
+    swap.setPricingEngine(ql.DiscountingSwapEngine(discount))
+    return swap.NPV()
+
+
+def price_year_on_year_inflation_swap_ql(request: dict) -> float:
+    """Price a year-on-year inflation swap (YYIIS) using QuantLib."""
+    pricing = _reference_pricing_view(request)
+    swap_data = request["swaps"][0]
+    trade = swap_data["year_on_year_inflation_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    nominal_curve = _nominal_curve_resolver(pricing, eval_date, request)
+    discount = nominal_curve(swap_data["discounting_curve"])
+
+    curve_spec = _find_inflation_curve_spec(pricing,
+                                            swap_data["inflation_curve"])
+    if curve_spec.get("kind") != "YoYInflation":
+        raise ValueError("YYIIS needs a YoYInflation curve")
+    index_spec = _find_inflation_index_spec(pricing, curve_spec["index_id"])
+    if index_spec["id"] != trade["inflation_index_id"]:
+        raise ValueError(
+            "YYIIS inflation_index_id does not match the inflation curve's "
+            "index")
+    ts = _build_yoy_inflation_curve(curve_spec, index_spec, request,
+                                    nominal_curve)
+    index = _build_inflation_index(
+        index_spec, yoy_handle=ql.YoYInflationTermStructureHandle(ts))
+
+    swap_type = ql.Swap.Payer if trade.get("swap_type", "Payer") == "Payer" \
+        else ql.Swap.Receiver
+    swap = ql.YearOnYearInflationSwap(
+        swap_type,
+        trade["notional"],
+        _build_wire_schedule(trade["fixed_schedule"]),
+        trade["fixed_rate"],
+        get_day_counter(trade.get("fixed_day_counter", "Actual365Fixed")),
+        _build_wire_schedule(trade["yoy_schedule"]),
+        index,
+        _wire_period(trade, "observation_lag"),
+        get_cpi_interpolation(trade.get("observation_interpolation",
+                                        "AsIndex")),
+        trade.get("spread", 0.0),
+        get_day_counter(trade.get("yoy_day_counter", "Actual365Fixed")),
+        _calendar_from_enum(trade.get("payment_calendar", "TARGET")),
+        get_convention(trade.get("payment_convention", "ModifiedFollowing")))
+    # The server prices the YoY leg with a BlackYoYInflationCouponPricer that
+    # carries only the nominal discount curve (no optionlet vol surface); the
+    # vol is never touched for plain (uncapped) YoY coupons.
+    ql.setCouponPricer(
+        swap.yoyLeg(),
+        ql.BlackYoYInflationCouponPricer(
+            ql.YoYOptionletVolatilitySurfaceHandle(), discount))
+    swap.setPricingEngine(ql.DiscountingSwapEngine(discount))
+    return swap.NPV()
+
+
 def _make_multicurve_exogenous_request() -> dict:
     """
     Build a 2-curve request:

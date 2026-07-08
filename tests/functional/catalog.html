@@ -653,6 +653,72 @@
 </tr>
 </tbody>
 </table>
-<footer>96 cases across 8 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
+<h2>Inflation</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 5Y ZCIIS, pay inflation vs 2.10% fixed, Linear CPI</div><div class="desc">Baseline zero-coupon inflation swap: pay realized HICP inflation compounded over 5 years, receive 2.10% fixed compounded, on 1m notional (TARGET, Act/365F, 3M observation lag, linearly interpolated monthly CPI observations). The zero inflation curve is bootstrapped from ZCIIS quotes (1Y 2.00% to 10Y 2.35%) on the EUR deposit+swap nominal curve; the 5Y breakeven of ~2.20% sits above the 2.10% fixed leg, so the payer of inflation is underwater.</div></td>
+<td><code>ZCIIS</code> <code>pay inflation</code> <code>CPI Linear observation</code> <code>3M observation lag</code> <code>zero-inflation bootstrap</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_5y_payer_linear_obs.json">zciis_eur_5y_payer_linear_obs.json</a></td>
+<td class="npv">-4,675.89</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y ZCIIS, same trade receiving inflation</div><div class="desc">The other side of the baseline trade: receive realized HICP inflation, pay 2.10% fixed, on identical market data. Everything else is unchanged, so the NPV is the exact negative of the payer case, pinning the ZCIIS direction convention end to end.</div></td>
+<td><code>ZCIIS</code> <code>receive inflation</code> <code>sign flip</code> <code>CPI Linear observation</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_5y_receiver_linear_obs.json">zciis_eur_5y_receiver_linear_obs.json</a></td>
+<td class="npv">4,675.89</td>
+</tr>
+<tr>
+<td><div class="title">EUR 10Y ZCIIS, pay inflation vs 2.40% fixed</div><div class="desc">Long-dated zero-coupon inflation swap out to the curve&#x27;s 10Y 2.35% pillar: pay 10 years of compounded HICP inflation, receive 2.40% fixed compounded. The fixed leg sits above the 10Y breakeven, so the payer of inflation is ahead. Exercises the long end of the zero-inflation bootstrap and a decade of compounding on both legs.</div></td>
+<td><code>ZCIIS</code> <code>pay inflation</code> <code>10Y maturity</code> <code>curve long end</code> <code>positive NPV</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_10y_payer_linear_obs.json">zciis_eur_10y_payer_linear_obs.json</a></td>
+<td class="npv">4,529.93</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y ZCIIS, AsIndex (flat monthly) CPI observation</div><div class="desc">A 3Y zero-coupon inflation swap whose CPI observations use AsIndex interpolation on both the trade and the curve helpers: the index is built non-interpolated, so each observation reads the fixing of the observation month as-is instead of interpolating within the month. Pays inflation vs 2.05% fixed against a ~2.10% 3Y breakeven.</div></td>
+<td><code>ZCIIS</code> <code>CPI AsIndex observation</code> <code>flat monthly fixing</code> <code>3Y maturity</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_3y_payer_asindex_obs.json">zciis_eur_3y_payer_asindex_obs.json</a></td>
+<td class="npv">-1,436.63</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y ZCIIS with a 6M observation lag</div><div class="desc">The baseline 5Y trade with the trade-level observation lag widened from 3 to 6 months (the curve helpers keep their 3M lag), so both the base CPI (July/August 2024 fixings) and the final observation shift back a quarter and the breakeven drops to ~2.17%. Exercises the trade observation lag independently of the curve&#x27;s.</div></td>
+<td><code>ZCIIS</code> <code>6M observation lag</code> <code>trade lag != helper lag</code> <code>past CPI fixings</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_5y_payer_6m_observation_lag.json">zciis_eur_5y_payer_6m_observation_lag.json</a></td>
+<td class="npv">-3,350.29</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y ZCIIS on a curve with explicit-date helpers</div><div class="desc">The baseline 5Y trade priced on a zero-inflation curve whose helpers carry explicit end dates (July anniversaries, 2026-07-15 to 2035-07-15, one landing on a Saturday and used verbatim) instead of tenors, so every pillar sits half a year off the trade&#x27;s dates and the 5Y observation is a genuine interpolation between the 2030 and 2032 pillars. Exercises the end_date branch of the helper date resolution.</div></td>
+<td><code>ZCIIS</code> <code>explicit end-date helpers</code> <code>off-grid pillars</code> <code>weekend helper maturity</code></td>
+<td><a href="../../examples/data/inflation/zciis_eur_5y_payer_dated_helpers.json">zciis_eur_5y_payer_dated_helpers.json</a></td>
+<td class="npv">-3,542.27</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation swap, receive 2.15% fixed</div><div class="desc">Baseline year-on-year inflation swap: receive 2.15% fixed annually (Act/365F), pay the annual year-on-year HICP rate, on 1m notional (TARGET, Modified Following, 3M observation lag, Linear interpolation). The YoY curve is bootstrapped from YoY swap quotes (1Y 2.00% to 7Y 2.25%) whose helpers discount on the nominal curve; the 5Y fair rate of ~2.20% sits above the fixed leg, so the fixed receiver is behind.</div></td>
+<td><code>YYIIS</code> <code>receive fixed</code> <code>annual YoY coupons</code> <code>YoY-inflation bootstrap</code> <code>3M observation lag</code></td>
+<td><a href="../../examples/data/inflation/yyiis_eur_5y_receiver_annual.json">yyiis_eur_5y_receiver_annual.json</a></td>
+<td class="npv">-2,285.59</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation swap, same trade paying fixed</div><div class="desc">The other side of the baseline YoY trade: pay 2.15% fixed, receive the annual year-on-year HICP rate, on identical market data. The NPV is the exact negative of the receiver case, pinning the YYIIS direction convention (a QuantLib YoY-swap Payer pays the fixed leg) end to end.</div></td>
+<td><code>YYIIS</code> <code>pay fixed</code> <code>sign flip</code> <code>annual YoY coupons</code></td>
+<td><a href="../../examples/data/inflation/yyiis_eur_5y_payer_annual.json">yyiis_eur_5y_payer_annual.json</a></td>
+<td class="npv">2,285.59</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y YoY swap, semiannual, 30/360 fixed vs Act/360 YoY</div><div class="desc">A 3Y year-on-year swap with semiannual schedules on both legs and split day counts: the 2.10% fixed leg accrues 30/360 while the YoY leg accrues Act/360, so each semiannual YoY coupon observes the year-on-year rate at its own lagged date on the annually-quoted curve. Exercises non-annual YoY periods and per-leg day-count overrides.</div></td>
+<td><code>YYIIS</code> <code>semiannual schedules</code> <code>fixed 30/360</code> <code>YoY Act/360</code> <code>day-count split</code></td>
+<td><a href="../../examples/data/inflation/yyiis_eur_3y_receiver_semiannual_30360.json">yyiis_eur_3y_receiver_semiannual_30360.json</a></td>
+<td class="npv">-580.29</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY swap, +25bp spread on the YoY leg</div><div class="desc">The 5Y YoY trade paying 2.20% fixed against the year-on-year HICP rate plus a 25bp spread, so the effective fair fixed rate rises to ~2.45% and the fixed payer is well ahead. Exercises the YoY-leg spread field end to end.</div></td>
+<td><code>YYIIS</code> <code>pay fixed</code> <code>YoY spread +25bp</code> <code>positive NPV</code></td>
+<td><a href="../../examples/data/inflation/yyiis_eur_5y_payer_spread25bp.json">yyiis_eur_5y_payer_spread25bp.json</a></td>
+<td class="npv">11,427.97</td>
+</tr>
+</tbody>
+</table>
+<footer>106 cases across 9 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly.</footer>
 </body>
 </html>

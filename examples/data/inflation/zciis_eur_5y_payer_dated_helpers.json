@@ -1,0 +1,357 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [
+        {
+          "id": "EUR_6M",
+          "name": "Euribor",
+          "index_type": "Ibor",
+          "tenor": {
+            "n": 6,
+            "unit": "Months"
+          },
+          "fixing_days": 2,
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual360",
+          "currency": "EUR"
+        }
+      ],
+      "curves": [
+        {
+          "id": "DISC",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.029,
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360"
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.0295,
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360"
+              }
+            },
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.03,
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0305,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0308,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.031,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0312,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                }
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "rate": 0.0315,
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0.0,
+                "fwd_start_days": 0,
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "inflation": {
+      "inflation_indices": [
+        {
+          "id": "EUHICP",
+          "family_name": "EU HICP",
+          "currency": "EUR",
+          "calendar": "TARGET",
+          "day_counter": "Actual365Fixed",
+          "frequency": "Monthly",
+          "availability_lag": {
+            "n": 2,
+            "unit": "Months"
+          },
+          "observation_lag": {
+            "n": 3,
+            "unit": "Months"
+          },
+          "interpolated": false,
+          "revised": false,
+          "kind": "ZeroInflation",
+          "fixings": [
+            {
+              "date": "2024-06-01",
+              "value": 125.1
+            },
+            {
+              "date": "2024-07-01",
+              "value": 125.3
+            },
+            {
+              "date": "2024-08-01",
+              "value": 125.42
+            },
+            {
+              "date": "2024-09-01",
+              "value": 125.61
+            },
+            {
+              "date": "2024-10-01",
+              "value": 125.87
+            },
+            {
+              "date": "2024-11-01",
+              "value": 126.03
+            },
+            {
+              "date": "2024-12-01",
+              "value": 126.16
+            }
+          ]
+        }
+      ],
+      "inflation_curves": [
+        {
+          "id": "HICP_ZC",
+          "reference_date": "2025-01-15",
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_accuracy": 1e-12,
+          "kind": "ZeroInflation",
+          "index_id": "EUHICP",
+          "discount_curve_id": "DISC",
+          "allow_extrapolation": true,
+          "points": [
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.02,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2026-07-15"
+              }
+            },
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.0205,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2027-07-15"
+              }
+            },
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.021,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2028-07-17"
+              }
+            },
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.022,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2030-07-15"
+              }
+            },
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.0228,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2032-07-15"
+              }
+            },
+            {
+              "point_type": "ZeroCouponInflationSwapHelper",
+              "point": {
+                "quote_value": 0.0235,
+                "swap_observation_lag": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "TARGET",
+                "payment_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "observation_interpolation": "Linear",
+                "end_date": "2035-07-15"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "swaps": [
+    {
+      "zero_coupon_inflation_swap": {
+        "swap_type": "Payer",
+        "notional": 1000000.0,
+        "start_date": "2025-01-15",
+        "maturity_date": "2030-01-15",
+        "fixed_calendar": "TARGET",
+        "fixed_convention": "ModifiedFollowing",
+        "day_counter": "Actual365Fixed",
+        "fixed_rate": 0.021,
+        "inflation_index_id": "EUHICP",
+        "observation_lag": {
+          "n": 3,
+          "unit": "Months"
+        },
+        "observation_interpolation": "Linear",
+        "adjust_observation_dates": false,
+        "inflation_calendar": "NullCalendar",
+        "inflation_convention": "Following"
+      },
+      "discounting_curve": "DISC",
+      "inflation_curve": "HICP_ZC"
+    }
+  ],
+  "include_flows": false
+}
