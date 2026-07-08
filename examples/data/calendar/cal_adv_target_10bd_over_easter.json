@@ -1,0 +1,8 @@
+{
+  "calendar": "TARGET",
+  "date": "2025-04-14",
+  "tenor_number": 10,
+  "tenor_unit": "Days",
+  "convention": "Following",
+  "end_of_month": false
+}

@@ -3,7 +3,7 @@
 Parametrizes over tests/functional/manifest.py: each case's request JSON is
 POSTed to the running server (via the shared `client` fixture) and the
 response is compared against the independent QuantLib reference named in the
-manifest (from tests/contract/ql_reference.py). Two comparison modes:
+manifest (from tests/contract/ql_reference.py). Three comparison modes:
 
   * compare="npv" (default) — the response holds one instrument NPV under
     `list_key`; assert abs(api_npv - ql_npv) < tolerance.
@@ -12,6 +12,11 @@ manifest (from tests/contract/ql_reference.py). Two comparison modes:
     returns the expected values ({series_name: [floats]} keyed like the
     response's `measure`, or a flat list when there is exactly one series)
     and every point must satisfy abs(api[i] - ql[i]) < tolerance.
+  * compare="exact" — for date-utility endpoints (calendar business days /
+    holidays / advance): the reference returns the expected value directly —
+    a list of ISO date strings or a single date string — and the response
+    value under `list_key` must equal it exactly (same length, same order,
+    same strings; no tolerance, so exact cases carry no tolerance field).
 
 Also keeps the committed catalog honest: test_catalog_in_sync regenerates
 CATALOG.md / catalog.html content in memory and asserts it matches the files
@@ -39,7 +44,14 @@ def test_manifest_well_formed(data_dir):
                 "list_key", "ql_pricer", "tolerance", "exercises"}
     ids = set()
     for case in CASES:
-        missing = required - case.keys()
+        compare = case.get("compare", "npv")
+        assert compare in ("npv", "series", "exact"), (
+            f"{case.get('id')}: unknown compare mode: {case.get('compare')}"
+        )
+        # Exact cases have no tolerance by construction — the response must
+        # equal the reference value verbatim.
+        needed = required - ({"tolerance"} if compare == "exact" else set())
+        missing = needed - case.keys()
         assert not missing, f"case {case.get('id')} missing keys: {missing}"
         assert case["id"] not in ids, f"duplicate case id: {case['id']}"
         ids.add(case["id"])
@@ -49,11 +61,13 @@ def test_manifest_well_formed(data_dir):
         assert callable(getattr(ql_reference, case["ql_pricer"], None)), (
             f"{case['id']}: unknown ql_reference pricer: {case['ql_pricer']}"
         )
-        assert case["tolerance"] > 0
+        if compare == "exact":
+            assert "tolerance" not in case, (
+                f"{case['id']}: exact-match cases must not carry a tolerance"
+            )
+        else:
+            assert case["tolerance"] > 0
         assert case["exercises"], f"{case['id']}: empty exercises list"
-        assert case.get("compare", "npv") in ("npv", "series"), (
-            f"{case['id']}: unknown compare mode: {case.get('compare')}"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -109,11 +123,50 @@ def _assert_series_parity(case, api, expected):
     )
 
 
+def _assert_exact_parity(case, actual, expected):
+    """Verbatim equality for date-utility cases — no tolerance.
+
+    `expected` is a list of ISO date strings (business days / holidays) or a
+    single ISO date string (advance); the response value must equal it
+    exactly, including list order and length.
+    """
+    case_id = case["id"]
+    if isinstance(expected, list):
+        assert isinstance(actual, list), (
+            f"{case_id}: expected a date list under '{case['list_key']}', "
+            f"got {type(actual).__name__}"
+        )
+        assert len(actual) == len(expected), (
+            f"{case_id}: {len(actual)} dates returned, reference expects "
+            f"{len(expected)}: api={actual} ql={expected}"
+        )
+        mismatches = [(i, a, e)
+                      for i, (a, e) in enumerate(zip(actual, expected))
+                      if a != e]
+        assert not mismatches, (
+            f"{case_id}: {len(mismatches)} date(s) differ, first at index "
+            f"{mismatches[0][0]}: api={mismatches[0][1]} "
+            f"ql={mismatches[0][2]}"
+        )
+    else:
+        assert actual == expected, (
+            f"{case_id}: api={actual!r} != quantlib={expected!r}"
+        )
+
+
 @pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
 def test_functional_parity(client, data_dir, case):
     request = load_json(data_dir / case["request"])
     response = client.price(case["product"], request)
     pricer = getattr(ql_reference, case["ql_pricer"])
+    if case.get("compare", "npv") == "exact":
+        expected = pricer(request)
+        assert case["list_key"] in response, (
+            f"{case['id']}: response has no '{case['list_key']}' field: "
+            f"{sorted(response)}"
+        )
+        _assert_exact_parity(case, response[case["list_key"]], expected)
+        return
     tolerance = case["tolerance"]
     if case.get("compare", "npv") == "series":
         expected = pricer(request)

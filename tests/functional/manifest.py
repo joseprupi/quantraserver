@@ -25,6 +25,8 @@ Field reference (all keys required unless noted):
               cent on notionals of millions — the server and the reference
               build the same QuantLib objects, so parity is near machine
               precision). Series cases use SERIES_TOLERANCE (see below).
+              Omitted (and forbidden) for compare="exact" cases, which have
+              no tolerance at all.
   exercises   Short tags describing what the case covers; rendered in the
               catalog's "What it exercises" column.
   compare     Optional. "npv" (default): the reference returns a single float
@@ -32,12 +34,18 @@ Field reference (all keys required unless noted):
               returns the sampled curve values ({series_name: [floats]} keyed
               like the response's series[].measure, or a flat list for a
               single series) and every point is compared element-wise.
+              "exact": the reference returns the expected response value
+              verbatim — a list of ISO date strings (calendar business days /
+              holidays, list_key "dates") or a single date string (calendar
+              advance, list_key "advanced_date") — and the response must
+              equal it exactly (order and length included).
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
 examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
-examples/data/curves/), append a dict here, regenerate the catalog
+examples/data/curves/, calendar utilities in examples/data/calendar/),
+append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
 """
@@ -1674,5 +1682,259 @@ CASES = [
         "compare": "series",
         "exercises": ["DF + zero + forward in one query",
                       "multi-series alignment", "Period 6M forwards"],
+    },
+
+    # ------------------------------------------------------------------
+    # Calendars — date-utility endpoints (compare="exact": the returned
+    # date list / advanced date must equal the QuantLib reference verbatim,
+    # no tolerance; each case pins the CalendarToQL enum mapping too)
+    # ------------------------------------------------------------------
+    {
+        "id": "cal_bd_target_easter_2025",
+        "product": "calendar_business_days",
+        "family": "Calendars",
+        "title": "TARGET business days across Easter 2025",
+        "description": (
+            "The business dates from 2025-04-14 to 2025-04-25 on the TARGET "
+            "calendar, a two-week window containing Good Friday (Apr 18) "
+            "and Easter Monday (Apr 21) plus a weekend — 8 of the 12 days "
+            "survive. Both endpoints included (the defaults)."
+        ),
+        "request": "calendar/cal_bd_target_easter_2025.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_business_days_ql",
+        "compare": "exact",
+        "exercises": ["business days", "TARGET", "Good Friday",
+                      "Easter Monday", "inclusive endpoints"],
+    },
+    {
+        "id": "cal_bd_usgovbond_july4_2025",
+        "product": "calendar_business_days",
+        "family": "Calendars",
+        "title": "US government bond business days around July 4, 2025",
+        "description": (
+            "The business dates from 2025-06-30 to 2025-07-11 on the US "
+            "government bond (SIFMA) calendar: Independence Day falls on a "
+            "Friday, so the two-week window keeps 9 of its 10 weekdays. "
+            "Pins the UnitedStatesGovernmentBond enum mapping on a "
+            "date-utility endpoint."
+        ),
+        "request": "calendar/cal_bd_usgovbond_july4_2025.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_business_days_ql",
+        "compare": "exact",
+        "exercises": ["business days", "US government bond calendar",
+                      "Independence Day", "single-holiday week"],
+    },
+    {
+        "id": "cal_bd_uk_year_end_exclusive_ends",
+        "product": "calendar_business_days",
+        "family": "Calendars",
+        "title": "UK year-end business days, both endpoints excluded",
+        "description": (
+            "The business dates strictly between 2025-12-24 and 2026-01-02 "
+            "on the UnitedKingdom calendar (include_start and include_end "
+            "both false). Christmas, Boxing Day and New Year's Day drop "
+            "out, and because both excluded endpoints are themselves "
+            "business days, only Dec 29-31 remain — pinning the endpoint "
+            "flags and a year boundary in one case."
+        ),
+        "request": "calendar/cal_bd_uk_year_end_exclusive_ends.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_business_days_ql",
+        "compare": "exact",
+        "exercises": ["business days", "UnitedKingdom calendar",
+                      "exclusive endpoints", "year boundary",
+                      "Christmas/Boxing Day/New Year"],
+    },
+    {
+        "id": "cal_bd_japan_golden_week_2025",
+        "product": "calendar_business_days",
+        "family": "Calendars",
+        "title": "Japan business days through Golden Week 2025",
+        "description": (
+            "The business dates from 2025-04-28 to 2025-05-09 on the Japan "
+            "calendar: Showa Day (Apr 29), Constitution/Greenery/Children's "
+            "Day (May 3-5) and the May 6 substitute holiday all drop out. "
+            "Exercises a calendar with substitute-holiday rules that no "
+            "pricing case in the catalog touches."
+        ),
+        "request": "calendar/cal_bd_japan_golden_week_2025.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_business_days_ql",
+        "compare": "exact",
+        "exercises": ["business days", "Japan calendar", "Golden Week",
+                      "substitute holiday"],
+    },
+    {
+        "id": "cal_hol_target_2025",
+        "product": "calendar_holidays",
+        "family": "Calendars",
+        "title": "TARGET holidays for calendar year 2025",
+        "description": (
+            "The holiday list for the whole of 2025 on the TARGET calendar "
+            "with weekends excluded (the default): New Year's Day, Good "
+            "Friday, Easter Monday, Labour Day, Christmas and St. "
+            "Stephen's Day — six dates. The baseline holidays query."
+        ),
+        "request": "calendar/cal_hol_target_2025.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_holidays_ql",
+        "compare": "exact",
+        "exercises": ["holidays", "TARGET", "full calendar year",
+                      "weekends excluded"],
+    },
+    {
+        "id": "cal_hol_usnyse_2025_h1",
+        "product": "calendar_holidays",
+        "family": "Calendars",
+        "title": "NYSE holidays, first half of 2025",
+        "description": (
+            "The New York Stock Exchange holiday list from 2025-01-01 to "
+            "2025-06-30: New Year, the January 9 national day of mourning, "
+            "Martin Luther King Day, Washington's Birthday, Good Friday, "
+            "Memorial Day and Juneteenth — seven weekday closures. Pins "
+            "the UnitedStatesNYSE enum mapping (a different holiday set "
+            "than the SIFMA government bond calendar)."
+        ),
+        "request": "calendar/cal_hol_usnyse_2025_h1.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_holidays_ql",
+        "compare": "exact",
+        "exercises": ["holidays", "NYSE calendar", "exchange closures",
+                      "US market variant mapping"],
+    },
+    {
+        "id": "cal_hol_uk_festive_include_weekends",
+        "product": "calendar_holidays",
+        "family": "Calendars",
+        "title": "UK festive-season non-business days, weekends included",
+        "description": (
+            "Every non-business day from 2025-12-20 to 2026-01-05 on the "
+            "UnitedKingdom calendar with include_weekends=true: the "
+            "December and January weekends interleaved with Christmas, "
+            "Boxing Day and New Year's Day — nine dates across a year "
+            "boundary. Exercises the include_weekends flag."
+        ),
+        "request": "calendar/cal_hol_uk_festive_include_weekends.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_holidays_ql",
+        "compare": "exact",
+        "exercises": ["holidays", "UnitedKingdom calendar",
+                      "include_weekends", "year boundary"],
+    },
+    {
+        "id": "cal_adv_target_10bd_over_easter",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "TARGET: advance 10 business days across Easter",
+        "description": (
+            "2025-04-14 advanced by 10 business days on TARGET: the count "
+            "skips two weekends plus Good Friday and Easter Monday, "
+            "landing on 2025-04-30. Business-day stepping is "
+            "convention-independent, so this pins the Days unit and the "
+            "holiday skips themselves."
+        ),
+        "request": "calendar/cal_adv_target_10bd_over_easter.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "10 business days", "TARGET",
+                      "Easter holidays skipped"],
+    },
+    {
+        "id": "cal_adv_target_1m_following_crosses_month",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "TARGET: +1 month, Following rolls into September",
+        "description": (
+            "2025-07-31 plus one month lands on Sunday 2025-08-31; under "
+            "the Following convention the result rolls forward out of the "
+            "month to Monday 2025-09-01. Paired with the ModifiedFollowing "
+            "case on the identical input, this pins the convention "
+            "difference at a month end."
+        ),
+        "request": "calendar/cal_adv_target_1m_following_crosses_month.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "1 month", "Following",
+                      "weekend landing", "rolls past month end"],
+    },
+    {
+        "id": "cal_adv_target_1m_modfollowing_rolls_back",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "TARGET: +1 month, ModifiedFollowing stays in August",
+        "description": (
+            "The same 2025-07-31 plus one month onto Sunday 2025-08-31, "
+            "but under ModifiedFollowing: rolling forward would leave "
+            "August, so the date rolls back to Friday 2025-08-29 instead. "
+            "The counterpart of the Following case — same input, different "
+            "convention, different month."
+        ),
+        "request": "calendar/cal_adv_target_1m_modfollowing_rolls_back.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "1 month", "ModifiedFollowing",
+                      "weekend landing", "rolls back within month"],
+    },
+    {
+        "id": "cal_adv_target_eom_jan31_1m",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "TARGET: +1 month from Jan 31 with end-of-month rule",
+        "description": (
+            "2025-01-31 (the last business day of January) plus one month "
+            "with end_of_month=true: the end-of-month rule maps it to the "
+            "last business day of February, 2025-02-28, rather than a "
+            "plain day-of-month shift. Exercises the end_of_month flag on "
+            "the wire."
+        ),
+        "request": "calendar/cal_adv_target_eom_jan31_1m.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "1 month", "end-of-month rule",
+                      "month-end roll", "TARGET"],
+    },
+    {
+        "id": "cal_adv_usgovbond_2w_preceding_july4",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "US government bond: +2 weeks, Preceding off July 4",
+        "description": (
+            "2025-06-20 plus two weeks lands exactly on Independence Day "
+            "(Friday 2025-07-04); under the Preceding convention the "
+            "result rolls back to Thursday 2025-07-03. A holiday (not "
+            "weekend) landing that forces an adjustment, on the Weeks "
+            "unit and the SIFMA calendar."
+        ),
+        "request": "calendar/cal_adv_usgovbond_2w_preceding_july4.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "2 weeks", "Preceding",
+                      "holiday landing", "US government bond calendar"],
+    },
+    {
+        "id": "cal_adv_uk_1y_weekend_following",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "UK: +1 year onto a Saturday, Following",
+        "description": (
+            "2025-08-22 plus one year on the UnitedKingdom calendar lands "
+            "on Saturday 2026-08-22 and rolls Following to Monday "
+            "2026-08-24 (the August bank holiday is the following Monday, "
+            "Aug 31, so the 24th stands). Exercises the Years unit and a "
+            "weekend adjustment on a non-TARGET calendar."
+        ),
+        "request": "calendar/cal_adv_uk_1y_weekend_following.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "exercises": ["advance", "1 year", "Following", "weekend landing",
+                      "UnitedKingdom calendar"],
     },
 ]

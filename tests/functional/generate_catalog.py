@@ -51,17 +51,31 @@ def compute_rows():
 
     Returns a list of (family, [row, ...]) pairs preserving manifest order,
     where each row is the case dict plus a formatted reference value: the
-    reference NPV for compare="npv" cases, or a "<series names> series,
+    reference NPV for compare="npv" cases, a "<series names> series,
     N grid points" summary for compare="series" cases (whose full point-by-
-    point values live in the test assertion, not the catalog).
+    point values live in the test assertion, not the catalog), or a
+    "N business days" / "advanced date = YYYY-MM-DD" summary for
+    compare="exact" date-utility cases.
     """
+    exact_nouns = {
+        "calendar_business_days": "business days",
+        "calendar_holidays": "holidays",
+    }
     families = []
     by_family = {}
     for case in CASES:
         pricer = getattr(ql_reference, case["ql_pricer"])
         request = load_json(DATA_DIR / case["request"])
         row = dict(case)
-        if case.get("compare", "npv") == "series":
+        if case.get("compare", "npv") == "exact":
+            expected = pricer(request)
+            row["npv"] = None
+            if isinstance(expected, list):
+                noun = exact_nouns.get(case["product"], "values")
+                row["npv_text"] = f"{len(expected)} {noun}"
+            else:
+                row["npv_text"] = f"advanced date = {expected}"
+        elif case.get("compare", "npv") == "series":
             expected = pricer(request)
             if isinstance(expected, dict):
                 names = list(expected)
@@ -89,9 +103,10 @@ INTRO = (
     "independent QuantLib reference (`tests/contract/ql_reference.py`). "
     "Pricing cases compare the returned NPV within a tolerance of 0.01; "
     "curve-sampling cases compare every point of every returned series "
-    "element-wise within 1e-9. The cases, groupings and descriptions all "
-    "come from one place — `tests/functional/manifest.py` — and the "
-    "assertions run inside the standard gate "
+    "element-wise within 1e-9; calendar date-utility cases must match the "
+    "reference dates exactly (no tolerance). The cases, groupings and "
+    "descriptions all come from one place — `tests/functional/manifest.py` "
+    "— and the assertions run inside the standard gate "
     "(`bash tests/run_all_tests.sh`, suite 3). See "
     "`tests/functional/README.md` for how to add a case."
 )
@@ -198,7 +213,8 @@ def build_html(rows=None) -> str:
         f"<footer>{sum(len(c) for _, c in rows)} cases across {len(rows)} "
         "family(ies). NPV cells are the QuantLib reference values the server "
         "must reproduce within 0.01; series cells summarise curve-sampling "
-        "cases whose every point is compared within 1e-9.</footer>"
+        "cases whose every point is compared within 1e-9; calendar cells "
+        "summarise date-utility cases whose dates must match exactly.</footer>"
     )
     out.append("</body>")
     out.append("</html>")

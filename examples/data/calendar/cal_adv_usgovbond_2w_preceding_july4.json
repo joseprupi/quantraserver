@@ -1,0 +1,8 @@
+{
+  "calendar": "UnitedStatesGovernmentBond",
+  "date": "2025-06-20",
+  "tenor_number": 2,
+  "tenor_unit": "Weeks",
+  "convention": "Preceding",
+  "end_of_month": false
+}
