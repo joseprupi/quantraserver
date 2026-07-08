@@ -37,6 +37,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/cds/` | The curated request JSONs for the CDS family. |
 | `../../examples/data/curves/` | The curated request JSONs for the Curves family. |
 | `../../examples/data/calendar/` | The curated request JSONs for the Calendars family. |
+| `../../examples/data/inflation/` | The curated request JSONs for the Inflation family. |
 
 ## Comparison modes
 
@@ -106,7 +107,8 @@ python3 -m pytest tests/functional -q \
    `examples/data/cap_floor/`, swaption cases in `examples/data/swaption/`,
    CDS cases in `examples/data/cds/`, curve-sampling cases in
    `examples/data/curves/`, calendar date-utility cases in
-   `examples/data/calendar/`.
+   `examples/data/calendar/`, inflation-swap cases in
+   `examples/data/inflation/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -500,6 +502,64 @@ half-implemented:
   on the wire; the catalog pins Following, ModifiedFollowing and Preceding
   so far.
 
+## Current coverage (Inflation)
+
+Both inflation swap products, priced on bootstrapped inflation curves and
+compared as NPVs (tolerance 0.01). Note the QuantLib direction conventions
+both sides implement: a ZCIIS "Payer" pays the **inflation** leg and
+receives fixed, while a YYIIS "Payer" pays the **fixed** leg and receives
+the YoY leg.
+
+* Zero-coupon inflation swaps (ZCIIS): pay/receive inflation on the same 5Y
+  trade (sign-flip pin); a 10Y contract on the curve's long end; CPI
+  observation interpolation both Linear (within-month interpolation of the
+  monthly fixings) and AsIndex (the non-interpolated index's month fixing
+  used flat); a 6M trade-level observation lag against 3M-lagged curve
+  helpers (base CPI read from different past fixings); and a curve built
+  from explicit end-date helpers (July anniversaries, one Saturday date
+  used verbatim) instead of tenor-relative ones.
+* Year-on-year inflation swaps (YYIIS): pay/receive fixed on the same 5Y
+  annual trade (sign-flip pin); semiannual schedules with split day counts
+  (30/360 fixed vs Act/360 YoY); and a +25bp spread on the YoY leg. The
+  YoY curve helpers discount on the request's nominal curve, and the YoY
+  leg is priced with the same nominal-curve coupon pricer the server uses.
+* Market data: EUR HICP-style monthly index, 2M availability lag, monthly
+  CPI (and YoY-rate) fixings for June-December 2024, zero curve from ZCIIS
+  quotes 1Y 2.00% to 10Y 2.35%, YoY curve from YoY quotes 1Y 2.00% to 7Y
+  2.25%, EUR deposit+swap nominal discounting.
+
+## Planned / not yet covered (Inflation)
+
+These need reference-pricer or engine behaviour that is not there yet (or
+pin nothing measurable); they are deliberately not half-implemented:
+
+* **Ratio-based YoY indices (`underlying_zero_index_id`)** — the server
+  derives a YoY index as the ratio of a zero-inflation index's fixings; the
+  reference index builder does not build ratio indices yet.
+* **Explicit start+end dated helpers** — the server accepts helper
+  `start_date`+`end_date` pairs (a dated helper constructor), but the
+  QuantLib Python bindings only expose the maturity-date helper
+  constructors, so the reference rejects `start_date` instead of
+  approximating it. End-date-only helpers are covered.
+* **`adjust_observation_dates` / inflation calendar on ZCIIS** — on the
+  wire and passed to QuantLib by both sides, but numerically inert in this
+  QuantLib version (the CPI flow amount is computed from the maturity and
+  observation lag regardless of the adjusted observation date), so no NPV
+  case can pin it.
+* **Quote-referenced inflation helpers (`quote_id`)** — resolved against
+  `pricing.quotes` by both the server and the reference, but no catalog
+  case exercises the indirection yet.
+* **Seasonality** — the server builds every inflation curve with no
+  seasonality adjustment (nothing on the wire), so there is nothing to
+  vary.
+* **The index spec's `interpolated` flag** — carried on the wire but never
+  passed into the QuantLib index constructor by the server (QuantLib 1.41
+  dropped that parameter; within-month behaviour is controlled by the
+  per-observation `CPIInterpolationType` instead). The catalog cases set
+  it `false` to match the index actually built.
+* **Inflation curve sampling** (`/bootstrap-inflation-curves`) — a future
+  `compare: "series"` addition, like the nominal Curves family.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -520,8 +580,6 @@ yet; they are deliberately not half-implemented:
   schema and server support them; the reference call path has not been
   validated for them.
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families** (inflation) already have representative parity tests
-  in `tests/contract/`; migrating them into this catalog format is future
-  work. Bonds, FRAs, caps/floors, swaptions, CDS, bootstrapped-curve
-  sampling (Curves) and the calendar date utilities (Calendars) are covered
-  above.
+* **Other families**: Bonds, FRAs, caps/floors, swaptions, CDS,
+  bootstrapped-curve sampling (Curves), the calendar date utilities
+  (Calendars) and the inflation swaps (Inflation) are covered above.

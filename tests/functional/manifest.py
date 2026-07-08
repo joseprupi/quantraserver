@@ -44,7 +44,8 @@ To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
 examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
-examples/data/curves/, calendar utilities in examples/data/calendar/),
+examples/data/curves/, calendar utilities in examples/data/calendar/,
+inflation swaps in examples/data/inflation/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -1936,5 +1937,212 @@ CASES = [
         "compare": "exact",
         "exercises": ["advance", "1 year", "Following", "weekend landing",
                       "UnitedKingdom calendar"],
+    },
+    # ------------------------------------------------------------------
+    # Inflation — zero-coupon (ZCIIS) and year-on-year (YYIIS) inflation
+    # swaps priced on bootstrapped zero/YoY inflation curves. Note the
+    # QuantLib direction conventions both sides implement: a ZCIIS "Payer"
+    # pays the inflation leg and receives fixed, while a YYIIS "Payer" pays
+    # the fixed leg and receives the YoY leg.
+    # ------------------------------------------------------------------
+    {
+        "id": "zciis_eur_5y_payer_linear_obs",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y ZCIIS, pay inflation vs 2.10% fixed, Linear CPI",
+        "description": (
+            "Baseline zero-coupon inflation swap: pay realized HICP "
+            "inflation compounded over 5 years, receive 2.10% fixed "
+            "compounded, on 1m notional (TARGET, Act/365F, 3M observation "
+            "lag, linearly interpolated monthly CPI observations). The zero "
+            "inflation curve is bootstrapped from ZCIIS quotes (1Y 2.00% to "
+            "10Y 2.35%) on the EUR deposit+swap nominal curve; the 5Y "
+            "breakeven of ~2.20% sits above the 2.10% fixed leg, so the "
+            "payer of inflation is underwater."
+        ),
+        "request": "inflation/zciis_eur_5y_payer_linear_obs.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "pay inflation", "CPI Linear observation",
+                      "3M observation lag", "zero-inflation bootstrap"],
+    },
+    {
+        "id": "zciis_eur_5y_receiver_linear_obs",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y ZCIIS, same trade receiving inflation",
+        "description": (
+            "The other side of the baseline trade: receive realized HICP "
+            "inflation, pay 2.10% fixed, on identical market data. "
+            "Everything else is unchanged, so the NPV is the exact negative "
+            "of the payer case, pinning the ZCIIS direction convention end "
+            "to end."
+        ),
+        "request": "inflation/zciis_eur_5y_receiver_linear_obs.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "receive inflation", "sign flip",
+                      "CPI Linear observation"],
+    },
+    {
+        "id": "zciis_eur_10y_payer_linear_obs",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 10Y ZCIIS, pay inflation vs 2.40% fixed",
+        "description": (
+            "Long-dated zero-coupon inflation swap out to the curve's 10Y "
+            "2.35% pillar: pay 10 years of compounded HICP inflation, "
+            "receive 2.40% fixed compounded. The fixed leg sits above the "
+            "10Y breakeven, so the payer of inflation is ahead. Exercises "
+            "the long end of the zero-inflation bootstrap and a decade of "
+            "compounding on both legs."
+        ),
+        "request": "inflation/zciis_eur_10y_payer_linear_obs.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "pay inflation", "10Y maturity",
+                      "curve long end", "positive NPV"],
+    },
+    {
+        "id": "zciis_eur_3y_payer_asindex_obs",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 3Y ZCIIS, AsIndex (flat monthly) CPI observation",
+        "description": (
+            "A 3Y zero-coupon inflation swap whose CPI observations use "
+            "AsIndex interpolation on both the trade and the curve helpers: "
+            "the index is built non-interpolated, so each observation reads "
+            "the fixing of the observation month as-is instead of "
+            "interpolating within the month. Pays inflation vs 2.05% fixed "
+            "against a ~2.10% 3Y breakeven."
+        ),
+        "request": "inflation/zciis_eur_3y_payer_asindex_obs.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "CPI AsIndex observation",
+                      "flat monthly fixing", "3Y maturity"],
+    },
+    {
+        "id": "zciis_eur_5y_payer_6m_observation_lag",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y ZCIIS with a 6M observation lag",
+        "description": (
+            "The baseline 5Y trade with the trade-level observation lag "
+            "widened from 3 to 6 months (the curve helpers keep their 3M "
+            "lag), so both the base CPI (July/August 2024 fixings) and the "
+            "final observation shift back a quarter and the breakeven drops "
+            "to ~2.17%. Exercises the trade observation lag independently "
+            "of the curve's."
+        ),
+        "request": "inflation/zciis_eur_5y_payer_6m_observation_lag.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "6M observation lag",
+                      "trade lag != helper lag", "past CPI fixings"],
+    },
+    {
+        "id": "zciis_eur_5y_payer_dated_helpers",
+        "product": "zero_coupon_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y ZCIIS on a curve with explicit-date helpers",
+        "description": (
+            "The baseline 5Y trade priced on a zero-inflation curve whose "
+            "helpers carry explicit end dates (July anniversaries, "
+            "2026-07-15 to 2035-07-15, one landing on a Saturday and used "
+            "verbatim) instead of tenors, so every pillar sits half a year "
+            "off the trade's dates and the 5Y observation is a genuine "
+            "interpolation between the 2030 and 2032 pillars. Exercises "
+            "the end_date branch of the helper date resolution."
+        ),
+        "request": "inflation/zciis_eur_5y_payer_dated_helpers.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["ZCIIS", "explicit end-date helpers",
+                      "off-grid pillars", "weekend helper maturity"],
+    },
+    {
+        "id": "yyiis_eur_5y_receiver_annual",
+        "product": "year_on_year_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation swap, receive 2.15% fixed",
+        "description": (
+            "Baseline year-on-year inflation swap: receive 2.15% fixed "
+            "annually (Act/365F), pay the annual year-on-year HICP rate, "
+            "on 1m notional (TARGET, Modified Following, 3M observation "
+            "lag, Linear interpolation). The YoY curve is bootstrapped "
+            "from YoY swap quotes (1Y 2.00% to 7Y 2.25%) whose helpers "
+            "discount on the nominal curve; the 5Y fair rate of ~2.20% "
+            "sits above the fixed leg, so the fixed receiver is behind."
+        ),
+        "request": "inflation/yyiis_eur_5y_receiver_annual.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_year_on_year_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YYIIS", "receive fixed", "annual YoY coupons",
+                      "YoY-inflation bootstrap", "3M observation lag"],
+    },
+    {
+        "id": "yyiis_eur_5y_payer_annual",
+        "product": "year_on_year_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation swap, same trade paying fixed",
+        "description": (
+            "The other side of the baseline YoY trade: pay 2.15% fixed, "
+            "receive the annual year-on-year HICP rate, on identical "
+            "market data. The NPV is the exact negative of the receiver "
+            "case, pinning the YYIIS direction convention (a QuantLib "
+            "YoY-swap Payer pays the fixed leg) end to end."
+        ),
+        "request": "inflation/yyiis_eur_5y_payer_annual.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_year_on_year_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YYIIS", "pay fixed", "sign flip",
+                      "annual YoY coupons"],
+    },
+    {
+        "id": "yyiis_eur_3y_receiver_semiannual_30360",
+        "product": "year_on_year_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 3Y YoY swap, semiannual, 30/360 fixed vs Act/360 YoY",
+        "description": (
+            "A 3Y year-on-year swap with semiannual schedules on both legs "
+            "and split day counts: the 2.10% fixed leg accrues 30/360 while "
+            "the YoY leg accrues Act/360, so each semiannual YoY coupon "
+            "observes the year-on-year rate at its own lagged date on the "
+            "annually-quoted curve. Exercises non-annual YoY periods and "
+            "per-leg day-count overrides."
+        ),
+        "request": "inflation/yyiis_eur_3y_receiver_semiannual_30360.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_year_on_year_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YYIIS", "semiannual schedules", "fixed 30/360",
+                      "YoY Act/360", "day-count split"],
+    },
+    {
+        "id": "yyiis_eur_5y_payer_spread25bp",
+        "product": "year_on_year_inflation_swap",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY swap, +25bp spread on the YoY leg",
+        "description": (
+            "The 5Y YoY trade paying 2.20% fixed against the year-on-year "
+            "HICP rate plus a 25bp spread, so the effective fair fixed "
+            "rate rises to ~2.45% and the fixed payer is well ahead. "
+            "Exercises the YoY-leg spread field end to end."
+        ),
+        "request": "inflation/yyiis_eur_5y_payer_spread25bp.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_year_on_year_inflation_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YYIIS", "pay fixed", "YoY spread +25bp",
+                      "positive NPV"],
     },
 ]
