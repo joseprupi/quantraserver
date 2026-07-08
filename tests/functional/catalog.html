@@ -544,6 +544,12 @@
 <td class="npv">DF/ZERO series, 8 points</td>
 </tr>
 <tr>
+<td><div class="title">EUR deposit+futures curve: discount factors and zero rates</div><div class="desc">A EUR curve bootstrapped from a 3M deposit and a single money-market futures contract (IMM start 2025-03-19, 3 months, price 96.50 -&gt; ~3.5%) sampled for discount factors and continuous zero rates at five monthly tenors bracketing the futures maturity. Pins the FuturesRateHelper pillar to native QuantLib: the helper&#x27;s quote is the futures PRICE and convexity is QuantLib&#x27;s dedicated argument.</div></td>
+<td><code>deposit+futures bootstrap</code> <code>FuturesRateHelper pillar</code> <code>futures price quote</code> <code>convexity argument</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_depo_future_df_zero_tenor_grid.json">curves_eur_depo_future_df_zero_tenor_grid.json</a></td>
+<td class="npv">DF/ZERO series, 5 points</td>
+</tr>
+<tr>
 <td><div class="title">EUR curve discount factors on a dense daily grid</div><div class="desc">Discount factors sampled every calendar day for six months (2025-01-15 to 2025-07-15, 182 points) off the baseline curve. Exercises the RangeGrid daily stepping path and dense sampling across the deposit-dominated short end, including the DF=1 point at the curve&#x27;s reference date.</div></td>
 <td><code>RangeGrid daily</code> <code>182 grid points</code> <code>discount factors</code> <code>curve short end</code></td>
 <td><a href="../../examples/data/curves/curves_eur_depo_swap_df_daily_range_grid.json">curves_eur_depo_swap_df_daily_range_grid.json</a></td>
@@ -863,6 +869,6 @@
 </tr>
 </tbody>
 </table>
-<footer>128 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>129 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

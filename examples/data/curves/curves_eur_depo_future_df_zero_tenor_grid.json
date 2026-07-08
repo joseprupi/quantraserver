@@ -1,0 +1,87 @@
+{
+  "pricing": {
+    "as_of_date": "2025/01/15",
+    "rates": {
+      "curves": [
+        {
+          "id": "EUR_DEPO_FUTURE",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "rate": 0.0295,
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                }
+              }
+            },
+            {
+              "point_type": "FutureHelper",
+              "point": {
+                "futures_price": 96.50,
+                "convexity_adjustment": 0.0,
+                "future_start_date": "2025-03-19",
+                "future_months": 3,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "EUR_DEPO_FUTURE",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            {
+              "n": 1,
+              "unit": "Months"
+            },
+            {
+              "n": 2,
+              "unit": "Months"
+            },
+            {
+              "n": 3,
+              "unit": "Months"
+            },
+            {
+              "n": 4,
+              "unit": "Months"
+            },
+            {
+              "n": 5,
+              "unit": "Months"
+            }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

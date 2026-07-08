@@ -168,15 +168,15 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
 
     case quantra::Point_FutureHelper: {
         auto p = pw->point_as_FutureHelper();
-        // Same selection as the parser: futures_price presence wins over rate.
-        double rateValue = 0.0;
+        // Same selection as the parser: the futures PRICE is the quote, with
+        // futures_price winning over rate (price = 100*(1-rate) identity).
+        double priceValue = 0.0;
         if (p->futures_price().has_value()) {
-            rateValue = 1.0 - (p->futures_price().value() / 100.0);
+            priceValue = p->futures_price().value();
         } else if (p->rate().has_value()) {
-            rateValue = p->rate().value();
+            priceValue = 100.0 * (1.0 - p->rate().value());
         }
-        rateValue += p->convexity_adjustment();
-        buf.writeDouble(resolveQuoteValue(rateValue, p->quote_id(), ctx));
+        buf.writeDouble(resolveQuoteValue(priceValue, p->quote_id(), ctx));
         buf.writeFbString(p->future_start_date());
         buf.writeI32(p->future_months());
         buf.writeU8(static_cast<uint8_t>(p->calendar()));
