@@ -38,6 +38,7 @@ committed catalog drifts from the manifest.
 | `../../examples/data/curves/` | The curated request JSONs for the Curves family. |
 | `../../examples/data/calendar/` | The curated request JSONs for the Calendars family. |
 | `../../examples/data/inflation/` | The curated request JSONs for the Inflation family. |
+| `../../examples/data/equity/` | The curated request JSONs for the Equity family. |
 
 ## Comparison modes
 
@@ -108,7 +109,8 @@ python3 -m pytest tests/functional -q \
    CDS cases in `examples/data/cds/`, curve-sampling cases in
    `examples/data/curves/`, calendar date-utility cases in
    `examples/data/calendar/`, inflation-swap cases in
-   `examples/data/inflation/`.
+   `examples/data/inflation/`, equity-option cases in
+   `examples/data/equity/`.
    Start from an existing case with the same product. Keep the request
    self-contained (indices, curves and the trade in one file) and prefer
    explicit fields over schema defaults.
@@ -560,6 +562,66 @@ pin nothing measurable); they are deliberately not half-implemented:
 * **Inflation curve sampling** (`/bootstrap-inflation-curves`) — a future
   `compare: "series"` addition, like the nominal Curves family.
 
+## Current coverage (Equity)
+
+European vanilla equity options priced on a Black-Scholes-Merton process
+(spot quote + dividend-yield curve + risk-free discount curve + flat Black
+vol) and compared as NPVs (tolerance 0.01). Both sides build the identical
+process, payoff, exercise and engine, so parity is at machine precision.
+
+* Moneyness: calls and puts at at-the-money (100 vs 100 spot), in-the-money
+  (call at 80, put at 120) and out-of-the-money (call at 120, put at 80)
+  strikes, spanning intrinsic-dominated to pure-time-value premiums.
+* Dividends: a zero-dividend baseline and a 2.5% continuous dividend yield
+  (a flat zero curve referenced by the underlying spec's
+  `dividend_yield_curve_id`, feeding the process's dividend leg).
+* Vol / expiry: flat 20% and 35% Black vols; 3M, 1Y and 2Y expiries.
+* Engine: the analytic European (Black-Scholes-Merton) engine
+  (`model_type=BlackScholesAnalytic`). See the planned list for why the
+  binomial engine has no case yet.
+* Trade mechanics: quantity scaling (the response NPV is per-option NPV
+  times the trade's quantity; a 100-option case pins it).
+
+## Planned / not yet covered (Equity)
+
+These need server or reference behaviour that is not there yet; they are
+deliberately not half-implemented:
+
+* **American and Bermudan exercise** — `EquityAmericanExercise` /
+  `EquityBermudanExercise` are on the wire, but the server's parser rejects
+  everything except `EquityEuropeanExercise`, so there is nothing to pin
+  beyond the error contract.
+* **Digital payoffs (cash-or-nothing / asset-or-nothing)** — on the wire
+  (`EquityCashOrNothingPayoff`, `EquityAssetOrNothingPayoff`) but the
+  server's parser accepts only `EquityPlainVanillaPayoff`.
+* **Discrete cash dividends** — `EquityUnderlyingSpec.discrete_dividends`
+  is on the wire, but the server's underlying registry never reads it:
+  options price as if the dividends were not there. The reference pricer
+  deliberately refuses requests carrying discrete dividends rather than
+  reproducing the silent drop; no case may use them until the server
+  consumes the field.
+* **Binomial CRR engine (`model_type=BinomialCRR`)** — the reference
+  supports it (it builds the CRR lattice with the model spec's own
+  `binomial_steps`, and a manual check showed the NPVs agree at machine
+  precision), but the server's binomial response is not parseable JSON:
+  the binomial engine does not implement vega/rho, the server reports them
+  as NaN, and the HTTP gateway serializes them as the literal token `nan`,
+  which strict JSON parsers (including the test client's
+  `response.json()`) reject. A case can be added once NaN greeks serialize
+  as valid JSON (e.g. `null`).
+* **Barrier features** — the server prices continuous-monitoring barrier
+  options end to end (analytic barrier engine), but the reference pricer
+  does not build barrier options yet, so no catalog case asserts them.
+* **Non-constant vol surfaces** — the wire supports term/smile/price-based
+  Black vol surfaces, but the reference rebuilds constant vols only; the
+  equity cases keep `shape=Constant`.
+* **Quote-referenced vols** — `quote_id` on the vol spec resolves against
+  `pricing.quotes` on the server; the reference reads the inline
+  `constant_vol` only (same caveat as the Cap/Floor family).
+* **Cash settlement as a distinct value** — `settlement` is carried and
+  echoed by the server but does not change the price, so a Cash case would
+  pin only the enum plumbing.
+
 ## Planned / not yet covered (IR Swaps)
 
 These need reference-pricer features that `ql_reference.py` does not have
@@ -582,4 +644,5 @@ yet; they are deliberately not half-implemented:
 * **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
 * **Other families**: Bonds, FRAs, caps/floors, swaptions, CDS,
   bootstrapped-curve sampling (Curves), the calendar date utilities
-  (Calendars) and the inflation swaps (Inflation) are covered above.
+  (Calendars), the inflation swaps (Inflation) and the equity options
+  (Equity) are covered above.
