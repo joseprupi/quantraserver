@@ -27,9 +27,9 @@ table QuoteTensor3D {
 /// IR volatility base (Normal, Lognormal, ShiftedLognormal). Supports caps/floors and swaptions.
 table IrVolBaseSpec {
     reference_date:string;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
     shape:enums.VolSurfaceShape = Constant;
     volatility_type:enums.VolatilityType;
     /// Only meaningful for ShiftedLognormal.
@@ -42,9 +42,9 @@ table IrVolBaseSpec {
 /// Equity/FX volatility base (always lognormal, no displacement).
 table BlackVolBaseSpec {
     reference_date:string;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
     shape:enums.VolSurfaceShape = Constant;
     constant_vol:double;
     /// Optional: resolve constant_vol from pricing.quotes.

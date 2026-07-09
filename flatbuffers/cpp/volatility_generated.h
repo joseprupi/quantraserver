@@ -594,9 +594,9 @@ inline ::flatbuffers::Offset<QuoteTensor3D> CreateQuoteTensor3DDirect(
 struct IrVolBaseSpecT : public ::flatbuffers::NativeTable {
   typedef IrVolBaseSpec TableType;
   std::string reference_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant;
   quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal;
   double displacement = 0.0;
@@ -622,14 +622,14 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
   quantra::enums::VolSurfaceShape shape() const {
     return static_cast<quantra::enums::VolSurfaceShape>(GetField<int8_t>(VT_SHAPE, 0));
@@ -676,13 +676,13 @@ struct IrVolBaseSpecBuilder {
     fbb_.AddOffset(IrVolBaseSpec::VT_REFERENCE_DATE, reference_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_shape(quantra::enums::VolSurfaceShape shape) {
     fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_SHAPE, static_cast<int8_t>(shape), 0);
@@ -713,9 +713,9 @@ struct IrVolBaseSpecBuilder {
 inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
     double displacement = 0.0,
@@ -728,18 +728,18 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(
   builder_.add_reference_date(reference_date);
   builder_.add_volatility_type(volatility_type);
   builder_.add_shape(shape);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
     double displacement = 0.0,
@@ -765,9 +765,9 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpecDirect(
 struct BlackVolBaseSpecT : public ::flatbuffers::NativeTable {
   typedef BlackVolBaseSpec TableType;
   std::string reference_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant;
   double constant_vol = 0.0;
   std::string quote_id{};
@@ -789,14 +789,14 @@ struct BlackVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
   quantra::enums::VolSurfaceShape shape() const {
     return static_cast<quantra::enums::VolSurfaceShape>(GetField<int8_t>(VT_SHAPE, 0));
@@ -834,13 +834,13 @@ struct BlackVolBaseSpecBuilder {
     fbb_.AddOffset(BlackVolBaseSpec::VT_REFERENCE_DATE, reference_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_shape(quantra::enums::VolSurfaceShape shape) {
     fbb_.AddElement<int8_t>(BlackVolBaseSpec::VT_SHAPE, static_cast<int8_t>(shape), 0);
@@ -865,9 +865,9 @@ struct BlackVolBaseSpecBuilder {
 inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     double constant_vol = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
@@ -876,18 +876,18 @@ inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpec(
   builder_.add_quote_id(quote_id);
   builder_.add_reference_date(reference_date);
   builder_.add_shape(shape);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<BlackVolBaseSpec> CreateBlackVolBaseSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
     double constant_vol = 0.0,
     const char *quote_id = nullptr) {

@@ -37,21 +37,21 @@ class IrVolBaseSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # IrVolBaseSpec
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # IrVolBaseSpec
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # IrVolBaseSpec
     def Shape(self):
@@ -103,19 +103,19 @@ def AddReferenceDate(builder, referenceDate):
     IrVolBaseSpecAddReferenceDate(builder, referenceDate)
 
 def IrVolBaseSpecAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(1, calendar, 0)
+    builder.PrependInt8Slot(1, calendar, None)
 
 def AddCalendar(builder, calendar):
     IrVolBaseSpecAddCalendar(builder, calendar)
 
 def IrVolBaseSpecAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(2, businessDayConvention, 0)
+    builder.PrependInt8Slot(2, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     IrVolBaseSpecAddBusinessDayConvention(builder, businessDayConvention)
 
 def IrVolBaseSpecAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(3, dayCounter, 0)
+    builder.PrependInt8Slot(3, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     IrVolBaseSpecAddDayCounter(builder, dayCounter)
@@ -162,9 +162,9 @@ class IrVolBaseSpecT(object):
     # IrVolBaseSpecT
     def __init__(self):
         self.referenceDate = None  # type: str
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
-        self.dayCounter = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
         self.shape = 0  # type: int
         self.volatilityType = 0  # type: int
         self.displacement = 0.0  # type: float
