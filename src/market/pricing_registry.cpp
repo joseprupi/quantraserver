@@ -373,14 +373,24 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                               "' is missing optionlet_volatility block");
             }
 
+            if (!ov->calendar().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.calendar is required");
+            }
+            if (!ov->business_day_convention().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.business_day_convention is required");
+            }
+            if (!ov->day_counter().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.day_counter is required");
+            }
+
             CouponPricerDomain domain;
             domain.id = id;
             BlackIborCouponPricerDomain d;
             d.settlement_days = ov->settlement_days();
-            d.calendar = CalendarToQL(ov->calendar());
-            d.business_day_convention = ConventionToQL(ov->business_day_convention());
+            d.calendar = CalendarToQL(ov->calendar().value());
+            d.business_day_convention = ConventionToQL(ov->business_day_convention().value());
             d.volatility = ov->volatility();
-            d.day_counter = DayCounterToQL(ov->day_counter());
+            d.day_counter = DayCounterToQL(ov->day_counter().value());
             domain.payload = std::move(d);
             reg.rates.couponPricerDomains.emplace(id, std::move(domain));
         }

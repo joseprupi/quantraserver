@@ -221,6 +221,19 @@ def _ec_del_vol_base_field(field):
     return f
 
 
+def _ec_del_optionlet_vol_field(field):
+    """Drop a convention field from the first coupon pricer's constant optionlet
+    volatility block. The ConstantOptionletVolatility convention enums (calendar,
+    business_day_convention, day_counter) are presence-required: an omitted
+    convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        pricers = req["pricing"]["rates"]["coupon_pricers"]
+        ov = pricers[0]["black_ibor_coupon_pricer"]["optionlet_volatility"]
+        ov.pop(field, None)
+        return req
+    return f
+
+
 def _ec_set_credit_curve_field(field, value):
     def f(req):
         req["pricing"]["credit"]["credit_curves"][0][field] = value
@@ -417,6 +430,21 @@ SCENARIOS = [
      "cds_request.json", 400,
      _ec_del_instrument_field("cds_list", "cds", "side"),
      _ec_body_contains("CDS.side is required")),
+    # ---- 400 INVALID_ARGUMENT: coupon-pricer optionlet-vol convention presence ----
+    # A ConstantOptionletVolatility convention enum omitted from a coupon pricer
+    # must be rejected, not silently defaulted to the alphabetical-0 value.
+    ("ec:400 coupon pricer optionlet vol missing calendar", "floating_rate_bond",
+     "floating_rate_bond_request.json", 400,
+     _ec_del_optionlet_vol_field("calendar"),
+     _ec_body_contains("ConstantOptionletVolatility.calendar is required")),
+    ("ec:400 coupon pricer optionlet vol missing business_day_convention",
+     "floating_rate_bond", "floating_rate_bond_request.json", 400,
+     _ec_del_optionlet_vol_field("business_day_convention"),
+     _ec_body_contains("ConstantOptionletVolatility.business_day_convention is required")),
+    ("ec:400 coupon pricer optionlet vol missing day_counter", "floating_rate_bond",
+     "floating_rate_bond_request.json", 400,
+     _ec_del_optionlet_vol_field("day_counter"),
+     _ec_body_contains("ConstantOptionletVolatility.day_counter is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request

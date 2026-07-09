@@ -37,14 +37,14 @@ class ConstantOptionletVolatility(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # ConstantOptionletVolatility
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # ConstantOptionletVolatility
     def Volatility(self):
@@ -58,7 +58,7 @@ class ConstantOptionletVolatility(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def ConstantOptionletVolatilityStart(builder):
     builder.StartObject(5)
@@ -73,13 +73,13 @@ def AddSettlementDays(builder, settlementDays):
     ConstantOptionletVolatilityAddSettlementDays(builder, settlementDays)
 
 def ConstantOptionletVolatilityAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(1, calendar, 0)
+    builder.PrependInt8Slot(1, calendar, None)
 
 def AddCalendar(builder, calendar):
     ConstantOptionletVolatilityAddCalendar(builder, calendar)
 
 def ConstantOptionletVolatilityAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(2, businessDayConvention, 0)
+    builder.PrependInt8Slot(2, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     ConstantOptionletVolatilityAddBusinessDayConvention(builder, businessDayConvention)
@@ -91,7 +91,7 @@ def AddVolatility(builder, volatility):
     ConstantOptionletVolatilityAddVolatility(builder, volatility)
 
 def ConstantOptionletVolatilityAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, 0)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     ConstantOptionletVolatilityAddDayCounter(builder, dayCounter)
@@ -108,10 +108,10 @@ class ConstantOptionletVolatilityT(object):
     # ConstantOptionletVolatilityT
     def __init__(self):
         self.settlementDays = 0  # type: int
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.volatility = 0.0  # type: float
-        self.dayCounter = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

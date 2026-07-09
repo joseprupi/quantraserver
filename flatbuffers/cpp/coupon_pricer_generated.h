@@ -32,10 +32,10 @@ struct CouponPricerT;
 struct ConstantOptionletVolatilityT : public ::flatbuffers::NativeTable {
   typedef ConstantOptionletVolatility TableType;
   int32_t settlement_days = 0;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   double volatility = 0.0;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
 };
 
 /// Constant optionlet volatility for coupon pricer.
@@ -52,17 +52,17 @@ struct ConstantOptionletVolatility FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   double volatility() const {
     return GetField<double>(VT_VOLATILITY, 0.0);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -86,16 +86,16 @@ struct ConstantOptionletVolatilityBuilder {
     fbb_.AddElement<int32_t>(ConstantOptionletVolatility::VT_SETTLEMENT_DAYS, settlement_days, 0);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_volatility(double volatility) {
     fbb_.AddElement<double>(ConstantOptionletVolatility::VT_VOLATILITY, volatility, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   explicit ConstantOptionletVolatilityBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -111,16 +111,16 @@ struct ConstantOptionletVolatilityBuilder {
 inline ::flatbuffers::Offset<ConstantOptionletVolatility> CreateConstantOptionletVolatility(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     double volatility = 0.0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt) {
   ConstantOptionletVolatilityBuilder builder_(_fbb);
   builder_.add_volatility(volatility);
   builder_.add_settlement_days(settlement_days);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 

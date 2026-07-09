@@ -5,10 +5,10 @@ namespace quantra;
 /// Constant optionlet volatility for coupon pricer.
 table ConstantOptionletVolatility {
     settlement_days:int;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     volatility:double;
-    day_counter:enums.DayCounter;
+    day_counter:enums.DayCounter = null;
 }
 
 /// Black Ibor coupon pricer with optionlet volatility.
