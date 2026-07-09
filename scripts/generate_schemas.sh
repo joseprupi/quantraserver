@@ -54,15 +54,17 @@ touch "$GEN_PYTHON_DIR/quantra/__init__.py"
 
 # 4. Generate JSON Schemas (only for files with root_type)
 echo "[4/6] Generating JSON schemas..."
-# flatc --jsonschema rejects optional scalars (`field:double = null`), which
-# the wire schemas use for presence-based selection (BondHelper.price etc.).
+# flatc --jsonschema rejects optional scalars (`field:double = null`) and
+# optional enums (`field:enums.Foo = null`), which the wire schemas use for
+# presence-based selection (BondHelper.price, Schedule.calendar, etc.).
 # JSON Schema cannot express scalar presence beyond required[] anyway, so
 # strip the `= null` markers into a temp copy just for this generator — the
-# emitted schemas are identical to what optional-aware output would be.
+# emitted schemas are identical to what optional-aware output would be. The
+# type class allows dots and uppercase so namespaced enum types are matched.
 JSONSCHEMA_FBS_DIR=$(mktemp -d)
 trap 'rm -rf "$JSONSCHEMA_FBS_DIR"' EXIT
 cp "$FBS_DIR"/*.fbs "$JSONSCHEMA_FBS_DIR/"
-sed -i -E 's/^(\s*[A-Za-z0-9_]+\s*:\s*[a-z0-9]+)\s*=\s*null\s*;/\1;/' "$JSONSCHEMA_FBS_DIR"/*.fbs
+sed -i -E 's/^(\s*[A-Za-z0-9_]+\s*:\s*[A-Za-z0-9_.]+)\s*=\s*null\s*;/\1;/' "$JSONSCHEMA_FBS_DIR"/*.fbs
 ROOT_FILES=$(grep -lE '^\s*root_type\s+' "$JSONSCHEMA_FBS_DIR"/*.fbs || true)
 if [ -z "$ROOT_FILES" ]; then
     echo "  No root_type declarations found; skipping."

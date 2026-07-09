@@ -40,11 +40,21 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
         QUANTRA_INVALID_ARGUMENT("Schedule.effective_date is required");
     if (!schedule->termination_date())
         QUANTRA_INVALID_ARGUMENT("Schedule.termination_date is required");
+    if (!schedule->calendar().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.calendar is required");
+    if (!schedule->frequency().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.frequency is required");
+    if (!schedule->convention().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.convention is required");
+    if (!schedule->termination_date_convention().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.termination_date_convention is required");
+    if (!schedule->date_generation_rule().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.date_generation_rule is required");
 
     const QuantLib::Date effective = DateToQL(schedule->effective_date()->str());
     const QuantLib::Date termination = DateToQL(schedule->termination_date()->str());
     const QuantLib::Period period =
-        FrequencyToPeriod(FrequencyToQL(schedule->frequency()));
+        FrequencyToPeriod(FrequencyToQL(schedule->frequency().value()));
 
     const long spanDays = termination - effective;
     const long periodDays = approxDaysPerPeriod(period);
@@ -66,9 +76,9 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
         effective,
         termination,
         period,
-        CalendarToQL(schedule->calendar()),
-        ConventionToQL(schedule->convention()),
-        ConventionToQL(schedule->termination_date_convention()),
-        DateGenerationToQL(schedule->date_generation_rule()),
+        CalendarToQL(schedule->calendar().value()),
+        ConventionToQL(schedule->convention().value()),
+        ConventionToQL(schedule->termination_date_convention().value()),
+        DateGenerationToQL(schedule->date_generation_rule().value()),
         schedule->end_of_month());
 }

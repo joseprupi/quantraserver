@@ -30,7 +30,7 @@ class Schedule(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Schedule
     def EffectiveDate(self):
@@ -51,28 +51,28 @@ class Schedule(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Schedule
     def Convention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Schedule
     def TerminationDateConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Schedule
     def DateGenerationRule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Schedule
     def EndOfMonth(self):
@@ -88,7 +88,7 @@ def Start(builder):
     ScheduleStart(builder)
 
 def ScheduleAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(0, calendar, 0)
+    builder.PrependInt8Slot(0, calendar, None)
 
 def AddCalendar(builder, calendar):
     ScheduleAddCalendar(builder, calendar)
@@ -106,25 +106,25 @@ def AddTerminationDate(builder, terminationDate):
     ScheduleAddTerminationDate(builder, terminationDate)
 
 def ScheduleAddFrequency(builder, frequency):
-    builder.PrependInt8Slot(3, frequency, 0)
+    builder.PrependInt8Slot(3, frequency, None)
 
 def AddFrequency(builder, frequency):
     ScheduleAddFrequency(builder, frequency)
 
 def ScheduleAddConvention(builder, convention):
-    builder.PrependInt8Slot(4, convention, 0)
+    builder.PrependInt8Slot(4, convention, None)
 
 def AddConvention(builder, convention):
     ScheduleAddConvention(builder, convention)
 
 def ScheduleAddTerminationDateConvention(builder, terminationDateConvention):
-    builder.PrependInt8Slot(5, terminationDateConvention, 0)
+    builder.PrependInt8Slot(5, terminationDateConvention, None)
 
 def AddTerminationDateConvention(builder, terminationDateConvention):
     ScheduleAddTerminationDateConvention(builder, terminationDateConvention)
 
 def ScheduleAddDateGenerationRule(builder, dateGenerationRule):
-    builder.PrependInt8Slot(6, dateGenerationRule, 0)
+    builder.PrependInt8Slot(6, dateGenerationRule, None)
 
 def AddDateGenerationRule(builder, dateGenerationRule):
     ScheduleAddDateGenerationRule(builder, dateGenerationRule)
@@ -146,13 +146,13 @@ class ScheduleT(object):
 
     # ScheduleT
     def __init__(self):
-        self.calendar = 0  # type: int
+        self.calendar = None  # type: Optional[int]
         self.effectiveDate = None  # type: str
         self.terminationDate = None  # type: str
-        self.frequency = 0  # type: int
-        self.convention = 0  # type: int
-        self.terminationDateConvention = 0  # type: int
-        self.dateGenerationRule = 0  # type: int
+        self.frequency = None  # type: Optional[int]
+        self.convention = None  # type: Optional[int]
+        self.terminationDateConvention = None  # type: Optional[int]
+        self.dateGenerationRule = None  # type: Optional[int]
         self.endOfMonth = False  # type: bool
 
     @classmethod

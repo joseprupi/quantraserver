@@ -212,14 +212,23 @@ QuantLib::Schedule buildSchedule(
     if (!scheduleSpec->effective_date() || !scheduleSpec->termination_date()) {
         QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires effective_date and termination_date for curve id: " + curveId);
     }
+    // The convention enums are presence-required: an omitted convention is an
+    // error, never an alphabetical-0 default (calendar Argentina, etc.).
+    if (!scheduleSpec->calendar().has_value() ||
+        !scheduleSpec->frequency().has_value() ||
+        !scheduleSpec->convention().has_value() ||
+        !scheduleSpec->termination_date_convention().has_value() ||
+        !scheduleSpec->date_generation_rule().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires calendar, frequency, convention, termination_date_convention and date_generation_rule for curve id: " + curveId);
+    }
     return QuantLib::Schedule(
         DateToQL(scheduleSpec->effective_date()->str()),
         DateToQL(scheduleSpec->termination_date()->str()),
-        FrequencyToPeriod(FrequencyToQL(scheduleSpec->frequency())),
-        CalendarToQL(scheduleSpec->calendar()),
-        ConventionToQL(scheduleSpec->convention()),
-        ConventionToQL(scheduleSpec->termination_date_convention()),
-        DateGenerationToQL(scheduleSpec->date_generation_rule()),
+        FrequencyToPeriod(FrequencyToQL(scheduleSpec->frequency().value())),
+        CalendarToQL(scheduleSpec->calendar().value()),
+        ConventionToQL(scheduleSpec->convention().value()),
+        ConventionToQL(scheduleSpec->termination_date_convention().value()),
+        DateGenerationToQL(scheduleSpec->date_generation_rule().value()),
         scheduleSpec->end_of_month());
 }
 

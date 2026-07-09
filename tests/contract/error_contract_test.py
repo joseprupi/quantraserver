@@ -145,6 +145,16 @@ def _ec_abusive_schedule(arr_key, product_key):
         sch["frequency"] = "Daily"
         return req
     return f
+def _ec_del_schedule_field(arr_key, product_key, field):
+    """Drop a convention field from the product's schedule. The Schedule
+    convention enums are presence-required: an omitted convention is an error,
+    never an alphabetical-0 default (e.g. calendar Argentina)."""
+    def f(req):
+        req[arr_key][0][product_key]["schedule"].pop(field, None)
+        return req
+    return f
+
+
 def _ec_set_credit_curve_field(field, value):
     def f(req):
         req["pricing"]["credit"]["credit_curves"][0][field] = value
@@ -250,6 +260,17 @@ SCENARIOS = [
     # ---- 400 INVALID_ARGUMENT: unbounded schedule generation guard ----
     ("ec:400 fixed_rate_bond 300y daily schedule rejected", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_abusive_schedule("bonds", "fixed_rate_bond")),
+    # ---- 400 INVALID_ARGUMENT: schedule convention presence ----
+    # A Schedule convention enum omitted from the request must be rejected, not
+    # silently defaulted to the alphabetical-0 value (calendar Argentina, etc.).
+    ("ec:400 fixed_rate_bond schedule missing calendar", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_schedule_field("bonds", "fixed_rate_bond", "calendar"),
+     _ec_body_contains("Schedule.calendar is required")),
+    ("ec:400 fixed_rate_bond schedule missing convention", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_schedule_field("bonds", "fixed_rate_bond", "convention"),
+     _ec_body_contains("Schedule.convention is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request

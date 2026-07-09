@@ -117,13 +117,24 @@ void CurveKeyBuilder::writeSchedule(
         return;
     }
     buf.writeU8(1);
-    buf.writeU8(static_cast<uint8_t>(sched->calendar()));
+    // The convention enums are presence-required (an omitted convention is a
+    // request error, never a default). Serialize a presence byte plus the value
+    // so a present field never collides with an absent one in the cache key.
+    auto writeOptEnum = [&buf](auto opt) {
+        if (opt.has_value()) {
+            buf.writeU8(1);
+            buf.writeU8(static_cast<uint8_t>(opt.value()));
+        } else {
+            buf.writeU8(0);
+        }
+    };
+    writeOptEnum(sched->calendar());
     buf.writeFbString(sched->effective_date());
     buf.writeFbString(sched->termination_date());
-    buf.writeU8(static_cast<uint8_t>(sched->frequency()));
-    buf.writeU8(static_cast<uint8_t>(sched->convention()));
-    buf.writeU8(static_cast<uint8_t>(sched->termination_date_convention()));
-    buf.writeU8(static_cast<uint8_t>(sched->date_generation_rule()));
+    writeOptEnum(sched->frequency());
+    writeOptEnum(sched->convention());
+    writeOptEnum(sched->termination_date_convention());
+    writeOptEnum(sched->date_generation_rule());
     buf.writeBool(sched->end_of_month());
 }
 
