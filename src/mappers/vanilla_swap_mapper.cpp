@@ -46,6 +46,12 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     if (!fixedFb->schedule()) {
         QUANTRA_INVALID_ARGUMENT("VanillaSwap.fixed_leg.schedule is required");
     }
+    if (!fixedFb->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+    }
+    if (!fixedFb->payment_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.payment_convention is required");
+    }
 
     const bool hasIbor = (swap->floating_leg() != nullptr);
     const bool hasCms = (swap->cms_leg() != nullptr);
@@ -65,8 +71,8 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     trade.fixed.schedule = *fixedSchedule;
     trade.fixed.notional = fixedFb->notional();
     trade.fixed.rate = fixedFb->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter());
-    trade.fixed.paymentConvention = ConventionToQL(fixedFb->payment_convention());
+    trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter().value());
+    trade.fixed.paymentConvention = ConventionToQL(fixedFb->payment_convention().value());
 
     if (hasIbor) {
         const auto* floatFb = swap->floating_leg();
@@ -76,13 +82,16 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         if (!floatFb->index() || !floatFb->index()->id()) {
             QUANTRA_INVALID_ARGUMENT("VanillaSwap.floating_leg.index.id is required");
         }
+        if (!floatFb->day_counter().has_value()) {
+            QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
+        }
         trade.branch = VanillaSwapTrade::Branch::Ibor;
         auto floatSchedule = scheduleParser.parse(floatFb->schedule());
         trade.ibor.schedule = *floatSchedule;
         trade.ibor.notional = floatFb->notional();
         trade.ibor.indexId = floatFb->index()->id()->str();
         trade.ibor.spread = floatFb->spread();
-        trade.ibor.dayCounter = DayCounterToQL(floatFb->day_counter());
+        trade.ibor.dayCounter = DayCounterToQL(floatFb->day_counter().value());
         return trade;
     }
 
@@ -103,6 +112,12 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     if (cmsFb->cap() >= 0.0 || cmsFb->floor() >= 0.0) {
         QUANTRA_INVALID_ARGUMENT("CMS leg cap/floor is not supported in v1");
     }
+    if (!cmsFb->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.day_counter is required");
+    }
+    if (!cmsFb->payment_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.payment_convention is required");
+    }
 
     trade.branch = VanillaSwapTrade::Branch::Cms;
     auto cmsSchedule = scheduleParser.parse(cmsFb->schedule());
@@ -113,8 +128,8 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         cmsFb->swap_tenor()->n(), TimeUnitToQL(cmsFb->swap_tenor()->unit()));
     trade.cms.swaptionVolId = cmsFb->swaption_vol_id()->str();
     trade.cms.fixingDays = cmsFb->fixing_days();
-    trade.cms.dayCounter = DayCounterToQL(cmsFb->day_counter());
-    trade.cms.paymentConvention = ConventionToQL(cmsFb->payment_convention());
+    trade.cms.dayCounter = DayCounterToQL(cmsFb->day_counter().value());
+    trade.cms.paymentConvention = ConventionToQL(cmsFb->payment_convention().value());
     trade.cms.gear = cmsFb->gear();
     trade.cms.spread = cmsFb->spread();
     trade.cms.pricerParams = extractCmsPricerParams(cmsFb);

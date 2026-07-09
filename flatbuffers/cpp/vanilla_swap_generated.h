@@ -44,8 +44,8 @@ struct SwapFixedLegT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::ScheduleT> schedule{};
   double notional = 0.0;
   double rate = 0.0;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   SwapFixedLegT() = default;
   SwapFixedLegT(const SwapFixedLegT &o);
   SwapFixedLegT(SwapFixedLegT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -72,11 +72,11 @@ struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -107,10 +107,10 @@ struct SwapFixedLegBuilder {
     fbb_.AddElement<double>(SwapFixedLeg::VT_RATE, rate, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   explicit SwapFixedLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -128,14 +128,14 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     double notional = 0.0,
     double rate = 0.0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
   SwapFixedLegBuilder builder_(_fbb);
   builder_.add_rate(rate);
   builder_.add_notional(notional);
   builder_.add_schedule(schedule);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_day_counter(day_counter);
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
 }
 
@@ -147,8 +147,8 @@ struct SwapFloatingLegT : public ::flatbuffers::NativeTable {
   double notional = 0.0;
   std::unique_ptr<quantra::IndexRefT> index{};
   double spread = 0.0;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   int32_t fixing_days = 2;
   bool in_arrears = false;
   SwapFloatingLegT() = default;
@@ -184,11 +184,11 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
   int32_t fixing_days() const {
     return GetField<int32_t>(VT_FIXING_DAYS, 2);
@@ -232,10 +232,10 @@ struct SwapFloatingLegBuilder {
     fbb_.AddElement<double>(SwapFloatingLeg::VT_SPREAD, spread, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_fixing_days(int32_t fixing_days) {
     fbb_.AddElement<int32_t>(SwapFloatingLeg::VT_FIXING_DAYS, fixing_days, 2);
@@ -261,8 +261,8 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
     double notional = 0.0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     double spread = 0.0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     int32_t fixing_days = 2,
     bool in_arrears = false) {
   SwapFloatingLegBuilder builder_(_fbb);
@@ -272,8 +272,8 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
   builder_.add_index(index);
   builder_.add_schedule(schedule);
   builder_.add_in_arrears(in_arrears);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_day_counter(day_counter);
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
 }
 
@@ -415,8 +415,8 @@ struct SwapCmsLegT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::PeriodT> swap_tenor{};
   std::string swaption_vol_id{};
   int32_t fixing_days = -1;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   double gear = 1.0;
   double spread = 0.0;
   std::unique_ptr<quantra::CmsPricerSpecT> pricer{};
@@ -473,12 +473,12 @@ struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetField<int32_t>(VT_FIXING_DAYS, -1);
   }
   /// Coupon accrual day-count convention.
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
   /// Payment business-day convention.
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
   /// Coupon gearing multiplier.
   double gear() const {
@@ -551,10 +551,10 @@ struct SwapCmsLegBuilder {
     fbb_.AddElement<int32_t>(SwapCmsLeg::VT_FIXING_DAYS, fixing_days, -1);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_gear(double gear) {
     fbb_.AddElement<double>(SwapCmsLeg::VT_GEAR, gear, 1.0);
@@ -593,8 +593,8 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
     ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id = 0,
     int32_t fixing_days = -1,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     double gear = 1.0,
     double spread = 0.0,
     ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
@@ -612,8 +612,8 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
   builder_.add_swap_tenor(swap_tenor);
   builder_.add_swap_index_id(swap_index_id);
   builder_.add_schedule(schedule);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_day_counter(day_counter);
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
 }
 
@@ -625,8 +625,8 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
     ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
     const char *swaption_vol_id = nullptr,
     int32_t fixing_days = -1,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     double gear = 1.0,
     double spread = 0.0,
     ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,

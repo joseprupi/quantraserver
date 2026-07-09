@@ -165,6 +165,16 @@ def _ec_del_schedule_field(arr_key, product_key, field):
     return f
 
 
+def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
+    """Drop a convention field from a swap leg. The swap-leg convention enums
+    (day_counter, payment_convention) are presence-required: an omitted
+    convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        req[arr_key][0][swap_key][leg_key].pop(field, None)
+        return req
+    return f
+
+
 def _ec_del_vol_base_field(field):
     """Drop a convention field from the first vol surface's base spec. The
     IrVol/BlackVol base convention enums are presence-required: an omitted
@@ -276,6 +286,17 @@ SCENARIOS = [
      "swaption_request.json", 400, _ec_del_field("swaptions", "model")),
     ("ec:400 fixed_rate_bond missing discounting_curve field", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_del_field("bonds", "discounting_curve")),
+    # ---- 400 INVALID_ARGUMENT: swap-leg convention presence ----
+    # A swap-leg convention enum omitted from the request must be rejected, not
+    # silently defaulted to the alphabetical-0 value.
+    ("ec:400 vanilla_swap fixed leg missing day_counter", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "day_counter"),
+     _ec_body_contains("SwapFixedLeg.day_counter is required")),
+    ("ec:400 vanilla_swap fixed leg missing payment_convention", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "payment_convention"),
+     _ec_body_contains("SwapFixedLeg.payment_convention is required")),
     # ---- 400 INVALID_ARGUMENT: null-deref guards (optional date fields
     #      omitted on curve helpers; pre-guard these crashed the worker) ----
     ("ec:400 fixed_rate_bond curve BondHelper missing issue_date", "fixed_rate_bond",

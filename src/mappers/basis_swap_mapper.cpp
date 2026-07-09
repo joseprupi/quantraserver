@@ -12,13 +12,19 @@ BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
                                     const char* legName,
                                     ScheduleParser& scheduleParser) {
     BasisSwapFloatingLegData leg;
+    if (!fb->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
+    }
+    if (!fb->payment_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.payment_convention is required");
+    }
     auto schedule = scheduleParser.parse(fb->schedule());
     leg.schedule = *schedule;
     leg.notional = fb->notional();
     leg.indexId = fb->index()->id()->str();
     leg.spread = fb->spread();
-    leg.dayCounter = DayCounterToQL(fb->day_counter());
-    leg.paymentConvention = ConventionToQL(fb->payment_convention());
+    leg.dayCounter = DayCounterToQL(fb->day_counter().value());
+    leg.paymentConvention = ConventionToQL(fb->payment_convention().value());
     leg.fixingDays = fb->fixing_days();
     leg.inArrears = fb->in_arrears();
     (void)legName;

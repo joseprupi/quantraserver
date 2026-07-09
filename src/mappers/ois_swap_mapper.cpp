@@ -34,6 +34,9 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     if (!fixedFb->schedule()) {
         QUANTRA_INVALID_ARGUMENT("OisSwap.fixed_leg.schedule is required");
     }
+    if (!fixedFb->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+    }
 
     const auto* overnightFb = swap->overnight_leg();
     if (!overnightFb->schedule()) {
@@ -54,7 +57,7 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     trade.fixed.schedule = *fixedSchedule;
     trade.fixed.notional = fixedFb->notional();
     trade.fixed.rate = fixedFb->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter());
+    trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter().value());
 
     auto overnightSchedule = scheduleParser.parse(overnightFb->schedule());
     trade.overnight.schedule = *overnightSchedule;

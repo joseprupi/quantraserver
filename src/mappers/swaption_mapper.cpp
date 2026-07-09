@@ -96,21 +96,25 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
     auto fixedLeg = swap->fixed_leg();
     if (fixedLeg->schedule() == nullptr)
         QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
+    if (!fixedLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
     trade.fixed.notional = fixedLeg->notional();
     trade.fixed.rate = fixedLeg->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter());
+    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
     auto floatingLeg = swap->floating_leg();
     if (floatingLeg->schedule() == nullptr)
         QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg schedule not found");
     if (!floatingLeg->index() || !floatingLeg->index()->id())
         QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg index.id is required");
+    if (!floatingLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
     trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
     trade.ibor.notional = floatingLeg->notional();
     trade.ibor.indexId = floatingLeg->index()->id()->str();
     trade.ibor.spread = floatingLeg->spread();
-    trade.ibor.dayCounter = DayCounterToQL(floatingLeg->day_counter());
+    trade.ibor.dayCounter = DayCounterToQL(floatingLeg->day_counter().value());
     return trade;
 }
 
@@ -141,10 +145,12 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
     auto fixedLeg = swap->fixed_leg();
     if (fixedLeg->schedule() == nullptr)
         QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
+    if (!fixedLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
     trade.fixed.notional = fixedLeg->notional();
     trade.fixed.rate = fixedLeg->rate();
-    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter());
+    trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
     auto overnightLeg = swap->overnight_leg();
     if (overnightLeg->schedule() == nullptr)

@@ -32,9 +32,12 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
     ScheduleParser scheduleParser;
     auto fixedSchedule = scheduleParser.parse(fixedLeg->schedule());
 
+    if (!fixedLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+
     double fixedNotional = fixedLeg->notional();
     double fixedRate = fixedLeg->rate();
-    DayCounter fixedDayCounter = DayCounterToQL(fixedLeg->day_counter());
+    DayCounter fixedDayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
     // Parse floating leg
     auto floatingLeg = swap->floating_leg();
@@ -46,9 +49,12 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
 
     auto floatingSchedule = scheduleParser.parse(floatingLeg->schedule());
 
+    if (!floatingLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
+
     double floatingNotional = floatingLeg->notional();
     double spread = floatingLeg->spread();
-    DayCounter floatingDayCounter = DayCounterToQL(floatingLeg->day_counter());
+    DayCounter floatingDayCounter = DayCounterToQL(floatingLeg->day_counter().value());
 
     // Resolve index from registry and clone with forwarding curve
     std::string indexId = floatingLeg->index()->id()->str();

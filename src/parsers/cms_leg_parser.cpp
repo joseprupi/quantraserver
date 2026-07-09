@@ -55,6 +55,12 @@ QuantLib::Leg CmsLegParser::parse(
     if (leg->cap() >= 0.0 || leg->floor() >= 0.0) {
         QUANTRA_INVALID_ARGUMENT("CMS leg cap/floor is not supported in v1");
     }
+    if (!leg->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.day_counter is required");
+    }
+    if (!leg->payment_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.payment_convention is required");
+    }
 
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(leg->schedule());
@@ -67,8 +73,8 @@ QuantLib::Leg CmsLegParser::parse(
 
     QuantLib::CmsLeg cmsBuilder(*schedule, swapIndex);
     cmsBuilder.withNotionals(leg->notional());
-    cmsBuilder.withPaymentDayCounter(DayCounterToQL(leg->day_counter()));
-    cmsBuilder.withPaymentAdjustment(ConventionToQL(leg->payment_convention()));
+    cmsBuilder.withPaymentDayCounter(DayCounterToQL(leg->day_counter().value()));
+    cmsBuilder.withPaymentAdjustment(ConventionToQL(leg->payment_convention().value()));
     cmsBuilder.withGearings(leg->gear());
     cmsBuilder.withSpreads(leg->spread());
 

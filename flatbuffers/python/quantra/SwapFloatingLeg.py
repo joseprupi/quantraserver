@@ -67,14 +67,14 @@ class SwapFloatingLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapFloatingLeg
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapFloatingLeg
     def FixingDays(self):
@@ -121,13 +121,13 @@ def AddSpread(builder, spread):
     SwapFloatingLegAddSpread(builder, spread)
 
 def SwapFloatingLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, 0)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapFloatingLegAddDayCounter(builder, dayCounter)
 
 def SwapFloatingLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(5, paymentConvention, 0)
+    builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapFloatingLegAddPaymentConvention(builder, paymentConvention)
@@ -163,8 +163,8 @@ class SwapFloatingLegT(object):
         self.notional = 0.0  # type: float
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
-        self.dayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
         self.fixingDays = 2  # type: int
         self.inArrears = False  # type: bool
 
