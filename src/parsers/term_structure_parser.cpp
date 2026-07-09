@@ -87,7 +87,10 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
                 d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
             }
             dates.push_back(d);
-            zeroRates.push_back(p->zero_rate() + bump);
+            if (!p->zero_rate().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ZeroRatePoint.zero_rate is required");
+            }
+            zeroRates.push_back(p->zero_rate().value() + bump);
 
             if (!compSet) {
                 comp = CompoundingToQL(p->compounding());

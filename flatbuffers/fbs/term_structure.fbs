@@ -24,7 +24,8 @@ table HelperDependencies {
 
 /// Money market deposit helper.
 table DepositHelper {
-    rate:double;
+    /// Deposit rate. One of rate or quote_id must be provided.
+    rate:double = null;
     tenor:Period;
     fixing_days:int;
     calendar:enums.Calendar;
@@ -36,7 +37,8 @@ table DepositHelper {
 
 /// FRA helper for curve bootstrap.
 table FRAHelper {
-    rate:double;
+    /// FRA rate. One of rate or quote_id must be provided.
+    rate:double = null;
     months_to_start:int;
     months_to_end:int;
     fixing_days:int;
@@ -65,7 +67,8 @@ table FutureHelper {
 
 /// Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.
 table SwapHelper {
-    rate:double;
+    /// Swap rate. One of rate or quote_id must be provided.
+    rate:double = null;
     tenor:Period;
     calendar:enums.Calendar;
     sw_fixed_leg_frequency:enums.Frequency;
@@ -100,7 +103,8 @@ table BondHelper {
 
 /// OIS helper. Uses IndexRef to reference an overnight IndexDef.
 table OISHelper {
-    rate:double;
+    /// OIS rate. One of rate or quote_id must be provided.
+    rate:double = null;
     tenor:Period;
     /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     overnight_index:IndexRef (required);
@@ -116,7 +120,8 @@ table OISHelper {
 
 /// Dated OIS helper with explicit start/end dates.
 table DatedOISHelper {
-    rate:double;
+    /// OIS rate. One of rate or quote_id must be provided.
+    rate:double = null;
     start_date:string (required);
     end_date:string (required);
     /// Reference to an overnight IndexDef by id.
@@ -138,8 +143,8 @@ table ZeroRatePoint {
     tenor:Period;
     calendar:enums.Calendar = TARGET;
     business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    /// Zero rate for this maturity.
-    zero_rate:double;
+    /// Zero rate for this maturity. Required.
+    zero_rate:double = null;
     /// Compounding convention for the zero rate.
     compounding:enums.Compounding = Continuous;
     /// Frequency (used when compounding != Continuous).
@@ -148,7 +153,8 @@ table ZeroRatePoint {
 
 /// Tenor basis swap helper.
 table TenorBasisSwapHelper {
-    spread:double;
+    /// Basis spread. One of spread or quote_id must be provided.
+    spread:double = null;
     tenor:Period;
     /// Short tenor index (e.g., "EUR_3M").
     index_short:IndexRef (required);
@@ -161,7 +167,8 @@ table TenorBasisSwapHelper {
 
 /// FX swap helper.
 table FxSwapHelper {
-    fx_points:double;
+    /// FX forward points. One of fx_points or quote_id must be provided.
+    fx_points:double = null;
     tenor:Period;
     spot_days:int = 2;
     calendar_domestic:enums.Calendar = TARGET;
@@ -172,7 +179,8 @@ table FxSwapHelper {
 
 /// Cross-currency basis swap helper.
 table CrossCcyBasisHelper {
-    spread:double;
+    /// Cross-currency basis spread. One of spread or quote_id must be provided.
+    spread:double = null;
     tenor:Period;
     /// Domestic leg index.
     index_domestic:IndexRef (required);

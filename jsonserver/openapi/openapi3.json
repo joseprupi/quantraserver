@@ -2608,7 +2608,8 @@
         "description": "Money market deposit helper.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "Deposit rate. One of rate or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2639,7 +2640,8 @@
         "description": "FRA helper for curve bootstrap.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "FRA rate. One of rate or quote_id must be provided."
           },
           "months_to_start": {
             "type": "integer",
@@ -2715,7 +2717,8 @@
         "description": "Vanilla IBOR swap helper. Uses IndexRef to reference an IndexDef.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "Swap rate. One of rate or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2804,7 +2807,8 @@
         "description": "OIS helper. Uses IndexRef to reference an overnight IndexDef.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "OIS rate. One of rate or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2846,7 +2850,8 @@
         "description": "Dated OIS helper with explicit start/end dates.",
         "properties": {
           "rate": {
-            "type": "number"
+            "type": "number",
+            "description": "OIS rate. One of rate or quote_id must be provided."
           },
           "start_date": {
             "type": "string"
@@ -2904,7 +2909,7 @@
           },
           "zero_rate": {
             "type": "number",
-            "description": "Zero rate for this maturity."
+            "description": "Zero rate for this maturity. Required."
           },
           "compounding": {
             "$ref": "#/components/schemas/quantra_enums_Compounding"
@@ -2920,7 +2925,8 @@
         "description": "Tenor basis swap helper.",
         "properties": {
           "spread": {
-            "type": "number"
+            "type": "number",
+            "description": "Basis spread. One of spread or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2952,7 +2958,8 @@
         "description": "FX swap helper.",
         "properties": {
           "fx_points": {
-            "type": "number"
+            "type": "number",
+            "description": "FX forward points. One of fx_points or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -2982,7 +2989,8 @@
         "description": "Cross-currency basis swap helper.",
         "properties": {
           "spread": {
-            "type": "number"
+            "type": "number",
+            "description": "Cross-currency basis spread. One of spread or quote_id must be provided."
           },
           "tenor": {
             "$ref": "#/components/schemas/quantra_Period"

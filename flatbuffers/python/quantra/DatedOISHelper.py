@@ -25,12 +25,13 @@ class DatedOISHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # OIS rate. One of rate or quote_id must be provided.
     # DatedOISHelper
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # DatedOISHelper
     def StartDate(self):
@@ -112,7 +113,7 @@ def Start(builder):
     DatedOISHelperStart(builder)
 
 def DatedOISHelperAddRate(builder, rate):
-    builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.PrependFloat64Slot(0, rate, None)
 
 def AddRate(builder, rate):
     DatedOISHelperAddRate(builder, rate)
@@ -186,7 +187,7 @@ class DatedOISHelperT(object):
 
     # DatedOISHelperT
     def __init__(self):
-        self.rate = 0.0  # type: float
+        self.rate = None  # type: Optional[float]
         self.startDate = None  # type: str
         self.endDate = None  # type: str
         self.overnightIndex = None  # type: Optional[IndexRefT]

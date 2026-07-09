@@ -61,6 +61,54 @@ const quantra::BondHelper* makeBondHelper(
     return flatbuffers::GetRoot<quantra::BondHelper>(fbb.GetBufferPointer());
 }
 
+enum class RateQuoteSlot { Rate, QuoteId, None };
+
+const quantra::DepositHelper* makeDepositHelper(
+    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate)
+{
+    flatbuffers::Offset<flatbuffers::String> quoteId;
+    if (slot == RateQuoteSlot::QuoteId) quoteId = fbb.CreateString("dep-quote");
+    auto tenorN = 3;
+    quantra::PeriodBuilder pb(fbb);
+    pb.add_n(tenorN);
+    pb.add_unit(quantra::enums::TimeUnit_Months);
+    auto tenor = pb.Finish();
+    quantra::DepositHelperBuilder db(fbb);
+    if (slot == RateQuoteSlot::Rate) db.add_rate(rate);
+    if (slot == RateQuoteSlot::QuoteId) db.add_quote_id(quoteId);
+    db.add_tenor(tenor);
+    db.add_fixing_days(2);
+    db.add_calendar(quantra::enums::Calendar_TARGET);
+    db.add_business_day_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    db.add_day_counter(quantra::enums::DayCounter_Actual360);
+    fbb.Finish(db.Finish());
+    return flatbuffers::GetRoot<quantra::DepositHelper>(fbb.GetBufferPointer());
+}
+
+const quantra::SwapHelper* makeSwapHelper(
+    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate)
+{
+    auto idxId = fbb.CreateString("EUR_6M");
+    auto idxRef = quantra::CreateIndexRef(fbb, idxId);
+    flatbuffers::Offset<flatbuffers::String> quoteId;
+    if (slot == RateQuoteSlot::QuoteId) quoteId = fbb.CreateString("swap-quote");
+    quantra::PeriodBuilder pb(fbb);
+    pb.add_n(5);
+    pb.add_unit(quantra::enums::TimeUnit_Years);
+    auto tenor = pb.Finish();
+    quantra::SwapHelperBuilder sb(fbb);
+    if (slot == RateQuoteSlot::Rate) sb.add_rate(rate);
+    if (slot == RateQuoteSlot::QuoteId) sb.add_quote_id(quoteId);
+    sb.add_tenor(tenor);
+    sb.add_calendar(quantra::enums::Calendar_TARGET);
+    sb.add_sw_fixed_leg_frequency(quantra::enums::Frequency_Annual);
+    sb.add_sw_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    sb.add_sw_fixed_leg_day_counter(quantra::enums::DayCounter_Thirty360);
+    sb.add_float_index(idxRef);
+    fbb.Finish(sb.Finish());
+    return flatbuffers::GetRoot<quantra::SwapHelper>(fbb.GetBufferPointer());
+}
+
 enum class FutureQuoteSlot { FuturesPrice, Rate, Both, None };
 
 const quantra::FutureHelper* makeFutureHelper(
@@ -163,6 +211,51 @@ TEST(FutureHelperPresence, AbsentBothIsClearError) {
         FAIL() << "expected QuantraError for FutureHelper without futures_price/rate/quote_id";
     } catch (const QuantraError& e) {
         EXPECT_NE(std::string(e.what()).find("futures_price, rate or quote_id"),
+                  std::string::npos)
+            << "actual message: " << e.what();
+    }
+}
+
+// A DepositHelper carrying its rate inline hands QuantLib that exact quote.
+TEST(DepositHelperPresence, RateSlotPricesFromRate) {
+    const double rate = 0.0123;
+    TermStructurePointParser parser;
+    flatbuffers::FlatBufferBuilder fbb;
+    auto h = parser.parse(
+        quantra::Point_DepositHelper, makeDepositHelper(fbb, RateQuoteSlot::Rate, rate));
+    ASSERT_NE(h, nullptr);
+    EXPECT_DOUBLE_EQ(h->quote()->value(), rate);
+}
+
+// Neither rate nor quote_id: a clear request error, not a silent zero-rate
+// helper bootstrapping from a magic default of 0.
+TEST(DepositHelperPresence, AbsentBothIsClearError) {
+    TermStructurePointParser parser;
+    flatbuffers::FlatBufferBuilder fbb;
+    const auto* helper = makeDepositHelper(fbb, RateQuoteSlot::None, 0.0);
+
+    try {
+        parser.parse(quantra::Point_DepositHelper, helper);
+        FAIL() << "expected QuantraError for DepositHelper without rate/quote_id";
+    } catch (const QuantraError& e) {
+        EXPECT_NE(std::string(e.what()).find("rate or quote_id"),
+                  std::string::npos)
+            << "actual message: " << e.what();
+    }
+}
+
+// Same contract for SwapHelper: omitting both rate and quote_id is a clear
+// request error instead of silently bootstrapping a swap quoted at zero.
+TEST(SwapHelperPresence, AbsentBothIsClearError) {
+    TermStructurePointParser parser;
+    flatbuffers::FlatBufferBuilder fbb;
+    const auto* helper = makeSwapHelper(fbb, RateQuoteSlot::None, 0.0);
+
+    try {
+        parser.parse(quantra::Point_SwapHelper, helper);
+        FAIL() << "expected QuantraError for SwapHelper without rate/quote_id";
+    } catch (const QuantraError& e) {
+        EXPECT_NE(std::string(e.what()).find("rate or quote_id"),
                   std::string::npos)
             << "actual message: " << e.what();
     }

@@ -25,12 +25,13 @@ class CrossCcyBasisHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Cross-currency basis spread. One of spread or quote_id must be provided.
     # CrossCcyBasisHelper
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # CrossCcyBasisHelper
     def Tenor(self):
@@ -91,7 +92,7 @@ def Start(builder):
     CrossCcyBasisHelperStart(builder)
 
 def CrossCcyBasisHelperAddSpread(builder, spread):
-    builder.PrependFloat64Slot(0, spread, 0.0)
+    builder.PrependFloat64Slot(0, spread, None)
 
 def AddSpread(builder, spread):
     CrossCcyBasisHelperAddSpread(builder, spread)
@@ -141,7 +142,7 @@ class CrossCcyBasisHelperT(object):
 
     # CrossCcyBasisHelperT
     def __init__(self):
-        self.spread = 0.0  # type: float
+        self.spread = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.indexDomestic = None  # type: Optional[IndexRefT]
         self.indexForeign = None  # type: Optional[IndexRefT]

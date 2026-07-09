@@ -25,12 +25,13 @@ class FRAHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # FRA rate. One of rate or quote_id must be provided.
     # FRAHelper
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # FRAHelper
     def MonthsToStart(self):
@@ -88,7 +89,7 @@ def Start(builder):
     FRAHelperStart(builder)
 
 def FRAHelperAddRate(builder, rate):
-    builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.PrependFloat64Slot(0, rate, None)
 
 def AddRate(builder, rate):
     FRAHelperAddRate(builder, rate)
@@ -146,7 +147,7 @@ class FRAHelperT(object):
 
     # FRAHelperT
     def __init__(self):
-        self.rate = 0.0  # type: float
+        self.rate = None  # type: Optional[float]
         self.monthsToStart = 0  # type: int
         self.monthsToEnd = 0  # type: int
         self.fixingDays = 0  # type: int

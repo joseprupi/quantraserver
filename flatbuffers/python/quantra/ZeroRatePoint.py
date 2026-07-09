@@ -59,13 +59,13 @@ class ZeroRatePoint(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 2
 
-    # Zero rate for this maturity.
+    # Zero rate for this maturity. Required.
     # ZeroRatePoint
     def ZeroRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Compounding convention for the zero rate.
     # ZeroRatePoint
@@ -114,7 +114,7 @@ def AddBusinessDayConvention(builder, businessDayConvention):
     ZeroRatePointAddBusinessDayConvention(builder, businessDayConvention)
 
 def ZeroRatePointAddZeroRate(builder, zeroRate):
-    builder.PrependFloat64Slot(4, zeroRate, 0.0)
+    builder.PrependFloat64Slot(4, zeroRate, None)
 
 def AddZeroRate(builder, zeroRate):
     ZeroRatePointAddZeroRate(builder, zeroRate)
@@ -150,7 +150,7 @@ class ZeroRatePointT(object):
         self.tenor = None  # type: Optional[PeriodT]
         self.calendar = 32  # type: int
         self.businessDayConvention = 2  # type: int
-        self.zeroRate = 0.0  # type: float
+        self.zeroRate = None  # type: Optional[float]
         self.compounding = 1  # type: int
         self.frequency = 0  # type: int
 

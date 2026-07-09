@@ -131,7 +131,7 @@ struct KeyContext {
 /**
  * CurveKeyBuilder - Builds deterministic cache keys for yield curve specs.
  *
- * Produces: "yc:v2:<sha256hex>"
+ * Produces: "yc:v3:<sha256hex>"
  *
  * The key captures everything that affects bootstrapping output:
  * - as_of_date
@@ -155,7 +155,7 @@ public:
      * @param ts            The curve spec
      * @param ctx           Pre-built quote/index lookup maps
      * @param depKeys       Keys of dependency curves (sorted by depId)
-     * @return              Key string "yc:v2:<sha256hex>"
+     * @return              Key string "yc:v3:<sha256hex>"
      */
     static std::string compute(
         const std::string& asOfDate,
