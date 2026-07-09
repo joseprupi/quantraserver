@@ -17,7 +17,7 @@ table OisSwapResponse {
 
 /// Response wrapper for multiple OIS swaps.
 table PriceOisSwapResponse {
-    swaps:[OisSwapResponse];
+    swaps:[OisSwapResponse] (required);
 }
 
 root_type PriceOisSwapResponse;

@@ -62,6 +62,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CapFloorResponse"}
               }
       },
+      "required" : ["cap_floors"],
       "additionalProperties" : false
     }
   },

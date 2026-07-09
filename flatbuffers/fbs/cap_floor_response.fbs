@@ -25,7 +25,7 @@ table CapFloorResponse {
 
 /// Response wrapper for multiple caps/floors.
 table PriceCapFloorResponse {
-    cap_floors:[CapFloorResponse];
+    cap_floors:[CapFloorResponse] (required);
 }
 
 root_type PriceCapFloorResponse;

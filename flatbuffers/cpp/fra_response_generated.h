@@ -149,7 +149,7 @@ struct PriceFRAResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_FRAS) &&
+           VerifyOffsetRequired(verifier, VT_FRAS) &&
            verifier.VerifyVector(fras()) &&
            verifier.VerifyVectorOfTables(fras()) &&
            verifier.EndTable();
@@ -173,6 +173,7 @@ struct PriceFRAResponseBuilder {
   ::flatbuffers::Offset<PriceFRAResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceFRAResponse>(end);
+    fbb_.Required(o, PriceFRAResponse::VT_FRAS);
     return o;
   }
 };
@@ -261,7 +262,7 @@ inline ::flatbuffers::Offset<PriceFRAResponse> CreatePriceFRAResponse(::flatbuff
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFRAResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _fras = _o->fras.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::FRAResponse>> (_o->fras.size(), [](size_t i, _VectorArgs *__va) { return CreateFRAResponse(*__va->__fbb, __va->__o->fras[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _fras = _fbb.CreateVector<::flatbuffers::Offset<quantra::FRAResponse>> (_o->fras.size(), [](size_t i, _VectorArgs *__va) { return CreateFRAResponse(*__va->__fbb, __va->__o->fras[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceFRAResponse(
       _fbb,
       _fras);

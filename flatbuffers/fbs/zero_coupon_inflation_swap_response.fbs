@@ -15,7 +15,7 @@ table ZeroCouponInflationSwapResponse {
 
 /// Response wrapper for multiple ZCIIS trades.
 table PriceZeroCouponInflationSwapResponse {
-    swaps:[ZeroCouponInflationSwapResponse];
+    swaps:[ZeroCouponInflationSwapResponse] (required);
 }
 
 root_type PriceZeroCouponInflationSwapResponse;

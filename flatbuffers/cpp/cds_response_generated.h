@@ -164,7 +164,7 @@ struct PriceCDSResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_CDS_LIST) &&
+           VerifyOffsetRequired(verifier, VT_CDS_LIST) &&
            verifier.VerifyVector(cds_list()) &&
            verifier.VerifyVectorOfTables(cds_list()) &&
            verifier.EndTable();
@@ -188,6 +188,7 @@ struct PriceCDSResponseBuilder {
   ::flatbuffers::Offset<PriceCDSResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceCDSResponse>(end);
+    fbb_.Required(o, PriceCDSResponse::VT_CDS_LIST);
     return o;
   }
 };
@@ -301,7 +302,7 @@ inline ::flatbuffers::Offset<PriceCDSResponse> CreatePriceCDSResponse(::flatbuff
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCDSResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _cds_list = _o->cds_list.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CDSValues>> (_o->cds_list.size(), [](size_t i, _VectorArgs *__va) { return CreateCDSValues(*__va->__fbb, __va->__o->cds_list[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _cds_list = _fbb.CreateVector<::flatbuffers::Offset<quantra::CDSValues>> (_o->cds_list.size(), [](size_t i, _VectorArgs *__va) { return CreateCDSValues(*__va->__fbb, __va->__o->cds_list[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceCDSResponse(
       _fbb,
       _cds_list);

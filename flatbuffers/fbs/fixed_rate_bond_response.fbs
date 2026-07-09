@@ -19,7 +19,7 @@ table FixedRateBondResponse {
 
 /// Response wrapper for multiple fixed-rate bonds.
 table PriceFixedRateBondResponse {
-    bonds:[FixedRateBondResponse];
+    bonds:[FixedRateBondResponse] (required);
 }
 
 root_type PriceFixedRateBondResponse;

@@ -65,7 +65,7 @@ table VanillaSwapResponse {
 
 /// Response wrapper for multiple vanilla swaps.
 table PriceVanillaSwapResponse {
-    swaps:[VanillaSwapResponse];
+    swaps:[VanillaSwapResponse] (required);
 }
 
 root_type PriceVanillaSwapResponse;

@@ -61,7 +61,7 @@ table SwaptionResponse {
 
 /// Response wrapper for multiple swaptions.
 table PriceSwaptionResponse {
-    swaptions:[SwaptionResponse];
+    swaptions:[SwaptionResponse] (required);
     /// Per-surface diagnostics, one entry per unique SABR-kind vol surface
     /// referenced by the priced swaptions. Populated only when the request
     /// sets `include_diagnostics=true`. Empty/absent otherwise.

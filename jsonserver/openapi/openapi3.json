@@ -2391,6 +2391,9 @@
             }
           }
         },
+        "required": [
+          "swaps"
+        ],
         "additionalProperties": false
       },
       "quantra_BasisSwapResponse": {
@@ -2446,6 +2449,9 @@
             }
           }
         },
+        "required": [
+          "swaps"
+        ],
         "additionalProperties": false
       },
       "quantra_Point": {
@@ -5537,6 +5543,9 @@
             }
           }
         },
+        "required": [
+          "cap_floors"
+        ],
         "additionalProperties": false
       },
       "quantra_CDS": {
@@ -5635,6 +5644,9 @@
             }
           }
         },
+        "required": [
+          "cds_list"
+        ],
         "additionalProperties": false
       },
       "quantra_EquityOptionResponse": {
@@ -5688,6 +5700,9 @@
             }
           }
         },
+        "required": [
+          "options"
+        ],
         "additionalProperties": false
       },
       "quantra_FixedRateBond": {
@@ -5777,6 +5792,9 @@
             }
           }
         },
+        "required": [
+          "bonds"
+        ],
         "additionalProperties": false
       },
       "quantra_FloatingRateBond": {
@@ -5880,6 +5898,9 @@
             }
           }
         },
+        "required": [
+          "bonds"
+        ],
         "additionalProperties": false
       },
       "quantra_FRA": {
@@ -5955,6 +5976,9 @@
             }
           }
         },
+        "required": [
+          "fras"
+        ],
         "additionalProperties": false
       },
       "quantra_OisSwapResponse": {
@@ -6008,6 +6032,9 @@
             }
           }
         },
+        "required": [
+          "swaps"
+        ],
         "additionalProperties": false
       },
       "quantra_PriceBasisSwap": {
@@ -7103,6 +7130,9 @@
             }
           }
         },
+        "required": [
+          "swaptions"
+        ],
         "additionalProperties": false
       },
       "quantra_YearOnYearInflationSwapResponse": {
@@ -7156,6 +7186,9 @@
             }
           }
         },
+        "required": [
+          "swaps"
+        ],
         "additionalProperties": false
       },
       "quantra_ZeroCouponInflationSwapResponse": {
@@ -7203,6 +7236,9 @@
             }
           }
         },
+        "required": [
+          "swaps"
+        ],
         "additionalProperties": false
       }
     }

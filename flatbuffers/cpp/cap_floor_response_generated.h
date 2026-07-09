@@ -318,7 +318,7 @@ struct PriceCapFloorResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_CAP_FLOORS) &&
+           VerifyOffsetRequired(verifier, VT_CAP_FLOORS) &&
            verifier.VerifyVector(cap_floors()) &&
            verifier.VerifyVectorOfTables(cap_floors()) &&
            verifier.EndTable();
@@ -342,6 +342,7 @@ struct PriceCapFloorResponseBuilder {
   ::flatbuffers::Offset<PriceCapFloorResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceCapFloorResponse>(end);
+    fbb_.Required(o, PriceCapFloorResponse::VT_CAP_FLOORS);
     return o;
   }
 };
@@ -493,7 +494,7 @@ inline ::flatbuffers::Offset<PriceCapFloorResponse> CreatePriceCapFloorResponse(
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceCapFloorResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _cap_floors = _o->cap_floors.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CapFloorResponse>> (_o->cap_floors.size(), [](size_t i, _VectorArgs *__va) { return CreateCapFloorResponse(*__va->__fbb, __va->__o->cap_floors[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _cap_floors = _fbb.CreateVector<::flatbuffers::Offset<quantra::CapFloorResponse>> (_o->cap_floors.size(), [](size_t i, _VectorArgs *__va) { return CreateCapFloorResponse(*__va->__fbb, __va->__o->cap_floors[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceCapFloorResponse(
       _fbb,
       _cap_floors);

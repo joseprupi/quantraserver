@@ -338,6 +338,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FloatingRateBondResponse"}
               }
       },
+      "required" : ["bonds"],
       "additionalProperties" : false
     }
   },

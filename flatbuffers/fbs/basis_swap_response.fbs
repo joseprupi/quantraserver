@@ -19,7 +19,7 @@ table BasisSwapResponse {
 
 /// Response wrapper for multiple basis swaps.
 table PriceBasisSwapResponse {
-    swaps:[BasisSwapResponse];
+    swaps:[BasisSwapResponse] (required);
 }
 
 root_type PriceBasisSwapResponse;

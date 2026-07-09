@@ -433,6 +433,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VanillaSwapResponse"}
               }
       },
+      "required" : ["swaps"],
       "additionalProperties" : false
     }
   },

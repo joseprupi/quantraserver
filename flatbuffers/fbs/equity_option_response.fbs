@@ -19,7 +19,7 @@ table EquityOptionResponse {
 
 /// Response wrapper for equity option pricing.
 table PriceEquityOptionResponse {
-    options:[EquityOptionResponse];
+    options:[EquityOptionResponse] (required);
 }
 
 root_type PriceEquityOptionResponse;

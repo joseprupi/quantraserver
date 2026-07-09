@@ -244,7 +244,7 @@ struct PriceFixedRateBondResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_BONDS) &&
+           VerifyOffsetRequired(verifier, VT_BONDS) &&
            verifier.VerifyVector(bonds()) &&
            verifier.VerifyVectorOfTables(bonds()) &&
            verifier.EndTable();
@@ -268,6 +268,7 @@ struct PriceFixedRateBondResponseBuilder {
   ::flatbuffers::Offset<PriceFixedRateBondResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceFixedRateBondResponse>(end);
+    fbb_.Required(o, PriceFixedRateBondResponse::VT_BONDS);
     return o;
   }
 };
@@ -407,7 +408,7 @@ inline ::flatbuffers::Offset<PriceFixedRateBondResponse> CreatePriceFixedRateBon
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceFixedRateBondResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _bonds = _o->bonds.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::FixedRateBondResponse>> (_o->bonds.size(), [](size_t i, _VectorArgs *__va) { return CreateFixedRateBondResponse(*__va->__fbb, __va->__o->bonds[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _bonds = _fbb.CreateVector<::flatbuffers::Offset<quantra::FixedRateBondResponse>> (_o->bonds.size(), [](size_t i, _VectorArgs *__va) { return CreateFixedRateBondResponse(*__va->__fbb, __va->__o->bonds[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceFixedRateBondResponse(
       _fbb,
       _bonds);

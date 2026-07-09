@@ -433,6 +433,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VanillaSwapResponse"}
               }
       },
+      "required" : ["swaps"],
       "additionalProperties" : false
     },
     "quantra_ZeroCouponInflationSwapResponse" : {
@@ -471,6 +472,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ZeroCouponInflationSwapResponse"}
               }
       },
+      "required" : ["swaps"],
       "additionalProperties" : false
     }
   },

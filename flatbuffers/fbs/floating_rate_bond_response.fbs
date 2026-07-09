@@ -19,7 +19,7 @@ table FloatingRateBondResponse {
 
 /// Response wrapper for multiple floating-rate bonds.
 table PriceFloatingRateBondResponse {
-    bonds:[FloatingRateBondResponse];
+    bonds:[FloatingRateBondResponse] (required);
 }
 
 root_type PriceFloatingRateBondResponse;

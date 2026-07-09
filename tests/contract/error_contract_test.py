@@ -362,6 +362,21 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400, _ec_del_curve_point_field("BondHelper", "issue_date")),
     ("ec:400 fixed_rate_bond curve FutureHelper missing future_start_date", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_future_helper_missing_start_date()),
+    # ---- 400 INVALID_ARGUMENT: identity / structural field presence ----
+    # Structural sub-tables and identity strings a product cannot be built
+    # without must fail loudly with a named message, never be silently omitted.
+    ("ec:400 fixed_rate_bond curve BondHelper missing schedule", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_curve_point_field("BondHelper", "schedule"),
+     _ec_body_contains("BondHelper.schedule is required")),
+    ("ec:400 vanilla_swap missing discounting_curve reference", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_field("swaps", "discounting_curve"),
+     _ec_body_contains("PriceVanillaSwap.discounting_curve is required")),
+    ("ec:400 cds missing credit_curve_id reference", "cds",
+     "cds_request.json", 400,
+     _ec_del_field("cds_list", "credit_curve_id"),
+     _ec_body_contains("PriceCDS entry requires credit_curve_id")),
     # ---- 400 INVALID_ARGUMENT: unbounded schedule generation guard ----
     ("ec:400 fixed_rate_bond 300y daily schedule rejected", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_abusive_schedule("bonds", "fixed_rate_bond")),
