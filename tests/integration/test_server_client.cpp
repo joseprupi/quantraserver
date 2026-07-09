@@ -1228,8 +1228,8 @@ TEST_F(ServerClientTest, PriceYearOnYearInflationSwap_RoundTrip) {
 
 TEST_F(ServerClientTest, CalendarBusinessDays_RoundTrip) {
     flatbuffers::grpc::MessageBuilder b;
-    auto start = b.CreateString("2025/01/01");
-    auto end = b.CreateString("2025/01/10");
+    auto start = b.CreateString("2025-01-01");
+    auto end = b.CreateString("2025-01-10");
 
     quantra::CalendarBusinessDaysRequestBuilder rb(b);
     rb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -1268,8 +1268,8 @@ TEST_F(ServerClientTest, CalendarHolidays_ExcludeAndIncludeWeekends) {
     // Excluding weekends: this range has weekend-only non-business days for TARGET.
     {
         flatbuffers::grpc::MessageBuilder b;
-        auto start = b.CreateString("2025/01/03");
-        auto end = b.CreateString("2025/01/06");
+        auto start = b.CreateString("2025-01-03");
+        auto end = b.CreateString("2025-01-06");
 
         quantra::CalendarHolidaysRequestBuilder rb(b);
         rb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -1295,8 +1295,8 @@ TEST_F(ServerClientTest, CalendarHolidays_ExcludeAndIncludeWeekends) {
     // Including weekends: should return Saturday and Sunday.
     {
         flatbuffers::grpc::MessageBuilder b;
-        auto start = b.CreateString("2025/01/03");
-        auto end = b.CreateString("2025/01/06");
+        auto start = b.CreateString("2025-01-03");
+        auto end = b.CreateString("2025-01-06");
 
         quantra::CalendarHolidaysRequestBuilder rb(b);
         rb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -1325,7 +1325,7 @@ TEST_F(ServerClientTest, CalendarAdvance_PositiveAndNegativeDays) {
     // +3 business days from Friday 2025-01-03 -> Wednesday 2025-01-08
     {
         flatbuffers::grpc::MessageBuilder b;
-        auto date = b.CreateString("2025/01/03");
+        auto date = b.CreateString("2025-01-03");
 
         quantra::CalendarAdvanceRequestBuilder rb(b);
         rb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -1354,7 +1354,7 @@ TEST_F(ServerClientTest, CalendarAdvance_PositiveAndNegativeDays) {
     // -2 business days from Monday 2025-01-06 -> Thursday 2025-01-02
     {
         flatbuffers::grpc::MessageBuilder b;
-        auto date = b.CreateString("2025/01/06");
+        auto date = b.CreateString("2025-01-06");
 
         quantra::CalendarAdvanceRequestBuilder rb(b);
         rb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -1383,8 +1383,8 @@ TEST_F(ServerClientTest, CalendarAdvance_PositiveAndNegativeDays) {
 
 TEST_F(ServerClientTest, CalendarBusinessDays_InvalidRangeFails) {
     flatbuffers::grpc::MessageBuilder b;
-    auto start = b.CreateString("2025/01/10");
-    auto end = b.CreateString("2025/01/01");
+    auto start = b.CreateString("2025-01-10");
+    auto end = b.CreateString("2025-01-01");
 
     quantra::CalendarBusinessDaysRequestBuilder rb(b);
     rb.add_calendar(quantra::enums::Calendar_TARGET);

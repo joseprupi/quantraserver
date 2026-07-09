@@ -131,8 +131,7 @@ def load_json(filepath: Path) -> dict:
 
 
 def parse_date(date_str: str) -> ql.Date:
-    """Parse date string like '2025-01-15' or '2025/01/15' to QuantLib Date."""
-    date_str = date_str.replace('/', '-')
+    """Parse an ISO-8601 date string 'YYYY-MM-DD' to a QuantLib Date."""
     parts = date_str.split('-')
     return ql.Date(int(parts[2]), int(parts[1]), int(parts[0]))
 

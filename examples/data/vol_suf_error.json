@@ -1,6 +1,6 @@
 {
   "pricing": {
-    "as_of_date": "2026/02/15",
+    "as_of_date": "2026-02-15",
     "quotes": [
       {
         "id": "EUR_DEPO_ON",
@@ -124,11 +124,11 @@
           "end_of_month": false,
           "fixings": [
             {
-              "date": "2025/06/12",
+              "date": "2025-06-12",
               "value": 0.027
             },
             {
-              "date": "2025/12/11",
+              "date": "2025-12-11",
               "value": 0.0275
             }
           ]
@@ -171,7 +171,7 @@
           "day_counter": "Actual365Fixed",
           "interpolator": "LogLinear",
           "bootstrap_trait": "Discount",
-          "reference_date": "2026/02/09",
+          "reference_date": "2026-02-09",
           "points": [
             {
               "point_type": "DepositHelper",
@@ -364,7 +364,7 @@
           "day_counter": "Actual365Fixed",
           "interpolator": "LogLinear",
           "bootstrap_trait": "Discount",
-          "reference_date": "2026/02/09",
+          "reference_date": "2026-02-09",
           "points": [
             {
               "point_type": "DepositHelper",
@@ -508,7 +508,7 @@
             "payload_type": "SwaptionVolSmileCubeSpec",
             "payload": {
               "base": {
-                "reference_date": "2026/02/15",
+                "reference_date": "2026-02-15",
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing",
                 "day_counter": "Actual365Fixed",

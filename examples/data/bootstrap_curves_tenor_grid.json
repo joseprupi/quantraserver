@@ -1,6 +1,6 @@
 {
   "pricing": {
-    "as_of_date": "2025/01/15",
+    "as_of_date": "2025-01-15",
     "rates": {
       "indices": [
         {
@@ -22,7 +22,7 @@
       "curves": [
         {
           "id": "USD_OIS",
-          "reference_date": "2025/01/15",
+          "reference_date": "2025-01-15",
           "day_counter": "Actual365Fixed",
           "interpolator": "LogLinear",
           "bootstrap_trait": "Discount",

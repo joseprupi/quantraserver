@@ -73,7 +73,7 @@ def test_request_id_reaches_engine_log(bond_url, bond_request):
     # deterministic QuantLib error (effective date after termination date).
     rid = f"probe-{uuid.uuid4().hex[:12]}"
     bad = json.loads(json.dumps(bond_request))
-    bad["bonds"][0]["fixed_rate_bond"]["schedule"]["effective_date"] = "2018/05/15"
+    bad["bonds"][0]["fixed_rate_bond"]["schedule"]["effective_date"] = "2018-05-15"
 
     r = requests.post(
         bond_url,
@@ -119,7 +119,7 @@ def test_quantlib_error_maps_to_422_with_real_cause(bond_url, bond_request):
     bad = json.loads(json.dumps(bond_request))
     # Well-formed but unpriceable: schedule effective date after termination
     # date makes QuantLib throw -> gRPC ABORTED -> HTTP 422 (was 500).
-    bad["bonds"][0]["fixed_rate_bond"]["schedule"]["effective_date"] = "2018/05/15"
+    bad["bonds"][0]["fixed_rate_bond"]["schedule"]["effective_date"] = "2018-05-15"
 
     r = requests.post(bond_url, data=json.dumps(bad), headers=JSON_HEADERS)
     assert r.status_code == 422, (

@@ -63,11 +63,11 @@ def create_market_data():
     # Matching the C++ arrays: issueDates, maturities, couponRates, marketQuotes
     bond_data = [
         # Issue, Maturity, Coupon, Quote
-        ("2005/03/15", "2010/08/31", 0.02375, 100.390625),
-        ("2005/06/15", "2011/08/31", 0.04625, 106.21875),
-        ("2006/06/30", "2013/08/31", 0.03125, 100.59375),
-        ("2002/11/15", "2018/08/15", 0.04000, 101.6875),
-        ("1987/05/15", "2038/05/15", 0.04500, 102.140625)
+        ("2005-03-15", "2010-08-31", 0.02375, 100.390625),
+        ("2005-06-15", "2011-08-31", 0.04625, 106.21875),
+        ("2006-06-30", "2013-08-31", 0.03125, 100.59375),
+        ("2002-11-15", "2018-08-15", 0.04000, 101.6875),
+        ("1987-05-15", "2038-05-15", 0.04500, 102.140625)
     ]
 
     for issue, mat, cpn, quote in bond_data:
@@ -100,7 +100,7 @@ def create_market_data():
     # --- 3. CURVE DEFINITION ---
     curve = TermStructureT()
     curve.id = "depos"
-    curve.referenceDate = "2008/09/18"
+    curve.referenceDate = "2008-09-18"
     curve.dayCounter = DayCounter.ActualActualISDA # Matching C++
     curve.interpolator = Interpolator.LogLinear    # Matching C++
     curve.bootstrapTrait = BootstrapTrait.Discount
@@ -111,8 +111,8 @@ def create_market_data():
 def create_target_bond():
     """The specific bond being priced in the C++ 'price_bond_quantlib' function"""
     schedule = ScheduleT()
-    schedule.effectiveDate = "2007/05/15"
-    schedule.terminationDate = "2017/05/15"
+    schedule.effectiveDate = "2007-05-15"
+    schedule.terminationDate = "2017-05-15"
     schedule.frequency = Frequency.Semiannual
     schedule.calendar = Calendar.UnitedStatesGovernmentBond
     schedule.convention = BusinessDayConvention.Unadjusted
@@ -121,7 +121,7 @@ def create_target_bond():
     schedule.endOfMonth = False
 
     bond = FixedRateBondT()
-    bond.issueDate = "2007/05/15"
+    bond.issueDate = "2007-05-15"
     bond.faceAmount = 100.0
     bond.rate = 0.045
     bond.accrualDayCounter = DayCounter.ActualActualBond
@@ -180,8 +180,8 @@ def run_benchmark(bonds_per_request, num_requests, share_curve):
 
     full_request = PriceFixedRateBondRequestT()
     full_request.pricing = PricingT()
-    full_request.pricing.asOfDate = "2008/09/18"
-    full_request.pricing.settlementDate = "2008/09/18"
+    full_request.pricing.asOfDate = "2008-09-18"
+    full_request.pricing.settlementDate = "2008-09-18"
     full_request.pricing.curves = curves_list
     full_request.bonds = bond_requests
 
