@@ -35,9 +35,18 @@ FixedRateBondInputs FixedRateBondMapper::toInputs(
         FixedRateBondTrade trade;
         trade.bond = bondParser.parse(it->fixed_rate_bond());
         trade.discountingCurveId = it->discounting_curve()->str();
-        trade.yieldDc = DayCounterToQL(it->yield()->day_counter());
-        trade.yieldComp = CompoundingToQL(it->yield()->compounding());
-        trade.yieldFreq = FrequencyToQL(it->yield()->frequency());
+        if (!it->yield()->day_counter().has_value()) {
+            QUANTRA_INVALID_ARGUMENT("Yield.day_counter is required");
+        }
+        if (!it->yield()->compounding().has_value()) {
+            QUANTRA_INVALID_ARGUMENT("Yield.compounding is required");
+        }
+        if (!it->yield()->frequency().has_value()) {
+            QUANTRA_INVALID_ARGUMENT("Yield.frequency is required");
+        }
+        trade.yieldDc = DayCounterToQL(it->yield()->day_counter().value());
+        trade.yieldComp = CompoundingToQL(it->yield()->compounding().value());
+        trade.yieldFreq = FrequencyToQL(it->yield()->frequency().value());
         inputs.trades.push_back(std::move(trade));
     }
 

@@ -8,8 +8,8 @@ table FixedRateBond {
     settlement_days:int;
     face_amount:double;
     rate:double;
-    accrual_day_counter:enums.DayCounter;
-    payment_convention:enums.BusinessDayConvention;
+    accrual_day_counter:enums.DayCounter = null;
+    payment_convention:enums.BusinessDayConvention = null;
     redemption:double;
     issue_date:string;
     schedule:Schedule;

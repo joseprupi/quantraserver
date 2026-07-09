@@ -67,14 +67,14 @@ class FloatingRateBond(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FloatingRateBond
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FloatingRateBond
     def FixingDays(self):
@@ -142,13 +142,13 @@ def AddIndex(builder, index):
     FloatingRateBondAddIndex(builder, index)
 
 def FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter):
-    builder.PrependInt8Slot(4, accrualDayCounter, 0)
+    builder.PrependInt8Slot(4, accrualDayCounter, None)
 
 def AddAccrualDayCounter(builder, accrualDayCounter):
     FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter)
 
 def FloatingRateBondAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(5, paymentConvention, 0)
+    builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     FloatingRateBondAddPaymentConvention(builder, paymentConvention)
@@ -202,8 +202,8 @@ class FloatingRateBondT(object):
         self.faceAmount = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]
-        self.accrualDayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.accrualDayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
         self.fixingDays = 0  # type: int
         self.spread = 0.0  # type: float
         self.inArrears = False  # type: bool

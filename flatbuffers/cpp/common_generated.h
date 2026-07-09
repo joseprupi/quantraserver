@@ -239,9 +239,9 @@ inline ::flatbuffers::Offset<Period> CreatePeriod(
 
 struct YieldT : public ::flatbuffers::NativeTable {
   typedef Yield TableType;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::Compounding compounding = quantra::enums::Compounding_Compounded;
-  quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Compounding> compounding = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt;
 };
 
 /// Yield/compounding convention specification.
@@ -253,14 +253,14 @@ struct Yield FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_COMPOUNDING = 6,
     VT_FREQUENCY = 8
   };
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::Compounding compounding() const {
-    return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 0));
+  ::flatbuffers::Optional<quantra::enums::Compounding> compounding() const {
+    return GetOptional<int8_t, quantra::enums::Compounding>(VT_COMPOUNDING);
   }
-  quantra::enums::Frequency frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FREQUENCY);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -279,13 +279,13 @@ struct YieldBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(Yield::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(Yield::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_compounding(quantra::enums::Compounding compounding) {
-    fbb_.AddElement<int8_t>(Yield::VT_COMPOUNDING, static_cast<int8_t>(compounding), 0);
+    fbb_.AddElement<int8_t>(Yield::VT_COMPOUNDING, static_cast<int8_t>(compounding));
   }
   void add_frequency(quantra::enums::Frequency frequency) {
-    fbb_.AddElement<int8_t>(Yield::VT_FREQUENCY, static_cast<int8_t>(frequency), 0);
+    fbb_.AddElement<int8_t>(Yield::VT_FREQUENCY, static_cast<int8_t>(frequency));
   }
   explicit YieldBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -300,13 +300,13 @@ struct YieldBuilder {
 
 inline ::flatbuffers::Offset<Yield> CreateYield(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::Compounding compounding = quantra::enums::Compounding_Compounded,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Compounding> compounding = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt) {
   YieldBuilder builder_(_fbb);
-  builder_.add_frequency(frequency);
-  builder_.add_compounding(compounding);
-  builder_.add_day_counter(day_counter);
+  if(frequency) { builder_.add_frequency(*frequency); }
+  if(compounding) { builder_.add_compounding(*compounding); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
 }
 

@@ -30,21 +30,21 @@ class Yield(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Yield
     def Compounding(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Yield
     def Frequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def YieldStart(builder):
     builder.StartObject(3)
@@ -53,19 +53,19 @@ def Start(builder):
     YieldStart(builder)
 
 def YieldAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(0, dayCounter, 0)
+    builder.PrependInt8Slot(0, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     YieldAddDayCounter(builder, dayCounter)
 
 def YieldAddCompounding(builder, compounding):
-    builder.PrependInt8Slot(1, compounding, 0)
+    builder.PrependInt8Slot(1, compounding, None)
 
 def AddCompounding(builder, compounding):
     YieldAddCompounding(builder, compounding)
 
 def YieldAddFrequency(builder, frequency):
-    builder.PrependInt8Slot(2, frequency, 0)
+    builder.PrependInt8Slot(2, frequency, None)
 
 def AddFrequency(builder, frequency):
     YieldAddFrequency(builder, frequency)
@@ -81,9 +81,9 @@ class YieldT(object):
 
     # YieldT
     def __init__(self):
-        self.dayCounter = 0  # type: int
-        self.compounding = 0  # type: int
-        self.frequency = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.compounding = None  # type: Optional[int]
+        self.frequency = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

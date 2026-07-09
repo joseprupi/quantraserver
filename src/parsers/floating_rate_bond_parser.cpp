@@ -16,13 +16,18 @@ std::shared_ptr<QuantLib::FloatingRateBond> FloatingRateBondParser::parse(
     std::string indexId = bond->index()->id()->str();
     auto iborIndex = indices.getIborWithCurve(indexId, forwarding_term_structure_);
 
+    if (!bond->accrual_day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("FloatingRateBond.accrual_day_counter is required");
+    if (!bond->payment_convention().has_value())
+        QUANTRA_INVALID_ARGUMENT("FloatingRateBond.payment_convention is required");
+
     return std::make_shared<QuantLib::FloatingRateBond>(
         bond->settlement_days(),
         bond->face_amount(),
         *schedule_parser.parse(bond->schedule()),
         iborIndex,
-        DayCounterToQL(bond->accrual_day_counter()),
-        ConventionToQL(bond->payment_convention()),
+        DayCounterToQL(bond->accrual_day_counter().value()),
+        ConventionToQL(bond->payment_convention().value()),
         bond->fixing_days(),
         std::vector<Real>(1, 1.0),
         std::vector<Spread>(1, bond->spread()),

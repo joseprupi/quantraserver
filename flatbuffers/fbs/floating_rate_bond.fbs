@@ -11,8 +11,8 @@ table FloatingRateBond {
     schedule:Schedule;
     /// Reference to an IndexDef by id (e.g., "EUR_6M").
     index:IndexRef (required);
-    accrual_day_counter:enums.DayCounter;
-    payment_convention:enums.BusinessDayConvention;
+    accrual_day_counter:enums.DayCounter = null;
+    payment_convention:enums.BusinessDayConvention = null;
     fixing_days:int;
     spread:double;
     in_arrears:bool;
