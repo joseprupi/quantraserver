@@ -221,7 +221,7 @@ struct PriceOisSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_SWAPS) &&
+           VerifyOffsetRequired(verifier, VT_SWAPS) &&
            verifier.VerifyVector(swaps()) &&
            verifier.VerifyVectorOfTables(swaps()) &&
            verifier.EndTable();
@@ -245,6 +245,7 @@ struct PriceOisSwapResponseBuilder {
   ::flatbuffers::Offset<PriceOisSwapResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceOisSwapResponse>(end);
+    fbb_.Required(o, PriceOisSwapResponse::VT_SWAPS);
     return o;
   }
 };
@@ -375,7 +376,7 @@ inline ::flatbuffers::Offset<PriceOisSwapResponse> CreatePriceOisSwapResponse(::
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceOisSwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _swaps = _o->swaps.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::OisSwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateOisSwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _swaps = _fbb.CreateVector<::flatbuffers::Offset<quantra::OisSwapResponse>> (_o->swaps.size(), [](size_t i, _VectorArgs *__va) { return CreateOisSwapResponse(*__va->__fbb, __va->__o->swaps[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceOisSwapResponse(
       _fbb,
       _swaps);

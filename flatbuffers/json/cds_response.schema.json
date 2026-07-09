@@ -327,6 +327,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CDSValues"}
               }
       },
+      "required" : ["cds_list"],
       "additionalProperties" : false
     }
   },

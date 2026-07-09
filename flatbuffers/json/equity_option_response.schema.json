@@ -213,6 +213,7 @@
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_EquityOptionResponse"}
               }
       },
+      "required" : ["options"],
       "additionalProperties" : false
     }
   },

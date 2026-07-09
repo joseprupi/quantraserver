@@ -239,7 +239,7 @@ struct PriceEquityOptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_OPTIONS) &&
+           VerifyOffsetRequired(verifier, VT_OPTIONS) &&
            verifier.VerifyVector(options()) &&
            verifier.VerifyVectorOfTables(options()) &&
            verifier.EndTable();
@@ -263,6 +263,7 @@ struct PriceEquityOptionResponseBuilder {
   ::flatbuffers::Offset<PriceEquityOptionResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<PriceEquityOptionResponse>(end);
+    fbb_.Required(o, PriceEquityOptionResponse::VT_OPTIONS);
     return o;
   }
 };
@@ -372,7 +373,7 @@ inline ::flatbuffers::Offset<PriceEquityOptionResponse> CreatePriceEquityOptionR
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const PriceEquityOptionResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _options = _o->options.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionResponse>> (_o->options.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityOptionResponse(*__va->__fbb, __va->__o->options[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _options = _fbb.CreateVector<::flatbuffers::Offset<quantra::EquityOptionResponse>> (_o->options.size(), [](size_t i, _VectorArgs *__va) { return CreateEquityOptionResponse(*__va->__fbb, __va->__o->options[i].get(), __va->__rehasher); }, &_va );
   return quantra::CreatePriceEquityOptionResponse(
       _fbb,
       _options);

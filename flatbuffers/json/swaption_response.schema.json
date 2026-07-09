@@ -510,6 +510,7 @@
                 "description" : "Per-surface diagnostics, one entry per unique SABR-kind vol surface\nreferenced by the priced swaptions. Populated only when the request\nsets `include_diagnostics=true`. Empty/absent otherwise."
               }
       },
+      "required" : ["swaptions"],
       "additionalProperties" : false
     }
   },

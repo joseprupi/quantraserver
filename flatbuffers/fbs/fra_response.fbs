@@ -13,7 +13,7 @@ table FRAResponse {
 
 /// Response wrapper for multiple FRAs.
 table PriceFRAResponse {
-    fras:[FRAResponse];
+    fras:[FRAResponse] (required);
 }
 
 root_type PriceFRAResponse;

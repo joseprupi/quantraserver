@@ -1662,6 +1662,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_VanillaSwapResponse'
+      required:
+      - swaps
       additionalProperties: false
     quantra_BasisSwapResponse:
       type: object
@@ -1700,6 +1702,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_BasisSwapResponse'
+      required:
+      - swaps
       additionalProperties: false
     quantra_Point:
       type: string
@@ -3977,6 +3981,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CapFloorResponse'
+      required:
+      - cap_floors
       additionalProperties: false
     quantra_CDS:
       type: object
@@ -4055,6 +4061,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_CDSValues'
+      required:
+      - cds_list
       additionalProperties: false
     quantra_EquityOptionResponse:
       type: object
@@ -4091,6 +4099,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_EquityOptionResponse'
+      required:
+      - options
       additionalProperties: false
     quantra_FixedRateBond:
       type: object
@@ -4152,6 +4162,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FixedRateBondResponse'
+      required:
+      - bonds
       additionalProperties: false
     quantra_FloatingRateBond:
       type: object
@@ -4223,6 +4235,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FloatingRateBondResponse'
+      required:
+      - bonds
       additionalProperties: false
     quantra_FRA:
       type: object
@@ -4276,6 +4290,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_FRAResponse'
+      required:
+      - fras
       additionalProperties: false
     quantra_OisSwapResponse:
       type: object
@@ -4312,6 +4328,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_OisSwapResponse'
+      required:
+      - swaps
       additionalProperties: false
     quantra_PriceBasisSwap:
       type: object
@@ -5133,6 +5151,8 @@ components:
             sets `include_diagnostics=true`. Empty/absent otherwise.'
           items:
             $ref: '#/components/schemas/quantra_SwaptionVolDiagnostics'
+      required:
+      - swaptions
       additionalProperties: false
     quantra_YearOnYearInflationSwapResponse:
       type: object
@@ -5169,6 +5189,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_YearOnYearInflationSwapResponse'
+      required:
+      - swaps
       additionalProperties: false
     quantra_ZeroCouponInflationSwapResponse:
       type: object
@@ -5201,4 +5223,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_ZeroCouponInflationSwapResponse'
+      required:
+      - swaps
       additionalProperties: false

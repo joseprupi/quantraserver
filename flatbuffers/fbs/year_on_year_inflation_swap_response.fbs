@@ -17,7 +17,7 @@ table YearOnYearInflationSwapResponse {
 
 /// Response wrapper for multiple YYIIS trades.
 table PriceYearOnYearInflationSwapResponse {
-    swaps:[YearOnYearInflationSwapResponse];
+    swaps:[YearOnYearInflationSwapResponse] (required);
 }
 
 root_type PriceYearOnYearInflationSwapResponse;

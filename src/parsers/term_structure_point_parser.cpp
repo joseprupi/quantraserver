@@ -300,6 +300,9 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
+        if (!point->schedule()) {
+            QUANTRA_INVALID_ARGUMENT("BondHelper.schedule is required");
+        }
         if (!point->issue_date()) {
             QUANTRA_INVALID_ARGUMENT("BondHelper.issue_date is required");
         }

@@ -19,7 +19,7 @@ table CDSValues {
 
 /// Batch CDS pricing response.
 table PriceCDSResponse {
-    cds_list:[CDSValues];
+    cds_list:[CDSValues] (required);
 }
 
 root_type PriceCDSResponse;
