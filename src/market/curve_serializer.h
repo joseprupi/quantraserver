@@ -74,8 +74,10 @@ public:
         // Metadata
         auto refDate = curve->referenceDate();
         data.reference_date = DateToIso(refDate);
-        data.day_counter = static_cast<uint8_t>(ts->day_counter());
-        data.interpolator = static_cast<uint8_t>(ts->interpolator());
+        // Reached only after a successful bootstrap, where TermStructureParser
+        // has already required both fields to be present.
+        data.day_counter = static_cast<uint8_t>(ts->day_counter().value());
+        data.interpolator = static_cast<uint8_t>(ts->interpolator().value());
 
         // Try to extract actual pillar nodes from PiecewiseYieldCurve
         std::vector<QuantLib::Date> pillarDates;
@@ -192,7 +194,7 @@ private:
 
         using namespace QuantLib;
 
-        auto interp = ts->interpolator();
+        auto interp = ts->interpolator().value();
         auto trait  = ts->bootstrap_trait();
 
         // Try the expected combination first (most likely hit)

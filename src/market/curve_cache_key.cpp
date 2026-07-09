@@ -151,6 +151,18 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     auto ptype = pw->point_type();
     buf.writeU8(static_cast<uint8_t>(ptype));
 
+    // The convention enums are presence-required (an omitted convention is a
+    // request error, never a default). Serialize a presence byte plus the value
+    // so a present field never collides with an absent one in the cache key.
+    auto writeOptEnum = [&buf](auto opt) {
+        if (opt.has_value()) {
+            buf.writeU8(1);
+            buf.writeU8(static_cast<uint8_t>(opt.value()));
+        } else {
+            buf.writeU8(0);
+        }
+    };
+
     switch (ptype) {
 
     case quantra::Point_DepositHelper: {
@@ -160,9 +172,9 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
         buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         buf.writeI32(p->fixing_days());
-        buf.writeU8(static_cast<uint8_t>(p->calendar()));
-        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
-        buf.writeU8(static_cast<uint8_t>(p->day_counter()));
+        writeOptEnum(p->calendar());
+        writeOptEnum(p->business_day_convention());
+        writeOptEnum(p->day_counter());
         break;
     }
 
@@ -173,9 +185,9 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeI32(p->months_to_start());
         buf.writeI32(p->months_to_end());
         buf.writeI32(p->fixing_days());
-        buf.writeU8(static_cast<uint8_t>(p->calendar()));
-        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
-        buf.writeU8(static_cast<uint8_t>(p->day_counter()));
+        writeOptEnum(p->calendar());
+        writeOptEnum(p->business_day_convention());
+        writeOptEnum(p->day_counter());
         break;
     }
 
@@ -192,9 +204,9 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeDouble(resolveQuoteValue(priceValue, p->quote_id(), ctx));
         buf.writeFbString(p->future_start_date());
         buf.writeI32(p->future_months());
-        buf.writeU8(static_cast<uint8_t>(p->calendar()));
-        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
-        buf.writeU8(static_cast<uint8_t>(p->day_counter()));
+        writeOptEnum(p->calendar());
+        writeOptEnum(p->business_day_convention());
+        writeOptEnum(p->day_counter());
         buf.writeU8(p->futures_price().has_value() ? 1 : 0);
         buf.writeDouble(p->futures_price().value_or(0.0));
         buf.writeU8(p->rate().has_value() ? 1 : 0);
@@ -209,10 +221,10 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeU8(p->rate().has_value() ? 1 : 0);
         buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
         buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
-        buf.writeU8(static_cast<uint8_t>(p->calendar()));
-        buf.writeU8(static_cast<uint8_t>(p->sw_fixed_leg_frequency()));
-        buf.writeU8(static_cast<uint8_t>(p->sw_fixed_leg_convention()));
-        buf.writeU8(static_cast<uint8_t>(p->sw_fixed_leg_day_counter()));
+        writeOptEnum(p->calendar());
+        writeOptEnum(p->sw_fixed_leg_frequency());
+        writeOptEnum(p->sw_fixed_leg_convention());
+        writeOptEnum(p->sw_fixed_leg_day_counter());
         writeIndexRef(buf, p->float_index());
         buf.writeDouble(p->spread());
         buf.writeI32(p->fwd_start_days());
@@ -238,8 +250,8 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeDouble(p->face_amount());
         writeSchedule(buf, p->schedule());
         buf.writeDouble(p->coupon_rate());
-        buf.writeU8(static_cast<uint8_t>(p->day_counter()));
-        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
+        writeOptEnum(p->day_counter());
+        writeOptEnum(p->business_day_convention());
         buf.writeDouble(p->redemption());
         buf.writeFbString(p->issue_date());
         break;
@@ -298,7 +310,7 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
         writeIndexRef(buf, p->index_short());
         writeIndexRef(buf, p->index_long());
-        buf.writeU8(static_cast<uint8_t>(p->calendar()));
+        writeOptEnum(p->calendar());
         writeDeps(buf, p->deps());
         break;
     }
@@ -463,8 +475,19 @@ void CurveKeyBuilder::writeCurveHeader(
 {
     buf.writeTag("yc-key-v3");
     buf.writeString(asOfDate);
-    buf.writeU8(static_cast<uint8_t>(ts->day_counter()));
-    buf.writeU8(static_cast<uint8_t>(ts->interpolator()));
+    // day_counter and interpolator are presence-required (an omitted convention
+    // is a request error, never a default). Serialize a presence byte plus the
+    // value so a present field never collides with an absent one in the key.
+    auto writeOptEnum = [&buf](auto opt) {
+        if (opt.has_value()) {
+            buf.writeU8(1);
+            buf.writeU8(static_cast<uint8_t>(opt.value()));
+        } else {
+            buf.writeU8(0);
+        }
+    };
+    writeOptEnum(ts->day_counter());
+    writeOptEnum(ts->interpolator());
     buf.writeU8(static_cast<uint8_t>(ts->bootstrap_trait()));
     buf.writeFbString(ts->reference_date());
 }

@@ -30,10 +30,26 @@ const quantra::TermStructure* findCurveSpecById(
 QuantLib::Calendar calendarFromTermStructure(const quantra::TermStructure* ts) {
     if (ts->points() && ts->points()->size() > 0) {
         const auto* first = ts->points()->Get(0);
-        if (auto h = first->point_as_DepositHelper()) return CalendarToQL(h->calendar());
-        if (auto h = first->point_as_SwapHelper())    return CalendarToQL(h->calendar());
-        if (auto h = first->point_as_FRAHelper())     return CalendarToQL(h->calendar());
-        if (auto h = first->point_as_FutureHelper())  return CalendarToQL(h->calendar());
+        if (auto h = first->point_as_DepositHelper()) {
+            if (!h->calendar().has_value())
+                QUANTRA_INVALID_ARGUMENT("DepositHelper.calendar is required");
+            return CalendarToQL(h->calendar().value());
+        }
+        if (auto h = first->point_as_SwapHelper()) {
+            if (!h->calendar().has_value())
+                QUANTRA_INVALID_ARGUMENT("SwapHelper.calendar is required");
+            return CalendarToQL(h->calendar().value());
+        }
+        if (auto h = first->point_as_FRAHelper()) {
+            if (!h->calendar().has_value())
+                QUANTRA_INVALID_ARGUMENT("FRAHelper.calendar is required");
+            return CalendarToQL(h->calendar().value());
+        }
+        if (auto h = first->point_as_FutureHelper()) {
+            if (!h->calendar().has_value())
+                QUANTRA_INVALID_ARGUMENT("FutureHelper.calendar is required");
+            return CalendarToQL(h->calendar().value());
+        }
         if (auto h = first->point_as_OISHelper())     return CalendarToQL(h->calendar());
     }
     return QuantLib::TARGET();
@@ -68,16 +84,20 @@ std::vector<QuantLib::Date> extractPillarDates(
             }
             QuantLib::Period tenor(
                 deposit->tenor()->n(), TimeUnitToQL(deposit->tenor()->unit()));
+            if (!deposit->business_day_convention().has_value())
+                QUANTRA_INVALID_ARGUMENT("DepositHelper.business_day_convention is required");
             maturityDate = calendar.advance(
-                referenceDate, tenor, ConventionToQL(deposit->business_day_convention()));
+                referenceDate, tenor, ConventionToQL(deposit->business_day_convention().value()));
         } else if (auto swap = point->point_as_SwapHelper()) {
             if (!swap->tenor()) {
                 QUANTRA_INVALID_ARGUMENT("SwapHelper.tenor is required");
             }
             QuantLib::Period tenor(
                 swap->tenor()->n(), TimeUnitToQL(swap->tenor()->unit()));
+            if (!swap->sw_fixed_leg_convention().has_value())
+                QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_convention is required");
             maturityDate = calendar.advance(
-                referenceDate, tenor, ConventionToQL(swap->sw_fixed_leg_convention()));
+                referenceDate, tenor, ConventionToQL(swap->sw_fixed_leg_convention().value()));
         } else if (auto fra = point->point_as_FRAHelper()) {
             QuantLib::Period startPeriod(fra->months_to_start(), QuantLib::Months);
             QuantLib::Period tenor(

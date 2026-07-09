@@ -49,28 +49,28 @@ class SwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapHelper
     def SwFixedLegFrequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapHelper
     def SwFixedLegConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapHelper
     def SwFixedLegDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Reference to an IndexDef by id (e.g., "EUR_6M").
     # SwapHelper
@@ -136,25 +136,25 @@ def AddTenor(builder, tenor):
     SwapHelperAddTenor(builder, tenor)
 
 def SwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(2, calendar, 0)
+    builder.PrependInt8Slot(2, calendar, None)
 
 def AddCalendar(builder, calendar):
     SwapHelperAddCalendar(builder, calendar)
 
 def SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency):
-    builder.PrependInt8Slot(3, swFixedLegFrequency, 0)
+    builder.PrependInt8Slot(3, swFixedLegFrequency, None)
 
 def AddSwFixedLegFrequency(builder, swFixedLegFrequency):
     SwapHelperAddSwFixedLegFrequency(builder, swFixedLegFrequency)
 
 def SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention):
-    builder.PrependInt8Slot(4, swFixedLegConvention, 0)
+    builder.PrependInt8Slot(4, swFixedLegConvention, None)
 
 def AddSwFixedLegConvention(builder, swFixedLegConvention):
     SwapHelperAddSwFixedLegConvention(builder, swFixedLegConvention)
 
 def SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
-    builder.PrependInt8Slot(5, swFixedLegDayCounter, 0)
+    builder.PrependInt8Slot(5, swFixedLegDayCounter, None)
 
 def AddSwFixedLegDayCounter(builder, swFixedLegDayCounter):
     SwapHelperAddSwFixedLegDayCounter(builder, swFixedLegDayCounter)
@@ -206,10 +206,10 @@ class SwapHelperT(object):
     def __init__(self):
         self.rate = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
-        self.calendar = 0  # type: int
-        self.swFixedLegFrequency = 0  # type: int
-        self.swFixedLegConvention = 0  # type: int
-        self.swFixedLegDayCounter = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.swFixedLegFrequency = None  # type: Optional[int]
+        self.swFixedLegConvention = None  # type: Optional[int]
+        self.swFixedLegDayCounter = None  # type: Optional[int]
         self.floatIndex = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
         self.fwdStartDays = 0  # type: int

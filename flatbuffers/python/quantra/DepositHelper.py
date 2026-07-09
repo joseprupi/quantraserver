@@ -56,21 +56,21 @@ class DepositHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # DepositHelper
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # DepositHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Optional: reference a shared quote by id instead of inline rate.
     # DepositHelper
@@ -105,19 +105,19 @@ def AddFixingDays(builder, fixingDays):
     DepositHelperAddFixingDays(builder, fixingDays)
 
 def DepositHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt8Slot(3, calendar, None)
 
 def AddCalendar(builder, calendar):
     DepositHelperAddCalendar(builder, calendar)
 
 def DepositHelperAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(4, businessDayConvention, 0)
+    builder.PrependInt8Slot(4, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     DepositHelperAddBusinessDayConvention(builder, businessDayConvention)
 
 def DepositHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     DepositHelperAddDayCounter(builder, dayCounter)
@@ -146,9 +146,9 @@ class DepositHelperT(object):
         self.rate = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.fixingDays = 0  # type: int
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
-        self.dayCounter = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
         self.quoteId = None  # type: str
 
     @classmethod

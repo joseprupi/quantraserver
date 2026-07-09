@@ -84,14 +84,21 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         }
         auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
+        if (!point->calendar().has_value())
+            QUANTRA_INVALID_ARGUMENT("DepositHelper.calendar is required");
+        if (!point->business_day_convention().has_value())
+            QUANTRA_INVALID_ARGUMENT("DepositHelper.business_day_convention is required");
+        if (!point->day_counter().has_value())
+            QUANTRA_INVALID_ARGUMENT("DepositHelper.day_counter is required");
+
         return std::make_shared<DepositRateHelper>(
             q,
             point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
             point->fixing_days(),
-            CalendarToQL(point->calendar()),
-            ConventionToQL(point->business_day_convention()),
+            CalendarToQL(point->calendar().value()),
+            ConventionToQL(point->business_day_convention().value()),
             true,
-            DayCounterToQL(point->day_counter()));
+            DayCounterToQL(point->day_counter().value()));
     }
 
     // ------------------------------------------------------------------
@@ -110,15 +117,22 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         }
         auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
+        if (!point->calendar().has_value())
+            QUANTRA_INVALID_ARGUMENT("FRAHelper.calendar is required");
+        if (!point->business_day_convention().has_value())
+            QUANTRA_INVALID_ARGUMENT("FRAHelper.business_day_convention is required");
+        if (!point->day_counter().has_value())
+            QUANTRA_INVALID_ARGUMENT("FRAHelper.day_counter is required");
+
         return std::make_shared<FraRateHelper>(
             q,
             point->months_to_start(),
             point->months_to_end(),
             point->fixing_days(),
-            CalendarToQL(point->calendar()),
-            ConventionToQL(point->business_day_convention()),
+            CalendarToQL(point->calendar().value()),
+            ConventionToQL(point->business_day_convention().value()),
             true,
-            DayCounterToQL(point->day_counter()));
+            DayCounterToQL(point->day_counter().value()));
     }
 
     // ------------------------------------------------------------------
@@ -149,6 +163,12 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->future_start_date()) {
             QUANTRA_INVALID_ARGUMENT("FutureHelper.future_start_date is required");
         }
+        if (!point->calendar().has_value())
+            QUANTRA_INVALID_ARGUMENT("FutureHelper.calendar is required");
+        if (!point->business_day_convention().has_value())
+            QUANTRA_INVALID_ARGUMENT("FutureHelper.business_day_convention is required");
+        if (!point->day_counter().has_value())
+            QUANTRA_INVALID_ARGUMENT("FutureHelper.day_counter is required");
 
         auto convexity = Handle<Quote>(
             std::make_shared<SimpleQuote>(point->convexity_adjustment()));
@@ -157,10 +177,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             q,
             DateToQL(point->future_start_date()->str()),
             point->future_months(),
-            CalendarToQL(point->calendar()),
-            ConventionToQL(point->business_day_convention()),
+            CalendarToQL(point->calendar().value()),
+            ConventionToQL(point->business_day_convention().value()),
             true,
-            DayCounterToQL(point->day_counter()),
+            DayCounterToQL(point->day_counter().value()),
             convexity);
     }
 
@@ -235,13 +255,22 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             discount = resolveCurve(point->deps()->discount_curve(), curves);
         }
 
+        if (!point->calendar().has_value())
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.calendar is required");
+        if (!point->sw_fixed_leg_frequency().has_value())
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_frequency is required");
+        if (!point->sw_fixed_leg_convention().has_value())
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_convention is required");
+        if (!point->sw_fixed_leg_day_counter().has_value())
+            QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_day_counter is required");
+
         return std::make_shared<SwapRateHelper>(
             q,
             point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
-            CalendarToQL(point->calendar()),
-            FrequencyToQL(point->sw_fixed_leg_frequency()),
-            ConventionToQL(point->sw_fixed_leg_convention()),
-            DayCounterToQL(point->sw_fixed_leg_day_counter()),
+            CalendarToQL(point->calendar().value()),
+            FrequencyToQL(point->sw_fixed_leg_frequency().value()),
+            ConventionToQL(point->sw_fixed_leg_convention().value()),
+            DayCounterToQL(point->sw_fixed_leg_day_counter().value()),
             ibor,
             spread,
             point->fwd_start_days() * Days,
@@ -274,6 +303,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->issue_date()) {
             QUANTRA_INVALID_ARGUMENT("BondHelper.issue_date is required");
         }
+        if (!point->day_counter().has_value())
+            QUANTRA_INVALID_ARGUMENT("BondHelper.day_counter is required");
+        if (!point->business_day_convention().has_value())
+            QUANTRA_INVALID_ARGUMENT("BondHelper.business_day_convention is required");
 
         return std::make_shared<FixedRateBondHelper>(
             q,
@@ -281,8 +314,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             point->face_amount(),
             *schedule_parser.parse(point->schedule()),
             std::vector<Rate>(1, point->coupon_rate()),
-            DayCounterToQL(point->day_counter()),
-            ConventionToQL(point->business_day_convention()),
+            DayCounterToQL(point->day_counter().value()),
+            ConventionToQL(point->business_day_convention().value()),
             point->redemption(),
             DateToQL(point->issue_date()->str()));
     }
