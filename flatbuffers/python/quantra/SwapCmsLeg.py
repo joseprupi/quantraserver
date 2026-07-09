@@ -88,7 +88,7 @@ class SwapCmsLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Payment business-day convention.
     # SwapCmsLeg
@@ -96,7 +96,7 @@ class SwapCmsLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Coupon gearing multiplier.
     # SwapCmsLeg
@@ -186,13 +186,13 @@ def AddFixingDays(builder, fixingDays):
     SwapCmsLegAddFixingDays(builder, fixingDays)
 
 def SwapCmsLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(6, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapCmsLegAddDayCounter(builder, dayCounter)
 
 def SwapCmsLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, 0)
+    builder.PrependInt8Slot(7, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapCmsLegAddPaymentConvention(builder, paymentConvention)
@@ -248,8 +248,8 @@ class SwapCmsLegT(object):
         self.swapTenor = None  # type: Optional[PeriodT]
         self.swaptionVolId = None  # type: str
         self.fixingDays = -1  # type: int
-        self.dayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
         self.gear = 1.0  # type: float
         self.spread = 0.0  # type: float
         self.pricer = None  # type: Optional[CmsPricerSpecT]

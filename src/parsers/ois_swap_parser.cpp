@@ -31,10 +31,13 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
     if (fixedLeg->schedule() == NULL)
         QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
 
+    if (!fixedLeg->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+
     auto fixedSchedule = scheduleParser.parse(fixedLeg->schedule());
     double fixedNotional = fixedLeg->notional();
     double fixedRate = fixedLeg->rate();
-    DayCounter fixedDayCounter = DayCounterToQL(fixedLeg->day_counter());
+    DayCounter fixedDayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
     auto overnightLeg = swap->overnight_leg();
     if (overnightLeg->schedule() == NULL)

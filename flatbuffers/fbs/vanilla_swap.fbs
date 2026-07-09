@@ -9,8 +9,8 @@ table SwapFixedLeg {
     schedule:Schedule;
     notional:double;
     rate:double;
-    day_counter:enums.DayCounter;
-    payment_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    payment_convention:enums.BusinessDayConvention = null;
 }
 
 /// Floating leg of a swap.
@@ -20,8 +20,8 @@ table SwapFloatingLeg {
     /// Reference to an IndexDef by id (e.g., "EUR_6M").
     index:IndexRef (required);
     spread:double = 0.0;
-    day_counter:enums.DayCounter;
-    payment_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    payment_convention:enums.BusinessDayConvention = null;
     fixing_days:int = 2;
     in_arrears:bool = false;
 }
@@ -62,9 +62,9 @@ table SwapCmsLeg {
     /// Optional fixing days override; if negative, uses swap index spot_days.
     fixing_days:int = -1;
     /// Coupon accrual day-count convention.
-    day_counter:enums.DayCounter;
+    day_counter:enums.DayCounter = null;
     /// Payment business-day convention.
-    payment_convention:enums.BusinessDayConvention;
+    payment_convention:enums.BusinessDayConvention = null;
     /// Coupon gearing multiplier.
     gear:double = 1.0;
     /// Coupon additive spread.

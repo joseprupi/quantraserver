@@ -55,14 +55,14 @@ class SwapFixedLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapFixedLeg
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def SwapFixedLegStart(builder):
     builder.StartObject(5)
@@ -89,13 +89,13 @@ def AddRate(builder, rate):
     SwapFixedLegAddRate(builder, rate)
 
 def SwapFixedLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(3, dayCounter, 0)
+    builder.PrependInt8Slot(3, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapFixedLegAddDayCounter(builder, dayCounter)
 
 def SwapFixedLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(4, paymentConvention, 0)
+    builder.PrependInt8Slot(4, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapFixedLegAddPaymentConvention(builder, paymentConvention)
@@ -118,8 +118,8 @@ class SwapFixedLegT(object):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = 0.0  # type: float
         self.rate = 0.0  # type: float
-        self.dayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
