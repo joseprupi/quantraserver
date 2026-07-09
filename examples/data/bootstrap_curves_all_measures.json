@@ -1,10 +1,10 @@
 {
-  "as_of_date": "2025/01/15",
+  "as_of_date": "2025-01-15",
   "curves": [
     {
       "curve": {
         "id": "USD_OIS",
-        "reference_date": "2025/01/15",
+        "reference_date": "2025-01-15",
         "day_counter": "Actual365Fixed",
         "interpolator": "LogLinear",
         "bootstrap_trait": "Discount",
@@ -105,8 +105,8 @@
         "grid": {
           "grid_type": "RangeGrid",
           "grid": {
-            "start_date": "2025/01/15",
-            "end_date": "2027/01/15",
+            "start_date": "2025-01-15",
+            "end_date": "2027-01-15",
             "step_number": 1,
             "step_time_unit": "Weeks",
             "business_days_only": false

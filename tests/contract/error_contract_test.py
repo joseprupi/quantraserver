@@ -150,11 +150,20 @@ def _ec_abusive_schedule(arr_key, product_key):
     pinning the worker for the full gRPC deadline."""
     def f(req):
         sch = req[arr_key][0][product_key]["schedule"]
-        sch["effective_date"] = "1901/01/02"
-        sch["termination_date"] = "2199/12/30"
+        sch["effective_date"] = "1901-01-02"
+        sch["termination_date"] = "2199-12-30"
         sch["frequency"] = "Daily"
         return req
     return f
+def _ec_set_schedule_date(arr_key, product_key, field, value):
+    """Set a schedule date field to a specific (possibly malformed) value.
+    Used to check that the wire date format is strictly ISO-8601 YYYY-MM-DD."""
+    def f(req):
+        req[arr_key][0][product_key]["schedule"][field] = value
+        return req
+    return f
+
+
 def _ec_del_schedule_field(arr_key, product_key, field):
     """Drop a convention field from the product's schedule. The Schedule
     convention enums are presence-required: an omitted convention is an error,
@@ -380,6 +389,22 @@ SCENARIOS = [
     # ---- 400 INVALID_ARGUMENT: unbounded schedule generation guard ----
     ("ec:400 fixed_rate_bond 300y daily schedule rejected", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_abusive_schedule("bonds", "fixed_rate_bond")),
+    # ---- 400 INVALID_ARGUMENT: wire date format is strictly ISO-8601 ----
+    # Dates on the wire must be YYYY-MM-DD. A slash format, an impossible
+    # calendar date, or free text must all be rejected with a named 400 that
+    # names the offending value, never silently normalized or 500'd.
+    ("ec:400 fixed_rate_bond slash date rejected", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_date("bonds", "fixed_rate_bond", "effective_date", "2024/06/15"),
+     _ec_body_contains("expected YYYY-MM-DD")),
+    ("ec:400 fixed_rate_bond impossible date rejected", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_date("bonds", "fixed_rate_bond", "effective_date", "2024-02-30"),
+     _ec_body_contains("expected YYYY-MM-DD")),
+    ("ec:400 fixed_rate_bond textual date rejected", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_date("bonds", "fixed_rate_bond", "effective_date", "June 5th"),
+     _ec_body_contains("expected YYYY-MM-DD")),
     # ---- 400 INVALID_ARGUMENT: schedule convention presence ----
     # A Schedule convention enum omitted from the request must be rejected, not
     # silently defaulted to the alphabetical-0 value (calendar Argentina, etc.).

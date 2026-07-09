@@ -26,8 +26,8 @@ namespace {
 flatbuffers::Offset<quantra::Schedule> makeBondSchedule(
     flatbuffers::FlatBufferBuilder& fbb)
 {
-    auto eff = fbb.CreateString("2005/03/15");
-    auto term = fbb.CreateString("2010/08/31");
+    auto eff = fbb.CreateString("2005-03-15");
+    auto term = fbb.CreateString("2010-08-31");
     quantra::ScheduleBuilder sb(fbb);
     sb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
     sb.add_effective_date(eff);
@@ -45,7 +45,7 @@ const quantra::BondHelper* makeBondHelper(
     flatbuffers::FlatBufferBuilder& fbb, BondQuoteSlot slot, double value)
 {
     auto schedule = makeBondSchedule(fbb);
-    auto issue = fbb.CreateString("2005/03/15");
+    auto issue = fbb.CreateString("2005-03-15");
     quantra::BondHelperBuilder bb(fbb);
     if (slot == BondQuoteSlot::Price) bb.add_price(value);
     if (slot == BondQuoteSlot::Rate) bb.add_rate(value);
@@ -115,7 +115,7 @@ const quantra::FutureHelper* makeFutureHelper(
     flatbuffers::FlatBufferBuilder& fbb, FutureQuoteSlot slot,
     double price, double rate)
 {
-    auto start = fbb.CreateString("2026/09/16");
+    auto start = fbb.CreateString("2026-09-16");
     quantra::FutureHelperBuilder fb(fbb);
     if (slot == FutureQuoteSlot::FuturesPrice || slot == FutureQuoteSlot::Both)
         fb.add_futures_price(price);

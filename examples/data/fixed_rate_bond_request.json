@@ -61,8 +61,8 @@
                 "face_amount": 100,
                 "schedule": {
                   "calendar": "UnitedStatesGovernmentBond",
-                  "effective_date": "2005/03/15",
-                  "termination_date": "2010/08/31",
+                  "effective_date": "2005-03-15",
+                  "termination_date": "2010-08-31",
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
@@ -72,7 +72,7 @@
                 "day_counter": "ActualActualBond",
                 "business_day_convention": "Unadjusted",
                 "redemption": 100,
-                "issue_date": "2005/03/15"
+                "issue_date": "2005-03-15"
               }
             },
             {
@@ -83,8 +83,8 @@
                 "face_amount": 100,
                 "schedule": {
                   "calendar": "UnitedStatesGovernmentBond",
-                  "effective_date": "2005/06/15",
-                  "termination_date": "2011/08/31",
+                  "effective_date": "2005-06-15",
+                  "termination_date": "2011-08-31",
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
@@ -94,7 +94,7 @@
                 "day_counter": "ActualActualBond",
                 "business_day_convention": "Unadjusted",
                 "redemption": 100,
-                "issue_date": "2005/06/15"
+                "issue_date": "2005-06-15"
               }
             },
             {
@@ -105,8 +105,8 @@
                 "face_amount": 100,
                 "schedule": {
                   "calendar": "UnitedStatesGovernmentBond",
-                  "effective_date": "2006/06/30",
-                  "termination_date": "2013/08/31",
+                  "effective_date": "2006-06-30",
+                  "termination_date": "2013-08-31",
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
@@ -116,7 +116,7 @@
                 "day_counter": "ActualActualBond",
                 "business_day_convention": "Unadjusted",
                 "redemption": 100,
-                "issue_date": "2006/06/30"
+                "issue_date": "2006-06-30"
               }
             },
             {
@@ -127,8 +127,8 @@
                 "face_amount": 100,
                 "schedule": {
                   "calendar": "UnitedStatesGovernmentBond",
-                  "effective_date": "2002/11/15",
-                  "termination_date": "2018/08/15",
+                  "effective_date": "2002-11-15",
+                  "termination_date": "2018-08-15",
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
@@ -138,7 +138,7 @@
                 "day_counter": "ActualActualBond",
                 "business_day_convention": "Unadjusted",
                 "redemption": 100,
-                "issue_date": "2002/11/15"
+                "issue_date": "2002-11-15"
               }
             },
             {
@@ -149,8 +149,8 @@
                 "face_amount": 100,
                 "schedule": {
                   "calendar": "UnitedStatesGovernmentBond",
-                  "effective_date": "1987/05/15",
-                  "termination_date": "2038/05/15",
+                  "effective_date": "1987-05-15",
+                  "termination_date": "2038-05-15",
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
@@ -160,7 +160,7 @@
                 "day_counter": "ActualActualBond",
                 "business_day_convention": "Unadjusted",
                 "redemption": 100,
-                "issue_date": "1987/05/15"
+                "issue_date": "1987-05-15"
               }
             }
           ]
@@ -181,11 +181,11 @@
         "accrual_day_counter": "ActualActualBond",
         "payment_convention": "ModifiedFollowing",
         "redemption": 100,
-        "issue_date": "2007/05/15",
+        "issue_date": "2007-05-15",
         "schedule": {
           "calendar": "UnitedStatesGovernmentBond",
-          "effective_date": "2007/05/15",
-          "termination_date": "2017/05/15",
+          "effective_date": "2007-05-15",
+          "termination_date": "2017-05-15",
           "frequency": "Semiannual",
           "convention": "Unadjusted",
           "termination_date_convention": "Unadjusted",
