@@ -75,6 +75,15 @@ void validateIrVolBaseCommon(const quantra::IrVolBaseSpec* b, const std::string&
     if (!b->reference_date()) {
         QUANTRA_INVALID_ARGUMENT("reference_date required for vol id: " + id);
     }
+    if (!b->calendar().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.calendar is required for vol id: " + id);
+    }
+    if (!b->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.business_day_convention is required for vol id: " + id);
+    }
+    if (!b->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.day_counter is required for vol id: " + id);
+    }
 
     auto volType = b->volatility_type();
     double disp = b->displacement();
@@ -107,6 +116,15 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
     }
     if (!b->reference_date()) {
         QUANTRA_INVALID_ARGUMENT("reference_date required for vol id: " + id);
+    }
+    if (!b->calendar().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.calendar is required for vol id: " + id);
+    }
+    if (!b->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.business_day_convention is required for vol id: " + id);
+    }
+    if (!b->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.day_counter is required for vol id: " + id);
     }
     switch (b->shape()) {
         case quantra::enums::VolSurfaceShape_Constant:
@@ -866,9 +884,9 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     validateIrVolBaseConstant(b, id);
 
     QuantLib::Date ref = DateToQL(b->reference_date()->str());
-    QuantLib::Calendar cal = CalendarToQL(b->calendar());
-    QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-    QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+    QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+    QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+    QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
     double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
     double disp = b->displacement();
     QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
@@ -884,9 +902,9 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     entry.constantVol = vol;
     entry.referenceDate = ref;
     entry.calendar = cal;
-    entry.calendarFb = b->calendar();
+    entry.calendarFb = b->calendar().value();
     entry.businessDayConvention = bdc;
-    entry.businessDayConventionFb = b->business_day_convention();
+    entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
     
     return entry;
@@ -921,9 +939,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             validateIrVolBaseConstant(b, id);
 
             QuantLib::Date ref = DateToQL(b->reference_date()->str());
-            QuantLib::Calendar cal = CalendarToQL(b->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
@@ -957,9 +975,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             validateSupportedInterpolator(payload->tenor_interpolator(), "tenor_interpolator", id);
 
             QuantLib::Date ref = DateToQL(b->reference_date()->str());
-            QuantLib::Calendar cal = CalendarToQL(b->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -1040,9 +1058,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             validateSupportedInterpolator(payload->strike_interpolator(), "strike_interpolator", id);
 
             QuantLib::Date ref = DateToQL(b->reference_date()->str());
-            QuantLib::Calendar cal = CalendarToQL(b->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -1152,9 +1170,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
 
             QuantLib::Date ref = DateToQL(b->reference_date()->str());
-            QuantLib::Calendar cal = CalendarToQL(b->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -1278,9 +1296,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
 
             QuantLib::Date ref = DateToQL(b->reference_date()->str());
-            QuantLib::Calendar cal = CalendarToQL(b->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+            QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
 
@@ -1460,9 +1478,9 @@ BlackVolEntry parseBlackVol(
     validateBlackVolBase(b, id);
 
     QuantLib::Date ref = DateToQL(b->reference_date()->str());
-    QuantLib::Calendar cal = CalendarToQL(b->calendar());
-    QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention());
-    QuantLib::DayCounter dc = DayCounterToQL(b->day_counter());
+    QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
+    QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+    QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
     const auto shape = b->shape();
 
     const bool hasExpiries = hasNonEmptyPeriods(payload->expiries());
@@ -1827,9 +1845,9 @@ BlackVolEntry parseBlackVol(
     entry.constantVol = built.second;
     entry.referenceDate = ref;
     entry.calendar = cal;
-    entry.calendarFb = b->calendar();
+    entry.calendarFb = b->calendar().value();
     entry.businessDayConvention = bdc;
-    entry.businessDayConventionFb = b->business_day_convention();
+    entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
     if (payload->allow_extrapolation()) {
         entry.handle->enableExtrapolation();

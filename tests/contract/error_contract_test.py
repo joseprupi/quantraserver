@@ -165,6 +165,21 @@ def _ec_del_schedule_field(arr_key, product_key, field):
     return f
 
 
+def _ec_del_vol_base_field(field):
+    """Drop a convention field from the first vol surface's base spec. The
+    IrVol/BlackVol base convention enums are presence-required: an omitted
+    convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        surfaces = req["pricing"]["volatility"]["vol_surfaces"]
+        payload = surfaces[0]["payload"]
+        # Descend through nested payload wrappers until the base spec is found.
+        while "base" not in payload and "payload" in payload:
+            payload = payload["payload"]
+        payload["base"].pop(field, None)
+        return req
+    return f
+
+
 def _ec_set_credit_curve_field(field, value):
     def f(req):
         req["pricing"]["credit"]["credit_curves"][0][field] = value
@@ -293,6 +308,17 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_del_curve_field("interpolator"),
      _ec_body_contains("TermStructure.interpolator is required")),
+    # ---- 400 INVALID_ARGUMENT: volatility base convention presence ----
+    # An IrVol/BlackVol base convention enum omitted from the request must be
+    # rejected, not silently defaulted to the alphabetical-0 value.
+    ("ec:400 swaption vol base missing day_counter", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_vol_base_field("day_counter"),
+     _ec_body_contains("IrVolBaseSpec.day_counter is required")),
+    ("ec:400 swaption vol base missing calendar", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_vol_base_field("calendar"),
+     _ec_body_contains("IrVolBaseSpec.calendar is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request
