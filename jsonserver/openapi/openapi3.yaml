@@ -1826,6 +1826,7 @@ components:
       properties:
         rate:
           type: number
+          description: Deposit rate. One of rate or quote_id must be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         fixing_days:
@@ -1849,6 +1850,7 @@ components:
       properties:
         rate:
           type: number
+          description: FRA rate. One of rate or quote_id must be provided.
         months_to_start:
           type: integer
           minimum: -2147483648
@@ -1906,6 +1908,7 @@ components:
       properties:
         rate:
           type: number
+          description: Swap rate. One of rate or quote_id must be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         calendar:
@@ -1971,6 +1974,7 @@ components:
       properties:
         rate:
           type: number
+          description: OIS rate. One of rate or quote_id must be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         overnight_index:
@@ -2000,6 +2004,7 @@ components:
       properties:
         rate:
           type: number
+          description: OIS rate. One of rate or quote_id must be provided.
         start_date:
           type: string
         end_date:
@@ -2040,7 +2045,7 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         zero_rate:
           type: number
-          description: Zero rate for this maturity.
+          description: Zero rate for this maturity. Required.
         compounding:
           $ref: '#/components/schemas/quantra_enums_Compounding'
         frequency:
@@ -2052,6 +2057,7 @@ components:
       properties:
         spread:
           type: number
+          description: Basis spread. One of spread or quote_id must be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         index_short:
@@ -2074,6 +2080,7 @@ components:
       properties:
         fx_points:
           type: number
+          description: FX forward points. One of fx_points or quote_id must be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         spot_days:
@@ -2095,6 +2102,8 @@ components:
       properties:
         spread:
           type: number
+          description: Cross-currency basis spread. One of spread or quote_id must
+            be provided.
         tenor:
           $ref: '#/components/schemas/quantra_Period'
         index_domestic:

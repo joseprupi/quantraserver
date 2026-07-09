@@ -25,12 +25,13 @@ class OISHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # OIS rate. One of rate or quote_id must be provided.
     # OISHelper
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # OISHelper
     def Tenor(self):
@@ -116,7 +117,7 @@ def Start(builder):
     OISHelperStart(builder)
 
 def OISHelperAddRate(builder, rate):
-    builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.PrependFloat64Slot(0, rate, None)
 
 def AddRate(builder, rate):
     OISHelperAddRate(builder, rate)
@@ -190,7 +191,7 @@ class OISHelperT(object):
 
     # OISHelperT
     def __init__(self):
-        self.rate = 0.0  # type: float
+        self.rate = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.overnightIndex = None  # type: Optional[IndexRefT]
         self.settlementDays = 2  # type: int

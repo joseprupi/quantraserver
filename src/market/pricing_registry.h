@@ -52,7 +52,7 @@ struct InflationCurveEntry {
 
 struct RatesRegistry {
     std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
-    /// Per-curve canonical cache keys ("yc:v2:<hex>"), populated when the curve
+    /// Per-curve canonical cache keys ("yc:v3:<hex>"), populated when the curve
     /// cache is enabled. Used by downstream consumers (e.g. SABR calibrate
     /// cube cache) to derive their own content-keyed identities. Missing
     /// entries indicate that the curve was bootstrapped with caching disabled

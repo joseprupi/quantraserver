@@ -25,12 +25,13 @@ class FxSwapHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # FX forward points. One of fx_points or quote_id must be provided.
     # FxSwapHelper
     def FxPoints(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # FxSwapHelper
     def Tenor(self):
@@ -89,7 +90,7 @@ def Start(builder):
     FxSwapHelperStart(builder)
 
 def FxSwapHelperAddFxPoints(builder, fxPoints):
-    builder.PrependFloat64Slot(0, fxPoints, 0.0)
+    builder.PrependFloat64Slot(0, fxPoints, None)
 
 def AddFxPoints(builder, fxPoints):
     FxSwapHelperAddFxPoints(builder, fxPoints)
@@ -145,7 +146,7 @@ class FxSwapHelperT(object):
 
     # FxSwapHelperT
     def __init__(self):
-        self.fxPoints = 0.0  # type: float
+        self.fxPoints = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.spotDays = 2  # type: int
         self.calendarDomestic = 32  # type: int

@@ -539,7 +539,7 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependenciesDirect(
 
 struct DepositHelperT : public ::flatbuffers::NativeTable {
   typedef DepositHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   int32_t fixing_days = 0;
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
@@ -565,8 +565,9 @@ struct DepositHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DAY_COUNTER = 14,
     VT_QUOTE_ID = 16
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// Deposit rate. One of rate or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -610,7 +611,7 @@ struct DepositHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(DepositHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(DepositHelper::VT_RATE, rate);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(DepositHelper::VT_TENOR, tenor);
@@ -643,7 +644,7 @@ struct DepositHelperBuilder {
 
 inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
@@ -651,7 +652,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   DepositHelperBuilder builder_(_fbb);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_fixing_days(fixing_days);
   builder_.add_tenor(tenor);
@@ -663,7 +664,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelper(
 
 inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t fixing_days = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
@@ -686,7 +687,7 @@ inline ::flatbuffers::Offset<DepositHelper> CreateDepositHelperDirect(
 
 struct FRAHelperT : public ::flatbuffers::NativeTable {
   typedef FRAHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   int32_t months_to_start = 0;
   int32_t months_to_end = 0;
   int32_t fixing_days = 0;
@@ -710,8 +711,9 @@ struct FRAHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DAY_COUNTER = 16,
     VT_QUOTE_ID = 18
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// FRA rate. One of rate or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   int32_t months_to_start() const {
     return GetField<int32_t>(VT_MONTHS_TO_START, 0);
@@ -757,7 +759,7 @@ struct FRAHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(FRAHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(FRAHelper::VT_RATE, rate);
   }
   void add_months_to_start(int32_t months_to_start) {
     fbb_.AddElement<int32_t>(FRAHelper::VT_MONTHS_TO_START, months_to_start, 0);
@@ -793,7 +795,7 @@ struct FRAHelperBuilder {
 
 inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t months_to_start = 0,
     int32_t months_to_end = 0,
     int32_t fixing_days = 0,
@@ -802,7 +804,7 @@ inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   FRAHelperBuilder builder_(_fbb);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_fixing_days(fixing_days);
   builder_.add_months_to_end(months_to_end);
@@ -815,7 +817,7 @@ inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelper(
 
 inline ::flatbuffers::Offset<FRAHelper> CreateFRAHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t months_to_start = 0,
     int32_t months_to_end = 0,
     int32_t fixing_days = 0,
@@ -1013,7 +1015,7 @@ inline ::flatbuffers::Offset<FutureHelper> CreateFutureHelperDirect(
 
 struct SwapHelperT : public ::flatbuffers::NativeTable {
   typedef SwapHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
   quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual;
@@ -1047,8 +1049,9 @@ struct SwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DEPS = 22,
     VT_QUOTE_ID = 24
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// Swap rate. One of rate or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -1111,7 +1114,7 @@ struct SwapHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(SwapHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(SwapHelper::VT_RATE, rate);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(SwapHelper::VT_TENOR, tenor);
@@ -1157,7 +1160,7 @@ struct SwapHelperBuilder {
 
 inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
@@ -1170,7 +1173,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   SwapHelperBuilder builder_(_fbb);
   builder_.add_spread(spread);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_fwd_start_days(fwd_start_days);
@@ -1185,7 +1188,7 @@ inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelper(
 
 inline ::flatbuffers::Offset<SwapHelper> CreateSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
     quantra::enums::Frequency sw_fixed_leg_frequency = quantra::enums::Frequency_Annual,
@@ -1419,7 +1422,7 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
 
 struct OISHelperT : public ::flatbuffers::NativeTable {
   typedef OISHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
   int32_t settlement_days = 2;
@@ -1451,8 +1454,9 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DEPS = 20,
     VT_QUOTE_ID = 22
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// OIS rate. One of rate or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -1511,7 +1515,7 @@ struct OISHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(OISHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(OISHelper::VT_RATE, rate);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(OISHelper::VT_TENOR, tenor);
@@ -1554,7 +1558,7 @@ struct OISHelperBuilder {
 
 inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
@@ -1565,7 +1569,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   OISHelperBuilder builder_(_fbb);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_settlement_days(settlement_days);
@@ -1580,7 +1584,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
 
 inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     int32_t settlement_days = 2,
@@ -1609,7 +1613,7 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
 
 struct DatedOISHelperT : public ::flatbuffers::NativeTable {
   typedef DatedOISHelper TableType;
-  double rate = 0.0;
+  ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::string start_date{};
   std::string end_date{};
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
@@ -1641,8 +1645,9 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DEPS = 20,
     VT_QUOTE_ID = 22
   };
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
+  /// OIS rate. One of rate or quote_id must be provided.
+  ::flatbuffers::Optional<double> rate() const {
+    return GetOptional<double, double>(VT_RATE);
   }
   const ::flatbuffers::String *start_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_START_DATE);
@@ -1702,7 +1707,7 @@ struct DatedOISHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_rate(double rate) {
-    fbb_.AddElement<double>(DatedOISHelper::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(DatedOISHelper::VT_RATE, rate);
   }
   void add_start_date(::flatbuffers::Offset<::flatbuffers::String> start_date) {
     fbb_.AddOffset(DatedOISHelper::VT_START_DATE, start_date);
@@ -1747,7 +1752,7 @@ struct DatedOISHelperBuilder {
 
 inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
@@ -1758,7 +1763,7 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   DatedOISHelperBuilder builder_(_fbb);
-  builder_.add_rate(rate);
+  if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_settlement_days(settlement_days);
@@ -1773,7 +1778,7 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
 
 inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double rate = 0.0,
+    ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     const char *start_date = nullptr,
     const char *end_date = nullptr,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
@@ -1808,7 +1813,7 @@ struct ZeroRatePointT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::PeriodT> tenor{};
   quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
   quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  double zero_rate = 0.0;
+  ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt;
   quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous;
   quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
   ZeroRatePointT() = default;
@@ -1844,9 +1849,9 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::BusinessDayConvention business_day_convention() const {
     return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
   }
-  /// Zero rate for this maturity.
-  double zero_rate() const {
-    return GetField<double>(VT_ZERO_RATE, 0.0);
+  /// Zero rate for this maturity. Required.
+  ::flatbuffers::Optional<double> zero_rate() const {
+    return GetOptional<double, double>(VT_ZERO_RATE);
   }
   /// Compounding convention for the zero rate.
   quantra::enums::Compounding compounding() const {
@@ -1891,7 +1896,7 @@ struct ZeroRatePointBuilder {
     fbb_.AddElement<int8_t>(ZeroRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
   }
   void add_zero_rate(double zero_rate) {
-    fbb_.AddElement<double>(ZeroRatePoint::VT_ZERO_RATE, zero_rate, 0.0);
+    fbb_.AddElement<double>(ZeroRatePoint::VT_ZERO_RATE, zero_rate);
   }
   void add_compounding(quantra::enums::Compounding compounding) {
     fbb_.AddElement<int8_t>(ZeroRatePoint::VT_COMPOUNDING, static_cast<int8_t>(compounding), 1);
@@ -1916,11 +1921,11 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    double zero_rate = 0.0,
+    ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt,
     quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
     quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
   ZeroRatePointBuilder builder_(_fbb);
-  builder_.add_zero_rate(zero_rate);
+  if(zero_rate) { builder_.add_zero_rate(*zero_rate); }
   builder_.add_tenor(tenor);
   builder_.add_date(date);
   builder_.add_frequency(frequency);
@@ -1936,7 +1941,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    double zero_rate = 0.0,
+    ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt,
     quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
     quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
@@ -1955,7 +1960,7 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
 
 struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   typedef TenorBasisSwapHelper TableType;
-  double spread = 0.0;
+  ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> index_short{};
   std::unique_ptr<quantra::IndexRefT> index_long{};
@@ -1981,8 +1986,9 @@ struct TenorBasisSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_DEPS = 14,
     VT_QUOTE_ID = 16
   };
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
+  /// Basis spread. One of spread or quote_id must be provided.
+  ::flatbuffers::Optional<double> spread() const {
+    return GetOptional<double, double>(VT_SPREAD);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -2030,7 +2036,7 @@ struct TenorBasisSwapHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_spread(double spread) {
-    fbb_.AddElement<double>(TenorBasisSwapHelper::VT_SPREAD, spread, 0.0);
+    fbb_.AddElement<double>(TenorBasisSwapHelper::VT_SPREAD, spread);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(TenorBasisSwapHelper::VT_TENOR, tenor);
@@ -2065,7 +2071,7 @@ struct TenorBasisSwapHelperBuilder {
 
 inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double spread = 0.0,
+    ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
@@ -2073,7 +2079,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   TenorBasisSwapHelperBuilder builder_(_fbb);
-  builder_.add_spread(spread);
+  if(spread) { builder_.add_spread(*spread); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_index_long(index_long);
@@ -2085,7 +2091,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(
 
 inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double spread = 0.0,
+    ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_short = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_long = 0,
@@ -2108,7 +2114,7 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDir
 
 struct FxSwapHelperT : public ::flatbuffers::NativeTable {
   typedef FxSwapHelper TableType;
-  double fx_points = 0.0;
+  ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   int32_t spot_days = 2;
   quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET;
@@ -2134,8 +2140,9 @@ struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DEPS = 14,
     VT_QUOTE_ID = 16
   };
-  double fx_points() const {
-    return GetField<double>(VT_FX_POINTS, 0.0);
+  /// FX forward points. One of fx_points or quote_id must be provided.
+  ::flatbuffers::Optional<double> fx_points() const {
+    return GetOptional<double, double>(VT_FX_POINTS);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -2179,7 +2186,7 @@ struct FxSwapHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_fx_points(double fx_points) {
-    fbb_.AddElement<double>(FxSwapHelper::VT_FX_POINTS, fx_points, 0.0);
+    fbb_.AddElement<double>(FxSwapHelper::VT_FX_POINTS, fx_points);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(FxSwapHelper::VT_TENOR, tenor);
@@ -2212,7 +2219,7 @@ struct FxSwapHelperBuilder {
 
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double fx_points = 0.0,
+    ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t spot_days = 2,
     quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
@@ -2220,7 +2227,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   FxSwapHelperBuilder builder_(_fbb);
-  builder_.add_fx_points(fx_points);
+  if(fx_points) { builder_.add_fx_points(*fx_points); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_spot_days(spot_days);
@@ -2232,7 +2239,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
 
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double fx_points = 0.0,
+    ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     int32_t spot_days = 2,
     quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
@@ -2255,7 +2262,7 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
 
 struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   typedef CrossCcyBasisHelper TableType;
-  double spread = 0.0;
+  ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> index_domestic{};
   std::unique_ptr<quantra::IndexRefT> index_foreign{};
@@ -2279,8 +2286,9 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
     VT_DEPS = 12,
     VT_QUOTE_ID = 14
   };
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
+  /// Cross-currency basis spread. One of spread or quote_id must be provided.
+  ::flatbuffers::Optional<double> spread() const {
+    return GetOptional<double, double>(VT_SPREAD);
   }
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
@@ -2324,7 +2332,7 @@ struct CrossCcyBasisHelperBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_spread(double spread) {
-    fbb_.AddElement<double>(CrossCcyBasisHelper::VT_SPREAD, spread, 0.0);
+    fbb_.AddElement<double>(CrossCcyBasisHelper::VT_SPREAD, spread);
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_TENOR, tenor);
@@ -2356,14 +2364,14 @@ struct CrossCcyBasisHelperBuilder {
 
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double spread = 0.0,
+    ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   CrossCcyBasisHelperBuilder builder_(_fbb);
-  builder_.add_spread(spread);
+  if(spread) { builder_.add_spread(*spread); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
   builder_.add_index_foreign(index_foreign);
@@ -2374,7 +2382,7 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
 
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    double spread = 0.0,
+    ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,

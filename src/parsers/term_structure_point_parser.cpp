@@ -73,7 +73,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->tenor()) {
             QUANTRA_INVALID_ARGUMENT("DepositHelper.tenor is required");
         }
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the rate below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("DepositHelper requires one of rate or quote_id");
+        }
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<DepositRateHelper>(
             q,
@@ -90,7 +99,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_FRAHelper) {
         auto point = static_cast<const quantra::FRAHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the rate below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("FRAHelper requires one of rate or quote_id");
+        }
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         return std::make_shared<FraRateHelper>(
             q,
@@ -174,7 +192,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->tenor()) {
             QUANTRA_INVALID_ARGUMENT("SwapHelper.tenor is required");
         }
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the rate below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("SwapHelper requires one of rate or quote_id");
+        }
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for SwapHelper");
@@ -277,7 +304,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->tenor()) {
             QUANTRA_INVALID_ARGUMENT("OISHelper.tenor is required");
         }
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the rate below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("OISHelper requires one of rate or quote_id");
+        }
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for OISHelper");
@@ -322,7 +358,16 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_DatedOISHelper) {
         auto point = static_cast<const quantra::DatedOISHelper*>(data);
-        auto q = resolveQuote(point->rate(), point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double rateValue;
+        if (point->rate().has_value()) {
+            rateValue = point->rate().value();
+        } else if (has_quote) {
+            rateValue = 0.0; // unused: quote_id supplies the rate below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("DatedOISHelper requires one of rate or quote_id");
+        }
+        auto q = resolveQuote(rateValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!indices) {
             QUANTRA_ERROR("IndexRegistry is required for DatedOISHelper");

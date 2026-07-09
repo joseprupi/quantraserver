@@ -25,12 +25,13 @@ class SwapHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Swap rate. One of rate or quote_id must be provided.
     # SwapHelper
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # SwapHelper
     def Tenor(self):
@@ -123,7 +124,7 @@ def Start(builder):
     SwapHelperStart(builder)
 
 def SwapHelperAddRate(builder, rate):
-    builder.PrependFloat64Slot(0, rate, 0.0)
+    builder.PrependFloat64Slot(0, rate, None)
 
 def AddRate(builder, rate):
     SwapHelperAddRate(builder, rate)
@@ -203,7 +204,7 @@ class SwapHelperT(object):
 
     # SwapHelperT
     def __init__(self):
-        self.rate = 0.0  # type: float
+        self.rate = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.calendar = 0  # type: int
         self.swFixedLegFrequency = 0  # type: int

@@ -83,7 +83,7 @@ TEST(CurveCacheKeyUnknownPoint, NonePointTypeStillKeyable) {
 
     KeyContext ctx;
     std::string key = CurveKeyBuilder::compute("2026-06-11", root, ctx, {});
-    EXPECT_EQ(key.rfind("yc:v2:", 0), 0u);
+    EXPECT_EQ(key.rfind("yc:v3:", 0), 0u);
 }
 
 } // namespace

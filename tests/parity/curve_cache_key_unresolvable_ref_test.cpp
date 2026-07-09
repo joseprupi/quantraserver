@@ -104,8 +104,8 @@ TEST(CurveCacheKeyUnresolvableRef, ResolvedQuoteIdStillKeyable) {
 
     std::string k1 = CurveKeyBuilder::compute("2026-06-11", ts1, lo, {});
     std::string k2 = CurveKeyBuilder::compute("2026-06-11", ts2, hi, {});
-    EXPECT_EQ(k1.rfind("yc:v2:", 0), 0u);
-    EXPECT_EQ(k2.rfind("yc:v2:", 0), 0u);
+    EXPECT_EQ(k1.rfind("yc:v3:", 0), 0u);
+    EXPECT_EQ(k2.rfind("yc:v3:", 0), 0u);
     EXPECT_NE(k1, k2);
 }
 
@@ -116,7 +116,7 @@ TEST(CurveCacheKeyUnresolvableRef, InlineValueWithoutQuoteIdStillKeyable) {
 
     KeyContext ctx;
     std::string key = CurveKeyBuilder::compute("2026-06-11", ts, ctx, {});
-    EXPECT_EQ(key.rfind("yc:v2:", 0), 0u);
+    EXPECT_EQ(key.rfind("yc:v3:", 0), 0u);
 }
 
 // A referenced index with no definition must throw (fail closed -> curve
@@ -144,7 +144,7 @@ TEST(CurveCacheKeyUnresolvableRef, DefinedIndexStillKeyable) {
     ctx.indexDefs["euribor-6m"] = defRoot;
 
     std::string key = CurveKeyBuilder::compute("2026-06-11", ts, ctx, {});
-    EXPECT_EQ(key.rfind("yc:v2:", 0), 0u);
+    EXPECT_EQ(key.rfind("yc:v3:", 0), 0u);
 }
 
 } // namespace
