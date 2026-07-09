@@ -59,21 +59,21 @@ class FRAHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRAHelper
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRAHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRAHelper
     def QuoteId(self):
@@ -113,19 +113,19 @@ def AddFixingDays(builder, fixingDays):
     FRAHelperAddFixingDays(builder, fixingDays)
 
 def FRAHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt8Slot(4, calendar, None)
 
 def AddCalendar(builder, calendar):
     FRAHelperAddCalendar(builder, calendar)
 
 def FRAHelperAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(5, businessDayConvention, 0)
+    builder.PrependInt8Slot(5, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     FRAHelperAddBusinessDayConvention(builder, businessDayConvention)
 
 def FRAHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(6, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     FRAHelperAddDayCounter(builder, dayCounter)
@@ -151,9 +151,9 @@ class FRAHelperT(object):
         self.monthsToStart = 0  # type: int
         self.monthsToEnd = 0  # type: int
         self.fixingDays = 0  # type: int
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
-        self.dayCounter = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
         self.quoteId = None  # type: str
 
     @classmethod

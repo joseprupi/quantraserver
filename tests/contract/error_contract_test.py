@@ -116,6 +116,16 @@ def _ec_del_curve_point_field(point_type, field):
     return f
 
 
+def _ec_del_curve_field(field):
+    """Drop a top-level convention field from the first pricing curve
+    (TermStructure). day_counter and interpolator are presence-required: an
+    omitted convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        req["pricing"]["rates"]["curves"][0].pop(field, None)
+        return req
+    return f
+
+
 def _ec_future_helper_missing_start_date():
     """Replace the first curve point with a FutureHelper that omits
     future_start_date (optional in the schema, deref'd by the parser)."""
@@ -271,6 +281,18 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_del_schedule_field("bonds", "fixed_rate_bond", "convention"),
      _ec_body_contains("Schedule.convention is required")),
+    # ---- 400 INVALID_ARGUMENT: curve-helper / term-structure convention presence ----
+    # A curve-helper convention enum omitted from the request must be rejected,
+    # not silently defaulted to the alphabetical-0 value. Same for the
+    # TermStructure's own day_counter / interpolator.
+    ("ec:400 fixed_rate_bond curve DepositHelper missing day_counter", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_curve_point_field("DepositHelper", "day_counter"),
+     _ec_body_contains("DepositHelper.day_counter is required")),
+    ("ec:400 fixed_rate_bond curve TermStructure missing interpolator", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_curve_field("interpolator"),
+     _ec_body_contains("TermStructure.interpolator is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request

@@ -53,21 +53,21 @@ class FutureHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FutureHelper
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FutureHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Futures price (e.g., 95.25); when present, rate is ignored.
     # FutureHelper
@@ -117,19 +117,19 @@ def AddFutureMonths(builder, futureMonths):
     FutureHelperAddFutureMonths(builder, futureMonths)
 
 def FutureHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 0)
+    builder.PrependInt8Slot(3, calendar, None)
 
 def AddCalendar(builder, calendar):
     FutureHelperAddCalendar(builder, calendar)
 
 def FutureHelperAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(4, businessDayConvention, 0)
+    builder.PrependInt8Slot(4, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     FutureHelperAddBusinessDayConvention(builder, businessDayConvention)
 
 def FutureHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     FutureHelperAddDayCounter(builder, dayCounter)
@@ -166,9 +166,9 @@ class FutureHelperT(object):
         self.rate = None  # type: Optional[float]
         self.futureStartDate = None  # type: str
         self.futureMonths = 0  # type: int
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
-        self.dayCounter = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
         self.futuresPrice = None  # type: Optional[float]
         self.convexityAdjustment = 0.0  # type: float
         self.quoteId = None  # type: str

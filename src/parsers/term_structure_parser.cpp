@@ -35,6 +35,11 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     if (!points || points->size() == 0)
         QUANTRA_INVALID_ARGUMENT("Empty list of points for term structure");
 
+    if (!ts->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("TermStructure.day_counter is required");
+    if (!ts->interpolator().has_value())
+        QUANTRA_INVALID_ARGUMENT("TermStructure.interpolator is required");
+
     bool hasZeroPoints = false;
     for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
         if (points->Get(i)->point_type() == quantra::Point_ZeroRatePoint) {
@@ -134,9 +139,9 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
         ref = Settings::instance().evaluationDate();
     }
     
-    DayCounter dc = DayCounterToQL(ts->day_counter());
+    DayCounter dc = DayCounterToQL(ts->day_counter().value());
 
-    switch (ts->interpolator()) {
+    switch (ts->interpolator().value()) {
     case enums::Interpolator_BackwardFlat:
         switch (ts->bootstrap_trait()) {
         case enums::BootstrapTrait_Discount:
@@ -250,9 +255,9 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildZeroCurve(
         QUANTRA_INVALID_ARGUMENT("Zero curve requires matching non-empty date/rate vectors");
     }
 
-    DayCounter dc = DayCounterToQL(ts->day_counter());
+    DayCounter dc = DayCounterToQL(ts->day_counter().value());
 
-    switch (ts->interpolator()) {
+    switch (ts->interpolator().value()) {
     case enums::Interpolator_Linear:
         return std::make_shared<InterpolatedZeroCurve<Linear>>(
             dates, zeroRates, dc, Calendar(), Linear(), compounding, frequency);

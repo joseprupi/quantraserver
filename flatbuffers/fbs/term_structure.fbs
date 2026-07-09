@@ -28,9 +28,9 @@ table DepositHelper {
     rate:double = null;
     tenor:Period;
     fixing_days:int;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
     /// Optional: reference a shared quote by id instead of inline rate.
     quote_id:string;
 }
@@ -42,9 +42,9 @@ table FRAHelper {
     months_to_start:int;
     months_to_end:int;
     fixing_days:int;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
     quote_id:string;
 }
 
@@ -55,9 +55,9 @@ table FutureHelper {
     rate:double = null;
     future_start_date:string;
     future_months:int;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
-    day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
     /// Futures price (e.g., 95.25); when present, rate is ignored.
     futures_price:double = null;
     /// Convexity adjustment added to implied rate.
@@ -70,10 +70,10 @@ table SwapHelper {
     /// Swap rate. One of rate or quote_id must be provided.
     rate:double = null;
     tenor:Period;
-    calendar:enums.Calendar;
-    sw_fixed_leg_frequency:enums.Frequency;
-    sw_fixed_leg_convention:enums.BusinessDayConvention;
-    sw_fixed_leg_day_counter:enums.DayCounter;
+    calendar:enums.Calendar = null;
+    sw_fixed_leg_frequency:enums.Frequency = null;
+    sw_fixed_leg_convention:enums.BusinessDayConvention = null;
+    sw_fixed_leg_day_counter:enums.DayCounter = null;
     /// Reference to an IndexDef by id (e.g., "EUR_6M").
     float_index:IndexRef (required);
     spread:double;
@@ -92,8 +92,8 @@ table BondHelper {
     face_amount:double;
     schedule:Schedule;
     coupon_rate:double;
-    day_counter:enums.DayCounter;
-    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     redemption:double;
     issue_date:string;
     /// Bond (clean) price; when present, rate is ignored.
@@ -160,7 +160,7 @@ table TenorBasisSwapHelper {
     index_short:IndexRef (required);
     /// Long tenor index (e.g., "EUR_6M").
     index_long:IndexRef (required);
-    calendar:enums.Calendar;
+    calendar:enums.Calendar = null;
     deps:HelperDependencies;
     quote_id:string;
 }
@@ -213,8 +213,8 @@ table PointsWrapper {
 /// Term structure (yield curve) definition.
 table TermStructure {
     id:string;
-    day_counter:enums.DayCounter;
-    interpolator:enums.Interpolator;
+    day_counter:enums.DayCounter = null;
+    interpolator:enums.Interpolator = null;
     bootstrap_trait:enums.BootstrapTrait;
     points:[PointsWrapper];
     reference_date:string;

@@ -71,14 +71,14 @@ class BondHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # BondHelper
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # BondHelper
     def Redemption(self):
@@ -146,13 +146,13 @@ def AddCouponRate(builder, couponRate):
     BondHelperAddCouponRate(builder, couponRate)
 
 def BondHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     BondHelperAddDayCounter(builder, dayCounter)
 
 def BondHelperAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, 0)
+    builder.PrependInt8Slot(6, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     BondHelperAddBusinessDayConvention(builder, businessDayConvention)
@@ -201,8 +201,8 @@ class BondHelperT(object):
         self.faceAmount = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
         self.couponRate = 0.0  # type: float
-        self.dayCounter = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.redemption = 0.0  # type: float
         self.issueDate = None  # type: str
         self.price = None  # type: Optional[float]

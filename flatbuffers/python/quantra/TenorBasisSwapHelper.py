@@ -72,7 +72,7 @@ class TenorBasisSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # TenorBasisSwapHelper
     def Deps(self):
@@ -123,7 +123,7 @@ def AddIndexLong(builder, indexLong):
     TenorBasisSwapHelperAddIndexLong(builder, indexLong)
 
 def TenorBasisSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt8Slot(4, calendar, None)
 
 def AddCalendar(builder, calendar):
     TenorBasisSwapHelperAddCalendar(builder, calendar)
@@ -159,7 +159,7 @@ class TenorBasisSwapHelperT(object):
         self.tenor = None  # type: Optional[PeriodT]
         self.indexShort = None  # type: Optional[IndexRefT]
         self.indexLong = None  # type: Optional[IndexRefT]
-        self.calendar = 0  # type: int
+        self.calendar = None  # type: Optional[int]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 
