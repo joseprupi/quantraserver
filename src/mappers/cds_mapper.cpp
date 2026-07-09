@@ -37,8 +37,13 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     CdsTrade trade;
     trade.side = ProtectionSideToQL(cds->side());
     trade.notional = cds->notional();
-    trade.runningCoupon = cds->running_coupon();
-    trade.upfront = cds->upfront();
+    if (!cds->running_coupon().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CDS.running_coupon is required");
+    }
+    trade.runningCoupon = cds->running_coupon().value();
+    if (cds->upfront().has_value()) {
+        trade.upfront = cds->upfront().value();
+    }
     trade.schedule = *schedule;
     trade.dayCounter = DayCounterToQL(cds->day_counter());
     trade.businessDayConvention = ConventionToQL(cds->business_day_convention());
@@ -93,7 +98,9 @@ flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toResponse(
     for (const auto& v : result.values) {
         quantra::CDSValuesBuilder vb(builder);
         vb.add_npv(v.npv);
-        vb.add_fair_spread(v.fairSpread);
+        if (v.fairSpread) {
+            vb.add_fair_spread(*v.fairSpread);
+        }
         vb.add_fair_upfront(v.fairUpfront);
         vb.add_default_leg_npv(v.defaultLegNpv);
         vb.add_premium_leg_npv(v.premiumLegNpv);

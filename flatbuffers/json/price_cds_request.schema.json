@@ -1627,7 +1627,7 @@
               },
         "running_coupon" : {
                 "type" : "number",
-                "description" : "Running coupon for upfront quotes (decimal)."
+                "description" : "Running coupon for upfront quotes (decimal). Optional; presence-driven\n(a genuine 0 running coupon is valid for some upfront quotes, an absent\nvalue on an upfront quote is rejected)."
               }
       },
       "additionalProperties" : false
@@ -1697,7 +1697,7 @@
               },
         "flat_hazard_rate" : {
                 "type" : "number",
-                "description" : "OR: use flat hazard rate."
+                "description" : "OR: use flat hazard rate. Optional; presence-driven. Present -> use it;\nabsent with quotes -> bootstrap from quotes; absent with no quotes is an\nerror (no invented default hazard rate)."
               }
       },
       "required" : ["id", "reference_date"],
@@ -2221,14 +2221,14 @@
               },
         "running_coupon" : {
                 "type" : "number",
-                "description" : "Running coupon in decimal (0.01 = 100bps)."
+                "description" : "Running coupon in decimal (0.01 = 100bps). Required; presence-driven\n(a genuine 0 is a valid zero-coupon CDS, an absent value is rejected)."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "upfront" : {
                 "type" : "number",
-                "description" : "Upfront payment (can be 0)."
+                "description" : "Upfront payment. Optional: presence selects the upfront-bearing\nCreditDefaultSwap constructor (a genuine 0 upfront is representable);\nabsent selects the plain no-upfront constructor."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"

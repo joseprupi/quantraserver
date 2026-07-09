@@ -323,7 +323,9 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                 hc.helper_model = static_cast<CdsHelperModelKind>(h->helper_model());
                 d.helper_conventions = hc;
             }
-            d.flat_hazard_rate = spec->flat_hazard_rate();
+            if (spec->flat_hazard_rate().has_value()) {
+                d.flat_hazard_rate = spec->flat_hazard_rate().value();
+            }
             if (const auto* qs = spec->quotes()) {
                 d.quotes.reserve(qs->size());
                 for (auto qit = qs->begin(); qit != qs->end(); ++qit) {
@@ -336,7 +338,9 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
                     if (qit->quote_id()) q.quote_id = qit->quote_id()->str();
                     q.quoted_par_spread = qit->quoted_par_spread();
                     q.quoted_upfront = qit->quoted_upfront();
-                    q.running_coupon = qit->running_coupon();
+                    if (qit->running_coupon().has_value()) {
+                        q.running_coupon = qit->running_coupon().value();
+                    }
                     d.quotes.push_back(std::move(q));
                 }
             }

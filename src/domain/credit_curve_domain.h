@@ -52,7 +52,9 @@ struct CdsQuoteDomain {
     std::string quote_id;
     double quoted_par_spread = 0.0;
     double quoted_upfront = 0.0;
-    double running_coupon = 0.0;
+    /// Present -> use it (including a genuine 0). Absent on an upfront quote is
+    /// an error; the evaluator rejects it rather than defaulting.
+    std::optional<double> running_coupon;
 };
 
 struct CreditCurveDomain {
@@ -65,7 +67,9 @@ struct CreditCurveDomain {
     double recovery_rate = 0.4;
     CreditCurveInterpolatorKind curve_interpolator = CreditCurveInterpolatorKind::LogLinear;
     std::optional<CdsHelperConventionsDomain> helper_conventions;
-    double flat_hazard_rate = 0.0;
+    /// Present -> flat-hazard curve. Absent -> bootstrap from `quotes`; absent
+    /// with no quotes is an error (no invented default hazard rate).
+    std::optional<double> flat_hazard_rate;
     std::vector<CdsQuoteDomain> quotes;
 };
 

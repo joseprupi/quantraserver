@@ -7,11 +7,14 @@ namespace quantra;
 table CDS {
     side:enums.ProtectionSide;
     notional:double;
-    /// Running coupon in decimal (0.01 = 100bps).
-    running_coupon:double;
+    /// Running coupon in decimal (0.01 = 100bps). Required; presence-driven
+    /// (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
+    running_coupon:double = null;
     schedule:Schedule;
-    /// Upfront payment (can be 0).
-    upfront:double = 0.0;
+    /// Upfront payment. Optional: presence selects the upfront-bearing
+    /// CreditDefaultSwap constructor (a genuine 0 upfront is representable);
+    /// absent selects the plain no-upfront constructor.
+    upfront:double = null;
     day_counter:enums.DayCounter;
     business_day_convention:enums.BusinessDayConvention;
     settles_accrual:bool = true;

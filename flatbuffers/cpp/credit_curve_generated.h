@@ -37,7 +37,7 @@ struct CdsQuoteT : public ::flatbuffers::NativeTable {
   std::string quote_id{};
   double quoted_par_spread = 0.0;
   double quoted_upfront = 0.0;
-  double running_coupon = 0.0;
+  ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt;
   CdsQuoteT() = default;
   CdsQuoteT(const CdsQuoteT &o);
   CdsQuoteT(CdsQuoteT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -74,9 +74,11 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double quoted_upfront() const {
     return GetField<double>(VT_QUOTED_UPFRONT, 0.0);
   }
-  /// Running coupon for upfront quotes (decimal).
-  double running_coupon() const {
-    return GetField<double>(VT_RUNNING_COUPON, 0.0);
+  /// Running coupon for upfront quotes (decimal). Optional; presence-driven
+  /// (a genuine 0 running coupon is valid for some upfront quotes, an absent
+  /// value on an upfront quote is rejected).
+  ::flatbuffers::Optional<double> running_coupon() const {
+    return GetOptional<double, double>(VT_RUNNING_COUPON);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -115,7 +117,7 @@ struct CdsQuoteBuilder {
     fbb_.AddElement<double>(CdsQuote::VT_QUOTED_UPFRONT, quoted_upfront, 0.0);
   }
   void add_running_coupon(double running_coupon) {
-    fbb_.AddElement<double>(CdsQuote::VT_RUNNING_COUPON, running_coupon, 0.0);
+    fbb_.AddElement<double>(CdsQuote::VT_RUNNING_COUPON, running_coupon);
   }
   explicit CdsQuoteBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -135,9 +137,9 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
     double quoted_par_spread = 0.0,
     double quoted_upfront = 0.0,
-    double running_coupon = 0.0) {
+    ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt) {
   CdsQuoteBuilder builder_(_fbb);
-  builder_.add_running_coupon(running_coupon);
+  if(running_coupon) { builder_.add_running_coupon(*running_coupon); }
   builder_.add_quoted_upfront(quoted_upfront);
   builder_.add_quoted_par_spread(quoted_par_spread);
   builder_.add_quote_id(quote_id);
@@ -153,7 +155,7 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuoteDirect(
     const char *quote_id = nullptr,
     double quoted_par_spread = 0.0,
     double quoted_upfront = 0.0,
-    double running_coupon = 0.0) {
+    ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   return quantra::CreateCdsQuote(
       _fbb,
@@ -318,7 +320,7 @@ struct CreditCurveSpecT : public ::flatbuffers::NativeTable {
   quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear;
   std::unique_ptr<quantra::CdsHelperConventionsT> helper_conventions{};
   std::vector<std::unique_ptr<quantra::CdsQuoteT>> quotes{};
-  double flat_hazard_rate = 0.0;
+  ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt;
   CreditCurveSpecT() = default;
   CreditCurveSpecT(const CreditCurveSpecT &o);
   CreditCurveSpecT(CreditCurveSpecT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -365,9 +367,11 @@ struct CreditCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>> *>(VT_QUOTES);
   }
-  /// OR: use flat hazard rate.
-  double flat_hazard_rate() const {
-    return GetField<double>(VT_FLAT_HAZARD_RATE, 0.0);
+  /// OR: use flat hazard rate. Optional; presence-driven. Present -> use it;
+  /// absent with quotes -> bootstrap from quotes; absent with no quotes is an
+  /// error (no invented default hazard rate).
+  ::flatbuffers::Optional<double> flat_hazard_rate() const {
+    return GetOptional<double, double>(VT_FLAT_HAZARD_RATE);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -421,7 +425,7 @@ struct CreditCurveSpecBuilder {
     fbb_.AddOffset(CreditCurveSpec::VT_QUOTES, quotes);
   }
   void add_flat_hazard_rate(double flat_hazard_rate) {
-    fbb_.AddElement<double>(CreditCurveSpec::VT_FLAT_HAZARD_RATE, flat_hazard_rate, 0.0);
+    fbb_.AddElement<double>(CreditCurveSpec::VT_FLAT_HAZARD_RATE, flat_hazard_rate);
   }
   explicit CreditCurveSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -446,9 +450,9 @@ inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpec(
     quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
     ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>>> quotes = 0,
-    double flat_hazard_rate = 0.0) {
+    ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt) {
   CreditCurveSpecBuilder builder_(_fbb);
-  builder_.add_flat_hazard_rate(flat_hazard_rate);
+  if(flat_hazard_rate) { builder_.add_flat_hazard_rate(*flat_hazard_rate); }
   builder_.add_recovery_rate(recovery_rate);
   builder_.add_quotes(quotes);
   builder_.add_helper_conventions(helper_conventions);
@@ -470,7 +474,7 @@ inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpecDirect(
     quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
     ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
     const std::vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes = nullptr,
-    double flat_hazard_rate = 0.0) {
+    ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   auto reference_date__ = reference_date ? _fbb.CreateString(reference_date) : 0;
   auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CdsQuote>>(*quotes) : 0;

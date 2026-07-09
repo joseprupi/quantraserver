@@ -13,6 +13,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,9 @@ struct CdsTrade {
     QuantLib::Protection::Side side = QuantLib::Protection::Buyer;
     double notional = 0.0;
     double runningCoupon = 0.0;
-    double upfront = 0.0;
+    /// Present -> the upfront-bearing CreditDefaultSwap constructor (a genuine
+    /// 0 upfront is representable); absent -> the plain no-upfront constructor.
+    std::optional<double> upfront;
     QuantLib::Schedule schedule;
     QuantLib::DayCounter dayCounter;
     QuantLib::BusinessDayConvention businessDayConvention = QuantLib::Following;
@@ -45,9 +48,9 @@ struct CdsTrade {
     QuantLib::DayCounter lastPeriodDayCounter;
     QuantLib::Date tradeDate;
     QuantLib::Natural cashSettlementDays = 3;
-    /// True when the request supplied an upfront date string; the legacy
-    /// parser selects the upfront-bearing CreditDefaultSwap constructor when
-    /// either upfront != 0.0 OR an upfront date is present.
+    /// True when the request supplied an upfront date string; the upfront-
+    /// bearing CreditDefaultSwap constructor is selected when either an upfront
+    /// value is present OR an upfront date is present.
     bool hasUpfrontDate = false;
 
     std::string discountingCurveId;
@@ -62,7 +65,7 @@ struct CdsInputs {
 /// Per-trade pricing result. Mirrors the legacy CdsPriceResult fields.
 struct CdsPerTrade {
     double npv = 0.0;
-    double fairSpread = 0.0;
+    std::optional<double> fairSpread; // absent when QuantLib cannot express it (e.g. a zero-running-coupon CDS)
     double fairUpfront = 0.0;
     double defaultLegNpv = 0.0;
     double premiumLegNpv = 0.0;

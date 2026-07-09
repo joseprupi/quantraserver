@@ -111,7 +111,7 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     respB->Finish(resp);
     auto r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
     double qNPV = r->npv();
-    double qFair = r->fair_spread();
+    double qFair = r->fair_spread().value();
 
     std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
     std::cout << "QuantLib Fair: " << qlFair*10000 << "bps | Quantra: " << qFair*10000 << "bps" << std::endl;
@@ -242,7 +242,7 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
     respB->Finish(resp);
     const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
-    EXPECT_NEAR(qlFair, r->fair_spread(), 1e-6);
+    EXPECT_NEAR(qlFair, r->fair_spread().value(), 1e-6);
 }
 
 // Buyer, semiannual premium schedule and a low recovery (0.25) — different
@@ -348,7 +348,7 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
     respB->Finish(resp);
     const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
-    EXPECT_NEAR(qlFair, r->fair_spread(), 1e-6);
+    EXPECT_NEAR(qlFair, r->fair_spread().value(), 1e-6);
 }
 
 }} // namespace quantra::testing

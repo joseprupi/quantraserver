@@ -208,14 +208,14 @@
               },
         "running_coupon" : {
                 "type" : "number",
-                "description" : "Running coupon in decimal (0.01 = 100bps)."
+                "description" : "Running coupon in decimal (0.01 = 100bps). Required; presence-driven\n(a genuine 0 is a valid zero-coupon CDS, an absent value is rejected)."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "upfront" : {
                 "type" : "number",
-                "description" : "Upfront payment (can be 0)."
+                "description" : "Upfront payment. Optional: presence selects the upfront-bearing\nCreditDefaultSwap constructor (a genuine 0 upfront is representable);\nabsent selects the plain no-upfront constructor."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"

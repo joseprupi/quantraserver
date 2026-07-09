@@ -39,13 +39,14 @@ class CDS(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Running coupon in decimal (0.01 = 100bps).
+    # Running coupon in decimal (0.01 = 100bps). Required; presence-driven
+    # (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
     # CDS
     def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # CDS
     def Schedule(self):
@@ -58,13 +59,15 @@ class CDS(object):
             return obj
         return None
 
-    # Upfront payment (can be 0).
+    # Upfront payment. Optional: presence selects the upfront-bearing
+    # CreditDefaultSwap constructor (a genuine 0 upfront is representable);
+    # absent selects the plain no-upfront constructor.
     # CDS
     def Upfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # CDS
     def DayCounter(self):
@@ -155,7 +158,7 @@ def AddNotional(builder, notional):
     CDSAddNotional(builder, notional)
 
 def CDSAddRunningCoupon(builder, runningCoupon):
-    builder.PrependFloat64Slot(2, runningCoupon, 0.0)
+    builder.PrependFloat64Slot(2, runningCoupon, None)
 
 def AddRunningCoupon(builder, runningCoupon):
     CDSAddRunningCoupon(builder, runningCoupon)
@@ -167,7 +170,7 @@ def AddSchedule(builder, schedule):
     CDSAddSchedule(builder, schedule)
 
 def CDSAddUpfront(builder, upfront):
-    builder.PrependFloat64Slot(4, upfront, 0.0)
+    builder.PrependFloat64Slot(4, upfront, None)
 
 def AddUpfront(builder, upfront):
     CDSAddUpfront(builder, upfront)
@@ -249,9 +252,9 @@ class CDST(object):
     def __init__(self):
         self.side = 0  # type: int
         self.notional = 0.0  # type: float
-        self.runningCoupon = 0.0  # type: float
+        self.runningCoupon = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
-        self.upfront = 0.0  # type: float
+        self.upfront = None  # type: Optional[float]
         self.dayCounter = 0  # type: int
         self.businessDayConvention = 0  # type: int
         self.settlesAccrual = True  # type: bool
