@@ -1639,7 +1639,7 @@
               },
         "running_coupon" : {
                 "type" : "number",
-                "description" : "Running coupon for upfront quotes (decimal)."
+                "description" : "Running coupon for upfront quotes (decimal). Optional; presence-driven\n(a genuine 0 running coupon is valid for some upfront quotes, an absent\nvalue on an upfront quote is rejected)."
               }
       },
       "additionalProperties" : false
@@ -1709,7 +1709,7 @@
               },
         "flat_hazard_rate" : {
                 "type" : "number",
-                "description" : "OR: use flat hazard rate."
+                "description" : "OR: use flat hazard rate. Optional; presence-driven. Present -> use it;\nabsent with quotes -> bootstrap from quotes; absent with no quotes is an\nerror (no invented default hazard rate)."
               }
       },
       "required" : ["id", "reference_date"],

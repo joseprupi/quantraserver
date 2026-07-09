@@ -152,6 +152,17 @@ def _ec_set_credit_curve_field(field, value):
     return f
 
 
+def _ec_del_credit_curve_field(field):
+    def f(req):
+        req["pricing"]["credit"]["credit_curves"][0].pop(field, None)
+        return req
+    return f
+
+
+def _ec_identity(req):
+    return req
+
+
 def _ec_set_model_payload_field(field, value):
     def f(req):
         for m in req["pricing"].get("volatility", {}).get("models", []):
@@ -258,6 +269,21 @@ SCENARIOS = [
      "cds_request.json", 400,
      _ec_set_model_payload_field("engine_type", 99),
      _ec_body_contains("Unsupported CDS engine type")),
+    # A credit curve with no flat_hazard_rate and no quotes used to silently
+    # price off an invented 1% flat hazard. It must now be rejected: an empty
+    # credit curve is an error, never a fabricated default hazard rate. The
+    # simple request carries an empty quotes list plus flat_hazard_rate;
+    # dropping the hazard leaves nothing to build the curve from.
+    ("ec:400 cds empty credit curve rejected", "cds",
+     "cds_request.json", 400,
+     _ec_del_credit_curve_field("flat_hazard_rate"),
+     _ec_body_contains("neither flat_hazard_rate nor quotes")),
+    # A genuine 0 running coupon on an upfront quote (and a 0 running coupon /
+    # present upfront on the trade) is a valid CDS, not an error. It used to be
+    # rejected by a running_coupon == 0.0 value test; presence-driven handling
+    # now prices it. Posted verbatim; a clean 200 proves it is representable.
+    ("ec:200 cds upfront quote with zero running coupon prices", "cds",
+     "cds/cds_upfront_zero_running_coupon.json", 200, _ec_identity),
     # An out-of-range swaption settlement type used to fail open to
     # Physical settlement.
     ("ec:400 swaption settlement type out of range", "swaption",

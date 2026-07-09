@@ -5,8 +5,9 @@ namespace quantra;
 /// CDS pricing results.
 table CDSValues {
     npv:double;
-    /// Par spread in decimal.
-    fair_spread:double;
+    /// Par spread in decimal. Absent when QuantLib cannot express a fair
+    /// spread for the trade (e.g. a zero-running-coupon CDS).
+    fair_spread:double = null;
     /// Upfront for par spread.
     fair_upfront:double;
     /// NPV of protection leg.

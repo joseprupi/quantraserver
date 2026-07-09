@@ -28,7 +28,7 @@ struct PriceCDSResponseT;
 struct CDSValuesT : public ::flatbuffers::NativeTable {
   typedef CDSValues TableType;
   double npv = 0.0;
-  double fair_spread = 0.0;
+  ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
   double fair_upfront = 0.0;
   double default_leg_npv = 0.0;
   double premium_leg_npv = 0.0;
@@ -54,9 +54,10 @@ struct CDSValues FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
-  /// Par spread in decimal.
-  double fair_spread() const {
-    return GetField<double>(VT_FAIR_SPREAD, 0.0);
+  /// Par spread in decimal. Absent when QuantLib cannot express a fair
+  /// spread for the trade (e.g. a zero-running-coupon CDS).
+  ::flatbuffers::Optional<double> fair_spread() const {
+    return GetOptional<double, double>(VT_FAIR_SPREAD);
   }
   /// Upfront for par spread.
   double fair_upfront() const {
@@ -97,7 +98,7 @@ struct CDSValuesBuilder {
     fbb_.AddElement<double>(CDSValues::VT_NPV, npv, 0.0);
   }
   void add_fair_spread(double fair_spread) {
-    fbb_.AddElement<double>(CDSValues::VT_FAIR_SPREAD, fair_spread, 0.0);
+    fbb_.AddElement<double>(CDSValues::VT_FAIR_SPREAD, fair_spread);
   }
   void add_fair_upfront(double fair_upfront) {
     fbb_.AddElement<double>(CDSValues::VT_FAIR_UPFRONT, fair_upfront, 0.0);
@@ -125,7 +126,7 @@ struct CDSValuesBuilder {
 inline ::flatbuffers::Offset<CDSValues> CreateCDSValues(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double fair_spread = 0.0,
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     double fair_upfront = 0.0,
     double default_leg_npv = 0.0,
     double premium_leg_npv = 0.0,
@@ -134,7 +135,7 @@ inline ::flatbuffers::Offset<CDSValues> CreateCDSValues(
   builder_.add_premium_leg_npv(premium_leg_npv);
   builder_.add_default_leg_npv(default_leg_npv);
   builder_.add_fair_upfront(fair_upfront);
-  builder_.add_fair_spread(fair_spread);
+  if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   builder_.add_npv(npv);
   builder_.add_error(error);
   return builder_.Finish();

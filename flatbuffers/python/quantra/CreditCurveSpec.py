@@ -104,13 +104,15 @@ class CreditCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
-    # OR: use flat hazard rate.
+    # OR: use flat hazard rate. Optional; presence-driven. Present -> use it;
+    # absent with quotes -> bootstrap from quotes; absent with no quotes is an
+    # error (no invented default hazard rate).
     # CreditCurveSpec
     def FlatHazardRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
 def CreditCurveSpecStart(builder):
     builder.StartObject(9)
@@ -173,7 +175,7 @@ def StartQuotesVector(builder, numElems):
     return CreditCurveSpecStartQuotesVector(builder, numElems)
 
 def CreditCurveSpecAddFlatHazardRate(builder, flatHazardRate):
-    builder.PrependFloat64Slot(8, flatHazardRate, 0.0)
+    builder.PrependFloat64Slot(8, flatHazardRate, None)
 
 def AddFlatHazardRate(builder, flatHazardRate):
     CreditCurveSpecAddFlatHazardRate(builder, flatHazardRate)
@@ -201,7 +203,7 @@ class CreditCurveSpecT(object):
         self.curveInterpolator = 4  # type: int
         self.helperConventions = None  # type: Optional[CdsHelperConventionsT]
         self.quotes = None  # type: List[CdsQuoteT]
-        self.flatHazardRate = 0.0  # type: float
+        self.flatHazardRate = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

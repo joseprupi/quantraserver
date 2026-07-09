@@ -722,9 +722,9 @@ TEST_F(ServerClientTest, CDS_RoundTrip) {
     
     ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
     auto r = response.GetRoot()->cds_list()->Get(0);
-    std::cout << "NPV: " << r->npv() << " | Fair Spread: " << r->fair_spread()*10000 << " bps" << std::endl;
+    std::cout << "NPV: " << r->npv() << " | Fair Spread: " << r->fair_spread().value()*10000 << " bps" << std::endl;
     EXPECT_NEAR(r->npv(), 86698.9, 1.0);
-    EXPECT_NEAR(r->fair_spread(), 0.0118792, 0.0001);
+    EXPECT_NEAR(r->fair_spread().value(), 0.0118792, 0.0001);
 }
 
 TEST_F(ServerClientTest, BootstrapInflationCurves_RoundTrip) {

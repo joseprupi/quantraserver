@@ -67,13 +67,15 @@ class CdsQuote(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Running coupon for upfront quotes (decimal).
+    # Running coupon for upfront quotes (decimal). Optional; presence-driven
+    # (a genuine 0 running coupon is valid for some upfront quotes, an absent
+    # value on an upfront quote is rejected).
     # CdsQuote
     def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
 def CdsQuoteStart(builder):
     builder.StartObject(6)
@@ -112,7 +114,7 @@ def AddQuotedUpfront(builder, quotedUpfront):
     CdsQuoteAddQuotedUpfront(builder, quotedUpfront)
 
 def CdsQuoteAddRunningCoupon(builder, runningCoupon):
-    builder.PrependFloat64Slot(5, runningCoupon, 0.0)
+    builder.PrependFloat64Slot(5, runningCoupon, None)
 
 def AddRunningCoupon(builder, runningCoupon):
     CdsQuoteAddRunningCoupon(builder, runningCoupon)
@@ -137,7 +139,7 @@ class CdsQuoteT(object):
         self.quoteId = None  # type: str
         self.quotedParSpread = 0.0  # type: float
         self.quotedUpfront = 0.0  # type: float
-        self.runningCoupon = 0.0  # type: float
+        self.runningCoupon = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

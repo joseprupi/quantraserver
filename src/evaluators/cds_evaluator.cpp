@@ -38,16 +38,18 @@ std::string creditCurveInterpolatorName(CreditCurveInterpolatorKind kind) {
 
 /**
  * Bootstrap the default-probability term structure from a plain-domain
- * CreditCurveDomain. Mirrors the FB-driven path in cds_parser.cpp verbatim:
- *  - flat hazard rate is used when flat_hazard_rate > 0 OR no quotes were
- *    provided (the same dual-trigger the legacy parser uses; the default
- *    1% hazard rate falls out of the same fallback);
- *  - otherwise we build SpreadCdsHelper / UpfrontCdsHelper instances and
- *    dispatch on curve_interpolator for the PiecewiseDefaultCurve choice.
+ * CreditCurveDomain. Presence-driven, no value sentinels:
+ *  - flat_hazard_rate present -> flat-hazard curve at that rate (a genuine 0 is
+ *    honoured);
+ *  - flat_hazard_rate absent with quotes -> build SpreadCdsHelper /
+ *    UpfrontCdsHelper instances and dispatch on curve_interpolator for the
+ *    PiecewiseDefaultCurve choice;
+ *  - flat_hazard_rate absent with no quotes -> INVALID_ARGUMENT. An empty
+ *    credit curve is an error, never a silently invented default hazard rate.
  *
  * Defaults for the helper conventions block mirror the FB schema defaults
- * the legacy parser applies when `helper_conventions` is absent: Quarterly /
- * Following / TwentiethIMM / Actual365Fixed / settlement_days = 0 / MidPoint.
+ * applied when `helper_conventions` is absent: Quarterly / Following /
+ * TwentiethIMM / Actual365Fixed / settlement_days = 0 / MidPoint.
  */
 std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
     const CreditCurveDomain& curve,
@@ -58,12 +60,16 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
         QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.calendar is required");
     }
 
-    if (curve.flat_hazard_rate > 0.0 || curve.quotes.empty()) {
-        double hazardRate = curve.flat_hazard_rate > 0.0 ? curve.flat_hazard_rate : 0.01;
+    if (curve.flat_hazard_rate.has_value()) {
         return std::make_shared<QuantLib::FlatHazardRate>(
             curve.reference_date,
-            hazardRate,
+            curve.flat_hazard_rate.value(),
             curve.day_counter);
+    }
+    if (curve.quotes.empty()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "CreditCurveSpec has neither flat_hazard_rate nor quotes; provide "
+            "one to build the credit curve");
     }
 
     const auto& hc = curve.helper_conventions;
@@ -95,7 +101,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
 
         switch (quote.quote_type) {
             case CdsQuoteTypeKind::Upfront: {
-                if (quote.running_coupon == 0.0) {
+                if (!quote.running_coupon.has_value()) {
                     QUANTRA_INVALID_ARGUMENT("CdsQuote.running_coupon is required for upfront quotes");
                 }
                 auto upfrontQuote = quoteHandle;
@@ -105,7 +111,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
                 }
                 helpers.push_back(std::make_shared<QuantLib::UpfrontCdsHelper>(
                     upfrontQuote,
-                    quote.running_coupon,
+                    quote.running_coupon.value(),
                     quote.tenor,
                     settlementDays,
                     curve.calendar,
@@ -180,16 +186,16 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
 }
 
 /**
- * Build the QL CDS instrument from the plain trade fields. Mirrors the
- * legacy CDSParser::parse branching: the upfront-bearing constructor is
- * selected when upfront != 0.0 OR an upfront-date string was supplied.
+ * Build the QL CDS instrument from the plain trade fields. Presence-driven:
+ * the upfront-bearing constructor is selected when an upfront value is present
+ * (a genuine 0 upfront is honoured) OR an upfront-date string was supplied.
  */
 std::shared_ptr<QuantLib::CreditDefaultSwap> buildCds(const CdsTrade& trade) {
-    if (trade.upfront != 0.0 || trade.hasUpfrontDate) {
+    if (trade.upfront.has_value() || trade.hasUpfrontDate) {
         return std::make_shared<QuantLib::CreditDefaultSwap>(
             trade.side,
             trade.notional,
-            trade.upfront,
+            trade.upfront.value_or(0.0),
             trade.runningCoupon,
             trade.schedule,
             trade.businessDayConvention,
@@ -303,7 +309,14 @@ CdsPerTrade priceTrade(const CdsTrade& trade,
 
     CdsPerTrade out;
     out.npv = cds->NPV();
-    out.fairSpread = cds->fairSpread();
+    // QuantLib cannot express a fair spread for every trade (e.g. a
+    // zero-running-coupon CDS, where there is no coupon leg to scale). The
+    // trade still prices; report fair_spread only when it is available.
+    try {
+        out.fairSpread = cds->fairSpread();
+    } catch (const QuantLib::Error&) {
+        // fair spread not available for this trade; leave it unset.
+    }
     out.fairUpfront = cds->fairUpfront();
     out.defaultLegNpv = cds->defaultLegNPV();
     out.premiumLegNpv = cds->couponLegNPV();

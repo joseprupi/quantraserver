@@ -32,13 +32,14 @@ class CDSValues(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Par spread in decimal.
+    # Par spread in decimal. Absent when QuantLib cannot express a fair
+    # spread for the trade (e.g. a zero-running-coupon CDS).
     # CDSValues
     def FairSpread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Upfront for par spread.
     # CDSValues
@@ -88,7 +89,7 @@ def AddNpv(builder, npv):
     CDSValuesAddNpv(builder, npv)
 
 def CDSValuesAddFairSpread(builder, fairSpread):
-    builder.PrependFloat64Slot(1, fairSpread, 0.0)
+    builder.PrependFloat64Slot(1, fairSpread, None)
 
 def AddFairSpread(builder, fairSpread):
     CDSValuesAddFairSpread(builder, fairSpread)
@@ -133,7 +134,7 @@ class CDSValuesT(object):
     # CDSValuesT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.fairSpread = 0.0  # type: float
+        self.fairSpread = None  # type: Optional[float]
         self.fairUpfront = 0.0  # type: float
         self.defaultLegNpv = 0.0  # type: float
         self.premiumLegNpv = 0.0  # type: float

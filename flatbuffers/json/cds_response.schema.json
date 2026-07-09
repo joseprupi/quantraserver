@@ -299,7 +299,7 @@
               },
         "fair_spread" : {
                 "type" : "number",
-                "description" : "Par spread in decimal."
+                "description" : "Par spread in decimal. Absent when QuantLib cannot express a fair\nspread for the trade (e.g. a zero-running-coupon CDS)."
               },
         "fair_upfront" : {
                 "type" : "number",
