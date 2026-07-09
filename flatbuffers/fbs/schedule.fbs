@@ -4,12 +4,12 @@ namespace quantra;
 
 /// Date schedule definition for payment and accrual dates.
 table Schedule {
-    calendar:enums.Calendar;
+    calendar:enums.Calendar = null;
     effective_date:string;
     termination_date:string;
-    frequency:enums.Frequency;
-    convention:enums.BusinessDayConvention;
-    termination_date_convention:enums.BusinessDayConvention;
-    date_generation_rule:enums.DateGenerationRule;
+    frequency:enums.Frequency = null;
+    convention:enums.BusinessDayConvention = null;
+    termination_date_convention:enums.BusinessDayConvention = null;
+    date_generation_rule:enums.DateGenerationRule = null;
     end_of_month:bool;
 }
