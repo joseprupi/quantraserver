@@ -23,8 +23,25 @@ echo "=== Cleaning build directory ==="
 rm -rf "$WORKSPACE/build"
 mkdir -p "$WORKSPACE/build"
 
+# Optional ccache. The clean rebuild above throws away build/ every run, but
+# ccache keys on preprocessed source + flags, so it still turns incremental
+# edits into second-scale recompiles. The cache lives inside the (mounted)
+# workspace so it survives `docker run --rm`. Best effort: if ccache is absent
+# and cannot be installed, the build simply proceeds without it.
+CMAKE_CCACHE_ARGS=()
+if ! command -v ccache >/dev/null 2>&1; then
+    apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq ccache >/dev/null 2>&1 || true
+fi
+if command -v ccache >/dev/null 2>&1; then
+    export CCACHE_DIR="$WORKSPACE/.ccache"
+    export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+    CMAKE_CCACHE_ARGS=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+    echo "=== ccache enabled (CCACHE_DIR=$CCACHE_DIR) ==="
+fi
+
 cd "$WORKSPACE/build"
-cmake -DCMAKE_PREFIX_PATH="$DEPS_PREFIX" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ..
+cmake ${CMAKE_CCACHE_ARGS[@]+"${CMAKE_CCACHE_ARGS[@]}"} \
+    -DCMAKE_PREFIX_PATH="$DEPS_PREFIX" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" ..
 make -j"$(nproc)"
 
 echo "Build complete!"
