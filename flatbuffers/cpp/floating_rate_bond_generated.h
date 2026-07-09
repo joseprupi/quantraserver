@@ -29,8 +29,8 @@ struct FloatingRateBondT : public ::flatbuffers::NativeTable {
   double face_amount = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
-  quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   int32_t fixing_days = 0;
   double spread = 0.0;
   bool in_arrears = false;
@@ -72,11 +72,11 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
-  quantra::enums::DayCounter accrual_day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_ACCRUAL_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_ACCRUAL_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
   int32_t fixing_days() const {
     return GetField<int32_t>(VT_FIXING_DAYS, 0);
@@ -133,10 +133,10 @@ struct FloatingRateBondBuilder {
     fbb_.AddOffset(FloatingRateBond::VT_INDEX, index);
   }
   void add_accrual_day_counter(quantra::enums::DayCounter accrual_day_counter) {
-    fbb_.AddElement<int8_t>(FloatingRateBond::VT_ACCRUAL_DAY_COUNTER, static_cast<int8_t>(accrual_day_counter), 0);
+    fbb_.AddElement<int8_t>(FloatingRateBond::VT_ACCRUAL_DAY_COUNTER, static_cast<int8_t>(accrual_day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(FloatingRateBond::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+    fbb_.AddElement<int8_t>(FloatingRateBond::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_fixing_days(int32_t fixing_days) {
     fbb_.AddElement<int32_t>(FloatingRateBond::VT_FIXING_DAYS, fixing_days, 0);
@@ -171,8 +171,8 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     int32_t fixing_days = 0,
     double spread = 0.0,
     bool in_arrears = false,
@@ -188,8 +188,8 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
   builder_.add_schedule(schedule);
   builder_.add_settlement_days(settlement_days);
   builder_.add_in_arrears(in_arrears);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_accrual_day_counter(accrual_day_counter);
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(accrual_day_counter) { builder_.add_accrual_day_counter(*accrual_day_counter); }
   return builder_.Finish();
 }
 
@@ -199,8 +199,8 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
     double face_amount = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    quantra::enums::DayCounter accrual_day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     int32_t fixing_days = 0,
     double spread = 0.0,
     bool in_arrears = false,

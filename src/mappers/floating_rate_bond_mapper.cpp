@@ -51,8 +51,12 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
     trade.settlement_days = fbBond->settlement_days();
     trade.face_amount = fbBond->face_amount();
     trade.schedule = *scheduleParser.parse(fbBond->schedule());
-    trade.accrual_day_counter = DayCounterToQL(fbBond->accrual_day_counter());
-    trade.payment_convention = ConventionToQL(fbBond->payment_convention());
+    if (!fbBond->accrual_day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("FloatingRateBond.accrual_day_counter is required");
+    if (!fbBond->payment_convention().has_value())
+        QUANTRA_INVALID_ARGUMENT("FloatingRateBond.payment_convention is required");
+    trade.accrual_day_counter = DayCounterToQL(fbBond->accrual_day_counter().value());
+    trade.payment_convention = ConventionToQL(fbBond->payment_convention().value());
     trade.fixing_days = fbBond->fixing_days();
     trade.spread = fbBond->spread();
     trade.in_arrears = fbBond->in_arrears();

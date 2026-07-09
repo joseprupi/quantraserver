@@ -51,14 +51,14 @@ class FixedRateBond(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FixedRateBond
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FixedRateBond
     def Redemption(self):
@@ -110,13 +110,13 @@ def AddRate(builder, rate):
     FixedRateBondAddRate(builder, rate)
 
 def FixedRateBondAddAccrualDayCounter(builder, accrualDayCounter):
-    builder.PrependInt8Slot(3, accrualDayCounter, 0)
+    builder.PrependInt8Slot(3, accrualDayCounter, None)
 
 def AddAccrualDayCounter(builder, accrualDayCounter):
     FixedRateBondAddAccrualDayCounter(builder, accrualDayCounter)
 
 def FixedRateBondAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(4, paymentConvention, 0)
+    builder.PrependInt8Slot(4, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     FixedRateBondAddPaymentConvention(builder, paymentConvention)
@@ -157,8 +157,8 @@ class FixedRateBondT(object):
         self.settlementDays = 0  # type: int
         self.faceAmount = 0.0  # type: float
         self.rate = 0.0  # type: float
-        self.accrualDayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.accrualDayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
         self.redemption = 0.0  # type: float
         self.issueDate = None  # type: str
         self.schedule = None  # type: Optional[ScheduleT]

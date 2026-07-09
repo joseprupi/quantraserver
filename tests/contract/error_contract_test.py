@@ -175,6 +175,26 @@ def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
     return f
 
 
+def _ec_del_bond_field(arr_key, bond_key, field):
+    """Drop a convention field from the bond block. The bond convention enums
+    (accrual_day_counter, payment_convention) are presence-required: an omitted
+    convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        req[arr_key][0][bond_key].pop(field, None)
+        return req
+    return f
+
+
+def _ec_del_yield_field(arr_key, field):
+    """Drop a convention field from the yield block carried by a bond request.
+    The Yield convention enums (day_counter, frequency) are presence-required:
+    an omitted convention is an error, never an alphabetical-0 default."""
+    def f(req):
+        req[arr_key][0]["yield"].pop(field, None)
+        return req
+    return f
+
+
 def _ec_del_vol_base_field(field):
     """Drop a convention field from the first vol surface's base spec. The
     IrVol/BlackVol base convention enums are presence-required: an omitted
@@ -297,6 +317,21 @@ SCENARIOS = [
      "vanilla_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "payment_convention"),
      _ec_body_contains("SwapFixedLeg.payment_convention is required")),
+    # ---- 400 INVALID_ARGUMENT: bond / yield convention presence ----
+    # A bond or yield convention enum omitted from the request must be rejected,
+    # not silently defaulted to the alphabetical-0 value.
+    ("ec:400 fixed_rate_bond missing accrual_day_counter", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_bond_field("bonds", "fixed_rate_bond", "accrual_day_counter"),
+     _ec_body_contains("FixedRateBond.accrual_day_counter is required")),
+    ("ec:400 fixed_rate_bond yield missing compounding", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_yield_field("bonds", "compounding"),
+     _ec_body_contains("Yield.compounding is required")),
+    ("ec:400 fixed_rate_bond yield missing frequency", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_yield_field("bonds", "frequency"),
+     _ec_body_contains("Yield.frequency is required")),
     # ---- 400 INVALID_ARGUMENT: null-deref guards (optional date fields
     #      omitted on curve helpers; pre-guard these crashed the worker) ----
     ("ec:400 fixed_rate_bond curve BondHelper missing issue_date", "fixed_rate_bond",

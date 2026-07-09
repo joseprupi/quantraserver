@@ -10,9 +10,9 @@ table Period {
 
 /// Yield/compounding convention specification.
 table Yield {
-    day_counter:enums.DayCounter;
-    compounding:enums.Compounding;
-    frequency:enums.Frequency;
+    day_counter:enums.DayCounter = null;
+    compounding:enums.Compounding = null;
+    frequency:enums.Frequency = null;
 }
 
 /// Error message container.
