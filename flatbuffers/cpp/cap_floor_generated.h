@@ -25,13 +25,13 @@ struct CapFloorT;
 
 struct CapFloorT : public ::flatbuffers::NativeTable {
   typedef CapFloor TableType;
-  quantra::enums::CapFloorType cap_floor_type = quantra::enums::CapFloorType_Cap;
+  ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt;
   double notional = 0.0;
   double strike = 0.0;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   CapFloorT() = default;
   CapFloorT(const CapFloorT &o);
   CapFloorT(CapFloorT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -51,8 +51,8 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_DAY_COUNTER = 14,
     VT_BUSINESS_DAY_CONVENTION = 16
   };
-  quantra::enums::CapFloorType cap_floor_type() const {
-    return static_cast<quantra::enums::CapFloorType>(GetField<int8_t>(VT_CAP_FLOOR_TYPE, 0));
+  ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type() const {
+    return GetOptional<int8_t, quantra::enums::CapFloorType>(VT_CAP_FLOOR_TYPE);
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -68,11 +68,11 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -97,7 +97,7 @@ struct CapFloorBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_cap_floor_type(quantra::enums::CapFloorType cap_floor_type) {
-    fbb_.AddElement<int8_t>(CapFloor::VT_CAP_FLOOR_TYPE, static_cast<int8_t>(cap_floor_type), 0);
+    fbb_.AddElement<int8_t>(CapFloor::VT_CAP_FLOOR_TYPE, static_cast<int8_t>(cap_floor_type));
   }
   void add_notional(double notional) {
     fbb_.AddElement<double>(CapFloor::VT_NOTIONAL, notional, 0.0);
@@ -112,10 +112,10 @@ struct CapFloorBuilder {
     fbb_.AddOffset(CapFloor::VT_INDEX, index);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(CapFloor::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(CapFloor::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(CapFloor::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(CapFloor::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   explicit CapFloorBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -131,21 +131,21 @@ struct CapFloorBuilder {
 
 inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::CapFloorType cap_floor_type = quantra::enums::CapFloorType_Cap,
+    ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt,
     double notional = 0.0,
     double strike = 0.0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   CapFloorBuilder builder_(_fbb);
   builder_.add_strike(strike);
   builder_.add_notional(notional);
   builder_.add_index(index);
   builder_.add_schedule(schedule);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_day_counter(day_counter);
-  builder_.add_cap_floor_type(cap_floor_type);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(cap_floor_type) { builder_.add_cap_floor_type(*cap_floor_type); }
   return builder_.Finish();
 }
 

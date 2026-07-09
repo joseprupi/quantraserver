@@ -14,6 +14,11 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(
     if (!capFloor->index() || !capFloor->index()->id())
         QUANTRA_INVALID_ARGUMENT("CapFloor index.id is required");
 
+    if (!capFloor->day_counter().has_value())
+        QUANTRA_INVALID_ARGUMENT("CapFloor.day_counter is required");
+    if (!capFloor->business_day_convention().has_value())
+        QUANTRA_INVALID_ARGUMENT("CapFloor.business_day_convention is required");
+
     // Parse schedule
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(capFloor->schedule());
@@ -25,14 +30,16 @@ std::shared_ptr<QuantLib::CapFloor> CapFloorParser::parse(
     // Create the floating leg (IborLeg)
     Leg leg = IborLeg(*schedule, iborIndex)
         .withNotionals(capFloor->notional())
-        .withPaymentDayCounter(DayCounterToQL(capFloor->day_counter()))
-        .withPaymentAdjustment(ConventionToQL(capFloor->business_day_convention()));
+        .withPaymentDayCounter(DayCounterToQL(capFloor->day_counter().value()))
+        .withPaymentAdjustment(ConventionToQL(capFloor->business_day_convention().value()));
 
     // Parse cap/floor type and create instrument
+    if (!capFloor->cap_floor_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("CapFloor.cap_floor_type is required");
     std::shared_ptr<QuantLib::CapFloor> instrument;
     std::vector<Rate> strikes(1, capFloor->strike());
 
-    switch (capFloor->cap_floor_type()) {
+    switch (capFloor->cap_floor_type().value()) {
         case quantra::enums::CapFloorType_Cap:
             instrument = std::make_shared<QuantLib::Cap>(leg, strikes);
             break;

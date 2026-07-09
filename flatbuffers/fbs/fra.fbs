@@ -5,7 +5,7 @@ namespace quantra;
 
 /// Forward Rate Agreement instrument.
 table FRA {
-    fra_type:enums.FRAType;
+    fra_type:enums.FRAType = null;
     notional:double;
     /// When the FRA period starts.
     start_date:string;
@@ -15,9 +15,9 @@ table FRA {
     strike:double;
     /// Reference to an IndexDef by id (e.g., "EUR_3M").
     index:IndexRef (required);
-    day_counter:enums.DayCounter;
-    calendar:enums.Calendar;
-    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
 }
 
 root_type FRA;

@@ -32,11 +32,23 @@ FraTrade extractTrade(const quantra::PriceFRA* pricing) {
     if (!fra->index() || !fra->index()->id()) {
         QUANTRA_INVALID_ARGUMENT("FRA.index.id is required");
     }
+    if (!fra->fra_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("FRA.fra_type is required");
+    }
+    if (!fra->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("FRA.day_counter is required");
+    }
+    if (!fra->calendar().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("FRA.calendar is required");
+    }
+    if (!fra->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("FRA.business_day_convention is required");
+    }
 
     FraTrade trade;
     trade.startDate = DateToQL(fra->start_date()->str());
     trade.maturityDate = DateToQL(fra->maturity_date()->str());
-    trade.position = FRATypeToQL(fra->fra_type());
+    trade.position = FRATypeToQL(fra->fra_type().value());
     trade.notional = fra->notional();
     trade.strike = fra->strike();
     trade.discountingCurveId = pricing->discounting_curve()->str();
