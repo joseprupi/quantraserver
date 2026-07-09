@@ -35,17 +35,26 @@ CapFloorTrade extractTrade(const quantra::PriceCapFloor* pricing) {
     if (!capFloor->index() || !capFloor->index()->id()) {
         QUANTRA_INVALID_ARGUMENT("CapFloor.index.id is required");
     }
+    if (!capFloor->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CapFloor.day_counter is required");
+    }
+    if (!capFloor->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CapFloor.business_day_convention is required");
+    }
+    if (!capFloor->cap_floor_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CapFloor.cap_floor_type is required");
+    }
 
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(capFloor->schedule());
 
     CapFloorTrade trade;
-    trade.capFloorType = CapFloorTypeToQL(capFloor->cap_floor_type());
+    trade.capFloorType = CapFloorTypeToQL(capFloor->cap_floor_type().value());
     trade.schedule = *schedule;
     trade.notional = capFloor->notional();
     trade.strike = capFloor->strike();
-    trade.dayCounter = DayCounterToQL(capFloor->day_counter());
-    trade.businessDayConvention = ConventionToQL(capFloor->business_day_convention());
+    trade.dayCounter = DayCounterToQL(capFloor->day_counter().value());
+    trade.businessDayConvention = ConventionToQL(capFloor->business_day_convention().value());
     trade.includeDetails = pricing->include_details();
 
     trade.discountingCurveId = pricing->discounting_curve()->str();

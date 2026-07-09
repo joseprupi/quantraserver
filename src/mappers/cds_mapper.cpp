@@ -34,8 +34,11 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(cds->schedule());
 
+    if (!cds->side().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CDS.side is required");
+    }
     CdsTrade trade;
-    trade.side = ProtectionSideToQL(cds->side());
+    trade.side = ProtectionSideToQL(cds->side().value());
     trade.notional = cds->notional();
     if (!cds->running_coupon().has_value()) {
         QUANTRA_INVALID_ARGUMENT("CDS.running_coupon is required");
@@ -45,8 +48,14 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
         trade.upfront = cds->upfront().value();
     }
     trade.schedule = *schedule;
-    trade.dayCounter = DayCounterToQL(cds->day_counter());
-    trade.businessDayConvention = ConventionToQL(cds->business_day_convention());
+    if (!cds->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CDS.day_counter is required");
+    }
+    if (!cds->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CDS.business_day_convention is required");
+    }
+    trade.dayCounter = DayCounterToQL(cds->day_counter().value());
+    trade.businessDayConvention = ConventionToQL(cds->business_day_convention().value());
     trade.settlesAccrual = cds->settles_accrual();
     trade.paysAtDefaultTime = cds->pays_at_default_time();
     trade.rebatesAccrual = cds->rebates_accrual();

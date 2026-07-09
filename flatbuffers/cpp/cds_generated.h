@@ -24,13 +24,13 @@ struct CDST;
 
 struct CDST : public ::flatbuffers::NativeTable {
   typedef CDS TableType;
-  quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer;
+  ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt;
   double notional = 0.0;
   ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   bool settles_accrual = true;
   bool pays_at_default_time = true;
   bool rebates_accrual = true;
@@ -66,8 +66,8 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_TRADE_DATE = 30,
     VT_CASH_SETTLEMENT_DAYS = 32
   };
-  quantra::enums::ProtectionSide side() const {
-    return static_cast<quantra::enums::ProtectionSide>(GetField<int8_t>(VT_SIDE, 0));
+  ::flatbuffers::Optional<quantra::enums::ProtectionSide> side() const {
+    return GetOptional<int8_t, quantra::enums::ProtectionSide>(VT_SIDE);
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -86,11 +86,11 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<double> upfront() const {
     return GetOptional<double, double>(VT_UPFRONT);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   bool settles_accrual() const {
     return GetField<uint8_t>(VT_SETTLES_ACCRUAL, 1) != 0;
@@ -149,7 +149,7 @@ struct CDSBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_side(quantra::enums::ProtectionSide side) {
-    fbb_.AddElement<int8_t>(CDS::VT_SIDE, static_cast<int8_t>(side), 0);
+    fbb_.AddElement<int8_t>(CDS::VT_SIDE, static_cast<int8_t>(side));
   }
   void add_notional(double notional) {
     fbb_.AddElement<double>(CDS::VT_NOTIONAL, notional, 0.0);
@@ -164,10 +164,10 @@ struct CDSBuilder {
     fbb_.AddElement<double>(CDS::VT_UPFRONT, upfront);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(CDS::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(CDS::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(CDS::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(CDS::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_settles_accrual(bool settles_accrual) {
     fbb_.AddElement<uint8_t>(CDS::VT_SETTLES_ACCRUAL, static_cast<uint8_t>(settles_accrual), 1);
@@ -206,13 +206,13 @@ struct CDSBuilder {
 
 inline ::flatbuffers::Offset<CDS> CreateCDS(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer,
+    ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt,
     double notional = 0.0,
     ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     bool settles_accrual = true,
     bool pays_at_default_time = true,
     bool rebates_accrual = true,
@@ -234,21 +234,21 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(
   builder_.add_rebates_accrual(rebates_accrual);
   builder_.add_pays_at_default_time(pays_at_default_time);
   builder_.add_settles_accrual(settles_accrual);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_day_counter(day_counter);
-  builder_.add_side(side);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(side) { builder_.add_side(*side); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CDS> CreateCDSDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::ProtectionSide side = quantra::enums::ProtectionSide_Buyer,
+    ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt,
     double notional = 0.0,
     ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     bool settles_accrual = true,
     bool pays_at_default_time = true,
     bool rebates_accrual = true,

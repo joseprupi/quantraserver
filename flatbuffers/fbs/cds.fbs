@@ -5,7 +5,7 @@ namespace quantra;
 
 /// Credit Default Swap instrument.
 table CDS {
-    side:enums.ProtectionSide;
+    side:enums.ProtectionSide = null;
     notional:double;
     /// Running coupon in decimal (0.01 = 100bps). Required; presence-driven
     /// (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
@@ -15,8 +15,8 @@ table CDS {
     /// CreditDefaultSwap constructor (a genuine 0 upfront is representable);
     /// absent selects the plain no-upfront constructor.
     upfront:double = null;
-    day_counter:enums.DayCounter;
-    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     settles_accrual:bool = true;
     pays_at_default_time:bool = true;
     rebates_accrual:bool = true;

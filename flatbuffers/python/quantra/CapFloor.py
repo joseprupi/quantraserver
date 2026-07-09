@@ -30,7 +30,7 @@ class CapFloor(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CapFloor
     def Notional(self):
@@ -75,14 +75,14 @@ class CapFloor(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CapFloor
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def CapFloorStart(builder):
     builder.StartObject(7)
@@ -91,7 +91,7 @@ def Start(builder):
     CapFloorStart(builder)
 
 def CapFloorAddCapFloorType(builder, capFloorType):
-    builder.PrependInt8Slot(0, capFloorType, 0)
+    builder.PrependInt8Slot(0, capFloorType, None)
 
 def AddCapFloorType(builder, capFloorType):
     CapFloorAddCapFloorType(builder, capFloorType)
@@ -121,13 +121,13 @@ def AddIndex(builder, index):
     CapFloorAddIndex(builder, index)
 
 def CapFloorAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     CapFloorAddDayCounter(builder, dayCounter)
 
 def CapFloorAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, 0)
+    builder.PrependInt8Slot(6, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     CapFloorAddBusinessDayConvention(builder, businessDayConvention)
@@ -147,13 +147,13 @@ class CapFloorT(object):
 
     # CapFloorT
     def __init__(self):
-        self.capFloorType = 0  # type: int
+        self.capFloorType = None  # type: Optional[int]
         self.notional = 0.0  # type: float
         self.strike = 0.0  # type: float
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]
-        self.dayCounter = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

@@ -175,6 +175,17 @@ def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
     return f
 
 
+def _ec_del_instrument_field(arr_key, product_key, field):
+    """Drop a convention field from the product instrument block. The FRA,
+    cap/floor and CDS convention enums (day_counter, calendar,
+    business_day_convention) are presence-required: an omitted convention is an
+    error, never an alphabetical-0 default."""
+    def f(req):
+        req[arr_key][0][product_key].pop(field, None)
+        return req
+    return f
+
+
 def _ec_del_bond_field(arr_key, bond_key, field):
     """Drop a convention field from the bond block. The bond convention enums
     (accrual_day_counter, payment_convention) are presence-required: an omitted
@@ -375,6 +386,37 @@ SCENARIOS = [
      "swaption_request.json", 400,
      _ec_del_vol_base_field("calendar"),
      _ec_body_contains("IrVolBaseSpec.calendar is required")),
+    # ---- 400 INVALID_ARGUMENT: FRA / cap-floor / CDS convention presence ----
+    # An FRA, cap/floor or CDS convention enum omitted from the request must be
+    # rejected, not silently defaulted to the alphabetical-0 value.
+    ("ec:400 fra missing calendar", "fra",
+     "fra_request.json", 400,
+     _ec_del_instrument_field("fras", "fra", "calendar"),
+     _ec_body_contains("FRA.calendar is required")),
+    ("ec:400 cap_floor missing business_day_convention", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "cap_floor", "business_day_convention"),
+     _ec_body_contains("CapFloor.business_day_convention is required")),
+    ("ec:400 cds missing day_counter", "cds",
+     "cds_request.json", 400,
+     _ec_del_instrument_field("cds_list", "cds", "day_counter"),
+     _ec_body_contains("CDS.day_counter is required")),
+    # ---- 400 INVALID_ARGUMENT: FRA / cap-floor / CDS discriminator presence ----
+    # The product-discriminator enums are presence-required: an omitted
+    # discriminator must be rejected, not silently defaulted to the
+    # alphabetical-0 value (Long FRA, Cap, or CDS protection Buyer).
+    ("ec:400 fra missing fra_type", "fra",
+     "fra_request.json", 400,
+     _ec_del_instrument_field("fras", "fra", "fra_type"),
+     _ec_body_contains("FRA.fra_type is required")),
+    ("ec:400 cap_floor missing cap_floor_type", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "cap_floor", "cap_floor_type"),
+     _ec_body_contains("CapFloor.cap_floor_type is required")),
+    ("ec:400 cds missing side", "cds",
+     "cds_request.json", 400,
+     _ec_del_instrument_field("cds_list", "cds", "side"),
+     _ec_body_contains("CDS.side is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request

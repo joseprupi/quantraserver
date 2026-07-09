@@ -6,15 +6,15 @@ namespace quantra;
 
 /// Cap or Floor instrument.
 table CapFloor {
-    cap_floor_type:enums.CapFloorType;
+    cap_floor_type:enums.CapFloorType = null;
     notional:double;
     /// Strike rate (e.g., 0.04 for 4%).
     strike:double;
     schedule:Schedule;
     /// Reference to an IndexDef by id (e.g., "EUR_3M").
     index:IndexRef (required);
-    day_counter:enums.DayCounter;
-    business_day_convention:enums.BusinessDayConvention;
+    day_counter:enums.DayCounter = null;
+    business_day_convention:enums.BusinessDayConvention = null;
 }
 
 root_type CapFloor;

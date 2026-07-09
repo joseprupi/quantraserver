@@ -24,15 +24,15 @@ struct FRAT;
 
 struct FRAT : public ::flatbuffers::NativeTable {
   typedef FRA TableType;
-  quantra::enums::FRAType fra_type = quantra::enums::FRAType_Long;
+  ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt;
   double notional = 0.0;
   std::string start_date{};
   std::string maturity_date{};
   double strike = 0.0;
   std::unique_ptr<quantra::IndexRefT> index{};
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   FRAT() = default;
   FRAT(const FRAT &o);
   FRAT(FRAT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -54,8 +54,8 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_CALENDAR = 18,
     VT_BUSINESS_DAY_CONVENTION = 20
   };
-  quantra::enums::FRAType fra_type() const {
-    return static_cast<quantra::enums::FRAType>(GetField<int8_t>(VT_FRA_TYPE, 0));
+  ::flatbuffers::Optional<quantra::enums::FRAType> fra_type() const {
+    return GetOptional<int8_t, quantra::enums::FRAType>(VT_FRA_TYPE);
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -76,14 +76,14 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 0));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -111,7 +111,7 @@ struct FRABuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_fra_type(quantra::enums::FRAType fra_type) {
-    fbb_.AddElement<int8_t>(FRA::VT_FRA_TYPE, static_cast<int8_t>(fra_type), 0);
+    fbb_.AddElement<int8_t>(FRA::VT_FRA_TYPE, static_cast<int8_t>(fra_type));
   }
   void add_notional(double notional) {
     fbb_.AddElement<double>(FRA::VT_NOTIONAL, notional, 0.0);
@@ -129,13 +129,13 @@ struct FRABuilder {
     fbb_.AddOffset(FRA::VT_INDEX, index);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(FRA::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(FRA::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(FRA::VT_CALENDAR, static_cast<int8_t>(calendar), 0);
+    fbb_.AddElement<int8_t>(FRA::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(FRA::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(FRA::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   explicit FRABuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -151,39 +151,39 @@ struct FRABuilder {
 
 inline ::flatbuffers::Offset<FRA> CreateFRA(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::FRAType fra_type = quantra::enums::FRAType_Long,
+    ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt,
     double notional = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
     double strike = 0.0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   FRABuilder builder_(_fbb);
   builder_.add_strike(strike);
   builder_.add_notional(notional);
   builder_.add_index(index);
   builder_.add_maturity_date(maturity_date);
   builder_.add_start_date(start_date);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
-  builder_.add_day_counter(day_counter);
-  builder_.add_fra_type(fra_type);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(fra_type) { builder_.add_fra_type(*fra_type); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<FRA> CreateFRADirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::FRAType fra_type = quantra::enums::FRAType_Long,
+    ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt,
     double notional = 0.0,
     const char *start_date = nullptr,
     const char *maturity_date = nullptr,
     double strike = 0.0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_Argentina,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following) {
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
   auto maturity_date__ = maturity_date ? _fbb.CreateString(maturity_date) : 0;
   return quantra::CreateFRA(

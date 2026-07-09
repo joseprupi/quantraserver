@@ -15,8 +15,10 @@ std::shared_ptr<QuantLib::ForwardRateAgreement> FRAParser::parse(
     Date maturityDate = DateToQL(fra->maturity_date()->str());
 
     // Parse FRA position type
+    if (!fra->fra_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("FRA.fra_type is required");
     QuantLib::Position::Type position;
-    switch (fra->fra_type()) {
+    switch (fra->fra_type().value()) {
         case quantra::enums::FRAType_Long:
             position = QuantLib::Position::Long;
             break;

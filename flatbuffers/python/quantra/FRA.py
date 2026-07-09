@@ -30,7 +30,7 @@ class FRA(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRA
     def Notional(self):
@@ -80,21 +80,21 @@ class FRA(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRA
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # FRA
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def FRAStart(builder):
     builder.StartObject(9)
@@ -103,7 +103,7 @@ def Start(builder):
     FRAStart(builder)
 
 def FRAAddFraType(builder, fraType):
-    builder.PrependInt8Slot(0, fraType, 0)
+    builder.PrependInt8Slot(0, fraType, None)
 
 def AddFraType(builder, fraType):
     FRAAddFraType(builder, fraType)
@@ -139,19 +139,19 @@ def AddIndex(builder, index):
     FRAAddIndex(builder, index)
 
 def FRAAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(6, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     FRAAddDayCounter(builder, dayCounter)
 
 def FRAAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(7, calendar, 0)
+    builder.PrependInt8Slot(7, calendar, None)
 
 def AddCalendar(builder, calendar):
     FRAAddCalendar(builder, calendar)
 
 def FRAAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(8, businessDayConvention, 0)
+    builder.PrependInt8Slot(8, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     FRAAddBusinessDayConvention(builder, businessDayConvention)
@@ -171,15 +171,15 @@ class FRAT(object):
 
     # FRAT
     def __init__(self):
-        self.fraType = 0  # type: int
+        self.fraType = None  # type: Optional[int]
         self.notional = 0.0  # type: float
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
         self.strike = 0.0  # type: float
         self.index = None  # type: Optional[IndexRefT]
-        self.dayCounter = 0  # type: int
-        self.calendar = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

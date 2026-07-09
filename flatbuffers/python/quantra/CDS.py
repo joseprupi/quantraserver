@@ -30,7 +30,7 @@ class CDS(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def Notional(self):
@@ -74,14 +74,14 @@ class CDS(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def SettlesAccrual(self):
@@ -146,7 +146,7 @@ def Start(builder):
     CDSStart(builder)
 
 def CDSAddSide(builder, side):
-    builder.PrependInt8Slot(0, side, 0)
+    builder.PrependInt8Slot(0, side, None)
 
 def AddSide(builder, side):
     CDSAddSide(builder, side)
@@ -176,13 +176,13 @@ def AddUpfront(builder, upfront):
     CDSAddUpfront(builder, upfront)
 
 def CDSAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     CDSAddDayCounter(builder, dayCounter)
 
 def CDSAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, 0)
+    builder.PrependInt8Slot(6, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     CDSAddBusinessDayConvention(builder, businessDayConvention)
@@ -250,13 +250,13 @@ class CDST(object):
 
     # CDST
     def __init__(self):
-        self.side = 0  # type: int
+        self.side = None  # type: Optional[int]
         self.notional = 0.0  # type: float
         self.runningCoupon = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.upfront = None  # type: Optional[float]
-        self.dayCounter = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.settlesAccrual = True  # type: bool
         self.paysAtDefaultTime = True  # type: bool
         self.rebatesAccrual = True  # type: bool
