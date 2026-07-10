@@ -2,6 +2,7 @@
 #define QUANTRASERVER_CALL_DATA_BASE_H
 
 #include <grpcpp/grpcpp.h>
+#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <iostream>
@@ -101,7 +102,37 @@ public:
                 std::make_shared<flatbuffers::grpc::MessageBuilder>();
             try
             {
+                // Spawn the handler for the NEXT request first, so the deadline
+                // short-circuit below still leaves the service accepting calls.
                 this->CreateService(service_, cq_);
+
+                // The caller's per-RPC deadline is propagated to the server
+                // context. If it has already elapsed, the caller has timed out
+                // and will discard whatever we send, so don't spend the
+                // single-threaded worker computing a reply nobody will read.
+                //
+                // We key off the propagated deadline rather than
+                // ctx_.IsCancelled(): on this async service IsCancelled() is
+                // only safe once the AsyncNotifyWhenDone tag has been delivered
+                // (RPC end), which this server does not register, and calling it
+                // earlier is undefined. deadline() is always safe and captures
+                // the exact signal the gateway's per-RPC deadline produces. A
+                // caller with no deadline yields time_point::max(), so this is a
+                // no-op for them.
+                if (std::chrono::system_clock::now() >= ctx_.deadline())
+                {
+                    std::cerr << "[grpc] request deadline already elapsed before processing, skipping"
+                              << " type=" << typeid(Message).name()
+                              << " peer=" << ctx_.peer()
+                              << " request_id=" << request_id
+                              << std::endl;
+                    status_ = FINISH;
+                    responder_.FinishWithError(
+                        grpc::Status(grpc::StatusCode::CANCELLED,
+                                     "client cancelled or deadline expired"),
+                        this);
+                    return;
+                }
 
                 if (!request_msg.Verify())
                 {
@@ -121,6 +152,24 @@ public:
                 Request request;
                 auto response = request.request(builder, request_msg.GetRoot());
                 builder->Finish(response);
+
+                // The computation may have taken longer than the caller was
+                // willing to wait: re-check the propagated deadline before
+                // serializing/sending a reply nobody will read.
+                if (std::chrono::system_clock::now() >= ctx_.deadline())
+                {
+                    std::cerr << "[grpc] request deadline elapsed during processing, dropping reply"
+                              << " type=" << typeid(Message).name()
+                              << " peer=" << ctx_.peer()
+                              << " request_id=" << request_id
+                              << std::endl;
+                    status_ = FINISH;
+                    responder_.FinishWithError(
+                        grpc::Status(grpc::StatusCode::CANCELLED,
+                                     "client cancelled or deadline expired"),
+                        this);
+                    return;
+                }
 
                 reply_ = builder->ReleaseMessage<Response>();
                 if (!reply_.Verify())

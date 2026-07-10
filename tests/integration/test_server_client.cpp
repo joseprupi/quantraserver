@@ -284,6 +284,50 @@ protected:
         return yb.Finish();
     }
 
+    // Builds a self-contained fixed-rate-bond request (curve bootstrap with swap
+    // helpers + bond pricing). Server-side work is well above a 1ms deadline, so
+    // this doubles as a "slow enough to outlive a tight deadline" payload.
+    flatbuffers::grpc::Message<quantra::PriceFixedRateBondRequest> buildFixedRateBondRequest() {
+        flatbuffers::grpc::MessageBuilder b;
+        auto ts = buildCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        auto indices = buildIndicesVector(b);
+        auto asof = b.CreateString("2025-01-15");
+        auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, 0, 0, 0, 0, 0, 0, true);
+
+        auto eff = b.CreateString("2024-01-15");
+        auto term = b.CreateString("2029-01-15");
+        quantra::ScheduleBuilder sb(b);
+        sb.add_effective_date(eff); sb.add_termination_date(term);
+        sb.add_calendar(quantra::enums::Calendar_TARGET);
+        sb.add_frequency(quantra::enums::Frequency_Annual);
+        sb.add_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
+        sb.add_end_of_month(false);
+        auto schedule = sb.Finish();
+
+        auto idate = b.CreateString("2024-01-15");
+        quantra::FixedRateBondBuilder bb(b);
+        bb.add_settlement_days(2); bb.add_face_amount(100.0);
+        bb.add_schedule(schedule); bb.add_rate(0.05);
+        bb.add_accrual_day_counter(quantra::enums::DayCounter_ActualActual);
+        bb.add_issue_date(idate); bb.add_redemption(100.0);
+        bb.add_payment_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        auto bond = bb.Finish();
+
+        auto yield = buildYield(b);
+        auto dc = b.CreateString("discount");
+        quantra::PriceFixedRateBondBuilder pfb(b);
+        pfb.add_fixed_rate_bond(bond); pfb.add_discounting_curve(dc); pfb.add_yield(yield);
+        auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
+
+        quantra::PriceFixedRateBondRequestBuilder rb(b);
+        rb.add_pricing(pricing); rb.add_bonds(bonds);
+        b.Finish(rb.Finish());
+        return b.ReleaseMessage<quantra::PriceFixedRateBondRequest>();
+    }
+
     static std::shared_ptr<grpc::Channel> channel_;
     static std::unique_ptr<quantra::QuantraServer::Stub> stub_;
     static bool serverAvailable_;
@@ -1465,6 +1509,41 @@ TEST_F(ServerClientTest, Latency_MultipleRequests) {
     std::cout << "Latency: Avg=" << sum/latencies.size() << "μs, P50=" << latencies[latencies.size()/2] 
               << "μs, P99=" << latencies[latencies.size()*99/100] << "μs" << std::endl;
     EXPECT_LT(sum/latencies.size(), 50000);
+}
+
+TEST_F(ServerClientTest, ExpiredDeadline_YieldsDeadlineExceededThenServerRecovers) {
+    std::cout << "\n=== Server-Client: Expired-deadline cancellation gate ===" << std::endl;
+
+    // A caller whose deadline has already elapsed has given up on the reply.
+    // gRPC surfaces this to the client as DEADLINE_EXCEEDED; on the server the
+    // propagated deadline is in the past, so the cancellation gate short-circuits
+    // and never spends the single-threaded worker on a reply nobody will read.
+    // An already-elapsed deadline makes this deterministic — no dependence on how
+    // fast a given machine prices the payload. Assert on status codes only, never
+    // on elapsed time, which flakes in CI.
+    {
+        auto request = buildFixedRateBondRequest();
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() - std::chrono::seconds(1));
+        flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> response;
+        auto status = stub_->PriceFixedRateBond(&context, request, &response);
+        EXPECT_EQ(status.error_code(), grpc::StatusCode::DEADLINE_EXCEEDED)
+            << "expected DEADLINE_EXCEEDED, got code=" << status.error_code()
+            << " message=" << status.error_message();
+    }
+
+    // The single-threaded worker must have recycled the cancelled tag and stayed
+    // responsive: a normal request on the same channel still succeeds.
+    {
+        auto request = buildFixedRateBondRequest();
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> response;
+        auto status = stub_->PriceFixedRateBond(&context, request, &response);
+        ASSERT_TRUE(status.ok()) << "gRPC failed after cancellation: " << status.error_message();
+        double npv = response.GetRoot()->bonds()->Get(0)->npv();
+        EXPECT_NEAR(npv, 107.432, 0.01);
+    }
 }
 
 }} // namespace
