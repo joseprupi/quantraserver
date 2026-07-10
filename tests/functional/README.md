@@ -572,11 +572,13 @@ pin nothing measurable); they are deliberately not half-implemented:
   QuantLib Python bindings only expose the maturity-date helper
   constructors, so the reference rejects `start_date` instead of
   approximating it. End-date-only helpers are covered.
-* **`adjust_observation_dates` / inflation calendar on ZCIIS** — on the
-  wire and passed to QuantLib by both sides, but numerically inert in this
+* **`adjust_observation_dates` on ZCIIS** — numerically inert in this
   QuantLib version (the CPI flow amount is computed from the maturity and
-  observation lag regardless of the adjusted observation date), so no NPV
-  case can pin it.
+  observation lag regardless of the adjusted observation date; an exhaustive
+  sweep of maturities, inflation calendars and CPI interpolations never moves
+  the NPV when it is toggled). Because it cannot be honoured, the server now
+  rejects `adjust_observation_dates=true` with an invalid-argument error
+  rather than accept a silent no-op; only the default `false` is priced.
 * **Quote-referenced inflation helpers (`quote_id`)** — resolved against
   `pricing.quotes` by both the server and the reference, but no catalog
   case exercises the indirection yet.

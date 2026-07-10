@@ -2250,7 +2250,8 @@
                 "$ref" : "#/definitions/quantra_enums_CPIInterpolationType"
               },
         "adjust_observation_dates" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Must stay false. In the pinned QuantLib this flag does not change the\npriced observation dates for a zero-coupon inflation swap, so setting it\ntrue would be a silent no-op; the server rejects true with an error\nrather than accept a flag it cannot honour."
               },
         "inflation_calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"

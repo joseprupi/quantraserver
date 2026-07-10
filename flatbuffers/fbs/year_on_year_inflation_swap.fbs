@@ -6,7 +6,8 @@ namespace quantra;
 
 /// Standard year-on-year inflation swap (YYIIS).
 table YearOnYearInflationSwap {
-    /// "Payer" / "Receiver" refers to the YoY inflation leg.
+    /// "Payer" pays the fixed leg and receives the YoY inflation leg;
+    /// "Receiver" is the reverse (receives fixed, pays YoY inflation).
     swap_type:enums.SwapType;
     notional:double;
     fixed_schedule:Schedule (required);

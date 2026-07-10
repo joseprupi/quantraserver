@@ -54,6 +54,13 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
         swap->observation_lag()->n(),
         TimeUnitToQL(swap->observation_lag()->unit()));
     trade.observationInterpolation = CPIInterpolationToQL(swap->observation_interpolation());
+    if (swap->adjust_observation_dates()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "ZeroCouponInflationSwap adjust_observation_dates=true is not supported: "
+            "in the pinned QuantLib it does not change the priced observation dates "
+            "for this instrument, so honouring it would be a silent no-op. Omit the "
+            "field or set it to false.");
+    }
     trade.adjustObservationDates = swap->adjust_observation_dates();
     trade.inflationCalendar = CalendarToQL(swap->inflation_calendar());
     trade.inflationConvention = ConventionToQL(swap->inflation_convention());
