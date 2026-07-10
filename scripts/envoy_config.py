@@ -35,10 +35,12 @@ def generate_envoy_config(
     admin_port: int = 9901,
     connect_timeout: str = "0.25s",
     health_check_interval: str = "1s",
+    route_timeout: str = "30s",
+    grpc_timeout_header_max: str = "60s",
 ) -> Dict[str, Any]:
     """
     Generate Envoy configuration for load balancing across Quantra workers.
-    
+
     Args:
         port: Client-facing port (Envoy listens here)
         base_port: First worker port (workers use base_port, base_port+1, ...)
@@ -46,7 +48,13 @@ def generate_envoy_config(
         admin_port: Envoy admin interface port
         connect_timeout: Connection timeout for upstream workers
         health_check_interval: Health check interval
-        
+        route_timeout: Overall per-request route timeout. Envoy aborts the
+            request (504 to the client) once this elapses, so a worker stuck on
+            a slow computation cannot pin the connection indefinitely.
+        grpc_timeout_header_max: Upper bound applied to a client-supplied
+            grpc-timeout header. The client's own deadline is still honored, but
+            it can never exceed this cap.
+
     Returns:
         Envoy configuration dictionary
     """
@@ -98,9 +106,9 @@ def generate_envoy_config(
                                         "match": {"prefix": "/"},
                                         "route": {
                                             "cluster": "quantra_workers",
-                                            "timeout": "0s",
+                                            "timeout": route_timeout,
                                             "max_stream_duration": {
-                                                "grpc_timeout_header_max": "0s"
+                                                "grpc_timeout_header_max": grpc_timeout_header_max
                                             }
                                         }
                                     }]
@@ -120,7 +128,11 @@ def generate_envoy_config(
                 "name": "quantra_workers",
                 "connect_timeout": connect_timeout,
                 "type": "STATIC",
-                "lb_policy": "ROUND_ROBIN",
+                # LEAST_REQUEST steers new requests to the worker with the
+                # fewest in-flight requests. Workers are single-threaded, so a
+                # busy one keeps an in-flight count >= 1 and is naturally
+                # avoided until it frees up.
+                "lb_policy": "LEAST_REQUEST",
                 "typed_extension_protocol_options": {
                     "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
                         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
@@ -280,6 +292,12 @@ Examples:
                         help="First worker port (default: 50055)")
     parser.add_argument("--admin-port", type=int, default=9901,
                         help="Envoy admin port (default: 9901)")
+    parser.add_argument("--request-timeout", type=str, default="30s",
+                        help="Per-request route timeout; Envoy returns 504 once "
+                             "it elapses (default: 30s)")
+    parser.add_argument("--grpc-timeout-header-max", type=str, default="60s",
+                        help="Cap applied to a client-supplied grpc-timeout "
+                             "header (default: 60s)")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output file path (default: stdout)")
     parser.add_argument("--format", choices=["yaml", "json"], default="yaml",
@@ -301,6 +319,8 @@ Examples:
         base_port=args.base_port,
         workers=args.workers,
         admin_port=args.admin_port,
+        route_timeout=args.request_timeout,
+        grpc_timeout_header_max=args.grpc_timeout_header_max,
     )
     
     if args.output:

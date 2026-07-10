@@ -250,6 +250,8 @@ RUN printf '%s\n' \
     ': "${QUANTRA_GRPC_TARGET:=127.0.0.1:50051}"' \
     ': "${QUANTRA_HTTP_PORT:=8080}"' \
     ': "${QUANTRA_STARTUP_WAIT:=3}"' \
+    ': "${QUANTRA_REQUEST_BUDGET_MS:=35000}"' \
+    'export QUANTRA_REQUEST_BUDGET_MS' \
     'quantra start --workers "$QUANTRA_WORKERS" --foreground &' \
     'QUANTRA_PID=$!' \
     'sleep "$QUANTRA_STARTUP_WAIT"' \
@@ -275,6 +277,10 @@ ENV QUANTRA_FBS_INCLUDE_DIR=/app/flatbuffers/fbs
 # image and starts its own cache-OFF/cache-ON server pairs explicitly.
 ENV QUANTRA_CURVE_CACHE_ENABLED=1
 ENV QUANTRA_SABR_CACHE_ENABLED=1
+# Per-request server-side compute budget. Set slightly above the Envoy route
+# timeout (30s) so a worker frees itself even if Envoy has already returned 504
+# to the client, preventing a slow request from pinning a single-threaded worker.
+ENV QUANTRA_REQUEST_BUDGET_MS=35000
 
 EXPOSE 50051 8080
 
