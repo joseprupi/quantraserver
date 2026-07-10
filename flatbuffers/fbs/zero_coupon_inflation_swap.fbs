@@ -19,6 +19,10 @@ table ZeroCouponInflationSwap {
     inflation_index_id:string (required);
     observation_lag:Period (required);
     observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    /// Must stay false. In the pinned QuantLib this flag does not change the
+    /// priced observation dates for a zero-coupon inflation swap, so setting it
+    /// true would be a silent no-op; the server rejects true with an error
+    /// rather than accept a flag it cannot honour.
     adjust_observation_dates:bool = false;
     inflation_calendar:enums.Calendar = NullCalendar;
     inflation_convention:enums.BusinessDayConvention = Following;

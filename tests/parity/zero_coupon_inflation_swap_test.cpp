@@ -5,6 +5,8 @@
 // test_quantra_vs_quantlib gtest binary.
 #include "parity_fixture.h"
 
+#include "error.h"
+
 namespace quantra { namespace testing {
 
 TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
@@ -380,6 +382,49 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     EXPECT_NEAR(priced->fair_rate(), expected->fairRate(), 1e-10);
     EXPECT_NEAR(priced->fixed_leg_npv(), expected->fixedLegNPV(), 1e-8);
     EXPECT_NEAR(priced->inflation_leg_npv(), expected->inflationLegNPV(), 1e-8);
+}
+
+// adjust_observation_dates has no numerical effect on a zero-coupon inflation
+// swap in the pinned QuantLib (an exhaustive sweep of maturities, calendars and
+// interpolations leaves the NPV unchanged when it is toggled). Rather than
+// silently accept a flag it cannot honour, the server rejects the true value.
+TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_RejectsAdjustObservationDates) {
+    flatbuffers::grpc::MessageBuilder b;
+
+    auto startDate = b.CreateString("2025-01-15");
+    auto maturityDate = b.CreateString("2028-01-15");
+    auto idxId = b.CreateString("EUHICP");
+    auto discCurveId = b.CreateString("DISC");
+    auto curveId = b.CreateString("HICP_ZC");
+    auto observationLag = buildPeriod(b, 3, quantra::enums::TimeUnit_Months);
+
+    quantra::ZeroCouponInflationSwapBuilder zcib(b);
+    zcib.add_swap_type(quantra::enums::SwapType_Receiver);
+    zcib.add_notional(1000000.0);
+    zcib.add_start_date(startDate);
+    zcib.add_maturity_date(maturityDate);
+    zcib.add_fixed_rate(0.02);
+    zcib.add_inflation_index_id(idxId);
+    zcib.add_observation_lag(observationLag);
+    zcib.add_adjust_observation_dates(true);  // unsupported -> must be rejected
+    auto zciis = zcib.Finish();
+
+    quantra::PriceZeroCouponInflationSwapBuilder pzb(b);
+    pzb.add_zero_coupon_inflation_swap(zciis);
+    pzb.add_discounting_curve(discCurveId);
+    pzb.add_inflation_curve(curveId);
+    auto trades = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{pzb.Finish()});
+
+    quantra::PriceZeroCouponInflationSwapRequestBuilder reqb(b);
+    reqb.add_swaps(trades);
+    reqb.add_include_flows(false);
+    b.Finish(reqb.Finish());
+
+    auto req = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
+    ZeroCouponInflationSwapPricingRequest handler;
+    auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    EXPECT_THROW(handler.request(outBuilder, req), QuantraInvalidArgument);
 }
 
 }} // namespace quantra::testing

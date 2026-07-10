@@ -173,7 +173,10 @@ def get_calendar(name: str):
         # Mirrors the server's CalendarToQL: QuantLib::UnitedKingdom()
         # (default Settlement market).
         "UnitedKingdom": ql.UnitedKingdom(),
-        "UnitedStates": ql.UnitedStates(ql.UnitedStates.NYSE),
+        # Mirrors the server's CalendarToQL: the plain "UnitedStates" enum maps
+        # to the Settlement market (not NYSE).
+        "UnitedStates": ql.UnitedStates(ql.UnitedStates.Settlement),
+        "UnitedStatesSettlement": ql.UnitedStates(ql.UnitedStates.Settlement),
         "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
     }

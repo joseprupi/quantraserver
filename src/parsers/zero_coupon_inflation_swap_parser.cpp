@@ -42,6 +42,13 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
     if (!inflationIndex) {
         QUANTRA_NOT_FOUND("ZeroCouponInflationSwap inflation index not available");
     }
+    if (swap->adjust_observation_dates()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "ZeroCouponInflationSwap adjust_observation_dates=true is not supported: "
+            "in the pinned QuantLib it does not change the priced observation dates "
+            "for this instrument, so honouring it would be a silent no-op. Omit the "
+            "field or set it to false.");
+    }
 
     QuantLib::ZeroCouponInflationSwap::Type swapType;
     switch (swap->swap_type()) {

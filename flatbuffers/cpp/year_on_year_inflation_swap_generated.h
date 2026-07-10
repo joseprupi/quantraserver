@@ -63,7 +63,8 @@ struct YearOnYearInflationSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
     VT_PAYMENT_CALENDAR = 26,
     VT_PAYMENT_CONVENTION = 28
   };
-  /// "Payer" / "Receiver" refers to the YoY inflation leg.
+  /// "Payer" pays the fixed leg and receives the YoY inflation leg;
+  /// "Receiver" is the reverse (receives fixed, pays YoY inflation).
   quantra::enums::SwapType swap_type() const {
     return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
   }

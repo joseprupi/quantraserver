@@ -100,6 +100,10 @@ struct ZeroCouponInflationSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   quantra::enums::CPIInterpolationType observation_interpolation() const {
     return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
   }
+  /// Must stay false. In the pinned QuantLib this flag does not change the
+  /// priced observation dates for a zero-coupon inflation swap, so setting it
+  /// true would be a silent no-op; the server rejects true with an error
+  /// rather than accept a flag it cannot honour.
   bool adjust_observation_dates() const {
     return GetField<uint8_t>(VT_ADJUST_OBSERVATION_DATES, 0) != 0;
   }

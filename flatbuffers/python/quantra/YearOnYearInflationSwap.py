@@ -25,7 +25,8 @@ class YearOnYearInflationSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # "Payer" / "Receiver" refers to the YoY inflation leg.
+    # "Payer" pays the fixed leg and receives the YoY inflation leg;
+    # "Receiver" is the reverse (receives fixed, pays YoY inflation).
     # YearOnYearInflationSwap
     def SwapType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))

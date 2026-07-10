@@ -109,6 +109,10 @@ class ZeroCouponInflationSwap(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Must stay false. In the pinned QuantLib this flag does not change the
+    # priced observation dates for a zero-coupon inflation swap, so setting it
+    # true would be a silent no-op; the server rejects true with an error
+    # rather than accept a flag it cannot honour.
     # ZeroCouponInflationSwap
     def AdjustObservationDates(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
