@@ -1,5 +1,7 @@
 #include "equity_option_mapper.h"
 
+#include <cmath>
+
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "equity_option_parser.h"
@@ -38,6 +40,8 @@ EquityOptionTrade extractTrade(const quantra::PriceEquityOption* pricing) {
     trade.settlement = EquitySettlementTypeToQL(parsed.settlement);
     trade.optionType = parsed.optionType;
     trade.strike = parsed.strike;
+    trade.payoffKind = parsed.payoffKind;
+    trade.cash = parsed.cash;
     trade.exercise = std::move(parsed.exercise);
     trade.hasBarrier = parsed.hasBarrier;
     trade.barrierType = parsed.barrierType;
@@ -83,12 +87,17 @@ flatbuffers::Offset<quantra::PriceEquityOptionResponse> EquityOptionMapper::toRe
         quantra::EquityOptionResponseBuilder rb(builder);
         rb.add_trade_id(tradeId);
         rb.add_npv(t.npv);
-        rb.add_delta(t.delta);
-        rb.add_gamma(t.gamma);
-        rb.add_vega(t.vega);
-        rb.add_theta(t.theta);
-        rb.add_rho(t.rho);
-        rb.add_implied_volatility(t.impliedVolatility);
+        // Greeks an engine cannot compute come back as NaN (safeGreek). NaN is
+        // not representable in JSON, so those fields are left at their default
+        // and omitted from the response — an absent greek means "the pricing
+        // engine did not provide it" rather than a fabricated zero or a
+        // non-JSON nan token.
+        if (std::isfinite(t.delta)) rb.add_delta(t.delta);
+        if (std::isfinite(t.gamma)) rb.add_gamma(t.gamma);
+        if (std::isfinite(t.vega)) rb.add_vega(t.vega);
+        if (std::isfinite(t.theta)) rb.add_theta(t.theta);
+        if (std::isfinite(t.rho)) rb.add_rho(t.rho);
+        if (std::isfinite(t.impliedVolatility)) rb.add_implied_volatility(t.impliedVolatility);
         rb.add_used_spot(t.usedSpot);
         rb.add_used_strike(t.usedStrike);
         rb.add_used_settlement(EquitySettlementTypeToFb(t.usedSettlement));

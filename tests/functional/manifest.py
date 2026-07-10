@@ -2402,6 +2402,102 @@ CASES = [
         "exercises": ["European", "call", "discrete cash dividends",
                       "escrowed-dividend analytic engine"],
     },
+    {
+        "id": "eqopt_amer_call_atm_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y American call, at the money",
+        "description": (
+            "An at-the-money American call struck at 100.00 on the 100.00 "
+            "spot, exercisable any time up to the 2026-01-15 expiry. Priced "
+            "with QuantLib's finite-difference Black-Scholes engine on both "
+            "sides. With a zero dividend yield early exercise is never "
+            "optimal, so the premium coincides with the European call — "
+            "pinning the American exercise path against a known value."
+        ),
+        "request": "equity/eqopt_amer_call_atm_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["American", "call", "finite-difference BS engine",
+                      "at-the-money strike"],
+    },
+    {
+        "id": "eqopt_amer_put_atm_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y American put, at the money",
+        "description": (
+            "The American put twin: at-the-money strike 100.00, 1Y expiry, "
+            "20% vol, 3% risk-free curve. Unlike the call, the American put "
+            "carries a genuine early-exercise premium over its European "
+            "counterpart, exercising the finite-difference free-boundary "
+            "solve on both sides."
+        ),
+        "request": "equity/eqopt_amer_put_atm_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["American", "put", "early-exercise premium",
+                      "finite-difference BS engine"],
+    },
+    {
+        "id": "eqopt_berm_call_atm_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y Bermudan call, three exercise dates",
+        "description": (
+            "An at-the-money Bermudan call exercisable on three dates "
+            "(2025-07-15, 2025-10-15 and the 2026-01-15 expiry). Priced with "
+            "the finite-difference Black-Scholes engine driven by an explicit "
+            "BermudanExercise on both sides, pinning the multi-date exercise "
+            "schedule end to end."
+        ),
+        "request": "equity/eqopt_berm_call_atm_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["Bermudan", "call", "three exercise dates",
+                      "finite-difference BS engine"],
+    },
+    {
+        "id": "eqopt_eur_cash_or_nothing_call_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European cash-or-nothing digital call",
+        "description": (
+            "A European cash-or-nothing digital call struck at 100.00 paying "
+            "a fixed 10.00 cash amount if the 100.00 spot finishes above the "
+            "strike at the 2026-01-15 expiry. Priced with the analytic "
+            "European engine, which values the digital payoff directly via "
+            "the Black calculator on both sides."
+        ),
+        "request": "equity/eqopt_eur_cash_or_nothing_call_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "cash-or-nothing digital", "call",
+                      "analytic European engine"],
+    },
+    {
+        "id": "eqopt_eur_asset_or_nothing_put_1y",
+        "product": "equity_option",
+        "family": "Equity",
+        "title": "EUR 1Y European asset-or-nothing digital put",
+        "description": (
+            "A European asset-or-nothing digital put struck at 100.00 paying "
+            "the underlying's value if the 100.00 spot finishes below the "
+            "strike at the 2026-01-15 expiry. Priced with the analytic "
+            "European engine on both sides, pinning the asset-or-nothing "
+            "payoff branch."
+        ),
+        "request": "equity/eqopt_eur_asset_or_nothing_put_1y.json",
+        "list_key": "options",
+        "ql_pricer": "price_equity_option_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["European", "asset-or-nothing digital", "put",
+                      "analytic European engine"],
+    },
 
     # ------------------------------------------------------------------
     # Vol / Calibration — vol-surface sampling (compare="series": every

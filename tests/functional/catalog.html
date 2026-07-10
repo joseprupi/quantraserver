@@ -795,6 +795,36 @@
 <td><a href="../../examples/data/equity/eqopt_eur_call_atm_1y_discrete_div.json">eqopt_eur_call_atm_1y_discrete_div.json</a></td>
 <td class="npv">6.71</td>
 </tr>
+<tr>
+<td><div class="title">EUR 1Y American call, at the money</div><div class="desc">An at-the-money American call struck at 100.00 on the 100.00 spot, exercisable any time up to the 2026-01-15 expiry. Priced with QuantLib&#x27;s finite-difference Black-Scholes engine on both sides. With a zero dividend yield early exercise is never optimal, so the premium coincides with the European call — pinning the American exercise path against a known value.</div></td>
+<td><code>American</code> <code>call</code> <code>finite-difference BS engine</code> <code>at-the-money strike</code></td>
+<td><a href="../../examples/data/equity/eqopt_amer_call_atm_1y.json">eqopt_amer_call_atm_1y.json</a></td>
+<td class="npv">9.42</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y American put, at the money</div><div class="desc">The American put twin: at-the-money strike 100.00, 1Y expiry, 20% vol, 3% risk-free curve. Unlike the call, the American put carries a genuine early-exercise premium over its European counterpart, exercising the finite-difference free-boundary solve on both sides.</div></td>
+<td><code>American</code> <code>put</code> <code>early-exercise premium</code> <code>finite-difference BS engine</code></td>
+<td><a href="../../examples/data/equity/eqopt_amer_put_atm_1y.json">eqopt_amer_put_atm_1y.json</a></td>
+<td class="npv">6.74</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y Bermudan call, three exercise dates</div><div class="desc">An at-the-money Bermudan call exercisable on three dates (2025-07-15, 2025-10-15 and the 2026-01-15 expiry). Priced with the finite-difference Black-Scholes engine driven by an explicit BermudanExercise on both sides, pinning the multi-date exercise schedule end to end.</div></td>
+<td><code>Bermudan</code> <code>call</code> <code>three exercise dates</code> <code>finite-difference BS engine</code></td>
+<td><a href="../../examples/data/equity/eqopt_berm_call_atm_1y.json">eqopt_berm_call_atm_1y.json</a></td>
+<td class="npv">9.42</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European cash-or-nothing digital call</div><div class="desc">A European cash-or-nothing digital call struck at 100.00 paying a fixed 10.00 cash amount if the 100.00 spot finishes above the strike at the 2026-01-15 expiry. Priced with the analytic European engine, which values the digital payoff directly via the Black calculator on both sides.</div></td>
+<td><code>European</code> <code>cash-or-nothing digital</code> <code>call</code> <code>analytic European engine</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_cash_or_nothing_call_1y.json">eqopt_eur_cash_or_nothing_call_1y.json</a></td>
+<td class="npv">5.05</td>
+</tr>
+<tr>
+<td><div class="title">EUR 1Y European asset-or-nothing digital put</div><div class="desc">A European asset-or-nothing digital put struck at 100.00 paying the underlying&#x27;s value if the 100.00 spot finishes below the strike at the 2026-01-15 expiry. Priced with the analytic European engine on both sides, pinning the asset-or-nothing payoff branch.</div></td>
+<td><code>European</code> <code>asset-or-nothing digital</code> <code>put</code> <code>analytic European engine</code></td>
+<td><a href="../../examples/data/equity/eqopt_eur_asset_or_nothing_put_1y.json">eqopt_eur_asset_or_nothing_put_1y.json</a></td>
+<td class="npv">40.13</td>
+</tr>
 </tbody>
 </table>
 <h2>Vol / Calibration</h2>
@@ -869,6 +899,6 @@
 </tr>
 </tbody>
 </table>
-<footer>129 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>134 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

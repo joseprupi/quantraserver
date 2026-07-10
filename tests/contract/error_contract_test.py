@@ -126,6 +126,26 @@ def _ec_del_curve_field(field):
     return f
 
 
+def _ec_equity_set_payoff(payoff_type, payoff):
+    """Replace the equity option's payoff union (payoff_type + payoff)."""
+    def f(req):
+        opt = req["options"][0]["option"]
+        opt["payoff_type"] = payoff_type
+        opt["payoff"] = payoff
+        return req
+    return f
+
+
+def _ec_equity_set_exercise(exercise_type, exercise):
+    """Replace the equity option's exercise union (exercise_type + exercise)."""
+    def f(req):
+        opt = req["options"][0]["option"]
+        opt["exercise_type"] = exercise_type
+        opt["exercise"] = exercise
+        return req
+    return f
+
+
 def _ec_future_helper_missing_start_date():
     """Replace the first curve point with a FutureHelper that omits
     future_start_date (optional in the schema, deref'd by the parser)."""
@@ -525,6 +545,27 @@ SCENARIOS = [
      "swaption_request.json", 400,
      _ec_set_nested_field("swaptions", "swaption", "settlement_type", 99),
      _ec_body_contains("Invalid settlement type")),
+    # ---- 400 INVALID_ARGUMENT: equity exercise-style / payoff combinations
+    #      QuantLib does not natively support are rejected, never silently
+    #      re-routed to a different product. ----
+    # A digital payoff combined with discrete cash dividends has no clean
+    # native engine, so it must be rejected. The base request already carries
+    # discrete dividends on the underlying; swapping the payoff to a digital
+    # trips the guard.
+    ("ec:400 equity digital payoff with discrete dividends rejected", "equity_option",
+     "equity/eqopt_eur_call_atm_1y_discrete_div.json", 400,
+     _ec_equity_set_payoff("EquityCashOrNothingPayoff",
+                           {"option_type": "Call", "strike": 100.0, "cash": 10.0}),
+     _ec_body_contains("Discrete cash dividends are not supported for digital")),
+    # A Bermudan exercise combined with a digital payoff has no native engine.
+    ("ec:400 equity Bermudan digital payoff rejected", "equity_option",
+     "equity/eqopt_eur_call_atm_1y.json", 400,
+     lambda req: _ec_equity_set_exercise(
+         "EquityBermudanExercise",
+         {"exercise_dates": ["2025-07-15", "2025-10-15", "2026-01-15"]})(
+         _ec_equity_set_payoff("EquityCashOrNothingPayoff",
+                               {"option_type": "Call", "strike": 100.0, "cash": 10.0})(req)),
+     _ec_body_contains("Bermudan exercise is not supported for digital")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),
