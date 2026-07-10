@@ -39,6 +39,8 @@ start_servers() {
     env -i PATH="$PATH" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" \
         QUANTRA_CURVE_CACHE_ENABLED=$cache_enabled \
         QUANTRA_CURVE_CACHE_LOG=$( [ "$cache_enabled" = "1" ] && echo "1" || echo "0" ) \
+        QUANTRA_HW_CACHE_ENABLED=$cache_enabled \
+        QUANTRA_HW_CACHE_LOG=$( [ "$cache_enabled" = "1" ] && echo "1" || echo "0" ) \
         "${WORKSPACE}/build/server/sync_server" $GRPC_PORT > /tmp/quantra_bench.log 2>&1 &
     PID_GRPC=$!
     sleep 1
@@ -107,12 +109,11 @@ pkill -9 -f sync_server 2>/dev/null; pkill -9 -f json_server 2>/dev/null; sleep 
 if [ -n "$1" ]; then
     ALL_MODES="$1"
 else
-    # hwcalib = Hull-White swaption-model calibration baseline. Both legs
-    # (cache-off / cache-on) currently exercise the SAME uncached calibration
-    # path — there is no calibration cache yet, so QUANTRA_CURVE_CACHE_ENABLED
-    # does not touch it and the two legs should read equal. That equality IS
-    # the baseline: when a Hull-White calibration cache lands, its own env flag
-    # will differentiate the legs and the "with-cache" column will drop.
+    # hwcalib = Hull-White swaption-model calibration. The cache-on leg sets
+    # QUANTRA_HW_CACHE_ENABLED (alongside the curve cache flag), so repeated
+    # identical calibrate requests hit the cross-request calibration cache and
+    # skip the Levenberg-Marquardt fit — the "with-cache" column drops sharply
+    # versus the ~150ms uncached leg.
     ALL_MODES="bond swap hwcalib"
 fi
 

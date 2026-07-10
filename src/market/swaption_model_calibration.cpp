@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <atomic>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <sstream>
@@ -19,6 +20,8 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "hw_calibrate_cache.h"
+#include "hw_calibrate_cache_key.h"
 
 namespace {
 
@@ -88,6 +91,15 @@ int clampCalibrationKnob(int requested, int ceiling) {
     return requested;
 }
 
+// Resolve a curve cache key by curve id, returning "" when the curve cache is
+// disabled or the curve is missing from the keys map. An empty key disables the
+// cross-request HW-calibration cache for this run (safe fallback — never wrong,
+// only slower). Mirrors getCurveCacheKey in swaption_vol_runtime.cpp.
+std::string getCurveCacheKey(const quantra::PricingRegistry& reg, const std::string& curveId) {
+    auto it = reg.rates.curveKeys.find(curveId);
+    return (it == reg.rates.curveKeys.end()) ? std::string() : it->second;
+}
+
 } // namespace
 
 namespace quantra {
@@ -141,7 +153,9 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     const PricingRegistry& reg,
     const SwaptionHwCalibrationDomain& calibSpec,
     const QuantLib::Date asOf) {
-    g_hwCalibrationCallCount.fetch_add(1);
+    // NOTE: g_hwCalibrationCallCount is incremented only on a real calibration
+    // (cache miss) below, so the test hooks measure genuine calibration work
+    // and a cross-request cache hit does not inflate the count.
     EvalDateGuard evalGuard;
     QuantLib::Settings::instance().evaluationDate() = asOf;
 
@@ -244,6 +258,94 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
             ? QuantLib::BlackCalibrationHelper::PriceError
             : QuantLib::BlackCalibrationHelper::ImpliedVolError;
 
+    // Clamp client knobs so no single calibration can be driven unbounded. These
+    // CLAMPED values (not the raw request values) feed both the cache key and the
+    // optimizer below, so a caller cannot vary a cache entry by asking for more
+    // work than the server ceiling allows.
+    const int clampedFunctionEvaluations =
+        clampCalibrationKnob(calibSpec.function_evaluations, kMaxCalibrationFunctionEvaluations);
+    const int clampedMaxIterations =
+        clampCalibrationKnob(calibSpec.max_iterations, kMaxCalibrationIterations);
+
+    // ------------------------------------------------------------------
+    // Cross-request calibration cache.
+    //
+    // The calibrated (a, sigma) is a deterministic function of the consumed
+    // market vols, the resolved grid, the discount/forwarding curves, the
+    // swap-index conventions and the (clamped) calibration spec. Build a content
+    // key from exactly those inputs and, when the cache is enabled and the key is
+    // buildable, serve a prior result instead of re-running the whole
+    // Levenberg-Marquardt fit.
+    //
+    // Fail-closed: if either curve cache key is unavailable (curve cache off, or
+    // a bumped run) or key assembly throws, the key is left empty and we
+    // calibrate live — never serve parameters under a partial key.
+    // ------------------------------------------------------------------
+    std::string cacheKey;
+    try {
+        const std::string discCurveKey = getCurveCacheKey(reg, discountCurveId);
+        const std::string fwdCurveKey = getCurveCacheKey(reg, forwardingCurveId);
+        if (!discCurveKey.empty() && !fwdCurveKey.empty()) {
+            HwCalibrateKeyInputs ki;
+            ki.consumedVols.reserve(expiries.size() * tenors.size());
+            for (const auto& exp : expiries) {
+                for (const auto& ten : tenors) {
+                    ki.consumedVols.push_back(marketVolAtNode(volEntry, exp, ten));
+                }
+            }
+            ki.expiries = expiries;
+            ki.tenors = tenors;
+            ki.volType = volEntry.qlVolType;
+            ki.displacement = volEntry.displacement;
+            ki.volReferenceDate = volEntry.referenceDate;
+            ki.discountCurveKey = discCurveKey;
+            ki.forwardingCurveKey = fwdCurveKey;
+            ki.swapIndexId = swapIndexId;
+            ki.floatIndexId = sidx.floatIndexId;
+            ki.fixedFrequency = sidx.fixedFrequency;
+            ki.fixedDayCounter = sidx.fixedDayCounter;
+            ki.spotDays = sidx.spotDays;
+            ki.fixedCalendar = sidx.fixedCalendar;
+            ki.floatCalendar = sidx.floatCalendar;
+            ki.iborTenor = ibor->tenor();
+            ki.iborDayCounter = ibor->dayCounter();
+            ki.iborConvention = ibor->businessDayConvention();
+            ki.iborEndOfMonth = ibor->endOfMonth();
+            ki.iborFixingCalendar = ibor->fixingCalendar();
+            ki.calibrateA = calibSpec.calibrate_a;
+            ki.calibrateSigma = calibSpec.calibrate_sigma;
+            ki.aInit = calibSpec.a_init;
+            ki.sigmaInit = calibSpec.sigma_init;
+            ki.maxIterations = clampedMaxIterations;
+            ki.functionEvaluations = clampedFunctionEvaluations;
+            ki.endCriteriaEps = calibSpec.end_criteria_eps;
+            ki.asOf = asOf;
+            cacheKey = buildHwCalibrateCacheKey(ki);
+        }
+    } catch (const std::exception& e) {
+        // Key-build failure must never fail calibration — it only loses caching
+        // for this request. Warn once per process so the degradation is visible
+        // without flooding logs.
+        static std::atomic<bool> warned{false};
+        if (!warned.exchange(true)) {
+            std::cerr << "[HwCalibCache] WARNING: cache key build failed: "
+                      << e.what() << " — caching skipped (logged once per process)"
+                      << std::endl;
+        }
+        cacheKey.clear();
+    }
+
+    auto& hwCache = HwCalibrateCache::instance();
+    const bool cacheEnabled = HwCalibrateCache::enabled() && !cacheKey.empty();
+    if (cacheEnabled) {
+        if (auto cached = hwCache.tryGet(cacheKey)) {
+            return *cached;
+        }
+    }
+
+    // Cache miss (or caching disabled): a real calibration is about to run.
+    g_hwCalibrationCallCount.fetch_add(1);
+
     std::vector<QuantLib::ext::shared_ptr<QuantLib::CalibrationHelper>> helpers;
     helpers.reserve(expiries.size() * tenors.size());
     for (const auto& exp : expiries) {
@@ -291,11 +393,8 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     }
 
     QuantLib::LevenbergMarquardt lm;
-    // Clamp client knobs so no single calibration can be driven unbounded.
-    const int clampedFunctionEvaluations =
-        clampCalibrationKnob(calibSpec.function_evaluations, kMaxCalibrationFunctionEvaluations);
-    const int clampedMaxIterations =
-        clampCalibrationKnob(calibSpec.max_iterations, kMaxCalibrationIterations);
+    // clampedFunctionEvaluations / clampedMaxIterations computed above (and fed
+    // into the cache key) so the entry reflects the work actually performed.
     QuantLib::EndCriteria endCriteria(
         clampedFunctionEvaluations,
         clampedMaxIterations,
@@ -332,6 +431,10 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     out.gridRows = gridRows;
     out.gridCols = gridCols;
     out.gridPoints = gridPoints;
+
+    if (cacheEnabled) {
+        hwCache.put(cacheKey, std::make_shared<const HwCalibResult>(out));
+    }
     return out;
 }
 
