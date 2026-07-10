@@ -99,7 +99,9 @@ curl http://localhost:8080/health
 curl http://localhost:8080/meta
 ```
 
-Change the worker count with `QUANTRA_WORKERS`:
+By default the container runs one worker per CPU core (capped at 8). Each worker
+is a single-threaded pricing process, so sizing workers to cores is what gives
+you parallel throughput. Override the count with `QUANTRA_WORKERS`:
 
 ```bash
 docker run --rm \
@@ -108,6 +110,9 @@ docker run --rm \
   -p 50051:50051 \
   ghcr.io/joseprupi/quantra-server:0.1.1
 ```
+
+See `docs/process-manager.md` for the full scaling model (load balancing, health
+checks, and per-worker caches).
 
 The public API reference is available at <https://quantra.io/docs/api>.
 

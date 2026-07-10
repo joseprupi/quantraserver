@@ -246,7 +246,15 @@ RUN chmod +x /usr/local/bin/quantra
 RUN printf '%s\n' \
     '#!/bin/sh' \
     'set -eu' \
-    ': "${QUANTRA_WORKERS:=4}"' \
+    '# Default worker count to the number of CPUs, capped at 8. An operator can' \
+    '# still pin it explicitly by passing QUANTRA_WORKERS; only compute a default' \
+    '# when it is unset or empty.' \
+    'if [ -z "${QUANTRA_WORKERS:-}" ]; then' \
+    '    _cores=$(nproc 2>/dev/null || echo 1)' \
+    '    if [ "$_cores" -gt 8 ]; then _cores=8; fi' \
+    '    if [ "$_cores" -lt 1 ]; then _cores=1; fi' \
+    '    QUANTRA_WORKERS=$_cores' \
+    'fi' \
     ': "${QUANTRA_GRPC_TARGET:=127.0.0.1:50051}"' \
     ': "${QUANTRA_HTTP_PORT:=8080}"' \
     ': "${QUANTRA_STARTUP_WAIT:=3}"' \

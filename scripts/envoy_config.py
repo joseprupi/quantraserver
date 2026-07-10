@@ -154,7 +154,12 @@ def generate_envoy_config(
                     "interval": health_check_interval,
                     "unhealthy_threshold": 2,
                     "healthy_threshold": 1,
-                    "tcp_health_check": {}
+                    # gRPC health check against the standard grpc.health.v1.Health
+                    # service the engine serves. An empty service name asks for the
+                    # server's overall serving status. A worker busy on a long
+                    # computation still answers here (health runs on gRPC's own
+                    # threads), so only genuinely dead workers are ejected.
+                    "grpc_health_check": {}
                 }],
                 "load_assignment": {
                     "cluster_name": "quantra_workers",
