@@ -70,6 +70,7 @@ FixedRateBondResult FixedRateBondEvaluator::evaluate(
     result.bonds.reserve(inputs.trades.size());
 
     for (const auto& trade : inputs.trades) {
+        ctx.budget.check();  // honor the per-request deadline before each trade
         auto curveIt = reg.rates.curves.find(trade.discountingCurveId);
         if (curveIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);

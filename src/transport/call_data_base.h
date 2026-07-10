@@ -4,6 +4,7 @@
 #include <grpcpp/grpcpp.h>
 #include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <map>
@@ -17,6 +18,7 @@
 #include "quantraserver.grpc.fb.h"
 #include "quantraserver_generated.h"
 #include "error.h"
+#include "request_budget.h"
 
 // Use quantra namespace for QuantraServer
 using quantra::QuantraServer;
@@ -38,6 +40,22 @@ inline std::string ErrorStatusMessage(const char *what)
         msg += " ...[truncated]";
     }
     return msg;
+}
+
+// Optional server-side per-request CPU ceiling (milliseconds), read from
+// QUANTRA_REQUEST_BUDGET_MS. Returns 0 ("no ceiling") when the variable is
+// unset, empty, or not a positive integer. Combined with the client-propagated
+// deadline (whichever is earlier) to form the request's RequestBudget.
+inline long RequestBudgetCeilingMs()
+{
+    const char *env = std::getenv("QUANTRA_REQUEST_BUDGET_MS");
+    if (env == nullptr || *env == '\0')
+        return 0;
+    char *end = nullptr;
+    long ms = std::strtol(env, &end, 10);
+    if (end == env || ms <= 0)
+        return 0;
+    return ms;
 }
 
 // Extract the caller's request id from inbound gRPC metadata for log tagging.
@@ -149,8 +167,19 @@ public:
                     return;
                 }
 
+                // Per-request CPU budget: the earlier of the client-propagated
+                // deadline and an optional server-side ceiling. The handler
+                // honors it at mid-computation checkpoints (per-curve and
+                // per-trade loops); an unset ceiling with no client deadline
+                // yields an unlimited budget, so it is a no-op by default.
+                const quantra::RequestBudget budget =
+                    quantra::RequestBudget::fromDeadlineAndCeiling(
+                        ctx_.deadline(),
+                        std::chrono::system_clock::now(),
+                        quantra::transport::RequestBudgetCeilingMs());
+
                 Request request;
-                auto response = request.request(builder, request_msg.GetRoot());
+                auto response = request.request(builder, request_msg.GetRoot(), budget);
                 builder->Finish(response);
 
                 // The computation may have taken longer than the caller was
@@ -237,6 +266,22 @@ public:
                           << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, e.what());
+                responder_.FinishWithError(status, this);
+            }
+            catch (QuantraDeadlineExceeded &e)
+            {
+                // A mid-computation checkpoint tripped: the caller ran out of
+                // time (client deadline or server ceiling). Slow is not
+                // malformed — surface DEADLINE_EXCEEDED (HTTP 504), NOT ABORTED.
+                std::cerr << "[grpc] request budget exceeded during processing"
+                          << " type=" << typeid(Message).name()
+                          << " peer=" << ctx_.peer()
+                          << " error=" << e.what()
+                          << " request_id=" << request_id
+                          << std::endl;
+                status_ = FINISH;
+                auto status = grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED,
+                                           quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
             }
             catch (QuantraError &e)

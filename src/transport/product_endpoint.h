@@ -86,10 +86,14 @@ class ProductEndpoint : public QuantraRequest<Req, Resp> {
 public:
     flatbuffers::Offset<Resp> request(
         std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
-        const Req* req) const override
+        const Req* req,
+        const RequestBudget& budget = RequestBudget::unlimited()) const override
     {
         EvalDateGuard guard;
         auto inputs = mapper_.toInputs(req);
+        // Bail out before touching market data if the caller has already timed
+        // out (curve bootstrapping is the single most expensive step).
+        budget.check();
         PricingRegistry reg;
         PricingContext ctx;
         if constexpr (detail::has_pricing<Req>::value) {
@@ -98,7 +102,7 @@ public:
                 // per-item error on every query (the evaluator then emits them),
                 // so the response stays a per-item list at HTTP 200.
                 try {
-                    reg = PricingRegistryBuilder{}.build(req->pricing());
+                    reg = PricingRegistryBuilder{}.build(req->pricing(), budget);
                     ctx = makeContext(req->pricing(), reg);
                 } catch (const std::exception& e) {
                     mapper_.onRegistryBuildError(inputs, e.what());
@@ -106,10 +110,14 @@ public:
             } else {
                 // Single-result endpoint: a build failure propagates as a
                 // transport-level error.
-                reg = PricingRegistryBuilder{}.build(req->pricing());
+                reg = PricingRegistryBuilder{}.build(req->pricing(), budget);
                 ctx = makeContext(req->pricing(), reg);
             }
         }
+        // Re-check after the registry build, then hand the budget to the
+        // evaluator so heavy per-trade loops can honor it too.
+        budget.check();
+        ctx.budget = budget;
         auto result = evaluator_.evaluate(inputs, reg, ctx);
         return mapper_.toResponse(*builder, result);
     }

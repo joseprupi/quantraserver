@@ -16,6 +16,7 @@
 #include "curve_registry.h"
 #include "index_registry.h"
 #include "index_registry_builder.h"
+#include "request_budget.h"
 
 namespace quantra {
 
@@ -44,7 +45,8 @@ public:
         const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>* curves,
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes = nullptr,
         const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices = nullptr,
-        double curveBump = 0.0
+        double curveBump = 0.0,
+        const RequestBudget& budget = RequestBudget::unlimited()
     ) const;
 
     static std::vector<std::string> topoSort(

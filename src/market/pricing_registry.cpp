@@ -23,7 +23,8 @@
 
 namespace quantra {
 
-PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) const {
+PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
+                                              const RequestBudget& budget) const {
     // ==========================================================================
     // Validation
     // ==========================================================================
@@ -83,7 +84,9 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing) c
     auto booted = bootstrapper.bootstrapAll(
         rates->curves(),
         pricing->quotes(),
-        rates ? rates->indices() : nullptr
+        rates ? rates->indices() : nullptr,
+        0.0,
+        budget
     );
 
     reg.rates.curveKeys = booted.keys;

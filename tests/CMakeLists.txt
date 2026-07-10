@@ -94,6 +94,10 @@ add_custom_command(
 
 add_executable(test_server_client
     integration/test_server_client.cpp
+    # error.cpp defines the QuantraError base ctor used by the RequestBudget unit
+    # tests (RequestBudget::check throws QuantraDeadlineExceeded). It is not part
+    # of quantra_grpc/quantra_client, so link it in directly here.
+    ${CMAKE_SOURCE_DIR}/src/common/error.cpp
     ${HEALTH_GEN_DIR}/health.pb.cc
     ${HEALTH_GEN_DIR}/health.grpc.pb.cc
 )

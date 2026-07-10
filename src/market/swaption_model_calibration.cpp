@@ -75,6 +75,19 @@ constexpr int kMaxCalibrationGridRows = 20;
 constexpr int kMaxCalibrationGridCols = 20;
 constexpr int kMaxCalibrationGridPoints = 400;
 
+// Server-side ceilings on the client-controlled Levenberg-Marquardt knobs.
+// Invariant: client-supplied knobs cannot make a single calibration unbounded.
+// The request's values are CLAMPED (not rejected — a clamp is not an error) so a
+// caller can only ever ask for LESS work than these caps. Domain defaults are
+// 200 / 1000; these leave generous headroom for legitimate hard calibrations.
+constexpr int kMaxCalibrationIterations = 1000;
+constexpr int kMaxCalibrationFunctionEvaluations = 5000;
+
+int clampCalibrationKnob(int requested, int ceiling) {
+    if (requested > ceiling) return ceiling;
+    return requested;
+}
+
 } // namespace
 
 namespace quantra {
@@ -278,9 +291,14 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     }
 
     QuantLib::LevenbergMarquardt lm;
+    // Clamp client knobs so no single calibration can be driven unbounded.
+    const int clampedFunctionEvaluations =
+        clampCalibrationKnob(calibSpec.function_evaluations, kMaxCalibrationFunctionEvaluations);
+    const int clampedMaxIterations =
+        clampCalibrationKnob(calibSpec.max_iterations, kMaxCalibrationIterations);
     QuantLib::EndCriteria endCriteria(
-        calibSpec.function_evaluations,
-        calibSpec.max_iterations,
+        clampedFunctionEvaluations,
+        clampedMaxIterations,
         calibSpec.end_criteria_eps,
         calibSpec.end_criteria_eps,
         calibSpec.end_criteria_eps);
