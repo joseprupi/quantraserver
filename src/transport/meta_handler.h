@@ -54,9 +54,13 @@ namespace quantra {
 /// ProductEndpoint plugs into the same base.
 class MetaEndpoint {
 public:
+    // CallDataGeneric threads a RequestBudget to every endpoint uniformly; the
+    // Meta reply is pure build metadata (no pricing), so the budget is accepted
+    // and ignored. Defaulted to keep the duck-typed 2-arg contract intact.
     flatbuffers::Offset<MetaResponse> request(
         std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
-        const MetaRequest* /*req*/) const
+        const MetaRequest* /*req*/,
+        const quantra::RequestBudget& /*budget*/ = quantra::RequestBudget::unlimited()) const
     {
         auto& b = *builder;
 

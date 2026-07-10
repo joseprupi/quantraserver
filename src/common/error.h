@@ -9,10 +9,11 @@
 // async gRPC layer (CallDataGeneric) catches them and maps each to a gRPC
 // status code (and therefore an HTTP status when fronted by the JSON gateway):
 //
-//   QUANTRA_NOT_FOUND        -> gRPC NOT_FOUND          (HTTP 404)
-//   QUANTRA_INVALID_ARGUMENT -> gRPC INVALID_ARGUMENT   (HTTP 400)
-//   QUANTRA_NOT_IMPLEMENTED  -> gRPC UNIMPLEMENTED       (HTTP 501)
-//   QUANTRA_ERROR            -> gRPC ABORTED            (HTTP 500)
+//   QUANTRA_NOT_FOUND         -> gRPC NOT_FOUND          (HTTP 404)
+//   QUANTRA_INVALID_ARGUMENT  -> gRPC INVALID_ARGUMENT   (HTTP 400)
+//   QUANTRA_NOT_IMPLEMENTED   -> gRPC UNIMPLEMENTED       (HTTP 501)
+//   QUANTRA_ERROR             -> gRPC ABORTED            (HTTP 500)
+//   QUANTRA_DEADLINE_EXCEEDED -> gRPC DEADLINE_EXCEEDED   (HTTP 504)
 //
 // QuantLib's own exceptions are caught separately and also mapped to ABORTED.
 //
@@ -118,6 +119,18 @@ public:
         : QuantraError(message) {}
 };
 
+// Thrown at a mid-computation checkpoint when the per-request budget (the
+// client-propagated deadline and/or the server-side ceiling) has been
+// exhausted. It is NOT a client-input error: the request was well-formed but
+// the caller ran out of time. CallDataGeneric translates it to gRPC
+// DEADLINE_EXCEEDED (HTTP 504) — slow is not malformed.
+class QuantraDeadlineExceeded : public QuantraError
+{
+public:
+    explicit QuantraDeadlineExceeded(const std::string &message = "")
+        : QuantraError(message) {}
+};
+
 inline void QUANTRA_ERROR(std::string message)
 {
     std::ostringstream msg_stream;
@@ -144,6 +157,13 @@ inline void QUANTRA_NOT_IMPLEMENTED(std::string message)
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraNotImplemented(msg_stream.str());
+};
+
+inline void QUANTRA_DEADLINE_EXCEEDED(std::string message)
+{
+    std::ostringstream msg_stream;
+    msg_stream << message;
+    throw QuantraDeadlineExceeded(msg_stream.str());
 };
 
 #endif //QUANTRA_ERROR_H

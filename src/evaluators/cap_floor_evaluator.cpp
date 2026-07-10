@@ -168,6 +168,7 @@ CapFloorResult CapFloorEvaluator::evaluate(const CapFloorInputs& inputs,
     CapFloorResult result;
     result.trades.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
+        ctx.budget.check();  // honor the per-request deadline before each trade
         result.trades.push_back(priceTrade(trade, reg, ctx));
     }
     return result;

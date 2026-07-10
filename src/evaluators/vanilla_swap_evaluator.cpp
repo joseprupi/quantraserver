@@ -345,6 +345,7 @@ VanillaSwapResult VanillaSwapEvaluator::evaluate(
     VanillaSwapResult result;
     result.swaps.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
+        ctx.budget.check();  // honor the per-request deadline before each trade
         if (trade.branch == VanillaSwapTrade::Branch::Ibor) {
             result.swaps.push_back(priceIborBranch(trade, reg, ctx, inputs.includeFlows));
         } else {

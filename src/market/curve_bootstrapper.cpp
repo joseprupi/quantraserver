@@ -178,7 +178,8 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>* curves,
     const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
     const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices,
-    double curveBump
+    double curveBump,
+    const RequestBudget& budget
 ) const {
     if (!curves || curves->size() == 0) {
         QUANTRA_INVALID_ARGUMENT("curves is required (at least one curve)");
@@ -242,6 +243,10 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     }
 
     for (const auto& id : order) {
+        // Honor the per-request deadline before bootstrapping each curve — the
+        // heaviest step in the pricing path and the natural mid-computation
+        // checkpoint. A default (unlimited) budget never triggers.
+        budget.check();
         auto it = curveIndex.find(id);
         if (it == curveIndex.end()) {
             if (curveReg.has(id)) continue;

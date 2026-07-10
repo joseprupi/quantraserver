@@ -331,6 +331,7 @@ CdsResult CdsEvaluator::evaluate(const CdsInputs& inputs,
     CdsResult result;
     result.values.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
+        ctx.budget.check();  // honor the per-request deadline before each trade
         result.values.push_back(priceTrade(trade, reg, ctx));
     }
     return result;

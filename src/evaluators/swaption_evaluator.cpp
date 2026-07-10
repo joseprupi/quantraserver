@@ -440,6 +440,7 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
     std::unordered_map<std::string, HwCalibResult> hwCalibrationCache;
 
     for (const auto& trade : inputs.trades) {
+        ctx.budget.check();  // honor the per-request deadline before each trade
         auto dIt = reg.rates.curves.find(trade.discountingCurveId);
         if (dIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);

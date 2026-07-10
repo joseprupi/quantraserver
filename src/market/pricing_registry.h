@@ -28,6 +28,7 @@
 #include "index_registry.h"
 #include "swap_index_registry.h"
 #include "quote_registry.h"
+#include "request_budget.h"
 
 namespace QuantLib {
 class DefaultProbabilityTermStructure;
@@ -118,7 +119,11 @@ struct PricingRegistry {
  */
 class PricingRegistryBuilder {
 public:
-    PricingRegistry build(const quantra::Pricing* pricing) const;
+    // The optional budget bounds curve bootstrapping (the heaviest build step)
+    // against the per-request deadline; defaulted so existing callers are
+    // unaffected and stay byte-identical.
+    PricingRegistry build(const quantra::Pricing* pricing,
+                          const RequestBudget& budget = RequestBudget::unlimited()) const;
 };
 
 } // namespace quantra

@@ -7,6 +7,7 @@
 #include "date_convert.h"
 #include "pricing_registry.h"
 #include "pricing_generated.h"
+#include "request_budget.h"
 
 namespace quantra {
 
@@ -17,11 +18,15 @@ namespace quantra {
  *   asOf       - the evaluation date already set during registry build.
  *   settlement - optional, product-dependent settlement date.
  *   options    - PricingRequestOptions carried through from the registry.
+ *   budget     - per-request CPU deadline; heavy evaluators call budget.check()
+ *                at the top of the per-trade loop. Defaults to unlimited so
+ *                existing makeContext callers are unaffected.
  */
 struct PricingContext {
     QuantLib::Date asOf;
     QuantLib::Date settlement;
     PricingRequestOptions options;
+    RequestBudget budget;
 };
 
 /**

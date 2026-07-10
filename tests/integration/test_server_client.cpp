@@ -14,6 +14,7 @@
 #include "quantraserver.grpc.fb.h"
 #include "quantraserver_generated.h"
 #include "call_data_base.h"
+#include "request_budget.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
 #include "price_zero_coupon_inflation_swap_request_generated.h"
@@ -331,6 +332,57 @@ protected:
         quantra::PriceFixedRateBondBuilder pfb(b);
         pfb.add_fixed_rate_bond(bond); pfb.add_discounting_curve(dc); pfb.add_yield(yield);
         auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
+
+        quantra::PriceFixedRateBondRequestBuilder rb(b);
+        rb.add_pricing(pricing); rb.add_bonds(bonds);
+        b.Finish(rb.Finish());
+        return b.ReleaseMessage<quantra::PriceFixedRateBondRequest>();
+    }
+
+    // Same market/instrument as buildFixedRateBondRequest, but carries `count`
+    // bonds in one request so the per-trade budget checkpoint (not just the
+    // transport front gate) is on the hot path.
+    flatbuffers::grpc::Message<quantra::PriceFixedRateBondRequest>
+    buildMultiFixedRateBondRequest(int count) {
+        flatbuffers::grpc::MessageBuilder b;
+        auto ts = buildCurve(b, "discount");
+        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+        auto indices = buildIndicesVector(b);
+        auto asof = b.CreateString("2025-01-15");
+        auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, 0, 0, 0, 0, 0, 0, true);
+
+        auto eff = b.CreateString("2024-01-15");
+        auto term = b.CreateString("2029-01-15");
+        quantra::ScheduleBuilder sb(b);
+        sb.add_effective_date(eff); sb.add_termination_date(term);
+        sb.add_calendar(quantra::enums::Calendar_TARGET);
+        sb.add_frequency(quantra::enums::Frequency_Annual);
+        sb.add_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
+        sb.add_end_of_month(false);
+        auto schedule = sb.Finish();
+
+        auto idate = b.CreateString("2024-01-15");
+        quantra::FixedRateBondBuilder bb(b);
+        bb.add_settlement_days(2); bb.add_face_amount(100.0);
+        bb.add_schedule(schedule); bb.add_rate(0.05);
+        bb.add_accrual_day_counter(quantra::enums::DayCounter_ActualActual);
+        bb.add_issue_date(idate); bb.add_redemption(100.0);
+        bb.add_payment_convention(quantra::enums::BusinessDayConvention_Unadjusted);
+        auto bond = bb.Finish();
+
+        auto yield = buildYield(b);
+        auto dc = b.CreateString("discount");
+
+        std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>> bondVec;
+        bondVec.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            quantra::PriceFixedRateBondBuilder pfb(b);
+            pfb.add_fixed_rate_bond(bond); pfb.add_discounting_curve(dc); pfb.add_yield(yield);
+            bondVec.push_back(pfb.Finish());
+        }
+        auto bonds = b.CreateVector(bondVec);
 
         quantra::PriceFixedRateBondRequestBuilder rb(b);
         rb.add_pricing(pricing); rb.add_bonds(bonds);
@@ -1556,6 +1608,43 @@ TEST_F(ServerClientTest, ExpiredDeadline_YieldsDeadlineExceededThenServerRecover
     }
 }
 
+TEST_F(ServerClientTest, ExpiredDeadline_MultiTradeYieldsDeadlineExceededThenServerRecovers) {
+    std::cout << "\n=== Server-Client: Expired-deadline multi-trade budget ===" << std::endl;
+
+    // A multi-instrument request whose deadline has already elapsed must be
+    // rejected: the caller has given up, so the server must not price all five
+    // bonds. The per-request budget is threaded through the pricing path and
+    // honored at mid-computation checkpoints (per-curve and per-trade loops);
+    // this exercises that path rather than only the transport front gate. As
+    // with the single-trade case, gRPC surfaces the client's own already-elapsed
+    // deadline as DEADLINE_EXCEEDED, so assert on the status code only (never on
+    // elapsed time, which flakes in CI).
+    {
+        auto request = buildMultiFixedRateBondRequest(5);
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() - std::chrono::seconds(1));
+        flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> response;
+        auto status = stub_->PriceFixedRateBond(&context, request, &response);
+        EXPECT_EQ(status.error_code(), grpc::StatusCode::DEADLINE_EXCEEDED)
+            << "expected DEADLINE_EXCEEDED, got code=" << status.error_code()
+            << " message=" << status.error_message();
+    }
+
+    // The worker stayed responsive: a normal multi-trade request still succeeds
+    // and prices every instrument.
+    {
+        auto request = buildMultiFixedRateBondRequest(5);
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+        flatbuffers::grpc::Message<quantra::PriceFixedRateBondResponse> response;
+        auto status = stub_->PriceFixedRateBond(&context, request, &response);
+        ASSERT_TRUE(status.ok()) << "gRPC failed after cancellation: " << status.error_message();
+        ASSERT_EQ(response.GetRoot()->bonds()->size(), 5u);
+        double npv = response.GetRoot()->bonds()->Get(0)->npv();
+        EXPECT_NEAR(npv, 107.432, 0.01);
+    }
+}
+
 namespace {
 // Read the top-level VERSION file (stripped) so the Meta test can prove the RPC
 // reports the SAME single-sourced version, not merely a hard-coded string.
@@ -1650,4 +1739,51 @@ TEST(CallDataHelpers, ErrorStatusMessageCapsLongTextButKeepsCause) {
     // capped to budget (+ small truncation marker), and the real cause text survives at the front
     EXPECT_LE(out.size(), quantra::transport::kMaxStatusMessageLen + 32);
     EXPECT_EQ(out.compare(0, 10, std::string(10, 'x')), 0);
+}
+
+// RequestBudget: the mid-computation checkpoint primitive. These prove the
+// per-trade/per-curve checkpoints throw once the deadline passes and that the
+// transport min-logic (client deadline vs optional server ceiling) is correct,
+// which the integration test cannot isolate (the client sees its own timeout).
+TEST(RequestBudget, UnlimitedNeverTriggers) {
+    quantra::RequestBudget b = quantra::RequestBudget::unlimited();
+    EXPECT_EQ(b.deadline, std::chrono::system_clock::time_point::max());
+    EXPECT_NO_THROW(b.check());
+}
+
+TEST(RequestBudget, CheckThrowsWhenDeadlineElapsed) {
+    quantra::RequestBudget b;
+    b.deadline = std::chrono::system_clock::now() - std::chrono::seconds(1);
+    EXPECT_THROW(b.check(), QuantraDeadlineExceeded);
+}
+
+TEST(RequestBudget, CheckDoesNotThrowBeforeDeadline) {
+    quantra::RequestBudget b;
+    b.deadline = std::chrono::system_clock::now() + std::chrono::hours(1);
+    EXPECT_NO_THROW(b.check());
+}
+
+TEST(RequestBudget, CeilingPicksEarlierWhenBelowClientDeadline) {
+    auto now = std::chrono::system_clock::now();
+    auto clientDeadline = now + std::chrono::milliseconds(100);
+    // Server ceiling (50ms) earlier than client deadline (100ms) -> ceiling wins.
+    auto b = quantra::RequestBudget::fromDeadlineAndCeiling(clientDeadline, now, 50);
+    EXPECT_EQ(b.deadline, now + std::chrono::milliseconds(50));
+    EXPECT_LT(b.deadline, clientDeadline);
+}
+
+TEST(RequestBudget, ClientDeadlineWinsWhenEarlierThanCeiling) {
+    auto now = std::chrono::system_clock::now();
+    auto clientDeadline = now + std::chrono::milliseconds(30);
+    auto b = quantra::RequestBudget::fromDeadlineAndCeiling(clientDeadline, now, 100);
+    EXPECT_EQ(b.deadline, clientDeadline);
+}
+
+TEST(RequestBudget, NoCeilingNoClientDeadlineIsUnlimited) {
+    auto now = std::chrono::system_clock::now();
+    auto maxTp = std::chrono::system_clock::time_point::max();
+    // ceilingMs <= 0 means "no ceiling"; a client with no deadline is max().
+    auto b = quantra::RequestBudget::fromDeadlineAndCeiling(maxTp, now, 0);
+    EXPECT_EQ(b.deadline, maxTp);
+    EXPECT_NO_THROW(b.check());
 }
