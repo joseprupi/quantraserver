@@ -196,8 +196,8 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                                         "match": {"prefix": "/"},
                                         "route": {
                                             "cluster": "quantra_workers",
-                                            "timeout": "0s",
-                                            "max_stream_duration": {"grpc_timeout_header_max": "0s"},
+                                            "timeout": "30s",
+                                            "max_stream_duration": {"grpc_timeout_header_max": "60s"},
                                         },
                                     }],
                                 }],
@@ -216,7 +216,9 @@ def generate_envoy_config(port: int, base_port: int, workers: int, admin_port: i
                 "name": "quantra_workers",
                 "connect_timeout": "0.25s",
                 "type": "STATIC",
-                "lb_policy": "ROUND_ROBIN",
+                # Route around a busy single-threaded worker: LEAST_REQUEST
+                # prefers the worker with the fewest in-flight requests.
+                "lb_policy": "LEAST_REQUEST",
                 "typed_extension_protocol_options": {
                     "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
                         "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
