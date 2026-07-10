@@ -1,0 +1,25 @@
+namespace quantra;
+
+/// Versions of the third-party libraries the engine was built against.
+table MetaDependencies {
+    quantlib:string;
+    grpc:string;
+    flatbuffers:string;
+}
+
+/// Service, version, and build metadata for the gRPC pricing engine. Served by
+/// the gRPC-only Meta RPC (there is deliberately no HTTP endpoint for it; the
+/// JSON gateway exposes its own richer /meta). `api_version` is the headline
+/// field and is the verbatim contents of the top-level VERSION file.
+table MetaResponse {
+    service:string (required);
+    api_version:string (required);
+    backend_version:string;
+    git_sha:string;
+    build_time_utc:string;
+    products:[string];
+    rpc_methods:[string];
+    dependencies:MetaDependencies;
+}
+
+root_type MetaResponse;

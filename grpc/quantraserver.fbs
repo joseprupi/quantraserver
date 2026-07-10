@@ -38,6 +38,8 @@ include "../flatbuffers/fbs/calibrate_swaption_vol_request.fbs";
 include "../flatbuffers/fbs/calibrate_swaption_vol_response.fbs";
 include "../flatbuffers/fbs/price_equity_option_request.fbs";
 include "../flatbuffers/fbs/equity_option_response.fbs";
+include "../flatbuffers/fbs/meta_request.fbs";
+include "../flatbuffers/fbs/meta_response.fbs";
 
 namespace quantra;
 
@@ -62,4 +64,5 @@ rpc_service QuantraServer {
   CalibrateSwaptionModel(CalibrateSwaptionModelRequest):CalibrateSwaptionModelResponse;
   CalibrateSwaptionVol(CalibrateSwaptionVolRequest):CalibrateSwaptionVolResponse;
   PriceEquityOption(PriceEquityOptionRequest):PriceEquityOptionResponse;
+  Meta(MetaRequest):MetaResponse;
 }

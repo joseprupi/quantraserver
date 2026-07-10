@@ -67,13 +67,49 @@ target_link_libraries(test_quantra_vs_quantlib
 # =============================================================================
 # Test: Server-Client Integration Tests
 # =============================================================================
-add_executable(test_server_client integration/test_server_client.cpp)
-target_link_libraries(test_server_client 
-    ${GRPC_ALL_LIBS} 
-    flatbuffers 
-    quantra_grpc 
+# Generate the standard grpc.health.v1 client stubs from the vendored proto so
+# the integration suite can probe the engine's default health service with a
+# real gRPC client call (no raw framing, no extra pip/runtime dependency). The
+# pinned gRPC ships protoc + grpc_cpp_plugin under DEPS_PREFIX/bin but not the
+# generated health stubs.
+find_program(PROTOC_EXECUTABLE protoc PATHS ${DEPS_PREFIX}/bin NO_DEFAULT_PATH REQUIRED)
+find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin PATHS ${DEPS_PREFIX}/bin NO_DEFAULT_PATH REQUIRED)
+
+set(HEALTH_PROTO ${CMAKE_CURRENT_SOURCE_DIR}/integration/health.proto)
+set(HEALTH_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/health_gen)
+file(MAKE_DIRECTORY ${HEALTH_GEN_DIR})
+add_custom_command(
+    OUTPUT ${HEALTH_GEN_DIR}/health.pb.cc ${HEALTH_GEN_DIR}/health.pb.h
+           ${HEALTH_GEN_DIR}/health.grpc.pb.cc ${HEALTH_GEN_DIR}/health.grpc.pb.h
+    COMMAND ${PROTOC_EXECUTABLE}
+            --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/integration
+            --cpp_out=${HEALTH_GEN_DIR}
+            --grpc_out=${HEALTH_GEN_DIR}
+            --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+            ${HEALTH_PROTO}
+    DEPENDS ${HEALTH_PROTO}
+    COMMENT "Generating grpc.health.v1 client stubs for the health probe test"
+    VERBATIM
+)
+
+add_executable(test_server_client
+    integration/test_server_client.cpp
+    ${HEALTH_GEN_DIR}/health.pb.cc
+    ${HEALTH_GEN_DIR}/health.grpc.pb.cc
+)
+target_include_directories(test_server_client PRIVATE ${HEALTH_GEN_DIR})
+# The test reads the top-level VERSION file to prove the Meta RPC's api_version
+# is single-sourced from it (not just echoing the same compile define).
+target_compile_definitions(test_server_client PRIVATE
+    QUANTRA_WORKSPACE_DIR="${CMAKE_SOURCE_DIR}"
+)
+target_link_libraries(test_server_client
+    ${GRPC_ALL_LIBS}
+    flatbuffers
+    quantra_grpc
     quantra_client
     QuantLib
+    protobuf
     GTest::gtest
     GTest::gtest_main
 )

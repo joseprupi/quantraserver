@@ -34,6 +34,8 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "fra_response_generated.h"
+#include "meta_request_generated.h"
+#include "meta_response_generated.h"
 #include "ois_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
 #include "price_cap_floor_request_generated.h"
