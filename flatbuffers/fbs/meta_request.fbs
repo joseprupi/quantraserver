@@ -1,0 +1,7 @@
+namespace quantra;
+
+/// Request payload for the gRPC-only Meta RPC. It carries no fields; the
+/// response is assembled entirely from server-side build metadata.
+table MetaRequest {}
+
+root_type MetaRequest;

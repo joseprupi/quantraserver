@@ -37,6 +37,16 @@
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
 #include "index_generated.h"
+#include "meta_request_generated.h"
+#include "meta_response_generated.h"
+
+// Standard gRPC health-checking client stubs, generated at build time from the
+// vendored tests/integration/health.proto (see tests/CMakeLists.txt).
+#include "health.grpc.pb.h"
+
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 
 namespace quantra { namespace testing {
 
@@ -1544,6 +1554,71 @@ TEST_F(ServerClientTest, ExpiredDeadline_YieldsDeadlineExceededThenServerRecover
         double npv = response.GetRoot()->bonds()->Get(0)->npv();
         EXPECT_NEAR(npv, 107.432, 0.01);
     }
+}
+
+namespace {
+// Read the top-level VERSION file (stripped) so the Meta test can prove the RPC
+// reports the SAME single-sourced version, not merely a hard-coded string.
+std::string ReadWorkspaceVersion() {
+    std::ifstream in(std::string(QUANTRA_WORKSPACE_DIR) + "/VERSION");
+    std::stringstream ss;
+    ss << in.rdbuf();
+    std::string v = ss.str();
+    auto not_space = [](unsigned char c) { return !std::isspace(c); };
+    v.erase(v.begin(), std::find_if(v.begin(), v.end(), not_space));
+    v.erase(std::find_if(v.rbegin(), v.rend(), not_space).base(), v.end());
+    return v;
+}
+} // namespace
+
+TEST_F(ServerClientTest, Meta_ReportsSingleSourcedVersionAndCatalog) {
+    std::cout << "\n=== Server-Client: Meta ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    quantra::MetaRequestBuilder mrb(b);
+    b.Finish(mrb.Finish());
+    auto request = b.ReleaseMessage<quantra::MetaRequest>();
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
+    flatbuffers::grpc::Message<quantra::MetaResponse> response;
+    auto status = stub_->Meta(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+
+    const auto* meta = response.GetRoot();
+    ASSERT_NE(meta, nullptr);
+
+    // The headline field: non-empty AND equal to the stripped VERSION file, so
+    // the engine and the top-level VERSION are provably single-sourced.
+    ASSERT_NE(meta->api_version(), nullptr);
+    const std::string api_version = meta->api_version()->str();
+    EXPECT_FALSE(api_version.empty());
+    EXPECT_EQ(api_version, ReadWorkspaceVersion());
+
+    ASSERT_NE(meta->service(), nullptr);
+    EXPECT_EQ(meta->service()->str(), "quantra-grpc-engine");
+
+    ASSERT_NE(meta->products(), nullptr);
+    EXPECT_GT(meta->products()->size(), 0u);
+
+    ASSERT_NE(meta->rpc_methods(), nullptr);
+    EXPECT_GT(meta->rpc_methods()->size(), 0u);
+
+    ASSERT_NE(meta->dependencies(), nullptr);
+    ASSERT_NE(meta->dependencies()->quantlib(), nullptr);
+    EXPECT_FALSE(meta->dependencies()->quantlib()->str().empty());
+}
+
+TEST_F(ServerClientTest, Health_DefaultServiceReportsServing) {
+    std::cout << "\n=== Server-Client: Health ===" << std::endl;
+    auto health = grpc::health::v1::Health::NewStub(channel_);
+    grpc::health::v1::HealthCheckRequest req;
+    req.set_service("");  // overall server health
+    grpc::health::v1::HealthCheckResponse resp;
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
+    auto status = health->Check(&context, req, &resp);
+    ASSERT_TRUE(status.ok()) << "Health/Check failed: " << status.error_message();
+    EXPECT_EQ(resp.status(), grpc::health::v1::HealthCheckResponse::SERVING);
 }
 
 }} // namespace

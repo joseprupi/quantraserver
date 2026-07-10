@@ -65,7 +65,11 @@ JSONSCHEMA_FBS_DIR=$(mktemp -d)
 trap 'rm -rf "$JSONSCHEMA_FBS_DIR"' EXIT
 cp "$FBS_DIR"/*.fbs "$JSONSCHEMA_FBS_DIR/"
 sed -i -E 's/^(\s*[A-Za-z0-9_]+\s*:\s*[A-Za-z0-9_.]+)\s*=\s*null\s*;/\1;/' "$JSONSCHEMA_FBS_DIR"/*.fbs
-ROOT_FILES=$(grep -lE '^\s*root_type\s+' "$JSONSCHEMA_FBS_DIR"/*.fbs || true)
+# The Meta RPC is gRPC-only (no HTTP endpoint), so its request/response types are
+# deliberately excluded from the JSON-schema / OpenAPI (HTTP-API docs) pipeline —
+# they still get C++/Python/gRPC codegen above.
+ROOT_FILES=$(grep -lE '^\s*root_type\s+' "$JSONSCHEMA_FBS_DIR"/*.fbs \
+    | grep -vE '/meta_(request|response)\.fbs$' || true)
 if [ -z "$ROOT_FILES" ]; then
     echo "  No root_type declarations found; skipping."
 else

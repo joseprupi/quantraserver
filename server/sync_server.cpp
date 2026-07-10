@@ -25,7 +25,12 @@
 #include "calibrate_swaption_vol_handler.h"
 #include "equity_option_handler.h"
 
+// Service-metadata RPC (gRPC-only). Not a pricing product, but registers via the
+// same mechanism so the completion-queue loop serves it uniformly.
+#include "meta_handler.h"
+
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/health_check_service_interface.h>
 #include <csignal>
 #include <cstdlib>
 #include <chrono>
@@ -78,6 +83,10 @@ public:
 
         std::string server_address(GetBindHost() + ":" + port);
 
+        // Expose the standard grpc.health.v1.Health service (Check/Watch) with
+        // zero extra codegen. Must be enabled before the server is built.
+        grpc::EnableDefaultHealthCheckService(true);
+
         grpc::ServerBuilder builder;
         // Intentionally cap request/response sizes to harden against oversized payloads.
         builder.SetMaxReceiveMessageSize(kMaxGrpcMessageBytes);
@@ -86,6 +95,13 @@ public:
         builder.RegisterService(&service_);
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
+
+        // The default health service reports SERVING once the server is up; set
+        // the overall ("") status explicitly so probes get a definite answer.
+        if (auto* health = server_->GetHealthCheckService())
+        {
+            health->SetServingStatus(true);
+        }
 
         std::cout << "Server listening on " << server_address << std::endl;
 

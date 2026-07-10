@@ -1,0 +1,29 @@
+// Vendored copy of the standard gRPC health-checking service definition
+// (grpc.health.v1), used ONLY by the C++ integration test to probe the server's
+// default health service. The gRPC toolchain ships protoc + grpc_cpp_plugin but
+// not the generated stubs, so tests/CMakeLists.txt generates them from this file
+// at build time. Kept byte-compatible with the upstream well-known service so
+// the wire format matches the default health service the engine enables.
+syntax = "proto3";
+
+package grpc.health.v1;
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;  // Used only by the Watch method.
+  }
+  ServingStatus status = 1;
+}
+
+service Health {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}

@@ -18,6 +18,10 @@ else()
     set(DEPS_PREFIX "/opt/quantra-deps")
 endif()
 
+# Single-source build/version metadata (VERSION file, git sha, dep versions)
+# consumed by both the gRPC engine (Meta RPC) and the JSON gateway (/meta).
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/quantra_build_info.cmake)
+
 # Global include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/grpc/
