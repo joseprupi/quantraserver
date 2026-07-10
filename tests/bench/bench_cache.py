@@ -3,8 +3,10 @@
 Quantra Curve Cache Benchmark
 
 Modes:
-    bond  - 1 curve, 8 helpers (3 deposits + 5 bonds)
-    swap  - 2 EUR curves, 24 helpers, OIS dep chain
+    bond     - 1 curve, 8 helpers (3 deposits + 5 bonds)
+    swap     - 2 EUR curves, 24 helpers, OIS dep chain
+    hwcalib  - Hull-White swaption-model calibration, 1 curve (9 helpers)
+               against a 6x4 -> 24-node ATM vol grid (24 calibration helpers)
 """
 
 import json, time, argparse, statistics, requests
@@ -101,10 +103,102 @@ SWAP_REQUEST = {
     }]
 }
 
+# --- HWCALIB: Hull-White swaption-model calibration ---
+# Derived from examples/data/calibrate_swaption_model_request.json but enriched
+# so the calibration is representative rather than a trivial 2x2: the discount
+# curve carries 9 helpers (out to 30Y) and the ATM swaption vol surface is a
+# 6x4 grid (expiries 1/2/3/5/7/10Y x tenors 2/5/7/10Y) => 24 SwaptionHelpers.
+# The market-style lognormal vols are not Hull-White-consistent, so the full
+# two-parameter Levenberg-Marquardt fit runs to a genuine minimum (the same
+# uncached cost the calibration cache will later target). Longest node is
+# 10Y-into-10Y (20Y), comfortably inside the 30Y curve pillar.
+HWCALIB_REQUEST = {
+    "pricing": {
+        "as_of_date": "2025-01-15",
+        "rates": {
+            "indices": [
+                {"id": "EUR_6M", "name": "Euribor", "index_type": "Ibor", "tenor": {"n": 6, "unit": "Months"}, "fixing_days": 2, "calendar": "TARGET", "business_day_convention": "ModifiedFollowing", "day_counter": "Actual360", "end_of_month": False, "currency": "EUR"}
+            ],
+            "swap_indices": [
+                {"id": "EUR_SWAP_6M", "kind": "IborSwapIndex", "spot_days": 2, "calendar": "TARGET", "business_day_convention": "ModifiedFollowing", "end_of_month": False,
+                 "fixed_leg": {"fixed_frequency": "Annual", "fixed_day_counter": "Thirty360", "fixed_calendar": "TARGET", "fixed_bdc": "ModifiedFollowing", "fixed_term_bdc": "ModifiedFollowing", "fixed_date_rule": "Forward", "fixed_eom": False},
+                 "float_index_id": "EUR_6M",
+                 "float_leg": {"float_tenor": {"n": 6, "unit": "Months"}, "float_calendar": "TARGET", "float_bdc": "ModifiedFollowing", "float_term_bdc": "ModifiedFollowing", "float_date_rule": "Forward", "float_eom": False}}
+            ],
+            "curves": [
+                {
+                    "id": "discount", "day_counter": "Actual365Fixed", "interpolator": "LogLinear", "bootstrap_trait": "Discount", "reference_date": "2025-01-15",
+                    "points": [
+                        {"point_type": "DepositHelper", "point": {"rate": 0.0295, "tenor": {"n": 6, "unit": "Months"}, "fixing_days": 2, "calendar": "TARGET", "business_day_convention": "ModifiedFollowing", "day_counter": "Actual360"}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0300, "tenor": {"n": 1, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0305, "tenor": {"n": 2, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0310, "tenor": {"n": 3, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0320, "tenor": {"n": 5, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0328, "tenor": {"n": 7, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0335, "tenor": {"n": 10, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0342, "tenor": {"n": 15, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0346, "tenor": {"n": 20, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                        {"point_type": "SwapHelper", "point": {"rate": 0.0350, "tenor": {"n": 30, "unit": "Years"}, "calendar": "TARGET", "sw_fixed_leg_frequency": "Annual", "sw_fixed_leg_convention": "ModifiedFollowing", "sw_fixed_leg_day_counter": "Thirty360", "spread": 0.0, "fwd_start_days": 0, "float_index": {"id": "EUR_6M"}}},
+                    ]
+                }
+            ]
+        },
+        "volatility": {
+            "vol_surfaces": [
+                {
+                    "id": "swaption_atm", "payload_type": "SwaptionVolSpec",
+                    "payload": {
+                        "swap_index_id": "EUR_SWAP_6M", "payload_type": "SwaptionVolAtmMatrixSpec",
+                        "payload": {
+                            "base": {"reference_date": "2025-01-15", "calendar": "TARGET", "business_day_convention": "ModifiedFollowing", "day_counter": "Actual365Fixed", "volatility_type": "Lognormal", "displacement": 0.0},
+                            "expiries": [{"n": 1, "unit": "Years"}, {"n": 2, "unit": "Years"}, {"n": 3, "unit": "Years"}, {"n": 5, "unit": "Years"}, {"n": 7, "unit": "Years"}, {"n": 10, "unit": "Years"}],
+                            "tenors": [{"n": 2, "unit": "Years"}, {"n": 5, "unit": "Years"}, {"n": 7, "unit": "Years"}, {"n": 10, "unit": "Years"}],
+                            "vols": {
+                                "n_rows": 6, "n_cols": 4,
+                                "values": [
+                                    0.240, 0.230, 0.222, 0.210,
+                                    0.235, 0.225, 0.217, 0.206,
+                                    0.228, 0.219, 0.212, 0.202,
+                                    0.218, 0.210, 0.204, 0.196,
+                                    0.208, 0.201, 0.196, 0.190,
+                                    0.196, 0.191, 0.187, 0.183,
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            "models": [
+                {
+                    "id": "hw_model", "payload_type": "SwaptionModelSpec",
+                    "payload": {
+                        "model_type": "HullWhiteLattice", "lattice_steps": 50, "param_mode": "Calibrate",
+                        "hw_calibration": {
+                            "swaption_vol_id": "swaption_atm", "discount_curve_id": "discount", "forwarding_curve_id": "discount", "swap_index_id": "EUR_SWAP_6M",
+                            "calibrate_a": True, "calibrate_sigma": True, "a_init": 0.03, "sigma_init": 0.01,
+                            "max_iterations": 200, "function_evaluations": 1000, "end_criteria_eps": 1e-08
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "model_id": "hw_model"
+}
+
+
+def _hwcalib_result(r: dict):
+    """Pull the calibrated Hull-White a / sigma from a calibrate-swaption-model
+    response (top-level hw_a / hw_sigma; falls back to a nested model object)."""
+    src = r if "hw_a" in r else r.get("model", r.get("models", [{}])[0] if isinstance(r.get("models"), list) else {})
+    return f"a={src.get('hw_a')}, sigma={src.get('hw_sigma')}, rmse={src.get('rmse')}"
+
+
 # Mode config
 MODES = {
-    "bond": {"payload": BOND_REQUEST, "endpoint": "price-fixed-rate-bond", "npv_path": lambda r: r.get("bonds", [{}])[0].get("npv"), "desc": "1 curve, 8 helpers"},
-    "swap": {"payload": SWAP_REQUEST, "endpoint": "price-vanilla-swap",    "npv_path": lambda r: r.get("swaps", [{}])[0].get("npv"), "desc": "EUR 2 curves, 24 helpers, OIS dep chain"},
+    "bond":    {"payload": BOND_REQUEST,    "endpoint": "price-fixed-rate-bond",       "npv_path": lambda r: r.get("bonds", [{}])[0].get("npv"), "desc": "1 curve, 8 helpers"},
+    "swap":    {"payload": SWAP_REQUEST,    "endpoint": "price-vanilla-swap",          "npv_path": lambda r: r.get("swaps", [{}])[0].get("npv"), "desc": "EUR 2 curves, 24 helpers, OIS dep chain"},
+    "hwcalib": {"payload": HWCALIB_REQUEST, "endpoint": "calibrate-swaption-model",     "npv_path": _hwcalib_result,                              "desc": "Hull-White calibration, 1 curve/9 helpers, 6x4=24 vol grid"},
 }
 
 
@@ -136,6 +230,10 @@ def run_benchmark(url: str, mode: str, n_requests: int = 100, warmup: int = 3) -
 
     r = session.post(endpoint, data=payload, timeout=30)
     baseline_result = r.json()
+    try:
+        print(f"  Result: {cfg['npv_path'](baseline_result)}")
+    except Exception:
+        pass
 
     print(f"  Running {n_requests} requests...")
     latencies = []
