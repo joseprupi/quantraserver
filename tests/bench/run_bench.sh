@@ -2,9 +2,10 @@
 # Quantra Curve Cache Benchmark
 #
 # Usage (runnable from anywhere — paths resolve relative to this script):
-#   bash tests/bench/run_bench.sh           # run all 3 modes
+#   bash tests/bench/run_bench.sh           # run all default modes
 #   bash tests/bench/run_bench.sh bond      # single mode
 #   bash tests/bench/run_bench.sh swap
+#   bash tests/bench/run_bench.sh hwcalib   # Hull-White calibration baseline
 #   bash tests/bench/run_bench.sh swap2
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -106,7 +107,13 @@ pkill -9 -f sync_server 2>/dev/null; pkill -9 -f json_server 2>/dev/null; sleep 
 if [ -n "$1" ]; then
     ALL_MODES="$1"
 else
-    ALL_MODES="bond swap"
+    # hwcalib = Hull-White swaption-model calibration baseline. Both legs
+    # (cache-off / cache-on) currently exercise the SAME uncached calibration
+    # path — there is no calibration cache yet, so QUANTRA_CURVE_CACHE_ENABLED
+    # does not touch it and the two legs should read equal. That equality IS
+    # the baseline: when a Hull-White calibration cache lands, its own env flag
+    # will differentiate the legs and the "with-cache" column will drop.
+    ALL_MODES="bond swap hwcalib"
 fi
 
 declare -a RESULTS
