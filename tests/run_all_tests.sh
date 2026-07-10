@@ -241,6 +241,7 @@ start_cache_servers() {
     # case exercise the SABR cache on-vs-off (both default off otherwise).
     QUANTRA_CURVE_CACHE_ENABLED=1 QUANTRA_CURVE_CACHE_LOG=1 \
     QUANTRA_SABR_CACHE_ENABLED=1 QUANTRA_SABR_CACHE_LOG=1 \
+    QUANTRA_HW_CACHE_ENABLED=1 QUANTRA_HW_CACHE_LOG=1 \
         ${BUILD}/server/sync_server 50052 > /tmp/grpc_cache.log 2>&1 &
     GRPC_CACHE_PID=$!
     sleep 2

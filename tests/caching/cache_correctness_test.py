@@ -56,6 +56,17 @@ CASES = [
          "swaption_smile_cube_request.json", "swaptions"),
     Case("swaption_sabr_calibrate", "swaption",
          "swaption_sabr_calibrate_request.json", "swaptions"),
+    # Hull-White swaption-model calibration cache. The calibrate endpoint runs
+    # a Levenberg-Marquardt fit and returns (a, sigma, rmse); the cache must
+    # reproduce those bit-for-bit on a hit. npv_key is None: the response is a
+    # calibration result, not a priced instrument.
+    Case("calibrate_swaption_model", "calibrate_swaption_model",
+         "calibrate_swaption_model_request.json", None),
+    # A swaption priced with an HW-calibrated model exercises the same
+    # cross-request calibration cache through the pricing path (the evaluator
+    # calls the shared calibration helper).
+    Case("swaption_bermudan_hw_calibrated", "swaption",
+         "swaption_bermudan_hw_calibrated.json", "swaptions"),
     Case("cds", "cds",
          "cds_request.json", "cds_list"),
     Case("bootstrap_curves_forward", "bootstrap_curves",
@@ -72,6 +83,11 @@ CASES = [
 # The product whose log we probe to prove the cache engaged. Any cacheable row
 # works; the fixed-rate bond bootstraps a single deposit/bond curve.
 ENGAGED_CASE = CASES[0]
+
+# The calibrate-swaption-model row, probed separately in
+# test_hw_calib_cache_engaged so the HW-calibration transparency rows above
+# cannot pass trivially with the calibration cache never engaging.
+HW_CALIB_CASE = next(c for c in CASES if c.id == "calibrate_swaption_model")
 
 # The B7 zero-curve row + the curve id its payload bootstraps, probed separately
 # in test_cache_engaged_zero_curve so the transparency assertion above cannot
@@ -286,3 +302,41 @@ def test_cache_engaged_zero_curve(cache_client, data_dir, cache_log_path):
     )
     print(f"[cache] zero curve engaged — L1 hits for {ZERO_CURVE_ID}: "
           f"{before} -> {after}")
+
+
+def _count_hw_calib_hits(log_path: Path) -> int:
+    if not log_path.exists():
+        return 0
+    return sum(
+        1
+        for line in log_path.read_text(errors="replace").splitlines()
+        if "[HwCalibCache]" in line and "event=hit" in line
+    )
+
+
+def test_hw_calib_cache_engaged(cache_client, data_dir, cache_log_path):
+    """Prove the Hull-White calibration cache actually engaged: a second
+    identical calibrate-swaption-model POST to the cache-ON server must log at
+    least one HwCalibCache hit. Guards against the HW-calibration transparency
+    rows silently passing with a calibration cache that never triggers."""
+    request = load_json(data_dir / HW_CALIB_CASE.filename)
+
+    before = _count_hw_calib_hits(cache_log_path)
+    cache_client.price(HW_CALIB_CASE.product, request)   # warm (may miss)
+    cache_client.price(HW_CALIB_CASE.product, request)   # hit
+
+    after = before
+    for _ in range(20):
+        after = _count_hw_calib_hits(cache_log_path)
+        if after > before:
+            break
+        time.sleep(0.1)
+
+    assert after > before, (
+        f"No HwCalibCache hit logged in {cache_log_path} "
+        f"(hits before={before}, after={after}); the calibration cache did not "
+        f"engage. Is QUANTRA_HW_CACHE_ENABLED=1 / QUANTRA_HW_CACHE_LOG=1 set on "
+        f"the cache-ON gRPC server (and QUANTRA_CURVE_CACHE_ENABLED=1 so the "
+        f"curve keys the HW key delegates to are populated)?"
+    )
+    print(f"[cache] HW calibration cache engaged — hits: {before} -> {after}")
