@@ -2647,7 +2647,8 @@ def calendar_advance_ql(request: dict) -> str:
 # =============================================================================
 
 def price_equity_option_ql(request: dict) -> float:
-    """Price a European equity vanilla option using QuantLib.
+    """Price an equity option using QuantLib, mirroring the server's engine
+    selection across exercise styles and payoffs.
 
     Mirrors the server's equity-option evaluator field for field:
       * the underlying spec resolves its spot from pricing.quotes
@@ -2658,10 +2659,14 @@ def price_equity_option_ql(request: dict) -> float:
       * the volatility is the referenced BlackVolSpec (shape=Constant only,
         like the server's equity path) rebuilt as a BlackConstantVol with the
         spec's own reference date, calendar and day count,
-      * the payoff is a PlainVanillaPayoff and the exercise a
-        EuropeanExercise — the only payoff/exercise combination the server's
-        parser accepts today (American/Bermudan and digital payoffs are
-        rejected on the wire),
+      * the payoff is the wire-selected EquityPayoff (plain vanilla or a
+        cash-/asset-or-nothing digital) and the exercise the wire-selected
+        EquityExercise (European, American or Bermudan). The engine follows
+        the same combination the server routes on: analytic European for
+        European vanilla, the finite-difference Black-Scholes engine for
+        American/Bermudan vanilla, the analytic European engine for European
+        digitals and the analytic digital-American engine for at-hit American
+        digitals,
       * discrete cash dividends declared on the underlying spec
         (EquityUnderlyingSpec.discrete_dividends: ex_date + amount) are
         turned into a FixedDividend schedule (via DividendVector) and priced
@@ -2745,22 +2750,45 @@ def price_equity_option_ql(request: dict) -> float:
 
     process = ql.BlackScholesMertonProcess(spot, dividend, risk_free, black_vol)
 
-    # Payoff / exercise: the server's parser accepts exactly
-    # EquityPlainVanillaPayoff + EquityEuropeanExercise today.
-    if opt.get("payoff_type") != "EquityPlainVanillaPayoff":
-        raise ValueError(
-            "EquityOption currently supports only EquityPlainVanillaPayoff")
+    # Payoff: EquityPayoff union — plain vanilla or one of the two digital
+    # payoffs. The server builds the matching QL StrikedTypePayoff.
     po = opt["payoff"]
     opt_type = ql.Option.Put if po.get("option_type", "Call") == "Put" else ql.Option.Call
-    payoff = ql.PlainVanillaPayoff(opt_type, po["strike"])
-    if opt.get("exercise_type") != "EquityEuropeanExercise":
-        raise ValueError(
-            "EquityOption currently supports only EquityEuropeanExercise")
-    exercise = ql.EuropeanExercise(parse_date(opt["exercise"]["expiry_date"]))
+    payoff_type = opt.get("payoff_type")
+    if payoff_type == "EquityPlainVanillaPayoff":
+        payoff = ql.PlainVanillaPayoff(opt_type, po["strike"])
+        is_plain = True
+    elif payoff_type == "EquityCashOrNothingPayoff":
+        payoff = ql.CashOrNothingPayoff(opt_type, po["strike"], po["cash"])
+        is_plain = False
+    elif payoff_type == "EquityAssetOrNothingPayoff":
+        payoff = ql.AssetOrNothingPayoff(opt_type, po["strike"])
+        is_plain = False
+    else:
+        raise ValueError(f"Unsupported EquityPayoff: {payoff_type}")
+
+    # Exercise: EquityExercise union — European / American / Bermudan. The
+    # server reads the style back from the QL exercise object.
+    exercise_type = opt.get("exercise_type")
+    ex = opt["exercise"]
+    if exercise_type == "EquityEuropeanExercise":
+        exercise = ql.EuropeanExercise(parse_date(ex["expiry_date"]))
+    elif exercise_type == "EquityAmericanExercise":
+        end = parse_date(ex["end_date"])
+        if ex.get("start_date"):
+            exercise = ql.AmericanExercise(parse_date(ex["start_date"]), end)
+        else:
+            exercise = ql.AmericanExercise(end)
+    elif exercise_type == "EquityBermudanExercise":
+        dates = sorted(parse_date(d) for d in ex["exercise_dates"])
+        exercise = ql.BermudanExercise(dates)
+    else:
+        raise ValueError(f"Unsupported EquityExercise: {exercise_type}")
 
     option = ql.VanillaOption(payoff, exercise)
 
-    # Engine follows the referenced model spec (required on the server).
+    # Engine follows the referenced model spec (required on the server) and the
+    # exercise/payoff combination, mirroring the server's selection exactly.
     model_spec = next(
         (m for m in pricing.get("models", [])
          if m.get("id") == opt_data.get("model")), None)
@@ -2768,25 +2796,58 @@ def price_equity_option_ql(request: dict) -> float:
         raise ValueError(f"Model not found: {opt_data.get('model')}")
     model_payload = model_spec.get("payload", {})
     model_type = model_payload.get("model_type", "BlackScholesAnalytic")
-    if model_type == "BlackScholesAnalytic":
-        if div_dates:
-            # Escrowed discrete-dividend analytic European engine — mirrors
-            # the server's AnalyticDividendEuropeanEngine(process, schedule).
-            schedule = ql.DividendVector(div_dates, div_amounts)
-            engine = ql.AnalyticDividendEuropeanEngine(process, schedule)
+
+    if is_plain:
+        if exercise_type == "EquityEuropeanExercise":
+            if model_type == "BlackScholesAnalytic":
+                if div_dates:
+                    # Escrowed discrete-dividend analytic European engine —
+                    # mirrors the server's AnalyticDividendEuropeanEngine.
+                    schedule = ql.DividendVector(div_dates, div_amounts)
+                    engine = ql.AnalyticDividendEuropeanEngine(process, schedule)
+                else:
+                    engine = ql.AnalyticEuropeanEngine(process)
+            elif model_type == "BinomialCRR":
+                if div_dates:
+                    raise ValueError(
+                        "Discrete cash dividends currently require "
+                        "model_type=BlackScholesAnalytic")
+                steps = int(model_payload.get("binomial_steps", 500))
+                if steps <= 0:
+                    raise ValueError(
+                        "EquityVanillaModelSpec.binomial_steps must be > 0")
+                engine = ql.BinomialCRRVanillaEngine(process, steps)
+            else:
+                raise ValueError(f"Unsupported EquityModelType: {model_type}")
         else:
-            engine = ql.AnalyticEuropeanEngine(process)
-    elif model_type == "BinomialCRR":
+            # American / Bermudan plain vanilla → finite-difference BS engine,
+            # with the same default grid the server uses.
+            if model_type != "BlackScholesAnalytic":
+                raise ValueError(
+                    "American and Bermudan equity options require "
+                    "model_type=BlackScholesAnalytic")
+            if div_dates:
+                raise ValueError(
+                    "Discrete cash dividends are not supported for "
+                    "American or Bermudan equity options")
+            engine = ql.FdBlackScholesVanillaEngine(process)
+    else:
+        # Digital payoffs.
+        if model_type != "BlackScholesAnalytic":
+            raise ValueError(
+                "Digital equity payoffs require model_type=BlackScholesAnalytic")
         if div_dates:
             raise ValueError(
-                "Discrete cash dividends currently require "
-                "model_type=BlackScholesAnalytic")
-        steps = int(model_payload.get("binomial_steps", 500))
-        if steps <= 0:
-            raise ValueError("EquityVanillaModelSpec.binomial_steps must be > 0")
-        engine = ql.BinomialCRRVanillaEngine(process, steps)
-    else:
-        raise ValueError(f"Unsupported EquityModelType: {model_type}")
+                "Discrete cash dividends are not supported for digital "
+                "equity payoffs")
+        if exercise_type == "EquityEuropeanExercise":
+            engine = ql.AnalyticEuropeanEngine(process)
+        elif exercise_type == "EquityAmericanExercise":
+            engine = ql.AnalyticDigitalAmericanEngine(process)
+        else:
+            raise ValueError(
+                "Bermudan exercise is not supported for digital equity payoffs")
+
     option.setPricingEngine(engine)
 
     return option.NPV() * opt.get("quantity", 1.0)

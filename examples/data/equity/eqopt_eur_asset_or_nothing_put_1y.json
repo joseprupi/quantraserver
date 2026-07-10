@@ -1,0 +1,138 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "quotes": [
+      {
+        "id": "ACME_SPOT",
+        "kind": "Price",
+        "value": 100.0,
+        "quote_type": "Curve"
+      }
+    ],
+    "rates": {
+      "curves": [
+        {
+          "id": "eur_risk_free",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2025-01-15"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.03,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2035-01-15"
+              }
+            }
+          ]
+        },
+        {
+          "id": "acme_dividend_yield",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2025-01-15"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "zero_rate": 0.0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "date": "2035-01-15"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "volatility": {
+      "vol_surfaces": [
+        {
+          "id": "acme_vol_20pct",
+          "payload_type": "BlackVolSpec",
+          "payload": {
+            "base": {
+              "reference_date": "2025-01-15",
+              "calendar": "TARGET",
+              "business_day_convention": "ModifiedFollowing",
+              "day_counter": "Actual365Fixed",
+              "shape": "Constant",
+              "constant_vol": 0.2
+            }
+          }
+        }
+      ],
+      "models": [
+        {
+          "id": "bs_analytic",
+          "payload_type": "EquityVanillaModelSpec",
+          "payload": {
+            "model_type": "BlackScholesAnalytic"
+          }
+        }
+      ]
+    },
+    "equity": {
+      "equity_underlyings": [
+        {
+          "id": "ACME",
+          "currency": "EUR",
+          "spot_quote_id": "ACME_SPOT",
+          "dividend_yield_curve_id": "acme_dividend_yield"
+        }
+      ]
+    }
+  },
+  "options": [
+    {
+      "option": {
+        "trade_id": "ACME_EUR_ASSET_PUT_1Y",
+        "underlying_id": "ACME",
+        "quantity": 1.0,
+        "settlement": "Physical",
+        "payoff_type": "EquityAssetOrNothingPayoff",
+        "payoff": {
+          "option_type": "Put",
+          "strike": 100.0
+        },
+        "exercise_type": "EquityEuropeanExercise",
+        "exercise": {
+          "expiry_date": "2026-01-15"
+        }
+      },
+      "discounting_curve": "eur_risk_free",
+      "volatility": "acme_vol_20pct",
+      "model": "bs_analytic"
+    }
+  ]
+}

@@ -27,6 +27,16 @@
 
 namespace quantra {
 
+/// Which QuantLib payoff the trade carries. Mirrors the EquityPayoff union on
+/// the wire (plain vanilla vs the two digital payoffs). The exercise style is
+/// not duplicated here — the evaluator reads it back from the QL exercise
+/// object's type() (European / American / Bermudan).
+enum class EquityPayoffKind {
+    PlainVanilla,
+    CashOrNothing,
+    AssetOrNothing,
+};
+
 /// One equity option trade lifted out of the FB request by the mapper. The
 /// mapper has already converted enums to QL types and built the QL exercise
 /// object; the evaluator never touches FlatBuffers.
@@ -37,6 +47,8 @@ struct EquityOptionTrade {
 
     QuantLib::Option::Type optionType = QuantLib::Option::Call;
     double strike = 0.0;
+    EquityPayoffKind payoffKind = EquityPayoffKind::PlainVanilla;
+    double cash = 0.0;  // cash amount for a cash-or-nothing digital payoff
     std::shared_ptr<QuantLib::Exercise> exercise;
 
     bool hasBarrier = false;

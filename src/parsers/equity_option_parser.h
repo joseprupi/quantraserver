@@ -8,6 +8,7 @@
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/option.hpp>
 
+#include "equity_option_evaluator.h"
 #include "equity_option_generated.h"
 
 namespace quantra {
@@ -20,6 +21,8 @@ struct ParsedEquityOption {
 
     QuantLib::Option::Type optionType = QuantLib::Option::Call;
     double strike = 0.0;
+    EquityPayoffKind payoffKind = EquityPayoffKind::PlainVanilla;
+    double cash = 0.0;
     std::shared_ptr<QuantLib::Exercise> exercise;
 
     bool hasBarrier = false;
