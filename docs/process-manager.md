@@ -8,6 +8,38 @@ Quantra uses multiple `sync_server` processes to work around QuantLib's process-
 client -> Envoy (:50051) -> sync_server workers (:50055+)
 ```
 
+## Scaling Model
+
+Each `sync_server` worker handles one pricing request at a time. QuantLib here is
+built without session support, so a worker is effectively single-threaded for
+compute: while it prices a request, it does no other pricing work. Throughput
+comes from running several worker processes side by side, not from threads inside
+one process.
+
+Size the worker count roughly to the number of CPU cores. The production
+container defaults `QUANTRA_WORKERS` to the detected core count, capped at 8 and
+floored at 1; set `QUANTRA_WORKERS` explicitly to override. More workers than
+cores mostly adds memory pressure without adding parallel compute.
+
+Envoy balances with `LEAST_REQUEST`, so a new request is sent to the worker with
+the fewest in-flight requests. Because a busy worker keeps an in-flight count of
+at least one, incoming work naturally routes around it to an idle worker instead
+of queueing behind a slow computation.
+
+Envoy probes each worker with a gRPC health check against the standard
+`grpc.health.v1.Health` service (empty service name, i.e. overall serving
+status). The health service runs on gRPC's own thread pool, so a worker that is
+busy on a long calculation still answers as healthy. The check therefore
+distinguishes a *dead* worker (ejected from the pool) from a *busy* one (kept in
+the pool and simply avoided by `LEAST_REQUEST` until it frees up).
+
+Each worker has its own in-process result caches (curve bootstrapping, SABR and
+Hull-White calibration). These caches are independent per process: total cache
+memory scales with the number of workers, and every worker starts cold and warms
+up separately, so the same request may be recomputed once per worker. Sharing a
+cache across workers (for example an out-of-process L2/Redis tier) is a known
+future option, not implemented today.
+
 ## In-Repo CLI
 
 For local development inside the repository, use:

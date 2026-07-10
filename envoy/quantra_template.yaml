@@ -58,9 +58,7 @@ static_resources:
         unhealthy_threshold : 1
         healthy_threshold: 1
         interval: 1s
-        tcp_health_check: 
-          send:
-          receive: []
+        grpc_health_check: {}
     load_assignment:
       cluster_name: cluster_0
       endpoints:

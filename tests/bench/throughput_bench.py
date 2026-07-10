@@ -13,7 +13,7 @@ Topology started per invocation (inside the quantraserver:test image, which
 ships /usr/local/bin/envoy):
 
     scripts/quantra start --workers N --foreground   (run in the background)
-        -> N sync_server workers on base_port=50055.. + an Envoy ROUND_ROBIN
+        -> N sync_server workers on base_port=50055.. + an Envoy LEAST_REQUEST
            front on port 50051. --foreground keeps the manager alive so Envoy
            stays up for the whole run.
     json_server localhost:50051 8080

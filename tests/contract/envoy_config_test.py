@@ -58,6 +58,16 @@ def test_lb_policy_is_least_request():
     assert cluster["lb_policy"] == "LEAST_REQUEST"
 
 
+def test_health_check_is_grpc():
+    # The engine serves the standard grpc.health.v1.Health service, so Envoy
+    # must probe it over gRPC (not a bare TCP connect). A gRPC probe reflects
+    # actual serving status rather than just an open socket.
+    cluster = _cluster(_generate())
+    health_check = cluster["health_checks"][0]
+    assert "grpc_health_check" in health_check
+    assert "tcp_health_check" not in health_check
+
+
 def test_request_timeout_override_changes_route_timeout():
     route = _route(_generate("--request-timeout", "12s"))
     assert route["timeout"] == "12s"
