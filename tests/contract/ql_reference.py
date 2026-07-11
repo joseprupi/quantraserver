@@ -822,7 +822,186 @@ def price_vanilla_swap_ql(request: dict) -> float:
         get_day_counter(float_leg.get("day_counter", "Actual360"))
     )
     ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
-    
+
+    return ql_swap.NPV()
+
+
+def _wire_schedule_from(sch: dict) -> ql.Schedule:
+    """Build a QuantLib Schedule from a wire schedule dict, mirroring the
+    server's ScheduleParser (same convention fallbacks used elsewhere here)."""
+    return ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        sch.get("end_of_month", False),
+    )
+
+
+def price_amortizing_fixed_rate_bond_ql(request: dict) -> float:
+    """Price an amortizing / step-up fixed-rate bond using QuantLib.
+
+    Mirrors the server's FixedRateBondParser amortizing path: per-period
+    notionals feed QuantLib::AmortizingFixedRateBond. redemptions default to
+    {100.0}, which matches the server passing {redemption} for a redemption=100
+    request.
+    """
+    pricing = _reference_pricing_view(request)
+    bond_data = request["bonds"][0]
+    bond = bond_data["fixed_rate_bond"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date, request)
+
+    schedule = _wire_schedule_from(bond["schedule"])
+    issue_date = bond.get("issue_date")
+    ql_bond = ql.AmortizingFixedRateBond(
+        bond.get("settlement_days", 2),
+        [float(n) for n in bond["notionals"]],
+        schedule,
+        [bond["rate"]],
+        get_day_counter(bond.get("accrual_day_counter", "Thirty360")),
+        get_convention(bond.get("payment_convention", "Following")),
+        parse_date(issue_date) if issue_date else ql.Date(),
+    )
+    ql_bond.setPricingEngine(ql.DiscountingBondEngine(curve))
+    return ql_bond.NPV()
+
+
+def price_amortizing_floating_rate_bond_ql(request: dict) -> float:
+    """Price an amortizing / step-up floating-rate bond using QuantLib.
+
+    Mirrors the server's amortizing FloatingRateBond path: per-period notionals
+    feed QuantLib::AmortizingFloatingRateBond, a zero-vol Black coupon pricer is
+    attached exactly as the constant path does, and redemptions default to
+    {100.0} (matching the server's {redemption} for a redemption=100 request).
+    """
+    pricing = _reference_pricing_view(request)
+    bond_data = request["bonds"][0]
+    bond = bond_data["floating_rate_bond"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    discount_curve = build_curve_from_json(curve_json, eval_date, request)
+
+    forward_id = bond_data.get("forwarding_curve", curve_id)
+    forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
+    forward_curve = build_curve_from_json(forward_json, eval_date, request)
+
+    schedule = _wire_schedule_from(bond["schedule"])
+
+    idx_ref = bond.get("index", {})
+    idx_id = idx_ref.get("id", "EUR_6M") if isinstance(idx_ref, dict) else "EUR_6M"
+    idx_def = find_index_def(idx_id, request)
+    if idx_def:
+        index = build_ibor_index(idx_def, forward_curve)
+    else:
+        index = ql.Euribor3M(forward_curve) if "3M" in idx_id else ql.Euribor6M(forward_curve)
+    if idx_def:
+        for fixing in idx_def.get("fixings", []):
+            index.addFixing(parse_date(fixing["date"]), fixing["value"])
+
+    ql_bond = ql.AmortizingFloatingRateBond(
+        bond.get("settlement_days", 2),
+        [float(n) for n in bond["notionals"]],
+        schedule,
+        index,
+        get_day_counter(bond.get("accrual_day_counter", "Actual360")),
+        get_convention(bond.get("payment_convention", "ModifiedFollowing")),
+        bond.get("fixing_days", 2),
+        [1.0],
+        [bond.get("spread", 0.0)],
+        [],
+        [],
+        bond.get("in_arrears", False),
+        parse_date(bond.get("issue_date", bond["schedule"]["effective_date"])),
+    )
+
+    pricer = ql.BlackIborCouponPricer()
+    volatility = ql.ConstantOptionletVolatility(
+        bond.get("settlement_days", 2),
+        get_calendar((idx_def or {}).get("calendar", "TARGET")),
+        get_convention((idx_def or {}).get("business_day_convention", "ModifiedFollowing")),
+        0.0,
+        ql.Actual365Fixed(),
+    )
+    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(volatility))
+    ql.setCouponPricer(ql_bond.cashflows(), pricer)
+    ql_bond.setPricingEngine(ql.DiscountingBondEngine(discount_curve))
+    return ql_bond.NPV()
+
+
+def price_amortizing_vanilla_swap_ql(request: dict) -> float:
+    """Price an amortizing / step-up vanilla swap using QuantLib.
+
+    QuantLib::VanillaSwap cannot carry per-period notionals, so both legs are
+    built explicitly with FixedRateLeg/IborLeg .withNotionals and priced as a
+    generic Swap — mirroring the server. A leg with no notionals vector uses its
+    constant scalar notional. A zero-vol Black pricer reproduces VanillaSwap's
+    own coupon pricing (no convexity/timing adjustment on plain coupons).
+    """
+    pricing = _reference_pricing_view(request)
+    swap_data = request["swaps"][0]
+    swap = swap_data["vanilla_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    curve_id = swap_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date, request)
+
+    forward_id = swap_data.get("forwarding_curve", curve_id)
+    if forward_id == curve_id:
+        forward_curve = curve
+    else:
+        forward_json = next((c for c in pricing["curves"] if c["id"] == forward_id), curve_json)
+        forward_curve = build_curve_from_json(forward_json, eval_date, request)
+
+    fixed_leg = swap["fixed_leg"]
+    fixed_schedule = _wire_schedule_from(fixed_leg["schedule"])
+    float_leg = swap["floating_leg"]
+    float_schedule = _wire_schedule_from(float_leg["schedule"])
+
+    idx_ref = float_leg.get("index", {})
+    idx_id = idx_ref.get("id") if isinstance(idx_ref, dict) else None
+    if idx_id and find_index_def(idx_id, request):
+        index = resolve_index_from_id(idx_id, request, forward_curve)
+    else:
+        index = ql.Euribor6M(forward_curve)
+
+    fixed_notionals = [float(n) for n in (fixed_leg.get("notionals") or [fixed_leg["notional"]])]
+    float_notionals = [float(n) for n in (float_leg.get("notionals") or [float_leg["notional"]])]
+
+    payment_convention = float_schedule.businessDayConvention()
+    fixed_dc = get_day_counter(fixed_leg.get("day_counter", "Thirty360"))
+    float_dc = get_day_counter(float_leg.get("day_counter", "Actual360"))
+
+    ql_fixed_leg = ql.FixedRateLeg(
+        fixed_schedule, fixed_dc, fixed_notionals, [fixed_leg["rate"]], payment_convention)
+    ql_ibor_leg = ql.IborLeg(
+        float_notionals, float_schedule, index, float_dc, payment_convention,
+        [float_leg.get("fixing_days", 2)], [1.0], [float_leg.get("spread", 0.0)])
+
+    vol = ql.ConstantOptionletVolatility(
+        0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
+    pricer = ql.BlackIborCouponPricer()
+    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
+    ql.setCouponPricer(ql_ibor_leg, pricer)
+
+    payer_fixed = swap["swap_type"] == "Payer"
+    ql_swap = ql.Swap([ql_fixed_leg, ql_ibor_leg], [payer_fixed, not payer_fixed])
+    ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
     return ql_swap.NPV()
 
 

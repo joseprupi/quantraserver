@@ -3,6 +3,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "leg_notionals.h"
 
 namespace quantra {
 
@@ -37,6 +38,8 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     if (!fixedFb->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
     }
+    // The OIS swap path does not support per-period notionals yet.
+    rejectUnsupportedNotionals(fixedFb->notionals(), "OisSwap fixed leg");
 
     const auto* overnightFb = swap->overnight_leg();
     if (!overnightFb->schedule()) {

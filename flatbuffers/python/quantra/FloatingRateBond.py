@@ -39,9 +39,40 @@ class FloatingRateBond(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional per-period notionals, one entry per coupon period in schedule
+    # order. Present => amortizing/step-up bond (overrides `face_amount`,
+    # priced as a QuantLib AmortizingFloatingRateBond); absent => constant
+    # `face_amount`.
+    # FloatingRateBond
+    def Notionals(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # FloatingRateBond
+    def NotionalsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # FloatingRateBond
+    def NotionalsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # FloatingRateBond
+    def NotionalsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
     # FloatingRateBond
     def Schedule(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.Schedule import Schedule
@@ -53,7 +84,7 @@ class FloatingRateBond(object):
     # Reference to an IndexDef by id (e.g., "EUR_6M").
     # FloatingRateBond
     def Index(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -64,55 +95,55 @@ class FloatingRateBond(object):
 
     # FloatingRateBond
     def AccrualDayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # FloatingRateBond
-    def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
     # FloatingRateBond
-    def FixingDays(self):
+    def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # FloatingRateBond
+    def FixingDays(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
     # FloatingRateBond
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # FloatingRateBond
     def InArrears(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
     # FloatingRateBond
     def Redemption(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # FloatingRateBond
     def IssueDate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def FloatingRateBondStart(builder):
-    builder.StartObject(11)
+    builder.StartObject(12)
 
 def Start(builder):
     FloatingRateBondStart(builder)
@@ -129,56 +160,68 @@ def FloatingRateBondAddFaceAmount(builder, faceAmount):
 def AddFaceAmount(builder, faceAmount):
     FloatingRateBondAddFaceAmount(builder, faceAmount)
 
+def FloatingRateBondAddNotionals(builder, notionals):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
+
+def AddNotionals(builder, notionals):
+    FloatingRateBondAddNotionals(builder, notionals)
+
+def FloatingRateBondStartNotionalsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNotionalsVector(builder, numElems):
+    return FloatingRateBondStartNotionalsVector(builder, numElems)
+
 def FloatingRateBondAddSchedule(builder, schedule):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
 
 def AddSchedule(builder, schedule):
     FloatingRateBondAddSchedule(builder, schedule)
 
 def FloatingRateBondAddIndex(builder, index):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
     FloatingRateBondAddIndex(builder, index)
 
 def FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter):
-    builder.PrependInt8Slot(4, accrualDayCounter, None)
+    builder.PrependInt8Slot(5, accrualDayCounter, None)
 
 def AddAccrualDayCounter(builder, accrualDayCounter):
     FloatingRateBondAddAccrualDayCounter(builder, accrualDayCounter)
 
 def FloatingRateBondAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(5, paymentConvention, None)
+    builder.PrependInt8Slot(6, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     FloatingRateBondAddPaymentConvention(builder, paymentConvention)
 
 def FloatingRateBondAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(6, fixingDays, 0)
+    builder.PrependInt32Slot(7, fixingDays, 0)
 
 def AddFixingDays(builder, fixingDays):
     FloatingRateBondAddFixingDays(builder, fixingDays)
 
 def FloatingRateBondAddSpread(builder, spread):
-    builder.PrependFloat64Slot(7, spread, 0.0)
+    builder.PrependFloat64Slot(8, spread, 0.0)
 
 def AddSpread(builder, spread):
     FloatingRateBondAddSpread(builder, spread)
 
 def FloatingRateBondAddInArrears(builder, inArrears):
-    builder.PrependBoolSlot(8, inArrears, 0)
+    builder.PrependBoolSlot(9, inArrears, 0)
 
 def AddInArrears(builder, inArrears):
     FloatingRateBondAddInArrears(builder, inArrears)
 
 def FloatingRateBondAddRedemption(builder, redemption):
-    builder.PrependFloat64Slot(9, redemption, 0.0)
+    builder.PrependFloat64Slot(10, redemption, 0.0)
 
 def AddRedemption(builder, redemption):
     FloatingRateBondAddRedemption(builder, redemption)
 
 def FloatingRateBondAddIssueDate(builder, issueDate):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
+    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(issueDate), 0)
 
 def AddIssueDate(builder, issueDate):
     FloatingRateBondAddIssueDate(builder, issueDate)
@@ -190,7 +233,7 @@ def End(builder):
     return FloatingRateBondEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -200,6 +243,7 @@ class FloatingRateBondT(object):
     def __init__(self):
         self.settlementDays = 0  # type: int
         self.faceAmount = 0.0  # type: float
+        self.notionals = None  # type: List[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]
         self.accrualDayCounter = None  # type: Optional[int]
@@ -233,6 +277,13 @@ class FloatingRateBondT(object):
             return
         self.settlementDays = floatingRateBond.SettlementDays()
         self.faceAmount = floatingRateBond.FaceAmount()
+        if not floatingRateBond.NotionalsIsNone():
+            if np is None:
+                self.notionals = []
+                for i in range(floatingRateBond.NotionalsLength()):
+                    self.notionals.append(floatingRateBond.Notionals(i))
+            else:
+                self.notionals = floatingRateBond.NotionalsAsNumpy()
         if floatingRateBond.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(floatingRateBond.Schedule())
         if floatingRateBond.Index() is not None:
@@ -247,6 +298,14 @@ class FloatingRateBondT(object):
 
     # FloatingRateBondT
     def Pack(self, builder):
+        if self.notionals is not None:
+            if np is not None and type(self.notionals) is np.ndarray:
+                notionals = builder.CreateNumpyVector(self.notionals)
+            else:
+                FloatingRateBondStartNotionalsVector(builder, len(self.notionals))
+                for i in reversed(range(len(self.notionals))):
+                    builder.PrependFloat64(self.notionals[i])
+                notionals = builder.EndVector()
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
         if self.index is not None:
@@ -256,6 +315,8 @@ class FloatingRateBondT(object):
         FloatingRateBondStart(builder)
         FloatingRateBondAddSettlementDays(builder, self.settlementDays)
         FloatingRateBondAddFaceAmount(builder, self.faceAmount)
+        if self.notionals is not None:
+            FloatingRateBondAddNotionals(builder, notionals)
         if self.schedule is not None:
             FloatingRateBondAddSchedule(builder, schedule)
         if self.index is not None:

@@ -43,29 +43,60 @@ class SwapFixedLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional per-period notionals, one entry per coupon period in schedule
+    # order. Present => amortizing/step-up leg (overrides `notional`); absent
+    # => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
+    # path; other readers (OIS, swaption underlying) reject a present value.
+    # SwapFixedLeg
+    def Notionals(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # SwapFixedLeg
+    def NotionalsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # SwapFixedLeg
+    def NotionalsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # SwapFixedLeg
+    def NotionalsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
     # SwapFixedLeg
     def Rate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapFixedLeg
     def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
     # SwapFixedLeg
     def PaymentConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
 def SwapFixedLegStart(builder):
-    builder.StartObject(5)
+    builder.StartObject(6)
 
 def Start(builder):
     SwapFixedLegStart(builder)
@@ -82,20 +113,32 @@ def SwapFixedLegAddNotional(builder, notional):
 def AddNotional(builder, notional):
     SwapFixedLegAddNotional(builder, notional)
 
+def SwapFixedLegAddNotionals(builder, notionals):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
+
+def AddNotionals(builder, notionals):
+    SwapFixedLegAddNotionals(builder, notionals)
+
+def SwapFixedLegStartNotionalsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNotionalsVector(builder, numElems):
+    return SwapFixedLegStartNotionalsVector(builder, numElems)
+
 def SwapFixedLegAddRate(builder, rate):
-    builder.PrependFloat64Slot(2, rate, 0.0)
+    builder.PrependFloat64Slot(3, rate, 0.0)
 
 def AddRate(builder, rate):
     SwapFixedLegAddRate(builder, rate)
 
 def SwapFixedLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(3, dayCounter, None)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapFixedLegAddDayCounter(builder, dayCounter)
 
 def SwapFixedLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(4, paymentConvention, None)
+    builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapFixedLegAddPaymentConvention(builder, paymentConvention)
@@ -107,7 +150,7 @@ def End(builder):
     return SwapFixedLegEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -117,6 +160,7 @@ class SwapFixedLegT(object):
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = 0.0  # type: float
+        self.notionals = None  # type: List[float]
         self.rate = 0.0  # type: float
         self.dayCounter = None  # type: Optional[int]
         self.paymentConvention = None  # type: Optional[int]
@@ -145,6 +189,13 @@ class SwapFixedLegT(object):
         if swapFixedLeg.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(swapFixedLeg.Schedule())
         self.notional = swapFixedLeg.Notional()
+        if not swapFixedLeg.NotionalsIsNone():
+            if np is None:
+                self.notionals = []
+                for i in range(swapFixedLeg.NotionalsLength()):
+                    self.notionals.append(swapFixedLeg.Notionals(i))
+            else:
+                self.notionals = swapFixedLeg.NotionalsAsNumpy()
         self.rate = swapFixedLeg.Rate()
         self.dayCounter = swapFixedLeg.DayCounter()
         self.paymentConvention = swapFixedLeg.PaymentConvention()
@@ -153,10 +204,20 @@ class SwapFixedLegT(object):
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
+        if self.notionals is not None:
+            if np is not None and type(self.notionals) is np.ndarray:
+                notionals = builder.CreateNumpyVector(self.notionals)
+            else:
+                SwapFixedLegStartNotionalsVector(builder, len(self.notionals))
+                for i in reversed(range(len(self.notionals))):
+                    builder.PrependFloat64(self.notionals[i])
+                notionals = builder.EndVector()
         SwapFixedLegStart(builder)
         if self.schedule is not None:
             SwapFixedLegAddSchedule(builder, schedule)
         SwapFixedLegAddNotional(builder, self.notional)
+        if self.notionals is not None:
+            SwapFixedLegAddNotionals(builder, notionals)
         SwapFixedLegAddRate(builder, self.rate)
         SwapFixedLegAddDayCounter(builder, self.dayCounter)
         SwapFixedLegAddPaymentConvention(builder, self.paymentConvention)

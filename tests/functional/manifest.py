@@ -329,6 +329,69 @@ CASES = [
     },
 
     # ------------------------------------------------------------------
+    # IR Swaps — amortizing / step-up notionals (per-period notionals)
+    # ------------------------------------------------------------------
+    {
+        "id": "irs_eur_5y_amortizing_payer_both_legs",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y amortizing payer swap, both legs (10m to 2m linear)",
+        "description": (
+            "Amortizing payer swap whose outstanding notional steps down "
+            "linearly from 10m to 2m over five years on both legs (the fixed "
+            "leg amortizes annually, the floating leg on the same profile "
+            "twice a year). QuantLib::VanillaSwap cannot carry per-period "
+            "notionals, so the server builds FixedRateLeg/IborLeg with "
+            ".withNotionals and prices a generic Swap. Exercises the "
+            "amortizing swap path end to end."
+        ),
+        "request": "ir_swaps/irs_eur_5y_amortizing_payer.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_amortizing_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "amortizing both legs", "per-period notionals",
+                      "generic Swap from legs", "Euribor6M"],
+    },
+    {
+        "id": "irs_eur_5y_stepup_fixed_leg_only",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y step-up swap, fixed leg only (2m to 10m increasing)",
+        "description": (
+            "Step-up (accreting) swap whose fixed-leg notional increases "
+            "from 2m to 10m over five years while the floating leg keeps a "
+            "constant 10m notional. Proves the per-period notionals vector is "
+            "used exactly as given (increasing, not assumed decreasing) and "
+            "that a single leg can amortize while the other stays constant."
+        ),
+        "request": "ir_swaps/irs_eur_5y_stepup_fixed_only.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_amortizing_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "step-up fixed leg", "constant floating leg",
+                      "increasing notionals", "asymmetric legs"],
+    },
+    {
+        "id": "irs_eur_5y_constant_via_notionals_control",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y swap, constant notional expressed via the vector",
+        "description": (
+            "Control case: the baseline 5Y payer swap with an all-equal "
+            "per-period notionals vector on both legs. The server takes the "
+            "amortizing generic-Swap path while the QuantLib reference prices "
+            "the plain constant-notional VanillaSwap, so a match proves the "
+            "two paths are numerically equivalent for a flat notional profile."
+        ),
+        "request": "ir_swaps/irs_eur_5y_constant_via_notionals.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["constant notionals via vector", "path equivalence",
+                      "VanillaSwap parity", "payer"],
+    },
+
+    # ------------------------------------------------------------------
     # IR Swaps — OIS (compounded overnight)
     # ------------------------------------------------------------------
     {
@@ -596,6 +659,45 @@ CASES = [
         "exercises": ["non-par redemption 101.5", "Preceding payment convention",
                       "Unadjusted schedule"],
     },
+    {
+        "id": "frb_eur_5y_amortizing_linear",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y amortizing fixed-rate bond (1m to 0.2m linear)",
+        "description": (
+            "Sinking-fund style amortizing bond: 3.10% annual coupon whose "
+            "outstanding notional steps down linearly from 1m to 0.2m over "
+            "five years, so each coupon accrues on a smaller principal and "
+            "part of the notional is redeemed every year. Priced as a "
+            "QuantLib AmortizingFixedRateBond. Exercises the amortizing "
+            "fixed-bond path end to end."
+        ),
+        "request": "bonds/frb_eur_5y_amortizing_linear.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_amortizing_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["amortizing fixed bond", "per-period notionals",
+                      "sinking fund", "annual 30/360"],
+    },
+    {
+        "id": "frb_eur_5y_constant_via_notionals_control",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y fixed bond, constant notional expressed via the vector",
+        "description": (
+            "Control case: the at-par 5Y fixed bond with an all-equal "
+            "per-period notionals vector. The server takes the "
+            "AmortizingFixedRateBond path while the QuantLib reference prices "
+            "the plain constant-face FixedRateBond, so a match proves the two "
+            "paths are numerically equivalent for a flat notional profile."
+        ),
+        "request": "bonds/frb_eur_5y_constant_via_notionals.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["constant notionals via vector", "path equivalence",
+                      "FixedRateBond parity"],
+    },
 
     # ------------------------------------------------------------------
     # Bonds — floating-rate
@@ -690,6 +792,28 @@ CASES = [
         "tolerance": DEFAULT_TOLERANCE,
         "exercises": ["FRN", "zero fixing days", "same-day fixing",
                       "Euribor6M"],
+    },
+    {
+        "id": "frn_eur_5y_amortizing_linear",
+        "product": "floating_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y amortizing FRN, Euribor 6M + 50bp (1m to 0.2m linear)",
+        "description": (
+            "Amortizing floating-rate note: semiannual Euribor 6M + 50bp "
+            "coupons on an outstanding notional that steps down linearly from "
+            "1m to 0.2m over five years, with principal redeemed alongside the "
+            "coupons. The 50bp margin makes the price profile-dependent (a par "
+            "floater is notional-invariant at zero spread), so the case truly "
+            "exercises the amortization. Priced as a QuantLib "
+            "AmortizingFloatingRateBond with the same zero-vol Black coupon "
+            "pricer as the constant floater."
+        ),
+        "request": "bonds/frn_eur_5y_amortizing_linear.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_amortizing_floating_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["amortizing FRN", "per-period notionals", "Euribor6M",
+                      "coupon spread +50bp", "semiannual coupons"],
     },
     # ------------------------------------------------------------------
     # FRA — forward rate agreements

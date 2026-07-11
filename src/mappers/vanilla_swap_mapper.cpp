@@ -3,6 +3,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "leg_notionals.h"
 
 namespace quantra {
 
@@ -92,8 +93,21 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         trade.ibor.indexId = floatFb->index()->id()->str();
         trade.ibor.spread = floatFb->spread();
         trade.ibor.dayCounter = DayCounterToQL(floatFb->day_counter().value());
+        // Optional amortizing/step-up notionals: one entry per coupon period on
+        // each leg. Absent => the constant scalar notionals above stand.
+        parseOptionalNotionals(fixedFb->notionals(),
+                               trade.fixed.schedule.size() - 1,
+                               "SwapFixedLeg", trade.fixed.notionals);
+        parseOptionalNotionals(floatFb->notionals(),
+                               trade.ibor.schedule.size() - 1,
+                               "SwapFloatingLeg", trade.ibor.notionals);
         return trade;
     }
+
+    // CMS branch does not support amortizing notionals yet: reject a present
+    // notionals vector on the fixed leg rather than silently ignoring it.
+    rejectUnsupportedNotionals(fixedFb->notionals(),
+                               "VanillaSwap CMS leg fixed leg");
 
     // CMS branch.
     const auto* cmsFb = swap->cms_leg();

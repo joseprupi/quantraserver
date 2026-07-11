@@ -50,6 +50,10 @@ struct VanillaSwapCmsPricerParams {
 struct VanillaSwapFixedLegData {
     QuantLib::Schedule schedule;
     double notional = 0.0;
+    /// Optional per-period notionals (one per coupon period). Empty => constant
+    /// `notional`; non-empty => amortizing/step-up fixed leg. Validated by the
+    /// mapper against the schedule before it reaches the evaluator.
+    std::vector<double> notionals;
     double rate = 0.0;
     QuantLib::DayCounter dayCounter;
     /// Used only by the CMS branch (FixedRateLeg builder); the IBOR branch
@@ -62,6 +66,10 @@ struct VanillaSwapFixedLegData {
 struct VanillaSwapIborLegData {
     QuantLib::Schedule schedule;
     double notional = 0.0;
+    /// Optional per-period notionals (one per coupon period). Empty => constant
+    /// `notional`; non-empty => amortizing/step-up floating leg. Validated by
+    /// the mapper against the schedule before it reaches the evaluator.
+    std::vector<double> notionals;
     std::string indexId;
     double spread = 0.0;
     QuantLib::DayCounter dayCounter;

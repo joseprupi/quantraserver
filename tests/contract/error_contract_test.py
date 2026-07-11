@@ -296,6 +296,22 @@ def _ec_set_nested_field(arr_key, obj_key, field, value):
     return f
 
 
+def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
+    """Set the optional per-period notionals vector on a swap leg (or bond)."""
+    def f(req):
+        req[arr_key][0][product_key][leg_key]["notionals"] = values
+        return req
+    return f
+
+
+def _ec_set_swaption_underlying_notionals(values):
+    """Set the notionals vector on the swaption underlying swap's fixed leg."""
+    def f(req):
+        req["swaptions"][0]["swaption"]["underlying"]["fixed_leg"]["notionals"] = values
+        return req
+    return f
+
+
 def _ec_body_contains(substr):
     """Body validator: the (error) response body must carry substr somewhere.
 
@@ -590,6 +606,46 @@ SCENARIOS = [
     ("ec:400 bootstrap_curves FutureHelper missing future_start_date",
      "bootstrap_curves", "bootstrap_curves_tenor_grid.json", 400,
      _ec_future_helper_missing_start_date()),
+    # ---- 400 INVALID_ARGUMENT: amortizing notionals validation ----
+    # When present the per-period notionals vector must be non-empty, carry
+    # exactly one entry per coupon period, and hold only positive amounts. The
+    # vanilla fixed leg schedule is annual 5Y (5 periods).
+    ("ec:400 vanilla_swap notionals too short", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
+                           [1e7, 1e7, 1e7, 1e7]),
+     _ec_body_contains("SwapFixedLeg.notionals has 4 entries but the schedule has 5 periods")),
+    ("ec:400 vanilla_swap notionals too long", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
+                           [1e7, 1e7, 1e7, 1e7, 1e7, 1e7]),
+     _ec_body_contains("SwapFixedLeg.notionals has 6 entries but the schedule has 5 periods")),
+    ("ec:400 vanilla_swap notionals empty", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg", []),
+     _ec_body_contains("SwapFixedLeg.notionals must be non-empty when present")),
+    ("ec:400 vanilla_swap notionals non-positive entry", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "vanilla_swap", "fixed_leg",
+                           [1e7, 1e7, 1e7, 1e7, 0.0]),
+     _ec_body_contains("SwapFixedLeg.notionals entries must be positive")),
+    # ---- 400 INVALID_ARGUMENT: shared-table paths reject amortizing notionals ----
+    # SwapFixedLeg / SwapFloatingLeg are shared with the OIS, basis and
+    # swaption-underlying paths, which do not support amortizing notionals yet.
+    # A present notionals vector must be rejected, never silently ignored.
+    ("ec:400 ois_swap fixed leg notionals rejected", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "ois_swap", "fixed_leg", [1e7]),
+     _ec_body_contains("OisSwap fixed leg does not support amortizing notionals yet")),
+    ("ec:400 basis_swap leg notionals rejected", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_set_leg_notionals("swaps", "basis_swap", "leg1", [1e7]),
+     _ec_body_contains("BasisSwap leg1 does not support amortizing notionals yet")),
+    ("ec:400 swaption underlying notionals rejected", "swaption",
+     "swaption_request.json", 400,
+     _ec_set_swaption_underlying_notionals([1e7]),
+     _ec_body_contains(
+         "Swaption underlying VanillaSwap fixed leg does not support amortizing notionals yet")),
 ]
 
 

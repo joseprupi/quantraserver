@@ -17,10 +17,15 @@
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 
+#include <ql/instruments/bond.hpp>
+#include <ql/instruments/bonds/fixedratebond.hpp>
+#include <ql/instruments/bonds/amortizingfixedratebond.hpp>
+
 #include "fixed_rate_bond_generated.h"
 #include "enum_convert.h"
 #include "date_convert.h"
 #include "schedule_parser.h"
+#include "leg_notionals.h"
 
 using namespace QuantLib;
 using namespace quantra;
@@ -30,7 +35,9 @@ class FixedRateBondParser
 
 private:
 public:
-    std::shared_ptr<QuantLib::FixedRateBond> parse(const quantra::FixedRateBond *ts);
+    // Returns a plain QuantLib::Bond: a FixedRateBond for constant face amount,
+    // or an AmortizingFixedRateBond when the request carries per-period notionals.
+    std::shared_ptr<QuantLib::Bond> parse(const quantra::FixedRateBond *ts);
 };
 
 #endif //QUANTRASERVER_FIXEDRATEBONDPARSER_H

@@ -26,6 +26,7 @@ struct FixedRateBondT : public ::flatbuffers::NativeTable {
   typedef FixedRateBond TableType;
   int32_t settlement_days = 0;
   double face_amount = 0.0;
+  std::vector<double> notionals{};
   double rate = 0.0;
   ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
@@ -45,18 +46,26 @@ struct FixedRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SETTLEMENT_DAYS = 4,
     VT_FACE_AMOUNT = 6,
-    VT_RATE = 8,
-    VT_ACCRUAL_DAY_COUNTER = 10,
-    VT_PAYMENT_CONVENTION = 12,
-    VT_REDEMPTION = 14,
-    VT_ISSUE_DATE = 16,
-    VT_SCHEDULE = 18
+    VT_NOTIONALS = 8,
+    VT_RATE = 10,
+    VT_ACCRUAL_DAY_COUNTER = 12,
+    VT_PAYMENT_CONVENTION = 14,
+    VT_REDEMPTION = 16,
+    VT_ISSUE_DATE = 18,
+    VT_SCHEDULE = 20
   };
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
   double face_amount() const {
     return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  }
+  /// Optional per-period notionals, one entry per coupon period in schedule
+  /// order. Present => amortizing/step-up bond (overrides `face_amount`,
+  /// priced as a QuantLib AmortizingFixedRateBond); absent => constant
+  /// `face_amount`.
+  const ::flatbuffers::Vector<double> *notionals() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
   }
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
@@ -80,6 +89,8 @@ struct FixedRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
            VerifyField<double>(verifier, VT_FACE_AMOUNT, 8) &&
+           VerifyOffset(verifier, VT_NOTIONALS) &&
+           verifier.VerifyVector(notionals()) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
            VerifyField<int8_t>(verifier, VT_ACCRUAL_DAY_COUNTER, 1) &&
            VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
@@ -104,6 +115,9 @@ struct FixedRateBondBuilder {
   }
   void add_face_amount(double face_amount) {
     fbb_.AddElement<double>(FixedRateBond::VT_FACE_AMOUNT, face_amount, 0.0);
+  }
+  void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
+    fbb_.AddOffset(FixedRateBond::VT_NOTIONALS, notionals);
   }
   void add_rate(double rate) {
     fbb_.AddElement<double>(FixedRateBond::VT_RATE, rate, 0.0);
@@ -138,6 +152,7 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
@@ -150,6 +165,7 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBond(
   builder_.add_face_amount(face_amount);
   builder_.add_schedule(schedule);
   builder_.add_issue_date(issue_date);
+  builder_.add_notionals(notionals);
   builder_.add_settlement_days(settlement_days);
   if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
   if(accrual_day_counter) { builder_.add_accrual_day_counter(*accrual_day_counter); }
@@ -160,17 +176,20 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBondDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
+    const std::vector<double> *notionals = nullptr,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     double redemption = 0.0,
     const char *issue_date = nullptr,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0) {
+  auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
   auto issue_date__ = issue_date ? _fbb.CreateString(issue_date) : 0;
   return quantra::CreateFixedRateBond(
       _fbb,
       settlement_days,
       face_amount,
+      notionals__,
       rate,
       accrual_day_counter,
       payment_convention,
@@ -184,6 +203,7 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBondDirect(
 inline FixedRateBondT::FixedRateBondT(const FixedRateBondT &o)
       : settlement_days(o.settlement_days),
         face_amount(o.face_amount),
+        notionals(o.notionals),
         rate(o.rate),
         accrual_day_counter(o.accrual_day_counter),
         payment_convention(o.payment_convention),
@@ -195,6 +215,7 @@ inline FixedRateBondT::FixedRateBondT(const FixedRateBondT &o)
 inline FixedRateBondT &FixedRateBondT::operator=(FixedRateBondT o) FLATBUFFERS_NOEXCEPT {
   std::swap(settlement_days, o.settlement_days);
   std::swap(face_amount, o.face_amount);
+  std::swap(notionals, o.notionals);
   std::swap(rate, o.rate);
   std::swap(accrual_day_counter, o.accrual_day_counter);
   std::swap(payment_convention, o.payment_convention);
@@ -215,6 +236,7 @@ inline void FixedRateBond::UnPackTo(FixedRateBondT *_o, const ::flatbuffers::res
   (void)_resolver;
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = face_amount(); _o->face_amount = _e; }
+  { auto _e = notionals(); if (_e) { _o->notionals.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->notionals[_i] = _e->Get(_i); } } else { _o->notionals.resize(0); } }
   { auto _e = rate(); _o->rate = _e; }
   { auto _e = accrual_day_counter(); _o->accrual_day_counter = _e; }
   { auto _e = payment_convention(); _o->payment_convention = _e; }
@@ -233,6 +255,7 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBond(::flatbuffers::F
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FixedRateBondT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _settlement_days = _o->settlement_days;
   auto _face_amount = _o->face_amount;
+  auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
   auto _rate = _o->rate;
   auto _accrual_day_counter = _o->accrual_day_counter;
   auto _payment_convention = _o->payment_convention;
@@ -243,6 +266,7 @@ inline ::flatbuffers::Offset<FixedRateBond> CreateFixedRateBond(::flatbuffers::F
       _fbb,
       _settlement_days,
       _face_amount,
+      _notionals,
       _rate,
       _accrual_day_counter,
       _payment_convention,

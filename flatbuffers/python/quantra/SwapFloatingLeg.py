@@ -43,10 +43,42 @@ class SwapFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Optional per-period notionals, one entry per coupon period in schedule
+    # order. Present => amortizing/step-up leg (overrides `notional`); absent
+    # => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
+    # path; other readers (basis swap, swaption underlying) reject a present
+    # value.
+    # SwapFloatingLeg
+    def Notionals(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            a = self._tab.Vector(o)
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
+        return 0
+
+    # SwapFloatingLeg
+    def NotionalsAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # SwapFloatingLeg
+    def NotionalsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # SwapFloatingLeg
+    def NotionalsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
     # Reference to an IndexDef by id (e.g., "EUR_6M").
     # SwapFloatingLeg
     def Index(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -57,41 +89,41 @@ class SwapFloatingLeg(object):
 
     # SwapFloatingLeg
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # SwapFloatingLeg
     def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # SwapFloatingLeg
-    def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
     # SwapFloatingLeg
-    def FixingDays(self):
+    def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # SwapFloatingLeg
+    def FixingDays(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
     # SwapFloatingLeg
     def InArrears(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
 def SwapFloatingLegStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(9)
 
 def Start(builder):
     SwapFloatingLegStart(builder)
@@ -108,38 +140,50 @@ def SwapFloatingLegAddNotional(builder, notional):
 def AddNotional(builder, notional):
     SwapFloatingLegAddNotional(builder, notional)
 
+def SwapFloatingLegAddNotionals(builder, notionals):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
+
+def AddNotionals(builder, notionals):
+    SwapFloatingLegAddNotionals(builder, notionals)
+
+def SwapFloatingLegStartNotionalsVector(builder, numElems):
+    return builder.StartVector(8, numElems, 8)
+
+def StartNotionalsVector(builder, numElems):
+    return SwapFloatingLegStartNotionalsVector(builder, numElems)
+
 def SwapFloatingLegAddIndex(builder, index):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
     SwapFloatingLegAddIndex(builder, index)
 
 def SwapFloatingLegAddSpread(builder, spread):
-    builder.PrependFloat64Slot(3, spread, 0.0)
+    builder.PrependFloat64Slot(4, spread, 0.0)
 
 def AddSpread(builder, spread):
     SwapFloatingLegAddSpread(builder, spread)
 
 def SwapFloatingLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, None)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapFloatingLegAddDayCounter(builder, dayCounter)
 
 def SwapFloatingLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(5, paymentConvention, None)
+    builder.PrependInt8Slot(6, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapFloatingLegAddPaymentConvention(builder, paymentConvention)
 
 def SwapFloatingLegAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(6, fixingDays, 2)
+    builder.PrependInt32Slot(7, fixingDays, 2)
 
 def AddFixingDays(builder, fixingDays):
     SwapFloatingLegAddFixingDays(builder, fixingDays)
 
 def SwapFloatingLegAddInArrears(builder, inArrears):
-    builder.PrependBoolSlot(7, inArrears, 0)
+    builder.PrependBoolSlot(8, inArrears, 0)
 
 def AddInArrears(builder, inArrears):
     SwapFloatingLegAddInArrears(builder, inArrears)
@@ -151,7 +195,7 @@ def End(builder):
     return SwapFloatingLegEnd(builder)
 
 try:
-    from typing import Optional
+    from typing import List, Optional
 except:
     pass
 
@@ -161,6 +205,7 @@ class SwapFloatingLegT(object):
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = 0.0  # type: float
+        self.notionals = None  # type: List[float]
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
         self.dayCounter = None  # type: Optional[int]
@@ -192,6 +237,13 @@ class SwapFloatingLegT(object):
         if swapFloatingLeg.Schedule() is not None:
             self.schedule = ScheduleT.InitFromObj(swapFloatingLeg.Schedule())
         self.notional = swapFloatingLeg.Notional()
+        if not swapFloatingLeg.NotionalsIsNone():
+            if np is None:
+                self.notionals = []
+                for i in range(swapFloatingLeg.NotionalsLength()):
+                    self.notionals.append(swapFloatingLeg.Notionals(i))
+            else:
+                self.notionals = swapFloatingLeg.NotionalsAsNumpy()
         if swapFloatingLeg.Index() is not None:
             self.index = IndexRefT.InitFromObj(swapFloatingLeg.Index())
         self.spread = swapFloatingLeg.Spread()
@@ -204,12 +256,22 @@ class SwapFloatingLegT(object):
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
+        if self.notionals is not None:
+            if np is not None and type(self.notionals) is np.ndarray:
+                notionals = builder.CreateNumpyVector(self.notionals)
+            else:
+                SwapFloatingLegStartNotionalsVector(builder, len(self.notionals))
+                for i in reversed(range(len(self.notionals))):
+                    builder.PrependFloat64(self.notionals[i])
+                notionals = builder.EndVector()
         if self.index is not None:
             index = self.index.Pack(builder)
         SwapFloatingLegStart(builder)
         if self.schedule is not None:
             SwapFloatingLegAddSchedule(builder, schedule)
         SwapFloatingLegAddNotional(builder, self.notional)
+        if self.notionals is not None:
+            SwapFloatingLegAddNotionals(builder, notionals)
         if self.index is not None:
             SwapFloatingLegAddIndex(builder, index)
         SwapFloatingLegAddSpread(builder, self.spread)
