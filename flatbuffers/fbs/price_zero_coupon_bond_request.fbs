@@ -1,0 +1,22 @@
+include "common.fbs";
+include "pricing.fbs";
+include "zero_coupon_bond.fbs";
+
+namespace quantra;
+
+/// Single zero-coupon bond pricing context.
+table PriceZeroCouponBond {
+    zero_coupon_bond:ZeroCouponBond;
+    /// Reference to curve in pricing.rates.curves by id.
+    discounting_curve:string;
+    /// Yield convention used for the reported yield measures.
+    yield:Yield;
+}
+
+/// Request to price one or more zero-coupon bonds.
+table PriceZeroCouponBondRequest {
+    pricing:Pricing;
+    bonds:[PriceZeroCouponBond];
+}
+
+root_type PriceZeroCouponBondRequest;

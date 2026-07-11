@@ -73,6 +73,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |
 | Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |
 | Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |
+| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |
+| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -198,6 +200,16 @@ ENDPOINT_METADATA = {
         "summary": "Price Equity Option",
         "description": "Price vanilla or barrier equity options with configured equity underlyings, curves, vols, and model.",
         "tags": ["Equity Derivatives"]
+    },
+    "zero_coupon_bond": {
+        "summary": "Price Zero Coupon Bond",
+        "description": "Calculate NPV, clean/dirty price, yield, duration, and convexity for zero-coupon (single redemption) bonds discounted on a configured curve.",
+        "tags": ["Bonds"]
+    },
+    "zero_coupon_swap": {
+        "summary": "Price Zero Coupon Swap",
+        "description": "Calculate NPV, fair fixed payment, and leg values for zero-coupon swaps exchanging a single fixed cashflow against a single compounded-floating cashflow.",
+        "tags": ["Interest Rate Derivatives"]
     }
 }
 

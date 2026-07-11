@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
     "version": "0.3.0",
     "contact": {
       "name": "Quantra API Support",
@@ -1275,6 +1275,132 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/quantra_PriceEquityOptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/price-zero-coupon-bond": {
+      "post": {
+        "summary": "Price Zero Coupon Bond",
+        "description": "Calculate NPV, clean/dirty price, yield, duration, and convexity for zero-coupon (single redemption) bonds discounted on a configured curve.",
+        "tags": [
+          "Bonds"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceZeroCouponBondRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceZeroCouponBondResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/price-zero-coupon-swap": {
+      "post": {
+        "summary": "Price Zero Coupon Swap",
+        "description": "Calculate NPV, fair fixed payment, and leg values for zero-coupon swaps exchanging a single fixed cashflow against a single compounded-floating cashflow.",
+        "tags": [
+          "Interest Rate Derivatives"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceZeroCouponSwapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceZeroCouponSwapResponse"
                 }
               }
             }
@@ -6659,6 +6785,74 @@
         },
         "additionalProperties": false
       },
+      "quantra_ZeroCouponBond": {
+        "type": "object",
+        "description": "Zero-coupon bond instrument. Pays a single redemption cashflow at maturity\nand carries no periodic coupons, so it needs no schedule.",
+        "properties": {
+          "settlement_days": {
+            "type": "integer",
+            "description": "Number of days between trade and settlement.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "face_amount": {
+            "type": "number",
+            "description": "Notional / face amount the redemption percentage applies to."
+          },
+          "maturity_date": {
+            "type": "string",
+            "description": "Single redemption/maturity date (ISO yyyy-mm-dd)."
+          },
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "redemption": {
+            "type": "number",
+            "description": "Redemption as a percentage of face (e.g. 100.0 = par). Optional:\npresence decides. Absent => QuantLib's 100.0 (par) default."
+          },
+          "issue_date": {
+            "type": "string",
+            "description": "Optional issue date (ISO yyyy-mm-dd). Absent => QuantLib's null Date."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponBond": {
+        "type": "object",
+        "description": "Single zero-coupon bond pricing context.",
+        "properties": {
+          "zero_coupon_bond": {
+            "$ref": "#/components/schemas/quantra_ZeroCouponBond"
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Reference to curve in pricing.rates.curves by id."
+          },
+          "yield": {
+            "$ref": "#/components/schemas/quantra_Yield"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponBondRequest": {
+        "type": "object",
+        "description": "Request to price one or more zero-coupon bonds.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "bonds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceZeroCouponBond"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_ZeroCouponInflationSwap": {
         "type": "object",
         "description": "Standard zero-coupon inflation swap (ZCIIS).",
@@ -6751,6 +6945,91 @@
           "include_flows": {
             "type": "boolean",
             "description": "Include detailed cashflows in response."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_ZeroCouponSwap": {
+        "type": "object",
+        "description": "Zero-coupon interest rate swap (QuantLib::ZeroCouponSwap). Exchanges a\nsingle fixed cashflow at maturity against a single compounded-floating\ncashflow. The fixed side is quoted EITHER as a known fixed payment amount\nOR as a fixed rate compounded over the contract life.",
+        "properties": {
+          "swap_type": {
+            "$ref": "#/components/schemas/quantra_enums_SwapType"
+          },
+          "base_nominal": {
+            "type": "number",
+            "description": "Base notional prior to compounding."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Contract start date (ISO yyyy-mm-dd)."
+          },
+          "maturity_date": {
+            "type": "string",
+            "description": "Contract maturity / single-payment date (ISO yyyy-mm-dd)."
+          },
+          "fixed_payment": {
+            "type": "number",
+            "description": "Fixed-payment form: the known fixed cash flow N^FIX. Optional; presence\nselects this quoting form. Exactly one of `fixed_payment` or the\n`fixed_rate`+`fixed_rate_day_counter` pair must be supplied."
+          },
+          "fixed_rate": {
+            "type": "number",
+            "description": "Fixed-rate form: the fixed rate R compounded over the contract life as\nN^FIX = N[(1+R)^alpha - 1], alpha the fixed_rate_day_counter year\nfraction between start and maturity. Optional; presence selects this\nquoting form. QuantLib's ZeroCouponSwap rate constructor takes only the\nrate and its day counter (compounding is implicitly annual and there is\nno coupon frequency), so no compounding/frequency fields are exposed."
+          },
+          "fixed_rate_day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "index": {
+            "$ref": "#/components/schemas/quantra_IndexRef"
+          },
+          "payment_calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "payment_delay": {
+            "type": "integer",
+            "description": "Number of business days the payment is delayed after maturity.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "index"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponSwap": {
+        "type": "object",
+        "description": "Single zero-coupon swap pricing context.",
+        "properties": {
+          "zero_coupon_swap": {
+            "$ref": "#/components/schemas/quantra_ZeroCouponSwap"
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Reference to curve in pricing.rates.curves for discounting by id."
+          },
+          "forwarding_curve": {
+            "type": "string",
+            "description": "Reference to curve in pricing.rates.curves for floating-leg forward\nrates by id."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponSwapRequest": {
+        "type": "object",
+        "description": "Request to price one or more zero-coupon swaps.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceZeroCouponSwap"
+            }
           }
         },
         "additionalProperties": false
@@ -7220,6 +7499,65 @@
         ],
         "additionalProperties": false
       },
+      "quantra_ZeroCouponBondResponse": {
+        "type": "object",
+        "description": "Zero-coupon bond pricing response.",
+        "properties": {
+          "npv": {
+            "type": "number"
+          },
+          "clean_price": {
+            "type": "number"
+          },
+          "dirty_price": {
+            "type": "number"
+          },
+          "accrued_amount": {
+            "type": "number",
+            "description": "Accrued interest at settlement (0 for a zero-coupon bond by construction)."
+          },
+          "yield": {
+            "type": "number",
+            "description": "Yield-to-maturity under the request's Yield convention."
+          },
+          "accrued_days": {
+            "type": "number"
+          },
+          "macaulay_duration": {
+            "type": "number"
+          },
+          "modified_duration": {
+            "type": "number"
+          },
+          "convexity": {
+            "type": "number"
+          },
+          "bps": {
+            "type": "number"
+          },
+          "settlement_date": {
+            "type": "string",
+            "description": "Bond settlement date (ISO yyyy-mm-dd)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponBondResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple zero-coupon bonds.",
+        "properties": {
+          "bonds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ZeroCouponBondResponse"
+            }
+          }
+        },
+        "required": [
+          "bonds"
+        ],
+        "additionalProperties": false
+      },
       "quantra_ZeroCouponInflationSwapResponse": {
         "type": "object",
         "description": "Zero-coupon inflation swap pricing response.",
@@ -7262,6 +7600,56 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/quantra_ZeroCouponInflationSwapResponse"
+            }
+          }
+        },
+        "required": [
+          "swaps"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_ZeroCouponSwapResponse": {
+        "type": "object",
+        "description": "Zero-coupon swap pricing response.",
+        "properties": {
+          "npv": {
+            "type": "number"
+          },
+          "fixed_leg_npv": {
+            "type": "number",
+            "description": "Present value of the single fixed cashflow."
+          },
+          "floating_leg_npv": {
+            "type": "number",
+            "description": "Present value of the single compounded floating cashflow."
+          },
+          "fair_fixed_payment": {
+            "type": "number",
+            "description": "The fixed payment that makes the contract par (NPV == 0)."
+          },
+          "fair_fixed_rate": {
+            "type": "number",
+            "description": "The par fixed rate. Present only when the request used the fixed-rate\nform (it is quoted under that form's day counter). Absent for the\nfixed-payment form."
+          },
+          "fixed_payment": {
+            "type": "number",
+            "description": "The fixed payment actually used to price the contract."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "When the contract settles (ISO yyyy-mm-dd)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceZeroCouponSwapResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple zero-coupon swaps.",
+        "properties": {
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_ZeroCouponSwapResponse"
             }
           }
         },

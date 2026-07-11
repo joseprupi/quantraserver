@@ -55,6 +55,8 @@
 #include "calibrate_swaption_model_response_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
 #include "equity_option_response_generated.h"
+#include "zero_coupon_bond_response_generated.h"
+#include "zero_coupon_swap_response_generated.h"
 
 namespace quantra {
 
@@ -146,7 +148,9 @@ public:
     JsonResponse CalibrateSwaptionModelJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse CalibrateSwaptionVolJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceEquityOptionJSON(const std::string& json, const std::string& request_id = "");
-    
+    JsonResponse PriceZeroCouponBondJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceZeroCouponSwapJSON(const std::string& json, const std::string& request_id = "");
+
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance
     // -------------------------------------------------------------------------
@@ -233,7 +237,15 @@ public:
     grpc::Status PriceEquityOption(
         const Message<PriceEquityOptionRequest>& request,
         Message<PriceEquityOptionResponse>* response);
-    
+
+    grpc::Status PriceZeroCouponBond(
+        const Message<PriceZeroCouponBondRequest>& request,
+        Message<PriceZeroCouponBondResponse>* response);
+
+    grpc::Status PriceZeroCouponSwap(
+        const Message<PriceZeroCouponSwapRequest>& request,
+        Message<PriceZeroCouponSwapResponse>* response);
+
     // -------------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------------

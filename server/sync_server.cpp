@@ -24,6 +24,8 @@
 #include "calibrate_swaption_model_handler.h"
 #include "calibrate_swaption_vol_handler.h"
 #include "equity_option_handler.h"
+#include "zero_coupon_bond_handler.h"
+#include "zero_coupon_swap_handler.h"
 
 // Service-metadata RPC (gRPC-only). Not a pricing product, but registers via the
 // same mechanism so the completion-queue loop serves it uniformly.

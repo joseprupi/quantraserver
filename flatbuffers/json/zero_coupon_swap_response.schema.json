@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_ZeroCouponSwapResponse" : {
+      "type" : "object",
+      "description" : "Zero-coupon swap pricing response.",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "fixed_leg_npv" : {
+                "type" : "number",
+                "description" : "Present value of the single fixed cashflow."
+              },
+        "floating_leg_npv" : {
+                "type" : "number",
+                "description" : "Present value of the single compounded floating cashflow."
+              },
+        "fair_fixed_payment" : {
+                "type" : "number",
+                "description" : "The fixed payment that makes the contract par (NPV == 0)."
+              },
+        "fair_fixed_rate" : {
+                "type" : "number",
+                "description" : "The par fixed rate. Present only when the request used the fixed-rate\nform (it is quoted under that form's day counter). Absent for the\nfixed-payment form."
+              },
+        "fixed_payment" : {
+                "type" : "number",
+                "description" : "The fixed payment actually used to price the contract."
+              },
+        "start_date" : {
+                "type" : "string",
+                "description" : "When the contract settles (ISO yyyy-mm-dd)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceZeroCouponSwapResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple zero-coupon swaps.",
+      "properties" : {
+        "swaps" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ZeroCouponSwapResponse"}
+              }
+      },
+      "required" : ["swaps"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceZeroCouponSwapResponse"
+}

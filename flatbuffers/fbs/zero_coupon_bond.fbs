@@ -1,0 +1,27 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Zero-coupon bond instrument. Pays a single redemption cashflow at maturity
+/// and carries no periodic coupons, so it needs no schedule.
+table ZeroCouponBond {
+    /// Number of days between trade and settlement.
+    settlement_days:int;
+    /// Payment/settlement calendar. Presence-required: an omitted calendar is a
+    /// 400, never the alphabetical-0 default (Argentina).
+    calendar:enums.Calendar = null;
+    /// Notional / face amount the redemption percentage applies to.
+    face_amount:double;
+    /// Single redemption/maturity date (ISO yyyy-mm-dd).
+    maturity_date:string;
+    /// Business-day convention for the payment date. Presence-required: an
+    /// omitted convention is a 400, never the alphabetical-0 default.
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Redemption as a percentage of face (e.g. 100.0 = par). Optional:
+    /// presence decides. Absent => QuantLib's 100.0 (par) default.
+    redemption:double = null;
+    /// Optional issue date (ISO yyyy-mm-dd). Absent => QuantLib's null Date.
+    issue_date:string;
+}
+
+root_type ZeroCouponBond;

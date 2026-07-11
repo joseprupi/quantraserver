@@ -826,6 +826,112 @@ def price_vanilla_swap_ql(request: dict) -> float:
     return ql_swap.NPV()
 
 
+def price_zero_coupon_bond_ql(request: dict) -> float:
+    """Price a zero-coupon bond using QuantLib.
+
+    Mirrors the server's ZeroCouponBondParser/Evaluator: a single-redemption
+    QuantLib::ZeroCouponBond discounted on the request's curve. redemption
+    defaults to 100.0 (par) and issue_date to a null Date when omitted, exactly
+    as the parser does.
+    """
+    pricing = _reference_pricing_view(request)
+    bond_data = request["bonds"][0]
+    bond = bond_data["zero_coupon_bond"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id),
+                      pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date, request)
+
+    issue_date = bond.get("issue_date")
+    ql_bond = ql.ZeroCouponBond(
+        bond.get("settlement_days", 2),
+        get_calendar(bond["calendar"]),
+        bond["face_amount"],
+        parse_date(bond["maturity_date"]),
+        get_convention(bond["payment_convention"]),
+        bond.get("redemption", 100.0),
+        parse_date(issue_date) if issue_date else ql.Date(),
+    )
+    ql_bond.setPricingEngine(ql.DiscountingBondEngine(curve))
+
+    return ql_bond.NPV()
+
+
+def price_zero_coupon_swap_ql(request: dict) -> float:
+    """Price a zero-coupon swap (QuantLib::ZeroCouponSwap) using QuantLib.
+
+    Mirrors the server's ZeroCouponSwapMapper/Evaluator: a single fixed
+    cashflow against a single compounded-floating cashflow. The fixed side is
+    quoted either as a known payment amount or as a fixed rate compounded over
+    the contract life under its own day counter. Discounts on the discounting
+    curve; the floating leg projects off the forwarding curve.
+    """
+    pricing = _reference_pricing_view(request)
+    swap_data = request["swaps"][0]
+    trade = swap_data["zero_coupon_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    disc_id = swap_data["discounting_curve"]
+    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id),
+                     pricing["curves"][0])
+    discount_curve = build_curve_from_json(disc_json, eval_date, request)
+
+    fwd_id = swap_data.get("forwarding_curve", disc_id)
+    if fwd_id == disc_id:
+        forward_curve = discount_curve
+    else:
+        fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id),
+                        disc_json)
+        forward_curve = build_curve_from_json(fwd_json, eval_date, request)
+
+    idx_id = trade["index"]["id"]
+    index = resolve_index_from_id(idx_id, request, forward_curve)
+
+    swap_type = ql.ZeroCouponSwap.Payer \
+        if trade.get("swap_type", "Payer") == "Payer" \
+        else ql.ZeroCouponSwap.Receiver
+
+    payment_calendar = get_calendar(trade["payment_calendar"])
+    payment_convention = get_convention(trade["payment_convention"])
+    payment_delay = trade.get("payment_delay", 0)
+
+    if "fixed_rate" in trade:
+        swap = ql.ZeroCouponSwap(
+            swap_type,
+            trade["base_nominal"],
+            parse_date(trade["start_date"]),
+            parse_date(trade["maturity_date"]),
+            trade["fixed_rate"],
+            get_day_counter(trade["fixed_rate_day_counter"]),
+            index,
+            payment_calendar,
+            payment_convention,
+            payment_delay,
+        )
+    else:
+        swap = ql.ZeroCouponSwap(
+            swap_type,
+            trade["base_nominal"],
+            parse_date(trade["start_date"]),
+            parse_date(trade["maturity_date"]),
+            trade["fixed_payment"],
+            index,
+            payment_calendar,
+            payment_convention,
+            payment_delay,
+        )
+
+    swap.setPricingEngine(ql.DiscountingSwapEngine(discount_curve))
+
+    return swap.NPV()
+
+
 def _wire_schedule_from(sch: dict) -> ql.Schedule:
     """Build a QuantLib Schedule from a wire schedule dict, mirroring the
     server's ScheduleParser (same convention fallbacks used elsewhere here)."""

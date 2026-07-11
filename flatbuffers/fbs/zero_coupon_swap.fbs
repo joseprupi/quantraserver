@@ -1,0 +1,44 @@
+include "enums.fbs";
+include "index.fbs";
+
+namespace quantra;
+
+/// Zero-coupon interest rate swap (QuantLib::ZeroCouponSwap). Exchanges a
+/// single fixed cashflow at maturity against a single compounded-floating
+/// cashflow. The fixed side is quoted EITHER as a known fixed payment amount
+/// OR as a fixed rate compounded over the contract life.
+table ZeroCouponSwap {
+    /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
+    /// type is a 400, never the alphabetical-0 default (Payer).
+    swap_type:enums.SwapType = null;
+    /// Base notional prior to compounding.
+    base_nominal:double;
+    /// Contract start date (ISO yyyy-mm-dd).
+    start_date:string;
+    /// Contract maturity / single-payment date (ISO yyyy-mm-dd).
+    maturity_date:string;
+    /// Fixed-payment form: the known fixed cash flow N^FIX. Optional; presence
+    /// selects this quoting form. Exactly one of `fixed_payment` or the
+    /// `fixed_rate`+`fixed_rate_day_counter` pair must be supplied.
+    fixed_payment:double = null;
+    /// Fixed-rate form: the fixed rate R compounded over the contract life as
+    /// N^FIX = N[(1+R)^alpha - 1], alpha the fixed_rate_day_counter year
+    /// fraction between start and maturity. Optional; presence selects this
+    /// quoting form. QuantLib's ZeroCouponSwap rate constructor takes only the
+    /// rate and its day counter (compounding is implicitly annual and there is
+    /// no coupon frequency), so no compounding/frequency fields are exposed.
+    fixed_rate:double = null;
+    /// Day counter for the fixed-rate compounding (alpha). Required when, and
+    /// only when, `fixed_rate` is supplied.
+    fixed_rate_day_counter:enums.DayCounter = null;
+    /// Reference to an IndexDef by id for the floating leg (e.g. "EUR_6M").
+    index:IndexRef (required);
+    /// Calendar used to adjust the single payment date. Presence-required.
+    payment_calendar:enums.Calendar = null;
+    /// Business-day convention for the payment date. Presence-required.
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Number of business days the payment is delayed after maturity.
+    payment_delay:int = 0;
+}
+
+root_type ZeroCouponSwap;

@@ -267,6 +267,18 @@
 <td><a href="../../examples/data/bonds/frn_eur_5y_amortizing_linear.json">frn_eur_5y_amortizing_linear.json</a></td>
 <td class="npv">1,014,150.18</td>
 </tr>
+<tr>
+<td><div class="title">EUR 1Y zero-coupon bond redeemed at par</div><div class="desc">Short-dated zero-coupon bond: a single 100% redemption on 1m face one year out (TARGET, Following), discounted on the EUR deposit+swap curve. No coupons and no schedule — the only cashflow is the maturity redemption, so the NPV is just the discounted face amount.</div></td>
+<td><code>zero-coupon bond</code> <code>par redemption</code> <code>1Y maturity</code> <code>TARGET</code> <code>deposit+swap curve</code></td>
+<td><a href="../../examples/data/bonds/zcb_eur_1y_par.json">zcb_eur_1y_par.json</a></td>
+<td class="npv">970,964.26</td>
+</tr>
+<tr>
+<td><div class="title">EUR 10Y zero-coupon bond at a discount</div><div class="desc">Long-dated zero-coupon bond: a single 100% redemption on 1m face ten years out (TARGET, Modified Following, explicit issue date), discounted on a ~3% EUR curve so it prices at a deep discount to par. Exercises the long end of the discount curve and the optional issue_date / redemption fields.</div></td>
+<td><code>zero-coupon bond</code> <code>deep discount</code> <code>10Y maturity</code> <code>explicit issue date</code> <code>curve long end</code></td>
+<td><a href="../../examples/data/bonds/zcb_eur_10y_discount.json">zcb_eur_10y_discount.json</a></td>
+<td class="npv">729,090.25</td>
+</tr>
 </tbody>
 </table>
 <h2>FRA</h2>
@@ -935,6 +947,30 @@
 </tr>
 </tbody>
 </table>
-<footer>140 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<h2>Zero Coupon Swaps</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 5Y zero-coupon swap, payer, fixed-payment form</div><div class="desc">Zero-coupon swap paying a single known fixed cashflow of 170,000 at maturity against one compounded Euribor 6M cashflow on 1m base nominal (TARGET, Modified Following, 2025-01-17 to 2030-01-17). The fixed payment sits above the swap&#x27;s fair payment, so the payer of fixed is underwater. Discounted and projected on the single EUR deposit+swap curve.</div></td>
+<td><code>zero-coupon swap</code> <code>payer</code> <code>fixed-payment form</code> <code>Euribor6M compounded</code> <code>single curve</code></td>
+<td><a href="../../examples/data/zero_coupon_swap/zcs_eur_payer_fixed_payment.json">zcs_eur_payer_fixed_payment.json</a></td>
+<td class="npv">-4,206.12</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y zero-coupon swap, receiver, fixed-rate form</div><div class="desc">The receiver side quoted in the fixed-rate form: a 3.20% fixed rate compounded over the 5Y life under a 30/360 day count (N^FIX = N[(1+R)^alpha - 1]) against one compounded Euribor 6M cashflow on 1m base nominal. The implied fixed payment is above the fair payment, so the receiver of fixed is ahead. Exercises the fixed-rate constructor and its day-count-driven compounding.</div></td>
+<td><code>zero-coupon swap</code> <code>receiver</code> <code>fixed-rate form</code> <code>30/360 compounding</code> <code>sign flip</code></td>
+<td><a href="../../examples/data/zero_coupon_swap/zcs_eur_receiver_fixed_rate.json">zcs_eur_receiver_fixed_rate.json</a></td>
+<td class="npv">4,697.81</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y zero-coupon swap, payer at the fair payment</div><div class="desc">The same payer trade struck at the swap&#x27;s fair fixed payment (165,098.6955), so both legs have equal present value and the NPV is zero. Pins the fair-payment solve end to end: the fixed payment that makes the contract par reproduces a ~0 NPV on both the server and the QuantLib reference.</div></td>
+<td><code>zero-coupon swap</code> <code>payer</code> <code>fair fixed payment</code> <code>par NPV</code> <code>fixed-payment form</code></td>
+<td><a href="../../examples/data/zero_coupon_swap/zcs_eur_payer_at_fair_payment.json">zcs_eur_payer_at_fair_payment.json</a></td>
+<td class="npv">0.00</td>
+</tr>
+</tbody>
+</table>
+<footer>145 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

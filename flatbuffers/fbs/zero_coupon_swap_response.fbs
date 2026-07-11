@@ -1,0 +1,27 @@
+namespace quantra;
+
+/// Zero-coupon swap pricing response.
+table ZeroCouponSwapResponse {
+    npv:double;
+    /// Present value of the single fixed cashflow.
+    fixed_leg_npv:double;
+    /// Present value of the single compounded floating cashflow.
+    floating_leg_npv:double;
+    /// The fixed payment that makes the contract par (NPV == 0).
+    fair_fixed_payment:double;
+    /// The par fixed rate. Present only when the request used the fixed-rate
+    /// form (it is quoted under that form's day counter). Absent for the
+    /// fixed-payment form.
+    fair_fixed_rate:double = null;
+    /// The fixed payment actually used to price the contract.
+    fixed_payment:double;
+    /// When the contract settles (ISO yyyy-mm-dd).
+    start_date:string;
+}
+
+/// Response wrapper for multiple zero-coupon swaps.
+table PriceZeroCouponSwapResponse {
+    swaps:[ZeroCouponSwapResponse] (required);
+}
+
+root_type PriceZeroCouponSwapResponse;

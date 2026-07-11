@@ -36,6 +36,8 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/CalibrateSwaptionModel",
   "/quantra.QuantraServer/CalibrateSwaptionVol",
   "/quantra.QuantraServer/PriceEquityOption",
+  "/quantra.QuantraServer/PriceZeroCouponBond",
+  "/quantra.QuantraServer/PriceZeroCouponSwap",
   "/quantra.QuantraServer/Meta",
 };
 
@@ -65,7 +67,9 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_CalibrateSwaptionModel_(QuantraServer_method_names[17], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CalibrateSwaptionVol_(QuantraServer_method_names[18], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceEquityOption_(QuantraServer_method_names[19], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[20], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceZeroCouponBond_(QuantraServer_method_names[20], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceZeroCouponSwap_(QuantraServer_method_names[21], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -308,6 +312,30 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceEquityOptionResponse>>::Create(channel_.get(), cq, rpcmethod_PriceEquityOption_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceZeroCouponBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponBondRequest>& request, flatbuffers::grpc::Message<PriceZeroCouponBondResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceZeroCouponBond_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>* QuantraServer::Stub::AsyncPriceZeroCouponBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponBondRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponBond_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>* QuantraServer::Stub::PrepareAsyncPriceZeroCouponBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponBondRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponBond_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceZeroCouponSwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>& request, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceZeroCouponSwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>* QuantraServer::Stub::AsyncPriceZeroCouponSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponSwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceZeroCouponSwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponSwap_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_Meta_, context, request, response);
 }
@@ -424,6 +452,16 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[20],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceZeroCouponBondRequest>, flatbuffers::grpc::Message<PriceZeroCouponBondResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceZeroCouponBond), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[21],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceZeroCouponSwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[22],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
 }
@@ -508,6 +546,14 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceEquityOption(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceEquityOptionRequest>* /*request*/, flatbuffers::grpc::Message<PriceEquityOptionResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceZeroCouponBond(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceZeroCouponBondRequest>* /*request*/, flatbuffers::grpc::Message<PriceZeroCouponBondResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceZeroCouponSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

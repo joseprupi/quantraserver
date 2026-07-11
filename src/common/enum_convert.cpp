@@ -361,6 +361,20 @@ QuantLib::OvernightIndexedSwap::Type OvernightIndexedSwapTypeToQL(
     QUANTRA_ERROR("Overnight indexed swap type not found");
 }
 
+QuantLib::ZeroCouponSwap::Type ZeroCouponSwapTypeToQL(
+    const quantra::enums::SwapType swapType)
+{
+    switch (swapType)
+    {
+    case quantra::enums::SwapType_Payer:
+        return QuantLib::ZeroCouponSwap::Payer;
+    case quantra::enums::SwapType_Receiver:
+        return QuantLib::ZeroCouponSwap::Receiver;
+    }
+
+    QUANTRA_ERROR("Zero coupon swap type not found");
+}
+
 QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
     const quantra::enums::SwapType swapType)
 {
