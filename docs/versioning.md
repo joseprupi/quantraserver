@@ -26,6 +26,51 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.3.0 (July 2026) — features + minor behavior changes
+
+`v0.3.0` adds engine introspection, broader equity coverage, and
+robustness/performance hardening. Requests that were valid and priced
+correctly on 0.2.0 price identically on 0.3.0; the behavior changes below
+affect only degenerate cases (no-op flags, requests slower than the new edge
+timeout).
+
+### New
+
+- **gRPC `Meta` RPC** on the engine: `api_version` (the `VERSION` file
+  verbatim), `backend_version`, `git_sha`, `build_time_utc`, `products[]`,
+  `rpc_methods[]`, and `dependencies{quantlib, grpc, flatbuffers}`. gRPC-only;
+  the JSON gateway keeps its richer `GET /meta`.
+- **Standard `grpc.health.v1.Health`** (Check/Watch) served by the engine;
+  Envoy now health-checks workers over gRPC instead of TCP, distinguishing a
+  dead worker from a busy one.
+- **Equity options: American and Bermudan exercise, digital payoffs.**
+  American/Bermudan vanilla via finite-difference, European digitals
+  analytically, American digitals via the analytic at-hit engine.
+  Combinations QuantLib does not natively support (e.g. discrete cash
+  dividends with American/Bermudan or digital payoffs) return a 400 naming
+  the combination. Greeks an engine cannot compute are omitted from the
+  response instead of serializing as invalid JSON.
+- **Hull-White calibration cache** (`QUANTRA_HW_CACHE_ENABLED`, on in the
+  shipped container): repeat calibrations ~150ms → ~47ms, bit-for-bit
+  transparent (gated by the cache-correctness suite).
+
+### Behavior changes (degenerate cases only)
+
+- **Requests are bounded end-to-end.** Envoy route timeout is 30s (was
+  unlimited; configurable), client `grpc-timeout` is capped at 60s, and the
+  engine abandons work when the caller's deadline has already expired —
+  mid-request, at per-curve/per-trade checkpoints (`DEADLINE_EXCEEDED`,
+  HTTP 504). Calibration iteration knobs from the wire are clamped
+  (`max_iterations` ≤ 1000, `function_evaluations` ≤ 5000).
+- **ZCIIS `adjust_observation_dates=true` is rejected** (400). The flag is
+  numerically inert in the pinned QuantLib — it never changed any NPV — so it
+  now errors instead of implying an adjustment that does not happen.
+- Load balancing is least-request (was round-robin); worker count defaults to
+  `min(cores, 8)` (was fixed 4). `QUANTRA_WORKERS` still overrides.
+
+No schema fields were removed or renamed; no request that priced on 0.2.0
+prices differently on 0.3.0.
+
 ## Version 0.2.0 (July 2026) — BREAKING
 
 > **Why 0.2.0 and not a major bump:** the only published releases are the
