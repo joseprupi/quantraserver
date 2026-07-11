@@ -1412,6 +1412,18 @@ components:
           $ref: '#/components/schemas/quantra_Schedule'
         notional:
           type: number
+        notionals:
+          type: array
+          description: 'Optional per-period notionals, one entry per coupon period
+            in schedule
+
+            order. Present => amortizing/step-up leg (overrides `notional`); absent
+
+            => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
+
+            path; other readers (OIS, swaption underlying) reject a present value.'
+          items:
+            type: number
         rate:
           type: number
         day_counter:
@@ -1427,6 +1439,20 @@ components:
           $ref: '#/components/schemas/quantra_Schedule'
         notional:
           type: number
+        notionals:
+          type: array
+          description: 'Optional per-period notionals, one entry per coupon period
+            in schedule
+
+            order. Present => amortizing/step-up leg (overrides `notional`); absent
+
+            => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
+
+            path; other readers (basis swap, swaption underlying) reject a present
+
+            value.'
+          items:
+            type: number
         index:
           $ref: '#/components/schemas/quantra_IndexRef'
         spread:
@@ -4112,6 +4138,18 @@ components:
           maximum: 2147483647
         face_amount:
           type: number
+        notionals:
+          type: array
+          description: 'Optional per-period notionals, one entry per coupon period
+            in schedule
+
+            order. Present => amortizing/step-up bond (overrides `face_amount`,
+
+            priced as a QuantLib AmortizingFixedRateBond); absent => constant
+
+            `face_amount`.'
+          items:
+            type: number
         rate:
           type: number
         accrual_day_counter:
@@ -4175,6 +4213,18 @@ components:
           maximum: 2147483647
         face_amount:
           type: number
+        notionals:
+          type: array
+          description: 'Optional per-period notionals, one entry per coupon period
+            in schedule
+
+            order. Present => amortizing/step-up bond (overrides `face_amount`,
+
+            priced as a QuantLib AmortizingFloatingRateBond); absent => constant
+
+            `face_amount`.'
+          items:
+            type: number
         schedule:
           $ref: '#/components/schemas/quantra_Schedule'
         index:

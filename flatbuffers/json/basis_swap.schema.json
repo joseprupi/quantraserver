@@ -412,6 +412,10 @@
         "notional" : {
                 "type" : "number"
               },
+        "notionals" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (OIS, swaption underlying) reject a present value."
+              },
         "rate" : {
                 "type" : "number"
               },
@@ -433,6 +437,10 @@
               },
         "notional" : {
                 "type" : "number"
+              },
+        "notionals" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (basis swap, swaption underlying) reject a present\nvalue."
               },
         "index" : {
                 "$ref" : "#/definitions/quantra_IndexRef",

@@ -112,6 +112,24 @@
 <td class="npv">-47,408.49</td>
 </tr>
 <tr>
+<td><div class="title">EUR 5Y amortizing payer swap, both legs (10m to 2m linear)</div><div class="desc">Amortizing payer swap whose outstanding notional steps down linearly from 10m to 2m over five years on both legs (the fixed leg amortizes annually, the floating leg on the same profile twice a year). QuantLib::VanillaSwap cannot carry per-period notionals, so the server builds FixedRateLeg/IborLeg with .withNotionals and prices a generic Swap. Exercises the amortizing swap path end to end.</div></td>
+<td><code>payer</code> <code>amortizing both legs</code> <code>per-period notionals</code> <code>generic Swap from legs</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_amortizing_payer.json">irs_eur_5y_amortizing_payer.json</a></td>
+<td class="npv">-37,721.13</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y step-up swap, fixed leg only (2m to 10m increasing)</div><div class="desc">Step-up (accreting) swap whose fixed-leg notional increases from 2m to 10m over five years while the floating leg keeps a constant 10m notional. Proves the per-period notionals vector is used exactly as given (increasing, not assumed decreasing) and that a single leg can amortize while the other stays constant.</div></td>
+<td><code>payer</code> <code>step-up fixed leg</code> <code>constant floating leg</code> <code>increasing notionals</code> <code>asymmetric legs</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_stepup_fixed_only.json">irs_eur_5y_stepup_fixed_only.json</a></td>
+<td class="npv">557,861.83</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y swap, constant notional expressed via the vector</div><div class="desc">Control case: the baseline 5Y payer swap with an all-equal per-period notionals vector on both legs. The server takes the amortizing generic-Swap path while the QuantLib reference prices the plain constant-notional VanillaSwap, so a match proves the two paths are numerically equivalent for a flat notional profile.</div></td>
+<td><code>constant notionals via vector</code> <code>path equivalence</code> <code>VanillaSwap parity</code> <code>payer</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_constant_via_notionals.json">irs_eur_5y_constant_via_notionals.json</a></td>
+<td class="npv">-45,702.75</td>
+</tr>
+<tr>
 <td><div class="title">EUR 5Y payer OIS vs ESTR (compounded)</div><div class="desc">5Y overnight indexed swap: pay 2.70% fixed (annual, Act/360), receive daily-compounded ESTR. The curve is bootstrapped from OIS par quotes, so the same instrument family prices the curve and the trade.</div></td>
 <td><code>payer</code> <code>OIS</code> <code>ESTR compounded</code> <code>curve from OIS quotes</code></td>
 <td><a href="../../examples/data/ir_swaps/ois_eur_5y_payer_estr.json">ois_eur_5y_payer_estr.json</a></td>
@@ -202,6 +220,18 @@
 <td class="npv">1,021,320.40</td>
 </tr>
 <tr>
+<td><div class="title">EUR 5Y amortizing fixed-rate bond (1m to 0.2m linear)</div><div class="desc">Sinking-fund style amortizing bond: 3.10% annual coupon whose outstanding notional steps down linearly from 1m to 0.2m over five years, so each coupon accrues on a smaller principal and part of the notional is redeemed every year. Priced as a QuantLib AmortizingFixedRateBond. Exercises the amortizing fixed-bond path end to end.</div></td>
+<td><code>amortizing fixed bond</code> <code>per-period notionals</code> <code>sinking fund</code> <code>annual 30/360</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_5y_amortizing_linear.json">frb_eur_5y_amortizing_linear.json</a></td>
+<td class="npv">1,000,813.59</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y fixed bond, constant notional expressed via the vector</div><div class="desc">Control case: the at-par 5Y fixed bond with an all-equal per-period notionals vector. The server takes the AmortizingFixedRateBond path while the QuantLib reference prices the plain constant-face FixedRateBond, so a match proves the two paths are numerically equivalent for a flat notional profile.</div></td>
+<td><code>constant notionals via vector</code> <code>path equivalence</code> <code>FixedRateBond parity</code></td>
+<td><a href="../../examples/data/bonds/frb_eur_5y_constant_via_notionals.json">frb_eur_5y_constant_via_notionals.json</a></td>
+<td class="npv">999,841.67</td>
+</tr>
+<tr>
 <td><div class="title">EUR 5Y FRN on Euribor 6M flat</div><div class="desc">Plain-vanilla floater: semiannual coupons fixing on Euribor 6M flat (Act/360) on 1m face, projected and discounted on the same deposit+swap curve, so the bond prices close to par. The baseline floating-rate case.</div></td>
 <td><code>FRN</code> <code>Euribor6M</code> <code>zero spread</code> <code>single curve</code></td>
 <td><a href="../../examples/data/bonds/frn_eur_5y_euribor6m_flat_semiannual.json">frn_eur_5y_euribor6m_flat_semiannual.json</a></td>
@@ -230,6 +260,12 @@
 <td><code>FRN</code> <code>zero fixing days</code> <code>same-day fixing</code> <code>Euribor6M</code></td>
 <td><a href="../../examples/data/bonds/frn_eur_2y_euribor6m_same_day_fixing.json">frn_eur_2y_euribor6m_same_day_fixing.json</a></td>
 <td class="npv">999,856.92</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y amortizing FRN, Euribor 6M + 50bp (1m to 0.2m linear)</div><div class="desc">Amortizing floating-rate note: semiannual Euribor 6M + 50bp coupons on an outstanding notional that steps down linearly from 1m to 0.2m over five years, with principal redeemed alongside the coupons. The 50bp margin makes the price profile-dependent (a par floater is notional-invariant at zero spread), so the case truly exercises the amortization. Priced as a QuantLib AmortizingFloatingRateBond with the same zero-vol Black coupon pricer as the constant floater.</div></td>
+<td><code>amortizing FRN</code> <code>per-period notionals</code> <code>Euribor6M</code> <code>coupon spread +50bp</code> <code>semiannual coupons</code></td>
+<td><a href="../../examples/data/bonds/frn_eur_5y_amortizing_linear.json">frn_eur_5y_amortizing_linear.json</a></td>
+<td class="npv">1,014,150.18</td>
 </tr>
 </tbody>
 </table>
@@ -899,6 +935,6 @@
 </tr>
 </tbody>
 </table>
-<footer>134 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>140 cases across 11 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

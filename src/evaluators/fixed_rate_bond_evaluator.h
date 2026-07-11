@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include <ql/instruments/bond.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/compounding.hpp>
@@ -26,8 +27,11 @@
 namespace quantra {
 
 /// One fixed-rate bond trade lifted out of the FB request by the mapper.
+/// The bond is a plain QuantLib::Bond so the same trade holds either a
+/// FixedRateBond (constant face) or an AmortizingFixedRateBond (per-period
+/// notionals) — both derive from Bond and the evaluator only uses Bond methods.
 struct FixedRateBondTrade {
-    std::shared_ptr<QuantLib::FixedRateBond> bond;
+    std::shared_ptr<QuantLib::Bond> bond;
     std::string discountingCurveId;
     QuantLib::DayCounter yieldDc;
     QuantLib::Compounding yieldComp = QuantLib::Compounded;

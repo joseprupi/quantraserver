@@ -8,6 +8,11 @@ namespace quantra;
 table FloatingRateBond {
     settlement_days:int;
     face_amount:double;
+    /// Optional per-period notionals, one entry per coupon period in schedule
+    /// order. Present => amortizing/step-up bond (overrides `face_amount`,
+    /// priced as a QuantLib AmortizingFloatingRateBond); absent => constant
+    /// `face_amount`.
+    notionals:[double];
     schedule:Schedule;
     /// Reference to an IndexDef by id (e.g., "EUR_6M").
     index:IndexRef (required);

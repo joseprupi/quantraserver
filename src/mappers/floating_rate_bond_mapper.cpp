@@ -9,6 +9,7 @@
 #include "yield_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "leg_notionals.h"
 
 namespace quantra {
 
@@ -51,6 +52,9 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
     trade.settlement_days = fbBond->settlement_days();
     trade.face_amount = fbBond->face_amount();
     trade.schedule = *scheduleParser.parse(fbBond->schedule());
+    // Optional per-period notionals: present => amortizing/step-up bond.
+    parseOptionalNotionals(fbBond->notionals(), trade.schedule.size() - 1,
+                           "FloatingRateBond", trade.notionals);
     if (!fbBond->accrual_day_counter().has_value())
         QUANTRA_INVALID_ARGUMENT("FloatingRateBond.accrual_day_counter is required");
     if (!fbBond->payment_convention().has_value())

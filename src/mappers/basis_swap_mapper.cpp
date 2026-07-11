@@ -3,6 +3,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "leg_notionals.h"
 
 namespace quantra {
 
@@ -18,6 +19,9 @@ BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
     if (!fb->payment_convention().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.payment_convention is required");
     }
+    // The basis swap path does not support per-period notionals yet.
+    rejectUnsupportedNotionals(fb->notionals(),
+                               std::string("BasisSwap ") + legName);
     auto schedule = scheduleParser.parse(fb->schedule());
     leg.schedule = *schedule;
     leg.notional = fb->notional();

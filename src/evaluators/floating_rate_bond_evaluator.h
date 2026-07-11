@@ -39,6 +39,10 @@ struct FloatingRateBondTrade {
     // Bond construction inputs.
     int settlement_days = 0;
     double face_amount = 0.0;
+    /// Optional per-period notionals (one per coupon period). Empty => constant
+    /// `face_amount` (FloatingRateBond); non-empty => amortizing/step-up bond
+    /// (AmortizingFloatingRateBond). Validated by the mapper against the schedule.
+    std::vector<double> notionals;
     QuantLib::Schedule schedule;
     QuantLib::DayCounter accrual_day_counter;
     QuantLib::BusinessDayConvention payment_convention = QuantLib::ModifiedFollowing;

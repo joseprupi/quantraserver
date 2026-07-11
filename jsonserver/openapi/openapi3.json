@@ -2061,6 +2061,13 @@
           "notional": {
             "type": "number"
           },
+          "notionals": {
+            "type": "array",
+            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (OIS, swaption underlying) reject a present value.",
+            "items": {
+              "type": "number"
+            }
+          },
           "rate": {
             "type": "number"
           },
@@ -2082,6 +2089,13 @@
           },
           "notional": {
             "type": "number"
+          },
+          "notionals": {
+            "type": "array",
+            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up leg (overrides `notional`); absent\n=> constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap\npath; other readers (basis swap, swaption underlying) reject a present\nvalue.",
+            "items": {
+              "type": "number"
+            }
           },
           "index": {
             "$ref": "#/components/schemas/quantra_IndexRef"
@@ -5717,6 +5731,13 @@
           "face_amount": {
             "type": "number"
           },
+          "notionals": {
+            "type": "array",
+            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up bond (overrides `face_amount`,\npriced as a QuantLib AmortizingFixedRateBond); absent => constant\n`face_amount`.",
+            "items": {
+              "type": "number"
+            }
+          },
           "rate": {
             "type": "number"
           },
@@ -5808,6 +5829,13 @@
           },
           "face_amount": {
             "type": "number"
+          },
+          "notionals": {
+            "type": "array",
+            "description": "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up bond (overrides `face_amount`,\npriced as a QuantLib AmortizingFloatingRateBond); absent => constant\n`face_amount`.",
+            "items": {
+              "type": "number"
+            }
           },
           "schedule": {
             "$ref": "#/components/schemas/quantra_Schedule"

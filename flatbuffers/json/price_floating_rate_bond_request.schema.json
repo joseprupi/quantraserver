@@ -2219,6 +2219,10 @@
         "face_amount" : {
                 "type" : "number"
               },
+        "notionals" : {
+                "type" : "array", "items" : {"type" : "number"},
+                "description" : "Optional per-period notionals, one entry per coupon period in schedule\norder. Present => amortizing/step-up bond (overrides `face_amount`,\npriced as a QuantLib AmortizingFloatingRateBond); absent => constant\n`face_amount`."
+              },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },

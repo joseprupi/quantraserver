@@ -7,6 +7,7 @@
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/bonds/amortizingfloatingratebond.hpp>
 #include <ql/interestrate.hpp>
 #include <ql/pricingengines/bond/bondfunctions.hpp>
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
@@ -125,21 +126,47 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
         auto iborIndex =
             reg.rates.indices.getIborWithCurve(trade.indexId, forwardingHandle);
 
-        auto bond = std::make_shared<QuantLib::FloatingRateBond>(
-            trade.settlement_days,
-            trade.face_amount,
-            trade.schedule,
-            iborIndex,
-            trade.accrual_day_counter,
-            trade.payment_convention,
-            trade.fixing_days,
-            std::vector<QuantLib::Real>(1, 1.0),
-            std::vector<QuantLib::Spread>(1, trade.spread),
-            std::vector<QuantLib::Rate>(),
-            std::vector<QuantLib::Rate>(),
-            trade.in_arrears,
-            trade.redemption,
-            trade.issue_date);
+        std::shared_ptr<QuantLib::Bond> bond;
+        if (trade.notionals.empty()) {
+            bond = std::make_shared<QuantLib::FloatingRateBond>(
+                trade.settlement_days,
+                trade.face_amount,
+                trade.schedule,
+                iborIndex,
+                trade.accrual_day_counter,
+                trade.payment_convention,
+                trade.fixing_days,
+                std::vector<QuantLib::Real>(1, 1.0),
+                std::vector<QuantLib::Spread>(1, trade.spread),
+                std::vector<QuantLib::Rate>(),
+                std::vector<QuantLib::Rate>(),
+                trade.in_arrears,
+                trade.redemption,
+                trade.issue_date);
+        } else {
+            // AmortizingFloatingRateBond carries the outstanding notional per
+            // period; redemptions are derived from the notional decrements at
+            // `redemption` percent, matching the constant bond's redemption.
+            bond = std::make_shared<QuantLib::AmortizingFloatingRateBond>(
+                trade.settlement_days,
+                std::vector<QuantLib::Real>(trade.notionals.begin(), trade.notionals.end()),
+                trade.schedule,
+                iborIndex,
+                trade.accrual_day_counter,
+                trade.payment_convention,
+                trade.fixing_days,
+                std::vector<QuantLib::Real>(1, 1.0),
+                std::vector<QuantLib::Spread>(1, trade.spread),
+                std::vector<QuantLib::Rate>(),
+                std::vector<QuantLib::Rate>(),
+                trade.in_arrears,
+                trade.issue_date,
+                QuantLib::Period(),
+                QuantLib::Calendar(),
+                QuantLib::Unadjusted,
+                false,
+                std::vector<QuantLib::Real>(1, trade.redemption));
+        }
 
         auto engine = std::make_shared<QuantLib::DiscountingBondEngine>(discountHandle);
         bond->setPricingEngine(engine);

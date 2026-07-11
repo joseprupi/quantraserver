@@ -12,6 +12,7 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/lineartsrpricer.hpp>
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
@@ -20,6 +21,9 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quote.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 #include "error.h"
@@ -203,20 +207,14 @@ void extractFloatingLegFlows(
     }
 }
 
-/// Price the IBOR branch: build the QL::VanillaSwap, set engine, populate
-/// fairRate/fairSpread which only exist on VanillaSwap (not generic Swap).
-VanillaSwapPerSwap priceIborBranch(
+/// Price the constant-notional IBOR branch: build the QL::VanillaSwap, set
+/// engine, populate fairRate/fairSpread which only exist on VanillaSwap.
+VanillaSwapPerSwap priceIborConstant(
     const VanillaSwapTrade& trade,
-    const PricingRegistry& reg,
+    const std::shared_ptr<QuantLib::IborIndex>& iborIndex,
+    const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& discHandle,
     const PricingContext& ctx,
     bool includeFlows) {
-    const auto& discHandle = findCurve(reg, trade.discountingCurveId);
-    const auto& fwdHandle = findCurve(reg, trade.forwardingCurveId);
-
-    auto iborIndex = reg.rates.indices.getIborWithCurve(
-        trade.ibor.indexId,
-        QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
-
     if (trade.fixed.notional != trade.ibor.notional) {
         // Preserves the legacy warning emitted by vanilla_swap_parser.
         std::cout << "Warning: Fixed and floating notionals differ. Using fixed notional."
@@ -253,6 +251,119 @@ VanillaSwapPerSwap priceIborBranch(
         extractFloatingLegFlows(swap->floatingLeg(), *discountCurve, ctx.asOf, out.floatingFlows);
     }
     return out;
+}
+
+/// Price the amortizing/step-up IBOR branch. QuantLib::VanillaSwap cannot carry
+/// per-period notionals, so both legs are assembled explicitly with
+/// .withNotionals() and priced as a generic QuantLib::Swap — exactly how
+/// QuantLib composes amortizing swaps. The fixed leg, floating leg and payment
+/// adjustments mirror what VanillaSwap builds internally (both legs use the
+/// floating schedule's business-day convention), so an all-equal notionals
+/// vector reproduces the VanillaSwap result bit-for-bit. fairRate/fairSpread
+/// are recomputed with VanillaSwap's own formula from the leg BPS values.
+VanillaSwapPerSwap priceIborAmortizing(
+    const VanillaSwapTrade& trade,
+    const std::shared_ptr<QuantLib::IborIndex>& iborIndex,
+    const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& discHandle,
+    const PricingContext& ctx,
+    bool includeFlows) {
+    // A leg with an explicit per-period notionals vector uses it; a leg without
+    // one falls back to a single-element vector = its constant scalar notional.
+    const std::vector<double> fixedNotionals =
+        trade.fixed.notionals.empty()
+            ? std::vector<double>{trade.fixed.notional}
+            : trade.fixed.notionals;
+    const std::vector<double> iborNotionals =
+        trade.ibor.notionals.empty()
+            ? std::vector<double>{trade.ibor.notional}
+            : trade.ibor.notionals;
+
+    // VanillaSwap adjusts BOTH legs with the floating schedule's convention when
+    // no explicit payment convention is passed (as the constant path does).
+    const QuantLib::BusinessDayConvention paymentConvention =
+        trade.ibor.schedule.businessDayConvention();
+
+    QuantLib::Leg fixedLeg = QuantLib::FixedRateLeg(trade.fixed.schedule)
+        .withNotionals(fixedNotionals)
+        .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
+        .withPaymentAdjustment(paymentConvention);
+
+    QuantLib::Leg iborLeg = QuantLib::IborLeg(trade.ibor.schedule, iborIndex)
+        .withNotionals(iborNotionals)
+        .withPaymentDayCounter(trade.ibor.dayCounter)
+        .withPaymentAdjustment(paymentConvention)
+        .withSpreads(trade.ibor.spread);
+
+    // Plain (non-capped, non-in-arrears) IBOR coupons need a pricer to compute
+    // their forward rate; a zero-vol Black pricer reproduces VanillaSwap's own
+    // internal pricing (no convexity/timing adjustment is triggered).
+    auto optionletVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
+        0, iborIndex->fixingCalendar(), QuantLib::ModifiedFollowing, 0.0,
+        QuantLib::Actual365Fixed());
+    auto iborPricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
+    iborPricer->setCapletVolatility(
+        QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(optionletVol));
+    QuantLib::setCouponPricer(iborLeg, iborPricer);
+
+    const bool payerFixed = (trade.swapType == QuantLib::VanillaSwap::Payer);
+    std::vector<QuantLib::Leg> legs{fixedLeg, iborLeg};
+    std::vector<bool> payer{payerFixed, !payerFixed};
+    auto swap = std::make_shared<QuantLib::Swap>(legs, payer);
+    swap->setPricingEngine(
+        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+
+    VanillaSwapPerSwap out;
+    out.npv = swap->NPV();
+    out.fixedLegNpv = swap->legNPV(0);
+    out.floatingLegNpv = swap->legNPV(1);
+    out.fixedLegBps = swap->legBPS(0);
+    out.floatingLegBps = swap->legBPS(1);
+
+    // fairRate/fairSpread via VanillaSwap's own formula (basisPoint = 1e-4):
+    //   fairRate   = fixedRate - NPV / (fixedLegBPS / basisPoint)
+    //   fairSpread = spread    - NPV / (floatLegBPS / basisPoint)
+    // The leg BPS values already carry the payer sign, so this matches
+    // VanillaSwap exactly for an all-equal notionals vector.
+    constexpr double basisPoint = 1.0e-4;
+    out.fairRate = (out.fixedLegBps != 0.0)
+        ? trade.fixed.rate - out.npv / (out.fixedLegBps / basisPoint)
+        : 0.0;
+    out.fairSpread = (out.floatingLegBps != 0.0)
+        ? trade.ibor.spread - out.npv / (out.floatingLegBps / basisPoint)
+        : 0.0;
+
+    out.hasCmsLeg = false;
+    out.includeFlows = includeFlows;
+
+    if (includeFlows) {
+        auto discountCurve = discHandle.currentLink();
+        extractFixedLegFlows(fixedLeg, *discountCurve, ctx.asOf, out.fixedFlows);
+        extractFloatingLegFlows(iborLeg, *discountCurve, ctx.asOf, out.floatingFlows);
+    }
+    return out;
+}
+
+/// Price the IBOR branch, dispatching to the constant-notional VanillaSwap path
+/// or the amortizing generic-Swap path based on the presence of per-period
+/// notionals on either leg.
+VanillaSwapPerSwap priceIborBranch(
+    const VanillaSwapTrade& trade,
+    const PricingRegistry& reg,
+    const PricingContext& ctx,
+    bool includeFlows) {
+    const auto& discHandle = findCurve(reg, trade.discountingCurveId);
+    const auto& fwdHandle = findCurve(reg, trade.forwardingCurveId);
+
+    auto iborIndex = reg.rates.indices.getIborWithCurve(
+        trade.ibor.indexId,
+        QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
+
+    const bool amortizing =
+        !trade.fixed.notionals.empty() || !trade.ibor.notionals.empty();
+    if (amortizing) {
+        return priceIborAmortizing(trade, iborIndex, discHandle, ctx, includeFlows);
+    }
+    return priceIborConstant(trade, iborIndex, discHandle, ctx, includeFlows);
 }
 
 /// Price the CMS branch: assemble both legs manually, attach a CMS coupon

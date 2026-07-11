@@ -7,6 +7,11 @@ namespace quantra;
 table FixedRateBond {
     settlement_days:int;
     face_amount:double;
+    /// Optional per-period notionals, one entry per coupon period in schedule
+    /// order. Present => amortizing/step-up bond (overrides `face_amount`,
+    /// priced as a QuantLib AmortizingFixedRateBond); absent => constant
+    /// `face_amount`.
+    notionals:[double];
     rate:double;
     accrual_day_counter:enums.DayCounter = null;
     payment_convention:enums.BusinessDayConvention = null;

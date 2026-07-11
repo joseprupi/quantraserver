@@ -27,6 +27,7 @@ struct FloatingRateBondT : public ::flatbuffers::NativeTable {
   typedef FloatingRateBond TableType;
   int32_t settlement_days = 0;
   double face_amount = 0.0;
+  std::vector<double> notionals{};
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
   ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt;
@@ -49,21 +50,29 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SETTLEMENT_DAYS = 4,
     VT_FACE_AMOUNT = 6,
-    VT_SCHEDULE = 8,
-    VT_INDEX = 10,
-    VT_ACCRUAL_DAY_COUNTER = 12,
-    VT_PAYMENT_CONVENTION = 14,
-    VT_FIXING_DAYS = 16,
-    VT_SPREAD = 18,
-    VT_IN_ARREARS = 20,
-    VT_REDEMPTION = 22,
-    VT_ISSUE_DATE = 24
+    VT_NOTIONALS = 8,
+    VT_SCHEDULE = 10,
+    VT_INDEX = 12,
+    VT_ACCRUAL_DAY_COUNTER = 14,
+    VT_PAYMENT_CONVENTION = 16,
+    VT_FIXING_DAYS = 18,
+    VT_SPREAD = 20,
+    VT_IN_ARREARS = 22,
+    VT_REDEMPTION = 24,
+    VT_ISSUE_DATE = 26
   };
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
   double face_amount() const {
     return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  }
+  /// Optional per-period notionals, one entry per coupon period in schedule
+  /// order. Present => amortizing/step-up bond (overrides `face_amount`,
+  /// priced as a QuantLib AmortizingFloatingRateBond); absent => constant
+  /// `face_amount`.
+  const ::flatbuffers::Vector<double> *notionals() const {
+    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
@@ -97,6 +106,8 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
            VerifyField<double>(verifier, VT_FACE_AMOUNT, 8) &&
+           VerifyOffset(verifier, VT_NOTIONALS) &&
+           verifier.VerifyVector(notionals()) &&
            VerifyOffset(verifier, VT_SCHEDULE) &&
            verifier.VerifyTable(schedule()) &&
            VerifyOffsetRequired(verifier, VT_INDEX) &&
@@ -125,6 +136,9 @@ struct FloatingRateBondBuilder {
   }
   void add_face_amount(double face_amount) {
     fbb_.AddElement<double>(FloatingRateBond::VT_FACE_AMOUNT, face_amount, 0.0);
+  }
+  void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
+    fbb_.AddOffset(FloatingRateBond::VT_NOTIONALS, notionals);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(FloatingRateBond::VT_SCHEDULE, schedule);
@@ -169,6 +183,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
@@ -186,6 +201,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
   builder_.add_fixing_days(fixing_days);
   builder_.add_index(index);
   builder_.add_schedule(schedule);
+  builder_.add_notionals(notionals);
   builder_.add_settlement_days(settlement_days);
   builder_.add_in_arrears(in_arrears);
   if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
@@ -197,6 +213,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     double face_amount = 0.0,
+    const std::vector<double> *notionals = nullptr,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
@@ -206,11 +223,13 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
     bool in_arrears = false,
     double redemption = 0.0,
     const char *issue_date = nullptr) {
+  auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
   auto issue_date__ = issue_date ? _fbb.CreateString(issue_date) : 0;
   return quantra::CreateFloatingRateBond(
       _fbb,
       settlement_days,
       face_amount,
+      notionals__,
       schedule,
       index,
       accrual_day_counter,
@@ -227,6 +246,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
 inline FloatingRateBondT::FloatingRateBondT(const FloatingRateBondT &o)
       : settlement_days(o.settlement_days),
         face_amount(o.face_amount),
+        notionals(o.notionals),
         schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
         accrual_day_counter(o.accrual_day_counter),
@@ -241,6 +261,7 @@ inline FloatingRateBondT::FloatingRateBondT(const FloatingRateBondT &o)
 inline FloatingRateBondT &FloatingRateBondT::operator=(FloatingRateBondT o) FLATBUFFERS_NOEXCEPT {
   std::swap(settlement_days, o.settlement_days);
   std::swap(face_amount, o.face_amount);
+  std::swap(notionals, o.notionals);
   std::swap(schedule, o.schedule);
   std::swap(index, o.index);
   std::swap(accrual_day_counter, o.accrual_day_counter);
@@ -264,6 +285,7 @@ inline void FloatingRateBond::UnPackTo(FloatingRateBondT *_o, const ::flatbuffer
   (void)_resolver;
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = face_amount(); _o->face_amount = _e; }
+  { auto _e = notionals(); if (_e) { _o->notionals.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->notionals[_i] = _e->Get(_i); } } else { _o->notionals.resize(0); } }
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
   { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
   { auto _e = accrual_day_counter(); _o->accrual_day_counter = _e; }
@@ -285,6 +307,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(::flatbuff
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FloatingRateBondT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _settlement_days = _o->settlement_days;
   auto _face_amount = _o->face_amount;
+  auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
   auto _accrual_day_counter = _o->accrual_day_counter;
@@ -298,6 +321,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(::flatbuff
       _fbb,
       _settlement_days,
       _face_amount,
+      _notionals,
       _schedule,
       _index,
       _accrual_day_counter,

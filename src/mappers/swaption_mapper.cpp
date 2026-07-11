@@ -10,6 +10,7 @@
 #include "curve_bootstrapper.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "leg_notionals.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"
 #include "swaption_generated.h"
@@ -98,6 +99,9 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
         QUANTRA_INVALID_ARGUMENT("VanillaSwap fixed_leg schedule not found");
     if (!fixedLeg->day_counter().has_value())
         QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+    // The swaption underlying does not support per-period notionals yet.
+    rejectUnsupportedNotionals(fixedLeg->notionals(),
+                               "Swaption underlying VanillaSwap fixed leg");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
     trade.fixed.notional = fixedLeg->notional();
     trade.fixed.rate = fixedLeg->rate();
@@ -110,6 +114,8 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
         QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg index.id is required");
     if (!floatingLeg->day_counter().has_value())
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
+    rejectUnsupportedNotionals(floatingLeg->notionals(),
+                               "Swaption underlying VanillaSwap floating leg");
     trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
     trade.ibor.notional = floatingLeg->notional();
     trade.ibor.indexId = floatingLeg->index()->id()->str();
@@ -147,6 +153,9 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
         QUANTRA_INVALID_ARGUMENT("OisSwap fixed_leg schedule not found");
     if (!fixedLeg->day_counter().has_value())
         QUANTRA_INVALID_ARGUMENT("SwapFixedLeg.day_counter is required");
+    // The swaption OIS underlying does not support per-period notionals yet.
+    rejectUnsupportedNotionals(fixedLeg->notionals(),
+                               "Swaption underlying OisSwap fixed leg");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
     trade.fixed.notional = fixedLeg->notional();
     trade.fixed.rate = fixedLeg->rate();
