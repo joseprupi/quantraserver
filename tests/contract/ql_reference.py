@@ -826,6 +826,218 @@ def price_vanilla_swap_ql(request: dict) -> float:
     return ql_swap.NPV()
 
 
+# =============================================================================
+# CMS swap (fixed vs constant-maturity-swap floating leg)
+# =============================================================================
+
+
+def _cms_frequency_to_period(freq_name: str) -> ql.Period:
+    """Mirror swap_index_registry.cpp frequencyToPeriod: the swap index's fixed
+    leg tenor is derived from the SwapIndexDef fixed-leg Frequency enum."""
+    return {
+        "Annual": ql.Period(1, ql.Years),
+        "Semiannual": ql.Period(6, ql.Months),
+        "Quarterly": ql.Period(3, ql.Months),
+        "Monthly": ql.Period(1, ql.Months),
+        "Bimonthly": ql.Period(2, ql.Months),
+        "EveryFourthMonth": ql.Period(4, ql.Months),
+    }.get(freq_name, ql.Period(1, ql.Years))
+
+
+def _cms_gff_model(name: str):
+    """Mirror cms_leg_parser.cpp toYieldCurveModel (Hagan-family only)."""
+    return {
+        "Standard": ql.GFunctionFactory.Standard,
+        "ExactYield": ql.GFunctionFactory.ExactYield,
+        "ParallelShifts": ql.GFunctionFactory.ParallelShifts,
+        "NonParallelShifts": ql.GFunctionFactory.NonParallelShifts,
+    }.get(name, ql.GFunctionFactory.Standard)
+
+
+def _build_swaption_vol_for_cms(pricing: dict, vol_id: str, eval_date: ql.Date):
+    """Build the SwaptionVolatilityStructureHandle the CMS coupon pricer reads,
+    mirroring vol_surface_parsers.cpp for the Constant and AtmMatrix shapes.
+
+    reference_date in the cataloged surfaces equals as_of_date, so the moving-
+    reference (calendar-based) matrix constructor QuantLib-python exposes builds
+    the identical structure as the server's fixed-reference constructor.
+    """
+    for v in pricing.get("vol_surfaces", []):
+        if v.get("id") != vol_id:
+            continue
+        if v.get("payload_type") != "SwaptionVolSpec":
+            raise ValueError(f"vol surface {vol_id!r} is not a SwaptionVolSpec")
+        payload = v.get("payload", {})
+        inner_type = payload.get("payload_type", "SwaptionVolConstantSpec")
+        inner = payload.get("payload", {})
+        base = inner.get("base", {})
+        cal = get_calendar(base.get("calendar", "TARGET"))
+        bdc = get_convention(base.get("business_day_convention", "ModifiedFollowing"))
+        dc = get_day_counter(base.get("day_counter", "Actual365Fixed"))
+        vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
+        disp = base.get("displacement", 0.0)
+        ref = parse_date(base["reference_date"]) if base.get("reference_date") else eval_date
+
+        if inner_type == "SwaptionVolConstantSpec":
+            vol = base.get("constant_vol", 0.20)
+            return ql.SwaptionVolatilityStructureHandle(
+                ql.ConstantSwaptionVolatility(ref, cal, bdc, vol, dc, vol_type, disp))
+
+        if inner_type == "SwaptionVolAtmMatrixSpec":
+            expiries = inner.get("expiries", [])
+            tenors = inner.get("tenors", [])
+            vols = inner.get("vols", {})
+            n_rows = vols.get("n_rows", len(expiries))
+            n_cols = vols.get("n_cols", len(tenors))
+            values = vols.get("values", [])
+
+            def to_period(p):
+                num, unit = _period_n_unit(p, "tenor", 0, "Months")
+                return ql.Period(num, get_time_unit(unit))
+
+            ql_expiries = [to_period(p) for p in expiries]
+            ql_tenors = [to_period(p) for p in tenors]
+            matrix = ql.Matrix(n_rows, n_cols)
+            for i in range(n_rows):
+                for j in range(n_cols):
+                    matrix[i][j] = values[i * n_cols + j]
+            shifts = ql.Matrix(n_rows, n_cols, disp) if disp else ql.Matrix()
+            vm = ql.SwaptionVolatilityMatrix(
+                cal, bdc, ql_expiries, ql_tenors, matrix, dc, False, vol_type, shifts)
+            return ql.SwaptionVolatilityStructureHandle(vm)
+
+        raise ValueError(
+            f"CMS reference supports Constant/AtmMatrix swaption vol only, "
+            f"got {inner_type!r} for vol {vol_id!r}")
+    raise ValueError(f"swaption vol surface not found: {vol_id!r}")
+
+
+def price_cms_swap_ql(request: dict) -> float:
+    """Price a fixed-vs-CMS vanilla swap using QuantLib.
+
+    Mirrors the server's CMS branch (vanilla_swap_evaluator.cpp priceCmsBranch,
+    cms_leg_parser.cpp, swap_index_registry.cpp): a QuantLib::Swap of a fixed
+    leg vs a CmsLeg built on a SwapIndex (family name = swap_index_id, fixed-leg
+    tenor derived from the SwapIndexDef fixed frequency), with a Hagan-family or
+    LinearTsr coupon pricer fed by the request's swaption vol surface. fair_rate/
+    fair_spread are undefined for CMS, matching the server which reports 0.
+    """
+    pricing = _reference_pricing_view(request)
+    swap_data = request["swaps"][0]
+    swap = swap_data["vanilla_swap"]
+    cms = swap["cms_leg"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    disc_id = swap_data["discounting_curve"]
+    disc_json = next((c for c in pricing["curves"] if c["id"] == disc_id),
+                     pricing["curves"][0])
+    disc_curve = build_curve_from_json(disc_json, eval_date, request)
+
+    fwd_id = swap_data.get("forwarding_curve", disc_id)
+    if fwd_id == disc_id:
+        fwd_curve = disc_curve
+    else:
+        fwd_json = next((c for c in pricing["curves"] if c["id"] == fwd_id), disc_json)
+        fwd_curve = build_curve_from_json(fwd_json, eval_date, request)
+
+    # Fixed leg (FixedRateLeg, matching priceCmsBranch's FixedRateLeg builder).
+    fixed_leg_j = swap["fixed_leg"]
+    fixed_sch = fixed_leg_j["schedule"]
+    fixed_schedule = ql.Schedule(
+        parse_date(fixed_sch["effective_date"]),
+        parse_date(fixed_sch["termination_date"]),
+        ql.Period(get_frequency(fixed_sch["frequency"])),
+        get_calendar(fixed_sch.get("calendar", "TARGET")),
+        get_convention(fixed_sch.get("convention", "ModifiedFollowing")),
+        get_convention(fixed_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
+        fixed_sch.get("end_of_month", False))
+    fixed_leg = ql.FixedRateLeg(
+        fixed_schedule,
+        get_day_counter(fixed_leg_j.get("day_counter", "Thirty360")),
+        [fixed_leg_j["notional"]],
+        [fixed_leg_j["rate"]],
+        get_convention(fixed_leg_j.get("payment_convention", "ModifiedFollowing")))
+
+    # Swap index (SwapIndexRegistry::getIborSwapIndexWithCurves).
+    swap_index_id = cms["swap_index_id"]
+    sidef = next((s for s in pricing.get("swap_indices", [])
+                  if s.get("id") == swap_index_id), None)
+    if sidef is None:
+        raise ValueError(f"swap index not found: {swap_index_id!r}")
+    spot_days = sidef.get("spot_days", 2)
+    fixed_spec = sidef.get("fixed_leg", {})
+    fixed_leg_tenor = _cms_frequency_to_period(fixed_spec.get("fixed_frequency", "Annual"))
+    fixed_index_cal = get_calendar(fixed_spec.get("fixed_calendar", "TARGET"))
+    fixed_index_bdc = get_convention(fixed_spec.get("fixed_bdc", "ModifiedFollowing"))
+    fixed_index_dc = get_day_counter(fixed_spec.get("fixed_day_counter", "Thirty360"))
+
+    ibor = resolve_index_from_id(sidef["float_index_id"], request, fwd_curve)
+
+    tenor_n, tenor_u = _period_n_unit(cms["swap_tenor"], "tenor", 0, "Years")
+    swap_tenor = ql.Period(tenor_n, get_time_unit(tenor_u))
+    swap_index = ql.SwapIndex(
+        swap_index_id, swap_tenor, spot_days, ibor.currency(),
+        fixed_index_cal, fixed_leg_tenor, fixed_index_bdc, fixed_index_dc,
+        ibor, disc_curve)
+
+    # CMS leg (cms_leg_parser / priceCmsBranch CmsLeg builder).
+    cms_sch = cms["schedule"]
+    cms_schedule = ql.Schedule(
+        parse_date(cms_sch["effective_date"]),
+        parse_date(cms_sch["termination_date"]),
+        ql.Period(get_frequency(cms_sch["frequency"])),
+        get_calendar(cms_sch.get("calendar", "TARGET")),
+        get_convention(cms_sch.get("convention", "ModifiedFollowing")),
+        get_convention(cms_sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(cms_sch.get("date_generation_rule", "Forward")),
+        cms_sch.get("end_of_month", False))
+
+    fixing_days = cms.get("fixing_days", -1)
+    if fixing_days is None or fixing_days < 0:
+        fixing_days = spot_days
+    cms_leg = ql.CmsLeg(
+        [cms["notional"]],
+        cms_schedule,
+        swap_index,
+        get_day_counter(cms["day_counter"]),
+        get_convention(cms["payment_convention"]),
+        [int(fixing_days)],
+        [cms.get("gear", 1.0)],
+        [cms.get("spread", 0.0)])
+
+    # Coupon pricer (cms_leg_parser::makeCouponPricer / buildCmsPricer).
+    vol_handle = _build_swaption_vol_for_cms(pricing, cms["swaption_vol_id"], eval_date)
+    pricer_spec = cms.get("pricer") or {}
+    pricer_type = pricer_spec.get("pricer_type", "LinearTsr")
+    mr_quote = ql.QuoteHandle(ql.SimpleQuote(pricer_spec.get("mean_reversion", 0.03)))
+    yc_model = _cms_gff_model(pricer_spec.get("yield_curve_model", "Standard"))
+
+    if pricer_type == "LinearTsr":
+        pricer = ql.LinearTsrPricer(vol_handle, mr_quote, disc_curve)
+    elif pricer_type == "HaganAnalytic":
+        pricer = ql.AnalyticHaganPricer(vol_handle, yc_model, mr_quote)
+    elif pricer_type == "HaganNumeric":
+        lower = pricer_spec.get("hagan_lower_limit", 0.0)
+        upper = pricer_spec.get("hagan_upper_limit", 1.0)
+        precision = pricer_spec.get("hagan_precision", 1.0e-6)
+        # The server also carries a hard upper integration limit; when the
+        # request leaves hagan_hard_upper_limit at its default (<= 0) the server
+        # substitutes QL_MAX_REAL, which is exactly QuantLib's default in this
+        # 6-argument constructor (QuantLib-python does not expose the 7th arg).
+        pricer = ql.NumericHaganPricer(vol_handle, yc_model, mr_quote, lower, upper, precision)
+    else:
+        raise ValueError(f"unsupported CMS pricer type: {pricer_type!r}")
+    ql.setCouponPricer(cms_leg, pricer)
+
+    payer_fixed = swap["swap_type"] == "Payer"
+    swap_inst = ql.Swap([fixed_leg, cms_leg], [payer_fixed, not payer_fixed])
+    swap_inst.setPricingEngine(ql.DiscountingSwapEngine(disc_curve))
+    return swap_inst.NPV()
+
+
 def price_zero_coupon_bond_ql(request: dict) -> float:
     """Price a zero-coupon bond using QuantLib.
 
