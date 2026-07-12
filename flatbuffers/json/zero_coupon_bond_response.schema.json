@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_ZeroCouponBondResponse" : {
+      "type" : "object",
+      "description" : "Zero-coupon bond pricing response.",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "clean_price" : {
+                "type" : "number"
+              },
+        "dirty_price" : {
+                "type" : "number"
+              },
+        "accrued_amount" : {
+                "type" : "number",
+                "description" : "Accrued interest at settlement (0 for a zero-coupon bond by construction)."
+              },
+        "yield" : {
+                "type" : "number",
+                "description" : "Yield-to-maturity under the request's Yield convention."
+              },
+        "accrued_days" : {
+                "type" : "number"
+              },
+        "macaulay_duration" : {
+                "type" : "number"
+              },
+        "modified_duration" : {
+                "type" : "number"
+              },
+        "convexity" : {
+                "type" : "number"
+              },
+        "bps" : {
+                "type" : "number"
+              },
+        "settlement_date" : {
+                "type" : "string",
+                "description" : "Bond settlement date (ISO yyyy-mm-dd)."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceZeroCouponBondResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple zero-coupon bonds.",
+      "properties" : {
+        "bonds" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_ZeroCouponBondResponse"}
+              }
+      },
+      "required" : ["bonds"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceZeroCouponBondResponse"
+}

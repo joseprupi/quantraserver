@@ -46,7 +46,9 @@ struct ProductCatalogEntry {
     X(CalendarAdvance, "calendar_advance", "calendar-advance", "calendar_advance_request.fbs", "calendar_advance_response.fbs") \
     X(CalibrateSwaptionModel, "calibrate_swaption_model", "calibrate-swaption-model", "calibrate_swaption_model_request.fbs", "calibrate_swaption_model_response.fbs") \
     X(CalibrateSwaptionVol, "calibrate_swaption_vol", "calibrate-swaption-vol", "calibrate_swaption_vol_request.fbs", "calibrate_swaption_vol_response.fbs") \
-    X(EquityOption, "equity_option", "price-equity-option", "price_equity_option_request.fbs", "equity_option_response.fbs")
+    X(EquityOption, "equity_option", "price-equity-option", "price_equity_option_request.fbs", "equity_option_response.fbs") \
+    X(ZeroCouponBond, "zero_coupon_bond", "price-zero-coupon-bond", "price_zero_coupon_bond_request.fbs", "zero_coupon_bond_response.fbs") \
+    X(ZeroCouponSwap, "zero_coupon_swap", "price-zero-coupon-swap", "price_zero_coupon_swap_request.fbs", "zero_coupon_swap_response.fbs")
 
 enum class ProductType {
 #define QUANTRA_ENUM_ENTRY(name, key, route, req, resp) name,

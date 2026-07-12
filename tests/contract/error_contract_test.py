@@ -646,6 +646,52 @@ SCENARIOS = [
      _ec_set_swaption_underlying_notionals([1e7]),
      _ec_body_contains(
          "Swaption underlying VanillaSwap fixed leg does not support amortizing notionals yet")),
+    # ---- 400 INVALID_ARGUMENT: zero-coupon bond convention / date presence ----
+    # A zero-coupon bond convention enum omitted from the request must be
+    # rejected, not silently defaulted to the alphabetical-0 value; wire dates
+    # must be strictly ISO-8601 YYYY-MM-DD.
+    ("ec:400 zero_coupon_bond missing calendar", "zero_coupon_bond",
+     "zero_coupon_bond_request.json", 400,
+     _ec_del_bond_field("bonds", "zero_coupon_bond", "calendar"),
+     _ec_body_contains("ZeroCouponBond.calendar is required")),
+    ("ec:400 zero_coupon_bond missing payment_convention", "zero_coupon_bond",
+     "zero_coupon_bond_request.json", 400,
+     _ec_del_bond_field("bonds", "zero_coupon_bond", "payment_convention"),
+     _ec_body_contains("ZeroCouponBond.payment_convention is required")),
+    ("ec:400 zero_coupon_bond non-ISO maturity_date rejected", "zero_coupon_bond",
+     "zero_coupon_bond_request.json", 400,
+     _ec_set_nested_field("bonds", "zero_coupon_bond", "maturity_date", "2026/01/15"),
+     _ec_body_contains("expected YYYY-MM-DD")),
+    # ---- 400 INVALID_ARGUMENT: zero-coupon swap convention / form / date presence ----
+    # The zero-coupon swap payment conventions are presence-required; the fixed
+    # side must carry exactly one of the fixed_payment / fixed_rate forms; the
+    # maturity must be strictly after the start; wire dates must be ISO-8601.
+    ("ec:400 zero_coupon_swap missing payment_calendar", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "zero_coupon_swap", "payment_calendar"),
+     _ec_body_contains("ZeroCouponSwap.payment_calendar is required")),
+    ("ec:400 zero_coupon_swap missing payment_convention", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "zero_coupon_swap", "payment_convention"),
+     _ec_body_contains("ZeroCouponSwap.payment_convention is required")),
+    ("ec:400 zero_coupon_swap neither fixed_payment nor fixed_rate", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "zero_coupon_swap", "fixed_payment"),
+     _ec_body_contains(
+         "ZeroCouponSwap must contain exactly one of fixed_payment or fixed_rate")),
+    ("ec:400 zero_coupon_swap both fixed_payment and fixed_rate", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_set_nested_field("swaps", "zero_coupon_swap", "fixed_rate", 0.032),
+     _ec_body_contains(
+         "ZeroCouponSwap must contain exactly one of fixed_payment or fixed_rate")),
+    ("ec:400 zero_coupon_swap maturity not after start", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_set_nested_field("swaps", "zero_coupon_swap", "maturity_date", "2025-01-17"),
+     _ec_body_contains("ZeroCouponSwap.maturity_date must be after start_date")),
+    ("ec:400 zero_coupon_swap non-ISO maturity_date rejected", "zero_coupon_swap",
+     "zero_coupon_swap_request.json", 400,
+     _ec_set_nested_field("swaps", "zero_coupon_swap", "maturity_date", "2030/01/17"),
+     _ec_body_contains("expected YYYY-MM-DD")),
 ]
 
 

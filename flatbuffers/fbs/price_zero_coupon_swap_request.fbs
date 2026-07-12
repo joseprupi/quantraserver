@@ -1,0 +1,23 @@
+include "common.fbs";
+include "pricing.fbs";
+include "zero_coupon_swap.fbs";
+
+namespace quantra;
+
+/// Single zero-coupon swap pricing context.
+table PriceZeroCouponSwap {
+    zero_coupon_swap:ZeroCouponSwap;
+    /// Reference to curve in pricing.rates.curves for discounting by id.
+    discounting_curve:string;
+    /// Reference to curve in pricing.rates.curves for floating-leg forward
+    /// rates by id.
+    forwarding_curve:string;
+}
+
+/// Request to price one or more zero-coupon swaps.
+table PriceZeroCouponSwapRequest {
+    pricing:Pricing;
+    swaps:[PriceZeroCouponSwap];
+}
+
+root_type PriceZeroCouponSwapRequest;

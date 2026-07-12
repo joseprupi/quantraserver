@@ -1,0 +1,26 @@
+namespace quantra;
+
+/// Zero-coupon bond pricing response.
+table ZeroCouponBondResponse {
+    npv:double;
+    clean_price:double;
+    dirty_price:double;
+    /// Accrued interest at settlement (0 for a zero-coupon bond by construction).
+    accrued_amount:double;
+    /// Yield-to-maturity under the request's Yield convention.
+    yield:double;
+    accrued_days:double;
+    macaulay_duration:double;
+    modified_duration:double;
+    convexity:double;
+    bps:double;
+    /// Bond settlement date (ISO yyyy-mm-dd).
+    settlement_date:string;
+}
+
+/// Response wrapper for multiple zero-coupon bonds.
+table PriceZeroCouponBondResponse {
+    bonds:[ZeroCouponBondResponse] (required);
+}
+
+root_type PriceZeroCouponBondResponse;

@@ -2870,4 +2870,109 @@ CASES = [
         "exercises": ["SABR calibrate", "vega-weighted fit",
                       "parameter round-trip", "5 strike spreads"],
     },
+
+    # ------------------------------------------------------------------
+    # Bonds — zero-coupon (single redemption, no schedule)
+    # ------------------------------------------------------------------
+    {
+        "id": "zcb_eur_1y_par",
+        "product": "zero_coupon_bond",
+        "family": "Bonds",
+        "title": "EUR 1Y zero-coupon bond redeemed at par",
+        "description": (
+            "Short-dated zero-coupon bond: a single 100% redemption on 1m "
+            "face one year out (TARGET, Following), discounted on the EUR "
+            "deposit+swap curve. No coupons and no schedule — the only "
+            "cashflow is the maturity redemption, so the NPV is just the "
+            "discounted face amount."
+        ),
+        "request": "bonds/zcb_eur_1y_par.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_zero_coupon_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero-coupon bond", "par redemption", "1Y maturity",
+                      "TARGET", "deposit+swap curve"],
+    },
+    {
+        "id": "zcb_eur_10y_discount",
+        "product": "zero_coupon_bond",
+        "family": "Bonds",
+        "title": "EUR 10Y zero-coupon bond at a discount",
+        "description": (
+            "Long-dated zero-coupon bond: a single 100% redemption on 1m "
+            "face ten years out (TARGET, Modified Following, explicit issue "
+            "date), discounted on a ~3% EUR curve so it prices at a deep "
+            "discount to par. Exercises the long end of the discount curve "
+            "and the optional issue_date / redemption fields."
+        ),
+        "request": "bonds/zcb_eur_10y_discount.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_zero_coupon_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero-coupon bond", "deep discount", "10Y maturity",
+                      "explicit issue date", "curve long end"],
+    },
+
+    # ------------------------------------------------------------------
+    # Zero-coupon swaps — single fixed cashflow vs single compounded float
+    # ------------------------------------------------------------------
+    {
+        "id": "zcs_eur_payer_fixed_payment",
+        "product": "zero_coupon_swap",
+        "family": "Zero Coupon Swaps",
+        "title": "EUR 5Y zero-coupon swap, payer, fixed-payment form",
+        "description": (
+            "Zero-coupon swap paying a single known fixed cashflow of "
+            "170,000 at maturity against one compounded Euribor 6M cashflow "
+            "on 1m base nominal (TARGET, Modified Following, 2025-01-17 to "
+            "2030-01-17). The fixed payment sits above the swap's fair "
+            "payment, so the payer of fixed is underwater. Discounted and "
+            "projected on the single EUR deposit+swap curve."
+        ),
+        "request": "zero_coupon_swap/zcs_eur_payer_fixed_payment.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero-coupon swap", "payer", "fixed-payment form",
+                      "Euribor6M compounded", "single curve"],
+    },
+    {
+        "id": "zcs_eur_receiver_fixed_rate",
+        "product": "zero_coupon_swap",
+        "family": "Zero Coupon Swaps",
+        "title": "EUR 5Y zero-coupon swap, receiver, fixed-rate form",
+        "description": (
+            "The receiver side quoted in the fixed-rate form: a 3.20% fixed "
+            "rate compounded over the 5Y life under a 30/360 day count "
+            "(N^FIX = N[(1+R)^alpha - 1]) against one compounded Euribor 6M "
+            "cashflow on 1m base nominal. The implied fixed payment is above "
+            "the fair payment, so the receiver of fixed is ahead. Exercises "
+            "the fixed-rate constructor and its day-count-driven compounding."
+        ),
+        "request": "zero_coupon_swap/zcs_eur_receiver_fixed_rate.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero-coupon swap", "receiver", "fixed-rate form",
+                      "30/360 compounding", "sign flip"],
+    },
+    {
+        "id": "zcs_eur_payer_at_fair_payment",
+        "product": "zero_coupon_swap",
+        "family": "Zero Coupon Swaps",
+        "title": "EUR 5Y zero-coupon swap, payer at the fair payment",
+        "description": (
+            "The same payer trade struck at the swap's fair fixed payment "
+            "(165,098.6955), so both legs have equal present value and the "
+            "NPV is zero. Pins the fair-payment solve end to end: the fixed "
+            "payment that makes the contract par reproduces a ~0 NPV on both "
+            "the server and the QuantLib reference."
+        ),
+        "request": "zero_coupon_swap/zcs_eur_payer_at_fair_payment.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_zero_coupon_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["zero-coupon swap", "payer", "fair fixed payment",
+                      "par NPV", "fixed-payment form"],
+    },
 ]

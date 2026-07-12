@@ -414,6 +414,18 @@ JsonResponse QuantraClient::PriceEquityOptionJSON(const std::string& json, const
     );
 }
 
+JsonResponse QuantraClient::PriceZeroCouponBondJSON(const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceZeroCouponBondRequest, PriceZeroCouponBondResponse>(
+        ProductType::ZeroCouponBond, json, &QuantraServer::Stub::PriceZeroCouponBond, request_id
+    );
+}
+
+JsonResponse QuantraClient::PriceZeroCouponSwapJSON(const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceZeroCouponSwapRequest, PriceZeroCouponSwapResponse>(
+        ProductType::ZeroCouponSwap, json, &QuantraServer::Stub::PriceZeroCouponSwap, request_id
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -596,6 +608,24 @@ grpc::Status QuantraClient::PriceEquityOption(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceEquityOption(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceZeroCouponBond(
+    const Message<PriceZeroCouponBondRequest>& request,
+    Message<PriceZeroCouponBondResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceZeroCouponBond(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceZeroCouponSwap(
+    const Message<PriceZeroCouponSwapRequest>& request,
+    Message<PriceZeroCouponSwapResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceZeroCouponSwap(&context, request, response);
 }
 
 } // namespace quantra

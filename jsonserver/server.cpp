@@ -723,7 +723,21 @@ int main(int argc, char** argv) {
                 return client.PriceEquityOptionJSON(body, request_id);
             });
         });
-        
+
+        CROW_ROUTE(app, "/price-zero-coupon-bond").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-zero-coupon-bond", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceZeroCouponBondJSON(body, request_id);
+            });
+        });
+
+        CROW_ROUTE(app, "/price-zero-coupon-swap").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-zero-coupon-swap", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceZeroCouponSwapJSON(body, request_id);
+            });
+        });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -746,6 +760,8 @@ int main(int argc, char** argv) {
                   << "  POST /calibrate-swaption-model\n"
                   << "  POST /calibrate-swaption-vol\n"
                   << "  POST /price-equity-option\n"
+                  << "  POST /price-zero-coupon-bond\n"
+                  << "  POST /price-zero-coupon-swap\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"
