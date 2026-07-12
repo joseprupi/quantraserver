@@ -507,6 +507,123 @@ CASES = [
     },
 
     # ------------------------------------------------------------------
+    # IR Swaps — CMS (fixed vs constant-maturity-swap floating leg)
+    # ------------------------------------------------------------------
+    {
+        "id": "cms_eur_5y_payer_cms10y_vs_fixed_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs CMS 10Y (LinearTsr, 20% vol)",
+        "description": (
+            "5Y EUR swap paying 3.00% fixed (annual, 30/360) and receiving a "
+            "CMS 10Y leg (quarterly, Act/360) on 10m notional. The CMS coupon "
+            "fixes off the EUR_SWAP_6M constant-maturity 10Y swap rate, priced "
+            "with the LinearTsrPricer (mean reversion 0.03) against a flat 20% "
+            "lognormal swaption vol. Exercises the fixed-vs-CMS product path, "
+            "the swap-index construction and the LinearTsr convexity adjustment."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "CMS 10Y", "LinearTsr pricer",
+                      "constant swaption vol", "convexity adjustment"],
+    },
+    {
+        "id": "cms_eur_5y_receiver_cms10y_gearing_spread_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y receiver, fixed vs geared+spread CMS 10Y (LinearTsr)",
+        "description": (
+            "5Y EUR swap receiving 2.50% fixed (annual, 30/360) and paying a "
+            "CMS 10Y leg geared at 0.80 with a +25bp spread (quarterly, "
+            "Act/360). Coupon = notional * accrual * (0.80 * CMS10Y + 0.0025), "
+            "priced with LinearTsr against a flat 20% lognormal vol. Exercises "
+            "the CMS gearing and spread coupon-formula fields."
+        ),
+        "request": "ir_swaps/cms_eur_5y_receiver_cms10y_gearing_spread_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "gearing 0.80", "spread +25bp",
+                      "LinearTsr pricer", "receiver"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_hagan_analytic",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs CMS 10Y (Analytic Hagan)",
+        "description": (
+            "The baseline fixed-vs-CMS 10Y swap repriced with the "
+            "AnalyticHaganPricer (Standard yield-curve model, mean reversion "
+            "0.02) instead of LinearTsr. Exercises the analytic Hagan-Conundrum "
+            "convexity pricer and the yield-curve-model / mean-reversion "
+            "pricer configuration."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_hagan_analytic.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "AnalyticHagan pricer", "Standard model",
+                      "mean reversion 0.02"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_hagan_numeric",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs CMS 10Y (Numeric Hagan)",
+        "description": (
+            "The baseline fixed-vs-CMS 10Y swap repriced with the "
+            "NumericHaganPricer (Standard model, mean reversion 0.03, default "
+            "integration limits). Exercises the numeric Hagan-Conundrum "
+            "integration path."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_hagan_numeric.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "NumericHagan pricer", "Standard model",
+                      "numeric integration"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms2y_atm_matrix_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs CMS 2Y (ATM vol matrix)",
+        "description": (
+            "5Y EUR swap paying fixed and receiving a CMS 2Y leg, priced with "
+            "LinearTsr against a term-structured ATM swaption vol matrix "
+            "(expiries 1Y/5Y/10Y, tenors 2Y/10Y). The short 2Y constant "
+            "maturity reads the 2Y-tenor column of the surface, exercising the "
+            "vol matrix at a different point than the 10Y case."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms2y_atm_matrix_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "CMS 2Y", "ATM vol matrix",
+                      "vol surface interpolation", "LinearTsr pricer"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_atm_matrix_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs CMS 10Y (ATM vol matrix)",
+        "description": (
+            "The same 5Y swap receiving a CMS 10Y leg against the same ATM "
+            "swaption vol matrix, so the CMS coupon reads the 10Y-tenor column "
+            "of the surface. Paired with the CMS 2Y case, it exercises the vol "
+            "matrix at two different tenor points."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_atm_matrix_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "CMS 10Y", "ATM vol matrix",
+                      "vol surface interpolation", "LinearTsr pricer"],
+    },
+
+    # ------------------------------------------------------------------
     # Bonds — fixed-rate
     # ------------------------------------------------------------------
     {

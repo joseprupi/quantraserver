@@ -165,6 +165,42 @@
 <td><a href="../../examples/data/ir_swaps/basis_eur_5y_3m_vs_6m_ois_discounted_multicurve.json">basis_eur_5y_3m_vs_6m_ois_discounted_multicurve.json</a></td>
 <td class="npv">-19,531.24</td>
 </tr>
+<tr>
+<td><div class="title">EUR 5Y payer, fixed vs CMS 10Y (LinearTsr, 20% vol)</div><div class="desc">5Y EUR swap paying 3.00% fixed (annual, 30/360) and receiving a CMS 10Y leg (quarterly, Act/360) on 10m notional. The CMS coupon fixes off the EUR_SWAP_6M constant-maturity 10Y swap rate, priced with the LinearTsrPricer (mean reversion 0.03) against a flat 20% lognormal swaption vol. Exercises the fixed-vs-CMS product path, the swap-index construction and the LinearTsr convexity adjustment.</div></td>
+<td><code>CMS leg</code> <code>CMS 10Y</code> <code>LinearTsr pricer</code> <code>constant swaption vol</code> <code>convexity adjustment</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json">cms_eur_5y_payer_cms10y_vs_fixed_lineartsr.json</a></td>
+<td class="npv">258,560.86</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y receiver, fixed vs geared+spread CMS 10Y (LinearTsr)</div><div class="desc">5Y EUR swap receiving 2.50% fixed (annual, 30/360) and paying a CMS 10Y leg geared at 0.80 with a +25bp spread (quarterly, Act/360). Coupon = notional * accrual * (0.80 * CMS10Y + 0.0025), priced with LinearTsr against a flat 20% lognormal vol. Exercises the CMS gearing and spread coupon-formula fields.</div></td>
+<td><code>CMS leg</code> <code>gearing 0.80</code> <code>spread +25bp</code> <code>LinearTsr pricer</code> <code>receiver</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_receiver_cms10y_gearing_spread_lineartsr.json">cms_eur_5y_receiver_cms10y_gearing_spread_lineartsr.json</a></td>
+<td class="npv">-278,319.78</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer, fixed vs CMS 10Y (Analytic Hagan)</div><div class="desc">The baseline fixed-vs-CMS 10Y swap repriced with the AnalyticHaganPricer (Standard yield-curve model, mean reversion 0.02) instead of LinearTsr. Exercises the analytic Hagan-Conundrum convexity pricer and the yield-curve-model / mean-reversion pricer configuration.</div></td>
+<td><code>CMS leg</code> <code>AnalyticHagan pricer</code> <code>Standard model</code> <code>mean reversion 0.02</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_payer_cms10y_hagan_analytic.json">cms_eur_5y_payer_cms10y_hagan_analytic.json</a></td>
+<td class="npv">257,675.97</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer, fixed vs CMS 10Y (Numeric Hagan)</div><div class="desc">The baseline fixed-vs-CMS 10Y swap repriced with the NumericHaganPricer (Standard model, mean reversion 0.03, default integration limits). Exercises the numeric Hagan-Conundrum integration path.</div></td>
+<td><code>CMS leg</code> <code>NumericHagan pricer</code> <code>Standard model</code> <code>numeric integration</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_payer_cms10y_hagan_numeric.json">cms_eur_5y_payer_cms10y_hagan_numeric.json</a></td>
+<td class="npv">258,045.58</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer, fixed vs CMS 2Y (ATM vol matrix)</div><div class="desc">5Y EUR swap paying fixed and receiving a CMS 2Y leg, priced with LinearTsr against a term-structured ATM swaption vol matrix (expiries 1Y/5Y/10Y, tenors 2Y/10Y). The short 2Y constant maturity reads the 2Y-tenor column of the surface, exercising the vol matrix at a different point than the 10Y case.</div></td>
+<td><code>CMS leg</code> <code>CMS 2Y</code> <code>ATM vol matrix</code> <code>vol surface interpolation</code> <code>LinearTsr pricer</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_payer_cms2y_atm_matrix_lineartsr.json">cms_eur_5y_payer_cms2y_atm_matrix_lineartsr.json</a></td>
+<td class="npv">150,003.56</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer, fixed vs CMS 10Y (ATM vol matrix)</div><div class="desc">The same 5Y swap receiving a CMS 10Y leg against the same ATM swaption vol matrix, so the CMS coupon reads the 10Y-tenor column of the surface. Paired with the CMS 2Y case, it exercises the vol matrix at two different tenor points.</div></td>
+<td><code>CMS leg</code> <code>CMS 10Y</code> <code>ATM vol matrix</code> <code>vol surface interpolation</code> <code>LinearTsr pricer</code></td>
+<td><a href="../../examples/data/ir_swaps/cms_eur_5y_payer_cms10y_atm_matrix_lineartsr.json">cms_eur_5y_payer_cms10y_atm_matrix_lineartsr.json</a></td>
+<td class="npv">267,712.84</td>
+</tr>
 </tbody>
 </table>
 <h2>Bonds</h2>
@@ -971,6 +1007,6 @@
 </tr>
 </tbody>
 </table>
-<footer>145 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>151 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

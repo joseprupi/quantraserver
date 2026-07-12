@@ -189,8 +189,11 @@ Legend: ✅ covered · ◐ partial · ☐ planned (expressible, not yet added) �
 - ✅ Vanilla fixed vs Ibor float · ✅ payer / receiver · ✅ OIS (compounded
   overnight) · ✅ tenor basis (float vs float) · ✅ forward-starting
 - ☐ Stub periods (short/long first & last coupon) · ☐ zero-coupon swap
-- ⛔ CMS leg · ⛔ amortizing / step-up notional · ⛔ in-arrears / lookback /
-  averaged OIS · ⛔ geared / capped / floored floater
+- ✅ CMS leg (fixed vs CMS; LinearTsr / Analytic & Numeric Hagan; geared +
+  spread; constant & ATM-matrix swaption vol at 2Y/10Y tenors)
+- ⛔ amortizing / step-up notional · ⛔ in-arrears / lookback /
+  averaged OIS · ⛔ geared / capped / floored floater (CMS cap/floor rejected
+  by the server in v1)
 
 **Conventions**
 - ◐ Fixed day counts (✅ 30/360, Act/365F; ☐ Act/360, Act/Act on fixed leg)
@@ -741,8 +744,6 @@ or cannot agree with the server more tightly than the effect being tested:
 These need reference-pricer features that `ql_reference.py` does not have
 yet; they are deliberately not half-implemented:
 
-* **CMS legs** — the server prices vanilla swaps with a CMS leg, but there is
-  no Python reference for CMS coupon pricers.
 * **Amortizing / step-up notionals** — the swap schemas carry one notional
   per leg today.
 * **Cross-currency swaps** — no product endpoint yet.
