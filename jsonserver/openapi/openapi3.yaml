@@ -939,6 +939,48 @@ paths:
                   error:
                     type: string
                     description: Error message
+  /price-year-on-year-inflation-cap-floor:
+    post:
+      summary: Price Year-on-Year Inflation Cap/Floor
+      description: Price year-on-year inflation caps, floors, and collars (QuantLib
+        YoYInflationCapFloor) over a configured YoY inflation index/curve and a constant
+        YoY optionlet volatility, using the Black, unit-displaced Black, or Bachelier
+        engine selected by the vol spec.
+      tags:
+      - Inflation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceYearOnYearInflationCapFloorRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceYearOnYearInflationCapFloorResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /health:
     get:
       summary: Health Check
@@ -1219,6 +1261,12 @@ components:
       - SurfaceFromPrices
       - SabrParams
       - SabrCalibrate
+    quantra_enums_YoYInflationCapFloorEngineType:
+      type: string
+      enum:
+      - Black
+      - UnitDisplacedBlack
+      - Bachelier
     quantra_enums_SwaptionVolKind:
       type: string
       enum:
@@ -1850,6 +1898,7 @@ components:
       - OptionletVolSpec
       - SwaptionVolSpec
       - BlackVolSpec
+      - YoYOptionletVolSpec
     quantra_QuoteKind:
       type: string
       enum:
@@ -2607,6 +2656,44 @@ components:
         strike_interpolator:
           $ref: '#/components/schemas/quantra_enums_Interpolator'
       additionalProperties: false
+    quantra_YoYOptionletVolSpec:
+      type: object
+      description: 'Constant year-on-year inflation optionlet volatility, referenced
+        by id from
+
+        year-on-year inflation cap/floor trades. Currently a single flat vol; a
+
+        strike/tenor surface form is a future additive extension (add optional
+
+        axis/matrix fields alongside `constant_vol`, mirroring OptionletVolSpec ->
+
+        AtmMatrix growth). The surface frequency and index-interpolation flag are
+
+        NOT carried here: they are taken at pricing time from the year-on-year
+
+        inflation index/curve the trade references, so the vol surface stays
+
+        convention-consistent with its index.'
+      properties:
+        constant_vol:
+          type: number
+          description: 'Flat lognormal/normal optionlet volatility. Presence-required:
+            an
+
+            omitted vol is a 400, never a silent 0.0.'
+        vol_type:
+          $ref: '#/components/schemas/quantra_enums_YoYInflationCapFloorEngineType'
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        observation_lag:
+          $ref: '#/components/schemas/quantra_Period'
+      required:
+      - observation_lag
+      additionalProperties: false
     quantra_VolSurfaceSpec:
       type: object
       description: Volatility surface specification referenced by id in trade requests.
@@ -2620,6 +2707,7 @@ components:
           - $ref: '#/components/schemas/quantra_OptionletVolSpec'
           - $ref: '#/components/schemas/quantra_SwaptionVolSpec'
           - $ref: '#/components/schemas/quantra_BlackVolSpec'
+          - $ref: '#/components/schemas/quantra_YoYOptionletVolSpec'
       required:
       - id
       additionalProperties: false
@@ -4834,6 +4922,104 @@ components:
           type: boolean
           description: Include detailed cashflows in response.
       additionalProperties: false
+    quantra_YoYInflationCapFloor:
+      type: object
+      description: 'Year-on-year inflation cap / floor / collar (QuantLib::YoYInflationCapFloor).
+
+        A strip of year-on-year inflation optionlets built over `schedule` off the
+
+        same YoY inflation index/curve the year-on-year inflation swap path uses.
+
+
+        The pricing formula is selected by the referenced YoYOptionletVolSpec''s
+
+        vol_type (Black / UnitDisplacedBlack / Bachelier); the vol surface and this
+
+        instrument reference the SAME year-on-year inflation index by id.'
+      properties:
+        cap_floor_type:
+          $ref: '#/components/schemas/quantra_enums_CapFloorType'
+        notional:
+          type: number
+          description: Notional per optionlet.
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        inflation_index_id:
+          type: string
+          description: 'Link to InflationIndexSpec.id — the YoY inflation index (must
+            resolve to
+
+            a QuantLib YoYInflationIndex, same as the year-on-year inflation swap).'
+        observation_lag:
+          $ref: '#/components/schemas/quantra_Period'
+        day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        cap_rate:
+          type: number
+          description: 'Cap strike (year-on-year rate). Required when, and only when,
+            the type
+
+            is Cap or Collar; must be absent for a Floor.'
+        floor_rate:
+          type: number
+          description: 'Floor strike (year-on-year rate). Required when, and only
+            when, the type
+
+            is Floor or Collar; must be absent for a Cap. For a Collar,
+
+            cap_rate >= floor_rate is enforced.'
+        gearing:
+          type: number
+          description: Optional per-optionlet gearing on the year-on-year rate (absent
+            => 1.0).
+        spread:
+          type: number
+          description: 'Optional per-optionlet spread added to the year-on-year rate
+
+            (absent => 0.0).'
+      required:
+      - schedule
+      - observation_lag
+      additionalProperties: false
+    quantra_PriceYoYInflationCapFloor:
+      type: object
+      description: 'Single year-on-year inflation cap/floor pricing context with explicit
+
+        market-data references.'
+      properties:
+        year_on_year_inflation_cap_floor:
+          $ref: '#/components/schemas/quantra_YoYInflationCapFloor'
+        discounting_curve:
+          type: string
+          description: 'Reference to curve in Pricing.rates.curves used for discounting
+            and as
+
+            the nominal term structure fed to the engine.'
+        inflation_curve:
+          type: string
+          description: 'Reference to curve in Pricing.inflation.inflation_curves (the
+            YoY
+
+            inflation curve the index projects off).'
+        volatility:
+          type: string
+          description: 'Reference to the YoYOptionletVolSpec id in
+
+            Pricing.volatility.vol_surfaces.'
+      additionalProperties: false
+    quantra_PriceYearOnYearInflationCapFloorRequest:
+      type: object
+      description: Request to price one or more year-on-year inflation cap/floor trades.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        cap_floors:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceYoYInflationCapFloor'
+      additionalProperties: false
     quantra_YearOnYearInflationSwap:
       type: object
       description: Standard year-on-year inflation swap (YYIIS).
@@ -5443,6 +5629,30 @@ components:
             $ref: '#/components/schemas/quantra_SwaptionVolDiagnostics'
       required:
       - swaptions
+      additionalProperties: false
+    quantra_YoYInflationCapFloorResponse:
+      type: object
+      description: Year-on-year inflation cap/floor pricing response (one per instrument).
+      properties:
+        npv:
+          type: number
+        atm_rate:
+          type: number
+          description: 'At-the-money year-on-year rate for the strip, from
+
+            QuantLib::YoYInflationCapFloor::atmRate over the discount curve.'
+      additionalProperties: false
+    quantra_PriceYearOnYearInflationCapFloorResponse:
+      type: object
+      description: Response wrapper for multiple year-on-year inflation cap/floor
+        trades.
+      properties:
+        cap_floors:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_YoYInflationCapFloorResponse'
+      required:
+      - cap_floors
       additionalProperties: false
     quantra_YearOnYearInflationSwapResponse:
       type: object

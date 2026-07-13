@@ -145,6 +145,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     reg.volatility.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry, &reg.rates.curves));
                     break;
 
+                case quantra::VolPayload_YoYOptionletVolSpec:
+                    reg.volatility.yoyOptionletVols.emplace(id, parseYoYOptionletVol(spec));
+                    break;
+
                 case quantra::VolPayload_NONE:
                     QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.payload is required for vol id: " + id);
 

@@ -738,6 +738,13 @@ int main(int argc, char** argv) {
             });
         });
 
+        CROW_ROUTE(app, "/price-year-on-year-inflation-cap-floor").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-year-on-year-inflation-cap-floor", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceYearOnYearInflationCapFloorJSON(body, request_id);
+            });
+        });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -762,6 +769,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-equity-option\n"
                   << "  POST /price-zero-coupon-bond\n"
                   << "  POST /price-zero-coupon-swap\n"
+                  << "  POST /price-year-on-year-inflation-cap-floor\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"

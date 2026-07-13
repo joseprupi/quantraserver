@@ -210,6 +210,11 @@ ENDPOINT_METADATA = {
         "summary": "Price Zero Coupon Swap",
         "description": "Calculate NPV, fair fixed payment, and leg values for zero-coupon swaps exchanging a single fixed cashflow against a single compounded-floating cashflow.",
         "tags": ["Interest Rate Derivatives"]
+    },
+    "year_on_year_inflation_cap_floor": {
+        "summary": "Price Year-on-Year Inflation Cap/Floor",
+        "description": "Price year-on-year inflation caps, floors, and collars (QuantLib YoYInflationCapFloor) over a configured YoY inflation index/curve and a constant YoY optionlet volatility, using the Black, unit-displaced Black, or Bachelier engine selected by the vol spec.",
+        "tags": ["Inflation"]
     }
 }
 

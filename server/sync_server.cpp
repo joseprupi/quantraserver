@@ -26,6 +26,7 @@
 #include "equity_option_handler.h"
 #include "zero_coupon_bond_handler.h"
 #include "zero_coupon_swap_handler.h"
+#include "year_on_year_inflation_cap_floor_handler.h"
 
 // Service-metadata RPC (gRPC-only). Not a pricing product, but registers via the
 // same mechanism so the completion-queue loop serves it uniformly.

@@ -105,6 +105,10 @@
       "type" : "string",
       "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
     },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
     "quantra_enums_SwaptionVolKind" : {
       "type" : "string",
       "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_YoYInflationCapFloorResponse" : {
+      "type" : "object",
+      "description" : "Year-on-year inflation cap/floor pricing response (one per instrument).",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "atm_rate" : {
+                "type" : "number",
+                "description" : "At-the-money year-on-year rate for the strip, from\nQuantLib::YoYInflationCapFloor::atmRate over the discount curve."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceYearOnYearInflationCapFloorResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple year-on-year inflation cap/floor trades.",
+      "properties" : {
+        "cap_floors" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_YoYInflationCapFloorResponse"}
+              }
+      },
+      "required" : ["cap_floors"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceYearOnYearInflationCapFloorResponse"
+}

@@ -1,0 +1,16 @@
+namespace quantra;
+
+/// Year-on-year inflation cap/floor pricing response (one per instrument).
+table YoYInflationCapFloorResponse {
+    npv:double;
+    /// At-the-money year-on-year rate for the strip, from
+    /// QuantLib::YoYInflationCapFloor::atmRate over the discount curve.
+    atm_rate:double;
+}
+
+/// Response wrapper for multiple year-on-year inflation cap/floor trades.
+table PriceYearOnYearInflationCapFloorResponse {
+    cap_floors:[YoYInflationCapFloorResponse] (required);
+}
+
+root_type PriceYearOnYearInflationCapFloorResponse;

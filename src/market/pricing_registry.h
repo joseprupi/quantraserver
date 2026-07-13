@@ -75,6 +75,7 @@ struct VolatilityRegistry {
     std::map<std::string, OptionletVolEntry> optionletVols;
     std::map<std::string, SwaptionVolEntry> swaptionVols;
     std::map<std::string, BlackVolEntry> blackVols;
+    std::map<std::string, YoYOptionletVolEntry> yoyOptionletVols;
     // Plain-domain models, populated for every entry on every request.
     std::map<std::string, ModelDomain> modelDomains;
 };

@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "description" : "Canonical period type used across APIs.",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "description" : "Yield/compounding convention specification.",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "description" : "Error message container.",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "description" : "Past fixed interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "description" : "Notional exchange cash flow.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Schedule" : {
+      "type" : "object",
+      "description" : "Date schedule definition for payment and accrual dates.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "effective_date" : {
+                "type" : "string"
+              },
+        "termination_date" : {
+                "type" : "string"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              },
+        "convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "termination_date_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "date_generation_rule" : {
+                "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
+              },
+        "end_of_month" : {
+                "type" : "boolean"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_YoYInflationCapFloor" : {
+      "type" : "object",
+      "description" : "Year-on-year inflation cap / floor / collar (QuantLib::YoYInflationCapFloor).\nA strip of year-on-year inflation optionlets built over `schedule` off the\nsame YoY inflation index/curve the year-on-year inflation swap path uses.\n\nThe pricing formula is selected by the referenced YoYOptionletVolSpec's\nvol_type (Black / UnitDisplacedBlack / Bachelier); the vol surface and this\ninstrument reference the SAME year-on-year inflation index by id.",
+      "properties" : {
+        "cap_floor_type" : {
+                "$ref" : "#/definitions/quantra_enums_CapFloorType",
+                "description" : "Cap, Floor, or Collar. Presence-required: an omitted type is a 400,\nnever the alphabetical-0 default (Cap). Reuses the shared CapFloorType\nenum (Cap/Floor/Collar)."
+              },
+        "notional" : {
+                "type" : "number",
+                "description" : "Notional per optionlet."
+              },
+        "schedule" : {
+                "$ref" : "#/definitions/quantra_Schedule",
+                "description" : "Coupon schedule for the year-on-year optionlet strip."
+              },
+        "inflation_index_id" : {
+                "type" : "string",
+                "description" : "Link to InflationIndexSpec.id — the YoY inflation index (must resolve to\na QuantLib YoYInflationIndex, same as the year-on-year inflation swap)."
+              },
+        "observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Observation lag used when the year-on-year rate is observed (e.g. 3\nMonths)."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day counter for the optionlet accrual. Presence-required."
+              },
+        "payment_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention for the payment dates. Presence-required."
+              },
+        "cap_rate" : {
+                "type" : "number",
+                "description" : "Cap strike (year-on-year rate). Required when, and only when, the type\nis Cap or Collar; must be absent for a Floor."
+              },
+        "floor_rate" : {
+                "type" : "number",
+                "description" : "Floor strike (year-on-year rate). Required when, and only when, the type\nis Floor or Collar; must be absent for a Cap. For a Collar,\ncap_rate >= floor_rate is enforced."
+              },
+        "gearing" : {
+                "type" : "number",
+                "description" : "Optional per-optionlet gearing on the year-on-year rate (absent => 1.0)."
+              },
+        "spread" : {
+                "type" : "number",
+                "description" : "Optional per-optionlet spread added to the year-on-year rate\n(absent => 0.0)."
+              }
+      },
+      "required" : ["schedule", "observation_lag"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_YoYInflationCapFloor"
+}

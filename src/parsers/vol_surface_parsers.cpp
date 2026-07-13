@@ -2318,4 +2318,62 @@ SwaptionVolEntry withSwaptionSabrParamsAtm(
     return out;
 }
 
+// =============================================================================
+// YoY Inflation Optionlet Vol Parser
+// =============================================================================
+
+YoYOptionletVolEntry parseYoYOptionletVol(const quantra::VolSurfaceSpec* spec) {
+    if (!spec || !spec->id()) {
+        QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec or id is null");
+    }
+    std::string id = spec->id()->str();
+
+    const auto* p = spec->payload_as_YoYOptionletVolSpec();
+    if (!p) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec payload missing for vol id: " + id);
+    }
+    if (!p->constant_vol().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.constant_vol is required for vol id: " + id);
+    }
+    if (!p->vol_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.vol_type is required for vol id: " + id);
+    }
+    if (!p->day_counter().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.day_counter is required for vol id: " + id);
+    }
+    if (!p->calendar().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.calendar is required for vol id: " + id);
+    }
+    if (!p->business_day_convention().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "YoYOptionletVolSpec.business_day_convention is required for vol id: " + id);
+    }
+    if (!p->observation_lag()) {
+        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.observation_lag is required for vol id: " + id);
+    }
+
+    YoYOptionletVolEntry entry;
+    entry.constantVol = p->constant_vol().value();
+    switch (p->vol_type().value()) {
+        case quantra::enums::YoYInflationCapFloorEngineType_Black:
+            entry.engineKind = YoYInflationEngineKind::Black;
+            break;
+        case quantra::enums::YoYInflationCapFloorEngineType_UnitDisplacedBlack:
+            entry.engineKind = YoYInflationEngineKind::UnitDisplacedBlack;
+            break;
+        case quantra::enums::YoYInflationCapFloorEngineType_Bachelier:
+            entry.engineKind = YoYInflationEngineKind::Bachelier;
+            break;
+        default:
+            QUANTRA_INVALID_ARGUMENT(
+                "Unknown YoYInflationCapFloorEngineType for vol id: " + id);
+    }
+    entry.dayCounter = DayCounterToQL(p->day_counter().value());
+    entry.calendar = CalendarToQL(p->calendar().value());
+    entry.businessDayConvention = ConventionToQL(p->business_day_convention().value());
+    entry.observationLag = QuantLib::Period(
+        p->observation_lag()->n(), TimeUnitToQL(p->observation_lag()->unit()));
+    return entry;
+}
+
 } // namespace quantra

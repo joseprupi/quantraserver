@@ -1,0 +1,47 @@
+include "enums.fbs";
+include "common.fbs";
+include "schedule.fbs";
+
+namespace quantra;
+
+/// Year-on-year inflation cap / floor / collar (QuantLib::YoYInflationCapFloor).
+/// A strip of year-on-year inflation optionlets built over `schedule` off the
+/// same YoY inflation index/curve the year-on-year inflation swap path uses.
+///
+/// The pricing formula is selected by the referenced YoYOptionletVolSpec's
+/// vol_type (Black / UnitDisplacedBlack / Bachelier); the vol surface and this
+/// instrument reference the SAME year-on-year inflation index by id.
+table YoYInflationCapFloor {
+    /// Cap, Floor, or Collar. Presence-required: an omitted type is a 400,
+    /// never the alphabetical-0 default (Cap). Reuses the shared CapFloorType
+    /// enum (Cap/Floor/Collar).
+    cap_floor_type:enums.CapFloorType = null;
+    /// Notional per optionlet.
+    notional:double;
+    /// Coupon schedule for the year-on-year optionlet strip.
+    schedule:Schedule (required);
+    /// Link to InflationIndexSpec.id — the YoY inflation index (must resolve to
+    /// a QuantLib YoYInflationIndex, same as the year-on-year inflation swap).
+    inflation_index_id:string;
+    /// Observation lag used when the year-on-year rate is observed (e.g. 3
+    /// Months).
+    observation_lag:Period (required);
+    /// Day counter for the optionlet accrual. Presence-required.
+    day_counter:enums.DayCounter = null;
+    /// Business-day convention for the payment dates. Presence-required.
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Cap strike (year-on-year rate). Required when, and only when, the type
+    /// is Cap or Collar; must be absent for a Floor.
+    cap_rate:double = null;
+    /// Floor strike (year-on-year rate). Required when, and only when, the type
+    /// is Floor or Collar; must be absent for a Cap. For a Collar,
+    /// cap_rate >= floor_rate is enforced.
+    floor_rate:double = null;
+    /// Optional per-optionlet gearing on the year-on-year rate (absent => 1.0).
+    gearing:double = null;
+    /// Optional per-optionlet spread added to the year-on-year rate
+    /// (absent => 0.0).
+    spread:double = null;
+}
+
+root_type YoYInflationCapFloor;

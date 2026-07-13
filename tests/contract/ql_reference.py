@@ -2534,6 +2534,115 @@ def price_year_on_year_inflation_swap_ql(request: dict) -> float:
     return swap.NPV()
 
 
+def price_year_on_year_inflation_cap_floor_ql(request: dict) -> float:
+    """Price a year-on-year inflation cap/floor/collar using QuantLib.
+
+    Mirrors the server's evaluator field for field:
+      * the YoY index projects off the same PiecewiseYoYInflation curve the
+        year-on-year swap path builds, and the engine's nominal term structure
+        is the trade's discounting curve,
+      * the optionlet strip is a yoyInflationLeg over the trade schedule with
+        the trade notional / payment day counter / payment adjustment and, when
+        present, per-optionlet gearing/spread; the observation interpolation is
+        fixed to CPI.AsIndex,
+      * the volatility is the referenced YoYOptionletVolSpec rebuilt as a
+        ConstantYoYOptionletVolatility whose frequency and index-interpolation
+        flag come from the YoY inflation index (so the surface stays
+        convention-consistent with its index), settlement days 0,
+      * the engine follows the vol spec's vol_type: Black / UnitDisplacedBlack /
+        Bachelier.
+
+    Note: QuantLib-Python's ConstantYoYOptionletVolatility constructor does not
+    expose the vol-type/displacement arguments, so the surface uses QuantLib's
+    default vol type on both sides; the pricing formula is entirely determined
+    by the engine, matching the server (which constructs the C++ surface with
+    the same defaults).
+    """
+    pricing = _reference_pricing_view(request)
+    cf_data = request["cap_floors"][0]
+    trade = cf_data["year_on_year_inflation_cap_floor"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    nominal_curve = _nominal_curve_resolver(pricing, eval_date, request)
+    discount = nominal_curve(cf_data["discounting_curve"])
+
+    curve_spec = _find_inflation_curve_spec(pricing, cf_data["inflation_curve"])
+    if curve_spec.get("kind") != "YoYInflation":
+        raise ValueError("YoY inflation cap/floor needs a YoYInflation curve")
+    index_spec = _find_inflation_index_spec(pricing, curve_spec["index_id"])
+    if index_spec["id"] != trade["inflation_index_id"]:
+        raise ValueError(
+            "YoY inflation cap/floor inflation_index_id does not match the "
+            "inflation curve's index")
+    ts = _build_yoy_inflation_curve(curve_spec, index_spec, request, nominal_curve)
+    index = _build_inflation_index(
+        index_spec, yoy_handle=ql.YoYInflationTermStructureHandle(ts))
+
+    # Resolve the referenced YoYOptionletVolSpec payload.
+    vol_id = cf_data["volatility"]
+    vol_payload = None
+    for v in pricing.get("vol_surfaces", []):
+        if v.get("id") == vol_id:
+            vol_payload = v.get("payload", {})
+            break
+    if vol_payload is None:
+        raise ValueError(f"YoY optionlet vol not found: {vol_id}")
+
+    schedule = _build_wire_schedule(trade["schedule"])
+    obs_lag = _wire_period(trade, "observation_lag")
+    notional = trade["notional"]
+    payment_dc = get_day_counter(trade["day_counter"])
+    payment_bdc = get_convention(trade["payment_convention"])
+    calendar = schedule.calendar()
+
+    gearings = [trade["gearing"]] if "gearing" in trade else []
+    spreads = [trade["spread"]] if "spread" in trade else []
+
+    leg = ql.yoyInflationLeg(
+        schedule, calendar, index, obs_lag, ql.CPI.AsIndex,
+        [notional], payment_dc, payment_bdc, 0, gearings, spreads)
+
+    cf_type = trade["cap_floor_type"]
+    if cf_type == "Cap":
+        instrument = ql.YoYInflationCap(leg, [trade["cap_rate"]])
+    elif cf_type == "Floor":
+        instrument = ql.YoYInflationFloor(leg, [trade["floor_rate"]])
+    elif cf_type == "Collar":
+        instrument = ql.YoYInflationCollar(
+            leg, [trade["cap_rate"]], [trade["floor_rate"]])
+    else:
+        raise ValueError(f"Unknown cap_floor_type: {cf_type}")
+
+    freq = get_frequency(index_spec.get("frequency", "Monthly"))
+    interpolated = index_spec.get("interpolated", True)
+    vol_handle = ql.YoYOptionletVolatilitySurfaceHandle(
+        ql.ConstantYoYOptionletVolatility(
+            vol_payload["constant_vol"],
+            0,
+            _calendar_from_enum(vol_payload["calendar"]),
+            get_convention(vol_payload["business_day_convention"]),
+            get_day_counter(vol_payload["day_counter"]),
+            _wire_period(vol_payload, "observation_lag"),
+            freq,
+            interpolated))
+
+    engine_type = vol_payload["vol_type"]
+    yoy_index = index
+    if engine_type == "Bachelier":
+        engine = ql.YoYInflationBachelierCapFloorEngine(
+            yoy_index, vol_handle, discount)
+    elif engine_type == "UnitDisplacedBlack":
+        engine = ql.YoYInflationUnitDisplacedBlackCapFloorEngine(
+            yoy_index, vol_handle, discount)
+    else:
+        engine = ql.YoYInflationBlackCapFloorEngine(
+            yoy_index, vol_handle, discount)
+    instrument.setPricingEngine(engine)
+    return instrument.NPV()
+
+
 def _make_multicurve_exogenous_request() -> dict:
     """
     Build a 2-curve request:

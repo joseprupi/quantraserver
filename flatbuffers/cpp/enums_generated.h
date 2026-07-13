@@ -1125,6 +1125,44 @@ inline const char *EnumNameVolSurfaceShape(VolSurfaceShape e) {
   return EnumNamesVolSurfaceShape()[index];
 }
 
+/// Pricing formula (engine) for year-on-year inflation caps/floors. Selects the
+/// QuantLib engine over the same constant YoY optionlet vol surface: Black
+/// (lognormal), UnitDisplacedBlack (unit-displaced lognormal), or Bachelier
+/// (normal). This is presence-required on YoYOptionletVolSpec — there is no
+/// alphabetical-0 default.
+enum YoYInflationCapFloorEngineType : int8_t {
+  YoYInflationCapFloorEngineType_Black = 0,
+  YoYInflationCapFloorEngineType_UnitDisplacedBlack = 1,
+  YoYInflationCapFloorEngineType_Bachelier = 2,
+  YoYInflationCapFloorEngineType_MIN = YoYInflationCapFloorEngineType_Black,
+  YoYInflationCapFloorEngineType_MAX = YoYInflationCapFloorEngineType_Bachelier
+};
+
+inline const YoYInflationCapFloorEngineType (&EnumValuesYoYInflationCapFloorEngineType())[3] {
+  static const YoYInflationCapFloorEngineType values[] = {
+    YoYInflationCapFloorEngineType_Black,
+    YoYInflationCapFloorEngineType_UnitDisplacedBlack,
+    YoYInflationCapFloorEngineType_Bachelier
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesYoYInflationCapFloorEngineType() {
+  static const char * const names[4] = {
+    "Black",
+    "UnitDisplacedBlack",
+    "Bachelier",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameYoYInflationCapFloorEngineType(YoYInflationCapFloorEngineType e) {
+  if (::flatbuffers::IsOutRange(e, YoYInflationCapFloorEngineType_Black, YoYInflationCapFloorEngineType_Bachelier)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesYoYInflationCapFloorEngineType()[index];
+}
+
 /// Swaption volatility surface shape.
 enum SwaptionVolKind : int8_t {
   SwaptionVolKind_Constant = 0,

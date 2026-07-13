@@ -2543,6 +2543,122 @@ CASES = [
     },
 
     # ------------------------------------------------------------------
+    # Inflation — year-on-year inflation caps / floors / collars
+    # (QuantLib YoYInflationCapFloor over the same YoY index/curve the YYIIS
+    # path uses; forward YoY rates on this curve run 2.01% (1Y) to 2.42% (5Y)).
+    # ------------------------------------------------------------------
+    {
+        "id": "yoy_cf_eur_5y_cap_150bp_black_bites",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation cap struck at 1.50%, Black engine",
+        "description": (
+            "A 5Y year-on-year inflation cap struck at 1.50%, well below the "
+            "2.01%-2.42% forward YoY rates on the curve, so every optionlet is "
+            "in the money and the cap bites: NPV ~= 31,885 on 1m notional at "
+            "1% lognormal vol (Black engine). Contrast the 2.80% out-of-the-"
+            "money cap below (~0.11)."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_black_bites.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation cap", "in-the-money / bites", "Black engine",
+                      "constant YoY optionlet vol"],
+    },
+    {
+        "id": "yoy_cf_eur_5y_cap_280bp_black_otm",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation cap struck at 2.80%, out of the money",
+        "description": (
+            "The same 5Y YoY cap struck at 2.80%, above every forward YoY rate "
+            "(2.01%-2.42%), so it holds only time value: NPV ~= 0.11 on 1m "
+            "notional at 2% lognormal vol (Black engine). Pins the "
+            "out-of-the-money tail against the biting 1.50% cap."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_5y_cap_280bp_black_otm.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation cap", "out of the money", "small NPV",
+                      "Black engine"],
+    },
+    {
+        "id": "yoy_cf_eur_5y_floor_300bp_black_bites",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation floor struck at 3.00%, Black engine",
+        "description": (
+            "A 5Y year-on-year inflation floor struck at 3.00%, above every "
+            "forward YoY rate (2.01%-2.42%), so every optionlet is in the money "
+            "and the floor bites: NPV ~= 36,683 on 1m notional at 1% lognormal "
+            "vol (Black engine)."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_5y_floor_300bp_black_bites.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation floor", "in-the-money / bites",
+                      "Black engine"],
+    },
+    {
+        "id": "yoy_cf_eur_5y_collar_black",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation collar (long 2.50% cap, short 1.50% floor)",
+        "description": (
+            "A 5Y year-on-year inflation collar: long the 2.50% cap, short the "
+            "1.50% floor. The cap sits just above most forward YoY rates and "
+            "the floor well below them, so the two legs nearly offset: NPV ~= "
+            "10.90 on 1m notional at 1% lognormal vol (Black engine). Exercises "
+            "the Collar type (both strikes required, cap_rate >= floor_rate)."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_5y_collar_black.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation collar", "long cap short floor",
+                      "cap >= floor", "Black engine"],
+    },
+    {
+        "id": "yoy_cf_eur_5y_cap_150bp_bachelier",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 5Y YoY inflation cap struck at 1.50%, Bachelier engine",
+        "description": (
+            "The biting 5Y 1.50% YoY cap repriced with the Bachelier (normal-"
+            "vol) engine at 0.50% normal vol: NPV ~= 36,138 on 1m notional. "
+            "Exercises the normal-vol pricing formula against the same "
+            "in-the-money strip the Black case covers."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_bachelier.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation cap", "Bachelier / normal vol",
+                      "in-the-money"],
+    },
+    {
+        "id": "yoy_cf_eur_3y_cap_175bp_udblack",
+        "product": "year_on_year_inflation_cap_floor",
+        "family": "Inflation",
+        "title": "EUR 3Y YoY inflation cap struck at 1.75%, unit-displaced Black",
+        "description": (
+            "A shorter 3Y year-on-year inflation cap struck at 1.75% priced "
+            "with the unit-displaced Black engine at 1% vol: NPV ~= 21,247 on "
+            "1m notional. Exercises a second strike and maturity and the third "
+            "(unit-displaced Black) engine variant."
+        ),
+        "request": "inflation_cap_floor/yoy_cf_eur_3y_cap_175bp_udblack.json",
+        "list_key": "cap_floors",
+        "ql_pricer": "price_year_on_year_inflation_cap_floor_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["YoY inflation cap", "unit-displaced Black",
+                      "3Y maturity", "second strike"],
+    },
+
+    # ------------------------------------------------------------------
     # Equity — European vanilla options (Black-Scholes-Merton)
     # ------------------------------------------------------------------
     {
