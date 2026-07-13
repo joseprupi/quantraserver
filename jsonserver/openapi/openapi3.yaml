@@ -981,6 +981,49 @@ paths:
                   error:
                     type: string
                     description: Error message
+  /price-callable-fixed-rate-bond:
+    post:
+      summary: Price Callable Fixed Rate Bond
+      description: Calculate NPV, clean/dirty price, and settlement date for callable
+        (or puttable) fixed-rate bonds (QuantLib CallableFixedRateBond) priced on
+        a TreeCallableFixedRateBondEngine over a Hull-White short-rate model referenced
+        by id (the same model mechanism as swaptions, with explicit or calibrated
+        parameters). Option-adjusted spread is a documented future extension.
+      tags:
+      - Bonds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceCallableFixedRateBondRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceCallableFixedRateBondResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /health:
     get:
       summary: Health Check
@@ -1223,6 +1266,11 @@ components:
       - Cap
       - Floor
       - Collar
+    quantra_enums_CallabilityType:
+      type: string
+      enum:
+      - Call
+      - Put
     quantra_enums_ExerciseType:
       type: string
       enum:
@@ -4114,6 +4162,113 @@ components:
       - vol_id
       - diagnostics
       additionalProperties: false
+    quantra_CallabilityEntry:
+      type: object
+      description: 'One entry in a callable/puttable bond''s call schedule: on `date`
+        the option
+
+        holder (the issuer for a Call, the bondholder for a Put) may exercise at
+
+        `price`.
+
+
+        `price` is a CLEAN price per 100 of face — it maps to a QuantLib
+
+        Callability::Price of type Clean (Bond::Price::Clean). Dirty-price call
+
+        schedules are equally native in QuantLib, but this product ships Clean-only;
+
+        a `price_type` selector is a documented future extension. `price` must be
+
+        strictly positive.'
+      properties:
+        date:
+          type: string
+          description: Exercise date (YYYY-MM-DD).
+        price:
+          type: number
+          description: Clean call/put price per 100 of face. Must be > 0.
+        callability_type:
+          $ref: '#/components/schemas/quantra_enums_CallabilityType'
+      additionalProperties: false
+    quantra_CallableFixedRateBond:
+      type: object
+      description: 'Callable (or puttable) fixed-rate bond. Mirrors the plain FixedRateBond
+
+        coupon vocabulary (settlement_days, face_amount, single coupon rate,
+
+        accrual_day_counter, payment_convention, redemption, issue_date, schedule)
+
+        and adds a non-empty call schedule. Priced with a short-rate (Hull-White)
+
+        model on a trinomial tree lattice. Per-period amortizing notionals are a
+
+        documented future extension (QuantLib''s CallableFixedRateBond is
+
+        constant-notional).'
+      properties:
+        settlement_days:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+        face_amount:
+          type: number
+        rate:
+          type: number
+        accrual_day_counter:
+          $ref: '#/components/schemas/quantra_enums_DayCounter'
+        payment_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        redemption:
+          type: number
+        issue_date:
+          type: string
+        schedule:
+          $ref: '#/components/schemas/quantra_Schedule'
+        call_schedule:
+          type: array
+          description: 'Non-empty call/put schedule. Entries must carry strictly increasing
+
+            dates, each after issue_date, and each with price > 0.'
+          items:
+            $ref: '#/components/schemas/quantra_CallabilityEntry'
+      required:
+      - call_schedule
+      additionalProperties: false
+    quantra_CallableFixedRateBondResponse:
+      type: object
+      description: 'Callable fixed-rate bond pricing response. Reports the tree-model
+        NPV plus
+
+        clean/dirty price and the settlement date.
+
+
+        Option-adjusted spread (OAS) and analytic risk measures (effective duration
+
+        / convexity) are a documented future optional flag — this product ships
+
+        npv + clean/dirty price + settlement_date only.'
+      properties:
+        npv:
+          type: number
+        clean_price:
+          type: number
+        dirty_price:
+          type: number
+        settlement_date:
+          type: string
+      additionalProperties: false
+    quantra_PriceCallableFixedRateBondResponse:
+      type: object
+      description: Response wrapper for multiple callable fixed-rate bonds.
+      properties:
+        bonds:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_CallableFixedRateBondResponse'
+      required:
+      - bonds
+      additionalProperties: false
     quantra_CapFloor:
       type: object
       description: Cap or Floor instrument.
@@ -4582,6 +4737,60 @@ components:
             $ref: '#/components/schemas/quantra_PriceBasisSwap'
         include_flows:
           type: boolean
+      additionalProperties: false
+    quantra_PriceCallableFixedRateBond:
+      type: object
+      description: 'Single callable fixed-rate bond pricing context with explicit
+        market-data
+
+        references.'
+      properties:
+        callable_fixed_rate_bond:
+          $ref: '#/components/schemas/quantra_CallableFixedRateBond'
+        discounting_curve:
+          type: string
+          description: 'Reference to a curve in Pricing.rates.curves used for discounting
+            and as
+
+            the term structure carried by the Hull-White model / tree engine.'
+        model:
+          type: string
+          description: 'Reference to a short-rate model in Pricing.volatility.models
+            by id. Must
+
+            be a SwaptionModelSpec of model_type HullWhiteLattice — the callable
+
+            bond reuses the swaption product''s model mechanism (including its
+
+            cross-request Hull-White calibration cache), so param_mode=Explicit uses
+
+            the model''s hw_a/hw_sigma and param_mode=Calibrate calibrates against
+            the
+
+            referenced swaption vol surface.'
+        tree_steps:
+          type: integer
+          description: 'Number of time steps for the TreeCallableFixedRateBondEngine
+            lattice.
+
+            Absent => server default (kDefaultTreeSteps, ~400). Server-side clamped
+
+            to [kMinTreeSteps, kMaxTreeSteps] = [1, 2000]; the model''s own
+
+            lattice_steps is unrelated and unused here.'
+          minimum: -2147483648
+          maximum: 2147483647
+      additionalProperties: false
+    quantra_PriceCallableFixedRateBondRequest:
+      type: object
+      description: Request to price one or more callable fixed-rate bonds.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        bonds:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceCallableFixedRateBond'
       additionalProperties: false
     quantra_PriceCapFloor:
       type: object

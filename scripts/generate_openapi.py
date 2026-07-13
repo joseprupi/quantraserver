@@ -215,6 +215,11 @@ ENDPOINT_METADATA = {
         "summary": "Price Year-on-Year Inflation Cap/Floor",
         "description": "Price year-on-year inflation caps, floors, and collars (QuantLib YoYInflationCapFloor) over a configured YoY inflation index/curve and a constant YoY optionlet volatility, using the Black, unit-displaced Black, or Bachelier engine selected by the vol spec.",
         "tags": ["Inflation"]
+    },
+    "callable_fixed_rate_bond": {
+        "summary": "Price Callable Fixed Rate Bond",
+        "description": "Calculate NPV, clean/dirty price, and settlement date for callable (or puttable) fixed-rate bonds (QuantLib CallableFixedRateBond) priced on a TreeCallableFixedRateBondEngine over a Hull-White short-rate model referenced by id (the same model mechanism as swaptions, with explicit or calibrated parameters). Option-adjusted spread is a documented future extension.",
+        "tags": ["Bonds"]
     }
 }
 

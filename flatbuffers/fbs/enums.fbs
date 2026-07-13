@@ -213,6 +213,15 @@ enum CapFloorType : byte {
     Collar = 2
 }
 
+/// Callable/puttable bond option side attached to a call-schedule entry:
+/// Call (issuer may redeem the bond early) or Put (holder may sell it back
+/// early). Presence-required on CallabilityEntry — there is no
+/// alphabetical-0 default.
+enum CallabilityType : byte {
+    Call = 0,
+    Put = 1
+}
+
 /// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 enum ExerciseType : byte {
     European = 0,

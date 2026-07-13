@@ -1503,6 +1503,69 @@
         }
       }
     },
+    "/price-callable-fixed-rate-bond": {
+      "post": {
+        "summary": "Price Callable Fixed Rate Bond",
+        "description": "Calculate NPV, clean/dirty price, and settlement date for callable (or puttable) fixed-rate bonds (QuantLib CallableFixedRateBond) priced on a TreeCallableFixedRateBondEngine over a Hull-White short-rate model referenced by id (the same model mechanism as swaptions, with explicit or calibrated parameters). Option-adjusted spread is a documented future extension.",
+        "tags": [
+          "Bonds"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceCallableFixedRateBondRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceCallableFixedRateBondResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -1808,6 +1871,13 @@
           "Cap",
           "Floor",
           "Collar"
+        ]
+      },
+      "quantra_enums_CallabilityType": {
+        "type": "string",
+        "enum": [
+          "Call",
+          "Put"
         ]
       },
       "quantra_enums_ExerciseType": {
@@ -5688,6 +5758,102 @@
         ],
         "additionalProperties": false
       },
+      "quantra_CallabilityEntry": {
+        "type": "object",
+        "description": "One entry in a callable/puttable bond's call schedule: on `date` the option\nholder (the issuer for a Call, the bondholder for a Put) may exercise at\n`price`.\n\n`price` is a CLEAN price per 100 of face \u2014 it maps to a QuantLib\nCallability::Price of type Clean (Bond::Price::Clean). Dirty-price call\nschedules are equally native in QuantLib, but this product ships Clean-only;\na `price_type` selector is a documented future extension. `price` must be\nstrictly positive.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Exercise date (YYYY-MM-DD)."
+          },
+          "price": {
+            "type": "number",
+            "description": "Clean call/put price per 100 of face. Must be > 0."
+          },
+          "callability_type": {
+            "$ref": "#/components/schemas/quantra_enums_CallabilityType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_CallableFixedRateBond": {
+        "type": "object",
+        "description": "Callable (or puttable) fixed-rate bond. Mirrors the plain FixedRateBond\ncoupon vocabulary (settlement_days, face_amount, single coupon rate,\naccrual_day_counter, payment_convention, redemption, issue_date, schedule)\nand adds a non-empty call schedule. Priced with a short-rate (Hull-White)\nmodel on a trinomial tree lattice. Per-period amortizing notionals are a\ndocumented future extension (QuantLib's CallableFixedRateBond is\nconstant-notional).",
+        "properties": {
+          "settlement_days": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "face_amount": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          },
+          "accrual_day_counter": {
+            "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "payment_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "redemption": {
+            "type": "number"
+          },
+          "issue_date": {
+            "type": "string"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/quantra_Schedule"
+          },
+          "call_schedule": {
+            "type": "array",
+            "description": "Non-empty call/put schedule. Entries must carry strictly increasing\ndates, each after issue_date, and each with price > 0.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CallabilityEntry"
+            }
+          }
+        },
+        "required": [
+          "call_schedule"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CallableFixedRateBondResponse": {
+        "type": "object",
+        "description": "Callable fixed-rate bond pricing response. Reports the tree-model NPV plus\nclean/dirty price and the settlement date.\n\nOption-adjusted spread (OAS) and analytic risk measures (effective duration\n/ convexity) are a documented future optional flag \u2014 this product ships\nnpv + clean/dirty price + settlement_date only.",
+        "properties": {
+          "npv": {
+            "type": "number"
+          },
+          "clean_price": {
+            "type": "number"
+          },
+          "dirty_price": {
+            "type": "number"
+          },
+          "settlement_date": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceCallableFixedRateBondResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple callable fixed-rate bonds.",
+        "properties": {
+          "bonds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CallableFixedRateBondResponse"
+            }
+          }
+        },
+        "required": [
+          "bonds"
+        ],
+        "additionalProperties": false
+      },
       "quantra_CapFloor": {
         "type": "object",
         "description": "Cap or Floor instrument.",
@@ -6329,6 +6495,46 @@
           },
           "include_flows": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceCallableFixedRateBond": {
+        "type": "object",
+        "description": "Single callable fixed-rate bond pricing context with explicit market-data\nreferences.",
+        "properties": {
+          "callable_fixed_rate_bond": {
+            "$ref": "#/components/schemas/quantra_CallableFixedRateBond"
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Reference to a curve in Pricing.rates.curves used for discounting and as\nthe term structure carried by the Hull-White model / tree engine."
+          },
+          "model": {
+            "type": "string",
+            "description": "Reference to a short-rate model in Pricing.volatility.models by id. Must\nbe a SwaptionModelSpec of model_type HullWhiteLattice \u2014 the callable\nbond reuses the swaption product's model mechanism (including its\ncross-request Hull-White calibration cache), so param_mode=Explicit uses\nthe model's hw_a/hw_sigma and param_mode=Calibrate calibrates against the\nreferenced swaption vol surface."
+          },
+          "tree_steps": {
+            "type": "integer",
+            "description": "Number of time steps for the TreeCallableFixedRateBondEngine lattice.\nAbsent => server default (kDefaultTreeSteps, ~400). Server-side clamped\nto [kMinTreeSteps, kMaxTreeSteps] = [1, 2000]; the model's own\nlattice_steps is unrelated and unused here.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceCallableFixedRateBondRequest": {
+        "type": "object",
+        "description": "Request to price one or more callable fixed-rate bonds.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "bonds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceCallableFixedRateBond"
+            }
           }
         },
         "additionalProperties": false

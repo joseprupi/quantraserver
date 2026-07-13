@@ -1,0 +1,46 @@
+include "enums.fbs";
+include "schedule.fbs";
+
+namespace quantra;
+
+/// One entry in a callable/puttable bond's call schedule: on `date` the option
+/// holder (the issuer for a Call, the bondholder for a Put) may exercise at
+/// `price`.
+///
+/// `price` is a CLEAN price per 100 of face — it maps to a QuantLib
+/// Callability::Price of type Clean (Bond::Price::Clean). Dirty-price call
+/// schedules are equally native in QuantLib, but this product ships Clean-only;
+/// a `price_type` selector is a documented future extension. `price` must be
+/// strictly positive.
+table CallabilityEntry {
+    /// Exercise date (YYYY-MM-DD).
+    date:string;
+    /// Clean call/put price per 100 of face. Must be > 0.
+    price:double;
+    /// Option side: Call (issuer redeems) or Put (holder sells back).
+    /// Presence-required — there is no alphabetical-0 default.
+    callability_type:enums.CallabilityType = null;
+}
+
+/// Callable (or puttable) fixed-rate bond. Mirrors the plain FixedRateBond
+/// coupon vocabulary (settlement_days, face_amount, single coupon rate,
+/// accrual_day_counter, payment_convention, redemption, issue_date, schedule)
+/// and adds a non-empty call schedule. Priced with a short-rate (Hull-White)
+/// model on a trinomial tree lattice. Per-period amortizing notionals are a
+/// documented future extension (QuantLib's CallableFixedRateBond is
+/// constant-notional).
+table CallableFixedRateBond {
+    settlement_days:int;
+    face_amount:double;
+    rate:double;
+    accrual_day_counter:enums.DayCounter = null;
+    payment_convention:enums.BusinessDayConvention = null;
+    redemption:double;
+    issue_date:string;
+    schedule:Schedule;
+    /// Non-empty call/put schedule. Entries must carry strictly increasing
+    /// dates, each after issue_date, and each with price > 0.
+    call_schedule:[CallabilityEntry] (required);
+}
+
+root_type CallableFixedRateBond;

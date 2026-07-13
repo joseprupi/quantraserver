@@ -1079,6 +1079,36 @@
 </tr>
 </tbody>
 </table>
-<footer>163 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<h2>Callable Bonds</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR 8Y 5% callable bond, single call at 100 (deep in the money)</div><div class="desc">High-coupon (5% annual 30/360) 8Y EUR bond on a ~3% curve, so the straight bond trades well above par (NPV 1,127,246.83). A single issuer call at a clean 100 in 2029 is deep in the issuer&#x27;s favour, so the Hull-White tree (a=0.03, sigma=0.01, 500 steps) prices the callable at 1,065,161.03 — 62,085.81 below the straight bond, the value of the embedded call.</div></td>
+<td><code>callable bond</code> <code>in-the-money call</code> <code>Hull-White tree</code> <code>callable below straight</code> <code>explicit HW params</code></td>
+<td><a href="../../examples/data/callable_bonds/cfrb_eur_8y_5pct_call_100_itm.json">cfrb_eur_8y_5pct_call_100_itm.json</a></td>
+<td class="npv">1,065,161.03</td>
+</tr>
+<tr>
+<td><div class="title">EUR 8Y 5% callable bond, single call at 115 (out of the money)</div><div class="desc">The same 5% premium bond, but the single 2029 call is struck at a clean 115 — above the bond&#x27;s premium price, so the call almost never bites. The callable prices at 1,123,370.51, only 3,876.33 below the straight bond (1,127,246.83): an out-of-the-money call leaves the bond close to the plain fixed-rate value.</div></td>
+<td><code>callable bond</code> <code>out-of-the-money call</code> <code>callable near straight</code> <code>Hull-White tree</code></td>
+<td><a href="../../examples/data/callable_bonds/cfrb_eur_8y_5pct_call_115_otm.json">cfrb_eur_8y_5pct_call_115_otm.json</a></td>
+<td class="npv">1,123,370.51</td>
+</tr>
+<tr>
+<td><div class="title">EUR 8Y 5% callable bond, 3-date step-down call schedule</div><div class="desc">The 5% premium bond with a three-date American-style call ladder (2029 at 102, 2030 at 101, 2031 at 100.5). The multi-date callability lets the issuer redeem at the most favourable of the stepping prices, pricing the callable at 1,076,386.15 — 50,860.68 below the straight bond. Exercises a multi-entry CallabilitySchedule.</div></td>
+<td><code>callable bond</code> <code>multi-date call schedule</code> <code>step-down call prices</code> <code>Hull-White tree</code></td>
+<td><a href="../../examples/data/callable_bonds/cfrb_eur_8y_5pct_multi_call_step.json">cfrb_eur_8y_5pct_multi_call_step.json</a></td>
+<td class="npv">1,076,386.15</td>
+</tr>
+<tr>
+<td><div class="title">EUR 8Y 2% puttable bond, single put at 98</div><div class="desc">Low-coupon (2% annual 30/360) 8Y EUR bond on the same ~3% curve, so the straight bond trades at a discount (NPV 917,757.88). A single bondholder put at a clean 98 in 2029 lets the holder sell the bond back above its market value, raising the puttable price to 955,355.35 — 37,597.47 ABOVE the straight bond, the value of the embedded put.</div></td>
+<td><code>puttable bond</code> <code>in-the-money put</code> <code>puttable above straight</code> <code>Hull-White tree</code></td>
+<td><a href="../../examples/data/callable_bonds/cfrb_eur_8y_2pct_put_98.json">cfrb_eur_8y_2pct_put_98.json</a></td>
+<td class="npv">955,355.35</td>
+</tr>
+</tbody>
+</table>
+<footer>167 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

@@ -1,0 +1,33 @@
+include "pricing.fbs";
+include "callable_fixed_rate_bond.fbs";
+
+namespace quantra;
+
+/// Single callable fixed-rate bond pricing context with explicit market-data
+/// references.
+table PriceCallableFixedRateBond {
+    callable_fixed_rate_bond:CallableFixedRateBond;
+    /// Reference to a curve in Pricing.rates.curves used for discounting and as
+    /// the term structure carried by the Hull-White model / tree engine.
+    discounting_curve:string;
+    /// Reference to a short-rate model in Pricing.volatility.models by id. Must
+    /// be a SwaptionModelSpec of model_type HullWhiteLattice — the callable
+    /// bond reuses the swaption product's model mechanism (including its
+    /// cross-request Hull-White calibration cache), so param_mode=Explicit uses
+    /// the model's hw_a/hw_sigma and param_mode=Calibrate calibrates against the
+    /// referenced swaption vol surface.
+    model:string;
+    /// Number of time steps for the TreeCallableFixedRateBondEngine lattice.
+    /// Absent => server default (kDefaultTreeSteps, ~400). Server-side clamped
+    /// to [kMinTreeSteps, kMaxTreeSteps] = [1, 2000]; the model's own
+    /// lattice_steps is unrelated and unused here.
+    tree_steps:int = null;
+}
+
+/// Request to price one or more callable fixed-rate bonds.
+table PriceCallableFixedRateBondRequest {
+    pricing:Pricing;
+    bonds:[PriceCallableFixedRateBond];
+}
+
+root_type PriceCallableFixedRateBondRequest;

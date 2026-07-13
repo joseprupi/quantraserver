@@ -3316,4 +3316,82 @@ CASES = [
         "exercises": ["zero-coupon swap", "payer", "fair fixed payment",
                       "par NPV", "fixed-payment form"],
     },
+    {
+        "id": "cfrb_eur_8y_5pct_call_100_itm",
+        "product": "callable_fixed_rate_bond",
+        "family": "Callable Bonds",
+        "title": "EUR 8Y 5% callable bond, single call at 100 (deep in the money)",
+        "description": (
+            "High-coupon (5% annual 30/360) 8Y EUR bond on a ~3% curve, so the "
+            "straight bond trades well above par (NPV 1,127,246.83). A single "
+            "issuer call at a clean 100 in 2029 is deep in the issuer's favour, "
+            "so the Hull-White tree (a=0.03, sigma=0.01, 500 steps) prices the "
+            "callable at 1,065,161.03 — 62,085.81 below the straight bond, the "
+            "value of the embedded call."
+        ),
+        "request": "callable_bonds/cfrb_eur_8y_5pct_call_100_itm.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_callable_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["callable bond", "in-the-money call", "Hull-White tree",
+                      "callable below straight", "explicit HW params"],
+    },
+    {
+        "id": "cfrb_eur_8y_5pct_call_115_otm",
+        "product": "callable_fixed_rate_bond",
+        "family": "Callable Bonds",
+        "title": "EUR 8Y 5% callable bond, single call at 115 (out of the money)",
+        "description": (
+            "The same 5% premium bond, but the single 2029 call is struck at a "
+            "clean 115 — above the bond's premium price, so the call almost "
+            "never bites. The callable prices at 1,123,370.51, only 3,876.33 "
+            "below the straight bond (1,127,246.83): an out-of-the-money call "
+            "leaves the bond close to the plain fixed-rate value."
+        ),
+        "request": "callable_bonds/cfrb_eur_8y_5pct_call_115_otm.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_callable_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["callable bond", "out-of-the-money call",
+                      "callable near straight", "Hull-White tree"],
+    },
+    {
+        "id": "cfrb_eur_8y_5pct_multi_call_step",
+        "product": "callable_fixed_rate_bond",
+        "family": "Callable Bonds",
+        "title": "EUR 8Y 5% callable bond, 3-date step-down call schedule",
+        "description": (
+            "The 5% premium bond with a three-date American-style call ladder "
+            "(2029 at 102, 2030 at 101, 2031 at 100.5). The multi-date "
+            "callability lets the issuer redeem at the most favourable of the "
+            "stepping prices, pricing the callable at 1,076,386.15 — 50,860.68 "
+            "below the straight bond. Exercises a multi-entry CallabilitySchedule."
+        ),
+        "request": "callable_bonds/cfrb_eur_8y_5pct_multi_call_step.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_callable_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["callable bond", "multi-date call schedule",
+                      "step-down call prices", "Hull-White tree"],
+    },
+    {
+        "id": "cfrb_eur_8y_2pct_put_98",
+        "product": "callable_fixed_rate_bond",
+        "family": "Callable Bonds",
+        "title": "EUR 8Y 2% puttable bond, single put at 98",
+        "description": (
+            "Low-coupon (2% annual 30/360) 8Y EUR bond on the same ~3% curve, "
+            "so the straight bond trades at a discount (NPV 917,757.88). A "
+            "single bondholder put at a clean 98 in 2029 lets the holder sell "
+            "the bond back above its market value, raising the puttable price "
+            "to 955,355.35 — 37,597.47 ABOVE the straight bond, the value of "
+            "the embedded put."
+        ),
+        "request": "callable_bonds/cfrb_eur_8y_2pct_put_98.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_callable_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["puttable bond", "in-the-money put",
+                      "puttable above straight", "Hull-White tree"],
+    },
 ]

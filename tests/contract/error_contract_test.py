@@ -318,6 +318,55 @@ def _ec_yoy_cf_bad_schedule_date():
     return f
 
 
+def _ec_callable_empty_call_schedule():
+    """Empty the callable bond's call_schedule — rejected 400 (a present-yet-empty
+    call schedule is a plain fixed-rate bond, not a callable one)."""
+    def f(req):
+        req["bonds"][0]["callable_fixed_rate_bond"]["call_schedule"] = []
+        return req
+    return f
+
+
+def _ec_callable_non_increasing_dates():
+    """Give the callable bond two call entries with non-increasing dates —
+    rejected 400 (dates must be strictly increasing)."""
+    def f(req):
+        req["bonds"][0]["callable_fixed_rate_bond"]["call_schedule"] = [
+            {"date": "2030-01-17", "price": 101.0, "callability_type": "Call"},
+            {"date": "2029-01-17", "price": 100.0, "callability_type": "Call"},
+        ]
+        return req
+    return f
+
+
+def _ec_callable_nonpositive_price():
+    """Set the first call entry's clean price to zero — rejected 400."""
+    def f(req):
+        req["bonds"][0]["callable_fixed_rate_bond"]["call_schedule"][0]["price"] = 0.0
+        return req
+    return f
+
+
+def _ec_callable_del_callability_type():
+    """Drop the presence-required callability_type from the first call entry —
+    rejected 400 (Call/Put has no alphabetical-0 default)."""
+    def f(req):
+        req["bonds"][0]["callable_fixed_rate_bond"]["call_schedule"][0].pop(
+            "callability_type", None)
+        return req
+    return f
+
+
+def _ec_callable_bad_call_date():
+    """Corrupt the first call entry's date to a non-ISO form — rejected 400 by
+    the date parser."""
+    def f(req):
+        req["bonds"][0]["callable_fixed_rate_bond"]["call_schedule"][0]["date"] = \
+            "2029/01/17"
+        return req
+    return f
+
+
 def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
     """Set the optional per-period notionals vector on a swap leg (or bond)."""
     def f(req):
@@ -785,6 +834,58 @@ SCENARIOS = [
      "year_on_year_inflation_cap_floor",
      "year_on_year_inflation_cap_floor_request.json", 400,
      _ec_yoy_cf_bad_schedule_date(),
+     _ec_body_contains("expected YYYY-MM-DD")),
+
+    # The callable fixed-rate bond: the call schedule must be present and
+    # non-empty, with strictly increasing dates, positive clean prices and a
+    # present callability_type; the bond conventions follow the presence
+    # discipline; the model and discounting curve must resolve; dates are ISO.
+    ("ec:400 callable_fixed_rate_bond empty call_schedule",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_callable_empty_call_schedule(),
+     _ec_body_contains("call_schedule is required and must be non-empty")),
+    ("ec:400 callable_fixed_rate_bond non-increasing call dates",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_callable_non_increasing_dates(),
+     _ec_body_contains("call_schedule dates must be strictly increasing")),
+    ("ec:400 callable_fixed_rate_bond non-positive call price",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_callable_nonpositive_price(),
+     _ec_body_contains("CallabilityEntry.price must be > 0")),
+    ("ec:400 callable_fixed_rate_bond missing callability_type",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_callable_del_callability_type(),
+     _ec_body_contains("CallabilityEntry.callability_type is required")),
+    ("ec:400 callable_fixed_rate_bond missing accrual_day_counter",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_del_instrument_field("bonds", "callable_fixed_rate_bond",
+                              "accrual_day_counter"),
+     _ec_body_contains("CallableFixedRateBond.accrual_day_counter is required")),
+    ("ec:400 callable_fixed_rate_bond missing payment_convention",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_del_instrument_field("bonds", "callable_fixed_rate_bond",
+                              "payment_convention"),
+     _ec_body_contains("CallableFixedRateBond.payment_convention is required")),
+    ("ec:400 callable_fixed_rate_bond missing discounting_curve",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_del_field("bonds", "discounting_curve"),
+     _ec_body_contains("PriceCallableFixedRateBond.discounting_curve is required")),
+    ("ec:404 callable_fixed_rate_bond unknown model id",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 404,
+     _ec_set_field("bonds", "model", "NOPE_MODEL"),
+     _ec_body_contains("Model not found")),
+    ("ec:400 callable_fixed_rate_bond non-ISO call date rejected",
+     "callable_fixed_rate_bond",
+     "callable_fixed_rate_bond_request.json", 400,
+     _ec_callable_bad_call_date(),
      _ec_body_contains("expected YYYY-MM-DD")),
 ]
 
