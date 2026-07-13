@@ -497,8 +497,8 @@ struct SwapCmsLegT : public ::flatbuffers::NativeTable {
   double gear = 1.0;
   double spread = 0.0;
   std::unique_ptr<quantra::CmsPricerSpecT> pricer{};
-  double cap = -1.0;
-  double floor = -1.0;
+  ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt;
   SwapCmsLegT() = default;
   SwapCmsLegT(const SwapCmsLegT &o);
   SwapCmsLegT(SwapCmsLegT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -570,13 +570,15 @@ struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CmsPricerSpec *pricer() const {
     return GetPointer<const quantra::CmsPricerSpec *>(VT_PRICER);
   }
-  /// Optional cap level (v1 unsupported; if set >= 0 request is rejected).
-  double cap() const {
-    return GetField<double>(VT_CAP, -1.0);
+  /// Optional cap strike. Present => every CMS coupon is capped at this rate
+  /// (produces CappedFlooredCmsCoupons). Absent => uncapped.
+  ::flatbuffers::Optional<double> cap() const {
+    return GetOptional<double, double>(VT_CAP);
   }
-  /// Optional floor level (v1 unsupported; if set >= 0 request is rejected).
-  double floor() const {
-    return GetField<double>(VT_FLOOR, -1.0);
+  /// Optional floor strike. Present => every CMS coupon is floored at this rate.
+  /// Absent => unfloored. If both cap and floor are present, cap must be >= floor.
+  ::flatbuffers::Optional<double> floor() const {
+    return GetOptional<double, double>(VT_FLOOR);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -643,10 +645,10 @@ struct SwapCmsLegBuilder {
     fbb_.AddOffset(SwapCmsLeg::VT_PRICER, pricer);
   }
   void add_cap(double cap) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_CAP, cap, -1.0);
+    fbb_.AddElement<double>(SwapCmsLeg::VT_CAP, cap);
   }
   void add_floor(double floor) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_FLOOR, floor, -1.0);
+    fbb_.AddElement<double>(SwapCmsLeg::VT_FLOOR, floor);
   }
   explicit SwapCmsLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -675,11 +677,11 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
     double gear = 1.0,
     double spread = 0.0,
     ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
-    double cap = -1.0,
-    double floor = -1.0) {
+    ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
   SwapCmsLegBuilder builder_(_fbb);
-  builder_.add_floor(floor);
-  builder_.add_cap(cap);
+  if(floor) { builder_.add_floor(*floor); }
+  if(cap) { builder_.add_cap(*cap); }
   builder_.add_spread(spread);
   builder_.add_gear(gear);
   builder_.add_notional(notional);
@@ -707,8 +709,8 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
     double gear = 1.0,
     double spread = 0.0,
     ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
-    double cap = -1.0,
-    double floor = -1.0) {
+    ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
   auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
   auto swaption_vol_id__ = swaption_vol_id ? _fbb.CreateString(swaption_vol_id) : 0;
   return quantra::CreateSwapCmsLeg(

@@ -52,8 +52,15 @@ QuantLib::Leg CmsLegParser::parse(
     if (!leg->swaption_vol_id()) {
         QUANTRA_INVALID_ARGUMENT("CMS leg swaption_vol_id is required");
     }
-    if (leg->cap() >= 0.0 || leg->floor() >= 0.0) {
-        QUANTRA_INVALID_ARGUMENT("CMS leg cap/floor is not supported in v1");
+    if (leg->cap().has_value() && !std::isfinite(leg->cap().value())) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.cap must be a finite number");
+    }
+    if (leg->floor().has_value() && !std::isfinite(leg->floor().value())) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.floor must be a finite number");
+    }
+    if (leg->cap().has_value() && leg->floor().has_value() &&
+        leg->cap().value() < leg->floor().value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.cap must be >= floor");
     }
     if (!leg->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.day_counter is required");
@@ -83,6 +90,12 @@ QuantLib::Leg CmsLegParser::parse(
     } else {
         const auto& runtime = swapIndices.get(swapIndexId);
         cmsBuilder.withFixingDays(static_cast<QuantLib::Natural>(runtime.spotDays));
+    }
+    if (leg->cap().has_value()) {
+        cmsBuilder.withCaps(leg->cap().value());
+    }
+    if (leg->floor().has_value()) {
+        cmsBuilder.withFloors(leg->floor().value());
     }
 
     return cmsBuilder;

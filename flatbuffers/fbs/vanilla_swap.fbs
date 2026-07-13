@@ -83,10 +83,12 @@ table SwapCmsLeg {
     /// Optional CMS coupon pricer configuration.
     /// If null, defaults are used (LinearTsr with mean_reversion=0.03).
     pricer:CmsPricerSpec;
-    /// Optional cap level (v1 unsupported; if set >= 0 request is rejected).
-    cap:double = -1.0;
-    /// Optional floor level (v1 unsupported; if set >= 0 request is rejected).
-    floor:double = -1.0;
+    /// Optional cap strike. Present => every CMS coupon is capped at this rate
+    /// (produces CappedFlooredCmsCoupons). Absent => uncapped.
+    cap:double = null;
+    /// Optional floor strike. Present => every CMS coupon is floored at this rate.
+    /// Absent => unfloored. If both cap and floor are present, cap must be >= floor.
+    floor:double = null;
 }
 
 /// Vanilla interest rate swap (fixed vs floating).

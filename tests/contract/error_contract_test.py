@@ -304,6 +304,16 @@ def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
     return f
 
 
+def _ec_set_cms_cap_floor(cap, floor):
+    """Set cap/floor on the first swap's CMS leg (presence-based fields)."""
+    def f(req):
+        cms = req["swaps"][0]["vanilla_swap"]["cms_leg"]
+        cms["cap"] = cap
+        cms["floor"] = floor
+        return req
+    return f
+
+
 def _ec_set_swaption_underlying_notionals(values):
     """Set the notionals vector on the swaption underlying swap's fixed leg."""
     def f(req):
@@ -692,6 +702,10 @@ SCENARIOS = [
      "zero_coupon_swap_request.json", 400,
      _ec_set_nested_field("swaps", "zero_coupon_swap", "maturity_date", "2030/01/17"),
      _ec_body_contains("expected YYYY-MM-DD")),
+    ("ec:400 vanilla_swap CMS cap below floor rejected", "vanilla_swap",
+     "ir_swaps/cms_eur_5y_payer_cms10y_collared_lineartsr.json", 400,
+     _ec_set_cms_cap_floor(0.02, 0.03),
+     _ec_body_contains("SwapCmsLeg.cap must be >= floor")),
 ]
 
 
