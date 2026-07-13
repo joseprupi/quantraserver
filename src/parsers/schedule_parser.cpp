@@ -72,6 +72,79 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
         }
     }
 
+    // Optional stub-period control. Absent fields default to QuantLib::Date(),
+    // which is exactly the constructor's default and reproduces the prior
+    // (no-stub) behaviour bit-for-bit. Present fields are validated to lie
+    // strictly inside (effective_date, termination_date) — QuantLib's own
+    // requirement — so the caller gets a named 400 instead of an opaque error.
+    QuantLib::Date firstDate;
+    QuantLib::Date nextToLastDate;
+    const bool hasFirst = schedule->first_date() != NULL;
+    const bool hasNextToLast = schedule->next_to_last_date() != NULL;
+
+    if (hasFirst)
+    {
+        firstDate = DateToQL(schedule->first_date()->str());
+        if (firstDate <= effective || firstDate >= termination)
+        {
+            QUANTRA_INVALID_ARGUMENT(
+                "Schedule.first_date (" + schedule->first_date()->str() +
+                ") must lie strictly between effective_date (" +
+                schedule->effective_date()->str() + ") and termination_date (" +
+                schedule->termination_date()->str() + ")");
+        }
+    }
+
+    if (hasNextToLast)
+    {
+        nextToLastDate = DateToQL(schedule->next_to_last_date()->str());
+        if (nextToLastDate <= effective || nextToLastDate >= termination)
+        {
+            QUANTRA_INVALID_ARGUMENT(
+                "Schedule.next_to_last_date (" + schedule->next_to_last_date()->str() +
+                ") must lie strictly between effective_date (" +
+                schedule->effective_date()->str() + ") and termination_date (" +
+                schedule->termination_date()->str() + ")");
+        }
+    }
+
+    if (hasFirst && hasNextToLast && firstDate > nextToLastDate)
+    {
+        QUANTRA_INVALID_ARGUMENT(
+            "Schedule.first_date (" + schedule->first_date()->str() +
+            ") must be on or before next_to_last_date (" +
+            schedule->next_to_last_date()->str() + ")");
+    }
+
+    // With a stub date present, some DateGeneration rules (e.g. Zero) reject the
+    // firstDate/nextToLastDate arguments outright. QuantLib signals this by
+    // throwing; without a guard that raw error maps to an opaque 500. Surface it
+    // as a named 400 carrying QuantLib's reason. Absent-stub requests keep the
+    // original (unwrapped) path so their behaviour is unchanged.
+    if (hasFirst || hasNextToLast)
+    {
+        try
+        {
+            return std::make_shared<QuantLib::Schedule>(
+                effective,
+                termination,
+                period,
+                CalendarToQL(schedule->calendar().value()),
+                ConventionToQL(schedule->convention().value()),
+                ConventionToQL(schedule->termination_date_convention().value()),
+                DateGenerationToQL(schedule->date_generation_rule().value()),
+                schedule->end_of_month(),
+                firstDate,
+                nextToLastDate);
+        }
+        catch (const QuantLib::Error &e)
+        {
+            QUANTRA_INVALID_ARGUMENT(
+                std::string("Schedule rejected by QuantLib for the requested "
+                            "stub dates / date-generation rule: ") + e.what());
+        }
+    }
+
     return std::make_shared<QuantLib::Schedule>(
         effective,
         termination,

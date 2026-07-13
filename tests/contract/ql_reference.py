@@ -599,6 +599,17 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
 # QuantLib Pricing Functions
 # =============================================================================
 
+def _schedule_stub_dates(sch: dict):
+    """Mirror the server's ScheduleParser stub-period control: an optional
+    first_date / next_to_last_date, ISO-8601, passed straight into QuantLib's
+    Schedule firstDate / nextToLastDate arguments. Absent -> ql.Date(), which is
+    the constructor's own default (no stub), so parity holds for legacy cases."""
+    first_date = parse_date(sch["first_date"]) if sch.get("first_date") else ql.Date()
+    next_to_last = (parse_date(sch["next_to_last_date"])
+                    if sch.get("next_to_last_date") else ql.Date())
+    return first_date, next_to_last
+
+
 def price_fixed_rate_bond_ql(request: dict) -> float:
     """Price fixed rate bond using QuantLib."""
     pricing = _reference_pricing_view(request)
@@ -625,7 +636,9 @@ def price_fixed_rate_bond_ql(request: dict) -> float:
         get_date_generation(sch.get("date_generation_rule", "Forward")),
         # Mirrors the server's ScheduleParser: schedule->end_of_month()
         # (FlatBuffers schema default false).
-        sch.get("end_of_month", False)
+        sch.get("end_of_month", False),
+        # Optional stub-period control (firstDate / nextToLastDate).
+        *_schedule_stub_dates(sch)
     )
 
     # Build bond. Mirrors the server's FixedRateBondParser, which passes
@@ -863,7 +876,9 @@ def price_vanilla_swap_ql(request: dict) -> float:
         get_date_generation(fixed_sch.get("date_generation_rule", "Forward")),
         # Mirrors the server's ScheduleParser: schedule->end_of_month()
         # (FlatBuffers schema default false).
-        fixed_sch.get("end_of_month", False)
+        fixed_sch.get("end_of_month", False),
+        # Optional stub-period control (firstDate / nextToLastDate).
+        *_schedule_stub_dates(fixed_sch)
     )
 
     # Float leg
@@ -877,7 +892,9 @@ def price_vanilla_swap_ql(request: dict) -> float:
         get_convention(float_sch.get("convention", "ModifiedFollowing")),
         get_convention(float_sch.get("termination_date_convention", "ModifiedFollowing")),
         get_date_generation(float_sch.get("date_generation_rule", "Forward")),
-        float_sch.get("end_of_month", False)
+        float_sch.get("end_of_month", False),
+        # Optional stub-period control (firstDate / nextToLastDate).
+        *_schedule_stub_dates(float_sch)
     )
     
     # Resolve the floating index exactly as the server does: from the request's

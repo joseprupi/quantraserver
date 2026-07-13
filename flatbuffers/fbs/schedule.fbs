@@ -12,4 +12,17 @@ table Schedule {
     termination_date_convention:enums.BusinessDayConvention = null;
     date_generation_rule:enums.DateGenerationRule = null;
     end_of_month:bool;
+    /// Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
+    /// firstDate, which controls the FIRST stub coupon: with Backward date
+    /// generation a first_date after effective_date creates a short/long first
+    /// period; with Forward generation it anchors the regular periods. Must lie
+    /// strictly between effective_date and termination_date. Omit for no first
+    /// stub (bit-identical to prior behaviour).
+    first_date:string;
+    /// Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
+    /// nextToLastDate, controlling the LAST stub coupon symmetrically to
+    /// first_date. Must lie strictly between effective_date and
+    /// termination_date (and, when first_date is also present, on or after it).
+    /// Omit for no last stub (bit-identical to prior behaviour).
+    next_to_last_date:string;
 }

@@ -3394,4 +3394,105 @@ CASES = [
         "exercises": ["puttable bond", "in-the-money put",
                       "puttable above straight", "Hull-White tree"],
     },
+    # ------------------------------------------------------------------
+    # Bonds — stub-period control (Schedule.first_date / next_to_last_date)
+    # ------------------------------------------------------------------
+    {
+        "id": "frb_eur_5y_short_first_coupon",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y bond with a SHORT first coupon (2-month stub)",
+        "description": (
+            "The at-par 5Y EUR bond (3.10% annual 30/360) but issued mid-period: "
+            "Backward date generation with a first_date two months after the "
+            "effective date creates a short first coupon (2025-01-17 to "
+            "2025-03-17). Exercises Schedule.first_date — the first coupon "
+            "accrues over ~2 months instead of a full year, so it is visibly "
+            "smaller than the regular annual coupons."
+        ),
+        "request": "bonds/frb_eur_5y_short_first_coupon.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["short first coupon", "Schedule.first_date",
+                      "Backward generation", "annual 30/360"],
+    },
+    {
+        "id": "frb_eur_5y_long_first_coupon",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y bond with a LONG first coupon (18-month stub)",
+        "description": (
+            "The same 5Y EUR bond with a long first coupon: Backward date "
+            "generation with a first_date 18 months after the effective date "
+            "(2025-01-17 to 2026-07-17), so the first coupon accrues over ~18 "
+            "months and is visibly larger than the regular annual coupons. "
+            "Exercises the long-stub side of Schedule.first_date."
+        ),
+        "request": "bonds/frb_eur_5y_long_first_coupon.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["long first coupon", "Schedule.first_date",
+                      "Backward generation", "annual 30/360"],
+    },
+    {
+        "id": "frb_eur_5y_short_last_coupon",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y bond with a SHORT last coupon (next_to_last_date)",
+        "description": (
+            "The 5Y EUR bond with a short final coupon: Forward date "
+            "generation with a next_to_last_date three months before "
+            "termination (2029-10-17 to 2030-01-17). Exercises "
+            "Schedule.next_to_last_date — the last coupon accrues over ~3 "
+            "months while the earlier coupons stay on the regular annual grid."
+        ),
+        "request": "bonds/frb_eur_5y_short_last_coupon.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["short last coupon", "Schedule.next_to_last_date",
+                      "Forward generation", "annual 30/360"],
+    },
+    {
+        "id": "frb_eur_5y_stub_on_grid_control",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "EUR 5Y bond, stub dates on the regular grid (neutrality control)",
+        "description": (
+            "Neutrality control for stub-period pass-through: the at-par 5Y EUR "
+            "bond carries first_date=2026-01-17 and next_to_last_date="
+            "2029-01-17, both landing exactly on the regular annual grid, so "
+            "the resulting schedule and NPV are identical to the no-stub "
+            "baseline (frb_eur_5y_at_par_annual_30360). Proves the new fields "
+            "are inert when placed on-grid."
+        ),
+        "request": "bonds/frb_eur_5y_stub_on_grid_control.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["stub dates on grid", "pass-through neutrality",
+                      "first_date + next_to_last_date", "annual 30/360"],
+    },
+    {
+        "id": "irs_eur_5y_short_first_both_legs",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap with a short first period on both legs",
+        "description": (
+            "The baseline 5Y EUR payer swap (fixed 30/360 annual vs Euribor 6M) "
+            "with a short first period on both legs: Forward date generation "
+            "with a first_date two months after the effective date "
+            "(2025-01-17 to 2025-03-17) applied identically to the fixed and "
+            "floating schedules. Exercises Schedule.first_date on a swap where "
+            "both legs share the same stub anchor."
+        ),
+        "request": "ir_swaps/irs_eur_5y_short_first_both_legs.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["short first period", "Schedule.first_date",
+                      "both legs stubbed", "payer swap"],
+    },
 ]
