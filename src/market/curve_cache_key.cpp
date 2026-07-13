@@ -136,6 +136,13 @@ void CurveKeyBuilder::writeSchedule(
     writeOptEnum(sched->termination_date_convention());
     writeOptEnum(sched->date_generation_rule());
     buf.writeBool(sched->end_of_month());
+    // Optional stub-period control. writeFbString is length-prefixed and writes
+    // a 0-length marker for an absent (null) string, so a present ISO date can
+    // never collide with an absent field — same presence discipline already used
+    // for the optional issue_date on BondHelper above. Two schedules differing
+    // only in their stub dates therefore hash to different keys (no under-keying).
+    buf.writeFbString(sched->first_date());
+    buf.writeFbString(sched->next_to_last_date());
 }
 
 // =============================================================================

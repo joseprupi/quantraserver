@@ -381,6 +381,14 @@
               },
         "end_of_month" : {
                 "type" : "boolean"
+              },
+        "first_date" : {
+                "type" : "string",
+                "description" : "Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's\nfirstDate, which controls the FIRST stub coupon: with Backward date\ngeneration a first_date after effective_date creates a short/long first\nperiod; with Forward generation it anchors the regular periods. Must lie\nstrictly between effective_date and termination_date. Omit for no first\nstub (bit-identical to prior behaviour)."
+              },
+        "next_to_last_date" : {
+                "type" : "string",
+                "description" : "Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's\nnextToLastDate, controlling the LAST stub coupon symmetrically to\nfirst_date. Must lie strictly between effective_date and\ntermination_date (and, when first_date is also present, on or after it).\nOmit for no last stub (bit-identical to prior behaviour)."
               }
       },
       "additionalProperties" : false

@@ -184,6 +184,18 @@ def _ec_set_schedule_date(arr_key, product_key, field, value):
     return f
 
 
+def _ec_set_schedule_fields(arr_key, product_key, **fields):
+    """Merge one or more fields into the product's schedule. Used to drive the
+    stub-period control (first_date / next_to_last_date) and its validation:
+    both stub dates must lie strictly inside (effective_date, termination_date),
+    first_date must be on or before next_to_last_date, be ISO-8601, and be
+    compatible with the date-generation rule (e.g. Zero rejects any stub)."""
+    def f(req):
+        req[arr_key][0][product_key]["schedule"].update(fields)
+        return req
+    return f
+
+
 def _ec_del_schedule_field(arr_key, product_key, field):
     """Drop a convention field from the product's schedule. The Schedule
     convention enums are presence-required: an omitted convention is an error,
@@ -522,6 +534,38 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_set_schedule_date("bonds", "fixed_rate_bond", "effective_date", "June 5th"),
      _ec_body_contains("expected YYYY-MM-DD")),
+    # ---- 400 INVALID_ARGUMENT: stub-period control (first_date / next_to_last_date) ----
+    # The optional stub dates must lie strictly inside (effective_date,
+    # termination_date), first_date must be on or before next_to_last_date, be
+    # ISO-8601, and be compatible with the date-generation rule. Each violation
+    # is a named 400 (never an opaque 500), even when QuantLib is the one that
+    # rejects the stub/rule combination.
+    ("ec:400 fixed_rate_bond first_date after termination", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond", first_date="2020-05-15"),
+     _ec_body_contains("Schedule.first_date")),
+    ("ec:400 fixed_rate_bond first_date before effective", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond", first_date="2000-05-15"),
+     _ec_body_contains("Schedule.first_date")),
+    ("ec:400 fixed_rate_bond next_to_last_date after termination", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond", next_to_last_date="2020-05-15"),
+     _ec_body_contains("Schedule.next_to_last_date")),
+    ("ec:400 fixed_rate_bond first_date after next_to_last_date", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond",
+                             first_date="2015-05-15", next_to_last_date="2009-05-15"),
+     _ec_body_contains("must be on or before next_to_last_date")),
+    ("ec:400 fixed_rate_bond non-ISO first_date", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond", first_date="2010/05/15"),
+     _ec_body_contains("expected YYYY-MM-DD")),
+    ("ec:400 fixed_rate_bond Zero rule rejects stub date", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_schedule_fields("bonds", "fixed_rate_bond",
+                             date_generation_rule="Zero", first_date="2010-05-15"),
+     _ec_body_contains("Schedule")),
     # ---- 400 INVALID_ARGUMENT: schedule convention presence ----
     # A Schedule convention enum omitted from the request must be rejected, not
     # silently defaulted to the alphabetical-0 value (calendar Argentina, etc.).

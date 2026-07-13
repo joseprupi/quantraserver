@@ -81,8 +81,33 @@ class Schedule(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
+    # firstDate, which controls the FIRST stub coupon: with Backward date
+    # generation a first_date after effective_date creates a short/long first
+    # period; with Forward generation it anchors the regular periods. Must lie
+    # strictly between effective_date and termination_date. Omit for no first
+    # stub (bit-identical to prior behaviour).
+    # Schedule
+    def FirstDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
+    # nextToLastDate, controlling the LAST stub coupon symmetrically to
+    # first_date. Must lie strictly between effective_date and
+    # termination_date (and, when first_date is also present, on or after it).
+    # Omit for no last stub (bit-identical to prior behaviour).
+    # Schedule
+    def NextToLastDate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
 def ScheduleStart(builder):
-    builder.StartObject(8)
+    builder.StartObject(10)
 
 def Start(builder):
     ScheduleStart(builder)
@@ -135,6 +160,18 @@ def ScheduleAddEndOfMonth(builder, endOfMonth):
 def AddEndOfMonth(builder, endOfMonth):
     ScheduleAddEndOfMonth(builder, endOfMonth)
 
+def ScheduleAddFirstDate(builder, firstDate):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(firstDate), 0)
+
+def AddFirstDate(builder, firstDate):
+    ScheduleAddFirstDate(builder, firstDate)
+
+def ScheduleAddNextToLastDate(builder, nextToLastDate):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(nextToLastDate), 0)
+
+def AddNextToLastDate(builder, nextToLastDate):
+    ScheduleAddNextToLastDate(builder, nextToLastDate)
+
 def ScheduleEnd(builder):
     return builder.EndObject()
 
@@ -154,6 +191,8 @@ class ScheduleT(object):
         self.terminationDateConvention = None  # type: Optional[int]
         self.dateGenerationRule = None  # type: Optional[int]
         self.endOfMonth = False  # type: bool
+        self.firstDate = None  # type: str
+        self.nextToLastDate = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -184,6 +223,8 @@ class ScheduleT(object):
         self.terminationDateConvention = schedule.TerminationDateConvention()
         self.dateGenerationRule = schedule.DateGenerationRule()
         self.endOfMonth = schedule.EndOfMonth()
+        self.firstDate = schedule.FirstDate()
+        self.nextToLastDate = schedule.NextToLastDate()
 
     # ScheduleT
     def Pack(self, builder):
@@ -191,6 +232,10 @@ class ScheduleT(object):
             effectiveDate = builder.CreateString(self.effectiveDate)
         if self.terminationDate is not None:
             terminationDate = builder.CreateString(self.terminationDate)
+        if self.firstDate is not None:
+            firstDate = builder.CreateString(self.firstDate)
+        if self.nextToLastDate is not None:
+            nextToLastDate = builder.CreateString(self.nextToLastDate)
         ScheduleStart(builder)
         ScheduleAddCalendar(builder, self.calendar)
         if self.effectiveDate is not None:
@@ -202,5 +247,9 @@ class ScheduleT(object):
         ScheduleAddTerminationDateConvention(builder, self.terminationDateConvention)
         ScheduleAddDateGenerationRule(builder, self.dateGenerationRule)
         ScheduleAddEndOfMonth(builder, self.endOfMonth)
+        if self.firstDate is not None:
+            ScheduleAddFirstDate(builder, firstDate)
+        if self.nextToLastDate is not None:
+            ScheduleAddNextToLastDate(builder, nextToLastDate)
         schedule = ScheduleEnd(builder)
         return schedule
