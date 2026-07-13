@@ -127,21 +127,23 @@ class SwapCmsLeg(object):
             return obj
         return None
 
-    # Optional cap level (v1 unsupported; if set >= 0 request is rejected).
+    # Optional cap strike. Present => every CMS coupon is capped at this rate
+    # (produces CappedFlooredCmsCoupons). Absent => uncapped.
     # SwapCmsLeg
     def Cap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Optional floor level (v1 unsupported; if set >= 0 request is rejected).
+    # Optional floor strike. Present => every CMS coupon is floored at this rate.
+    # Absent => unfloored. If both cap and floor are present, cap must be >= floor.
     # SwapCmsLeg
     def Floor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
 def SwapCmsLegStart(builder):
     builder.StartObject(13)
@@ -216,13 +218,13 @@ def AddPricer(builder, pricer):
     SwapCmsLegAddPricer(builder, pricer)
 
 def SwapCmsLegAddCap(builder, cap):
-    builder.PrependFloat64Slot(11, cap, -1.0)
+    builder.PrependFloat64Slot(11, cap, None)
 
 def AddCap(builder, cap):
     SwapCmsLegAddCap(builder, cap)
 
 def SwapCmsLegAddFloor(builder, floor):
-    builder.PrependFloat64Slot(12, floor, -1.0)
+    builder.PrependFloat64Slot(12, floor, None)
 
 def AddFloor(builder, floor):
     SwapCmsLegAddFloor(builder, floor)
@@ -253,8 +255,8 @@ class SwapCmsLegT(object):
         self.gear = 1.0  # type: float
         self.spread = 0.0  # type: float
         self.pricer = None  # type: Optional[CmsPricerSpecT]
-        self.cap = -1.0  # type: float
-        self.floor = -1.0  # type: float
+        self.cap = None  # type: Optional[float]
+        self.floor = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

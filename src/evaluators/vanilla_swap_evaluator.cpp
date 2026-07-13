@@ -410,6 +410,14 @@ VanillaSwapPerSwap priceCmsBranch(
         const auto& runtime = reg.rates.swapIndices.get(trade.cms.swapIndexId);
         cmsBuilder.withFixingDays(static_cast<QuantLib::Natural>(runtime.spotDays));
     }
+    // Optional per-coupon cap/floor. When present, QuantLib emits
+    // CappedFlooredCmsCoupons which price through the same coupon pricer set below.
+    if (trade.cms.cap.has_value()) {
+        cmsBuilder.withCaps(trade.cms.cap.value());
+    }
+    if (trade.cms.floor.has_value()) {
+        cmsBuilder.withFloors(trade.cms.floor.value());
+    }
     QuantLib::Leg cmsLeg = cmsBuilder;
 
     auto pricerBuild = buildCmsPricer(trade.cms.pricerParams, volIt->second, discH);

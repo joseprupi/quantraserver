@@ -622,6 +622,114 @@ CASES = [
         "exercises": ["CMS leg", "CMS 10Y", "ATM vol matrix",
                       "vol surface interpolation", "LinearTsr pricer"],
     },
+    {
+        "id": "cms_eur_5y_payer_cms10y_capped_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs capped CMS 10Y (LinearTsr)",
+        "description": (
+            "The baseline fixed-vs-CMS 10Y swap with the received CMS coupons "
+            "capped at 3.20% (near ATM, so the cap bites). QuantLib prices the "
+            "leg as CappedFlooredCmsCoupons through the same LinearTsr coupon "
+            "pricer; the cap truncates the upside, so the swap NPV falls well "
+            "below the uncapped case. Exercises the CMS cap field."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_capped_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "capped CMS coupon", "CappedFlooredCmsCoupon",
+                      "LinearTsr pricer"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_floored_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs floored CMS 10Y (LinearTsr)",
+        "description": (
+            "The baseline fixed-vs-CMS 10Y swap with the received CMS coupons "
+            "floored at 3.70% (above the forward CMS rate, so the floor bites). "
+            "The floor lifts the coupon downside, raising the swap NPV above the "
+            "unfloored case. Exercises the CMS floor field."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_floored_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "floored CMS coupon", "CappedFlooredCmsCoupon",
+                      "LinearTsr pricer"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_collared_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs collared CMS 10Y (LinearTsr)",
+        "description": (
+            "The baseline fixed-vs-CMS 10Y swap with the received CMS coupons "
+            "collared between a 3.00% floor and a 4.00% cap. Exercises applying "
+            "both cap and floor to the same CMS leg simultaneously."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_collared_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "collared CMS coupon", "cap and floor",
+                      "LinearTsr pricer"],
+    },
+    {
+        "id": "cms_eur_5y_receiver_cms10y_gearing_spread_capped_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y receiver, capped geared+spread CMS 10Y (LinearTsr)",
+        "description": (
+            "The geared (0.80) + spread (+25bp) CMS 10Y receiver leg, additionally "
+            "capped at 3.00%. Confirms the cap interacts correctly with gearing "
+            "and spread on the same coupon (QuantLib applies the cap on the "
+            "gearing/spread-adjusted coupon rate)."
+        ),
+        "request": "ir_swaps/cms_eur_5y_receiver_cms10y_gearing_spread_capped_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "capped CMS coupon", "gearing 0.80",
+                      "spread +25bp", "LinearTsr pricer"],
+    },
+    {
+        "id": "cms_eur_5y_payer_cms10y_capped_hagan_analytic",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer, fixed vs capped CMS 10Y (Analytic Hagan)",
+        "description": (
+            "The capped fixed-vs-CMS 10Y swap repriced with the AnalyticHagan "
+            "pricer, proving the CappedFlooredCmsCoupons price through the "
+            "Hagan-Conundrum convexity pricer as well as LinearTsr."
+        ),
+        "request": "ir_swaps/cms_eur_5y_payer_cms10y_capped_hagan_analytic.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "capped CMS coupon", "AnalyticHagan pricer",
+                      "CappedFlooredCmsCoupon"],
+    },
+    {
+        "id": "cms_eur_5y_receiver_cms10y_neg_gearing_capped_lineartsr",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y receiver, negative-geared capped CMS 10Y (LinearTsr)",
+        "description": (
+            "A CMS 10Y leg geared at -0.50 with a +5.00% spread and a 3.00% cap. "
+            "With a negative gearing QuantLib gives the cap/floor its "
+            "CappedFlooredCoupon effective-bound semantics; this case confirms "
+            "the server and native QuantLib agree on that corner (no custom "
+            "server logic — the cap is passed straight to QuantLib)."
+        ),
+        "request": "ir_swaps/cms_eur_5y_receiver_cms10y_neg_gearing_capped_lineartsr.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_cms_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["CMS leg", "capped CMS coupon", "negative gearing",
+                      "CappedFlooredCoupon semantics", "LinearTsr pricer"],
+    },
 
     # ------------------------------------------------------------------
     # Bonds — fixed-rate

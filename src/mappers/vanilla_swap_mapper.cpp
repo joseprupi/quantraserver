@@ -1,5 +1,7 @@
 #include "vanilla_swap_mapper.h"
 
+#include <cmath>
+
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
@@ -123,9 +125,6 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     if (!cmsFb->swaption_vol_id()) {
         QUANTRA_INVALID_ARGUMENT("CMS leg swaption_vol_id is required");
     }
-    if (cmsFb->cap() >= 0.0 || cmsFb->floor() >= 0.0) {
-        QUANTRA_INVALID_ARGUMENT("CMS leg cap/floor is not supported in v1");
-    }
     if (!cmsFb->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.day_counter is required");
     }
@@ -146,6 +145,26 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     trade.cms.paymentConvention = ConventionToQL(cmsFb->payment_convention().value());
     trade.cms.gear = cmsFb->gear();
     trade.cms.spread = cmsFb->spread();
+    // Optional cap/floor strikes. Presence (not sign) decides: a floor of 0 is a
+    // legitimate value. Applied to every coupon downstream via withCaps/withFloors.
+    if (cmsFb->cap().has_value()) {
+        const double cap = cmsFb->cap().value();
+        if (!std::isfinite(cap)) {
+            QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.cap must be a finite number");
+        }
+        trade.cms.cap = cap;
+    }
+    if (cmsFb->floor().has_value()) {
+        const double floor = cmsFb->floor().value();
+        if (!std::isfinite(floor)) {
+            QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.floor must be a finite number");
+        }
+        trade.cms.floor = floor;
+    }
+    if (trade.cms.cap.has_value() && trade.cms.floor.has_value() &&
+        trade.cms.cap.value() < trade.cms.floor.value()) {
+        QUANTRA_INVALID_ARGUMENT("SwapCmsLeg.cap must be >= floor");
+    }
     trade.cms.pricerParams = extractCmsPricerParams(cmsFb);
     return trade;
 }

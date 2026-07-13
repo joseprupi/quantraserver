@@ -998,6 +998,10 @@ def price_cms_swap_ql(request: dict) -> float:
     fixing_days = cms.get("fixing_days", -1)
     if fixing_days is None or fixing_days < 0:
         fixing_days = spot_days
+    # Optional per-coupon cap/floor (presence, not sign, decides — mirrors the
+    # server's withCaps/withFloors). Absent => empty vector => plain CMS coupons.
+    caps = [cms["cap"]] if cms.get("cap") is not None else []
+    floors = [cms["floor"]] if cms.get("floor") is not None else []
     cms_leg = ql.CmsLeg(
         [cms["notional"]],
         cms_schedule,
@@ -1006,7 +1010,9 @@ def price_cms_swap_ql(request: dict) -> float:
         get_convention(cms["payment_convention"]),
         [int(fixing_days)],
         [cms.get("gear", 1.0)],
-        [cms.get("spread", 0.0)])
+        [cms.get("spread", 0.0)],
+        caps,
+        floors)
 
     # Coupon pricer (cms_leg_parser::makeCouponPricer / buildCmsPricer).
     vol_handle = _build_swaption_vol_for_cms(pricing, cms["swaption_vol_id"], eval_date)

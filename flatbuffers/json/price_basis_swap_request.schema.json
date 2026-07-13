@@ -2357,11 +2357,11 @@
               },
         "cap" : {
                 "type" : "number",
-                "description" : "Optional cap level (v1 unsupported; if set >= 0 request is rejected)."
+                "description" : "Optional cap strike. Present => every CMS coupon is capped at this rate\n(produces CappedFlooredCmsCoupons). Absent => uncapped."
               },
         "floor" : {
                 "type" : "number",
-                "description" : "Optional floor level (v1 unsupported; if set >= 0 request is rejected)."
+                "description" : "Optional floor strike. Present => every CMS coupon is floored at this rate.\nAbsent => unfloored. If both cap and floor are present, cap must be >= floor."
               }
       },
       "required" : ["swap_index_id", "swap_tenor", "swaption_vol_id"],

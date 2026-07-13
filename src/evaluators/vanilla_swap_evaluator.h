@@ -12,6 +12,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -88,6 +89,10 @@ struct VanillaSwapCmsLegData {
     QuantLib::BusinessDayConvention paymentConvention = QuantLib::ModifiedFollowing;
     double gear = 1.0;
     double spread = 0.0;
+    /// Optional per-coupon cap/floor strikes. Present => a CappedFlooredCmsCoupon
+    /// leg (capped/floored at the given rate). Absent => plain CMS coupons.
+    std::optional<double> cap;
+    std::optional<double> floor;
     VanillaSwapCmsPricerParams pricerParams{};
 };
 
