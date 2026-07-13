@@ -426,6 +426,12 @@ JsonResponse QuantraClient::PriceZeroCouponSwapJSON(const std::string& json, con
     );
 }
 
+JsonResponse QuantraClient::PriceYearOnYearInflationCapFloorJSON(const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceYearOnYearInflationCapFloorRequest, PriceYearOnYearInflationCapFloorResponse>(
+        ProductType::YearOnYearInflationCapFloor, json, &QuantraServer::Stub::PriceYearOnYearInflationCapFloor, request_id
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -626,6 +632,15 @@ grpc::Status QuantraClient::PriceZeroCouponSwap(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceZeroCouponSwap(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceYearOnYearInflationCapFloor(
+    const Message<PriceYearOnYearInflationCapFloorRequest>& request,
+    Message<PriceYearOnYearInflationCapFloorResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceYearOnYearInflationCapFloor(&context, request, response);
 }
 
 } // namespace quantra

@@ -296,6 +296,28 @@ def _ec_set_nested_field(arr_key, obj_key, field, value):
     return f
 
 
+def _ec_yoy_cf_collar_cap_below_floor():
+    """Turn the base YoY cap into a Collar whose cap strike is below its floor
+    strike — rejected 400 (Collar requires cap_rate >= floor_rate)."""
+    def f(req):
+        cf = req["cap_floors"][0]["year_on_year_inflation_cap_floor"]
+        cf["cap_floor_type"] = "Collar"
+        cf["cap_rate"] = 0.01
+        cf["floor_rate"] = 0.02
+        return req
+    return f
+
+
+def _ec_yoy_cf_bad_schedule_date():
+    """Corrupt the YoY cap schedule termination date to a non-ISO form —
+    rejected 400 by the date parser."""
+    def f(req):
+        cf = req["cap_floors"][0]["year_on_year_inflation_cap_floor"]
+        cf["schedule"]["termination_date"] = "2030/01/15"
+        return req
+    return f
+
+
 def _ec_set_leg_notionals(arr_key, product_key, leg_key, values):
     """Set the optional per-period notionals vector on a swap leg (or bond)."""
     def f(req):
@@ -706,6 +728,64 @@ SCENARIOS = [
      "ir_swaps/cms_eur_5y_payer_cms10y_collared_lineartsr.json", 400,
      _ec_set_cms_cap_floor(0.02, 0.03),
      _ec_body_contains("SwapCmsLeg.cap must be >= floor")),
+
+    # The year-on-year inflation cap/floor: cap_floor_type / day_counter /
+    # payment_convention are presence-required; the strike set must match the
+    # type (Cap => cap_rate only, Floor => floor_rate only, Collar => both with
+    # cap_rate >= floor_rate); referenced ids must resolve; dates must be ISO.
+    ("ec:400 yoy_inflation_cap_floor missing cap_floor_type",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "year_on_year_inflation_cap_floor",
+                              "cap_floor_type"),
+     _ec_body_contains("YoYInflationCapFloor.cap_floor_type is required")),
+    ("ec:400 yoy_inflation_cap_floor missing day_counter",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "year_on_year_inflation_cap_floor",
+                              "day_counter"),
+     _ec_body_contains("YoYInflationCapFloor.day_counter is required")),
+    ("ec:400 yoy_inflation_cap_floor missing payment_convention",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "year_on_year_inflation_cap_floor",
+                              "payment_convention"),
+     _ec_body_contains("YoYInflationCapFloor.payment_convention is required")),
+    ("ec:400 yoy_inflation_cap_floor Cap carrying floor_rate",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_set_nested_field("cap_floors", "year_on_year_inflation_cap_floor",
+                          "floor_rate", 0.01),
+     _ec_body_contains("YoYInflationCapFloor of type Cap must not carry floor_rate")),
+    ("ec:400 yoy_inflation_cap_floor Collar missing floor_rate",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_set_nested_field("cap_floors", "year_on_year_inflation_cap_floor",
+                          "cap_floor_type", "Collar"),
+     _ec_body_contains(
+         "YoYInflationCapFloor of type Collar requires both cap_rate and floor_rate")),
+    ("ec:400 yoy_inflation_cap_floor Collar cap below floor",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_yoy_cf_collar_cap_below_floor(),
+     _ec_body_contains("YoYInflationCapFloor Collar cap_rate must be >= floor_rate")),
+    ("ec:400 yoy_inflation_cap_floor index id not matching curve",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_set_nested_field("cap_floors", "year_on_year_inflation_cap_floor",
+                          "inflation_index_id", "NOPE_YY"),
+     _ec_body_contains(
+         "inflation_index_id does not match inflation_curve")),
+    ("ec:404 yoy_inflation_cap_floor unknown volatility id",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 404,
+     _ec_set_field("cap_floors", "volatility", "NOPE_VOL"),
+     _ec_body_contains("YoY optionlet vol not found")),
+    ("ec:400 yoy_inflation_cap_floor non-ISO schedule date rejected",
+     "year_on_year_inflation_cap_floor",
+     "year_on_year_inflation_cap_floor_request.json", 400,
+     _ec_yoy_cf_bad_schedule_date(),
+     _ec_body_contains("expected YYYY-MM-DD")),
 ]
 
 

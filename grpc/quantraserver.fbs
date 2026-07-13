@@ -42,6 +42,8 @@ include "../flatbuffers/fbs/price_zero_coupon_bond_request.fbs";
 include "../flatbuffers/fbs/zero_coupon_bond_response.fbs";
 include "../flatbuffers/fbs/price_zero_coupon_swap_request.fbs";
 include "../flatbuffers/fbs/zero_coupon_swap_response.fbs";
+include "../flatbuffers/fbs/price_year_on_year_inflation_cap_floor_request.fbs";
+include "../flatbuffers/fbs/year_on_year_inflation_cap_floor_response.fbs";
 include "../flatbuffers/fbs/meta_request.fbs";
 include "../flatbuffers/fbs/meta_response.fbs";
 
@@ -70,5 +72,6 @@ rpc_service QuantraServer {
   PriceEquityOption(PriceEquityOptionRequest):PriceEquityOptionResponse;
   PriceZeroCouponBond(PriceZeroCouponBondRequest):PriceZeroCouponBondResponse;
   PriceZeroCouponSwap(PriceZeroCouponSwapRequest):PriceZeroCouponSwapResponse;
+  PriceYearOnYearInflationCapFloor(PriceYearOnYearInflationCapFloorRequest):PriceYearOnYearInflationCapFloorResponse;
   Meta(MetaRequest):MetaResponse;
 }

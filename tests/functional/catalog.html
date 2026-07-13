@@ -843,6 +843,42 @@
 <td><a href="../../examples/data/inflation/yyiis_eur_5y_payer_spread25bp.json">yyiis_eur_5y_payer_spread25bp.json</a></td>
 <td class="npv">11,427.97</td>
 </tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation cap struck at 1.50%, Black engine</div><div class="desc">A 5Y year-on-year inflation cap struck at 1.50%, well below the 2.01%-2.42% forward YoY rates on the curve, so every optionlet is in the money and the cap bites: NPV ~= 31,885 on 1m notional at 1% lognormal vol (Black engine). Contrast the 2.80% out-of-the-money cap below (~0.11).</div></td>
+<td><code>YoY inflation cap</code> <code>in-the-money / bites</code> <code>Black engine</code> <code>constant YoY optionlet vol</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_black_bites.json">yoy_cf_eur_5y_cap_150bp_black_bites.json</a></td>
+<td class="npv">31,885.24</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation cap struck at 2.80%, out of the money</div><div class="desc">The same 5Y YoY cap struck at 2.80%, above every forward YoY rate (2.01%-2.42%), so it holds only time value: NPV ~= 0.11 on 1m notional at 2% lognormal vol (Black engine). Pins the out-of-the-money tail against the biting 1.50% cap.</div></td>
+<td><code>YoY inflation cap</code> <code>out of the money</code> <code>small NPV</code> <code>Black engine</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_280bp_black_otm.json">yoy_cf_eur_5y_cap_280bp_black_otm.json</a></td>
+<td class="npv">0.11</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation floor struck at 3.00%, Black engine</div><div class="desc">A 5Y year-on-year inflation floor struck at 3.00%, above every forward YoY rate (2.01%-2.42%), so every optionlet is in the money and the floor bites: NPV ~= 36,683 on 1m notional at 1% lognormal vol (Black engine).</div></td>
+<td><code>YoY inflation floor</code> <code>in-the-money / bites</code> <code>Black engine</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_floor_300bp_black_bites.json">yoy_cf_eur_5y_floor_300bp_black_bites.json</a></td>
+<td class="npv">36,682.63</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation collar (long 2.50% cap, short 1.50% floor)</div><div class="desc">A 5Y year-on-year inflation collar: long the 2.50% cap, short the 1.50% floor. The cap sits just above most forward YoY rates and the floor well below them, so the two legs nearly offset: NPV ~= 10.90 on 1m notional at 1% lognormal vol (Black engine). Exercises the Collar type (both strikes required, cap_rate &gt;= floor_rate).</div></td>
+<td><code>YoY inflation collar</code> <code>long cap short floor</code> <code>cap &gt;= floor</code> <code>Black engine</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_collar_black.json">yoy_cf_eur_5y_collar_black.json</a></td>
+<td class="npv">10.90</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y YoY inflation cap struck at 1.50%, Bachelier engine</div><div class="desc">The biting 5Y 1.50% YoY cap repriced with the Bachelier (normal-vol) engine at 0.50% normal vol: NPV ~= 36,138 on 1m notional. Exercises the normal-vol pricing formula against the same in-the-money strip the Black case covers.</div></td>
+<td><code>YoY inflation cap</code> <code>Bachelier / normal vol</code> <code>in-the-money</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_5y_cap_150bp_bachelier.json">yoy_cf_eur_5y_cap_150bp_bachelier.json</a></td>
+<td class="npv">36,137.79</td>
+</tr>
+<tr>
+<td><div class="title">EUR 3Y YoY inflation cap struck at 1.75%, unit-displaced Black</div><div class="desc">A shorter 3Y year-on-year inflation cap struck at 1.75% priced with the unit-displaced Black engine at 1% vol: NPV ~= 21,247 on 1m notional. Exercises a second strike and maturity and the third (unit-displaced Black) engine variant.</div></td>
+<td><code>YoY inflation cap</code> <code>unit-displaced Black</code> <code>3Y maturity</code> <code>second strike</code></td>
+<td><a href="../../examples/data/inflation_cap_floor/yoy_cf_eur_3y_cap_175bp_udblack.json">yoy_cf_eur_3y_cap_175bp_udblack.json</a></td>
+<td class="npv">21,247.15</td>
+</tr>
 </tbody>
 </table>
 <h2>Equity</h2>
@@ -1043,6 +1079,6 @@
 </tr>
 </tbody>
 </table>
-<footer>157 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>163 cases across 12 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

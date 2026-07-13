@@ -38,6 +38,7 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceEquityOption",
   "/quantra.QuantraServer/PriceZeroCouponBond",
   "/quantra.QuantraServer/PriceZeroCouponSwap",
+  "/quantra.QuantraServer/PriceYearOnYearInflationCapFloor",
   "/quantra.QuantraServer/Meta",
 };
 
@@ -69,7 +70,8 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_PriceEquityOption_(QuantraServer_method_names[19], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceZeroCouponBond_(QuantraServer_method_names[20], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceZeroCouponSwap_(QuantraServer_method_names[21], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceYearOnYearInflationCapFloor_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[23], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -336,6 +338,18 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceZeroCouponSwap_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceYearOnYearInflationCapFloor(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>& request, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceYearOnYearInflationCapFloor_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>* QuantraServer::Stub::AsyncPriceYearOnYearInflationCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>::Create(channel_.get(), cq, rpcmethod_PriceYearOnYearInflationCapFloor_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>* QuantraServer::Stub::PrepareAsyncPriceYearOnYearInflationCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>::Create(channel_.get(), cq, rpcmethod_PriceYearOnYearInflationCapFloor_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_Meta_, context, request, response);
 }
@@ -462,6 +476,11 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[22],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceYearOnYearInflationCapFloor), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[23],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
 }
@@ -554,6 +573,10 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceZeroCouponSwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceYearOnYearInflationCapFloor(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>* /*request*/, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

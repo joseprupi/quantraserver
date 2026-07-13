@@ -90,7 +90,7 @@ class VolSurfaceSpecT(object):
     def __init__(self):
         self.id = None  # type: str
         self.payloadType = 0  # type: int
-        self.payload = None  # type: Union[None, OptionletVolSpecT, SwaptionVolSpecT, BlackVolSpecT]
+        self.payload = None  # type: Union[None, OptionletVolSpecT, SwaptionVolSpecT, BlackVolSpecT, YoYOptionletVolSpecT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

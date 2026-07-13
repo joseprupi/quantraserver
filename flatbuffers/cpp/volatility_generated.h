@@ -66,6 +66,10 @@ struct BlackVolSpec;
 struct BlackVolSpecBuilder;
 struct BlackVolSpecT;
 
+struct YoYOptionletVolSpec;
+struct YoYOptionletVolSpecBuilder;
+struct YoYOptionletVolSpecT;
+
 struct VolSurfaceSpec;
 struct VolSurfaceSpecBuilder;
 struct VolSurfaceSpecT;
@@ -242,33 +246,36 @@ enum VolPayload : uint8_t {
   VolPayload_OptionletVolSpec = 1,
   VolPayload_SwaptionVolSpec = 2,
   VolPayload_BlackVolSpec = 3,
+  VolPayload_YoYOptionletVolSpec = 4,
   VolPayload_MIN = VolPayload_NONE,
-  VolPayload_MAX = VolPayload_BlackVolSpec
+  VolPayload_MAX = VolPayload_YoYOptionletVolSpec
 };
 
-inline const VolPayload (&EnumValuesVolPayload())[4] {
+inline const VolPayload (&EnumValuesVolPayload())[5] {
   static const VolPayload values[] = {
     VolPayload_NONE,
     VolPayload_OptionletVolSpec,
     VolPayload_SwaptionVolSpec,
-    VolPayload_BlackVolSpec
+    VolPayload_BlackVolSpec,
+    VolPayload_YoYOptionletVolSpec
   };
   return values;
 }
 
 inline const char * const *EnumNamesVolPayload() {
-  static const char * const names[5] = {
+  static const char * const names[6] = {
     "NONE",
     "OptionletVolSpec",
     "SwaptionVolSpec",
     "BlackVolSpec",
+    "YoYOptionletVolSpec",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameVolPayload(VolPayload e) {
-  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_BlackVolSpec)) return "";
+  if (::flatbuffers::IsOutRange(e, VolPayload_NONE, VolPayload_YoYOptionletVolSpec)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesVolPayload()[index];
 }
@@ -289,6 +296,10 @@ template<> struct VolPayloadTraits<quantra::BlackVolSpec> {
   static const VolPayload enum_value = VolPayload_BlackVolSpec;
 };
 
+template<> struct VolPayloadTraits<quantra::YoYOptionletVolSpec> {
+  static const VolPayload enum_value = VolPayload_YoYOptionletVolSpec;
+};
+
 template<typename T> struct VolPayloadUnionTraits {
   static const VolPayload enum_value = VolPayload_NONE;
 };
@@ -303,6 +314,10 @@ template<> struct VolPayloadUnionTraits<quantra::SwaptionVolSpecT> {
 
 template<> struct VolPayloadUnionTraits<quantra::BlackVolSpecT> {
   static const VolPayload enum_value = VolPayload_BlackVolSpec;
+};
+
+template<> struct VolPayloadUnionTraits<quantra::YoYOptionletVolSpecT> {
+  static const VolPayload enum_value = VolPayload_YoYOptionletVolSpec;
 };
 
 struct VolPayloadUnion {
@@ -358,6 +373,14 @@ struct VolPayloadUnion {
   const quantra::BlackVolSpecT *AsBlackVolSpec() const {
     return type == VolPayload_BlackVolSpec ?
       reinterpret_cast<const quantra::BlackVolSpecT *>(value) : nullptr;
+  }
+  quantra::YoYOptionletVolSpecT *AsYoYOptionletVolSpec() {
+    return type == VolPayload_YoYOptionletVolSpec ?
+      reinterpret_cast<quantra::YoYOptionletVolSpecT *>(value) : nullptr;
+  }
+  const quantra::YoYOptionletVolSpecT *AsYoYOptionletVolSpec() const {
+    return type == VolPayload_YoYOptionletVolSpec ?
+      reinterpret_cast<const quantra::YoYOptionletVolSpecT *>(value) : nullptr;
   }
 };
 
@@ -2212,6 +2235,136 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpecDirect(
 
 ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const BlackVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct YoYOptionletVolSpecT : public ::flatbuffers::NativeTable {
+  typedef YoYOptionletVolSpec TableType;
+  ::flatbuffers::Optional<double> constant_vol = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::YoYInflationCapFloorEngineType> vol_type = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  std::unique_ptr<quantra::PeriodT> observation_lag{};
+  YoYOptionletVolSpecT() = default;
+  YoYOptionletVolSpecT(const YoYOptionletVolSpecT &o);
+  YoYOptionletVolSpecT(YoYOptionletVolSpecT&&) FLATBUFFERS_NOEXCEPT = default;
+  YoYOptionletVolSpecT &operator=(YoYOptionletVolSpecT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Constant year-on-year inflation optionlet volatility, referenced by id from
+/// year-on-year inflation cap/floor trades. Currently a single flat vol; a
+/// strike/tenor surface form is a future additive extension (add optional
+/// axis/matrix fields alongside `constant_vol`, mirroring OptionletVolSpec ->
+/// AtmMatrix growth). The surface frequency and index-interpolation flag are
+/// NOT carried here: they are taken at pricing time from the year-on-year
+/// inflation index/curve the trade references, so the vol surface stays
+/// convention-consistent with its index.
+struct YoYOptionletVolSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef YoYOptionletVolSpecT NativeTableType;
+  typedef YoYOptionletVolSpecBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CONSTANT_VOL = 4,
+    VT_VOL_TYPE = 6,
+    VT_DAY_COUNTER = 8,
+    VT_CALENDAR = 10,
+    VT_BUSINESS_DAY_CONVENTION = 12,
+    VT_OBSERVATION_LAG = 14
+  };
+  /// Flat lognormal/normal optionlet volatility. Presence-required: an
+  /// omitted vol is a 400, never a silent 0.0.
+  ::flatbuffers::Optional<double> constant_vol() const {
+    return GetOptional<double, double>(VT_CONSTANT_VOL);
+  }
+  /// Pricing formula / engine selector (Black / UnitDisplacedBlack /
+  /// Bachelier). Presence-required.
+  ::flatbuffers::Optional<quantra::enums::YoYInflationCapFloorEngineType> vol_type() const {
+    return GetOptional<int8_t, quantra::enums::YoYInflationCapFloorEngineType>(VT_VOL_TYPE);
+  }
+  /// Day counter for the vol surface time axis. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
+  }
+  /// Calendar the vol surface advances the reference date on.
+  /// Presence-required.
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
+  }
+  /// Business-day convention for the vol surface. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
+  }
+  /// Observation lag of the vol surface (e.g. 3 Months).
+  const quantra::Period *observation_lag() const {
+    return GetPointer<const quantra::Period *>(VT_OBSERVATION_LAG);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<double>(verifier, VT_CONSTANT_VOL, 8) &&
+           VerifyField<int8_t>(verifier, VT_VOL_TYPE, 1) &&
+           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyOffsetRequired(verifier, VT_OBSERVATION_LAG) &&
+           verifier.VerifyTable(observation_lag()) &&
+           verifier.EndTable();
+  }
+  YoYOptionletVolSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(YoYOptionletVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<YoYOptionletVolSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YoYOptionletVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct YoYOptionletVolSpecBuilder {
+  typedef YoYOptionletVolSpec Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_constant_vol(double constant_vol) {
+    fbb_.AddElement<double>(YoYOptionletVolSpec::VT_CONSTANT_VOL, constant_vol);
+  }
+  void add_vol_type(quantra::enums::YoYInflationCapFloorEngineType vol_type) {
+    fbb_.AddElement<int8_t>(YoYOptionletVolSpec::VT_VOL_TYPE, static_cast<int8_t>(vol_type));
+  }
+  void add_day_counter(quantra::enums::DayCounter day_counter) {
+    fbb_.AddElement<int8_t>(YoYOptionletVolSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(YoYOptionletVolSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(YoYOptionletVolSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
+  }
+  void add_observation_lag(::flatbuffers::Offset<quantra::Period> observation_lag) {
+    fbb_.AddOffset(YoYOptionletVolSpec::VT_OBSERVATION_LAG, observation_lag);
+  }
+  explicit YoYOptionletVolSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<YoYOptionletVolSpec> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<YoYOptionletVolSpec>(end);
+    fbb_.Required(o, YoYOptionletVolSpec::VT_OBSERVATION_LAG);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Optional<double> constant_vol = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::YoYInflationCapFloorEngineType> vol_type = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<quantra::Period> observation_lag = 0) {
+  YoYOptionletVolSpecBuilder builder_(_fbb);
+  if(constant_vol) { builder_.add_constant_vol(*constant_vol); }
+  builder_.add_observation_lag(observation_lag);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(vol_type) { builder_.add_vol_type(*vol_type); }
+  return builder_.Finish();
+}
+
+::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const YoYOptionletVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct VolSurfaceSpecT : public ::flatbuffers::NativeTable {
   typedef VolSurfaceSpec TableType;
   std::string id{};
@@ -2246,6 +2399,9 @@ struct VolSurfaceSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::BlackVolSpec *payload_as_BlackVolSpec() const {
     return payload_type() == quantra::VolPayload_BlackVolSpec ? static_cast<const quantra::BlackVolSpec *>(payload()) : nullptr;
   }
+  const quantra::YoYOptionletVolSpec *payload_as_YoYOptionletVolSpec() const {
+    return payload_type() == quantra::VolPayload_YoYOptionletVolSpec ? static_cast<const quantra::YoYOptionletVolSpec *>(payload()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -2270,6 +2426,10 @@ template<> inline const quantra::SwaptionVolSpec *VolSurfaceSpec::payload_as<qua
 
 template<> inline const quantra::BlackVolSpec *VolSurfaceSpec::payload_as<quantra::BlackVolSpec>() const {
   return payload_as_BlackVolSpec();
+}
+
+template<> inline const quantra::YoYOptionletVolSpec *VolSurfaceSpec::payload_as<quantra::YoYOptionletVolSpec>() const {
+  return payload_as_YoYOptionletVolSpec();
 }
 
 struct VolSurfaceSpecBuilder {
@@ -3022,6 +3182,66 @@ inline ::flatbuffers::Offset<BlackVolSpec> CreateBlackVolSpec(::flatbuffers::Fla
       _strike_interpolator);
 }
 
+inline YoYOptionletVolSpecT::YoYOptionletVolSpecT(const YoYOptionletVolSpecT &o)
+      : constant_vol(o.constant_vol),
+        vol_type(o.vol_type),
+        day_counter(o.day_counter),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        observation_lag((o.observation_lag) ? new quantra::PeriodT(*o.observation_lag) : nullptr) {
+}
+
+inline YoYOptionletVolSpecT &YoYOptionletVolSpecT::operator=(YoYOptionletVolSpecT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(constant_vol, o.constant_vol);
+  std::swap(vol_type, o.vol_type);
+  std::swap(day_counter, o.day_counter);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(observation_lag, o.observation_lag);
+  return *this;
+}
+
+inline YoYOptionletVolSpecT *YoYOptionletVolSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<YoYOptionletVolSpecT>(new YoYOptionletVolSpecT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void YoYOptionletVolSpec::UnPackTo(YoYOptionletVolSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = constant_vol(); _o->constant_vol = _e; }
+  { auto _e = vol_type(); _o->vol_type = _e; }
+  { auto _e = day_counter(); _o->day_counter = _e; }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = observation_lag(); if (_e) { if(_o->observation_lag) { _e->UnPackTo(_o->observation_lag.get(), _resolver); } else { _o->observation_lag = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->observation_lag) { _o->observation_lag.reset(); } }
+}
+
+inline ::flatbuffers::Offset<YoYOptionletVolSpec> YoYOptionletVolSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const YoYOptionletVolSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateYoYOptionletVolSpec(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<YoYOptionletVolSpec> CreateYoYOptionletVolSpec(::flatbuffers::FlatBufferBuilder &_fbb, const YoYOptionletVolSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const YoYOptionletVolSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _constant_vol = _o->constant_vol;
+  auto _vol_type = _o->vol_type;
+  auto _day_counter = _o->day_counter;
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _observation_lag = _o->observation_lag ? CreatePeriod(_fbb, _o->observation_lag.get(), _rehasher) : 0;
+  return quantra::CreateYoYOptionletVolSpec(
+      _fbb,
+      _constant_vol,
+      _vol_type,
+      _day_counter,
+      _calendar,
+      _business_day_convention,
+      _observation_lag);
+}
+
 inline VolSurfaceSpecT *VolSurfaceSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<VolSurfaceSpecT>(new VolSurfaceSpecT());
   UnPackTo(_o.get(), _resolver);
@@ -3226,6 +3446,10 @@ inline bool VerifyVolPayload(::flatbuffers::Verifier &verifier, const void *obj,
       auto ptr = reinterpret_cast<const quantra::BlackVolSpec *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case VolPayload_YoYOptionletVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpec *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -3257,6 +3481,10 @@ inline void *VolPayloadUnion::UnPack(const void *obj, VolPayload type, const ::f
       auto ptr = reinterpret_cast<const quantra::BlackVolSpec *>(obj);
       return ptr->UnPack(resolver);
     }
+    case VolPayload_YoYOptionletVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpec *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -3276,6 +3504,10 @@ inline ::flatbuffers::Offset<void> VolPayloadUnion::Pack(::flatbuffers::FlatBuff
       auto ptr = reinterpret_cast<const quantra::BlackVolSpecT *>(value);
       return CreateBlackVolSpec(_fbb, ptr, _rehasher).Union();
     }
+    case VolPayload_YoYOptionletVolSpec: {
+      auto ptr = reinterpret_cast<const quantra::YoYOptionletVolSpecT *>(value);
+      return CreateYoYOptionletVolSpec(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -3292,6 +3524,10 @@ inline VolPayloadUnion::VolPayloadUnion(const VolPayloadUnion &u) : type(u.type)
     }
     case VolPayload_BlackVolSpec: {
       value = new quantra::BlackVolSpecT(*reinterpret_cast<quantra::BlackVolSpecT *>(u.value));
+      break;
+    }
+    case VolPayload_YoYOptionletVolSpec: {
+      value = new quantra::YoYOptionletVolSpecT(*reinterpret_cast<quantra::YoYOptionletVolSpecT *>(u.value));
       break;
     }
     default:
@@ -3313,6 +3549,11 @@ inline void VolPayloadUnion::Reset() {
     }
     case VolPayload_BlackVolSpec: {
       auto ptr = reinterpret_cast<quantra::BlackVolSpecT *>(value);
+      delete ptr;
+      break;
+    }
+    case VolPayload_YoYOptionletVolSpec: {
+      auto ptr = reinterpret_cast<quantra::YoYOptionletVolSpecT *>(value);
       delete ptr;
       break;
     }

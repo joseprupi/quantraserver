@@ -8,6 +8,7 @@ class VolPayload(object):
     OptionletVolSpec = 1
     SwaptionVolSpec = 2
     BlackVolSpec = 3
+    YoYOptionletVolSpec = 4
 
 def VolPayloadCreator(unionType, table):
     from flatbuffers.table import Table
@@ -19,4 +20,6 @@ def VolPayloadCreator(unionType, table):
         return SwaptionVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.BlackVolSpec:
         return BlackVolSpecT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == VolPayload.YoYOptionletVolSpec:
+        return YoYOptionletVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

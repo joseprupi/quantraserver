@@ -109,6 +109,25 @@ struct BlackVolEntry {
     QuantLib::DayCounter dayCounter;
 };
 
+/// Pricing formula (engine) selector for a YoY inflation cap/floor. Plain
+/// mirror of enums::YoYInflationCapFloorEngineType so the FB-free evaluator can
+/// switch on it without touching FlatBuffers.
+enum class YoYInflationEngineKind { Black, UnitDisplacedBlack, Bachelier };
+
+/// Constant YoY optionlet vol, resolved from a YoYOptionletVolSpec. The actual
+/// ConstantYoYOptionletVolatility is NOT built here: its frequency and
+/// index-interpolation flag come from the YoY inflation index/curve the trade
+/// references, so the evaluator builds the QL surface at pricing time from
+/// these plain params plus the index conventions.
+struct YoYOptionletVolEntry {
+    double constantVol = 0.0;
+    YoYInflationEngineKind engineKind = YoYInflationEngineKind::Black;
+    QuantLib::DayCounter dayCounter;
+    QuantLib::Calendar calendar;
+    QuantLib::BusinessDayConvention businessDayConvention = QuantLib::ModifiedFollowing;
+    QuantLib::Period observationLag;
+};
+
 // =============================================================================
 // Parser functions - free functions (not class methods)
 // =============================================================================
@@ -185,6 +204,13 @@ BlackVolEntry parseBlackVol(
     const QuoteRegistry* quotes = nullptr,
     const std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves =
         nullptr);
+
+/**
+ * Parse YoYOptionletVolSpec from FlatBuffers into a plain YoYOptionletVolEntry.
+ * Enforces presence of constant_vol, vol_type, day_counter, calendar,
+ * business_day_convention and observation_lag (400 naming the field otherwise).
+ */
+YoYOptionletVolEntry parseYoYOptionletVol(const quantra::VolSurfaceSpec* spec);
 
 } // namespace quantra
 

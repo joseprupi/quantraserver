@@ -105,6 +105,10 @@
       "type" : "string",
       "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
     },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
     "quantra_enums_SwaptionVolKind" : {
       "type" : "string",
       "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
@@ -183,7 +187,7 @@
     },
     "quantra_VolPayload" : {
       "type" : "string",
-      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec"]
+      "enum": ["NONE", "OptionletVolSpec", "SwaptionVolSpec", "BlackVolSpec", "YoYOptionletVolSpec"]
     },
     "quantra_QuoteKind" : {
       "type" : "string",
@@ -1284,6 +1288,38 @@
       },
       "additionalProperties" : false
     },
+    "quantra_YoYOptionletVolSpec" : {
+      "type" : "object",
+      "description" : "Constant year-on-year inflation optionlet volatility, referenced by id from\nyear-on-year inflation cap/floor trades. Currently a single flat vol; a\nstrike/tenor surface form is a future additive extension (add optional\naxis/matrix fields alongside `constant_vol`, mirroring OptionletVolSpec ->\nAtmMatrix growth). The surface frequency and index-interpolation flag are\nNOT carried here: they are taken at pricing time from the year-on-year\ninflation index/curve the trade references, so the vol surface stays\nconvention-consistent with its index.",
+      "properties" : {
+        "constant_vol" : {
+                "type" : "number",
+                "description" : "Flat lognormal/normal optionlet volatility. Presence-required: an\nomitted vol is a 400, never a silent 0.0."
+              },
+        "vol_type" : {
+                "$ref" : "#/definitions/quantra_enums_YoYInflationCapFloorEngineType",
+                "description" : "Pricing formula / engine selector (Black / UnitDisplacedBlack /\nBachelier). Presence-required."
+              },
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "Day counter for the vol surface time axis. Presence-required."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar the vol surface advances the reference date on.\nPresence-required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention for the vol surface. Presence-required."
+              },
+        "observation_lag" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Observation lag of the vol surface (e.g. 3 Months)."
+              }
+      },
+      "required" : ["observation_lag"],
+      "additionalProperties" : false
+    },
     "quantra_VolSurfaceSpec" : {
       "type" : "object",
       "description" : "Volatility surface specification referenced by id in trade requests.",
@@ -1295,7 +1331,7 @@
                 "$ref" : "#/definitions/quantra_VolPayload"
               },
         "payload" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_OptionletVolSpec" },{ "$ref" : "#/definitions/quantra_SwaptionVolSpec" },{ "$ref" : "#/definitions/quantra_BlackVolSpec" },{ "$ref" : "#/definitions/quantra_YoYOptionletVolSpec" }]
               }
       },
       "required" : ["id"],

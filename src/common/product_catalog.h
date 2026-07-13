@@ -48,7 +48,8 @@ struct ProductCatalogEntry {
     X(CalibrateSwaptionVol, "calibrate_swaption_vol", "calibrate-swaption-vol", "calibrate_swaption_vol_request.fbs", "calibrate_swaption_vol_response.fbs") \
     X(EquityOption, "equity_option", "price-equity-option", "price_equity_option_request.fbs", "equity_option_response.fbs") \
     X(ZeroCouponBond, "zero_coupon_bond", "price-zero-coupon-bond", "price_zero_coupon_bond_request.fbs", "zero_coupon_bond_response.fbs") \
-    X(ZeroCouponSwap, "zero_coupon_swap", "price-zero-coupon-swap", "price_zero_coupon_swap_request.fbs", "zero_coupon_swap_response.fbs")
+    X(ZeroCouponSwap, "zero_coupon_swap", "price-zero-coupon-swap", "price_zero_coupon_swap_request.fbs", "zero_coupon_swap_response.fbs") \
+    X(YearOnYearInflationCapFloor, "year_on_year_inflation_cap_floor", "price-year-on-year-inflation-cap-floor", "price_year_on_year_inflation_cap_floor_request.fbs", "year_on_year_inflation_cap_floor_response.fbs")
 
 enum class ProductType {
 #define QUANTRA_ENUM_ENTRY(name, key, route, req, resp) name,
