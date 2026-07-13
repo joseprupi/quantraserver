@@ -432,6 +432,12 @@ JsonResponse QuantraClient::PriceYearOnYearInflationCapFloorJSON(const std::stri
     );
 }
 
+JsonResponse QuantraClient::PriceCallableFixedRateBondJSON(const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceCallableFixedRateBondRequest, PriceCallableFixedRateBondResponse>(
+        ProductType::CallableFixedRateBond, json, &QuantraServer::Stub::PriceCallableFixedRateBond, request_id
+    );
+}
+
 // =============================================================================
 // Native FlatBuffers API Implementation
 // =============================================================================
@@ -641,6 +647,15 @@ grpc::Status QuantraClient::PriceYearOnYearInflationCapFloor(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceYearOnYearInflationCapFloor(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceCallableFixedRateBond(
+    const Message<PriceCallableFixedRateBondRequest>& request,
+    Message<PriceCallableFixedRateBondResponse>* response
+) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceCallableFixedRateBond(&context, request, response);
 }
 
 } // namespace quantra

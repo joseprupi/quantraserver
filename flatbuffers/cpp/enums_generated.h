@@ -915,6 +915,40 @@ inline const char *EnumNameCapFloorType(CapFloorType e) {
   return EnumNamesCapFloorType()[index];
 }
 
+/// Callable/puttable bond option side attached to a call-schedule entry:
+/// Call (issuer may redeem the bond early) or Put (holder may sell it back
+/// early). Presence-required on CallabilityEntry — there is no
+/// alphabetical-0 default.
+enum CallabilityType : int8_t {
+  CallabilityType_Call = 0,
+  CallabilityType_Put = 1,
+  CallabilityType_MIN = CallabilityType_Call,
+  CallabilityType_MAX = CallabilityType_Put
+};
+
+inline const CallabilityType (&EnumValuesCallabilityType())[2] {
+  static const CallabilityType values[] = {
+    CallabilityType_Call,
+    CallabilityType_Put
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesCallabilityType() {
+  static const char * const names[3] = {
+    "Call",
+    "Put",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameCallabilityType(CallabilityType e) {
+  if (::flatbuffers::IsOutRange(e, CallabilityType_Call, CallabilityType_Put)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesCallabilityType()[index];
+}
+
 /// Swaption exercise style: European (at expiry only), Bermudan (on specific dates), or American (any time).
 enum ExerciseType : int8_t {
   ExerciseType_European = 0,

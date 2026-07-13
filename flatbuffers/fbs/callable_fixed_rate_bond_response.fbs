@@ -1,0 +1,21 @@
+namespace quantra;
+
+/// Callable fixed-rate bond pricing response. Reports the tree-model NPV plus
+/// clean/dirty price and the settlement date.
+///
+/// Option-adjusted spread (OAS) and analytic risk measures (effective duration
+/// / convexity) are a documented future optional flag — this product ships
+/// npv + clean/dirty price + settlement_date only.
+table CallableFixedRateBondResponse {
+    npv:double;
+    clean_price:double;
+    dirty_price:double;
+    settlement_date:string;
+}
+
+/// Response wrapper for multiple callable fixed-rate bonds.
+table PriceCallableFixedRateBondResponse {
+    bonds:[CallableFixedRateBondResponse] (required);
+}
+
+root_type PriceCallableFixedRateBondResponse;

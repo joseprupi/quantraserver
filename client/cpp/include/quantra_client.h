@@ -58,6 +58,7 @@
 #include "zero_coupon_bond_response_generated.h"
 #include "zero_coupon_swap_response_generated.h"
 #include "year_on_year_inflation_cap_floor_response_generated.h"
+#include "callable_fixed_rate_bond_response_generated.h"
 
 namespace quantra {
 
@@ -152,6 +153,7 @@ public:
     JsonResponse PriceZeroCouponBondJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceZeroCouponSwapJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceYearOnYearInflationCapFloorJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceCallableFixedRateBondJSON(const std::string& json, const std::string& request_id = "");
 
     // -------------------------------------------------------------------------
     // Native FlatBuffers API - Maximum performance
@@ -251,6 +253,10 @@ public:
     grpc::Status PriceYearOnYearInflationCapFloor(
         const Message<PriceYearOnYearInflationCapFloorRequest>& request,
         Message<PriceYearOnYearInflationCapFloorResponse>* response);
+
+    grpc::Status PriceCallableFixedRateBond(
+        const Message<PriceCallableFixedRateBondRequest>& request,
+        Message<PriceCallableFixedRateBondResponse>* response);
 
     // -------------------------------------------------------------------------
     // Accessors

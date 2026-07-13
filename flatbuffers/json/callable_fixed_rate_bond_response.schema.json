@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_CallableFixedRateBondResponse" : {
+      "type" : "object",
+      "description" : "Callable fixed-rate bond pricing response. Reports the tree-model NPV plus\nclean/dirty price and the settlement date.\n\nOption-adjusted spread (OAS) and analytic risk measures (effective duration\n/ convexity) are a documented future optional flag — this product ships\nnpv + clean/dirty price + settlement_date only.",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "clean_price" : {
+                "type" : "number"
+              },
+        "dirty_price" : {
+                "type" : "number"
+              },
+        "settlement_date" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceCallableFixedRateBondResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple callable fixed-rate bonds.",
+      "properties" : {
+        "bonds" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CallableFixedRateBondResponse"}
+              }
+      },
+      "required" : ["bonds"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceCallableFixedRateBondResponse"
+}

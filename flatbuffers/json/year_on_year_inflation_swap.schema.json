@@ -81,6 +81,10 @@
       "type" : "string",
       "enum": ["Cap", "Floor", "Collar"]
     },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
     "quantra_enums_ExerciseType" : {
       "type" : "string",
       "enum": ["European", "Bermudan", "American"]

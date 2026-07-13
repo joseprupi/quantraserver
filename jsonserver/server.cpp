@@ -745,6 +745,13 @@ int main(int argc, char** argv) {
             });
         });
 
+        CROW_ROUTE(app, "/price-callable-fixed-rate-bond").methods("POST"_method)
+        ([&](const crow::request& req) {
+            return respond("/price-callable-fixed-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
+                return client.PriceCallableFixedRateBondJSON(body, request_id);
+            });
+        });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -770,6 +777,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-zero-coupon-bond\n"
                   << "  POST /price-zero-coupon-swap\n"
                   << "  POST /price-year-on-year-inflation-cap-floor\n"
+                  << "  POST /price-callable-fixed-rate-bond\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"

@@ -649,6 +649,87 @@ def price_fixed_rate_bond_ql(request: dict) -> float:
     return ql_bond.NPV()
 
 
+def price_callable_fixed_rate_bond_ql(request: dict) -> float:
+    """Price a callable (or puttable) fixed-rate bond using QuantLib.
+
+    Mirrors the server's CallableFixedRateBondEvaluator: build the same
+    QuantLib::CallableFixedRateBond with an identical CallabilitySchedule (clean
+    call/put prices, Bond::Price::Clean), resolve the short-rate model by id from
+    pricing.volatility.models (a SwaptionModelSpec of model_type
+    HullWhiteLattice) exactly as the swaption reference does, and price on a
+    TreeCallableFixedRateBondEngine over the discount curve with the request's
+    tree_steps. Only param_mode=Explicit is reproduced here (the catalog cases
+    use explicit Hull-White parameters for deterministic parity); Calibrate would
+    require the swaption calibration routine replayed here.
+    """
+    pricing = _reference_pricing_view(request)
+    bond_data = request["bonds"][0]
+    bond = bond_data["callable_fixed_rate_bond"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    curve_id = bond_data.get("discounting_curve", "discount")
+    curve_json = next((c for c in pricing["curves"] if c["id"] == curve_id), pricing["curves"][0])
+    curve = build_curve_from_json(curve_json, eval_date, request)
+
+    sch = bond["schedule"]
+    schedule = ql.Schedule(
+        parse_date(sch["effective_date"]),
+        parse_date(sch["termination_date"]),
+        ql.Period(get_frequency(sch["frequency"])),
+        get_calendar(sch.get("calendar", "TARGET")),
+        get_convention(sch.get("convention", "ModifiedFollowing")),
+        get_convention(sch.get("termination_date_convention", "ModifiedFollowing")),
+        get_date_generation(sch.get("date_generation_rule", "Forward")),
+        sch.get("end_of_month", False)
+    )
+
+    # Build the call schedule with clean prices per 100 (Bond::Price::Clean),
+    # mirroring CallableFixedRateBondParser.
+    call_schedule = ql.CallabilitySchedule()
+    for entry in bond["call_schedule"]:
+        price = ql.BondPrice(entry["price"], ql.BondPrice.Clean)
+        ctype = (ql.Callability.Call if entry["callability_type"] == "Call"
+                 else ql.Callability.Put)
+        call_schedule.push_back(ql.Callability(price, ctype, parse_date(entry["date"])))
+
+    ql_bond = ql.CallableFixedRateBond(
+        bond.get("settlement_days", 2),
+        bond.get("face_amount", 100.0),
+        schedule,
+        [bond["rate"]],
+        get_day_counter(bond.get("accrual_day_counter", "Thirty360")),
+        get_convention(bond.get("payment_convention", "Following")),
+        bond.get("redemption", 100.0),
+        parse_date(bond["issue_date"]),
+        call_schedule
+    )
+
+    # Resolve the short-rate model by id (same mechanism as the swaption).
+    model_spec = {}
+    for m in pricing.get("models", []):
+        if m.get("id") == bond_data.get("model"):
+            model_spec = m.get("payload", {})
+            break
+    if model_spec.get("model_type") != "HullWhiteLattice":
+        raise ValueError(
+            "callable bond reference requires a HullWhiteLattice model")
+    if model_spec.get("param_mode", "Explicit") != "Explicit":
+        raise ValueError(
+            "callable bond reference only supports HullWhiteLattice with "
+            "param_mode=Explicit")
+
+    hw_model = ql.HullWhite(curve,
+                            model_spec.get("hw_a", 0.03),
+                            model_spec.get("hw_sigma", 0.01))
+    tree_steps = int(bond_data.get("tree_steps", 400))
+    ql_bond.setPricingEngine(
+        ql.TreeCallableFixedRateBondEngine(hw_model, tree_steps, curve))
+
+    return ql_bond.NPV()
+
+
 def price_floating_rate_bond_ql(request: dict) -> float:
     """Price floating rate bond using QuantLib."""
     pricing = _reference_pricing_view(request)
