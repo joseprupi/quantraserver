@@ -41,25 +41,72 @@ The public API is declared in `client/cpp/include/quantra_client.h`.
 
 ## Supported Client Methods
 
-The current header exposes pricing and utility calls for:
+The header exposes every product the server serves, in both modes: a
+`…JSON` method taking a JSON string, and a native FlatBuffers method of the
+same name without the suffix. The JSON methods take an optional `request_id`,
+forwarded to the engine as `x-request-id` metadata for log correlation.
 
-- fixed-rate bonds
-- floating-rate bonds
-- vanilla swaps
-- zero-coupon inflation swaps
-- year-on-year inflation swaps
-- OIS swaps
-- basis swaps
-- FRAs
-- caps and floors
-- swaptions
+Pricing:
+
+- fixed-rate bonds, floating-rate bonds, zero-coupon bonds, callable
+  fixed-rate bonds
+- vanilla swaps, OIS swaps, basis swaps, zero-coupon swaps
+- zero-coupon inflation swaps, year-on-year inflation swaps
+- FRAs, caps and floors, swaptions
+- year-on-year inflation caps/floors
 - CDS
-- bootstrap curves
-- bootstrap inflation curves
-- sampled vol surfaces
-- calendar helpers
-- swaption model calibration
 - equity options
+
+Utility:
+
+- bootstrap curves, bootstrap inflation curves
+- sample vol surfaces
+- calendar business days, calendar holidays, calendar advance
+- calibrate swaption model (Hull-White), calibrate swaption vol (SABR)
+
+This mirrors the served endpoints in `src/common/product_catalog.h`; when that
+catalog gains an entry, the client header gains the matching pair (see
+"Extending the Client For A New Product").
+
+## Service RPCs
+
+Beyond the product calls, the gRPC engine serves two things a client can use to
+introspect and probe it. Neither is a pricing call, and neither has a C++
+client wrapper — call them with any gRPC client. Both are gRPC-only; the JSON
+gateway has its own `GET /meta` and `GET /health`.
+
+### `Meta`
+
+`quantra.QuantraServer/Meta` takes an empty `MetaRequest` and returns a
+`MetaResponse`:
+
+| Field | Contents |
+| --- | --- |
+| `service` | `quantra-grpc-engine` |
+| `api_version` | The `VERSION` file verbatim — the same value in OpenAPI `info.version` and the `X-Quantra-Api-Version` header |
+| `backend_version` | Engine build version |
+| `git_sha` | Commit the binary was built from |
+| `build_time_utc` | Build timestamp |
+| `products` | Every product the engine serves |
+| `rpc_methods` | Every registered RPC method name, including `Meta` itself |
+| `dependencies` | Versions of QuantLib, gRPC, and FlatBuffers the engine was built against |
+
+Everything is assembled from compile-time build metadata and the shared product
+catalog: `Meta` touches no market data and does no pricing, so it is safe to
+call on a hot server.
+
+### Health checking
+
+The engine serves the standard `grpc.health.v1.Health` service (`Check` and
+`Watch`), reporting `SERVING` once it is up. Any standard health client works,
+for example:
+
+```bash
+grpc_health_probe -addr=localhost:50051
+```
+
+This is what Envoy uses to health-check workers, which is how it distinguishes
+a dead worker from a busy one.
 
 ## Build
 

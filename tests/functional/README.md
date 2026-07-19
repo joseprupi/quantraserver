@@ -42,6 +42,9 @@ committed catalog drifts from the manifest.
 | `../../examples/data/inflation/` | The curated request JSONs for the Inflation family. |
 | `../../examples/data/equity/` | The curated request JSONs for the Equity family. |
 | `../../examples/data/vol/` | The curated request JSONs for the Vol / Calibration family. |
+| `../../examples/data/zero_coupon_swap/` | The curated request JSONs for the Zero Coupon Swaps family. |
+| `../../examples/data/callable_bonds/` | The curated request JSONs for the Callable Bonds family. |
+| `../../examples/data/inflation_cap_floor/` | The curated request JSONs for the inflation cap/floor cases (Inflation family). |
 
 ## Comparison modes
 
@@ -188,12 +191,14 @@ Legend: ✅ covered · ◐ partial · ☐ planned (expressible, not yet added) �
 **Legs & structure**
 - ✅ Vanilla fixed vs Ibor float · ✅ payer / receiver · ✅ OIS (compounded
   overnight) · ✅ tenor basis (float vs float) · ✅ forward-starting
-- ☐ Stub periods (short/long first & last coupon) · ☐ zero-coupon swap
+- ✅ Stub periods (short/long first & last coupon, via the schedule's
+  `first_date` / `next_to_last_date`) · ✅ zero-coupon swap (own family below)
 - ✅ CMS leg (fixed vs CMS; LinearTsr / Analytic & Numeric Hagan; geared +
-  spread; constant & ATM-matrix swaption vol at 2Y/10Y tenors)
-- ⛔ amortizing / step-up notional · ⛔ in-arrears / lookback /
-  averaged OIS · ⛔ geared / capped / floored floater (CMS cap/floor rejected
-  by the server in v1)
+  spread; constant & ATM-matrix swaption vol at 2Y/10Y tenors) · ✅ capped /
+  floored CMS coupons
+- ✅ amortizing / step-up notional (per-period `notionals` on swap legs)
+- ⛔ in-arrears / lookback / averaged OIS · ⛔ geared / capped / floored Ibor
+  floater
 
 **Conventions**
 - ◐ Fixed day counts (✅ 30/360, Act/365F; ☐ Act/360, Act/Act on fixed leg)
@@ -214,6 +219,49 @@ Legend: ✅ covered · ◐ partial · ☐ planned (expressible, not yet added) �
 - ✅ Positive rates · ✅ short-dated (1Y) · ✅ long-dated (30Y)
 - ☐ Negative rates · ☐ flat / steep / inverted curve shapes · ☐ at-par (NPV≈0)
 - ☐ Seasoned swap with past fixings
+
+## Planned / not yet covered (IR Swaps)
+
+These need reference-pricer features that `ql_reference.py` does not have
+yet; they are deliberately not half-implemented:
+
+* **Cross-currency swaps** — no product endpoint yet.
+* **Exogenous-discounting bootstrap (`deps.discount_curve`) parity** — the
+  server bootstraps projection curves discounted on another curve (see
+  `examples/data/vanilla_swap_multicurve_request.json`), but
+  `build_curve_from_json` in the Python reference ignores `deps`, so such
+  requests cannot be reference-priced yet. The multicurve cases here use
+  independently bootstrapped curves instead.
+* **Averaged (non-compounded) OIS legs, lookback/lockout variations** — the
+  schema and server support them; the reference call path has not been
+  validated for them.
+* **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
+* **Other families**: Bonds, FRAs, caps/floors, swaptions, CDS,
+  bootstrapped-curve sampling (Curves), the calendar date utilities
+  (Calendars), the inflation swaps (Inflation), the equity options
+  (Equity) and the vol-surface sampling / calibration endpoints
+  (Vol / Calibration) are covered above.
+
+## Current coverage (Zero Coupon Swaps)
+
+A single fixed cashflow against a single compounded-floating cashflow, both
+paid at maturity, on a 5Y EUR trade (TARGET, Modified Following, 2025-01-17 to
+2030-01-17, Euribor 6M compounded on a 1m base nominal, single curve).
+
+* Both fixed-side forms: an explicit `fixed_payment` (a known cashflow) and a
+  `fixed_rate` + day-counter pair (3.20% compounded over the life under
+  30/360, N_fix = N[(1+R)^alpha - 1]). QuantLib's rate form compounds annually
+  by definition, so there are no compounding or frequency fields to vary.
+* Payer and receiver on the same trade, pinning the sign flip.
+* A payer struck at the swap's fair fixed payment, so both legs have equal
+  present value and the NPV is zero — this pins the fair-payment solve end to
+  end.
+
+## Planned / not yet covered (Zero Coupon Swaps)
+
+* **Multicurve / OIS-discounted variants** — expressible on the wire; the
+  covered cases use a single curve.
+* **Non-EUR indices and calendars**, and maturities away from 5Y.
 
 ## Current coverage (Bonds)
 
@@ -255,6 +303,32 @@ schedule); they are deliberately not half-implemented:
 * **Seasoned floaters with historical fixings** — `IndexDef.fixings` exists
   on the wire and both sides apply them, but no catalog case pins the
   past-fixing path yet.
+
+## Current coverage (Callable Bonds)
+
+Callable and puttable fixed-rate bonds priced on the tree-based Hull-White
+engine, with the model referenced by id exactly as swaptions reference theirs
+(explicit parameters in these cases). Every case is an 8Y EUR bond on the same
+~3% curve, so the callable value is read against the straight bond's value.
+
+* Moneyness sweep on a 5% premium bond (straight NPV 1,127,246.83): a single
+  2029 call at a clean 100 (deep in the money — the issuer's option is worth
+  a lot, so the callable prices well below the straight bond) and the same
+  call struck at 115 (out of the money — the callable sits only 3,876.33
+  below the straight bond).
+* A three-date step-down call ladder (2029 at 102, 2030 at 101, 2031 at
+  100.5), exercising multi-date callability.
+* A puttable case: a 2% discount bond (straight NPV 917,757.88) with a single
+  2029 bondholder put at a clean 98, which prices **above** the straight bond
+  — the opposite sign to the calls, pinning option direction.
+
+## Planned / not yet covered (Callable Bonds)
+
+* **Calibrated Hull-White parameters** — the model-by-id mechanism accepts a
+  calibrated model, but the covered cases pass explicit `a` / `sigma`.
+* **Option-adjusted spread and risk measures** — not in the response yet.
+* **Lattice-step sensitivity** — the cases fix one step count rather than
+  sweeping it.
 
 ## Current coverage (FRA)
 
@@ -538,8 +612,9 @@ half-implemented:
 
 ## Current coverage (Inflation)
 
-Both inflation swap products, priced on bootstrapped inflation curves and
-compared as NPVs (tolerance 0.01). Note the QuantLib direction conventions
+Both inflation swap products and the year-on-year inflation cap/floor, priced
+on bootstrapped inflation curves and compared as NPVs (tolerance 0.01). Note
+the QuantLib direction conventions
 both sides implement: a ZCIIS "Payer" pays the **inflation** leg and
 receives fixed, while a YYIIS "Payer" pays the **fixed** leg and receives
 the YoY leg.
@@ -557,6 +632,13 @@ the YoY leg.
   (30/360 fixed vs Act/360 YoY); and a +25bp spread on the YoY leg. The
   YoY curve helpers discount on the request's nominal curve, and the YoY
   leg is priced with the same nominal-curve coupon pricer the server uses.
+* Year-on-year inflation caps, floors and collars: a 5Y cap struck at 1.50%
+  (in the money, bites) and the same structure at 2.80% (out of the money,
+  small NPV); a 5Y floor at 3.00% that bites; a 5Y collar (long the 2.50%
+  cap, short the 1.50% floor). All three engines the vol spec can select are
+  exercised on the same trade shape: Black, Bachelier (normal vol) on the
+  1.50% cap, and unit-displaced Black on a 3Y cap at 1.75%. The optionlet
+  volatility is the constant YoY spec.
 * Market data: EUR HICP-style monthly index, 2M availability lag, monthly
   CPI (and YoY-rate) fixings for June-December 2024, zero curve from ZCIIS
   quotes 1Y 2.00% to 10Y 2.35%, YoY curve from YoY quotes 1Y 2.00% to 7Y
@@ -729,36 +811,8 @@ or cannot agree with the server more tightly than the effect being tested:
   the server computes OIS ATM forwards for sampling, but SABR calibrate
   rejects OIS swap indices ("not supported in v1") and the reference only
   builds the Ibor path.
-* **The diagnostics `expiries`/`tenors` period fields** — a genuine server
-  bug found while building this family: the diagnostics builder casts
-  QuantLib's TimeUnit enum (Days=0, Weeks=1, Months=2, Years=3) straight
-  into the schema's alphabetical TimeUnit enum (Days=0, Hours=1,
-  Microseconds=2, Milliseconds=3, ...), so a 1Y expiry serializes as
-  `{"n": 1, "unit": "Milliseconds"}` in every SwaptionVolDiagnostics block
-  (`src/market/swaption_vol_diagnostics.cpp`, `writePeriod`). The catalog
-  cases compare the numeric grids only; the fields can be asserted once the
-  mapper uses the proper enum conversion.
-
-## Planned / not yet covered (IR Swaps)
-
-These need reference-pricer features that `ql_reference.py` does not have
-yet; they are deliberately not half-implemented:
-
-* **Amortizing / step-up notionals** — the swap schemas carry one notional
-  per leg today.
-* **Cross-currency swaps** — no product endpoint yet.
-* **Exogenous-discounting bootstrap (`deps.discount_curve`) parity** — the
-  server bootstraps projection curves discounted on another curve (see
-  `examples/data/vanilla_swap_multicurve_request.json`), but
-  `build_curve_from_json` in the Python reference ignores `deps`, so such
-  requests cannot be reference-priced yet. The multicurve cases here use
-  independently bootstrapped curves instead.
-* **Averaged (non-compounded) OIS legs, lookback/lockout variations** — the
-  schema and server support them; the reference call path has not been
-  validated for them.
-* **In-arrears floating legs, gearings ≠ 1** — untested in the reference.
-* **Other families**: Bonds, FRAs, caps/floors, swaptions, CDS,
-  bootstrapped-curve sampling (Curves), the calendar date utilities
-  (Calendars), the inflation swaps (Inflation), the equity options
-  (Equity) and the vol-surface sampling / calibration endpoints
-  (Vol / Calibration) are covered above.
+* **The diagnostics `expiries`/`tenors` period fields** — these serialize
+  correctly (`writePeriod` in `src/market/swaption_vol_diagnostics.cpp` goes
+  through the proper TimeUnit conversion; a dedicated contract test covers
+  it), but the catalog cases here still compare the numeric grids only. The
+  period fields can be folded into the fields comparison.

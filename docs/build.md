@@ -6,12 +6,17 @@ This page replaces the old root `BUILD_GUIDE.md` and documents the current build
 
 ### Docker production image
 
-The default image builds the project and starts the gRPC worker cluster behind Envoy on port `50051`.
+The default image builds the project, starts the gRPC worker cluster behind
+Envoy on port `50051`, and starts the JSON gateway on port `8080`. Both ports
+are exposed; publish whichever surfaces you need.
 
 ```bash
 docker build -t quantra .
-docker run --rm -p 50051:50051 quantra
+docker run --rm -p 50051:50051 -p 8080:8080 quantra
 ```
+
+See `configuration.md` for the environment variables the entrypoint honours
+(worker count, ports, request budget, caches).
 
 ### Docker dev image
 

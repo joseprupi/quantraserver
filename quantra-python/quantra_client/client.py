@@ -4,18 +4,21 @@ Quantra Python Client
 A high-performance Python client for the Quantra distributed QuantLib pricing engine.
 Uses FlatBuffers Object API for serialization and gRPC for transport.
 
+Requests are built with the generated FlatBuffers Object API classes from the
+`quantra` package (flatbuffers/python/), then passed to a Client method.
+
 Example:
     from quantra_client import Client
-    from quantra_client.builders import (
-        build_fixed_rate_bond_request,
-        build_vanilla_swap_request,
-    )
-    
+    from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
+
+    request = PriceFixedRateBondRequestT()
+    # ... populate request.pricing and request.bonds ...
+
     client = Client("localhost:50051")
-    
-    request = build_fixed_rate_bond_request(...)
     response = client.price_fixed_rate_bonds(request)
     print(f"NPV: {response.Bonds(0).Npv()}")
+
+See examples/price_bonds.py for a complete, runnable request.
 """
 
 import grpc

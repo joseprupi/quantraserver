@@ -9,27 +9,44 @@ QuantLib is powerful, but it is not naturally suited to high-concurrency service
 ## What You Get
 
 - A C++ pricing server built on QuantLib
-- A gRPC API using FlatBuffers messages
+- A gRPC API using FlatBuffers messages, plus a `Meta` RPC and the standard
+  `grpc.health.v1.Health` service
 - A JSON/HTTP gateway in `jsonserver/`
 - A C++ client in `client/`
 - A Python client package in `quantra-python/`
 
 ## Supported Pricing Coverage
 
-Representative supported request types include:
+Priced instruments:
 
 - Fixed-rate bonds
 - Floating-rate bonds
+- Zero-coupon bonds
+- Callable / puttable fixed-rate bonds
 - Vanilla swaps
 - OIS swaps
 - Basis swaps
+- Zero-coupon swaps
 - Zero-coupon inflation swaps
 - Year-on-year inflation swaps
 - FRAs
 - Caps and floors
 - Swaptions
+- Year-on-year inflation caps, floors, and collars
 - CDS
 - Equity options
+
+Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
+surface sampling, Hull-White and SABR calibration, and calendar date
+arithmetic.
+
+Features that apply across products:
+
+- Amortizing and step-up notionals on swap legs and bonds
+- CMS legs, including capped and floored CMS coupons
+- Stub periods (short/long first and last coupons) on every schedule
+- Bermudan and American swaption exercise on a Hull-White lattice
+- American and Bermudan equity exercise and digital payoffs
 
 See `examples/data/` for sample payloads. For a worked, QuantLib-verified
 example of every product — each one a complete request JSON whose response is
@@ -84,12 +101,12 @@ The published GHCR image starts both the JSON API and the gRPC/Envoy endpoint:
 - gRPC/Envoy endpoint: `50051`
 
 ```bash
-docker pull ghcr.io/joseprupi/quantra-server:0.1.1
+docker pull ghcr.io/joseprupi/quantra-server:0.4.0
 
 docker run --rm \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.1.1
+  ghcr.io/joseprupi/quantra-server:0.4.0
 ```
 
 Check the running service:
@@ -108,11 +125,20 @@ docker run --rm \
   -e QUANTRA_WORKERS=2 \
   -p 8080:8080 \
   -p 50051:50051 \
-  ghcr.io/joseprupi/quantra-server:0.1.1
+  ghcr.io/joseprupi/quantra-server:0.4.0
 ```
 
 See `docs/process-manager.md` for the full scaling model (load balancing, health
-checks, and per-worker caches).
+checks, and per-worker caches), and `docs/configuration.md` for every
+environment variable the image reads.
+
+gRPC callers get the same coverage plus two service RPCs: `Meta` returns the
+API version, build metadata, dependency versions, and the product and RPC
+lists; `grpc.health.v1.Health` answers standard `Check`/`Watch` probes. See
+`docs/client.md`.
+
+Request rules, HTTP status codes, the error body, and the `X-Request-Id` /
+`X-Quantra-Api-Version` headers are documented in `docs/http-api.md`.
 
 The public API reference is available at <https://quantra.io/docs/api>.
 
@@ -157,9 +183,16 @@ If you are editing FlatBuffers schemas and want to regenerate artifacts without 
 
 ### Run Tests
 
+The build dependencies live in the `quantraserver:test` image, so the gate runs
+in Docker — the same command CI runs:
+
 ```bash
-bash tests/run_all_tests.sh
+docker run --rm -v "$(pwd):/workspace" -w /workspace quantraserver:test \
+    bash -lc './scripts/build.sh Release && bash tests/run_all_tests.sh'
 ```
+
+Inside an environment that already has the dependencies, `bash
+tests/run_all_tests.sh` runs the gate directly against an existing build.
 
 The test suite exercises:
 
@@ -173,10 +206,13 @@ whole gate in Docker.
 
 ## Repository Map
 
-- `server/`: gRPC pricing server
+- `src/`: the pricing engine internals, in role-based folders — `transport/`
+  (per-product handlers), `mappers/` (FlatBuffers ↔ plain C++), `evaluators/`
+  (pure QuantLib pricing), `parsers/` (schema tables → QuantLib objects),
+  `market/` (curves, indices, vol surfaces, caches), `domain/` (plain types),
+  `common/` (enums, dates, errors, product catalog). See `src/README.md`.
+- `server/`: gRPC pricing server executable
 - `jsonserver/`: HTTP/JSON gateway and generated OpenAPI docs
-- `request/`: request entrypoints and endpoint orchestration
-- `parser/`: parsing, domain conversion, pricing helpers, and builders
 - `client/`: C++ client library
 - `quantra-python/`: Python client package
 - `flatbuffers/`: schema sources plus generated C++, Python, and JSON artifacts
@@ -191,12 +227,14 @@ whole gate in Docker.
 
 - `docs/README.md`: documentation index
 - `docs/build.md`: environment setup and build details
+- `docs/configuration.md`: every environment variable the runtime reads
+- `docs/http-api.md`: request rules, status codes, error body, and headers
 - `docs/scripts.md`: build and schema tooling
 - `docs/testing.md`: test suite details
 - `docs/process-manager.md`: process-manager behavior and runtime model
-- `docs/client.md`: C++ client notes
-- `docs/parser.md`: parser/service/builder conventions
+- `docs/client.md`: C++ client, gRPC `Meta`, and health checking
 - `docs/versioning.md`: versioning policy
+- `src/README.md`: engine layering and the request flow
 - `CONTRIBUTING.md`: contribution workflow
 
 ## Requirements
@@ -212,4 +250,4 @@ The repository currently documents and builds around:
 
 ## License
 
-MIT / Apache 2.0
+BSD 3-Clause. See `LICENSE.txt`.

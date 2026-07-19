@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="quantra-client",
-    version="0.1.0",
+    version="0.4.0",
     description="Python client for Quantra distributed QuantLib pricing engine",
     author="Josep Rupi",
     packages=find_packages(),
@@ -21,7 +21,7 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Financial and Insurance Industry",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

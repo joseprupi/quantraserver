@@ -30,30 +30,30 @@ At the end it prints a human-readable summary box, plus machine-readable lines
 you can grep:
 
 ```
-RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=112 unit=cases
-SUMMARY suites_passed=7 suites_failed=0 total_cases=478
+RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=118 unit=cases
+SUMMARY suites_passed=7 suites_failed=0 total_cases=628
 ```
 
 ## The seven suites
 
 Counts are from the current green gate run (`SUMMARY suites_passed=7
-suites_failed=0 total_cases=478`).
+suites_failed=0 total_cases=628`).
 
 | # | What it checks | How | Files | Count |
 |---|---|---|---|---|
-| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` | 40 files |
-| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` | 112 cases |
-| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` | 18 cases |
-| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` + `functional/` | 195 tests |
+| 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` | 48 files |
+| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` | 118 cases |
+| 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` | 28 cases |
+| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` + `functional/` | 319 tests |
 | 4 | The Python client library works against the server | Python, gRPC | `client/test_python_client.py` | 7 scenarios |
 | 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `concurrency/test_json_concurrency.py` | 96 requests |
-| 6 | The curve cache is transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` | 10 comparisons |
+| 6 | The curve, SABR, and Hull-White caches are transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` | 12 comparisons |
 
 Suites 1 and 3 are the two correctness anchors: both build the equivalent
 instrument in raw QuantLib and compare numbers. Suite 1 tests the C++ code path
 directly; Suite 3 tests the full JSON-over-HTTP stack a real client uses.
 Within Suite 3, the **[functional parity catalog](functional/README.md)**
-(`functional/`) is the QuantLib-parity showcase: 127 curated cases across 11
+(`functional/`) is the QuantLib-parity showcase: 172 curated cases across 13
 product families, each a complete request JSON asserted against an independent
 QuantLib reference — browse them all in
 [`functional/CATALOG.md`](functional/CATALOG.md).
@@ -73,6 +73,13 @@ No server, no network.
   calibrations, bootstrap_curves, bootstrap_inflation_curves,
   sample_vol_surfaces, and the calendar utilities calendar_business_days,
   calendar_holidays, calendar_advance).
+- Cross-cutting guards that are not per-product parity:
+  `helper_presence_test.cpp` (an omitted required helper quote is an error,
+  not a silent zero), `union_absent_value_test.cpp` (absent union members),
+  `enum_convert_daycounter_test.cpp` (day-counter enum conversion), and
+  `curve_cache_key_unknown_point_test.cpp` /
+  `curve_cache_key_unresolvable_ref_test.cpp` (the curve-cache key refuses to
+  under-key a request it cannot fully describe).
 
 All of these compile into **one** binary, `build/tests/test_quantra_vs_quantlib`
 (see `CMakeLists.txt`).
@@ -99,15 +106,27 @@ Suite 3 runs `contract/` and `functional/` (next section) together.
 - `error_contract_test.py` — error contract. Sends malformed / missing-reference
   / unsupported requests and asserts the HTTP status: 404 (not found),
   400 (invalid argument), 501 (not implemented), 500 (other).
+- `gateway_dx_test.py` — gateway developer experience: `X-Request-Id` is
+  sanitized, forwarded to the engine, tagged onto its log lines and echoed
+  back; `X-Quantra-Api-Version` is present; error bodies carry the real cause.
+- `body_limits_test.py` — the request-body cap and the `Content-Type` guard
+  (413 / 415 / empty-body 400).
+- `status_envoy_test.py` — how `GET /status` parses `QUANTRA_ENVOY_ADMIN`,
+  including the malformed-target case.
+- `envoy_config_test.py` — the generated Envoy configuration (timeouts,
+  load-balancing policy, gRPC health checks).
+- `swaption_vol_diagnostics_test.py` — the swaption vol diagnostics block,
+  including that period fields serialize with the right time unit.
 
 ## `functional/` — the functional parity catalog (Suite 3)
 
-The QuantLib-parity showcase: a manifest-driven catalog of **127 cases across
-11 product families** (IR swaps, bonds, FRAs, caps/floors, swaptions, CDS,
-curves, calendars, inflation, equity, vol/calibration), each a complete,
-curated request JSON POSTed to the server and asserted against an independent
-QuantLib reference within a tight tolerance. It runs as part of Suite 3, in
-the same pytest invocation as `contract/`.
+The QuantLib-parity showcase: a manifest-driven catalog of **172 cases across
+13 product families** (IR swaps, zero-coupon swaps, bonds, callable bonds,
+FRAs, caps/floors, swaptions, CDS, curves, calendars, inflation, equity,
+vol/calibration), each a complete, curated request JSON POSTed to the server
+and asserted against an independent QuantLib reference within a tight
+tolerance. It runs as part of Suite 3, in the same pytest invocation as
+`contract/`.
 
 - [`functional/CATALOG.md`](functional/CATALOG.md) — the browsable catalog:
   every case with its description, exercise tags, request JSON link and
@@ -122,17 +141,22 @@ the same pytest invocation as `contract/`.
 — never edit them by hand; a Suite 3 test fails if they drift from the
 manifest.
 
-## `caching/` — curve-cache transparency (Suite 6)
+## `caching/` — cache transparency (Suite 6)
 
-pytest. The curve cache (`../src/market/curve_cache.h`) is off by default and must
-be invisible: turning it on may not change any result. The suite POSTs each
+pytest. The engine has three result caches — the bootstrapped-curve cache
+(`../src/market/curve_cache.h`), the SABR calibration cache
+(`../src/market/sabr_calibrate_cache.cpp`) and the Hull-White calibration cache
+(`../src/market/hw_calibrate_cache.cpp`). All are off by default and all must
+be invisible: turning them on may not change any result. The suite POSTs each
 representative example payload to two servers — the default cache-OFF server on
-`:8080` and a cache-ON server on `:8081` (`QUANTRA_CURVE_CACHE_ENABLED=1`,
-started by `run_all_tests.sh`'s `start_cache_servers`) — and asserts the
-responses are bit-for-bit identical, then POSTs to the cache-ON server twice
-(warm → hit) and asserts the hit response is identical too. This is **not** a
-QuantLib parity check (that is Suite 3): the cache-OFF server is the reference,
-and transparency is the only property under test.
+`:8080` and a cache-ON server on `:8081`, started by `run_all_tests.sh`'s
+`start_cache_servers` with `QUANTRA_CURVE_CACHE_ENABLED=1`,
+`QUANTRA_SABR_CACHE_ENABLED=1` and `QUANTRA_HW_CACHE_ENABLED=1` (plus the
+matching `_LOG` flags) — and asserts the responses are bit-for-bit identical,
+then POSTs to the cache-ON server twice (warm → hit) and asserts the hit
+response is identical too. This is **not** a QuantLib parity check (that is
+Suite 3): the cache-OFF server is the reference, and transparency is the only
+property under test.
 
 - `conftest.py` — pytest setup: `--url-nocache` / `--url-cache` / `--data-dir` /
   `--cache-log`, the two `ApiClient` fixtures (reused from `contract/`), and the
@@ -141,9 +165,9 @@ and transparency is the only property under test.
   `test_cache_transparency`; `test_cache_engaged` reads the cache-ON gRPC log
   (`/tmp/grpc_cache.log`) and asserts at least one `CurveCache` L1 hit fired, so
   the suite can't silently pass with caching that never engages. The table is
-  the extension point for D23's bumped-curve (curveBump ≠ 0) cases.
+  the extension point for further cases, such as bumped curves (curveBump ≠ 0).
 
-The cache lives in the pricing engine (the gRPC server), so the cache env vars
+The caches live in the pricing engine (the gRPC server), so the cache env vars
 and the `[CurveCache] … event=L1_HIT` log lines belong to the gRPC process, not
 the JSON gateway.
 

@@ -72,6 +72,8 @@ rejected inputs.
   (matched to ~1e-7); every new product/feature above ships with functional
   parity cases and error-contract tests. The suite grew 537 → 624 cases.
 
+## Version 0.3.0 (July 2026) — features + minor behavior changes
+
 `v0.3.0` adds engine introspection, broader equity coverage, and
 robustness/performance hardening. Requests that were valid and priced
 correctly on 0.2.0 price identically on 0.3.0; the behavior changes below
