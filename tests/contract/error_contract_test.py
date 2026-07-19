@@ -419,6 +419,54 @@ def _ec_body_contains(substr):
     return check
 
 
+def _ec_swaption_rebump_without_rates():
+    """Ask for rebump greeks while omitting pricing.rates entirely.
+
+    The rebump snapshots are built in the mapper, which runs before the pricing
+    registry (owner of the usual rates-presence guard). Pre-guard this
+    dereferenced a null pricing.rates and SIGSEGV'd the worker; it must now be a
+    clean INVALID_ARGUMENT that names the requirement."""
+    def f(req):
+        req["pricing"]["options"] = {"swaption_pricing_rebump": True}
+        req["pricing"].pop("rates", None)
+        return req
+    return f
+
+
+def _ec_basis_swap_zero_notional():
+    """Zero both basis-swap leg notionals so each leg BPS collapses to 0.
+
+    The fair spread is npv - spread/BPS; a zero BPS makes it NaN. NaN has no
+    JSON representation, so the response mapper must omit the field, keeping the
+    HTTP-200 body valid JSON rather than emitting a bare `nan` token."""
+    def f(req):
+        bs = req["swaps"][0]["basis_swap"]
+        bs["leg1"]["notional"] = 0.0
+        bs["leg2"]["notional"] = 0.0
+        return req
+    return f
+
+
+def _ec_body_valid_json_without(*absent_keys):
+    """Body validator: the 200 body must parse as JSON, carry no bare `nan`
+    token, and none of the swaps may carry any of `absent_keys` (the fields
+    that would have serialized a non-finite double)."""
+    def check(body_text):
+        if "nan" in body_text.lower():
+            return f"response body carries a non-finite token: {body_text[:200]}"
+        try:
+            body = json.loads(body_text)
+        except Exception as e:
+            return f"response body is not valid JSON: {e} :: {body_text[:200]}"
+        for swap in body.get("swaps", []) or []:
+            for k in absent_keys:
+                if k in swap:
+                    return (f"expected field {k!r} to be omitted (non-finite), "
+                            f"but it is present: {json.dumps(swap)[:200]}")
+        return None
+    return check
+
+
 def _ec_unimplemented_curve_point():
     # Replace the first curve's first point with a schema-ready-but-unbuilt
     # helper (FxSwapHelper). The point parses into a valid FlatBuffer, then the
@@ -707,6 +755,20 @@ SCENARIOS = [
          _ec_equity_set_payoff("EquityCashOrNothingPayoff",
                                {"option_type": "Call", "strike": 100.0, "cash": 10.0})(req)),
      _ec_body_contains("Bermudan exercise is not supported for digital")),
+    # ---- 400 INVALID_ARGUMENT: swaption rebump requires market data ----
+    # Rebump snapshots are built in the mapper (before the registry's usual
+    # rates-presence guard); omitting pricing.rates used to crash the worker.
+    ("ec:400 swaption rebump without pricing.rates", "swaption",
+     "swaption_request.json", 400,
+     _ec_swaption_rebump_without_rates(),
+     _ec_body_contains("Swaption rebump pricing requires pricing.rates.curves")),
+    # ---- 200 OK: non-finite outputs are omitted, never serialized as `nan` ----
+    # A zero-notional basis swap collapses each leg BPS to 0, making the fair
+    # spread NaN. The response must stay valid JSON with the field omitted.
+    ("ec:200 basis_swap zero notional omits non-finite fair spread", "basis_swap",
+     "basis_swap_request.json", 200,
+     _ec_basis_swap_zero_notional(),
+     _ec_body_valid_json_without("fair_spread_leg1", "fair_spread_leg2")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),

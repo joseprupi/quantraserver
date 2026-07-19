@@ -65,6 +65,14 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     double bump
 ) const {
 
+    // A union whose type byte names a helper but whose value offset is absent
+    // survives FlatBuffers verification; the static_casts in each branch below
+    // would then dereference a null table and crash. Reject it up front.
+    if (point_type != quantra::Point_NONE && data == nullptr) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Term structure point union type is set but its value is missing");
+    }
+
     // ------------------------------------------------------------------
     // Deposit
     // ------------------------------------------------------------------

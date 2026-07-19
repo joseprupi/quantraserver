@@ -413,6 +413,10 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                     QUANTRA_INVALID_ARGUMENT("Zero inflation curves require only ZeroCouponInflationSwapHelper points for curve id: " + id);
                 }
                 const auto* helper = point->point_as_ZeroCouponInflationSwapHelper();
+                if (!helper) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "Inflation point union type is set but its value is missing for curve id: " + id);
+                }
                 const std::string label = "ZeroCouponInflationSwapHelper";
                 const double quoteValue = resolveQuoteOrInline(helper, quotes, id, label);
                 if (!std::isfinite(quoteValue)) {
@@ -498,6 +502,10 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                     QUANTRA_INVALID_ARGUMENT("YoY inflation curves require only YearOnYearInflationSwapHelper points for curve id: " + id);
                 }
                 const auto* helper = point->point_as_YearOnYearInflationSwapHelper();
+                if (!helper) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "Inflation point union type is set but its value is missing for curve id: " + id);
+                }
                 const std::string label = "YearOnYearInflationSwapHelper";
                 const double quoteValue = resolveQuoteOrInline(helper, quotes, id, label);
                 if (!std::isfinite(quoteValue)) {

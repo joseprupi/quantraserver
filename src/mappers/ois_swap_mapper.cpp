@@ -1,5 +1,7 @@
 #include "ois_swap_mapper.h"
 
+#include <cmath>
+
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
@@ -100,7 +102,7 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
     fb.add_rate(f.rate);
     if (f.isFloating) {
         fb.add_fixing_date(fixingDate);
-        fb.add_index_fixing(f.indexFixing);
+        if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
         fb.add_spread(f.spread);
     }
     return fb.Finish();
@@ -156,8 +158,10 @@ flatbuffers::Offset<quantra::PriceOisSwapResponse> OisSwapMapper::toResponse(
 
         quantra::OisSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
-        rb.add_fair_rate(swap.fairRate);
-        rb.add_fair_spread(swap.fairSpread);
+        // fairRate/fairSpread divide by leg BPS; a zero-BPS leg (e.g. notional 0)
+        // yields NaN/inf, which is not valid JSON. Omit rather than emit `nan`.
+        if (std::isfinite(swap.fairRate)) rb.add_fair_rate(swap.fairRate);
+        if (std::isfinite(swap.fairSpread)) rb.add_fair_spread(swap.fairSpread);
         rb.add_fixed_leg_bps(swap.fixedLegBps);
         rb.add_overnight_leg_bps(swap.overnightLegBps);
         rb.add_fixed_leg_npv(swap.fixedLegNpv);

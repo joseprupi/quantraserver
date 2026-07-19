@@ -158,6 +158,15 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     auto ptype = pw->point_type();
     buf.writeU8(static_cast<uint8_t>(ptype));
 
+    // Point_NONE carries no payload, so its type byte alone is the full content
+    // and stays keyable. Any other type with an absent value offset is a crafted
+    // buffer that passed verification; the point_as_*() casts below would return
+    // null and crash, so reject it as a bad request.
+    if (ptype != quantra::Point_NONE && pw->point() == nullptr) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Curve point union type is set but its value is missing");
+    }
+
     // The convention enums are presence-required (an omitted convention is a
     // request error, never a default). Serialize a presence byte plus the value
     // so a present field never collides with an absent one in the cache key.

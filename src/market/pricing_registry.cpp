@@ -210,6 +210,13 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
                 QUANTRA_INVALID_ARGUMENT("ModelSpec.payload is required for model id: " + id);
             }
+            // A union whose type byte is set but whose value offset is absent
+            // passes verification; the payload_as_*() casts below would then
+            // return null and crash on deref. Reject the crafted buffer.
+            if (spec->payload() == nullptr) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "ModelSpec.payload type is set but its value is missing for model id: " + id);
+            }
 
             // Plain-domain mirror. Mirror enums are bit-compatible with the
             // FB enums by construction (see parser/model_domain.h); QL types

@@ -1,5 +1,7 @@
 #include "swap_leg_flow_builder.h"
 
+#include <cmath>
+
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/utilities/dataformatters.hpp>
@@ -63,7 +65,7 @@ flatbuffers::Offset<SwapLegFlow> buildSwapLegFlow(
     fb.add_rate(rate);
     if (frc) {
         fb.add_fixing_date(fixingDate);
-        fb.add_index_fixing(indexFixing);
+        if (std::isfinite(indexFixing)) fb.add_index_fixing(indexFixing);
         fb.add_spread(spread);
     }
     return fb.Finish();
