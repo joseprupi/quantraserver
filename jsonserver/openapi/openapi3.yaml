@@ -34,7 +34,7 @@ info:
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n\
     ```\n"
-  version: 0.3.0
+  version: 0.4.0
   contact:
     name: Quantra API Support
     url: https://github.com/joseprupi/quantraserver

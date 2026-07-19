@@ -26,7 +26,51 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
-## Version 0.3.0 (July 2026) — features + minor behavior changes
+## Version 0.4.0 (July 2026) — product expansion, backward-compatible
+
+`v0.4.0` widens the product catalog. Every 0.3.0 request prices identically on
+0.4.0: all schema changes are additive (new optional fields, new tables, new
+endpoints), with one exception noted below that only affects previously
+rejected inputs.
+
+### New products (four new endpoints)
+
+- **Zero-coupon bond** (`/price-zero-coupon-bond`) and **zero-coupon swap**
+  (`/price-zero-coupon-swap`). The swap's fixed side is either an explicit
+  `fixed_payment` or a `fixed_rate` + day-counter pair (exactly one form;
+  QuantLib's rate form compounds annually by definition, so there are no
+  compounding/frequency fields).
+- **Year-on-year inflation cap/floor/collar**
+  (`/price-year-on-year-inflation-cap-floor`), priced under Black,
+  unit-displaced Black or Bachelier engines over a constant year-on-year
+  optionlet volatility spec (a strike/tenor surface form is a planned
+  additive extension).
+- **Callable/puttable fixed-rate bond**
+  (`/price-callable-fixed-rate-bond`): call/put schedule of dated clean
+  prices, priced on the tree-based Hull-White engine; the model is referenced
+  by id exactly like swaptions (explicit or calibrated, calibration cache
+  applies). Response is npv + clean/dirty price; option-adjusted spread and
+  risk measures are a planned optional extension.
+
+### Widened existing products (all additive)
+
+- **Amortizing/step-up notionals**: optional `notionals` vector (one entry
+  per coupon period) on vanilla-swap legs and fixed/floating bonds. Paths
+  that do not support it yet (OIS fixed leg, basis legs, swaption
+  underlyings) reject it explicitly rather than ignoring it.
+- **CMS capped/floored coupons**: the CMS leg's `cap`/`floor` now price
+  (previously rejected as unsupported). These two fields changed from a
+  negative-sentinel convention to optional-with-presence — the one
+  non-additive change, affecting only requests that were rejected before.
+- **Stub periods**: optional `first_date` / `next_to_last_date` on the shared
+  `Schedule`, enabling short/long first and last coupons on every
+  schedule-carrying product.
+
+### Verification
+
+- CMS legs gained full independent parity coverage against native QuantLib
+  (matched to ~1e-7); every new product/feature above ships with functional
+  parity cases and error-contract tests. The suite grew 537 → 624 cases.
 
 `v0.3.0` adds engine introspection, broader equity coverage, and
 robustness/performance hardening. Requests that were valid and priced
