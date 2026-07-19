@@ -1,5 +1,7 @@
 #include "zero_coupon_inflation_swap_mapper.h"
 
+#include <cmath>
+
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
@@ -105,7 +107,7 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
     fb.add_rate(f.rate);
     if (f.isFloating) {
         fb.add_fixing_date(fixingDate);
-        fb.add_index_fixing(f.indexFixing);
+        if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
         fb.add_spread(f.spread);
     }
     return fb.Finish();
@@ -159,7 +161,9 @@ ZeroCouponInflationSwapMapper::toResponse(
 
         quantra::ZeroCouponInflationSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
-        rb.add_fair_rate(swap.fairRate);
+        // fairRate divides by leg BPS; a zero-BPS leg (e.g. notional 0) yields
+        // NaN/inf, which is not valid JSON. Omit rather than emit `nan`.
+        if (std::isfinite(swap.fairRate)) rb.add_fair_rate(swap.fairRate);
         rb.add_fixed_leg_bps(swap.fixedLegBps);
         rb.add_fixed_leg_npv(swap.fixedLegNpv);
         rb.add_inflation_leg_npv(swap.inflationLegNpv);

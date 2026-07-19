@@ -1,5 +1,7 @@
 #include "cds_mapper.h"
 
+#include <cmath>
+
 #include "date_convert.h"
 #include "schedule_parser.h"
 #include "enum_convert.h"
@@ -107,7 +109,7 @@ flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toResponse(
     for (const auto& v : result.values) {
         quantra::CDSValuesBuilder vb(builder);
         vb.add_npv(v.npv);
-        if (v.fairSpread) {
+        if (v.fairSpread && std::isfinite(*v.fairSpread)) {
             vb.add_fair_spread(*v.fairSpread);
         }
         vb.add_fair_upfront(v.fairUpfront);

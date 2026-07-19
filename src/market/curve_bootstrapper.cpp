@@ -85,6 +85,14 @@ void CurveBootstrapper::collectDeps(
         auto wrapper = ts->points()->Get(i);
         auto ptype = wrapper->point_type();
 
+        // A union whose type byte is set but whose value offset is absent
+        // passes FlatBuffers verification, then the static_casts below would
+        // dereference a null table. Reject it as a bad request instead.
+        if (ptype != quantra::Point_NONE && wrapper->point() == nullptr) {
+            QUANTRA_INVALID_ARGUMENT(
+                "Curve point union type is set but its value is missing");
+        }
+
         // Swap/OIS helpers: discount-curve only.
         // QuantLib's SwapRateHelper/OISRateHelper override projection via
         // index->clone(termStructureHandle_), so projection_curve deps are

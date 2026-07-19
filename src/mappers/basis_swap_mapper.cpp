@@ -1,5 +1,7 @@
 #include "basis_swap_mapper.h"
 
+#include <cmath>
+
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
@@ -110,7 +112,7 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
     fb.add_rate(f.rate);
     if (f.isFloating) {
         fb.add_fixing_date(fixingDate);
-        fb.add_index_fixing(f.indexFixing);
+        if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
         fb.add_spread(f.spread);
     }
     return fb.Finish();
@@ -170,8 +172,10 @@ flatbuffers::Offset<quantra::PriceBasisSwapResponse> BasisSwapMapper::toResponse
         rb.add_leg2_bps(swap.leg2Bps);
         rb.add_leg1_npv(swap.leg1Npv);
         rb.add_leg2_npv(swap.leg2Npv);
-        rb.add_fair_spread_leg1(swap.fairSpreadLeg1);
-        rb.add_fair_spread_leg2(swap.fairSpreadLeg2);
+        // A zero-BPS leg (e.g. notional 0) makes the fair spread NaN, which is
+        // not representable in JSON. Omit it rather than emit a bare `nan`.
+        if (std::isfinite(swap.fairSpreadLeg1)) rb.add_fair_spread_leg1(swap.fairSpreadLeg1);
+        if (std::isfinite(swap.fairSpreadLeg2)) rb.add_fair_spread_leg2(swap.fairSpreadLeg2);
         if (swap.includeFlows) {
             rb.add_leg1_flows(leg1Flows);
             rb.add_leg2_flows(leg2Flows);

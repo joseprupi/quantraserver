@@ -303,6 +303,14 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
         if (!pricing->as_of_date()) {
             QUANTRA_INVALID_ARGUMENT("as_of_date is required");
         }
+        // toInputs runs BEFORE the registry build (which owns the usual
+        // rates-presence guard), so the rebump snapshots must validate the
+        // market data themselves. Without this a request that omits
+        // pricing.rates would segfault on the derefs below.
+        if (!pricing->rates() || !pricing->rates()->curves()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption rebump pricing requires pricing.rates.curves (at least one curve needed)");
+        }
         const QuantLib::Date asOf = DateToQL(pricing->as_of_date()->str());
         const auto& cfg = kSwaptionRebumpConfig;
 

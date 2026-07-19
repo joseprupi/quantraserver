@@ -1,5 +1,6 @@
 #include "vanilla_swap_flow_builder.h"
 
+#include <cmath>
 #include <limits>
 
 #include <ql/cashflows/cmscoupon.hpp>
@@ -87,9 +88,11 @@ VanillaSwapFlowsBuildResult buildVanillaSwapFlows(
             } catch (...) {
             }
 
-            fb.add_index_fixing(fixing);
+            // indexFixing() can fail (missing historical fixing); we caught the
+            // throw and left `fixing` as NaN. NaN is not valid JSON, so omit it.
+            if (std::isfinite(fixing)) fb.add_index_fixing(fixing);
             fb.add_has_cms_swap_rate(hasCmsSwapRate);
-            if (hasCmsSwapRate) {
+            if (hasCmsSwapRate && std::isfinite(cmsSwapRate)) {
                 fb.add_cms_swap_rate(cmsSwapRate);
             }
             fb.add_spread(coupon->spread());
