@@ -581,7 +581,8 @@
       "description" : "Vanilla interest rate swap (fixed vs floating).",
       "properties" : {
         "swap_type" : {
-                "$ref" : "#/definitions/quantra_enums_SwapType"
+                "$ref" : "#/definitions/quantra_enums_SwapType",
+                "description" : "Payer/receiver refer to the fixed leg. Presence-required: an omitted\ntype is a 400, never the alphabetical-0 default (Payer)."
               },
         "fixed_leg" : {
                 "$ref" : "#/definitions/quantra_SwapFixedLeg"
@@ -602,7 +603,8 @@
       "description" : "Basis swap with two floating legs (e.g., 3M vs 6M).",
       "properties" : {
         "swap_type" : {
-                "$ref" : "#/definitions/quantra_enums_SwapType"
+                "$ref" : "#/definitions/quantra_enums_SwapType",
+                "description" : "Payer/receiver refer to leg1. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (Payer)."
               },
         "leg1" : {
                 "$ref" : "#/definitions/quantra_SwapFloatingLeg"

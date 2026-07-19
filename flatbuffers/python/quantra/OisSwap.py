@@ -25,12 +25,14 @@ class OisSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Payer/receiver refer to the fixed leg. Presence-required: an omitted
+    # type is a 400, never the alphabetical-0 default (Payer).
     # OisSwap
     def SwapType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # OisSwap
     def FixedLeg(self):
@@ -61,7 +63,7 @@ def Start(builder):
     OisSwapStart(builder)
 
 def OisSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, 0)
+    builder.PrependInt8Slot(0, swapType, None)
 
 def AddSwapType(builder, swapType):
     OisSwapAddSwapType(builder, swapType)
@@ -93,7 +95,7 @@ class OisSwapT(object):
 
     # OisSwapT
     def __init__(self):
-        self.swapType = 0  # type: int
+        self.swapType = None  # type: Optional[int]
         self.fixedLeg = None  # type: Optional[SwapFixedLegT]
         self.overnightLeg = None  # type: Optional[OisFloatingLegT]
 

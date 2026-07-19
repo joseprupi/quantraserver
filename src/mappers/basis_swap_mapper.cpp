@@ -55,6 +55,9 @@ BasisSwapTrade extractTrade(const quantra::PriceBasisSwap* pricing) {
     }
 
     const auto* swap = pricing->basis_swap();
+    if (!swap->swap_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("BasisSwap.swap_type is required");
+    }
     if (!swap->leg1()) {
         QUANTRA_INVALID_ARGUMENT("BasisSwap.leg1 is required");
     }
@@ -81,7 +84,7 @@ BasisSwapTrade extractTrade(const quantra::PriceBasisSwap* pricing) {
     ScheduleParser scheduleParser;
 
     BasisSwapTrade trade;
-    trade.swapType = SwapTypeToQL(swap->swap_type());
+    trade.swapType = SwapTypeToQL(swap->swap_type().value());
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.forwardingCurveLeg1Id = pricing->forwarding_curve_leg1()->str();
     trade.forwardingCurveLeg2Id = pricing->forwarding_curve_leg2()->str();

@@ -29,6 +29,9 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
     }
 
     const auto* swap = pricing->year_on_year_inflation_swap();
+    if (!swap->swap_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap.swap_type is required");
+    }
     if (!swap->fixed_schedule()) {
         QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap fixed_schedule not found");
     }
@@ -48,7 +51,7 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
     auto yoySchedule = scheduleParser.parse(swap->yoy_schedule());
 
     YearOnYearInflationSwapTrade trade;
-    trade.swapType = YearOnYearInflationSwapTypeToQL(swap->swap_type());
+    trade.swapType = YearOnYearInflationSwapTypeToQL(swap->swap_type().value());
     trade.notional = swap->notional();
     trade.fixedSchedule = *fixedSchedule;
     trade.fixedRate = swap->fixed_rate();

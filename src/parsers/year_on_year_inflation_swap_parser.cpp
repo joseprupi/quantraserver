@@ -43,9 +43,11 @@ std::shared_ptr<QuantLib::YearOnYearInflationSwap> YearOnYearInflationSwapParser
     if (!inflationIndex) {
         QUANTRA_NOT_FOUND("YearOnYearInflationSwap inflation index not available");
     }
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap.swap_type is required");
 
     QuantLib::YearOnYearInflationSwap::Type swapType;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             swapType = QuantLib::YearOnYearInflationSwap::Payer;
             break;
@@ -53,7 +55,9 @@ std::shared_ptr<QuantLib::YearOnYearInflationSwap> YearOnYearInflationSwapParser
             swapType = QuantLib::YearOnYearInflationSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid year-on-year inflation swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "YearOnYearInflationSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     ScheduleParser scheduleParser;

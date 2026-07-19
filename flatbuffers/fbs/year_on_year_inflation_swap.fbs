@@ -8,7 +8,9 @@ namespace quantra;
 table YearOnYearInflationSwap {
     /// "Payer" pays the fixed leg and receives the YoY inflation leg;
     /// "Receiver" is the reverse (receives fixed, pays YoY inflation).
-    swap_type:enums.SwapType;
+    /// Presence-required: an omitted type is a 400, never the alphabetical-0
+    /// default (Payer).
+    swap_type:enums.SwapType = null;
     notional:double;
     fixed_schedule:Schedule (required);
     fixed_rate:double;

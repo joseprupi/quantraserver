@@ -24,7 +24,7 @@ struct BasisSwapT;
 
 struct BasisSwapT : public ::flatbuffers::NativeTable {
   typedef BasisSwap TableType;
-  quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer;
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::SwapFloatingLegT> leg1{};
   std::unique_ptr<quantra::SwapFloatingLegT> leg2{};
   BasisSwapT() = default;
@@ -42,8 +42,10 @@ struct BasisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_LEG1 = 6,
     VT_LEG2 = 8
   };
-  quantra::enums::SwapType swap_type() const {
-    return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
+  /// Payer/receiver refer to leg1. Presence-required: an omitted type is a
+  /// 400, never the alphabetical-0 default (Payer).
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
+    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
   const quantra::SwapFloatingLeg *leg1() const {
     return GetPointer<const quantra::SwapFloatingLeg *>(VT_LEG1);
@@ -70,7 +72,7 @@ struct BasisSwapBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(BasisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type), 0);
+    fbb_.AddElement<int8_t>(BasisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_leg1(::flatbuffers::Offset<quantra::SwapFloatingLeg> leg1) {
     fbb_.AddOffset(BasisSwap::VT_LEG1, leg1);
@@ -91,13 +93,13 @@ struct BasisSwapBuilder {
 
 inline ::flatbuffers::Offset<BasisSwap> CreateBasisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
+    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::SwapFloatingLeg> leg1 = 0,
     ::flatbuffers::Offset<quantra::SwapFloatingLeg> leg2 = 0) {
   BasisSwapBuilder builder_(_fbb);
   builder_.add_leg2(leg2);
   builder_.add_leg1(leg1);
-  builder_.add_swap_type(swap_type);
+  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 

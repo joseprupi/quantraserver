@@ -12,9 +12,11 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
 
     if (swap->floating_leg() == NULL)
         QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg not found");
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap.swap_type is required");
 
     QuantLib::VanillaSwap::Type swapType;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             swapType = QuantLib::VanillaSwap::Payer;
             break;
@@ -22,7 +24,9 @@ std::shared_ptr<QuantLib::VanillaSwap> VanillaSwapParser::parse(
             swapType = QuantLib::VanillaSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "VanillaSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     auto fixedLeg = swap->fixed_leg();

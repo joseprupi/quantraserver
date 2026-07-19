@@ -2263,7 +2263,7 @@
       "properties" : {
         "swap_type" : {
                 "$ref" : "#/definitions/quantra_enums_SwapType",
-                "description" : "\"Payer\" pays the fixed leg and receives the YoY inflation leg;\n\"Receiver\" is the reverse (receives fixed, pays YoY inflation)."
+                "description" : "\"Payer\" pays the fixed leg and receives the YoY inflation leg;\n\"Receiver\" is the reverse (receives fixed, pays YoY inflation).\nPresence-required: an omitted type is a 400, never the alphabetical-0\ndefault (Payer)."
               },
         "notional" : {
                 "type" : "number"

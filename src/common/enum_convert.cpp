@@ -344,7 +344,7 @@ QuantLib::VanillaSwap::Type SwapTypeToQL(const quantra::enums::SwapType swapType
         return QuantLib::VanillaSwap::Receiver;
     }
 
-    QUANTRA_ERROR("Swap type not found");
+    QUANTRA_ERROR("swap_type is not a known swap type: " + std::to_string(static_cast<int>(swapType)));
 }
 
 QuantLib::OvernightIndexedSwap::Type OvernightIndexedSwapTypeToQL(
@@ -358,7 +358,7 @@ QuantLib::OvernightIndexedSwap::Type OvernightIndexedSwapTypeToQL(
         return QuantLib::OvernightIndexedSwap::Receiver;
     }
 
-    QUANTRA_ERROR("Overnight indexed swap type not found");
+    QUANTRA_ERROR("swap_type is not a known overnight indexed swap type: " + std::to_string(static_cast<int>(swapType)));
 }
 
 QuantLib::ZeroCouponSwap::Type ZeroCouponSwapTypeToQL(
@@ -372,7 +372,7 @@ QuantLib::ZeroCouponSwap::Type ZeroCouponSwapTypeToQL(
         return QuantLib::ZeroCouponSwap::Receiver;
     }
 
-    QUANTRA_ERROR("Zero coupon swap type not found");
+    QUANTRA_ERROR("swap_type is not a known zero coupon swap type: " + std::to_string(static_cast<int>(swapType)));
 }
 
 QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
@@ -386,7 +386,7 @@ QuantLib::ZeroCouponInflationSwap::Type ZeroCouponInflationSwapTypeToQL(
         return QuantLib::ZeroCouponInflationSwap::Receiver;
     }
 
-    QUANTRA_ERROR("Zero coupon inflation swap type not found");
+    QUANTRA_ERROR("swap_type is not a known zero coupon inflation swap type: " + std::to_string(static_cast<int>(swapType)));
 }
 
 QuantLib::YearOnYearInflationSwap::Type YearOnYearInflationSwapTypeToQL(
@@ -400,7 +400,7 @@ QuantLib::YearOnYearInflationSwap::Type YearOnYearInflationSwapTypeToQL(
         return QuantLib::YearOnYearInflationSwap::Receiver;
     }
 
-    QUANTRA_ERROR("Year-on-year inflation swap type not found");
+    QUANTRA_ERROR("swap_type is not a known year-on-year inflation swap type: " + std::to_string(static_cast<int>(swapType)));
 }
 
 QuantLib::CPI::InterpolationType CPIInterpolationToQL(

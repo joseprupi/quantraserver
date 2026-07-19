@@ -12,9 +12,11 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
 
     if (swap->overnight_leg() == NULL)
         QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg not found");
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("OisSwap.swap_type is required");
 
     QuantLib::OvernightIndexedSwap::Type swapType;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             swapType = QuantLib::OvernightIndexedSwap::Payer;
             break;
@@ -22,7 +24,9 @@ std::shared_ptr<QuantLib::OvernightIndexedSwap> OisSwapParser::parse(
             swapType = QuantLib::OvernightIndexedSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "OisSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     ScheduleParser scheduleParser;
