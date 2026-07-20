@@ -42,6 +42,9 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     }
 
     const auto* swap = pricing->vanilla_swap();
+    if (!swap->swap_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap.swap_type is required");
+    }
     if (!swap->fixed_leg()) {
         QUANTRA_INVALID_ARGUMENT("VanillaSwap.fixed_leg is required");
     }
@@ -66,7 +69,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     ScheduleParser scheduleParser;
 
     VanillaSwapTrade trade;
-    trade.swapType = SwapTypeToQL(swap->swap_type());
+    trade.swapType = SwapTypeToQL(swap->swap_type().value());
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.forwardingCurveId = pricing->forwarding_curve()->str();
 

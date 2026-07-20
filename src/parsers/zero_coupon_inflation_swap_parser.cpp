@@ -49,9 +49,11 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
             "for this instrument, so honouring it would be a silent no-op. Omit the "
             "field or set it to false.");
     }
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap.swap_type is required");
 
     QuantLib::ZeroCouponInflationSwap::Type swapType;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             swapType = QuantLib::ZeroCouponInflationSwap::Payer;
             break;
@@ -59,7 +61,9 @@ std::shared_ptr<QuantLib::ZeroCouponInflationSwap> ZeroCouponInflationSwapParser
             swapType = QuantLib::ZeroCouponInflationSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid zero coupon inflation swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "ZeroCouponInflationSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     return std::make_shared<QuantLib::ZeroCouponInflationSwap>(

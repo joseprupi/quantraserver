@@ -93,7 +93,9 @@ table SwapCmsLeg {
 
 /// Vanilla interest rate swap (fixed vs floating).
 table VanillaSwap {
-    swap_type:enums.SwapType;
+    /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
+    /// type is a 400, never the alphabetical-0 default (Payer).
+    swap_type:enums.SwapType = null;
     fixed_leg:SwapFixedLeg;
     /// Standard IBOR floating leg path.
     floating_leg:SwapFloatingLeg;

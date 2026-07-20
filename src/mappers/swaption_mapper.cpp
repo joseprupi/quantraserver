@@ -79,9 +79,12 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
     if (swap->floating_leg() == nullptr)
         QUANTRA_INVALID_ARGUMENT("VanillaSwap floating_leg not found");
 
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap.swap_type is required");
+
     VanillaSwapTrade trade;
     trade.branch = VanillaSwapTrade::Branch::Ibor;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             trade.swapType = QuantLib::VanillaSwap::Payer;
             break;
@@ -89,7 +92,9 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
             trade.swapType = QuantLib::VanillaSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "VanillaSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     ScheduleParser scheduleParser;
@@ -134,8 +139,11 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
     if (swap->overnight_leg() == nullptr)
         QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg not found");
 
+    if (!swap->swap_type().has_value())
+        QUANTRA_INVALID_ARGUMENT("OisSwap.swap_type is required");
+
     OisSwapTrade trade;
-    switch (swap->swap_type()) {
+    switch (swap->swap_type().value()) {
         case quantra::enums::SwapType_Payer:
             trade.swapType = QuantLib::OvernightIndexedSwap::Payer;
             break;
@@ -143,7 +151,9 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
             trade.swapType = QuantLib::OvernightIndexedSwap::Receiver;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid swap type");
+            QUANTRA_INVALID_ARGUMENT(
+                "OisSwap.swap_type is not a known swap type: " +
+                std::to_string(static_cast<int>(swap->swap_type().value())));
     }
 
     ScheduleParser scheduleParser;

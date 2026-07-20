@@ -26,6 +26,9 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     }
 
     const auto* swap = pricing->ois_swap();
+    if (!swap->swap_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("OisSwap.swap_type is required");
+    }
     if (!swap->fixed_leg()) {
         QUANTRA_INVALID_ARGUMENT("OisSwap.fixed_leg is required");
     }
@@ -54,7 +57,7 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     ScheduleParser scheduleParser;
 
     OisSwapTrade trade;
-    trade.swapType = OvernightIndexedSwapTypeToQL(swap->swap_type());
+    trade.swapType = OvernightIndexedSwapTypeToQL(swap->swap_type().value());
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.forwardingCurveId = pricing->forwarding_curve()->str();
 

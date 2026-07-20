@@ -24,7 +24,7 @@ struct ZeroCouponInflationSwapT;
 
 struct ZeroCouponInflationSwapT : public ::flatbuffers::NativeTable {
   typedef ZeroCouponInflationSwap TableType;
-  quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer;
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
   double notional = 0.0;
   std::string start_date{};
   std::string maturity_date{};
@@ -64,9 +64,10 @@ struct ZeroCouponInflationSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
     VT_INFLATION_CALENDAR = 28,
     VT_INFLATION_CONVENTION = 30
   };
-  /// "Payer" / "Receiver" refers to the inflation leg.
-  quantra::enums::SwapType swap_type() const {
-    return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
+  /// "Payer" / "Receiver" refers to the inflation leg. Presence-required: an
+  /// omitted type is a 400, never the alphabetical-0 default (Payer).
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
+    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
   double notional() const {
     return GetField<double>(VT_NOTIONAL, 0.0);
@@ -145,7 +146,7 @@ struct ZeroCouponInflationSwapBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(ZeroCouponInflationSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type), 0);
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_notional(double notional) {
     fbb_.AddElement<double>(ZeroCouponInflationSwap::VT_NOTIONAL, notional, 0.0);
@@ -203,7 +204,7 @@ struct ZeroCouponInflationSwapBuilder {
 
 inline ::flatbuffers::Offset<ZeroCouponInflationSwap> CreateZeroCouponInflationSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
+    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
     double notional = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
@@ -231,13 +232,13 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwap> CreateZeroCouponInflationS
   builder_.add_day_counter(day_counter);
   builder_.add_fixed_convention(fixed_convention);
   builder_.add_fixed_calendar(fixed_calendar);
-  builder_.add_swap_type(swap_type);
+  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<ZeroCouponInflationSwap> CreateZeroCouponInflationSwapDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
+    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
     double notional = 0.0,
     const char *start_date = nullptr,
     const char *maturity_date = nullptr,

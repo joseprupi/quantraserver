@@ -734,7 +734,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
 
 struct VanillaSwapT : public ::flatbuffers::NativeTable {
   typedef VanillaSwap TableType;
-  quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer;
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::SwapFixedLegT> fixed_leg{};
   std::unique_ptr<quantra::SwapFloatingLegT> floating_leg{};
   std::unique_ptr<quantra::SwapCmsLegT> cms_leg{};
@@ -754,8 +754,10 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FLOATING_LEG = 8,
     VT_CMS_LEG = 10
   };
-  quantra::enums::SwapType swap_type() const {
-    return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
+  /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
+  /// type is a 400, never the alphabetical-0 default (Payer).
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
+    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
   const quantra::SwapFixedLeg *fixed_leg() const {
     return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
@@ -790,7 +792,7 @@ struct VanillaSwapBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(VanillaSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type), 0);
+    fbb_.AddElement<int8_t>(VanillaSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_fixed_leg(::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FIXED_LEG, fixed_leg);
@@ -814,7 +816,7 @@ struct VanillaSwapBuilder {
 
 inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
+    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
     ::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg = 0,
     ::flatbuffers::Offset<quantra::SwapCmsLeg> cms_leg = 0) {
@@ -822,7 +824,7 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
   builder_.add_cms_leg(cms_leg);
   builder_.add_floating_leg(floating_leg);
   builder_.add_fixed_leg(fixed_leg);
-  builder_.add_swap_type(swap_type);
+  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 

@@ -28,6 +28,9 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
     }
 
     const auto* swap = pricing->zero_coupon_inflation_swap();
+    if (!swap->swap_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap.swap_type is required");
+    }
     if (!swap->start_date()) {
         QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap start_date not found");
     }
@@ -43,7 +46,7 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
     }
 
     ZeroCouponInflationSwapTrade trade;
-    trade.swapType = ZeroCouponInflationSwapTypeToQL(swap->swap_type());
+    trade.swapType = ZeroCouponInflationSwapTypeToQL(swap->swap_type().value());
     trade.notional = swap->notional();
     trade.startDate = DateToQL(swap->start_date()->str());
     trade.maturityDate = DateToQL(swap->maturity_date()->str());

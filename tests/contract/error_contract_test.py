@@ -217,10 +217,10 @@ def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
 
 
 def _ec_del_instrument_field(arr_key, product_key, field):
-    """Drop a convention field from the product instrument block. The FRA,
-    cap/floor and CDS convention enums (day_counter, calendar,
-    business_day_convention) are presence-required: an omitted convention is an
-    error, never an alphabetical-0 default."""
+    """Drop a convention or discriminator field from the product instrument
+    block. The instrument-level enums (day_counter, calendar,
+    business_day_convention, swap_type, ...) are presence-required: an omitted
+    value is an error, never an alphabetical-0 default."""
     def f(req):
         req[arr_key][0][product_key].pop(field, None)
         return req
@@ -679,6 +679,32 @@ SCENARIOS = [
      "cds_request.json", 400,
      _ec_del_instrument_field("cds_list", "cds", "side"),
      _ec_body_contains("CDS.side is required")),
+    # ---- 400 INVALID_ARGUMENT: swap-direction discriminator presence ----
+    # swap_type decides which way round the trade is booked. An omitted value is
+    # indistinguishable from the alphabetical-0 default (Payer), so it must be
+    # rejected rather than silently pricing the trade in the wrong direction.
+    ("ec:400 vanilla_swap missing swap_type", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "vanilla_swap", "swap_type"),
+     _ec_body_contains("VanillaSwap.swap_type is required")),
+    ("ec:400 ois_swap missing swap_type", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "ois_swap", "swap_type"),
+     _ec_body_contains("OisSwap.swap_type is required")),
+    ("ec:400 basis_swap missing swap_type", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_del_instrument_field("swaps", "basis_swap", "swap_type"),
+     _ec_body_contains("BasisSwap.swap_type is required")),
+    ("ec:400 zero_coupon_inflation_swap missing swap_type",
+     "zero_coupon_inflation_swap",
+     "inflation/zciis_eur_5y_payer_linear_obs.json", 400,
+     _ec_del_instrument_field("swaps", "zero_coupon_inflation_swap", "swap_type"),
+     _ec_body_contains("ZeroCouponInflationSwap.swap_type is required")),
+    ("ec:400 year_on_year_inflation_swap missing swap_type",
+     "year_on_year_inflation_swap",
+     "inflation/yyiis_eur_5y_payer_annual.json", 400,
+     _ec_del_instrument_field("swaps", "year_on_year_inflation_swap", "swap_type"),
+     _ec_body_contains("YearOnYearInflationSwap.swap_type is required")),
     # ---- 400 INVALID_ARGUMENT: coupon-pricer optionlet-vol convention presence ----
     # A ConstantOptionletVolatility convention enum omitted from a coupon pricer
     # must be rejected, not silently defaulted to the alphabetical-0 value.

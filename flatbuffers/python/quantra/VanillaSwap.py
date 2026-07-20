@@ -25,12 +25,14 @@ class VanillaSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Payer/receiver refer to the fixed leg. Presence-required: an omitted
+    # type is a 400, never the alphabetical-0 default (Payer).
     # VanillaSwap
     def SwapType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # VanillaSwap
     def FixedLeg(self):
@@ -75,7 +77,7 @@ def Start(builder):
     VanillaSwapStart(builder)
 
 def VanillaSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, 0)
+    builder.PrependInt8Slot(0, swapType, None)
 
 def AddSwapType(builder, swapType):
     VanillaSwapAddSwapType(builder, swapType)
@@ -113,7 +115,7 @@ class VanillaSwapT(object):
 
     # VanillaSwapT
     def __init__(self):
-        self.swapType = 0  # type: int
+        self.swapType = None  # type: Optional[int]
         self.fixedLeg = None  # type: Optional[SwapFixedLegT]
         self.floatingLeg = None  # type: Optional[SwapFloatingLegT]
         self.cmsLeg = None  # type: Optional[SwapCmsLegT]

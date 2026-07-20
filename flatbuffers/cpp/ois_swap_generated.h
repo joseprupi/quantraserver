@@ -225,7 +225,7 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
 
 struct OisSwapT : public ::flatbuffers::NativeTable {
   typedef OisSwap TableType;
-  quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer;
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::SwapFixedLegT> fixed_leg{};
   std::unique_ptr<quantra::OisFloatingLegT> overnight_leg{};
   OisSwapT() = default;
@@ -243,8 +243,10 @@ struct OisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FIXED_LEG = 6,
     VT_OVERNIGHT_LEG = 8
   };
-  quantra::enums::SwapType swap_type() const {
-    return static_cast<quantra::enums::SwapType>(GetField<int8_t>(VT_SWAP_TYPE, 0));
+  /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
+  /// type is a 400, never the alphabetical-0 default (Payer).
+  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
+    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
   const quantra::SwapFixedLeg *fixed_leg() const {
     return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
@@ -271,7 +273,7 @@ struct OisSwapBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(OisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type), 0);
+    fbb_.AddElement<int8_t>(OisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_fixed_leg(::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg) {
     fbb_.AddOffset(OisSwap::VT_FIXED_LEG, fixed_leg);
@@ -292,13 +294,13 @@ struct OisSwapBuilder {
 
 inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::SwapType swap_type = quantra::enums::SwapType_Payer,
+    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
     ::flatbuffers::Offset<quantra::OisFloatingLeg> overnight_leg = 0) {
   OisSwapBuilder builder_(_fbb);
   builder_.add_overnight_leg(overnight_leg);
   builder_.add_fixed_leg(fixed_leg);
-  builder_.add_swap_type(swap_type);
+  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 
