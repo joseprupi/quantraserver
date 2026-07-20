@@ -75,6 +75,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |
 | Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |
 | Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |
+| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |
+| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -143,12 +145,12 @@ ENDPOINT_METADATA = {
     },
     "cap_floor": {
         "summary": "Price Interest Rate Cap/Floor",
-        "description": "Calculate NPV for interest rate caps, floors, and collars using Black model.",
+        "description": "Calculate NPV for interest rate caps, floors, and collars using the Black, displaced (shifted) Black, or Bachelier engine selected by the referenced model.",
         "tags": ["Interest Rate Derivatives"]
     },
     "swaption": {
         "summary": "Price Swaption",
-        "description": "Calculate NPV for European swaptions using Black model.",
+        "description": "Calculate NPV for swaptions. European exercise prices under the Black, displaced (shifted) Black, or Bachelier engine; Bermudan and American exercise price on a Hull-White lattice, with model parameters given explicitly or calibrated.",
         "tags": ["Interest Rate Derivatives"]
     },
     "cds": {

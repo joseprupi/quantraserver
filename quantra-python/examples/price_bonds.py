@@ -1,7 +1,16 @@
+import os
 import sys
 import time
 import argparse
-from client_wrapper import Client
+
+# The generated FlatBuffers Python package (`quantra.*`) lives in
+# flatbuffers/python/ and the client package in this directory's parent, so the
+# example runs straight from a source checkout without installing anything.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(_REPO_ROOT, "flatbuffers", "python"))
+sys.path.insert(0, os.path.join(_REPO_ROOT, "quantra-python"))
+
+from quantra_client.client import Client
 
 # Generated Objects
 from quantra.Pricing import PricingT

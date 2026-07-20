@@ -90,16 +90,19 @@ If you want a system-wide installed CLI, copy the packaged scripts from `tools/q
 
 ## Container Usage
 
-The production Docker image starts the process manager in foreground mode:
+The production Docker image runs both surfaces: its entrypoint starts the
+process manager in foreground mode (Envoy plus the workers, gRPC on `50051`)
+and then the JSON gateway on `8080`. Both ports are exposed.
 
 ```bash
-docker run --rm -p 50051:50051 quantra
+docker run --rm -p 50051:50051 -p 8080:8080 quantra
 ```
 
-To override worker count:
+To override worker count, set `QUANTRA_WORKERS` — replacing the command would
+start the workers without the JSON gateway:
 
 ```bash
-docker run --rm -p 50051:50051 quantra quantra start --workers 8 --foreground
+docker run --rm -e QUANTRA_WORKERS=8 -p 50051:50051 -p 8080:8080 quantra
 ```
 
 ## Troubleshooting

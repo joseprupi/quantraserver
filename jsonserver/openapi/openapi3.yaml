@@ -27,8 +27,11 @@ info:
     \ surface and return diagnostics |\n| Equity Option | `/price-equity-option` |\
     \ Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond`\
     \ | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap`\
-    \ | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Status | `/status`\
-    \ | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build\
+    \ | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation\
+    \ Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation\
+    \ caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond`\
+    \ | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| Status\
+    \ | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build\
     \ metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick\
     \ Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price\
     \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
@@ -382,7 +385,8 @@ paths:
     post:
       summary: Price Interest Rate Cap/Floor
       description: Calculate NPV for interest rate caps, floors, and collars using
-        Black model.
+        the Black, displaced (shifted) Black, or Bachelier engine selected by the
+        referenced model.
       tags:
       - Interest Rate Derivatives
       requestBody:
@@ -421,7 +425,10 @@ paths:
   /price-swaption:
     post:
       summary: Price Swaption
-      description: Calculate NPV for European swaptions using Black model.
+      description: Calculate NPV for swaptions. European exercise prices under the
+        Black, displaced (shifted) Black, or Bachelier engine; Bermudan and American
+        exercise price on a Hull-White lattice, with model parameters given explicitly
+        or calibrated.
       tags:
       - Interest Rate Derivatives
       requestBody:
