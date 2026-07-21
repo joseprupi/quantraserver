@@ -1,7 +1,6 @@
 // Basis Swap parity tests (two floating legs, e.g. 3M vs 6M).
 //
-// New in refactor step 6e (fill zero/thin parity gaps). Shares
-// QuantraComparisonTest from parity_fixture.h; built into the single
+// Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib gtest binary. Each case builds the FlatBuffers
 // request, prices it through the BasisSwap handler, and compares against an
 // independently-built QuantLib::Swap of two IborLegs (the exact shape the

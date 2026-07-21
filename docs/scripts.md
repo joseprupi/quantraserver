@@ -89,5 +89,4 @@ bash tests/run_all_tests.sh
 
 ## Notes
 
-- `scripts/config_vars.sh` is a legacy helper and should not be treated as the primary workflow.
 - For packaged process-manager details, see `process-manager.md`.

@@ -62,7 +62,7 @@ struct CdsInputs {
     std::vector<CdsTrade> trades;
 };
 
-/// Per-trade pricing result. Mirrors the legacy CdsPriceResult fields.
+/// Per-trade pricing result, one entry per CDS in the request.
 struct CdsPerTrade {
     double npv = 0.0;
     std::optional<double> fairSpread; // absent when QuantLib cannot express it (e.g. a zero-running-coupon CDS)

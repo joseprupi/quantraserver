@@ -1,8 +1,8 @@
 // Calendar advance utility parity tests.
 //
-// New in refactor step 6e (fill zero/thin parity gaps). Query-shaped endpoint
-// (no NPV): the advanced date is computed directly with QuantLib's
-// Calendar::advance and the engine response is required to match it exactly.
+// Query-shaped endpoint (no NPV): the advanced date is computed directly with
+// QuantLib's Calendar::advance and the engine response is required to match it
+// exactly.
 // Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib binary.
 #include "parity_fixture.h"

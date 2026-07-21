@@ -3,10 +3,9 @@
 /**
  * Shared fixture + helpers for the Quantra vs QuantLib parity suite.
  *
- * Extracted verbatim from the former monolith tests/test_quantra_vs_quantlib.cpp
- * during the per-product split (refactor step 6a). Every parity_*_test.cpp
- * includes this header and shares the single QuantraComparisonTest fixture so
- * the suite continues to build into ONE gtest binary (test_quantra_vs_quantlib).
+ * Every parity test translation unit includes this header and shares the single
+ * QuantraComparisonTest fixture, so the whole suite builds into ONE gtest binary
+ * (test_quantra_vs_quantlib).
  */
 
 #include <gtest/gtest.h>

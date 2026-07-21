@@ -1,9 +1,8 @@
-// F4: presence-based field selection for BondHelper / FutureHelper.
+// Presence-based field selection for BondHelper / FutureHelper.
 //
-// BondHelper used to encode "price vs rate" via a magic zero ("if price==0
-// use rate") and FutureHelper via "if futures_price!=0, rate ignored". The
-// schema now uses optional scalars (price:double = null) and the parser
-// selects by presence. These tests pin the new contract:
+// Both helpers use optional scalars (price:double = null) and the parser
+// selects the quote by presence, never by a magic zero. These tests pin the
+// contract:
 //   - a BondHelper carrying the quote in `price` and one carrying the same
 //     value in `rate` must hand QuantLib the identical quote;
 //   - FutureHelper with futures_price present hands QuantLib the futures

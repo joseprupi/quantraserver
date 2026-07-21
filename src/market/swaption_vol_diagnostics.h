@@ -29,7 +29,7 @@ namespace quantra {
  *
  * The helper is intentionally request-handler-agnostic: it takes only an
  * entry + an id + builder, so it can be reused by /sample-vol-surfaces,
- * /price-swaption, and Step 9's /calibrate-swaption-vol without duplication.
+ * /price-swaption, and /calibrate-swaption-vol without duplication.
  */
 flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics(
     flatbuffers::FlatBufferBuilder& fbb,

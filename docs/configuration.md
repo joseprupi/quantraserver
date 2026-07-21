@@ -82,9 +82,8 @@ them at start and honours anything you pass with `-e`.
 
 ## Legacy / not used by the server
 
-- `QUANTRA_PORT`, `QUANTRA_SERVER_PORT` — set only by the unused
-  `scripts/config_vars.sh`; no binary reads them. Ports come from the
-  `quantra` CLI flags and the gateway's command-line arguments.
+- `QUANTRA_PORT`, `QUANTRA_SERVER_PORT` — no binary reads them. Ports come
+  from the `quantra` CLI flags and the gateway's command-line arguments.
 - `QUANTRA_REDIS_HOST`, `QUANTRA_REDIS_PORT`,
   `QUANTRA_CURVE_CACHE_TTL_SECONDS` — named in a design comment for a
   second-level Redis curve cache that is not implemented. Nothing reads them.

@@ -73,8 +73,8 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
     }
 
     // Optional stub-period control. Absent fields default to QuantLib::Date(),
-    // which is exactly the constructor's default and reproduces the prior
-    // (no-stub) behaviour bit-for-bit. Present fields are validated to lie
+    // which is exactly the Schedule constructor's own default, i.e. no stub.
+    // Present fields are validated to lie
     // strictly inside (effective_date, termination_date) — QuantLib's own
     // requirement — so the caller gets a named 400 instead of an opaque error.
     QuantLib::Date firstDate;
@@ -119,8 +119,8 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
     // With a stub date present, some DateGeneration rules (e.g. Zero) reject the
     // firstDate/nextToLastDate arguments outright. QuantLib signals this by
     // throwing; without a guard that raw error maps to an opaque 500. Surface it
-    // as a named 400 carrying QuantLib's reason. Absent-stub requests keep the
-    // original (unwrapped) path so their behaviour is unchanged.
+    // as a named 400 carrying QuantLib's reason. Requests with no stub dates
+    // take the unwrapped path below.
     if (hasFirst || hasNextToLast)
     {
         try

@@ -1,7 +1,6 @@
 // OIS (Overnight Indexed) Swap parity tests.
 //
-// New in refactor step 6e (fill zero/thin parity gaps). Shares
-// QuantraComparisonTest from parity_fixture.h; built into the single
+// Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib gtest binary. Each case builds the FlatBuffers
 // request, prices it through the OisSwap handler, and compares against an
 // independently-built QuantLib OvernightIndexedSwap (overnight index forecasting

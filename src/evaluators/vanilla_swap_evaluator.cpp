@@ -216,7 +216,7 @@ VanillaSwapPerSwap priceIborConstant(
     const PricingContext& ctx,
     bool includeFlows) {
     if (trade.fixed.notional != trade.ibor.notional) {
-        // Preserves the legacy warning emitted by vanilla_swap_parser.
+        // Mismatched notionals are not an error: the fixed leg's notional wins.
         std::cout << "Warning: Fixed and floating notionals differ. Using fixed notional."
                   << std::endl;
     }

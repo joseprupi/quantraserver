@@ -69,7 +69,7 @@ int GrpcToHttpStatus(const grpc::Status& status) {
             // The only known RESOURCE_EXHAUSTED source is gRPC's message-size
             // cap ("Received message larger than max ..."), which is a
             // payload-size problem, not a rate-limit -> 413. Anything else
-            // keeps the historical 429.
+            // maps to 429.
             if (ContainsCaseInsensitive(status.error_message(), "larger than max") ||
                 ContainsCaseInsensitive(status.error_message(), "message too large")) {
                 return 413;
@@ -78,7 +78,7 @@ int GrpcToHttpStatus(const grpc::Status& status) {
         // ABORTED carries QuantLib/engine exceptions raised by well-formed but
         // unpriceable client inputs (bad dates, degenerate schedules, ...).
         // Those are client-data faults, not server faults -> 422
-        // Unprocessable Entity instead of the old default 500.
+        // Unprocessable Entity.
         case grpc::StatusCode::ABORTED: return 422;
         case grpc::StatusCode::UNIMPLEMENTED: return 501;
         case grpc::StatusCode::UNAVAILABLE: return 503;
@@ -135,8 +135,9 @@ JsonResponse JsonResponse::GrpcError(const grpc::Status& status) {
     if (details.empty()) {
         details = status.error_message();
     }
-    // The documented `error` field carries the REAL cause (same text as
-    // `message`), not the old useless constant "gRPC error".
+    // The documented `error` field carries the real cause (same text as
+    // `message`); it only falls back to the constant "gRPC error" when the
+    // status carries no details or message at all.
     // `code`, `code_name` and `message` are kept for backward compatibility.
     std::string error_text = details.empty() ? "gRPC error" : details;
     std::string code_name = codeName(status.error_code());

@@ -278,15 +278,6 @@ def get_cds_helper_model(name: str):
     return mapping.get(name, ql.CreditDefaultSwap.Midpoint)
 
 
-def get_cds_curve_interpolator(name: str):
-    mapping = {
-        "LogLinear": ql.LogLinear(),
-        "Linear": ql.Linear(),
-        "BackwardFlat": ql.BackwardFlat(),
-    }
-    return mapping.get(name, ql.LogLinear())
-
-
 def get_isda_numerical_fix(name: str):
     none_fix = getattr(ql.IsdaCdsEngine, "None", ql.IsdaCdsEngine.Taylor)
     mapping = {
@@ -334,14 +325,6 @@ def build_overnight_index(idx_def: dict, curve_handle=None):
     name = idx_def.get("name", idx_def.get("id", "ON"))
     handle = curve_handle if curve_handle else ql.YieldTermStructureHandle()
     return ql.OvernightIndex(name, fixing_days, ccy, calendar, day_counter, handle)
-
-
-def get_ibor_index(name: str):
-    if "Euribor6M" in name:
-        return ql.Euribor6M()
-    elif "Euribor3M" in name:
-        return ql.Euribor3M()
-    return ql.Euribor6M()
 
 
 # =============================================================================
@@ -2263,8 +2246,8 @@ def price_cds_ql(request: dict) -> float:
 #   * src/parsers/inflation_curve_parsers.cpp — the InflationIndexSpec /
 #     InflationCurveSpec builders (index construction, helper dates, base
 #     fixing, PiecewiseZero/YoYInflationCurve<Linear> bootstrap),
-#   * src/parsers/zero_coupon_inflation_swap_parser.cpp and
-#     year_on_year_inflation_swap_parser.cpp — the trade construction,
+#   * src/mappers/zero_coupon_inflation_swap_mapper.cpp and
+#     year_on_year_inflation_swap_mapper.cpp — the trade construction,
 #   * src/evaluators/*_inflation_swap_evaluator.cpp — engine selection
 #     (DiscountingSwapEngine on the trade's discounting curve; the YoY leg
 #     additionally gets a BlackYoYInflationCouponPricer holding the same

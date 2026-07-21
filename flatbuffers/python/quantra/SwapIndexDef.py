@@ -101,15 +101,8 @@ class SwapIndexDef(object):
             return obj
         return None
 
-    # SwapIndexDef
-    def AllowOverrideFromTrade(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
-        if o != 0:
-            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
-
 def SwapIndexDefStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(9)
 
 def Start(builder):
     SwapIndexDefStart(builder)
@@ -168,12 +161,6 @@ def SwapIndexDefAddFloatLeg(builder, floatLeg):
 def AddFloatLeg(builder, floatLeg):
     SwapIndexDefAddFloatLeg(builder, floatLeg)
 
-def SwapIndexDefAddAllowOverrideFromTrade(builder, allowOverrideFromTrade):
-    builder.PrependBoolSlot(9, allowOverrideFromTrade, 0)
-
-def AddAllowOverrideFromTrade(builder, allowOverrideFromTrade):
-    SwapIndexDefAddAllowOverrideFromTrade(builder, allowOverrideFromTrade)
-
 def SwapIndexDefEnd(builder):
     return builder.EndObject()
 
@@ -198,7 +185,6 @@ class SwapIndexDefT(object):
         self.fixedLeg = None  # type: Optional[SwapIndexFixedLegSpecT]
         self.floatIndexId = None  # type: str
         self.floatLeg = None  # type: Optional[SwapIndexFloatLegSpecT]
-        self.allowOverrideFromTrade = False  # type: bool
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -232,7 +218,6 @@ class SwapIndexDefT(object):
         self.floatIndexId = swapIndexDef.FloatIndexId()
         if swapIndexDef.FloatLeg() is not None:
             self.floatLeg = SwapIndexFloatLegSpecT.InitFromObj(swapIndexDef.FloatLeg())
-        self.allowOverrideFromTrade = swapIndexDef.AllowOverrideFromTrade()
 
     # SwapIndexDefT
     def Pack(self, builder):
@@ -258,6 +243,5 @@ class SwapIndexDefT(object):
             SwapIndexDefAddFloatIndexId(builder, floatIndexId)
         if self.floatLeg is not None:
             SwapIndexDefAddFloatLeg(builder, floatLeg)
-        SwapIndexDefAddAllowOverrideFromTrade(builder, self.allowOverrideFromTrade)
         swapIndexDef = SwapIndexDefEnd(builder)
         return swapIndexDef

@@ -22,8 +22,7 @@ using FixedRateBondEndpoint = quantra::ProductEndpoint<
     quantra::FixedRateBondMapper,
     quantra::FixedRateBondEvaluator>;
 
-/// Backward-compatible alias for existing call sites (tests) that referenced
-/// the legacy FixedRateBondPricingRequest type directly.
+/// Alias used by the parity tests, which drive the endpoint directly.
 using FixedRateBondPricingRequest = FixedRateBondEndpoint;
 
 /**
