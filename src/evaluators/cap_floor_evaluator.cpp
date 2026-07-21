@@ -59,7 +59,8 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
         case IrModelTypeKind::HullWhiteLattice:
             QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': HullWhiteLattice is not supported for cap/floor");
     }
-    QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value " +
+    QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
+                  "': CapFloorModelSpec.model_type is not a known model type: " +
                   std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }

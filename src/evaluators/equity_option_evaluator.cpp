@@ -183,7 +183,9 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
                             break;
                         }
                         default:
-                            QUANTRA_INVALID_ARGUMENT("Unsupported EquityModelType");
+                            QUANTRA_INVALID_ARGUMENT(
+                                "EquityVanillaModelSpec.model_type is not a known model type: " +
+                                std::to_string(static_cast<int>(equityModel->model_type)));
                     }
                     break;
                 case QuantLib::Exercise::American:

@@ -675,11 +675,11 @@
       "properties" : {
         "exercise_type" : {
                 "$ref" : "#/definitions/quantra_enums_ExerciseType",
-                "description" : "Exercise style: European, Bermudan, or American."
+                "description" : "Exercise style: European, Bermudan, or American. Presence-required: an\nomitted style is a 400, never the alphabetical-0 default (European)."
               },
         "settlement_type" : {
                 "$ref" : "#/definitions/quantra_enums_SettlementType",
-                "description" : "Settlement type for swaption payoff handling."
+                "description" : "Settlement type for swaption payoff handling. Presence-required: an\nomitted type is a 400, never the alphabetical-0 default (Physical)."
               },
         "settlement_method" : {
                 "$ref" : "#/definitions/quantra_enums_SettlementMethod",

@@ -25,13 +25,14 @@ class SwaptionModelSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Swaption pricing model type.
+    # Swaption pricing model type. Presence-required: an omitted type is a
+    # 400, never the alphabetical-0 default (Black).
     # SwaptionModelSpec
     def ModelType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Explicit Hull-White "a" used when param_mode=Explicit.
     # SwaptionModelSpec
@@ -84,7 +85,7 @@ def Start(builder):
     SwaptionModelSpecStart(builder)
 
 def SwaptionModelSpecAddModelType(builder, modelType):
-    builder.PrependInt8Slot(0, modelType, 0)
+    builder.PrependInt8Slot(0, modelType, None)
 
 def AddModelType(builder, modelType):
     SwaptionModelSpecAddModelType(builder, modelType)
@@ -134,7 +135,7 @@ class SwaptionModelSpecT(object):
 
     # SwaptionModelSpecT
     def __init__(self):
-        self.modelType = 0  # type: int
+        self.modelType = None  # type: Optional[int]
         self.hwA = 0.03  # type: float
         self.hwSigma = 0.01  # type: float
         self.latticeSteps = 50  # type: int

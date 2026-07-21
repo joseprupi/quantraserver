@@ -293,6 +293,17 @@ def _ec_identity(req):
     return req
 
 
+def _ec_del_model_payload_field(field):
+    """Drop a field from every model payload in the request. model_type selects
+    the pricing engine, so it is presence-required: an omitted value is an
+    error, never an alphabetical-0 default."""
+    def f(req):
+        for m in req["pricing"].get("volatility", {}).get("models", []):
+            m["payload"].pop(field, None)
+        return req
+    return f
+
+
 def _ec_set_model_payload_field(field, value):
     def f(req):
         for m in req["pricing"].get("volatility", {}).get("models", []):
@@ -648,6 +659,47 @@ SCENARIOS = [
      "swaption_request.json", 400,
      _ec_del_vol_base_field("calendar"),
      _ec_body_contains("IrVolBaseSpec.calendar is required")),
+    # ---- 400 INVALID_ARGUMENT: vol quotation convention presence ----
+    # volatility_type says whether the supplied numbers are normal or lognormal
+    # vols. An omitted value is indistinguishable from the alphabetical-0
+    # default (Normal), which would price a lognormal-quoted surface as normal
+    # vols, so it must be rejected instead.
+    ("ec:400 swaption vol base missing volatility_type", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_vol_base_field("volatility_type"),
+     _ec_body_contains("IrVolBaseSpec.volatility_type is required")),
+    ("ec:400 cap_floor vol base missing volatility_type", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_del_vol_base_field("volatility_type"),
+     _ec_body_contains("IrVolBaseSpec.volatility_type is required")),
+    # ---- 400 INVALID_ARGUMENT: pricing-model discriminator presence ----
+    # model_type selects the pricing engine. An omitted value is
+    # indistinguishable from the alphabetical-0 default (Black for the rate
+    # models, BlackScholesAnalytic for equity), so it must be rejected rather
+    # than silently pricing on an engine the caller never asked for.
+    ("ec:400 swaption model missing model_type", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_model_payload_field("model_type"),
+     _ec_body_contains("SwaptionModelSpec.model_type is required")),
+    ("ec:400 cap_floor model missing model_type", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_del_model_payload_field("model_type"),
+     _ec_body_contains("CapFloorModelSpec.model_type is required")),
+    ("ec:400 equity_option model missing model_type", "equity_option",
+     "equity_option_request.json", 400,
+     _ec_del_model_payload_field("model_type"),
+     _ec_body_contains("EquityVanillaModelSpec.model_type is required")),
+    # ---- 400 INVALID_ARGUMENT: swaption exercise/settlement discriminators ----
+    # Both decide the payoff. An omitted value is indistinguishable from the
+    # alphabetical-0 default (European / Physical), so it must be rejected.
+    ("ec:400 swaption missing exercise_type", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_instrument_field("swaptions", "swaption", "exercise_type"),
+     _ec_body_contains("Swaption.exercise_type is required")),
+    ("ec:400 swaption missing settlement_type", "swaption",
+     "swaption_request.json", 400,
+     _ec_del_instrument_field("swaptions", "swaption", "settlement_type"),
+     _ec_body_contains("Swaption.settlement_type is required")),
     # ---- 400 INVALID_ARGUMENT: FRA / cap-floor / CDS convention presence ----
     # An FRA, cap/floor or CDS convention enum omitted from the request must be
     # rejected, not silently defaulted to the alphabetical-0 value.
@@ -759,7 +811,7 @@ SCENARIOS = [
     ("ec:400 swaption settlement type out of range", "swaption",
      "swaption_request.json", 400,
      _ec_set_nested_field("swaptions", "swaption", "settlement_type", 99),
-     _ec_body_contains("Invalid settlement type")),
+     _ec_body_contains("Swaption.settlement_type is not a known settlement type")),
     # ---- 400 INVALID_ARGUMENT: equity exercise-style / payoff combinations
     #      QuantLib does not natively support are rejected, never silently
     #      re-routed to a different product. ----

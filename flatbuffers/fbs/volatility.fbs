@@ -31,7 +31,10 @@ table IrVolBaseSpec {
     business_day_convention:enums.BusinessDayConvention = null;
     day_counter:enums.DayCounter = null;
     shape:enums.VolSurfaceShape = Constant;
-    volatility_type:enums.VolatilityType;
+    /// Quotation convention of the supplied vols. Presence-required: an omitted
+    /// type is a 400, never the alphabetical-0 default (Normal), which would
+    /// price a lognormal-quoted surface as normal vols.
+    volatility_type:enums.VolatilityType = null;
     /// Only meaningful for ShiftedLognormal.
     displacement:double = 0.0;
     constant_vol:double;

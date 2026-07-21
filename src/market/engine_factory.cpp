@@ -57,8 +57,11 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeCapFloorEngine(
     if (!spec) {
         QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' has null CapFloorModelSpec payload");
     }
-    
-    auto modelType = spec->model_type();
+
+    if (!spec->model_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("CapFloorModelSpec.model_type is required for model id: " + modelId);
+    }
+    auto modelType = spec->model_type().value();
 
     // =========================================================================
     // Validate model/vol compatibility and create engine
@@ -90,7 +93,8 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeCapFloorEngine(
                 discountCurve, volEntry.handle);
 
         default:
-            QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value " 
+            QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
+                          "': CapFloorModelSpec.model_type is not a known model type: "
                           + std::to_string(modelType));
     }
     
@@ -120,8 +124,11 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeSwaptionEngine(
     if (!spec) {
         QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "' has null SwaptionModelSpec payload");
     }
-    
-    auto modelType = spec->model_type();
+
+    if (!spec->model_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("SwaptionModelSpec.model_type is required for model id: " + modelId);
+    }
+    auto modelType = spec->model_type().value();
 
     // =========================================================================
     // SABR vol kinds return Black (lognormal) vols via the Hagan expansion;
@@ -179,7 +186,8 @@ std::shared_ptr<QuantLib::PricingEngine> EngineFactory::makeSwaptionEngine(
         }
 
         default:
-            QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value "
+            QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
+                          "': SwaptionModelSpec.model_type is not a known model type: "
                           + std::to_string(modelType));
     }
     

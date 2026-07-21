@@ -25,12 +25,14 @@ class EquityVanillaModelSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Pricing model / engine selector. Presence-required: an omitted type is a
+    # 400, never the alphabetical-0 default (BlackScholesAnalytic).
     # EquityVanillaModelSpec
     def ModelType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # EquityVanillaModelSpec
     def BinomialSteps(self):
@@ -46,7 +48,7 @@ def Start(builder):
     EquityVanillaModelSpecStart(builder)
 
 def EquityVanillaModelSpecAddModelType(builder, modelType):
-    builder.PrependInt8Slot(0, modelType, 0)
+    builder.PrependInt8Slot(0, modelType, None)
 
 def AddModelType(builder, modelType):
     EquityVanillaModelSpecAddModelType(builder, modelType)
@@ -68,7 +70,7 @@ class EquityVanillaModelSpecT(object):
 
     # EquityVanillaModelSpecT
     def __init__(self):
-        self.modelType = 0  # type: int
+        self.modelType = None  # type: Optional[int]
         self.binomialSteps = 500  # type: int
 
     @classmethod

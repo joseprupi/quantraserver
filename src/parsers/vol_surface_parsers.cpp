@@ -53,7 +53,9 @@ QuantLib::VolatilityType toQlVolType(quantra::enums::VolatilityType t) {
             return QuantLib::ShiftedLognormal;
             
         default:
-            QUANTRA_INVALID_ARGUMENT("Unknown VolatilityType enum value: " + std::to_string(static_cast<int>(t)));
+            QUANTRA_INVALID_ARGUMENT(
+                "IrVolBaseSpec.volatility_type is not a known volatility type: " +
+                std::to_string(static_cast<int>(t)));
     }
     return QuantLib::ShiftedLognormal; // Unreachable, but suppresses warning
 }
@@ -66,6 +68,16 @@ namespace {
 
 bool isBlankString(const std::string& s) {
     return std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c) != 0; });
+}
+
+/// Read the presence-required quotation convention off an IrVolBaseSpec. An
+/// omitted value must not fall through to the alphabetical-0 enum (Normal),
+/// which would price a lognormal-quoted surface as normal vols.
+quantra::enums::VolatilityType requiredVolType(const quantra::IrVolBaseSpec* b, const std::string& id) {
+    if (!b || !b->volatility_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.volatility_type is required for vol id: " + id);
+    }
+    return b->volatility_type().value();
 }
 
 void validateIrVolBaseCommon(const quantra::IrVolBaseSpec* b, const std::string& id) {
@@ -85,7 +97,7 @@ void validateIrVolBaseCommon(const quantra::IrVolBaseSpec* b, const std::string&
         QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.day_counter is required for vol id: " + id);
     }
 
-    auto volType = b->volatility_type();
+    auto volType = requiredVolType(b, id);
     double disp = b->displacement();
     
     if (volType == quantra::enums::VolatilityType_ShiftedLognormal && disp <= 0.0) {
@@ -889,7 +901,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
     double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
     double disp = b->displacement();
-    QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+    QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
     auto qlVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
         ref, cal, bdc, vol, dc, qlType, disp
@@ -944,7 +956,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
             double disp = b->displacement();
-            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+            QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             auto qlVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
                 ref, cal, bdc, vol, dc, qlType, disp
@@ -979,7 +991,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
-            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+            QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors()) {
                 QUANTRA_INVALID_ARGUMENT("SwaptionVolAtmMatrixSpec expiries/tenors missing for vol id: " + id);
@@ -1062,7 +1074,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
-            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+            QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors() || !payload->strikes()) {
                 QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec grids missing for vol id: " + id);
@@ -1163,7 +1175,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             // when displacement > 0). Normal SABR is a separate model with its
             // own engine pairing rules; reject for v1 rather than producing
             // wrong vols silently.
-            if (b->volatility_type() == quantra::enums::VolatilityType_Normal) {
+            if (requiredVolType(b, id) == quantra::enums::VolatilityType_Normal) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrParamsSpec only supports Lognormal/ShiftedLognormal vol type "
                     "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
@@ -1174,7 +1186,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
-            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+            QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors()) {
                 QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec expiries/tenors missing for vol id: " + id);
@@ -1278,7 +1290,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
 
             // SABR via Hagan returns lognormal Black vol. Normal SABR is a
             // separate model with its own engine-pairing rules; reject for v1.
-            if (b->volatility_type() == quantra::enums::VolatilityType_Normal) {
+            if (requiredVolType(b, id) == quantra::enums::VolatilityType_Normal) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrCalibrateSpec only supports Lognormal/ShiftedLognormal vol type "
                     "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
@@ -1300,7 +1312,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
-            QuantLib::VolatilityType qlType = toQlVolType(b->volatility_type());
+            QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors() || !payload->strikes()) {
                 QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec expiries/tenors/strikes missing for vol id: " + id);

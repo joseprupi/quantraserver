@@ -5,7 +5,9 @@ namespace quantra;
 
 /// Cap/Floor pricing model specification.
 table CapFloorModelSpec {
-    model_type:enums.IrModelType;
+    /// Pricing model / engine selector. Presence-required: an omitted type is a
+    /// 400, never the alphabetical-0 default (Black).
+    model_type:enums.IrModelType = null;
 }
 
 /// Swaption Hull-White calibration specification.
@@ -44,8 +46,9 @@ table SwaptionHwCalibrationSpec {
 
 /// Swaption pricing model specification.
 table SwaptionModelSpec {
-    /// Swaption pricing model type.
-    model_type:enums.IrModelType;
+    /// Swaption pricing model type. Presence-required: an omitted type is a
+    /// 400, never the alphabetical-0 default (Black).
+    model_type:enums.IrModelType = null;
     /// Explicit Hull-White "a" used when param_mode=Explicit.
     hw_a:double = 0.03;
     /// Explicit Hull-White "sigma" used when param_mode=Explicit.
@@ -69,7 +72,9 @@ table CdsModelSpec {
 
 /// Equity vanilla option pricing model specification (future).
 table EquityVanillaModelSpec {
-    model_type:enums.EquityModelType;
+    /// Pricing model / engine selector. Presence-required: an omitted type is a
+    /// 400, never the alphabetical-0 default (BlackScholesAnalytic).
+    model_type:enums.EquityModelType = null;
     binomial_steps:int = 500;
 }
 

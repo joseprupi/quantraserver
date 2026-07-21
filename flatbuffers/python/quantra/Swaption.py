@@ -25,21 +25,23 @@ class Swaption(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Exercise style: European, Bermudan, or American.
+    # Exercise style: European, Bermudan, or American. Presence-required: an
+    # omitted style is a 400, never the alphabetical-0 default (European).
     # Swaption
     def ExerciseType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # Settlement type for swaption payoff handling.
+    # Settlement type for swaption payoff handling. Presence-required: an
+    # omitted type is a 400, never the alphabetical-0 default (Physical).
     # Swaption
     def SettlementType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Settlement method (physical/other) per market convention.
     # Swaption
@@ -103,13 +105,13 @@ def Start(builder):
     SwaptionStart(builder)
 
 def SwaptionAddExerciseType(builder, exerciseType):
-    builder.PrependInt8Slot(0, exerciseType, 0)
+    builder.PrependInt8Slot(0, exerciseType, None)
 
 def AddExerciseType(builder, exerciseType):
     SwaptionAddExerciseType(builder, exerciseType)
 
 def SwaptionAddSettlementType(builder, settlementType):
-    builder.PrependInt8Slot(1, settlementType, 0)
+    builder.PrependInt8Slot(1, settlementType, None)
 
 def AddSettlementType(builder, settlementType):
     SwaptionAddSettlementType(builder, settlementType)
@@ -165,8 +167,8 @@ class SwaptionT(object):
 
     # SwaptionT
     def __init__(self):
-        self.exerciseType = 0  # type: int
-        self.settlementType = 0  # type: int
+        self.exerciseType = None  # type: Optional[int]
+        self.settlementType = None  # type: Optional[int]
         self.settlementMethod = 0  # type: int
         self.exerciseDate = None  # type: str
         self.exerciseDates = None  # type: List[str]

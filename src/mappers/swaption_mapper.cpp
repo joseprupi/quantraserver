@@ -198,7 +198,10 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
 /// legacy per-call parse().
 SwaptionInstrument extractInstrument(const quantra::Swaption* sw) {
     SwaptionInstrument inst;
-    inst.exerciseType = sw->exercise_type();
+    if (!sw->exercise_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("Swaption.exercise_type is required");
+    }
+    inst.exerciseType = sw->exercise_type().value();
 
     inst.hasExerciseDate = (sw->exercise_date() != nullptr);
     if (inst.hasExerciseDate) {
@@ -215,7 +218,10 @@ SwaptionInstrument extractInstrument(const quantra::Swaption* sw) {
         }
     }
 
-    inst.settlementType = sw->settlement_type();
+    if (!sw->settlement_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT("Swaption.settlement_type is required");
+    }
+    inst.settlementType = sw->settlement_type().value();
     inst.settlementMethod = SettlementMethodToQL(sw->settlement_method());
 
     switch (sw->underlying_type()) {

@@ -9,10 +9,12 @@ union SwaptionUnderlying { VanillaSwap, OisSwap }
 
 /// Swaption instrument definition.
 table Swaption {
-    /// Exercise style: European, Bermudan, or American.
-    exercise_type:enums.ExerciseType;
-    /// Settlement type for swaption payoff handling.
-    settlement_type:enums.SettlementType;
+    /// Exercise style: European, Bermudan, or American. Presence-required: an
+    /// omitted style is a 400, never the alphabetical-0 default (European).
+    exercise_type:enums.ExerciseType = null;
+    /// Settlement type for swaption payoff handling. Presence-required: an
+    /// omitted type is a 400, never the alphabetical-0 default (Physical).
+    settlement_type:enums.SettlementType = null;
     /// Settlement method (physical/other) per market convention.
     settlement_method:enums.SettlementMethod = PhysicalOTC;
     /// Single exercise date (ISO date string). Required for European and American.
