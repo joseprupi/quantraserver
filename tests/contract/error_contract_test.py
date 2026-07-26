@@ -728,7 +728,7 @@ SCENARIOS = [
      _ec_del_model_payload_field("model_type"),
      _ec_body_contains("CapFloorModelSpec.model_type is required")),
     ("ec:400 equity_option model missing model_type", "equity_option",
-     "equity_option_request.json", 400,
+     "equity/eqopt_eur_call_atm_1y.json", 400,
      _ec_del_model_payload_field("model_type"),
      _ec_body_contains("EquityVanillaModelSpec.model_type is required")),
     # ---- 400 INVALID_ARGUMENT: swaption exercise/settlement discriminators ----
