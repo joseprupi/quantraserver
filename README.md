@@ -89,7 +89,7 @@ Per-request latency with the curve cache off vs on (200 requests, mean). Generat
 | Bond (1 curve, 8 helpers) | 2.11 ms | 1.10 ms | 1.9× |
 | Swap (2 curves, 24 helpers) | 117.12 ms | 2.02 ms | 57.9× |
 
-The gain scales with how much of the request is curve bootstrapping: large for a heavy multicurve with few instruments, small for a light single-curve request.
+The stable quantity is the work removed: on a cache hit the curve set is not re-bootstrapped. The **ratio** above is not portable, because the cache removes bootstrapping but not a request's fixed transport overhead (parsing, gRPC, serialization). On this hardware that floor is ~1 ms, so a bootstrap-heavy multicurve request shows a large ratio; on a deployment with higher per-request overhead the same workload shows a smaller ratio, and a light single-curve request — whose bootstrap is a small share of the total — shows almost none regardless of hardware. Measure your own with `tests/bench/run_bench.sh`. The model-calibration cache behaves the same way for swaption Hull-White calibration.
 
 ## Quick Start
 
