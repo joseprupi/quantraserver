@@ -200,6 +200,40 @@ def _ec_curve_make_discount_factor(trait="InterpolatedDiscount", mutate=None):
     return f
 
 
+def _ec_curve_make_forward_rate(trait="InterpolatedFwd", interpolator="Linear",
+                                mutate=None):
+    """Replace the first pricing curve with a forward-rate curve
+    (ForwardRatePoints) under the given bootstrap_trait, then optionally mutate
+    the points list. Used to drive ForwardRatePoint validation: the trait must
+    be InterpolatedFwd, every forward_rate must be present and finite, and both
+    the bootstrap traits and the other interpolated traits must reject a
+    ForwardRatePoint by name."""
+    def f(req):
+        curve = req["pricing"]["rates"]["curves"][0]
+        curve["interpolator"] = interpolator
+        curve["bootstrap_trait"] = trait
+        curve["reference_date"] = "2025-01-15"
+        pts = [
+            {"point_type": "ForwardRatePoint",
+             "point": {"date": "2025-01-15", "forward_rate": 0.030,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+            {"point_type": "ForwardRatePoint",
+             "point": {"date": "2027-01-15", "forward_rate": 0.032,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+            {"point_type": "ForwardRatePoint",
+             "point": {"date": "2031-01-15", "forward_rate": 0.034,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+        ]
+        curve["points"] = pts
+        if mutate is not None:
+            mutate(pts)
+        return req
+    return f
+
+
 def _ec_equity_set_payoff(payoff_type, payoff):
     """Replace the equity option's payoff union (payoff_type + payoff)."""
     def f(req):
@@ -1182,10 +1216,32 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_curve_make_discount_factor(trait="Discount"),
      _ec_body_contains("builds from rate helpers but received a DiscountFactorPoint")),
-    ("ec:400 curve InterpolatedFwd not supported yet", "fixed_rate_bond",
+    ("ec:400 curve InterpolatedFwd trait with a rate helper", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400,
      _ec_set_curve_field("bootstrap_trait", "InterpolatedFwd"),
-     _ec_body_contains("bootstrap_trait InterpolatedFwd is not supported yet")),
+     _ec_body_contains("builds from forward-rate points but received a")),
+    ("ec:400 curve ForwardRatePoint missing forward_rate", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_forward_rate(
+         mutate=lambda pts: pts[1]["point"].pop("forward_rate", None)),
+     _ec_body_contains("ForwardRatePoint.forward_rate is required")),
+    # Non-finite forward_rate is rejected by the parser's std::isfinite guard,
+    # but that cannot be exercised over the JSON wire: JSON has no inf/nan
+    # literal and the client's serializer refuses to emit one (same reason the
+    # DiscountFactorPoint.discount_factor finite guard has no HTTP case). The
+    # guard is defense-in-depth for the binary gRPC path.
+    ("ec:400 curve Discount trait with a ForwardRatePoint", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_forward_rate(trait="Discount"),
+     _ec_body_contains("builds from rate helpers but received a ForwardRatePoint")),
+    ("ec:400 curve InterpolatedZero trait with a ForwardRatePoint", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_forward_rate(trait="InterpolatedZero"),
+     _ec_body_contains("builds from zero-rate points but received a ForwardRatePoint")),
+    ("ec:400 curve InterpolatedFwd rejects log interpolators", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_forward_rate(interpolator="LogLinear"),
+     _ec_body_contains("InterpolatedFwd does not support log interpolators")),
     ("ec:400 curve InterpolatedZero mixed compounding across points",
      "fixed_rate_bond",
      "fixed_rate_bond_zerorate_request.json", 400,

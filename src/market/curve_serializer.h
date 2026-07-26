@@ -42,8 +42,9 @@ public:
      * value-exactly at and between pillars.
      *
      * Curves built any other way — e.g. a ZeroRatePoint curve (an
-     * InterpolatedZeroCurve) or a DiscountFactorPoint curve (an
-     * InterpolatedDiscountCurve) — are not PiecewiseYieldCurves, so
+     * InterpolatedZeroCurve), a DiscountFactorPoint curve (an
+     * InterpolatedDiscountCurve) or a ForwardRatePoint curve (an
+     * InterpolatedForwardCurve) — are not PiecewiseYieldCurves, so
      * tryExtractPillars() below fails and serialize() would WEEKLY-RESAMPLE
      * them, an approximation that must never be served on a cache hit.
      * Callers must check this before caching serialized/frozen

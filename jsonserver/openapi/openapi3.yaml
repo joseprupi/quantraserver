@@ -1962,6 +1962,7 @@ components:
       - FxSwapHelper
       - CrossCcyBasisHelper
       - DiscountFactorPoint
+      - ForwardRatePoint
     quantra_SwaptionVolPayload:
       type: string
       enum:
@@ -2322,6 +2323,38 @@ components:
 
             point (reference date) must carry a discount factor of exactly 1.0.'
       additionalProperties: false
+    quantra_ForwardRatePoint:
+      type: object
+      description: 'Forward-rate point for direct curve construction (no bootstrapping).
+
+        Feeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,
+
+        continuously-compounded forward rate f(t) is interpolated directly (this is
+
+        the quantity InterpolatedForwardCurve integrates to obtain zero rates and
+
+        discount factors — NOT a simple/discrete forward over a period). This
+
+        interpolates a DIFFERENT quantity than InterpolatedZero or
+
+        InterpolatedDiscount, so off-node values differ for the same market data.'
+      properties:
+        date:
+          type: string
+          description: Node date for the forward rate (YYYY-MM-DD).
+        tenor:
+          $ref: '#/components/schemas/quantra_Period'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        forward_rate:
+          type: number
+          description: 'Instantaneous, continuously-compounded forward rate at this
+            node.
+
+            Required. May be negative in some markets; only non-finite is rejected.'
+      additionalProperties: false
     quantra_TenorBasisSwapHelper:
       type: object
       description: Tenor basis swap helper.
@@ -2409,6 +2442,7 @@ components:
           - $ref: '#/components/schemas/quantra_FxSwapHelper'
           - $ref: '#/components/schemas/quantra_CrossCcyBasisHelper'
           - $ref: '#/components/schemas/quantra_DiscountFactorPoint'
+          - $ref: '#/components/schemas/quantra_ForwardRatePoint'
       additionalProperties: false
     quantra_TermStructure:
       type: object

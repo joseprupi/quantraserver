@@ -166,6 +166,25 @@ table DiscountFactorPoint {
     discount_factor:double = null;
 }
 
+/// Forward-rate point for direct curve construction (no bootstrapping).
+/// Feeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,
+/// continuously-compounded forward rate f(t) is interpolated directly (this is
+/// the quantity InterpolatedForwardCurve integrates to obtain zero rates and
+/// discount factors — NOT a simple/discrete forward over a period). This
+/// interpolates a DIFFERENT quantity than InterpolatedZero or
+/// InterpolatedDiscount, so off-node values differ for the same market data.
+table ForwardRatePoint {
+    /// Node date for the forward rate (YYYY-MM-DD).
+    date:string;
+    /// Alternative: tenor from reference date.
+    tenor:Period;
+    calendar:enums.Calendar = TARGET;
+    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    /// Instantaneous, continuously-compounded forward rate at this node.
+    /// Required. May be negative in some markets; only non-finite is rejected.
+    forward_rate:double = null;
+}
+
 /// Tenor basis swap helper.
 table TenorBasisSwapHelper {
     /// Basis spread. One of spread or quote_id must be provided.
@@ -218,7 +237,8 @@ union Point {
     TenorBasisSwapHelper,
     FxSwapHelper,
     CrossCcyBasisHelper,
-    DiscountFactorPoint
+    DiscountFactorPoint,
+    ForwardRatePoint
 }
 
 /// Wrapper for a single curve point.

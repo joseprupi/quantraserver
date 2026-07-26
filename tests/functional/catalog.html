@@ -280,6 +280,12 @@
 <td class="npv">986,307.57</td>
 </tr>
 <tr>
+<td><div class="title">USD 5Y bond discounted on an explicit forward-rate curve</div><div class="desc">A 5Y 3.0% annual bond (30/360, 1m face) discounted on a curve defined directly by six explicit instantaneous, continuously-compounded forward rates interpolated linearly (InterpolatedFwd, Linear) rather than bootstrapped from rate helpers. Exercises the new ForwardRatePoint curve feeding a QuantLib InterpolatedForwardCurve as a bond discounting curve; the nodes span past the final cash flow so no extrapolation is needed.</div></td>
+<td><code>fixed coupon</code> <code>annual 30/360</code> <code>InterpolatedFwd discount curve</code> <code>ForwardRatePoint</code></td>
+<td><a href="../../examples/data/bonds/frb_usd_5y_on_forward_rate_curve.json">frb_usd_5y_on_forward_rate_curve.json</a></td>
+<td class="npv">981,674.14</td>
+</tr>
+<tr>
 <td><div class="title">EUR 2Y short bond, T+3 settlement</div><div class="desc">Short-dated 2Y note paying 3.05% annually (30/360) with 3-business-day settlement instead of the usual T+2, so the bond&#x27;s own settlement date drives the NPV anchor. Exercises the settlement-days field and the curve&#x27;s short end.</div></td>
 <td><code>2Y maturity</code> <code>settlement days T+3</code> <code>annual 30/360</code> <code>curve short end</code></td>
 <td><a href="../../examples/data/bonds/frb_eur_2y_settlement_t3_annual_30360.json">frb_eur_2y_settlement_t3_annual_30360.json</a></td>
@@ -747,6 +753,24 @@
 <td><a href="../../examples/data/curves/curves_usd_zero_curve_linear_distinct.json">curves_usd_zero_curve_linear_distinct.json</a></td>
 <td class="npv">DF/ZERO series, 7 points</td>
 </tr>
+<tr>
+<td><div class="title">USD explicit forward-rate curve (Linear), DF, zero and forward</div><div class="desc">A curve defined directly by six explicit instantaneous, continuously-compounded forward rates (no bootstrap) with LINEAR interpolation of the forward rate (InterpolatedFwd). Sampled for discount factors, continuous zero rates and instantaneous forwards at seven tenors. Exercises the new ForwardRatePoint curve branch feeding a QuantLib InterpolatedForwardCurve&lt;Linear&gt; (native ql.LinearForwardCurve reference): the server interpolates the forward rate directly and integrates it to obtain zero rates and discount factors, a genuinely different quantity than interpolating zero rates or discount factors.</div></td>
+<td><code>explicit forward-rate curve</code> <code>Linear forward interpolation</code> <code>InterpolatedFwd trait</code> <code>instantaneous forward</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_forward_curve_linear_fwd_zero.json">curves_usd_forward_curve_linear_fwd_zero.json</a></td>
+<td class="npv">DF/ZERO/FWD series, 7 points</td>
+</tr>
+<tr>
+<td><div class="title">USD explicit forward-rate curve (BackwardFlat), DF and zero rates</div><div class="desc">The same six forward-rate nodes as the Linear forward curve, but interpolated BACKWARD-FLAT in the forward rate (InterpolatedFwd). Sampled for discount factors and continuous zero rates at seven tenors. Exercises InterpolatedForwardCurve&lt;BackwardFlat&gt; (native ql.ForwardCurve reference, the QuantLib BackwardFlat typedef) so the forward family is covered by a second interpolator whose piecewise-constant forwards give distinctly different off-node zero rates than the Linear curve.</div></td>
+<td><code>explicit forward-rate curve</code> <code>BackwardFlat forward interpolation</code> <code>InterpolatedFwd trait</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_forward_curve_backwardflat_fwd_zero.json">curves_usd_forward_curve_backwardflat_fwd_zero.json</a></td>
+<td class="npv">DF/ZERO series, 7 points</td>
+</tr>
+<tr>
+<td><div class="title">USD explicit zero-rate curve (Linear) — forward distinctness partner</div><div class="desc">The distinctness partner for the Linear forward curve: the SAME six node dates and numeric values and the SAME Linear interpolation and grid, but the numbers are interpreted as continuously-compounded ZERO rates (InterpolatedZero) instead of instantaneous forward rates. Because a forward curve&#x27;s node discount factor is a path integral of the interpolated forwards while a zero curve&#x27;s is exp(-z*t), the two curves differ even AT the nodes (they are not per-node equivalent), and they diverge further off-node. Pair this with curves_usd_forward_curve_linear_fwd_zero to see that interpolating the forward rate yields a genuinely different curve than interpolating the zero rate for identical node numbers; each matches its own QuantLib reference.</div></td>
+<td><code>explicit zero-rate curve</code> <code>Linear zero interpolation</code> <code>InterpolatedZero trait</code> <code>forward distinctness partner</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_zero_curve_fwd_numbers_distinct.json">curves_usd_zero_curve_fwd_numbers_distinct.json</a></td>
+<td class="npv">DF/ZERO series, 7 points</td>
+</tr>
 </tbody>
 </table>
 <h2>Calendars</h2>
@@ -1163,6 +1187,6 @@
 </tr>
 </tbody>
 </table>
-<footer>176 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>180 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

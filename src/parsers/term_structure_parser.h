@@ -53,6 +53,11 @@ private:
         const quantra::TermStructure* ts,
         const std::vector<QuantLib::Date>& dates,
         const std::vector<QuantLib::DiscountFactor>& discountFactors);
+
+    std::shared_ptr<QuantLib::YieldTermStructure> buildForwardCurve(
+        const quantra::TermStructure* ts,
+        const std::vector<QuantLib::Date>& dates,
+        const std::vector<QuantLib::Rate>& forwards);
 };
 
 } // namespace quantra

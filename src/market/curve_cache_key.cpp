@@ -333,6 +333,22 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         break;
     }
 
+    case quantra::Point_ForwardRatePoint: {
+        auto p = pw->point_as_ForwardRatePoint();
+        // Presence-disciplined like the DiscountFactorPoint arm: the forward
+        // rate is the priced quantity, so serialize its value AND a presence
+        // byte; a curve keyed without its forwards would serve a wrong cached
+        // curve.
+        buf.writeFbString(p->date());
+        buf.writeDouble(p->forward_rate().value_or(0.0));
+        buf.writeU8(p->forward_rate().has_value() ? 1 : 0);
+        buf.writeI32(p->tenor() ? p->tenor()->n() : 0);
+        buf.writeU8(static_cast<uint8_t>(p->tenor() ? p->tenor()->unit() : quantra::enums::TimeUnit_Days));
+        buf.writeU8(static_cast<uint8_t>(p->calendar()));
+        buf.writeU8(static_cast<uint8_t>(p->business_day_convention()));
+        break;
+    }
+
     case quantra::Point_TenorBasisSwapHelper: {
         auto p = pw->point_as_TenorBasisSwapHelper();
         buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));

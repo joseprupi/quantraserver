@@ -463,6 +463,56 @@ def _build_discount_factor_curve(curve_json: dict, points: list, eval_date: ql.D
     return _InterpDiscountCurveRef(dates, dfs, day_counter, interp)
 
 
+def _build_forward_rate_curve(curve_json: dict, points: list, eval_date: ql.Date):
+    """Build a genuine forward-rate-interpolated curve for the ``InterpolatedFwd``
+    bootstrap trait.
+
+    Interpolates the INSTANTANEOUS, continuously-compounded forward rates
+    directly (NOT a zero/DF conversion), matching the server's
+    ``InterpolatedForwardCurve<Interp>``. QuantLib-python exposes native
+    forward-curve classes for every interpolator the server supports for this
+    trait, so no replica is needed: Linear -> ``ql.LinearForwardCurve``,
+    BackwardFlat -> ``ql.ForwardCurve`` (the ``InterpolatedForwardCurve<BackwardFlat>``
+    typedef), ForwardFlat -> ``ql.ForwardFlatForwardCurve``. The server rejects
+    LogLinear/LogCubic for this trait (QuantLib cannot integrate a
+    log-interpolated forward), so they never reach the reference.
+    """
+    ref = (parse_date(curve_json["reference_date"])
+           if curve_json.get("reference_date") else eval_date)
+    dates = []
+    fwds = []
+    for point_wrapper in points:
+        if point_wrapper["point_type"] != "ForwardRatePoint":
+            raise ValueError(
+                "ForwardRatePoint cannot be mixed with other point types")
+        point = point_wrapper["point"]
+        if "date" in point and point["date"]:
+            d = parse_date(point["date"])
+        else:
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            tenor_unit = get_time_unit(tenor_unit_s)
+            cal = get_calendar(point.get("calendar", "TARGET"))
+            bdc = get_convention(point.get("business_day_convention", "ModifiedFollowing"))
+            d = cal.advance(ref, ql.Period(tenor_num, tenor_unit), bdc)
+        dates.append(d)
+        fwds.append(point["forward_rate"])
+
+    day_counter = get_day_counter(curve_json.get("day_counter", "Actual365Fixed"))
+    interp = curve_json.get("interpolator", "Linear")
+
+    if interp == "Linear":
+        curve = ql.LinearForwardCurve(dates, fwds, day_counter)
+    elif interp == "BackwardFlat":
+        curve = ql.ForwardCurve(dates, fwds, day_counter)
+    elif interp == "ForwardFlat":
+        curve = ql.ForwardFlatForwardCurve(dates, fwds, day_counter)
+    else:
+        raise ValueError(
+            f"InterpolatedFwd reference: unsupported interpolator {interp}")
+    curve.enableExtrapolation()
+    return ql.YieldTermStructureHandle(curve)
+
+
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     points = curve_json.get("points", [])
@@ -511,6 +561,11 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
     # genuinely different curve than interpolating zero rates.
     if curve_json.get("bootstrap_trait") == "InterpolatedDiscount":
         return _build_discount_factor_curve(curve_json, points, eval_date)
+    # The InterpolatedFwd trait interpolates instantaneous forward rates
+    # directly, giving a genuinely different curve than interpolating zero rates
+    # or discount factors.
+    if curve_json.get("bootstrap_trait") == "InterpolatedFwd":
+        return _build_forward_rate_curve(curve_json, points, eval_date)
     if any(p.get("point_type") == "ZeroRatePoint" for p in points):
         dates = []
         rates = []

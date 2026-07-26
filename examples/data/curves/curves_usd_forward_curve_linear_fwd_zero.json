@@ -1,0 +1,113 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [],
+      "curves": [
+        {
+          "id": "USD_FWD_LIN",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedFwd",
+          "points": [
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2025-01-15",
+                "forward_rate": 0.0300,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2026-01-15",
+                "forward_rate": 0.0320,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2027-01-15",
+                "forward_rate": 0.0335,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2029-01-15",
+                "forward_rate": 0.0350,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2032-01-15",
+                "forward_rate": 0.0360,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ForwardRatePoint",
+              "point": {
+                "date": "2035-01-15",
+                "forward_rate": 0.0365,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "USD_FWD_LIN",
+      "measures": [
+        "DF",
+        "ZERO",
+        "FWD"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            { "n": 6, "unit": "Months" },
+            { "n": 1, "unit": "Years" },
+            { "n": 18, "unit": "Months" },
+            { "n": 2, "unit": "Years" },
+            { "n": 3, "unit": "Years" },
+            { "n": 5, "unit": "Years" },
+            { "n": 7, "unit": "Years" }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      },
+      "fwd": {
+        "forward_type": "Instantaneous",
+        "instantaneous_eps_number": 1,
+        "instantaneous_eps_time_unit": "Days",
+        "compounding": "Continuous",
+        "frequency": "Annual",
+        "use_curve_day_counter": true,
+        "use_grid_calendar_for_advance": true
+      }
+    }
+  ]
+}
