@@ -362,6 +362,107 @@ def resolve_index_from_id(idx_id, request_data, curve_handle=None):
     return ql.Euribor6M()
 
 
+class _InterpDiscountCurveRef:
+    """Faithful stand-in for QuantLib's ``InterpolatedDiscountCurve<Interp>`` for
+    the interpolators QuantLib-python does not expose as a discount-curve class
+    (Linear, BackwardFlat, ForwardFlat).
+
+    It reproduces the C++ curve's algorithm exactly on QuantLib primitives: the
+    discount factors are interpolated in curve time (``discountImpl`` ==
+    ``interpolation_(t, true)``) and zero/forward rates come from
+    ``InterestRate::impliedRate`` on the resulting discount factors — the same
+    path ``YieldTermStructure::zeroRate``/``forwardRate`` take. Because it uses
+    QuantLib's own interpolation and implied-rate machinery it matches the server
+    curve to machine precision. Only the methods the curve-sampling reference
+    calls are implemented; grids stay within the pillar span (the server curve
+    does not enable extrapolation), so no extrapolation branch is needed.
+    """
+
+    def __init__(self, dates, dfs, day_counter, interp_name):
+        self._ref = dates[0]
+        self._dc = day_counter
+        self._times = [day_counter.yearFraction(self._ref, d) for d in dates]
+        self._dfs = list(dfs)
+        if interp_name == "Linear":
+            self._interp = ql.LinearInterpolation(self._times, self._dfs)
+        elif interp_name == "BackwardFlat":
+            self._interp = ql.BackwardFlatInterpolation(self._times, self._dfs)
+        elif interp_name == "ForwardFlat":
+            self._interp = ql.ForwardFlatInterpolation(self._times, self._dfs)
+        else:
+            raise ValueError(
+                f"_InterpDiscountCurveRef: unsupported interpolator {interp_name}")
+        # Extrapolation is requested per-call via the interpolation's
+        # allowExtrapolation flag (the ``True`` second argument below), matching
+        # InterpolatedDiscountCurve::discountImpl.
+
+    def referenceDate(self):
+        return self._ref
+
+    def dayCounter(self):
+        return self._dc
+
+    def discount(self, d):
+        t = d if isinstance(d, float) else self._dc.yearFraction(self._ref, d)
+        return self._interp(t, True)
+
+    def zeroRate(self, d, dc, comp, freq):
+        compound = 1.0 / self.discount(d)
+        t = dc.yearFraction(self._ref, d)
+        return ql.InterestRate.impliedRate(compound, dc, comp, freq, t)
+
+    def forwardRate(self, d1, d2, dc, comp, freq):
+        compound = self.discount(d1) / self.discount(d2)
+        t = dc.yearFraction(d1, d2)
+        return ql.InterestRate.impliedRate(compound, dc, comp, freq, t)
+
+
+def _build_discount_factor_curve(curve_json: dict, points: list, eval_date: ql.Date):
+    """Build a genuine discount-factor-interpolated curve for the
+    ``InterpolatedDiscount`` bootstrap trait.
+
+    Interpolates the discount factors directly (NOT a zero-from-DF conversion),
+    matching the server's ``InterpolatedDiscountCurve`` with the same
+    interpolator: LogLinear -> ``ql.DiscountCurve``, LogCubic ->
+    ``ql.MonotonicLogCubicDiscountCurve`` (both native QuantLib-python classes),
+    and Linear/BackwardFlat/ForwardFlat via ``_InterpDiscountCurveRef`` (a
+    faithful replica, since QuantLib-python exposes no such class).
+    """
+    ref = (parse_date(curve_json["reference_date"])
+           if curve_json.get("reference_date") else eval_date)
+    dates = []
+    dfs = []
+    for point_wrapper in points:
+        if point_wrapper["point_type"] != "DiscountFactorPoint":
+            raise ValueError(
+                "DiscountFactorPoint cannot be mixed with other point types")
+        point = point_wrapper["point"]
+        if "date" in point and point["date"]:
+            d = parse_date(point["date"])
+        else:
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            tenor_unit = get_time_unit(tenor_unit_s)
+            cal = get_calendar(point.get("calendar", "TARGET"))
+            bdc = get_convention(point.get("business_day_convention", "ModifiedFollowing"))
+            d = cal.advance(ref, ql.Period(tenor_num, tenor_unit), bdc)
+        dates.append(d)
+        dfs.append(point["discount_factor"])
+
+    day_counter = get_day_counter(curve_json.get("day_counter", "Actual365Fixed"))
+    interp = curve_json.get("interpolator", "LogLinear")
+
+    if interp == "LogLinear":
+        curve = ql.DiscountCurve(dates, dfs, day_counter)
+        curve.enableExtrapolation()
+        return ql.YieldTermStructureHandle(curve)
+    if interp == "LogCubic":
+        curve = ql.MonotonicLogCubicDiscountCurve(dates, dfs, day_counter)
+        curve.enableExtrapolation()
+        return ql.YieldTermStructureHandle(curve)
+    # Linear / BackwardFlat / ForwardFlat: no native QuantLib-python class.
+    return _InterpDiscountCurveRef(dates, dfs, day_counter, interp)
+
+
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     points = curve_json.get("points", [])
@@ -405,6 +506,11 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
         if "futures_price" in point:
             return point["futures_price"]
         return 100.0 * (1.0 - point["rate"])
+    # Dispatch on the explicit bootstrap_trait, exactly as the server does. The
+    # InterpolatedDiscount trait interpolates discount factors directly, giving a
+    # genuinely different curve than interpolating zero rates.
+    if curve_json.get("bootstrap_trait") == "InterpolatedDiscount":
+        return _build_discount_factor_curve(curve_json, points, eval_date)
     if any(p.get("point_type") == "ZeroRatePoint" for p in points):
         dates = []
         rates = []

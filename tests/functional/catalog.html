@@ -274,6 +274,12 @@
 <td class="npv">728,959.96</td>
 </tr>
 <tr>
+<td><div class="title">USD 5Y bond discounted on an explicit discount-factor curve</div><div class="desc">A 5Y 3.0% annual bond (30/360, 1m face) discounted on a curve defined directly by seven explicit discount factors (InterpolatedDiscount, LogLinear) rather than bootstrapped from rate helpers. Exercises the new DiscountFactorPoint curve feeding a QuantLib InterpolatedDiscountCurve as a bond discounting curve; the pillars span past the final cash flow so no extrapolation is needed.</div></td>
+<td><code>fixed coupon</code> <code>annual 30/360</code> <code>InterpolatedDiscount discount curve</code> <code>DiscountFactorPoint</code></td>
+<td><a href="../../examples/data/bonds/frb_usd_5y_on_discount_factor_curve.json">frb_usd_5y_on_discount_factor_curve.json</a></td>
+<td class="npv">986,307.57</td>
+</tr>
+<tr>
 <td><div class="title">EUR 2Y short bond, T+3 settlement</div><div class="desc">Short-dated 2Y note paying 3.05% annually (30/360) with 3-business-day settlement instead of the usual T+2, so the bond&#x27;s own settlement date drives the NPV anchor. Exercises the settlement-days field and the curve&#x27;s short end.</div></td>
 <td><code>2Y maturity</code> <code>settlement days T+3</code> <code>annual 30/360</code> <code>curve short end</code></td>
 <td><a href="../../examples/data/bonds/frb_eur_2y_settlement_t3_annual_30360.json">frb_eur_2y_settlement_t3_annual_30360.json</a></td>
@@ -723,6 +729,24 @@
 <td><a href="../../examples/data/curves/curves_eur_depo_swap_all_measures_tenor_grid.json">curves_eur_depo_swap_all_measures_tenor_grid.json</a></td>
 <td class="npv">DF/ZERO/FWD series, 9 points</td>
 </tr>
+<tr>
+<td><div class="title">USD explicit discount-factor curve (LogLinear), DF and zero rates</div><div class="desc">A curve defined directly by six explicit discount factors (no bootstrap) with LogLinear interpolation of the discount factors, sampled for discount factors and continuous zero rates at seven tenors. Exercises the DiscountFactorPoint curve branch feeding a QuantLib InterpolatedDiscountCurve&lt;LogLinear&gt; (native ql.DiscountCurve reference), the new bootstrap_trait InterpolatedDiscount, and the DF=1.0 reference-date anchor.</div></td>
+<td><code>explicit discount-factor curve</code> <code>LogLinear DF interpolation</code> <code>InterpolatedDiscount trait</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_discount_curve_loglinear_df_zero.json">curves_usd_discount_curve_loglinear_df_zero.json</a></td>
+<td class="npv">DF/ZERO series, 7 points</td>
+</tr>
+<tr>
+<td><div class="title">USD explicit discount-factor curve (Linear), DF and zero rates</div><div class="desc">The same five nodes as the Linear zero-rate distinctness curve, expressed here as explicit discount factors (DF_i = exp(-z_i t_i)) and interpolated LINEARLY in the discount factor (InterpolatedDiscount). Sampled at seven tenors, three of which (1Y, 2Y, 7Y) land on nodes and four (6M, 18M, 3Y, 5Y) fall between them. At the nodes this curve agrees with the Linear zero-rate curve to machine precision (same DFs), but OFF the nodes the two differ because linear-in-DF is not the same curve as linear-in-zero-rate — the whole point of interpolating discount factors directly. QuantLib-python exposes no Linear-interpolated discount-curve class, so the reference replicates InterpolatedDiscountCurve&lt;Linear&gt; exactly on QuantLib primitives.</div></td>
+<td><code>explicit discount-factor curve</code> <code>Linear DF interpolation</code> <code>InterpolatedDiscount trait</code> <code>distinct from zero interp</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_discount_curve_linear_df_zero.json">curves_usd_discount_curve_linear_df_zero.json</a></td>
+<td class="npv">DF/ZERO series, 7 points</td>
+</tr>
+<tr>
+<td><div class="title">USD explicit zero-rate curve (Linear) — distinctness partner</div><div class="desc">The zero-rate twin of the Linear discount-factor curve: the same five nodes and grid, but the market data is given as continuously compounded zero rates and interpolated LINEARLY in the zero rate (InterpolatedZero). Its node discount factors equal the discount-factor curve&#x27;s inputs (DF_i = exp(-z_i t_i)), so the two curves coincide at the nodes but diverge between them. Pair this with curves_usd_discount_curve_linear_df_zero to see that interpolating discount factors gives a genuinely different curve than interpolating zero rates for identical market data.</div></td>
+<td><code>explicit zero-rate curve</code> <code>Linear zero interpolation</code> <code>InterpolatedZero trait</code> <code>distinctness partner</code> <code>discount factors</code> <code>zero rates</code></td>
+<td><a href="../../examples/data/curves/curves_usd_zero_curve_linear_distinct.json">curves_usd_zero_curve_linear_distinct.json</a></td>
+<td class="npv">DF/ZERO series, 7 points</td>
+</tr>
 </tbody>
 </table>
 <h2>Calendars</h2>
@@ -1139,6 +1163,6 @@
 </tr>
 </tbody>
 </table>
-<footer>172 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>176 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

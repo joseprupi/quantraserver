@@ -168,6 +168,38 @@ def _ec_curve_mix_zero_point_compounding():
     return f
 
 
+def _ec_curve_make_discount_factor(trait="InterpolatedDiscount", mutate=None):
+    """Replace the first pricing curve with a discount-factor curve
+    (DiscountFactorPoints) under the given bootstrap_trait, then optionally
+    mutate the points list. Used to drive DiscountFactorPoint validation: the
+    trait must be InterpolatedDiscount, every discount_factor must be present
+    and in (0, 1], and a bootstrap trait must reject a DiscountFactorPoint."""
+    def f(req):
+        curve = req["pricing"]["rates"]["curves"][0]
+        curve["interpolator"] = "LogLinear"
+        curve["bootstrap_trait"] = trait
+        curve["reference_date"] = "2008-09-18"
+        pts = [
+            {"point_type": "DiscountFactorPoint",
+             "point": {"date": "2008-09-18", "discount_factor": 1.0,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+            {"point_type": "DiscountFactorPoint",
+             "point": {"date": "2009-09-18", "discount_factor": 0.97,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+            {"point_type": "DiscountFactorPoint",
+             "point": {"date": "2013-09-18", "discount_factor": 0.90,
+                       "calendar": "TARGET",
+                       "business_day_convention": "ModifiedFollowing"}},
+        ]
+        curve["points"] = pts
+        if mutate is not None:
+            mutate(pts)
+        return req
+    return f
+
+
 def _ec_equity_set_payoff(payoff_type, payoff):
     """Replace the equity option's payoff union (payoff_type + payoff)."""
     def f(req):
@@ -1127,10 +1159,29 @@ SCENARIOS = [
      "fixed_rate_bond_request.json", 400,
      _ec_set_curve_field("bootstrap_trait", "InterpolatedZero"),
      _ec_body_contains("builds from zero-rate points but received a")),
-    ("ec:400 curve InterpolatedDiscount not supported yet", "fixed_rate_bond",
+    ("ec:400 curve InterpolatedDiscount trait with a rate helper", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400,
      _ec_set_curve_field("bootstrap_trait", "InterpolatedDiscount"),
-     _ec_body_contains("bootstrap_trait InterpolatedDiscount is not supported yet")),
+     _ec_body_contains("builds from discount-factor points but received a")),
+    ("ec:400 curve DiscountFactorPoint missing discount_factor", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_discount_factor(
+         mutate=lambda pts: pts[1]["point"].pop("discount_factor", None)),
+     _ec_body_contains("DiscountFactorPoint.discount_factor is required")),
+    ("ec:400 curve DiscountFactorPoint discount_factor above one", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_discount_factor(
+         mutate=lambda pts: pts[1]["point"].__setitem__("discount_factor", 1.5)),
+     _ec_body_contains("DiscountFactorPoint.discount_factor must be in (0, 1]")),
+    ("ec:400 curve DiscountFactorPoint discount_factor not positive", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_discount_factor(
+         mutate=lambda pts: pts[1]["point"].__setitem__("discount_factor", -0.1)),
+     _ec_body_contains("DiscountFactorPoint.discount_factor must be in (0, 1]")),
+    ("ec:400 curve Discount trait with a DiscountFactorPoint", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_make_discount_factor(trait="Discount"),
+     _ec_body_contains("builds from rate helpers but received a DiscountFactorPoint")),
     ("ec:400 curve InterpolatedFwd not supported yet", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400,
      _ec_set_curve_field("bootstrap_trait", "InterpolatedFwd"),

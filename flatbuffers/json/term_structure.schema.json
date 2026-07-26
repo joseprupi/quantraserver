@@ -183,7 +183,7 @@
     },
     "quantra_Point" : {
       "type" : "string",
-      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper"]
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper", "DiscountFactorPoint"]
     },
     "quantra_Schedule" : {
       "type" : "object",
@@ -756,6 +756,31 @@
       },
       "additionalProperties" : false
     },
+    "quantra_DiscountFactorPoint" : {
+      "type" : "object",
+      "description" : "Discount-factor point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedDiscountCurve: the discount factors are\ninterpolated directly, which differs from interpolating zero rates.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Maturity date for the discount factor (YYYY-MM-DD)."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "discount_factor" : {
+                "type" : "number",
+                "description" : "Discount factor to this maturity. Required; must be in (0, 1]. The first\npoint (reference date) must carry a discount factor of exactly 1.0."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_TenorBasisSwapHelper" : {
       "type" : "object",
       "description" : "Tenor basis swap helper.",
@@ -854,7 +879,7 @@
                 "$ref" : "#/definitions/quantra_Point"
               },
         "point" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" },{ "$ref" : "#/definitions/quantra_DiscountFactorPoint" }]
               }
       },
       "additionalProperties" : false

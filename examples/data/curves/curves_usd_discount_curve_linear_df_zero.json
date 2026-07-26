@@ -1,0 +1,94 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [],
+      "curves": [
+        {
+          "id": "USD_DF_LIN",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2025-01-15",
+                "discount_factor": 1.0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-01-15",
+                "discount_factor": 0.968506582079,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-01-15",
+                "discount_factor": 0.934260473577,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2029-01-15",
+                "discount_factor": 0.865802349643,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2032-01-15",
+                "discount_factor": 0.766359337992,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "USD_DF_LIN",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            { "n": 6, "unit": "Months" },
+            { "n": 1, "unit": "Years" },
+            { "n": 18, "unit": "Months" },
+            { "n": 2, "unit": "Years" },
+            { "n": 3, "unit": "Years" },
+            { "n": 5, "unit": "Years" },
+            { "n": 7, "unit": "Years" }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

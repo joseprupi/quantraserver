@@ -41,9 +41,11 @@ public:
      * (trait, interpolator) so reconstruct(serialize(...)) reproduces it
      * value-exactly at and between pillars.
      *
-     * Curves built any other way — e.g. a ZeroRatePoint curve, which is an
-     * InterpolatedZeroCurve — would be WEEKLY-RESAMPLED by serialize()'s
-     * fallback, an approximation that must never be served on a cache hit
+     * Curves built any other way — e.g. a ZeroRatePoint curve (an
+     * InterpolatedZeroCurve) or a DiscountFactorPoint curve (an
+     * InterpolatedDiscountCurve) — are not PiecewiseYieldCurves, so
+     * tryExtractPillars() below fails and serialize() would WEEKLY-RESAMPLE
+     * them, an approximation that must never be served on a cache hit.
      * Callers must check this before caching serialized/frozen
      * data; when false, cache the live curve instead.
      */
