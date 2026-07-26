@@ -2548,7 +2548,7 @@ struct TermStructureT : public ::flatbuffers::NativeTable {
   std::string id{};
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt;
-  quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount;
+  ::flatbuffers::Optional<quantra::enums::BootstrapTrait> bootstrap_trait = ::flatbuffers::nullopt;
   std::vector<std::unique_ptr<quantra::PointsWrapperT>> points{};
   std::string reference_date{};
   TermStructureT() = default;
@@ -2578,8 +2578,12 @@ struct TermStructure FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator() const {
     return GetOptional<int8_t, quantra::enums::Interpolator>(VT_INTERPOLATOR);
   }
-  quantra::enums::BootstrapTrait bootstrap_trait() const {
-    return static_cast<quantra::enums::BootstrapTrait>(GetField<int8_t>(VT_BOOTSTRAP_TRAIT, 0));
+  /// Curve family selector. Present ⇒ selects how the curve is built from its
+  /// points (Discount/ZeroRate/FwdRate bootstrap from rate helpers;
+  /// InterpolatedZero interpolates explicit zero-rate points). Absent ⇒ the
+  /// request is rejected — there is no auto-dispatch by point type.
+  ::flatbuffers::Optional<quantra::enums::BootstrapTrait> bootstrap_trait() const {
+    return GetOptional<int8_t, quantra::enums::BootstrapTrait>(VT_BOOTSTRAP_TRAIT);
   }
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>> *>(VT_POINTS);
@@ -2620,7 +2624,7 @@ struct TermStructureBuilder {
     fbb_.AddElement<int8_t>(TermStructure::VT_INTERPOLATOR, static_cast<int8_t>(interpolator));
   }
   void add_bootstrap_trait(quantra::enums::BootstrapTrait bootstrap_trait) {
-    fbb_.AddElement<int8_t>(TermStructure::VT_BOOTSTRAP_TRAIT, static_cast<int8_t>(bootstrap_trait), 0);
+    fbb_.AddElement<int8_t>(TermStructure::VT_BOOTSTRAP_TRAIT, static_cast<int8_t>(bootstrap_trait));
   }
   void add_points(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points) {
     fbb_.AddOffset(TermStructure::VT_POINTS, points);
@@ -2644,14 +2648,14 @@ inline ::flatbuffers::Offset<TermStructure> CreateTermStructure(
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt,
-    quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
+    ::flatbuffers::Optional<quantra::enums::BootstrapTrait> bootstrap_trait = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::PointsWrapper>>> points = 0,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0) {
   TermStructureBuilder builder_(_fbb);
   builder_.add_reference_date(reference_date);
   builder_.add_points(points);
   builder_.add_id(id);
-  builder_.add_bootstrap_trait(bootstrap_trait);
+  if(bootstrap_trait) { builder_.add_bootstrap_trait(*bootstrap_trait); }
   if(interpolator) { builder_.add_interpolator(*interpolator); }
   if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
@@ -2662,7 +2666,7 @@ inline ::flatbuffers::Offset<TermStructure> CreateTermStructureDirect(
     const char *id = nullptr,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt,
-    quantra::enums::BootstrapTrait bootstrap_trait = quantra::enums::BootstrapTrait_Discount,
+    ::flatbuffers::Optional<quantra::enums::BootstrapTrait> bootstrap_trait = ::flatbuffers::nullopt,
     const std::vector<::flatbuffers::Offset<quantra::PointsWrapper>> *points = nullptr,
     const char *reference_date = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;

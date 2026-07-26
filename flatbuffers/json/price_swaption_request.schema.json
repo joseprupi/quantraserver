@@ -913,7 +913,8 @@
                 "$ref" : "#/definitions/quantra_enums_Interpolator"
               },
         "bootstrap_trait" : {
-                "$ref" : "#/definitions/quantra_enums_BootstrapTrait"
+                "$ref" : "#/definitions/quantra_enums_BootstrapTrait",
+                "description" : "Curve family selector. Present ⇒ selects how the curve is built from its\npoints (Discount/ZeroRate/FwdRate bootstrap from rate helpers;\nInterpolatedZero interpolates explicit zero-rate points). Absent ⇒ the\nrequest is rejected — there is no auto-dispatch by point type."
               },
         "points" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_PointsWrapper"}

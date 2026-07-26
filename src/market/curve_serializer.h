@@ -195,7 +195,12 @@ private:
         using namespace QuantLib;
 
         auto interp = ts->interpolator().value();
-        auto trait  = ts->bootstrap_trait();
+        // bootstrap_trait is presence-required and always set by the time a curve
+        // has bootstrapped; an absent trait cannot produce an extractable
+        // PiecewiseYieldCurve, so treat it as non-exact.
+        if (!ts->bootstrap_trait().has_value())
+            return false;
+        auto trait  = ts->bootstrap_trait().value();
 
         // Try the expected combination first (most likely hit)
         switch (interp) {

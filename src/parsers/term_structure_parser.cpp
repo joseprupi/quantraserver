@@ -9,6 +9,41 @@ using namespace QuantLib;
 
 namespace quantra {
 
+namespace {
+
+// Human-readable name for a bootstrap trait, used in diagnostics.
+std::string bootstrapTraitName(enums::BootstrapTrait trait) {
+    switch (trait) {
+    case enums::BootstrapTrait_Discount:             return "Discount";
+    case enums::BootstrapTrait_FwdRate:              return "FwdRate";
+    case enums::BootstrapTrait_InterpolatedDiscount: return "InterpolatedDiscount";
+    case enums::BootstrapTrait_InterpolatedFwd:      return "InterpolatedFwd";
+    case enums::BootstrapTrait_InterpolatedZero:     return "InterpolatedZero";
+    case enums::BootstrapTrait_ZeroRate:             return "ZeroRate";
+    default:                                         return "Unknown";
+    }
+}
+
+// Human-readable name for a curve point union type, used in diagnostics.
+std::string pointTypeName(quantra::Point type) {
+    switch (type) {
+    case quantra::Point_DepositHelper:        return "DepositHelper";
+    case quantra::Point_FRAHelper:            return "FRAHelper";
+    case quantra::Point_FutureHelper:         return "FutureHelper";
+    case quantra::Point_SwapHelper:           return "SwapHelper";
+    case quantra::Point_BondHelper:           return "BondHelper";
+    case quantra::Point_OISHelper:            return "OISHelper";
+    case quantra::Point_DatedOISHelper:       return "DatedOISHelper";
+    case quantra::Point_ZeroRatePoint:        return "ZeroRatePoint";
+    case quantra::Point_TenorBasisSwapHelper: return "TenorBasisSwapHelper";
+    case quantra::Point_FxSwapHelper:         return "FxSwapHelper";
+    case quantra::Point_CrossCcyBasisHelper:  return "CrossCcyBasisHelper";
+    default:                                  return "unknown point type";
+    }
+}
+
+} // namespace
+
 // =============================================================================
 // Legacy parse (backward compatible, no registries)
 // =============================================================================
@@ -39,16 +74,30 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         QUANTRA_INVALID_ARGUMENT("TermStructure.day_counter is required");
     if (!ts->interpolator().has_value())
         QUANTRA_INVALID_ARGUMENT("TermStructure.interpolator is required");
+    if (!ts->bootstrap_trait().has_value())
+        QUANTRA_INVALID_ARGUMENT("TermStructure.bootstrap_trait is required");
 
-    bool hasZeroPoints = false;
-    for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
-        if (points->Get(i)->point_type() == quantra::Point_ZeroRatePoint) {
-            hasZeroPoints = true;
-            break;
-        }
-    }
+    // The bootstrap trait is the EXPLICIT curve-family selector. It decides how
+    // the curve is built from its points; the point types are validated against
+    // it (no auto-dispatch, no silent mixing).
+    auto trait = ts->bootstrap_trait().value();
 
-    if (hasZeroPoints) {
+    switch (trait) {
+
+    case enums::BootstrapTrait_InterpolatedDiscount:
+        // The input point type for a directly-interpolated discount curve is not
+        // wired yet — reject it by name rather than fall through to a helper path.
+        QUANTRA_INVALID_ARGUMENT(
+            "bootstrap_trait InterpolatedDiscount is not supported yet");
+
+    case enums::BootstrapTrait_InterpolatedFwd:
+        QUANTRA_INVALID_ARGUMENT(
+            "bootstrap_trait InterpolatedFwd is not supported yet");
+
+    case enums::BootstrapTrait_InterpolatedZero: {
+        // InterpolatedZero interpolates explicit zero-rate points directly (no
+        // bootstrap). Every point MUST be a ZeroRatePoint; a rate helper is a
+        // request error.
         std::vector<Date> dates;
         std::vector<Rate> zeroRates;
         dates.reserve(points->size());
@@ -56,7 +105,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 
         Compounding comp = QuantLib::Continuous;
         Frequency freq = QuantLib::Annual;
-        bool compSet = false;
+        bool convSet = false;
 
         Date ref;
         if (ts->reference_date()) {
@@ -68,7 +117,9 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
             auto pw = points->Get(i);
             if (pw->point_type() != quantra::Point_ZeroRatePoint) {
-                QUANTRA_INVALID_ARGUMENT("ZeroRatePoint cannot be mixed with bootstrap helpers");
+                QUANTRA_INVALID_ARGUMENT(
+                    "bootstrap_trait InterpolatedZero builds from zero-rate "
+                    "points but received a " + pointTypeName(pw->point_type()));
             }
             auto p = pw->point_as_ZeroRatePoint();
             if (!p) {
@@ -97,30 +148,63 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             }
             zeroRates.push_back(p->zero_rate().value() + bump);
 
-            if (!compSet) {
-                comp = CompoundingToQL(p->compounding());
-                freq = FrequencyToQL(p->frequency());
-                compSet = true;
+            // A single InterpolatedZeroCurve carries ONE compounding/frequency
+            // convention. Applying the first point's pair to every rate would
+            // silently mis-build the curve if the points disagree, so require
+            // them identical across all points.
+            Compounding pointComp = CompoundingToQL(p->compounding());
+            Frequency pointFreq = FrequencyToQL(p->frequency());
+            if (!convSet) {
+                comp = pointComp;
+                freq = pointFreq;
+                convSet = true;
+            } else {
+                if (pointComp != comp) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "ZeroRatePoint.compounding must be identical across all points");
+                }
+                if (pointFreq != freq) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "ZeroRatePoint.frequency must be identical across all points");
+                }
             }
         }
 
         return buildZeroCurve(ts, dates, zeroRates, comp, freq);
     }
 
-    TermStructurePointParser pointParser;
-    std::vector<std::shared_ptr<RateHelper>> instruments;
-    instruments.reserve(points->size());
+    case enums::BootstrapTrait_Discount:
+    case enums::BootstrapTrait_ZeroRate:
+    case enums::BootstrapTrait_FwdRate: {
+        // Bootstrap traits build a PiecewiseYieldCurve from rate helpers. A
+        // ZeroRatePoint is direct data, not a helper, so it is a request error.
+        TermStructurePointParser pointParser;
+        std::vector<std::shared_ptr<RateHelper>> instruments;
+        instruments.reserve(points->size());
 
-    for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
-        auto point = points->Get(i)->point();
-        auto type  = points->Get(i)->point_type();
-        auto helper = pointParser.parse(type, point, quotes, curves, indices, bump);
-        if (!helper)
-            QUANTRA_INVALID_ARGUMENT("Failed to parse term structure point at index " + std::to_string(i));
-        instruments.push_back(helper);
+        for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
+            auto pw = points->Get(i);
+            if (pw->point_type() == quantra::Point_ZeroRatePoint) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "bootstrap_trait " + bootstrapTraitName(trait) +
+                    " builds from rate helpers but received a ZeroRatePoint");
+            }
+            auto point = pw->point();
+            auto type  = pw->point_type();
+            auto helper = pointParser.parse(type, point, quotes, curves, indices, bump);
+            if (!helper)
+                QUANTRA_INVALID_ARGUMENT("Failed to parse term structure point at index " + std::to_string(i));
+            instruments.push_back(helper);
+        }
+
+        return buildCurve(ts, instruments);
     }
 
-    return buildCurve(ts, instruments);
+    default:
+        QUANTRA_INVALID_ARGUMENT("Unsupported BootstrapTrait");
+    }
+
+    return nullptr;
 }
 
 // =============================================================================
@@ -143,7 +227,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
 
     switch (ts->interpolator().value()) {
     case enums::Interpolator_BackwardFlat:
-        switch (ts->bootstrap_trait()) {
+        switch (ts->bootstrap_trait().value()) {
         case enums::BootstrapTrait_Discount:
             return std::make_shared<PiecewiseYieldCurve<Discount, BackwardFlat>>(
                 ref, instruments, dc,
@@ -162,7 +246,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
         break;
 
     case enums::Interpolator_ForwardFlat:
-        switch (ts->bootstrap_trait()) {
+        switch (ts->bootstrap_trait().value()) {
         case enums::BootstrapTrait_Discount:
             return std::make_shared<PiecewiseYieldCurve<Discount, ForwardFlat>>(
                 ref, instruments, dc,
@@ -181,7 +265,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
         break;
 
     case enums::Interpolator_Linear:
-        switch (ts->bootstrap_trait()) {
+        switch (ts->bootstrap_trait().value()) {
         case enums::BootstrapTrait_Discount:
             return std::make_shared<PiecewiseYieldCurve<Discount, Linear>>(
                 ref, instruments, dc,
@@ -200,7 +284,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
         break;
 
     case enums::Interpolator_LogLinear:
-        switch (ts->bootstrap_trait()) {
+        switch (ts->bootstrap_trait().value()) {
         case enums::BootstrapTrait_Discount:
             return std::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(
                 ref, instruments, dc,
@@ -219,7 +303,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
         break;
 
     case enums::Interpolator_LogCubic:
-        switch (ts->bootstrap_trait()) {
+        switch (ts->bootstrap_trait().value()) {
         case enums::BootstrapTrait_Discount:
             return std::make_shared<PiecewiseYieldCurve<Discount, LogCubic>>(
                 ref, instruments, dc, MonotonicLogCubic());

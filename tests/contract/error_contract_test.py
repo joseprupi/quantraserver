@@ -118,10 +118,52 @@ def _ec_del_curve_point_field(point_type, field):
 
 def _ec_del_curve_field(field):
     """Drop a top-level convention field from the first pricing curve
-    (TermStructure). day_counter and interpolator are presence-required: an
-    omitted convention is an error, never an alphabetical-0 default."""
+    (TermStructure). day_counter, interpolator and bootstrap_trait are
+    presence-required: an omitted convention is an error, never an
+    alphabetical-0 default."""
     def f(req):
         req["pricing"]["rates"]["curves"][0].pop(field, None)
+        return req
+    return f
+
+
+def _ec_set_curve_field(field, value):
+    """Set a top-level field on the first pricing curve (TermStructure). Used to
+    drive bootstrap_trait to a value that conflicts with the curve's points."""
+    def f(req):
+        req["pricing"]["rates"]["curves"][0][field] = value
+        return req
+    return f
+
+
+def _ec_curve_inject_zero_point():
+    """Replace the first curve point with a ZeroRatePoint while leaving the
+    curve's bootstrap_trait unchanged. A bootstrap trait builds from rate
+    helpers, so a ZeroRatePoint must be rejected by name."""
+    def f(req):
+        req["pricing"]["rates"]["curves"][0]["points"][0] = {
+            "point_type": "ZeroRatePoint",
+            "point": {
+                "date": "2030-01-15",
+                "zero_rate": 0.03,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+            },
+        }
+        return req
+    return f
+
+
+def _ec_curve_mix_zero_point_compounding():
+    """Change the second ZeroRatePoint's compounding so the curve carries two
+    different compounding conventions. A single InterpolatedZeroCurve has ONE
+    compounding, so mixed conventions must be rejected."""
+    def f(req):
+        pts = req["pricing"]["rates"]["curves"][0]["points"]
+        pts[1]["point"]["compounding"] = "Compounded"
+        pts[1]["point"]["frequency"] = "Annual"
         return req
     return f
 
@@ -1071,6 +1113,34 @@ SCENARIOS = [
      "callable_fixed_rate_bond_request.json", 400,
      _ec_callable_bad_call_date(),
      _ec_body_contains("expected YYYY-MM-DD")),
+    # ---- 400 INVALID_ARGUMENT: bootstrap_trait is the explicit curve-family
+    #      selector — required, and validated against the curve's point types ----
+    ("ec:400 curve missing bootstrap_trait", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_curve_field("bootstrap_trait"),
+     _ec_body_contains("TermStructure.bootstrap_trait is required")),
+    ("ec:400 curve Discount trait with a ZeroRatePoint", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_curve_inject_zero_point(),
+     _ec_body_contains("builds from rate helpers but received a ZeroRatePoint")),
+    ("ec:400 curve InterpolatedZero trait with a rate helper", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_curve_field("bootstrap_trait", "InterpolatedZero"),
+     _ec_body_contains("builds from zero-rate points but received a")),
+    ("ec:400 curve InterpolatedDiscount not supported yet", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_curve_field("bootstrap_trait", "InterpolatedDiscount"),
+     _ec_body_contains("bootstrap_trait InterpolatedDiscount is not supported yet")),
+    ("ec:400 curve InterpolatedFwd not supported yet", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_set_curve_field("bootstrap_trait", "InterpolatedFwd"),
+     _ec_body_contains("bootstrap_trait InterpolatedFwd is not supported yet")),
+    ("ec:400 curve InterpolatedZero mixed compounding across points",
+     "fixed_rate_bond",
+     "fixed_rate_bond_zerorate_request.json", 400,
+     _ec_curve_mix_zero_point_compounding(),
+     _ec_body_contains(
+         "ZeroRatePoint.compounding must be identical across all points")),
 ]
 
 
