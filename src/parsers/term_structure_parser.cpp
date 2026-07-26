@@ -2,8 +2,11 @@
 
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
+#include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
+
+#include <cmath>
 
 using namespace QuantLib;
 
@@ -35,6 +38,7 @@ std::string pointTypeName(quantra::Point type) {
     case quantra::Point_OISHelper:            return "OISHelper";
     case quantra::Point_DatedOISHelper:       return "DatedOISHelper";
     case quantra::Point_ZeroRatePoint:        return "ZeroRatePoint";
+    case quantra::Point_DiscountFactorPoint:  return "DiscountFactorPoint";
     case quantra::Point_TenorBasisSwapHelper: return "TenorBasisSwapHelper";
     case quantra::Point_FxSwapHelper:         return "FxSwapHelper";
     case quantra::Point_CrossCcyBasisHelper:  return "CrossCcyBasisHelper";
@@ -84,11 +88,84 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 
     switch (trait) {
 
-    case enums::BootstrapTrait_InterpolatedDiscount:
-        // The input point type for a directly-interpolated discount curve is not
-        // wired yet — reject it by name rather than fall through to a helper path.
-        QUANTRA_INVALID_ARGUMENT(
-            "bootstrap_trait InterpolatedDiscount is not supported yet");
+    case enums::BootstrapTrait_InterpolatedDiscount: {
+        // InterpolatedDiscount interpolates explicit discount-factor points
+        // directly (no bootstrap), feeding a QuantLib InterpolatedDiscountCurve.
+        // Every point MUST be a DiscountFactorPoint; a rate helper or any other
+        // point type is a request error. This interpolates a DIFFERENT quantity
+        // than InterpolatedZero (discount factors vs zero rates), so off-node
+        // values differ for the same market data.
+        std::vector<Date> dates;
+        std::vector<DiscountFactor> dfs;
+        dates.reserve(points->size());
+        dfs.reserve(points->size());
+
+        Date ref;
+        if (ts->reference_date()) {
+            ref = DateToQL(ts->reference_date()->str());
+        } else {
+            ref = Settings::instance().evaluationDate();
+        }
+
+        for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
+            auto pw = points->Get(i);
+            if (pw->point_type() != quantra::Point_DiscountFactorPoint) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "bootstrap_trait InterpolatedDiscount builds from "
+                    "discount-factor points but received a " +
+                    pointTypeName(pw->point_type()));
+            }
+            auto p = pw->point_as_DiscountFactorPoint();
+            if (!p) {
+                QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint is null");
+            }
+
+            Date d;
+            if (p->date()) {
+                d = DateToQL(p->date()->str());
+            } else {
+                if (!p->tenor()) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "DiscountFactorPoint.tenor is required when date is not provided");
+                }
+                int tenorN = p->tenor()->n();
+                auto tenorUnit = p->tenor()->unit();
+                if (tenorN <= 0) {
+                    QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint requires date or tenor");
+                }
+                auto cal = CalendarToQL(p->calendar());
+                auto bdc = ConventionToQL(p->business_day_convention());
+                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
+            }
+
+            if (!p->discount_factor().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint.discount_factor is required");
+            }
+            double df = p->discount_factor().value();
+            if (!std::isfinite(df)) {
+                QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint.discount_factor must be finite");
+            }
+            // A discount factor must be positive and no greater than 1 for a sane
+            // discount curve (DF(0)=1, monotonically decaying with a positive rate).
+            if (df <= 0.0 || df > 1.0) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "DiscountFactorPoint.discount_factor must be in (0, 1]");
+            }
+            // QuantLib's InterpolatedDiscountCurve uses the first pillar as the
+            // reference date and requires its discount factor to be exactly 1.0.
+            // Enforce it here so a violation is a named 400, not a QL 500.
+            if (i == 0 && df != 1.0) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "DiscountFactorPoint.discount_factor of the first (reference-date) "
+                    "point must be exactly 1.0");
+            }
+
+            dates.push_back(d);
+            dfs.push_back(df);
+        }
+
+        return buildDiscountCurve(ts, dates, dfs);
+    }
 
     case enums::BootstrapTrait_InterpolatedFwd:
         QUANTRA_INVALID_ARGUMENT(
@@ -177,17 +254,20 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     case enums::BootstrapTrait_ZeroRate:
     case enums::BootstrapTrait_FwdRate: {
         // Bootstrap traits build a PiecewiseYieldCurve from rate helpers. A
-        // ZeroRatePoint is direct data, not a helper, so it is a request error.
+        // ZeroRatePoint or DiscountFactorPoint is direct data, not a helper, so
+        // it is a request error.
         TermStructurePointParser pointParser;
         std::vector<std::shared_ptr<RateHelper>> instruments;
         instruments.reserve(points->size());
 
         for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
             auto pw = points->Get(i);
-            if (pw->point_type() == quantra::Point_ZeroRatePoint) {
+            if (pw->point_type() == quantra::Point_ZeroRatePoint ||
+                pw->point_type() == quantra::Point_DiscountFactorPoint) {
                 QUANTRA_INVALID_ARGUMENT(
                     "bootstrap_trait " + bootstrapTraitName(trait) +
-                    " builds from rate helpers but received a ZeroRatePoint");
+                    " builds from rate helpers but received a " +
+                    pointTypeName(pw->point_type()));
             }
             auto point = pw->point();
             auto type  = pw->point_type();
@@ -359,6 +439,48 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildZeroCurve(
             dates, zeroRates, dc, Calendar(), ForwardFlat(), compounding, frequency);
     default:
         QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator for zero curve");
+    }
+
+    return nullptr;
+}
+
+// =============================================================================
+// Build discount curve from explicit discount factors
+// =============================================================================
+std::shared_ptr<YieldTermStructure> TermStructureParser::buildDiscountCurve(
+    const quantra::TermStructure* ts,
+    const std::vector<Date>& dates,
+    const std::vector<DiscountFactor>& discountFactors)
+{
+    if (dates.size() != discountFactors.size() || dates.empty()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Discount curve requires matching non-empty date/discount-factor vectors");
+    }
+
+    DayCounter dc = DayCounterToQL(ts->day_counter().value());
+
+    // Mirrors buildZeroCurve's interpolator switch, but interpolates the
+    // discount factors directly (InterpolatedDiscountCurve) instead of zero
+    // rates. LogCubic uses MonotonicLogCubic, matching the zero-curve and
+    // bootstrap paths.
+    switch (ts->interpolator().value()) {
+    case enums::Interpolator_Linear:
+        return std::make_shared<InterpolatedDiscountCurve<Linear>>(
+            dates, discountFactors, dc, Calendar(), Linear());
+    case enums::Interpolator_LogLinear:
+        return std::make_shared<InterpolatedDiscountCurve<LogLinear>>(
+            dates, discountFactors, dc, Calendar(), LogLinear());
+    case enums::Interpolator_LogCubic:
+        return std::make_shared<InterpolatedDiscountCurve<LogCubic>>(
+            dates, discountFactors, dc, Calendar(), MonotonicLogCubic());
+    case enums::Interpolator_BackwardFlat:
+        return std::make_shared<InterpolatedDiscountCurve<BackwardFlat>>(
+            dates, discountFactors, dc, Calendar(), BackwardFlat());
+    case enums::Interpolator_ForwardFlat:
+        return std::make_shared<InterpolatedDiscountCurve<ForwardFlat>>(
+            dates, discountFactors, dc, Calendar(), ForwardFlat());
+    default:
+        QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator for discount curve");
     }
 
     return nullptr;

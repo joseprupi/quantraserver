@@ -2757,7 +2757,8 @@
           "ZeroRatePoint",
           "TenorBasisSwapHelper",
           "FxSwapHelper",
-          "CrossCcyBasisHelper"
+          "CrossCcyBasisHelper",
+          "DiscountFactorPoint"
         ]
       },
       "quantra_SwaptionVolPayload": {
@@ -3216,6 +3217,30 @@
         },
         "additionalProperties": false
       },
+      "quantra_DiscountFactorPoint": {
+        "type": "object",
+        "description": "Discount-factor point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedDiscountCurve: the discount factors are\ninterpolated directly, which differs from interpolating zero rates.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Maturity date for the discount factor (YYYY-MM-DD)."
+          },
+          "tenor": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "business_day_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "discount_factor": {
+            "type": "number",
+            "description": "Discount factor to this maturity. Required; must be in (0, 1]. The first\npoint (reference date) must carry a discount factor of exactly 1.0."
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_TenorBasisSwapHelper": {
         "type": "object",
         "description": "Tenor basis swap helper.",
@@ -3351,6 +3376,9 @@
               },
               {
                 "$ref": "#/components/schemas/quantra_CrossCcyBasisHelper"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_DiscountFactorPoint"
               }
             ]
           }

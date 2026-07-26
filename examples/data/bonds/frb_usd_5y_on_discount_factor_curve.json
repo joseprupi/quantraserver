@@ -1,0 +1,111 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "settlement_date": "2025-01-17",
+    "rates": {
+      "indices": [],
+      "curves": [
+        {
+          "id": "discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "reference_date": "2025-01-15",
+          "bootstrap_trait": "InterpolatedDiscount",
+          "points": [
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2025-01-15",
+                "discount_factor": 1.0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2026-01-15",
+                "discount_factor": 0.9700,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2027-01-15",
+                "discount_factor": 0.9400,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2028-01-15",
+                "discount_factor": 0.9100,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2029-01-15",
+                "discount_factor": 0.8800,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2030-01-15",
+                "discount_factor": 0.8500,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "DiscountFactorPoint",
+              "point": {
+                "date": "2031-01-15",
+                "discount_factor": 0.8200,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bonds": [
+    {
+      "fixed_rate_bond": {
+        "settlement_days": 2,
+        "face_amount": 1000000.0,
+        "rate": 0.03,
+        "accrual_day_counter": "Thirty360",
+        "payment_convention": "ModifiedFollowing",
+        "redemption": 100.0,
+        "issue_date": "2025-01-17",
+        "schedule": {
+          "calendar": "TARGET",
+          "effective_date": "2025-01-17",
+          "termination_date": "2030-01-17",
+          "frequency": "Annual",
+          "convention": "ModifiedFollowing",
+          "termination_date_convention": "ModifiedFollowing",
+          "date_generation_rule": "Forward"
+        }
+      },
+      "discounting_curve": "discount",
+      "yield": {
+        "day_counter": "Actual365Fixed",
+        "compounding": "Compounded",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

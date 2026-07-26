@@ -807,6 +807,28 @@ CASES = [
                       "10Y maturity"],
     },
     {
+        "id": "frb_usd_5y_on_discount_factor_curve",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "USD 5Y bond discounted on an explicit discount-factor curve",
+        "description": (
+            "A 5Y 3.0% annual bond (30/360, 1m face) discounted on a curve "
+            "defined directly by seven explicit discount factors "
+            "(InterpolatedDiscount, LogLinear) rather than bootstrapped from "
+            "rate helpers. Exercises the new DiscountFactorPoint curve feeding "
+            "a QuantLib InterpolatedDiscountCurve as a bond discounting curve; "
+            "the pillars span past the final cash flow so no extrapolation is "
+            "needed."
+        ),
+        "request": "bonds/frb_usd_5y_on_discount_factor_curve.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["fixed coupon", "annual 30/360",
+                      "InterpolatedDiscount discount curve",
+                      "DiscountFactorPoint"],
+    },
+    {
         "id": "frb_eur_2y_settlement_t3_annual_30360",
         "product": "fixed_rate_bond",
         "family": "Bonds",
@@ -2079,6 +2101,83 @@ CASES = [
         "compare": "series",
         "exercises": ["DF + zero + forward in one query",
                       "multi-series alignment", "Period 6M forwards"],
+    },
+    {
+        "id": "curves_usd_discount_curve_loglinear_df_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit discount-factor curve (LogLinear), DF and zero rates",
+        "description": (
+            "A curve defined directly by six explicit discount factors (no "
+            "bootstrap) with LogLinear interpolation of the discount factors, "
+            "sampled for discount factors and continuous zero rates at seven "
+            "tenors. Exercises the DiscountFactorPoint curve branch feeding a "
+            "QuantLib InterpolatedDiscountCurve<LogLinear> (native "
+            "ql.DiscountCurve reference), the new bootstrap_trait "
+            "InterpolatedDiscount, and the DF=1.0 reference-date anchor."
+        ),
+        "request": "curves/curves_usd_discount_curve_loglinear_df_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit discount-factor curve", "LogLinear DF interpolation",
+                      "InterpolatedDiscount trait", "discount factors",
+                      "zero rates"],
+    },
+    {
+        "id": "curves_usd_discount_curve_linear_df_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit discount-factor curve (Linear), DF and zero rates",
+        "description": (
+            "The same five nodes as the Linear zero-rate distinctness curve, "
+            "expressed here as explicit discount factors (DF_i = exp(-z_i t_i)) "
+            "and interpolated LINEARLY in the discount factor "
+            "(InterpolatedDiscount). Sampled at seven tenors, three of which "
+            "(1Y, 2Y, 7Y) land on nodes and four (6M, 18M, 3Y, 5Y) fall "
+            "between them. At the nodes this curve agrees with the Linear "
+            "zero-rate curve to machine precision (same DFs), but OFF the "
+            "nodes the two differ because linear-in-DF is not the same curve "
+            "as linear-in-zero-rate — the whole point of interpolating "
+            "discount factors directly. QuantLib-python exposes no "
+            "Linear-interpolated discount-curve class, so the reference "
+            "replicates InterpolatedDiscountCurve<Linear> exactly on QuantLib "
+            "primitives."
+        ),
+        "request": "curves/curves_usd_discount_curve_linear_df_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit discount-factor curve", "Linear DF interpolation",
+                      "InterpolatedDiscount trait", "distinct from zero interp",
+                      "discount factors", "zero rates"],
+    },
+    {
+        "id": "curves_usd_zero_curve_linear_distinct",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit zero-rate curve (Linear) — distinctness partner",
+        "description": (
+            "The zero-rate twin of the Linear discount-factor curve: the same "
+            "five nodes and grid, but the market data is given as continuously "
+            "compounded zero rates and interpolated LINEARLY in the zero rate "
+            "(InterpolatedZero). Its node discount factors equal the "
+            "discount-factor curve's inputs (DF_i = exp(-z_i t_i)), so the two "
+            "curves coincide at the nodes but diverge between them. Pair this "
+            "with curves_usd_discount_curve_linear_df_zero to see that "
+            "interpolating discount factors gives a genuinely different curve "
+            "than interpolating zero rates for identical market data."
+        ),
+        "request": "curves/curves_usd_zero_curve_linear_distinct.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit zero-rate curve", "Linear zero interpolation",
+                      "InterpolatedZero trait", "distinctness partner",
+                      "discount factors", "zero rates"],
     },
 
     # ------------------------------------------------------------------

@@ -60,6 +60,10 @@ struct ZeroRatePoint;
 struct ZeroRatePointBuilder;
 struct ZeroRatePointT;
 
+struct DiscountFactorPoint;
+struct DiscountFactorPointBuilder;
+struct DiscountFactorPointT;
+
 struct TenorBasisSwapHelper;
 struct TenorBasisSwapHelperBuilder;
 struct TenorBasisSwapHelperT;
@@ -94,11 +98,12 @@ enum Point : uint8_t {
   Point_TenorBasisSwapHelper = 9,
   Point_FxSwapHelper = 10,
   Point_CrossCcyBasisHelper = 11,
+  Point_DiscountFactorPoint = 12,
   Point_MIN = Point_NONE,
-  Point_MAX = Point_CrossCcyBasisHelper
+  Point_MAX = Point_DiscountFactorPoint
 };
 
-inline const Point (&EnumValuesPoint())[12] {
+inline const Point (&EnumValuesPoint())[13] {
   static const Point values[] = {
     Point_NONE,
     Point_DepositHelper,
@@ -111,13 +116,14 @@ inline const Point (&EnumValuesPoint())[12] {
     Point_ZeroRatePoint,
     Point_TenorBasisSwapHelper,
     Point_FxSwapHelper,
-    Point_CrossCcyBasisHelper
+    Point_CrossCcyBasisHelper,
+    Point_DiscountFactorPoint
   };
   return values;
 }
 
 inline const char * const *EnumNamesPoint() {
-  static const char * const names[13] = {
+  static const char * const names[14] = {
     "NONE",
     "DepositHelper",
     "FRAHelper",
@@ -130,13 +136,14 @@ inline const char * const *EnumNamesPoint() {
     "TenorBasisSwapHelper",
     "FxSwapHelper",
     "CrossCcyBasisHelper",
+    "DiscountFactorPoint",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNamePoint(Point e) {
-  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_CrossCcyBasisHelper)) return "";
+  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_DiscountFactorPoint)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesPoint()[index];
 }
@@ -189,6 +196,10 @@ template<> struct PointTraits<quantra::CrossCcyBasisHelper> {
   static const Point enum_value = Point_CrossCcyBasisHelper;
 };
 
+template<> struct PointTraits<quantra::DiscountFactorPoint> {
+  static const Point enum_value = Point_DiscountFactorPoint;
+};
+
 template<typename T> struct PointUnionTraits {
   static const Point enum_value = Point_NONE;
 };
@@ -235,6 +246,10 @@ template<> struct PointUnionTraits<quantra::FxSwapHelperT> {
 
 template<> struct PointUnionTraits<quantra::CrossCcyBasisHelperT> {
   static const Point enum_value = Point_CrossCcyBasisHelper;
+};
+
+template<> struct PointUnionTraits<quantra::DiscountFactorPointT> {
+  static const Point enum_value = Point_DiscountFactorPoint;
 };
 
 struct PointUnion {
@@ -354,6 +369,14 @@ struct PointUnion {
   const quantra::CrossCcyBasisHelperT *AsCrossCcyBasisHelper() const {
     return type == Point_CrossCcyBasisHelper ?
       reinterpret_cast<const quantra::CrossCcyBasisHelperT *>(value) : nullptr;
+  }
+  quantra::DiscountFactorPointT *AsDiscountFactorPoint() {
+    return type == Point_DiscountFactorPoint ?
+      reinterpret_cast<quantra::DiscountFactorPointT *>(value) : nullptr;
+  }
+  const quantra::DiscountFactorPointT *AsDiscountFactorPoint() const {
+    return type == Point_DiscountFactorPoint ?
+      reinterpret_cast<const quantra::DiscountFactorPointT *>(value) : nullptr;
   }
 };
 
@@ -1958,6 +1981,132 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
 
 ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::FlatBufferBuilder &_fbb, const ZeroRatePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct DiscountFactorPointT : public ::flatbuffers::NativeTable {
+  typedef DiscountFactorPoint TableType;
+  std::string date{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt;
+  DiscountFactorPointT() = default;
+  DiscountFactorPointT(const DiscountFactorPointT &o);
+  DiscountFactorPointT(DiscountFactorPointT&&) FLATBUFFERS_NOEXCEPT = default;
+  DiscountFactorPointT &operator=(DiscountFactorPointT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Discount-factor point for direct curve construction (no bootstrapping).
+/// Feeds a QuantLib InterpolatedDiscountCurve: the discount factors are
+/// interpolated directly, which differs from interpolating zero rates.
+struct DiscountFactorPoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef DiscountFactorPointT NativeTableType;
+  typedef DiscountFactorPointBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DATE = 4,
+    VT_TENOR = 6,
+    VT_CALENDAR = 8,
+    VT_BUSINESS_DAY_CONVENTION = 10,
+    VT_DISCOUNT_FACTOR = 12
+  };
+  /// Maturity date for the discount factor (YYYY-MM-DD).
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  /// Alternative: tenor from reference date.
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  }
+  /// Discount factor to this maturity. Required; must be in (0, 1]. The first
+  /// point (reference date) must carry a discount factor of exactly 1.0.
+  ::flatbuffers::Optional<double> discount_factor() const {
+    return GetOptional<double, double>(VT_DISCOUNT_FACTOR);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_DISCOUNT_FACTOR, 8) &&
+           verifier.EndTable();
+  }
+  DiscountFactorPointT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(DiscountFactorPointT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<DiscountFactorPoint> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const DiscountFactorPointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct DiscountFactorPointBuilder {
+  typedef DiscountFactorPoint Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(DiscountFactorPoint::VT_DATE, date);
+  }
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(DiscountFactorPoint::VT_TENOR, tenor);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+  }
+  void add_discount_factor(double discount_factor) {
+    fbb_.AddElement<double>(DiscountFactorPoint::VT_DISCOUNT_FACTOR, discount_factor);
+  }
+  explicit DiscountFactorPointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<DiscountFactorPoint> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<DiscountFactorPoint>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt) {
+  DiscountFactorPointBuilder builder_(_fbb);
+  if(discount_factor) { builder_.add_discount_factor(*discount_factor); }
+  builder_.add_tenor(tenor);
+  builder_.add_date(date);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPointDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *date = nullptr,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt) {
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateDiscountFactorPoint(
+      _fbb,
+      date__,
+      tenor,
+      calendar,
+      business_day_convention,
+      discount_factor);
+}
+
+::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(::flatbuffers::FlatBufferBuilder &_fbb, const DiscountFactorPointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   typedef TenorBasisSwapHelper TableType;
   ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt;
@@ -2454,6 +2603,9 @@ struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::CrossCcyBasisHelper *point_as_CrossCcyBasisHelper() const {
     return point_type() == quantra::Point_CrossCcyBasisHelper ? static_cast<const quantra::CrossCcyBasisHelper *>(point()) : nullptr;
   }
+  const quantra::DiscountFactorPoint *point_as_DiscountFactorPoint() const {
+    return point_type() == quantra::Point_DiscountFactorPoint ? static_cast<const quantra::DiscountFactorPoint *>(point()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_POINT_TYPE, 1) &&
@@ -2508,6 +2660,10 @@ template<> inline const quantra::FxSwapHelper *PointsWrapper::point_as<quantra::
 
 template<> inline const quantra::CrossCcyBasisHelper *PointsWrapper::point_as<quantra::CrossCcyBasisHelper>() const {
   return point_as_CrossCcyBasisHelper();
+}
+
+template<> inline const quantra::DiscountFactorPoint *PointsWrapper::point_as<quantra::DiscountFactorPoint>() const {
+  return point_as_DiscountFactorPoint();
 }
 
 struct PointsWrapperBuilder {
@@ -3317,6 +3473,61 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(::flatbuffers::F
       _frequency);
 }
 
+inline DiscountFactorPointT::DiscountFactorPointT(const DiscountFactorPointT &o)
+      : date(o.date),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        discount_factor(o.discount_factor) {
+}
+
+inline DiscountFactorPointT &DiscountFactorPointT::operator=(DiscountFactorPointT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(date, o.date);
+  std::swap(tenor, o.tenor);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(discount_factor, o.discount_factor);
+  return *this;
+}
+
+inline DiscountFactorPointT *DiscountFactorPoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<DiscountFactorPointT>(new DiscountFactorPointT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void DiscountFactorPoint::UnPackTo(DiscountFactorPointT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = discount_factor(); _o->discount_factor = _e; }
+}
+
+inline ::flatbuffers::Offset<DiscountFactorPoint> DiscountFactorPoint::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const DiscountFactorPointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateDiscountFactorPoint(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(::flatbuffers::FlatBufferBuilder &_fbb, const DiscountFactorPointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const DiscountFactorPointT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _discount_factor = _o->discount_factor;
+  return quantra::CreateDiscountFactorPoint(
+      _fbb,
+      _date,
+      _tenor,
+      _calendar,
+      _business_day_convention,
+      _discount_factor);
+}
+
 inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT &o)
       : spread(o.spread),
         tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
@@ -3646,6 +3857,10 @@ inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Poin
       auto ptr = reinterpret_cast<const quantra::CrossCcyBasisHelper *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case Point_DiscountFactorPoint: {
+      auto ptr = reinterpret_cast<const quantra::DiscountFactorPoint *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -3709,6 +3924,10 @@ inline void *PointUnion::UnPack(const void *obj, Point type, const ::flatbuffers
       auto ptr = reinterpret_cast<const quantra::CrossCcyBasisHelper *>(obj);
       return ptr->UnPack(resolver);
     }
+    case Point_DiscountFactorPoint: {
+      auto ptr = reinterpret_cast<const quantra::DiscountFactorPoint *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -3760,6 +3979,10 @@ inline ::flatbuffers::Offset<void> PointUnion::Pack(::flatbuffers::FlatBufferBui
       auto ptr = reinterpret_cast<const quantra::CrossCcyBasisHelperT *>(value);
       return CreateCrossCcyBasisHelper(_fbb, ptr, _rehasher).Union();
     }
+    case Point_DiscountFactorPoint: {
+      auto ptr = reinterpret_cast<const quantra::DiscountFactorPointT *>(value);
+      return CreateDiscountFactorPoint(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -3808,6 +4031,10 @@ inline PointUnion::PointUnion(const PointUnion &u) : type(u.type), value(nullptr
     }
     case Point_CrossCcyBasisHelper: {
       value = new quantra::CrossCcyBasisHelperT(*reinterpret_cast<quantra::CrossCcyBasisHelperT *>(u.value));
+      break;
+    }
+    case Point_DiscountFactorPoint: {
+      value = new quantra::DiscountFactorPointT(*reinterpret_cast<quantra::DiscountFactorPointT *>(u.value));
       break;
     }
     default:
@@ -3869,6 +4096,11 @@ inline void PointUnion::Reset() {
     }
     case Point_CrossCcyBasisHelper: {
       auto ptr = reinterpret_cast<quantra::CrossCcyBasisHelperT *>(value);
+      delete ptr;
+      break;
+    }
+    case Point_DiscountFactorPoint: {
+      auto ptr = reinterpret_cast<quantra::DiscountFactorPointT *>(value);
       delete ptr;
       break;
     }

@@ -48,6 +48,11 @@ private:
         const std::vector<QuantLib::Rate>& zeroRates,
         QuantLib::Compounding compounding,
         QuantLib::Frequency frequency);
+
+    std::shared_ptr<QuantLib::YieldTermStructure> buildDiscountCurve(
+        const quantra::TermStructure* ts,
+        const std::vector<QuantLib::Date>& dates,
+        const std::vector<QuantLib::DiscountFactor>& discountFactors);
 };
 
 } // namespace quantra

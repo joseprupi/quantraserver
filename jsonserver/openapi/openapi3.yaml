@@ -1961,6 +1961,7 @@ components:
       - TenorBasisSwapHelper
       - FxSwapHelper
       - CrossCcyBasisHelper
+      - DiscountFactorPoint
     quantra_SwaptionVolPayload:
       type: string
       enum:
@@ -2297,6 +2298,30 @@ components:
         frequency:
           $ref: '#/components/schemas/quantra_enums_Frequency'
       additionalProperties: false
+    quantra_DiscountFactorPoint:
+      type: object
+      description: 'Discount-factor point for direct curve construction (no bootstrapping).
+
+        Feeds a QuantLib InterpolatedDiscountCurve: the discount factors are
+
+        interpolated directly, which differs from interpolating zero rates.'
+      properties:
+        date:
+          type: string
+          description: Maturity date for the discount factor (YYYY-MM-DD).
+        tenor:
+          $ref: '#/components/schemas/quantra_Period'
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        business_day_convention:
+          $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
+        discount_factor:
+          type: number
+          description: 'Discount factor to this maturity. Required; must be in (0,
+            1]. The first
+
+            point (reference date) must carry a discount factor of exactly 1.0.'
+      additionalProperties: false
     quantra_TenorBasisSwapHelper:
       type: object
       description: Tenor basis swap helper.
@@ -2383,6 +2408,7 @@ components:
           - $ref: '#/components/schemas/quantra_TenorBasisSwapHelper'
           - $ref: '#/components/schemas/quantra_FxSwapHelper'
           - $ref: '#/components/schemas/quantra_CrossCcyBasisHelper'
+          - $ref: '#/components/schemas/quantra_DiscountFactorPoint'
       additionalProperties: false
     quantra_TermStructure:
       type: object

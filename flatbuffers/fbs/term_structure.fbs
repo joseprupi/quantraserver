@@ -151,6 +151,21 @@ table ZeroRatePoint {
     frequency:enums.Frequency = Annual;
 }
 
+/// Discount-factor point for direct curve construction (no bootstrapping).
+/// Feeds a QuantLib InterpolatedDiscountCurve: the discount factors are
+/// interpolated directly, which differs from interpolating zero rates.
+table DiscountFactorPoint {
+    /// Maturity date for the discount factor (YYYY-MM-DD).
+    date:string;
+    /// Alternative: tenor from reference date.
+    tenor:Period;
+    calendar:enums.Calendar = TARGET;
+    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    /// Discount factor to this maturity. Required; must be in (0, 1]. The first
+    /// point (reference date) must carry a discount factor of exactly 1.0.
+    discount_factor:double = null;
+}
+
 /// Tenor basis swap helper.
 table TenorBasisSwapHelper {
     /// Basis spread. One of spread or quote_id must be provided.
@@ -202,7 +217,8 @@ union Point {
     ZeroRatePoint,
     TenorBasisSwapHelper,
     FxSwapHelper,
-    CrossCcyBasisHelper
+    CrossCcyBasisHelper,
+    DiscountFactorPoint
 }
 
 /// Wrapper for a single curve point.

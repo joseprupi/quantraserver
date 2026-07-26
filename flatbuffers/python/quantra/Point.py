@@ -16,6 +16,7 @@ class Point(object):
     TenorBasisSwapHelper = 9
     FxSwapHelper = 10
     CrossCcyBasisHelper = 11
+    DiscountFactorPoint = 12
 
 def PointCreator(unionType, table):
     from flatbuffers.table import Table
@@ -43,4 +44,6 @@ def PointCreator(unionType, table):
         return FxSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.CrossCcyBasisHelper:
         return CrossCcyBasisHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.DiscountFactorPoint:
+        return DiscountFactorPointT.InitFromBuf(table.Bytes, table.Pos)
     return None
