@@ -24,7 +24,7 @@
           "day_counter": "Actual365Fixed",
           "interpolator": "Linear",
           "reference_date": "2024-08-14",
-          "bootstrap_trait": "Discount",
+          "bootstrap_trait": "InterpolatedZero",
           "points": [
             {
               "point_type": "ZeroRatePoint",

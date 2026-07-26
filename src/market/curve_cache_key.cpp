@@ -504,7 +504,12 @@ void CurveKeyBuilder::writeCurveHeader(
     };
     writeOptEnum(ts->day_counter());
     writeOptEnum(ts->interpolator());
-    buf.writeU8(static_cast<uint8_t>(ts->bootstrap_trait()));
+    // bootstrap_trait is now the explicit curve-family selector for EVERY curve
+    // (including the InterpolatedZero path, where the trait was previously
+    // ignored). It is presence-required, so serialize it with the same presence
+    // discipline: two curves differing only in their trait must key differently
+    // or a cache hit would serve a wrong-family curve.
+    writeOptEnum(ts->bootstrap_trait());
     buf.writeFbString(ts->reference_date());
 }
 

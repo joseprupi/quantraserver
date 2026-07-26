@@ -391,7 +391,9 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 // Only Discount-trait curves reconstruct bit-exactly; other
                 // traits fall back to caching the live curve (today's
                 // behavior).
-                if (ts->bootstrap_trait() == quantra::enums::BootstrapTrait_Discount) {
+                if (ts->bootstrap_trait().has_value() &&
+                    ts->bootstrap_trait().value() ==
+                        quantra::enums::BootstrapTrait_Discount) {
                     try {
                         toCacheL1 = CurveSerializer::reconstruct(serialized);
                     } catch (const std::exception&) {

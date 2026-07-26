@@ -215,7 +215,11 @@ table TermStructure {
     id:string;
     day_counter:enums.DayCounter = null;
     interpolator:enums.Interpolator = null;
-    bootstrap_trait:enums.BootstrapTrait;
+    /// Curve family selector. Present ⇒ selects how the curve is built from its
+    /// points (Discount/ZeroRate/FwdRate bootstrap from rate helpers;
+    /// InterpolatedZero interpolates explicit zero-rate points). Absent ⇒ the
+    /// request is rejected — there is no auto-dispatch by point type.
+    bootstrap_trait:enums.BootstrapTrait = null;
     points:[PointsWrapper];
     reference_date:string;
 }
