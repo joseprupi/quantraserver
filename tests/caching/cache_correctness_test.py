@@ -12,9 +12,8 @@ A separate test reads the cache-ON gRPC server log and asserts at least one
 CurveCache L1 hit was logged across these requests, so the suite can never
 silently pass without the cache actually engaging.
 
-The comparison core is table-driven over (product, payload). When D23 makes
-bumped curves (curveBump != 0) cacheable, a bumped variant drops in as a
-one-line CASES addition — no other change needed.
+The comparison core is table-driven over (product, payload), so a new
+scenario drops in as a one-line CASES addition — no other change needed.
 """
 
 import copy
@@ -71,7 +70,7 @@ CASES = [
          "cds_request.json", "cds_list"),
     Case("bootstrap_curves_forward", "bootstrap_curves",
          "bootstrap_curves_forward.json", None),
-    # ZeroRatePoint discount curve (audit B7): built as an InterpolatedZeroCurve,
+    # ZeroRatePoint discount curve: built as an InterpolatedZeroCurve,
     # NOT a PiecewiseYieldCurve, so the freeze path cannot extract exact pillars.
     # A cache hit must serve the LIVE curve — never a weekly-resampled
     # reconstruction — or the bond's semiannual coupons (which fall between the
@@ -89,7 +88,7 @@ ENGAGED_CASE = CASES[0]
 # cannot pass trivially with the calibration cache never engaging.
 HW_CALIB_CASE = next(c for c in CASES if c.id == "calibrate_swaption_model")
 
-# The B7 zero-curve row + the curve id its payload bootstraps, probed separately
+# The zero-curve row + the curve id its payload bootstraps, probed separately
 # in test_cache_engaged_zero_curve so the transparency assertion above cannot
 # pass trivially with the zero curve unkeyable/uncached.
 ZERO_CURVE_CASE = next(c for c in CASES if c.id == "fixed_rate_bond_zerorate")
@@ -276,7 +275,7 @@ def _count_zero_curve_hits(log_path: Path) -> int:
 
 
 def test_cache_engaged_zero_curve(cache_client, data_dir, cache_log_path):
-    """B7 companion to the fixed_rate_bond_zerorate transparency row: prove the
+    """Companion to the fixed_rate_bond_zerorate transparency row: prove the
     ZeroRatePoint (InterpolatedZeroCurve) curve itself actually hits the cache —
     an L1_HIT line naming its curve id must be logged. Guards against the
     transparency assertions passing trivially because the zero curve became
@@ -297,7 +296,7 @@ def test_cache_engaged_zero_curve(cache_client, data_dir, cache_log_path):
     assert after > before, (
         f"No CurveCache L1 hit for curve={ZERO_CURVE_ID} logged in "
         f"{cache_log_path} (hits before={before}, after={after}); the "
-        f"ZeroRatePoint curve did not engage the cache, so the B7 "
+        f"ZeroRatePoint curve did not engage the cache, so the "
         f"transparency case proves nothing."
     )
     print(f"[cache] zero curve engaged — L1 hits for {ZERO_CURVE_ID}: "

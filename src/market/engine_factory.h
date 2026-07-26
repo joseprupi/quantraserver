@@ -63,14 +63,6 @@ public:
         double hwA,
         double hwSigma,
         int latticeSteps) const;
-        
-    // Future: makeEquityEngine for equity options
-    // std::shared_ptr<QuantLib::PricingEngine> makeEquityEngine(
-    //     const quantra::ModelSpec* model,
-    //     const QuantLib::Handle<QuantLib::Quote>& spot,
-    //     const QuantLib::Handle<QuantLib::YieldTermStructure>& riskFreeRate,
-    //     const QuantLib::Handle<QuantLib::YieldTermStructure>& dividendYield,
-    //     const BlackVolEntry& volEntry) const;
 };
 
 } // namespace quantra

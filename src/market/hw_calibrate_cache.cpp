@@ -73,9 +73,8 @@ bool HwCalibrateCache::enabled() {
     if (const auto& ov = hwEnabledOverride()) {
         return *ov;
     }
-    // Read the env flag once at first call (default off). Mirrors how the SABR
-    // cache reads QUANTRA_SABR_CACHE_ENABLED, avoiding per-request getenv() on
-    // the hot path.
+    // Read QUANTRA_HW_CACHE_ENABLED once at first call (default off), avoiding
+    // a per-request getenv() on the hot path.
     static const bool kEnabled = []() {
         const char* v = std::getenv("QUANTRA_HW_CACHE_ENABLED");
         return v != nullptr && std::string(v) == "1";

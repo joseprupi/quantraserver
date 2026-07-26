@@ -216,7 +216,7 @@ struct SwaptionVolDiagnosticsT : public ::flatbuffers::NativeTable {
 /// Diagnostics block describing one swaption vol surface. Emitted opt-in by
 /// /sample-vol-surfaces and /price-swaption when include_diagnostics=true, and
 /// reused as the response body for the standalone /calibrate-swaption-vol
-/// endpoint (Step 9).
+/// endpoint.
 struct SwaptionVolDiagnostics FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwaptionVolDiagnosticsT NativeTableType;
   typedef SwaptionVolDiagnosticsBuilder Builder;

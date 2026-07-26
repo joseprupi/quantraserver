@@ -3035,8 +3035,6 @@ components:
           description: Reference to IndexDef by id.
         float_leg:
           $ref: '#/components/schemas/quantra_SwapIndexFloatLegSpec'
-        allow_override_from_trade:
-          type: boolean
       required:
       - id
       - float_index_id
@@ -4096,7 +4094,7 @@ components:
 
         reused as the response body for the standalone /calibrate-swaption-vol
 
-        endpoint (Step 9).'
+        endpoint.'
       properties:
         vol_id:
           type: string

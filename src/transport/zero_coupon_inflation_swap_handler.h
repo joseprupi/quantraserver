@@ -23,8 +23,7 @@ using ZeroCouponInflationSwapEndpoint = quantra::ProductEndpoint<
     quantra::ZeroCouponInflationSwapMapper,
     quantra::ZeroCouponInflationSwapEvaluator>;
 
-/// Backward-compatible alias for existing call sites (tests) that referenced
-/// the legacy ZeroCouponInflationSwapPricingRequest type directly.
+/// Alias used by the parity tests, which drive the endpoint directly.
 using ZeroCouponInflationSwapPricingRequest = ZeroCouponInflationSwapEndpoint;
 
 class PriceZeroCouponInflationSwapData : public CallDataGeneric<

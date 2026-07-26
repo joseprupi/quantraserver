@@ -110,9 +110,9 @@ run_test() {
     echo "  $name"
     echo "════════════════════════════════════════════"
     echo "  Role: $role"
-    # Capture suite output and exit code separately. Previously this was
-    # `if bash -lc ... | tee ...; then`, which evaluated tee's exit (always 0)
-    # under the default no-pipefail shell — every crashed suite reported PASS.
+    # Capture suite output and exit code separately — never pipe the suite into
+    # tee here: without `pipefail` the shell would evaluate tee's exit status
+    # (always 0) and a crashed suite would report PASS.
     local rc
     bash -lc "$cmd" > "$logfile" 2>&1
     rc=$?

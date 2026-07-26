@@ -66,23 +66,15 @@ Defaults in the in-repo script:
 The installable process-manager sources live in `tools/quantra-manager/`:
 
 - `tools/quantra-manager/quantra`
-- `tools/quantra-manager/quantra-simple`
 - `tools/quantra-manager/requirements.txt`
 
 This packaged area is what the Docker build uses to install `quantra` into the image.
 
-## `quantra` vs `quantra-simple`
-
-### `quantra`
+## `quantra`
 
 - starts Envoy plus multiple workers
 - provides `start`, `stop`, `status`, `restart`, `health`, and `logs`
 - intended for the normal multi-process runtime
-
-### `quantra-simple`
-
-- starts workers directly without Envoy
-- useful for simple local experiments or environments where load balancing is handled elsewhere
 
 ## Installation Notes
 

@@ -79,14 +79,13 @@ OisSwapPerSwap priceTrade(const OisSwapTrade& trade,
     const auto& fwdHandle = *fwdIt->second;
 
     // IndexRegistry::getOvernightWithCurve downcasts the registry entry and
-    // raises if the requested index is not an OvernightIndex — preserves the
-    // legacy parser's type check.
+    // raises if the requested index is not an OvernightIndex.
     auto overnightIndex = reg.rates.indices.getOvernightWithCurve(
         trade.overnight.indexId,
         QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
 
     if (trade.fixed.notional != trade.overnight.notional) {
-        // Preserves the legacy warning emitted by ois_swap_parser.
+        // Mismatched notionals are not an error: the fixed leg's notional wins.
         std::cout << "Warning: Fixed and overnight notionals differ. Using fixed notional."
                   << std::endl;
     }

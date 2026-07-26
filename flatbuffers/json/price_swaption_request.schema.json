@@ -1650,9 +1650,6 @@
               },
         "float_leg" : {
                 "$ref" : "#/definitions/quantra_SwapIndexFloatLegSpec"
-              },
-        "allow_override_from_trade" : {
-                "type" : "boolean"
               }
       },
       "required" : ["id", "float_index_id"],

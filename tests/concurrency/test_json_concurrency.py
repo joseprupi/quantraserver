@@ -12,7 +12,7 @@ every identical request must return the same successful result.
 Standard-library only (urllib) so it runs without extra dependencies.
 
 Usage:
-    python3 tests/test_json_concurrency.py \
+    python3 tests/concurrency/test_json_concurrency.py \
         --url http://localhost:8080 \
         --data-dir examples/data \
         --requests 96 --workers 24

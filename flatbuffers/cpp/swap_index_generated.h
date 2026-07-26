@@ -304,7 +304,6 @@ struct SwapIndexDefT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::SwapIndexFixedLegSpecT> fixed_leg{};
   std::string float_index_id{};
   std::unique_ptr<quantra::SwapIndexFloatLegSpecT> float_leg{};
-  bool allow_override_from_trade = false;
   SwapIndexDefT() = default;
   SwapIndexDefT(const SwapIndexDefT &o);
   SwapIndexDefT(SwapIndexDefT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -324,8 +323,7 @@ struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_END_OF_MONTH = 14,
     VT_FIXED_LEG = 16,
     VT_FLOAT_INDEX_ID = 18,
-    VT_FLOAT_LEG = 20,
-    VT_ALLOW_OVERRIDE_FROM_TRADE = 22
+    VT_FLOAT_LEG = 20
   };
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
@@ -359,9 +357,6 @@ struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::SwapIndexFloatLegSpec *float_leg() const {
     return GetPointer<const quantra::SwapIndexFloatLegSpec *>(VT_FLOAT_LEG);
   }
-  bool allow_override_from_trade() const {
-    return GetField<uint8_t>(VT_ALLOW_OVERRIDE_FROM_TRADE, 0) != 0;
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_ID) &&
@@ -377,7 +372,6 @@ struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(float_index_id()) &&
            VerifyOffset(verifier, VT_FLOAT_LEG) &&
            verifier.VerifyTable(float_leg()) &&
-           VerifyField<uint8_t>(verifier, VT_ALLOW_OVERRIDE_FROM_TRADE, 1) &&
            verifier.EndTable();
   }
   SwapIndexDefT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -416,9 +410,6 @@ struct SwapIndexDefBuilder {
   void add_float_leg(::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg) {
     fbb_.AddOffset(SwapIndexDef::VT_FLOAT_LEG, float_leg);
   }
-  void add_allow_override_from_trade(bool allow_override_from_trade) {
-    fbb_.AddElement<uint8_t>(SwapIndexDef::VT_ALLOW_OVERRIDE_FROM_TRADE, static_cast<uint8_t>(allow_override_from_trade), 0);
-  }
   explicit SwapIndexDefBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -442,15 +433,13 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(
     bool end_of_month = false,
     ::flatbuffers::Offset<quantra::SwapIndexFixedLegSpec> fixed_leg = 0,
     ::flatbuffers::Offset<::flatbuffers::String> float_index_id = 0,
-    ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0,
-    bool allow_override_from_trade = false) {
+    ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0) {
   SwapIndexDefBuilder builder_(_fbb);
   builder_.add_float_leg(float_leg);
   builder_.add_float_index_id(float_index_id);
   builder_.add_fixed_leg(fixed_leg);
   builder_.add_spot_days(spot_days);
   builder_.add_id(id);
-  builder_.add_allow_override_from_trade(allow_override_from_trade);
   builder_.add_end_of_month(end_of_month);
   builder_.add_business_day_convention(business_day_convention);
   builder_.add_calendar(calendar);
@@ -468,8 +457,7 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDefDirect(
     bool end_of_month = false,
     ::flatbuffers::Offset<quantra::SwapIndexFixedLegSpec> fixed_leg = 0,
     const char *float_index_id = nullptr,
-    ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0,
-    bool allow_override_from_trade = false) {
+    ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   auto float_index_id__ = float_index_id ? _fbb.CreateString(float_index_id) : 0;
   return quantra::CreateSwapIndexDef(
@@ -482,8 +470,7 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDefDirect(
       end_of_month,
       fixed_leg,
       float_index_id__,
-      float_leg,
-      allow_override_from_trade);
+      float_leg);
 }
 
 ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(::flatbuffers::FlatBufferBuilder &_fbb, const SwapIndexDefT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -601,8 +588,7 @@ inline SwapIndexDefT::SwapIndexDefT(const SwapIndexDefT &o)
         end_of_month(o.end_of_month),
         fixed_leg((o.fixed_leg) ? new quantra::SwapIndexFixedLegSpecT(*o.fixed_leg) : nullptr),
         float_index_id(o.float_index_id),
-        float_leg((o.float_leg) ? new quantra::SwapIndexFloatLegSpecT(*o.float_leg) : nullptr),
-        allow_override_from_trade(o.allow_override_from_trade) {
+        float_leg((o.float_leg) ? new quantra::SwapIndexFloatLegSpecT(*o.float_leg) : nullptr) {
 }
 
 inline SwapIndexDefT &SwapIndexDefT::operator=(SwapIndexDefT o) FLATBUFFERS_NOEXCEPT {
@@ -615,7 +601,6 @@ inline SwapIndexDefT &SwapIndexDefT::operator=(SwapIndexDefT o) FLATBUFFERS_NOEX
   std::swap(fixed_leg, o.fixed_leg);
   std::swap(float_index_id, o.float_index_id);
   std::swap(float_leg, o.float_leg);
-  std::swap(allow_override_from_trade, o.allow_override_from_trade);
   return *this;
 }
 
@@ -637,7 +622,6 @@ inline void SwapIndexDef::UnPackTo(SwapIndexDefT *_o, const ::flatbuffers::resol
   { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapIndexFixedLegSpecT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
   { auto _e = float_index_id(); if (_e) _o->float_index_id = _e->str(); }
   { auto _e = float_leg(); if (_e) { if(_o->float_leg) { _e->UnPackTo(_o->float_leg.get(), _resolver); } else { _o->float_leg = std::unique_ptr<quantra::SwapIndexFloatLegSpecT>(_e->UnPack(_resolver)); } } else if (_o->float_leg) { _o->float_leg.reset(); } }
-  { auto _e = allow_override_from_trade(); _o->allow_override_from_trade = _e; }
 }
 
 inline ::flatbuffers::Offset<SwapIndexDef> SwapIndexDef::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapIndexDefT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -657,7 +641,6 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(::flatbuffers::Fla
   auto _fixed_leg = _o->fixed_leg ? CreateSwapIndexFixedLegSpec(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
   auto _float_index_id = _fbb.CreateString(_o->float_index_id);
   auto _float_leg = _o->float_leg ? CreateSwapIndexFloatLegSpec(_fbb, _o->float_leg.get(), _rehasher) : 0;
-  auto _allow_override_from_trade = _o->allow_override_from_trade;
   return quantra::CreateSwapIndexDef(
       _fbb,
       _id,
@@ -668,8 +651,7 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(::flatbuffers::Fla
       _end_of_month,
       _fixed_leg,
       _float_index_id,
-      _float_leg,
-      _allow_override_from_trade);
+      _float_leg);
 }
 
 }  // namespace quantra

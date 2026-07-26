@@ -335,7 +335,7 @@
     },
     "quantra_SwaptionVolDiagnostics" : {
       "type" : "object",
-      "description" : "Diagnostics block describing one swaption vol surface. Emitted opt-in by\n/sample-vol-surfaces and /price-swaption when include_diagnostics=true, and\nreused as the response body for the standalone /calibrate-swaption-vol\nendpoint (Step 9).",
+      "description" : "Diagnostics block describing one swaption vol surface. Emitted opt-in by\n/sample-vol-surfaces and /price-swaption when include_diagnostics=true, and\nreused as the response body for the standalone /calibrate-swaption-vol\nendpoint.",
       "properties" : {
         "vol_id" : {
                 "type" : "string",

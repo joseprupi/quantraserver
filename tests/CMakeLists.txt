@@ -117,9 +117,3 @@ target_link_libraries(test_server_client
     GTest::gtest
     GTest::gtest_main
 )
-
-# =============================================================================
-# Benchmark (disabled - needs migration)
-# =============================================================================
-# add_executable(benchmark benchmark.cpp)
-# target_link_libraries(benchmark ...)

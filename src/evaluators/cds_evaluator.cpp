@@ -159,14 +159,12 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
         }
     }
 
-    // Fail closed on the interpolator. QuantLib's default-
-    // probability bootstrap only supports flat-forward interpolation, i.e.
-    // LogLinear on survival probabilities. Every other enum value used to
-    // either masquerade as LogLinear silently (ForwardFlat/LogCubic hit the
-    // old `default:` branch) or die inside the bootstrap with an opaque
-    // QuantLib error (Linear/BackwardFlat). All of them — and any
-    // out-of-range value from the raw wire cast — are now rejected with a
-    // clear INVALID_ARGUMENT.
+    // Fail closed on the interpolator. QuantLib's default-probability
+    // bootstrap only supports flat-forward interpolation, i.e. LogLinear on
+    // survival probabilities. Every other enum value — and any out-of-range
+    // value from the raw wire cast — is rejected with a clear
+    // INVALID_ARGUMENT rather than being silently treated as LogLinear or
+    // dying inside the bootstrap with an opaque QuantLib error.
     switch (curve.curve_interpolator) {
         case CreditCurveInterpolatorKind::LogLinear:
             return std::make_shared<
