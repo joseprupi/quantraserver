@@ -985,7 +985,8 @@
                 "$ref" : "#/definitions/quantra_enums_VolSurfaceShape"
               },
         "volatility_type" : {
-                "$ref" : "#/definitions/quantra_enums_VolatilityType"
+                "$ref" : "#/definitions/quantra_enums_VolatilityType",
+                "description" : "Quotation convention of the supplied vols. Presence-required: an omitted\ntype is a 400, never the alphabetical-0 default (Normal), which would\nprice a lognormal-quoted surface as normal vols."
               },
         "displacement" : {
                 "type" : "number",
@@ -1407,7 +1408,8 @@
       "description" : "Cap/Floor pricing model specification.",
       "properties" : {
         "model_type" : {
-                "$ref" : "#/definitions/quantra_enums_IrModelType"
+                "$ref" : "#/definitions/quantra_enums_IrModelType",
+                "description" : "Pricing model / engine selector. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (Black)."
               }
       },
       "additionalProperties" : false
@@ -1478,7 +1480,7 @@
       "properties" : {
         "model_type" : {
                 "$ref" : "#/definitions/quantra_enums_IrModelType",
-                "description" : "Swaption pricing model type."
+                "description" : "Swaption pricing model type. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (Black)."
               },
         "hw_a" : {
                 "type" : "number",
@@ -1530,7 +1532,8 @@
       "description" : "Equity vanilla option pricing model specification (future).",
       "properties" : {
         "model_type" : {
-                "$ref" : "#/definitions/quantra_enums_EquityModelType"
+                "$ref" : "#/definitions/quantra_enums_EquityModelType",
+                "description" : "Pricing model / engine selector. Presence-required: an omitted type is a\n400, never the alphabetical-0 default (BlackScholesAnalytic)."
               },
         "binomial_steps" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647

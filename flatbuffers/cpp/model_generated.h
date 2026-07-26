@@ -191,7 +191,7 @@ bool VerifyModelPayloadVector(::flatbuffers::Verifier &verifier, const ::flatbuf
 
 struct CapFloorModelSpecT : public ::flatbuffers::NativeTable {
   typedef CapFloorModelSpec TableType;
-  quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black;
+  ::flatbuffers::Optional<quantra::enums::IrModelType> model_type = ::flatbuffers::nullopt;
 };
 
 /// Cap/Floor pricing model specification.
@@ -201,8 +201,10 @@ struct CapFloorModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_MODEL_TYPE = 4
   };
-  quantra::enums::IrModelType model_type() const {
-    return static_cast<quantra::enums::IrModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
+  /// Pricing model / engine selector. Presence-required: an omitted type is a
+  /// 400, never the alphabetical-0 default (Black).
+  ::flatbuffers::Optional<quantra::enums::IrModelType> model_type() const {
+    return GetOptional<int8_t, quantra::enums::IrModelType>(VT_MODEL_TYPE);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -219,7 +221,7 @@ struct CapFloorModelSpecBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_model_type(quantra::enums::IrModelType model_type) {
-    fbb_.AddElement<int8_t>(CapFloorModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type), 0);
+    fbb_.AddElement<int8_t>(CapFloorModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type));
   }
   explicit CapFloorModelSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -234,9 +236,9 @@ struct CapFloorModelSpecBuilder {
 
 inline ::flatbuffers::Offset<CapFloorModelSpec> CreateCapFloorModelSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black) {
+    ::flatbuffers::Optional<quantra::enums::IrModelType> model_type = ::flatbuffers::nullopt) {
   CapFloorModelSpecBuilder builder_(_fbb);
-  builder_.add_model_type(model_type);
+  if(model_type) { builder_.add_model_type(*model_type); }
   return builder_.Finish();
 }
 
@@ -496,7 +498,7 @@ inline ::flatbuffers::Offset<SwaptionHwCalibrationSpec> CreateSwaptionHwCalibrat
 
 struct SwaptionModelSpecT : public ::flatbuffers::NativeTable {
   typedef SwaptionModelSpec TableType;
-  quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black;
+  ::flatbuffers::Optional<quantra::enums::IrModelType> model_type = ::flatbuffers::nullopt;
   double hw_a = 0.03;
   double hw_sigma = 0.01;
   int32_t lattice_steps = 50;
@@ -520,9 +522,10 @@ struct SwaptionModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table 
     VT_PARAM_MODE = 12,
     VT_HW_CALIBRATION = 14
   };
-  /// Swaption pricing model type.
-  quantra::enums::IrModelType model_type() const {
-    return static_cast<quantra::enums::IrModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
+  /// Swaption pricing model type. Presence-required: an omitted type is a
+  /// 400, never the alphabetical-0 default (Black).
+  ::flatbuffers::Optional<quantra::enums::IrModelType> model_type() const {
+    return GetOptional<int8_t, quantra::enums::IrModelType>(VT_MODEL_TYPE);
   }
   /// Explicit Hull-White "a" used when param_mode=Explicit.
   double hw_a() const {
@@ -565,7 +568,7 @@ struct SwaptionModelSpecBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_model_type(quantra::enums::IrModelType model_type) {
-    fbb_.AddElement<int8_t>(SwaptionModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type), 0);
+    fbb_.AddElement<int8_t>(SwaptionModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type));
   }
   void add_hw_a(double hw_a) {
     fbb_.AddElement<double>(SwaptionModelSpec::VT_HW_A, hw_a, 0.03);
@@ -595,7 +598,7 @@ struct SwaptionModelSpecBuilder {
 
 inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::IrModelType model_type = quantra::enums::IrModelType_Black,
+    ::flatbuffers::Optional<quantra::enums::IrModelType> model_type = ::flatbuffers::nullopt,
     double hw_a = 0.03,
     double hw_sigma = 0.01,
     int32_t lattice_steps = 50,
@@ -607,7 +610,7 @@ inline ::flatbuffers::Offset<SwaptionModelSpec> CreateSwaptionModelSpec(
   builder_.add_hw_calibration(hw_calibration);
   builder_.add_lattice_steps(lattice_steps);
   builder_.add_param_mode(param_mode);
-  builder_.add_model_type(model_type);
+  if(model_type) { builder_.add_model_type(*model_type); }
   return builder_.Finish();
 }
 
@@ -712,7 +715,7 @@ inline ::flatbuffers::Offset<CdsModelSpec> CreateCdsModelSpec(
 
 struct EquityVanillaModelSpecT : public ::flatbuffers::NativeTable {
   typedef EquityVanillaModelSpec TableType;
-  quantra::enums::EquityModelType model_type = quantra::enums::EquityModelType_BlackScholesAnalytic;
+  ::flatbuffers::Optional<quantra::enums::EquityModelType> model_type = ::flatbuffers::nullopt;
   int32_t binomial_steps = 500;
 };
 
@@ -724,8 +727,10 @@ struct EquityVanillaModelSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
     VT_MODEL_TYPE = 4,
     VT_BINOMIAL_STEPS = 6
   };
-  quantra::enums::EquityModelType model_type() const {
-    return static_cast<quantra::enums::EquityModelType>(GetField<int8_t>(VT_MODEL_TYPE, 0));
+  /// Pricing model / engine selector. Presence-required: an omitted type is a
+  /// 400, never the alphabetical-0 default (BlackScholesAnalytic).
+  ::flatbuffers::Optional<quantra::enums::EquityModelType> model_type() const {
+    return GetOptional<int8_t, quantra::enums::EquityModelType>(VT_MODEL_TYPE);
   }
   int32_t binomial_steps() const {
     return GetField<int32_t>(VT_BINOMIAL_STEPS, 500);
@@ -746,7 +751,7 @@ struct EquityVanillaModelSpecBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_model_type(quantra::enums::EquityModelType model_type) {
-    fbb_.AddElement<int8_t>(EquityVanillaModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type), 0);
+    fbb_.AddElement<int8_t>(EquityVanillaModelSpec::VT_MODEL_TYPE, static_cast<int8_t>(model_type));
   }
   void add_binomial_steps(int32_t binomial_steps) {
     fbb_.AddElement<int32_t>(EquityVanillaModelSpec::VT_BINOMIAL_STEPS, binomial_steps, 500);
@@ -764,11 +769,11 @@ struct EquityVanillaModelSpecBuilder {
 
 inline ::flatbuffers::Offset<EquityVanillaModelSpec> CreateEquityVanillaModelSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::EquityModelType model_type = quantra::enums::EquityModelType_BlackScholesAnalytic,
+    ::flatbuffers::Optional<quantra::enums::EquityModelType> model_type = ::flatbuffers::nullopt,
     int32_t binomial_steps = 500) {
   EquityVanillaModelSpecBuilder builder_(_fbb);
   builder_.add_binomial_steps(binomial_steps);
-  builder_.add_model_type(model_type);
+  if(model_type) { builder_.add_model_type(*model_type); }
   return builder_.Finish();
 }
 

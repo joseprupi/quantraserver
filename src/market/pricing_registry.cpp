@@ -226,15 +226,23 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             switch (spec->payload_type()) {
                 case quantra::ModelPayload_CapFloorModelSpec: {
                     const auto* p = spec->payload_as_CapFloorModelSpec();
+                    if (!p->model_type().has_value()) {
+                        QUANTRA_INVALID_ARGUMENT(
+                            "CapFloorModelSpec.model_type is required for model id: " + id);
+                    }
                     CapFloorModelDomain d;
-                    d.model_type = static_cast<IrModelTypeKind>(p->model_type());
+                    d.model_type = static_cast<IrModelTypeKind>(p->model_type().value());
                     domain.payload = d;
                     break;
                 }
                 case quantra::ModelPayload_SwaptionModelSpec: {
                     const auto* p = spec->payload_as_SwaptionModelSpec();
+                    if (!p->model_type().has_value()) {
+                        QUANTRA_INVALID_ARGUMENT(
+                            "SwaptionModelSpec.model_type is required for model id: " + id);
+                    }
                     SwaptionModelDomain d;
-                    d.model_type = static_cast<IrModelTypeKind>(p->model_type());
+                    d.model_type = static_cast<IrModelTypeKind>(p->model_type().value());
                     d.hw_a = p->hw_a();
                     d.hw_sigma = p->hw_sigma();
                     d.lattice_steps = p->lattice_steps();
@@ -281,8 +289,12 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                 }
                 case quantra::ModelPayload_EquityVanillaModelSpec: {
                     const auto* p = spec->payload_as_EquityVanillaModelSpec();
+                    if (!p->model_type().has_value()) {
+                        QUANTRA_INVALID_ARGUMENT(
+                            "EquityVanillaModelSpec.model_type is required for model id: " + id);
+                    }
                     EquityVanillaModelDomain d;
-                    d.model_type = static_cast<EquityModelTypeKind>(p->model_type());
+                    d.model_type = static_cast<EquityModelTypeKind>(p->model_type().value());
                     d.binomial_steps = p->binomial_steps();
                     domain.payload = d;
                     break;

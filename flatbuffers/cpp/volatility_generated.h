@@ -621,7 +621,7 @@ struct IrVolBaseSpecT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant;
-  quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal;
+  ::flatbuffers::Optional<quantra::enums::VolatilityType> volatility_type = ::flatbuffers::nullopt;
   double displacement = 0.0;
   double constant_vol = 0.0;
   std::string quote_id{};
@@ -657,8 +657,11 @@ struct IrVolBaseSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::VolSurfaceShape shape() const {
     return static_cast<quantra::enums::VolSurfaceShape>(GetField<int8_t>(VT_SHAPE, 0));
   }
-  quantra::enums::VolatilityType volatility_type() const {
-    return static_cast<quantra::enums::VolatilityType>(GetField<int8_t>(VT_VOLATILITY_TYPE, 0));
+  /// Quotation convention of the supplied vols. Presence-required: an omitted
+  /// type is a 400, never the alphabetical-0 default (Normal), which would
+  /// price a lognormal-quoted surface as normal vols.
+  ::flatbuffers::Optional<quantra::enums::VolatilityType> volatility_type() const {
+    return GetOptional<int8_t, quantra::enums::VolatilityType>(VT_VOLATILITY_TYPE);
   }
   /// Only meaningful for ShiftedLognormal.
   double displacement() const {
@@ -711,7 +714,7 @@ struct IrVolBaseSpecBuilder {
     fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_SHAPE, static_cast<int8_t>(shape), 0);
   }
   void add_volatility_type(quantra::enums::VolatilityType volatility_type) {
-    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_VOLATILITY_TYPE, static_cast<int8_t>(volatility_type), 0);
+    fbb_.AddElement<int8_t>(IrVolBaseSpec::VT_VOLATILITY_TYPE, static_cast<int8_t>(volatility_type));
   }
   void add_displacement(double displacement) {
     fbb_.AddElement<double>(IrVolBaseSpec::VT_DISPLACEMENT, displacement, 0.0);
@@ -740,7 +743,7 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
-    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
+    ::flatbuffers::Optional<quantra::enums::VolatilityType> volatility_type = ::flatbuffers::nullopt,
     double displacement = 0.0,
     double constant_vol = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
@@ -749,7 +752,7 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpec(
   builder_.add_displacement(displacement);
   builder_.add_quote_id(quote_id);
   builder_.add_reference_date(reference_date);
-  builder_.add_volatility_type(volatility_type);
+  if(volatility_type) { builder_.add_volatility_type(*volatility_type); }
   builder_.add_shape(shape);
   if(day_counter) { builder_.add_day_counter(*day_counter); }
   if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
@@ -764,7 +767,7 @@ inline ::flatbuffers::Offset<IrVolBaseSpec> CreateIrVolBaseSpecDirect(
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     quantra::enums::VolSurfaceShape shape = quantra::enums::VolSurfaceShape_Constant,
-    quantra::enums::VolatilityType volatility_type = quantra::enums::VolatilityType_Normal,
+    ::flatbuffers::Optional<quantra::enums::VolatilityType> volatility_type = ::flatbuffers::nullopt,
     double displacement = 0.0,
     double constant_vol = 0.0,
     const char *quote_id = nullptr) {

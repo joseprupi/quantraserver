@@ -153,7 +153,9 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
                 inst.exerciseDate);
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT("Invalid exercise type");
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption.exercise_type is not a known exercise style: " +
+                std::to_string(static_cast<int>(exerciseType)));
     }
 
     QuantLib::Settlement::Type settlementType;
@@ -167,7 +169,9 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
         default:
             // Fail closed: an unknown settlement type must not
             // silently price as Physical (mirrors the exercise-type switch).
-            QUANTRA_INVALID_ARGUMENT("Invalid settlement type");
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption.settlement_type is not a known settlement type: " +
+                std::to_string(static_cast<int>(inst.settlementType)));
     }
 
     return std::make_shared<QuantLib::Swaption>(
@@ -348,7 +352,8 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
             return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, model.lattice_steps);
         }
     }
-    QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Unknown IrModelType value " +
+    QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
+                  "': SwaptionModelSpec.model_type is not a known model type: " +
                   std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }

@@ -71,7 +71,11 @@ CalibrateSwaptionModelInputs CalibrateSwaptionModelMapper::toInputs(
     if (modelSpec == nullptr) {
         QUANTRA_NOT_FOUND("Model not found: " + inputs.modelId);
     }
-    if (modelSpec->model_type() != quantra::enums::IrModelType_HullWhiteLattice) {
+    if (!modelSpec->model_type().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "SwaptionModelSpec.model_type is required for model id: " + inputs.modelId);
+    }
+    if (modelSpec->model_type().value() != quantra::enums::IrModelType_HullWhiteLattice) {
         QUANTRA_INVALID_ARGUMENT(
             "Model '" + inputs.modelId + "' must be HullWhiteLattice for calibration");
     }

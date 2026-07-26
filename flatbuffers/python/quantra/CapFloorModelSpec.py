@@ -25,12 +25,14 @@ class CapFloorModelSpec(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Pricing model / engine selector. Presence-required: an omitted type is a
+    # 400, never the alphabetical-0 default (Black).
     # CapFloorModelSpec
     def ModelType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def CapFloorModelSpecStart(builder):
     builder.StartObject(1)
@@ -39,7 +41,7 @@ def Start(builder):
     CapFloorModelSpecStart(builder)
 
 def CapFloorModelSpecAddModelType(builder, modelType):
-    builder.PrependInt8Slot(0, modelType, 0)
+    builder.PrependInt8Slot(0, modelType, None)
 
 def AddModelType(builder, modelType):
     CapFloorModelSpecAddModelType(builder, modelType)
@@ -55,7 +57,7 @@ class CapFloorModelSpecT(object):
 
     # CapFloorModelSpecT
     def __init__(self):
-        self.modelType = 0  # type: int
+        self.modelType = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

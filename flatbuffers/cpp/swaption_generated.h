@@ -134,8 +134,8 @@ bool VerifySwaptionUnderlyingVector(::flatbuffers::Verifier &verifier, const ::f
 
 struct SwaptionT : public ::flatbuffers::NativeTable {
   typedef Swaption TableType;
-  quantra::enums::ExerciseType exercise_type = quantra::enums::ExerciseType_European;
-  quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical;
+  ::flatbuffers::Optional<quantra::enums::ExerciseType> exercise_type = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::SettlementType> settlement_type = ::flatbuffers::nullopt;
   quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC;
   std::string exercise_date{};
   std::vector<std::string> exercise_dates{};
@@ -155,13 +155,15 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_UNDERLYING_TYPE = 14,
     VT_UNDERLYING = 16
   };
-  /// Exercise style: European, Bermudan, or American.
-  quantra::enums::ExerciseType exercise_type() const {
-    return static_cast<quantra::enums::ExerciseType>(GetField<int8_t>(VT_EXERCISE_TYPE, 0));
+  /// Exercise style: European, Bermudan, or American. Presence-required: an
+  /// omitted style is a 400, never the alphabetical-0 default (European).
+  ::flatbuffers::Optional<quantra::enums::ExerciseType> exercise_type() const {
+    return GetOptional<int8_t, quantra::enums::ExerciseType>(VT_EXERCISE_TYPE);
   }
-  /// Settlement type for swaption payoff handling.
-  quantra::enums::SettlementType settlement_type() const {
-    return static_cast<quantra::enums::SettlementType>(GetField<int8_t>(VT_SETTLEMENT_TYPE, 0));
+  /// Settlement type for swaption payoff handling. Presence-required: an
+  /// omitted type is a 400, never the alphabetical-0 default (Physical).
+  ::flatbuffers::Optional<quantra::enums::SettlementType> settlement_type() const {
+    return GetOptional<int8_t, quantra::enums::SettlementType>(VT_SETTLEMENT_TYPE);
   }
   /// Settlement method (physical/other) per market convention.
   quantra::enums::SettlementMethod settlement_method() const {
@@ -222,10 +224,10 @@ struct SwaptionBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_exercise_type(quantra::enums::ExerciseType exercise_type) {
-    fbb_.AddElement<int8_t>(Swaption::VT_EXERCISE_TYPE, static_cast<int8_t>(exercise_type), 0);
+    fbb_.AddElement<int8_t>(Swaption::VT_EXERCISE_TYPE, static_cast<int8_t>(exercise_type));
   }
   void add_settlement_type(quantra::enums::SettlementType settlement_type) {
-    fbb_.AddElement<int8_t>(Swaption::VT_SETTLEMENT_TYPE, static_cast<int8_t>(settlement_type), 0);
+    fbb_.AddElement<int8_t>(Swaption::VT_SETTLEMENT_TYPE, static_cast<int8_t>(settlement_type));
   }
   void add_settlement_method(quantra::enums::SettlementMethod settlement_method) {
     fbb_.AddElement<int8_t>(Swaption::VT_SETTLEMENT_METHOD, static_cast<int8_t>(settlement_method), 0);
@@ -255,8 +257,8 @@ struct SwaptionBuilder {
 
 inline ::flatbuffers::Offset<Swaption> CreateSwaption(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::ExerciseType exercise_type = quantra::enums::ExerciseType_European,
-    quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical,
+    ::flatbuffers::Optional<quantra::enums::ExerciseType> exercise_type = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::SettlementType> settlement_type = ::flatbuffers::nullopt,
     quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC,
     ::flatbuffers::Offset<::flatbuffers::String> exercise_date = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<::flatbuffers::String>>> exercise_dates = 0,
@@ -268,15 +270,15 @@ inline ::flatbuffers::Offset<Swaption> CreateSwaption(
   builder_.add_exercise_date(exercise_date);
   builder_.add_underlying_type(underlying_type);
   builder_.add_settlement_method(settlement_method);
-  builder_.add_settlement_type(settlement_type);
-  builder_.add_exercise_type(exercise_type);
+  if(settlement_type) { builder_.add_settlement_type(*settlement_type); }
+  if(exercise_type) { builder_.add_exercise_type(*exercise_type); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Swaption> CreateSwaptionDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::ExerciseType exercise_type = quantra::enums::ExerciseType_European,
-    quantra::enums::SettlementType settlement_type = quantra::enums::SettlementType_Physical,
+    ::flatbuffers::Optional<quantra::enums::ExerciseType> exercise_type = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::SettlementType> settlement_type = ::flatbuffers::nullopt,
     quantra::enums::SettlementMethod settlement_method = quantra::enums::SettlementMethod_PhysicalOTC,
     const char *exercise_date = nullptr,
     const std::vector<::flatbuffers::Offset<::flatbuffers::String>> *exercise_dates = nullptr,
