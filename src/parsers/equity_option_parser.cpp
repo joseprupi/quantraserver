@@ -116,7 +116,14 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
     if (option->barrier()) {
         const auto* b = option->barrier();
         if (b->monitoring() != quantra::enums::EquityBarrierMonitoring_Continuous) {
-            QUANTRA_INVALID_ARGUMENT("Equity barrier option currently supports only Continuous monitoring");
+            // QuantLib 1.41 ships no engine that prices a barrier monitored on a
+            // discrete date schedule (AnalyticBarrierEngine, FdBlackScholesBarrier
+            // and MCBarrier all monitor continuously). Rather than hand-roll a
+            // continuity correction, reject Discrete monitoring explicitly.
+            QUANTRA_INVALID_ARGUMENT(
+                "Equity barrier option supports only Continuous monitoring; "
+                "Discrete monitoring (monitoring_dates) is not implemented "
+                "(QuantLib provides no native discrete-barrier engine)");
         }
         parsed.hasBarrier = true;
         parsed.barrierType = EquityBarrierTypeToQL(b->barrier_type());

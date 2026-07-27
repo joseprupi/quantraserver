@@ -74,6 +74,15 @@ struct VanillaSwapIborLegData {
     std::string indexId;
     double spread = 0.0;
     QuantLib::DayCounter dayCounter;
+    /// Per-coupon fixing-days override applied via IborLeg::withFixingDays.
+    /// Defaults to the FB schema default (2). Honored on the manual-leg path
+    /// (in-arrears or amortizing); the plain in-advance QuantLib::VanillaSwap
+    /// path uses the index's own fixing days.
+    int fixingDays = 2;
+    /// When true the coupon fixes at the end of its accrual period
+    /// (IborLeg::inArrears). Forces the manual-leg path since QuantLib::VanillaSwap
+    /// cannot express an in-arrears floating leg.
+    bool inArrears = false;
 };
 
 /// Plain CMS floating-leg description (parsed by the mapper).

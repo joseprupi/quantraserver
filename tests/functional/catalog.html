@@ -130,6 +130,12 @@
 <td class="npv">-45,702.75</td>
 </tr>
 <tr>
+<td><div class="title">EUR 5Y payer swap, in-arrears Euribor 6M floating leg</div><div class="desc">5Y payer swap whose floating leg fixes in arrears (in_arrears=true): each coupon fixes at the end of its accrual period instead of the start. QuantLib::VanillaSwap cannot express an in-arrears leg, so the server builds an IborLeg with .inArrears(true) and prices a generic Swap; the reference mirrors this with a zero-vol Black pricer. On the upward-sloping curve the shifted fixing dates read higher forwards than the in-advance trade, so the NPVs differ.</div></td>
+<td><code>payer</code> <code>in-arrears floating leg</code> <code>shifted fixing date</code> <code>generic Swap from legs</code> <code>Euribor6M</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_euribor6m_in_arrears.json">irs_eur_5y_payer_euribor6m_in_arrears.json</a></td>
+<td class="npv">14,720.13</td>
+</tr>
+<tr>
 <td><div class="title">EUR 5Y payer OIS vs ESTR (compounded)</div><div class="desc">5Y overnight indexed swap: pay 2.70% fixed (annual, Act/360), receive daily-compounded ESTR. The curve is bootstrapped from OIS par quotes, so the same instrument family prices the curve and the trade.</div></td>
 <td><code>payer</code> <code>OIS</code> <code>ESTR compounded</code> <code>curve from OIS quotes</code></td>
 <td><a href="../../examples/data/ir_swaps/ois_eur_5y_payer_estr.json">ois_eur_5y_payer_estr.json</a></td>
@@ -1187,6 +1193,6 @@
 </tr>
 </tbody>
 </table>
-<footer>180 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>181 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

@@ -78,6 +78,10 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
+  /// DEPRECATED / accepted-but-unused. The FRA is built from the index (which
+  /// already carries the day count, calendar and business-day convention) plus
+  /// the dates and strike, so these three fields are ignored if present and may
+  /// be omitted. Kept optional for backward compatibility.
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }

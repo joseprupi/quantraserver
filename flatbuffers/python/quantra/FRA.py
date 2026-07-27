@@ -77,6 +77,10 @@ class FRA(object):
             return obj
         return None
 
+    # DEPRECATED / accepted-but-unused. The FRA is built from the index (which
+    # already carries the day count, calendar and business-day convention) plus
+    # the dates and strike, so these three fields are ignored if present and may
+    # be omitted. Kept optional for backward compatibility.
     # FRA
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))

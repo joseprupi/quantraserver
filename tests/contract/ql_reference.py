@@ -1051,7 +1051,34 @@ def price_vanilla_swap_ql(request: dict) -> float:
     else:
         index = ql.Euribor6M(forward_curve)
     swap_type = ql.VanillaSwap.Payer if swap["swap_type"] == "Payer" else ql.VanillaSwap.Receiver
-    
+
+    # An in-arrears floating leg cannot be expressed by ql.VanillaSwap, so mirror
+    # the server's manual-leg path (vanilla_swap_evaluator.cpp priceIborManualLeg):
+    # FixedRateLeg + IborLeg(inArrears=True) priced as a generic Swap with a
+    # zero-vol Black pricer. The coupon fixes at the end of its accrual period; no
+    # convexity adjustment is applied (no caplet vol is supplied), so the only
+    # difference vs the in-advance swap is the shifted fixing date.
+    if bool(float_leg.get("in_arrears", False)):
+        fixed_dc = get_day_counter(fixed_leg.get("day_counter", "Thirty360"))
+        float_dc = get_day_counter(float_leg.get("day_counter", "Actual360"))
+        payment_convention = float_schedule.businessDayConvention()
+        ql_fixed_leg = ql.FixedRateLeg(
+            fixed_schedule, fixed_dc, [fixed_leg["notional"]],
+            [fixed_leg["rate"]], payment_convention)
+        ql_ibor_leg = ql.IborLeg(
+            [float_leg["notional"]], float_schedule, index, float_dc,
+            payment_convention, [float_leg.get("fixing_days", 2)], [1.0],
+            [float_leg.get("spread", 0.0)], [], [], True)
+        vol = ql.ConstantOptionletVolatility(
+            0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
+        pricer = ql.BlackIborCouponPricer()
+        pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
+        ql.setCouponPricer(ql_ibor_leg, pricer)
+        payer_fixed = swap["swap_type"] == "Payer"
+        ql_swap = ql.Swap([ql_fixed_leg, ql_ibor_leg], [payer_fixed, not payer_fixed])
+        ql_swap.setPricingEngine(ql.DiscountingSwapEngine(curve))
+        return ql_swap.NPV()
+
     ql_swap = ql.VanillaSwap(
         swap_type,
         fixed_leg["notional"],

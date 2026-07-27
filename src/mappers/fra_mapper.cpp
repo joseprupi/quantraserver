@@ -36,15 +36,12 @@ FraTrade extractTrade(const quantra::PriceFRA* pricing) {
     if (!fra->fra_type().has_value()) {
         QUANTRA_INVALID_ARGUMENT("FRA.fra_type is required");
     }
-    if (!fra->day_counter().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("FRA.day_counter is required");
-    }
-    if (!fra->calendar().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("FRA.calendar is required");
-    }
-    if (!fra->business_day_convention().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("FRA.business_day_convention is required");
-    }
+    // NOTE: fra->day_counter(), fra->calendar() and fra->business_day_convention()
+    // are intentionally NOT read. QuantLib builds the ForwardRateAgreement from
+    // the index (which already carries these conventions) plus the value/maturity
+    // dates and strike, so these FRA-level fields are inert. They are accepted for
+    // backward compatibility but ignored (see fra.fbs); requiring them would only
+    // force clients to send data that changes nothing.
 
     FraTrade trade;
     trade.startDate = DateToQL(fra->start_date()->str());

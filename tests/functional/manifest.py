@@ -390,6 +390,28 @@ CASES = [
         "exercises": ["constant notionals via vector", "path equivalence",
                       "VanillaSwap parity", "payer"],
     },
+    {
+        "id": "irs_eur_5y_payer_euribor6m_in_arrears",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap, in-arrears Euribor 6M floating leg",
+        "description": (
+            "5Y payer swap whose floating leg fixes in arrears "
+            "(in_arrears=true): each coupon fixes at the end of its accrual "
+            "period instead of the start. QuantLib::VanillaSwap cannot express "
+            "an in-arrears leg, so the server builds an IborLeg with "
+            ".inArrears(true) and prices a generic Swap; the reference mirrors "
+            "this with a zero-vol Black pricer. On the upward-sloping curve the "
+            "shifted fixing dates read higher forwards than the in-advance "
+            "trade, so the NPVs differ."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_euribor6m_in_arrears.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["payer", "in-arrears floating leg", "shifted fixing date",
+                      "generic Swap from legs", "Euribor6M"],
+    },
 
     # ------------------------------------------------------------------
     # IR Swaps — OIS (compounded overnight)
