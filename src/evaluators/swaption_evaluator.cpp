@@ -649,9 +649,6 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
             }
             row.dv01 = row.delta * 1.0e-4;
         }
-        if (!std::isfinite(row.impliedVolatility)) {
-            row.impliedVolatility = -1.0;
-        }
 
         if (ctx.options.swaptionPricingRebump) {
             const double bump = 1.0e-4; // 1bp

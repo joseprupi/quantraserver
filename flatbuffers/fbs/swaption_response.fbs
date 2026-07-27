@@ -43,20 +43,20 @@ table SwaptionResponse {
     vol_kind:enums.SwaptionVolKind;
     /// Effective model parameter mode used by the swaption engine.
     used_model_param_mode:enums.ModelParamMode = Explicit;
-    /// Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
-    used_hw_a:double = -1.0;
-    /// Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
-    used_hw_sigma:double = -1.0;
-    /// Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
-    used_hw_rmse:double = -1.0;
-    /// Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
-    used_hw_num_helpers:int = -1;
-    /// Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
-    used_hw_grid_rows:int = -1;
-    /// Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
-    used_hw_grid_cols:int = -1;
-    /// Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
-    used_hw_grid_points:int = -1;
+    /// Effective Hull-White mean reversion "a" used by pricing. Absent when model is not HullWhiteLattice.
+    used_hw_a:double = null;
+    /// Effective Hull-White sigma used by pricing. Absent when model is not HullWhiteLattice.
+    used_hw_sigma:double = null;
+    /// Calibration RMSE for inline-calibrated Hull-White. Absent when no inline calibration.
+    used_hw_rmse:double = null;
+    /// Number of calibration helpers for inline-calibrated Hull-White. Absent when no inline calibration.
+    used_hw_num_helpers:int = null;
+    /// Calibration grid rows for inline-calibrated Hull-White. Absent when no inline calibration.
+    used_hw_grid_rows:int = null;
+    /// Calibration grid columns for inline-calibrated Hull-White. Absent when no inline calibration.
+    used_hw_grid_cols:int = null;
+    /// Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.
+    used_hw_grid_points:int = null;
 }
 
 /// Response wrapper for multiple swaptions.

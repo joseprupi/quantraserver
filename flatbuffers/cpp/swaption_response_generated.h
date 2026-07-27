@@ -47,13 +47,13 @@ struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   double used_cube_node_atm = 0.0;
   quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant;
   quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit;
-  double used_hw_a = -1.0;
-  double used_hw_sigma = -1.0;
-  double used_hw_rmse = -1.0;
-  int32_t used_hw_num_helpers = -1;
-  int32_t used_hw_grid_rows = -1;
-  int32_t used_hw_grid_cols = -1;
-  int32_t used_hw_grid_points = -1;
+  ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_hw_sigma = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_hw_rmse = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> used_hw_num_helpers = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt;
 };
 
 /// Swaption pricing response with NPV, Greeks, and diagnostics.
@@ -164,33 +164,33 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::enums::ModelParamMode used_model_param_mode() const {
     return static_cast<quantra::enums::ModelParamMode>(GetField<int8_t>(VT_USED_MODEL_PARAM_MODE, 0));
   }
-  /// Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
-  double used_hw_a() const {
-    return GetField<double>(VT_USED_HW_A, -1.0);
+  /// Effective Hull-White mean reversion "a" used by pricing. Absent when model is not HullWhiteLattice.
+  ::flatbuffers::Optional<double> used_hw_a() const {
+    return GetOptional<double, double>(VT_USED_HW_A);
   }
-  /// Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
-  double used_hw_sigma() const {
-    return GetField<double>(VT_USED_HW_SIGMA, -1.0);
+  /// Effective Hull-White sigma used by pricing. Absent when model is not HullWhiteLattice.
+  ::flatbuffers::Optional<double> used_hw_sigma() const {
+    return GetOptional<double, double>(VT_USED_HW_SIGMA);
   }
-  /// Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
-  double used_hw_rmse() const {
-    return GetField<double>(VT_USED_HW_RMSE, -1.0);
+  /// Calibration RMSE for inline-calibrated Hull-White. Absent when no inline calibration.
+  ::flatbuffers::Optional<double> used_hw_rmse() const {
+    return GetOptional<double, double>(VT_USED_HW_RMSE);
   }
-  /// Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
-  int32_t used_hw_num_helpers() const {
-    return GetField<int32_t>(VT_USED_HW_NUM_HELPERS, -1);
+  /// Number of calibration helpers for inline-calibrated Hull-White. Absent when no inline calibration.
+  ::flatbuffers::Optional<int32_t> used_hw_num_helpers() const {
+    return GetOptional<int32_t, int32_t>(VT_USED_HW_NUM_HELPERS);
   }
-  /// Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
-  int32_t used_hw_grid_rows() const {
-    return GetField<int32_t>(VT_USED_HW_GRID_ROWS, -1);
+  /// Calibration grid rows for inline-calibrated Hull-White. Absent when no inline calibration.
+  ::flatbuffers::Optional<int32_t> used_hw_grid_rows() const {
+    return GetOptional<int32_t, int32_t>(VT_USED_HW_GRID_ROWS);
   }
-  /// Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
-  int32_t used_hw_grid_cols() const {
-    return GetField<int32_t>(VT_USED_HW_GRID_COLS, -1);
+  /// Calibration grid columns for inline-calibrated Hull-White. Absent when no inline calibration.
+  ::flatbuffers::Optional<int32_t> used_hw_grid_cols() const {
+    return GetOptional<int32_t, int32_t>(VT_USED_HW_GRID_COLS);
   }
-  /// Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
-  int32_t used_hw_grid_points() const {
-    return GetField<int32_t>(VT_USED_HW_GRID_POINTS, -1);
+  /// Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.
+  ::flatbuffers::Optional<int32_t> used_hw_grid_points() const {
+    return GetOptional<int32_t, int32_t>(VT_USED_HW_GRID_POINTS);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -291,25 +291,25 @@ struct SwaptionResponseBuilder {
     fbb_.AddElement<int8_t>(SwaptionResponse::VT_USED_MODEL_PARAM_MODE, static_cast<int8_t>(used_model_param_mode), 0);
   }
   void add_used_hw_a(double used_hw_a) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_A, used_hw_a, -1.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_A, used_hw_a);
   }
   void add_used_hw_sigma(double used_hw_sigma) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_SIGMA, used_hw_sigma, -1.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_SIGMA, used_hw_sigma);
   }
   void add_used_hw_rmse(double used_hw_rmse) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_RMSE, used_hw_rmse, -1.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_HW_RMSE, used_hw_rmse);
   }
   void add_used_hw_num_helpers(int32_t used_hw_num_helpers) {
-    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_NUM_HELPERS, used_hw_num_helpers, -1);
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_NUM_HELPERS, used_hw_num_helpers);
   }
   void add_used_hw_grid_rows(int32_t used_hw_grid_rows) {
-    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_ROWS, used_hw_grid_rows, -1);
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_ROWS, used_hw_grid_rows);
   }
   void add_used_hw_grid_cols(int32_t used_hw_grid_cols) {
-    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_COLS, used_hw_grid_cols, -1);
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_COLS, used_hw_grid_cols);
   }
   void add_used_hw_grid_points(int32_t used_hw_grid_points) {
-    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_POINTS, used_hw_grid_points, -1);
+    fbb_.AddElement<int32_t>(SwaptionResponse::VT_USED_HW_GRID_POINTS, used_hw_grid_points);
   }
   explicit SwaptionResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -343,17 +343,17 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     double used_cube_node_atm = 0.0,
     quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
     quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
-    double used_hw_a = -1.0,
-    double used_hw_sigma = -1.0,
-    double used_hw_rmse = -1.0,
-    int32_t used_hw_num_helpers = -1,
-    int32_t used_hw_grid_rows = -1,
-    int32_t used_hw_grid_cols = -1,
-    int32_t used_hw_grid_points = -1) {
+    ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_sigma = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_rmse = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_num_helpers = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt) {
   SwaptionResponseBuilder builder_(_fbb);
-  builder_.add_used_hw_rmse(used_hw_rmse);
-  builder_.add_used_hw_sigma(used_hw_sigma);
-  builder_.add_used_hw_a(used_hw_a);
+  if(used_hw_rmse) { builder_.add_used_hw_rmse(*used_hw_rmse); }
+  if(used_hw_sigma) { builder_.add_used_hw_sigma(*used_hw_sigma); }
+  if(used_hw_a) { builder_.add_used_hw_a(*used_hw_a); }
   builder_.add_used_cube_node_atm(used_cube_node_atm);
   builder_.add_used_spread_from_atm(used_spread_from_atm);
   builder_.add_used_atm_forward(used_atm_forward);
@@ -368,10 +368,10 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   builder_.add_atm_forward(atm_forward);
   builder_.add_implied_volatility(implied_volatility);
   builder_.add_npv(npv);
-  builder_.add_used_hw_grid_points(used_hw_grid_points);
-  builder_.add_used_hw_grid_cols(used_hw_grid_cols);
-  builder_.add_used_hw_grid_rows(used_hw_grid_rows);
-  builder_.add_used_hw_num_helpers(used_hw_num_helpers);
+  if(used_hw_grid_points) { builder_.add_used_hw_grid_points(*used_hw_grid_points); }
+  if(used_hw_grid_cols) { builder_.add_used_hw_grid_cols(*used_hw_grid_cols); }
+  if(used_hw_grid_rows) { builder_.add_used_hw_grid_rows(*used_hw_grid_rows); }
+  if(used_hw_num_helpers) { builder_.add_used_hw_num_helpers(*used_hw_num_helpers); }
   builder_.add_used_swap_tenor(used_swap_tenor);
   builder_.add_used_option_expiry(used_option_expiry);
   builder_.add_used_model_param_mode(used_model_param_mode);
@@ -401,13 +401,13 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
     double used_cube_node_atm = 0.0,
     quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
     quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
-    double used_hw_a = -1.0,
-    double used_hw_sigma = -1.0,
-    double used_hw_rmse = -1.0,
-    int32_t used_hw_num_helpers = -1,
-    int32_t used_hw_grid_rows = -1,
-    int32_t used_hw_grid_cols = -1,
-    int32_t used_hw_grid_points = -1) {
+    ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_sigma = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_hw_rmse = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_num_helpers = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_rows = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_cols = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> used_hw_grid_points = ::flatbuffers::nullopt) {
   auto used_option_expiry__ = used_option_expiry ? _fbb.CreateString(used_option_expiry) : 0;
   auto used_swap_tenor__ = used_swap_tenor ? _fbb.CreateString(used_swap_tenor) : 0;
   return quantra::CreateSwaptionResponse(

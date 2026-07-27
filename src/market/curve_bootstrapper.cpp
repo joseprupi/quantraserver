@@ -217,7 +217,11 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); i++) {
         auto ts = curves->Get(i);
         if (!ts->id()) QUANTRA_INVALID_ARGUMENT("TermStructure.id is required for multi-curve bootstrapping");
-        curveIndex[ts->id()->str()] = ts;
+        std::string curveId = ts->id()->str();
+        if (curveIndex.count(curveId) != 0) {
+            QUANTRA_INVALID_ARGUMENT("duplicate curve id: " + curveId);
+        }
+        curveIndex[curveId] = ts;
     }
 
     // ---- 4. Create empty handles and register them ----

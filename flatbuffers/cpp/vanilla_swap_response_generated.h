@@ -46,8 +46,7 @@ struct SwapLegFlowT : public ::flatbuffers::NativeTable {
   double present_value = 0.0;
   std::string fixing_date{};
   double index_fixing = 0.0;
-  bool has_cms_swap_rate = false;
-  double cms_swap_rate = 0.0;
+  ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt;
   double spread = 0.0;
   double rate = 0.0;
 };
@@ -67,10 +66,9 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_PRESENT_VALUE = 18,
     VT_FIXING_DATE = 20,
     VT_INDEX_FIXING = 22,
-    VT_HAS_CMS_SWAP_RATE = 24,
-    VT_CMS_SWAP_RATE = 26,
-    VT_SPREAD = 28,
-    VT_RATE = 30
+    VT_CMS_SWAP_RATE = 24,
+    VT_SPREAD = 26,
+    VT_RATE = 28
   };
   const ::flatbuffers::String *payment_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_PAYMENT_DATE);
@@ -106,13 +104,9 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double index_fixing() const {
     return GetField<double>(VT_INDEX_FIXING, 0.0);
   }
-  /// True when cms_swap_rate is populated for a CMS coupon.
-  bool has_cms_swap_rate() const {
-    return GetField<uint8_t>(VT_HAS_CMS_SWAP_RATE, 0) != 0;
-  }
-  /// CMS swap-rate fixing when has_cms_swap_rate is true.
-  double cms_swap_rate() const {
-    return GetField<double>(VT_CMS_SWAP_RATE, 0.0);
+  /// CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons.
+  ::flatbuffers::Optional<double> cms_swap_rate() const {
+    return GetOptional<double, double>(VT_CMS_SWAP_RATE);
   }
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
@@ -137,7 +131,6 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_FIXING_DATE) &&
            verifier.VerifyString(fixing_date()) &&
            VerifyField<double>(verifier, VT_INDEX_FIXING, 8) &&
-           VerifyField<uint8_t>(verifier, VT_HAS_CMS_SWAP_RATE, 1) &&
            VerifyField<double>(verifier, VT_CMS_SWAP_RATE, 8) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
@@ -182,11 +175,8 @@ struct SwapLegFlowBuilder {
   void add_index_fixing(double index_fixing) {
     fbb_.AddElement<double>(SwapLegFlow::VT_INDEX_FIXING, index_fixing, 0.0);
   }
-  void add_has_cms_swap_rate(bool has_cms_swap_rate) {
-    fbb_.AddElement<uint8_t>(SwapLegFlow::VT_HAS_CMS_SWAP_RATE, static_cast<uint8_t>(has_cms_swap_rate), 0);
-  }
   void add_cms_swap_rate(double cms_swap_rate) {
-    fbb_.AddElement<double>(SwapLegFlow::VT_CMS_SWAP_RATE, cms_swap_rate, 0.0);
+    fbb_.AddElement<double>(SwapLegFlow::VT_CMS_SWAP_RATE, cms_swap_rate);
   }
   void add_spread(double spread) {
     fbb_.AddElement<double>(SwapLegFlow::VT_SPREAD, spread, 0.0);
@@ -217,14 +207,13 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(
     double present_value = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> fixing_date = 0,
     double index_fixing = 0.0,
-    bool has_cms_swap_rate = false,
-    double cms_swap_rate = 0.0,
+    ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt,
     double spread = 0.0,
     double rate = 0.0) {
   SwapLegFlowBuilder builder_(_fbb);
   builder_.add_rate(rate);
   builder_.add_spread(spread);
-  builder_.add_cms_swap_rate(cms_swap_rate);
+  if(cms_swap_rate) { builder_.add_cms_swap_rate(*cms_swap_rate); }
   builder_.add_index_fixing(index_fixing);
   builder_.add_present_value(present_value);
   builder_.add_discount(discount);
@@ -235,7 +224,6 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(
   builder_.add_accrual_end_date(accrual_end_date);
   builder_.add_accrual_start_date(accrual_start_date);
   builder_.add_payment_date(payment_date);
-  builder_.add_has_cms_swap_rate(has_cms_swap_rate);
   return builder_.Finish();
 }
 
@@ -251,8 +239,7 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlowDirect(
     double present_value = 0.0,
     const char *fixing_date = nullptr,
     double index_fixing = 0.0,
-    bool has_cms_swap_rate = false,
-    double cms_swap_rate = 0.0,
+    ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt,
     double spread = 0.0,
     double rate = 0.0) {
   auto payment_date__ = payment_date ? _fbb.CreateString(payment_date) : 0;
@@ -271,7 +258,6 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlowDirect(
       present_value,
       fixing_date__,
       index_fixing,
-      has_cms_swap_rate,
       cms_swap_rate,
       spread,
       rate);
@@ -386,11 +372,11 @@ struct VanillaSwapResponseT : public ::flatbuffers::NativeTable {
   std::vector<std::unique_ptr<quantra::SwapLegFlowT>> floating_leg_flows{};
   quantra::enums::CmsPricerType used_cms_pricer_type = quantra::enums::CmsPricerType_LinearTsr;
   quantra::enums::CmsYieldCurveModel used_cms_yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard;
-  double used_cms_mean_reversion = -1.0;
-  double used_cms_hagan_lower_limit = -1.0;
-  double used_cms_hagan_upper_limit = -1.0;
-  double used_cms_hagan_precision = -1.0;
-  double used_cms_hagan_hard_upper_limit = -1.0;
+  ::flatbuffers::Optional<double> used_cms_mean_reversion = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_cms_hagan_lower_limit = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_cms_hagan_upper_limit = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_cms_hagan_precision = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_cms_hagan_hard_upper_limit = ::flatbuffers::nullopt;
   VanillaSwapResponseT() = default;
   VanillaSwapResponseT(const VanillaSwapResponseT &o);
   VanillaSwapResponseT(VanillaSwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -455,25 +441,25 @@ struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   quantra::enums::CmsYieldCurveModel used_cms_yield_curve_model() const {
     return static_cast<quantra::enums::CmsYieldCurveModel>(GetField<int8_t>(VT_USED_CMS_YIELD_CURVE_MODEL, 0));
   }
-  /// Effective CMS mean reversion used by pricer (-1.0 when no CMS leg).
-  double used_cms_mean_reversion() const {
-    return GetField<double>(VT_USED_CMS_MEAN_REVERSION, -1.0);
+  /// Effective CMS mean reversion used by pricer. Absent when no CMS leg.
+  ::flatbuffers::Optional<double> used_cms_mean_reversion() const {
+    return GetOptional<double, double>(VT_USED_CMS_MEAN_REVERSION);
   }
-  /// Effective Numeric Hagan lower integration limit (-1.0 when not applicable).
-  double used_cms_hagan_lower_limit() const {
-    return GetField<double>(VT_USED_CMS_HAGAN_LOWER_LIMIT, -1.0);
+  /// Effective Numeric Hagan lower integration limit. Absent when not applicable.
+  ::flatbuffers::Optional<double> used_cms_hagan_lower_limit() const {
+    return GetOptional<double, double>(VT_USED_CMS_HAGAN_LOWER_LIMIT);
   }
-  /// Effective Numeric Hagan upper integration limit (-1.0 when not applicable).
-  double used_cms_hagan_upper_limit() const {
-    return GetField<double>(VT_USED_CMS_HAGAN_UPPER_LIMIT, -1.0);
+  /// Effective Numeric Hagan upper integration limit. Absent when not applicable.
+  ::flatbuffers::Optional<double> used_cms_hagan_upper_limit() const {
+    return GetOptional<double, double>(VT_USED_CMS_HAGAN_UPPER_LIMIT);
   }
-  /// Effective Numeric Hagan integration precision (-1.0 when not applicable).
-  double used_cms_hagan_precision() const {
-    return GetField<double>(VT_USED_CMS_HAGAN_PRECISION, -1.0);
+  /// Effective Numeric Hagan integration precision. Absent when not applicable.
+  ::flatbuffers::Optional<double> used_cms_hagan_precision() const {
+    return GetOptional<double, double>(VT_USED_CMS_HAGAN_PRECISION);
   }
-  /// Effective Numeric Hagan hard upper integration limit (-1.0 when not applicable).
-  double used_cms_hagan_hard_upper_limit() const {
-    return GetField<double>(VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT, -1.0);
+  /// Effective Numeric Hagan hard upper integration limit. Absent when not applicable.
+  ::flatbuffers::Optional<double> used_cms_hagan_hard_upper_limit() const {
+    return GetOptional<double, double>(VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -542,19 +528,19 @@ struct VanillaSwapResponseBuilder {
     fbb_.AddElement<int8_t>(VanillaSwapResponse::VT_USED_CMS_YIELD_CURVE_MODEL, static_cast<int8_t>(used_cms_yield_curve_model), 0);
   }
   void add_used_cms_mean_reversion(double used_cms_mean_reversion) {
-    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_MEAN_REVERSION, used_cms_mean_reversion, -1.0);
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_MEAN_REVERSION, used_cms_mean_reversion);
   }
   void add_used_cms_hagan_lower_limit(double used_cms_hagan_lower_limit) {
-    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_LOWER_LIMIT, used_cms_hagan_lower_limit, -1.0);
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_LOWER_LIMIT, used_cms_hagan_lower_limit);
   }
   void add_used_cms_hagan_upper_limit(double used_cms_hagan_upper_limit) {
-    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_UPPER_LIMIT, used_cms_hagan_upper_limit, -1.0);
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_UPPER_LIMIT, used_cms_hagan_upper_limit);
   }
   void add_used_cms_hagan_precision(double used_cms_hagan_precision) {
-    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_PRECISION, used_cms_hagan_precision, -1.0);
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_PRECISION, used_cms_hagan_precision);
   }
   void add_used_cms_hagan_hard_upper_limit(double used_cms_hagan_hard_upper_limit) {
-    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT, used_cms_hagan_hard_upper_limit, -1.0);
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT, used_cms_hagan_hard_upper_limit);
   }
   explicit VanillaSwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -580,17 +566,17 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponse(
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> floating_leg_flows = 0,
     quantra::enums::CmsPricerType used_cms_pricer_type = quantra::enums::CmsPricerType_LinearTsr,
     quantra::enums::CmsYieldCurveModel used_cms_yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard,
-    double used_cms_mean_reversion = -1.0,
-    double used_cms_hagan_lower_limit = -1.0,
-    double used_cms_hagan_upper_limit = -1.0,
-    double used_cms_hagan_precision = -1.0,
-    double used_cms_hagan_hard_upper_limit = -1.0) {
+    ::flatbuffers::Optional<double> used_cms_mean_reversion = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_lower_limit = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_upper_limit = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_precision = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_hard_upper_limit = ::flatbuffers::nullopt) {
   VanillaSwapResponseBuilder builder_(_fbb);
-  builder_.add_used_cms_hagan_hard_upper_limit(used_cms_hagan_hard_upper_limit);
-  builder_.add_used_cms_hagan_precision(used_cms_hagan_precision);
-  builder_.add_used_cms_hagan_upper_limit(used_cms_hagan_upper_limit);
-  builder_.add_used_cms_hagan_lower_limit(used_cms_hagan_lower_limit);
-  builder_.add_used_cms_mean_reversion(used_cms_mean_reversion);
+  if(used_cms_hagan_hard_upper_limit) { builder_.add_used_cms_hagan_hard_upper_limit(*used_cms_hagan_hard_upper_limit); }
+  if(used_cms_hagan_precision) { builder_.add_used_cms_hagan_precision(*used_cms_hagan_precision); }
+  if(used_cms_hagan_upper_limit) { builder_.add_used_cms_hagan_upper_limit(*used_cms_hagan_upper_limit); }
+  if(used_cms_hagan_lower_limit) { builder_.add_used_cms_hagan_lower_limit(*used_cms_hagan_lower_limit); }
+  if(used_cms_mean_reversion) { builder_.add_used_cms_mean_reversion(*used_cms_mean_reversion); }
   builder_.add_floating_leg_npv(floating_leg_npv);
   builder_.add_fixed_leg_npv(fixed_leg_npv);
   builder_.add_floating_leg_bps(floating_leg_bps);
@@ -618,11 +604,11 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponseDirec
     const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *floating_leg_flows = nullptr,
     quantra::enums::CmsPricerType used_cms_pricer_type = quantra::enums::CmsPricerType_LinearTsr,
     quantra::enums::CmsYieldCurveModel used_cms_yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard,
-    double used_cms_mean_reversion = -1.0,
-    double used_cms_hagan_lower_limit = -1.0,
-    double used_cms_hagan_upper_limit = -1.0,
-    double used_cms_hagan_precision = -1.0,
-    double used_cms_hagan_hard_upper_limit = -1.0) {
+    ::flatbuffers::Optional<double> used_cms_mean_reversion = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_lower_limit = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_upper_limit = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_precision = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cms_hagan_hard_upper_limit = ::flatbuffers::nullopt) {
   auto fixed_leg_flows__ = fixed_leg_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*fixed_leg_flows) : 0;
   auto floating_leg_flows__ = floating_leg_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*floating_leg_flows) : 0;
   return quantra::CreateVanillaSwapResponse(
@@ -735,7 +721,6 @@ inline void SwapLegFlow::UnPackTo(SwapLegFlowT *_o, const ::flatbuffers::resolve
   { auto _e = present_value(); _o->present_value = _e; }
   { auto _e = fixing_date(); if (_e) _o->fixing_date = _e->str(); }
   { auto _e = index_fixing(); _o->index_fixing = _e; }
-  { auto _e = has_cms_swap_rate(); _o->has_cms_swap_rate = _e; }
   { auto _e = cms_swap_rate(); _o->cms_swap_rate = _e; }
   { auto _e = spread(); _o->spread = _e; }
   { auto _e = rate(); _o->rate = _e; }
@@ -759,7 +744,6 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(::flatbuffers::FlatB
   auto _present_value = _o->present_value;
   auto _fixing_date = _o->fixing_date.empty() ? 0 : _fbb.CreateString(_o->fixing_date);
   auto _index_fixing = _o->index_fixing;
-  auto _has_cms_swap_rate = _o->has_cms_swap_rate;
   auto _cms_swap_rate = _o->cms_swap_rate;
   auto _spread = _o->spread;
   auto _rate = _o->rate;
@@ -775,7 +759,6 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(::flatbuffers::FlatB
       _present_value,
       _fixing_date,
       _index_fixing,
-      _has_cms_swap_rate,
       _cms_swap_rate,
       _spread,
       _rate);
