@@ -36,12 +36,14 @@ class OisFloatingLeg(object):
             return obj
         return None
 
+    # Notional. Presence-required and must be > 0 (a bare double would default
+    # to a silent zero notional).
     # OisFloatingLeg
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     # OisFloatingLeg
@@ -140,7 +142,7 @@ def AddSchedule(builder, schedule):
     OisFloatingLegAddSchedule(builder, schedule)
 
 def OisFloatingLegAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     OisFloatingLegAddNotional(builder, notional)
@@ -227,7 +229,7 @@ class OisFloatingLegT(object):
     # OisFloatingLegT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
         self.dayCounter = 0  # type: int

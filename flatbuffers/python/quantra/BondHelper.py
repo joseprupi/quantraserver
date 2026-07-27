@@ -41,12 +41,14 @@ class BondHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Bond face amount. Presence-required and must be > 0 (a bare double would
+    # default to a silent zero face).
     # BondHelper
     def FaceAmount(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # BondHelper
     def Schedule(self):
@@ -59,12 +61,14 @@ class BondHelper(object):
             return obj
         return None
 
+    # Coupon rate. Presence-required (a bare double would default to a silent
+    # zero coupon); may be negative, only a missing or non-finite value is rejected.
     # BondHelper
     def CouponRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # BondHelper
     def DayCounter(self):
@@ -80,12 +84,15 @@ class BondHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Redemption as a percentage of face. Presence-required and must be > 0
+    # (a bare double would default to a silent zero redemption that destroys
+    # the helper).
     # BondHelper
     def Redemption(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # BondHelper
     def IssueDate(self):
@@ -128,7 +135,7 @@ def AddSettlementDays(builder, settlementDays):
     BondHelperAddSettlementDays(builder, settlementDays)
 
 def BondHelperAddFaceAmount(builder, faceAmount):
-    builder.PrependFloat64Slot(2, faceAmount, 0.0)
+    builder.PrependFloat64Slot(2, faceAmount, None)
 
 def AddFaceAmount(builder, faceAmount):
     BondHelperAddFaceAmount(builder, faceAmount)
@@ -140,7 +147,7 @@ def AddSchedule(builder, schedule):
     BondHelperAddSchedule(builder, schedule)
 
 def BondHelperAddCouponRate(builder, couponRate):
-    builder.PrependFloat64Slot(4, couponRate, 0.0)
+    builder.PrependFloat64Slot(4, couponRate, None)
 
 def AddCouponRate(builder, couponRate):
     BondHelperAddCouponRate(builder, couponRate)
@@ -158,7 +165,7 @@ def AddBusinessDayConvention(builder, businessDayConvention):
     BondHelperAddBusinessDayConvention(builder, businessDayConvention)
 
 def BondHelperAddRedemption(builder, redemption):
-    builder.PrependFloat64Slot(7, redemption, 0.0)
+    builder.PrependFloat64Slot(7, redemption, None)
 
 def AddRedemption(builder, redemption):
     BondHelperAddRedemption(builder, redemption)
@@ -198,12 +205,12 @@ class BondHelperT(object):
     def __init__(self):
         self.rate = None  # type: Optional[float]
         self.settlementDays = 0  # type: int
-        self.faceAmount = 0.0  # type: float
+        self.faceAmount = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
-        self.couponRate = 0.0  # type: float
+        self.couponRate = None  # type: Optional[float]
         self.dayCounter = None  # type: Optional[int]
         self.businessDayConvention = None  # type: Optional[int]
-        self.redemption = 0.0  # type: float
+        self.redemption = None  # type: Optional[float]
         self.issueDate = None  # type: str
         self.price = None  # type: Optional[float]
         self.quoteId = None  # type: str

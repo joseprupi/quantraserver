@@ -37,13 +37,14 @@ class ZeroCouponSwap(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # Base notional prior to compounding.
+    # Base notional prior to compounding. Presence-required and must be > 0
+    # (a bare double would default to a silent zero notional).
     # ZeroCouponSwap
     def BaseNominal(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Contract start date (ISO yyyy-mm-dd).
     # ZeroCouponSwap
@@ -142,7 +143,7 @@ def AddSwapType(builder, swapType):
     ZeroCouponSwapAddSwapType(builder, swapType)
 
 def ZeroCouponSwapAddBaseNominal(builder, baseNominal):
-    builder.PrependFloat64Slot(1, baseNominal, 0.0)
+    builder.PrependFloat64Slot(1, baseNominal, None)
 
 def AddBaseNominal(builder, baseNominal):
     ZeroCouponSwapAddBaseNominal(builder, baseNominal)
@@ -217,7 +218,7 @@ class ZeroCouponSwapT(object):
     # ZeroCouponSwapT
     def __init__(self):
         self.swapType = None  # type: Optional[int]
-        self.baseNominal = 0.0  # type: float
+        self.baseNominal = None  # type: Optional[float]
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
         self.fixedPayment = None  # type: Optional[float]

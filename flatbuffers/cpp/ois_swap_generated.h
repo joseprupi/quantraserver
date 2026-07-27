@@ -31,7 +31,7 @@ struct OisSwapT;
 struct OisFloatingLegT : public ::flatbuffers::NativeTable {
   typedef OisFloatingLeg TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::IndexRefT> index{};
   double spread = 0.0;
   quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
@@ -71,8 +71,10 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional. Presence-required and must be > 0 (a bare double would default
+  /// to a silent zero notional).
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
   const quantra::IndexRef *index() const {
@@ -142,7 +144,7 @@ struct OisFloatingLegBuilder {
     fbb_.AddOffset(OisFloatingLeg::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(OisFloatingLeg::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(OisFloatingLeg::VT_NOTIONAL, notional);
   }
   void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
     fbb_.AddOffset(OisFloatingLeg::VT_INDEX, index);
@@ -192,7 +194,7 @@ struct OisFloatingLegBuilder {
 inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     double spread = 0.0,
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
@@ -206,7 +208,7 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
     bool telescopic_value_dates = false) {
   OisFloatingLegBuilder builder_(_fbb);
   builder_.add_spread(spread);
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_lockout_days(lockout_days);
   builder_.add_lookback_days(lookback_days);
   builder_.add_payment_lag(payment_lag);

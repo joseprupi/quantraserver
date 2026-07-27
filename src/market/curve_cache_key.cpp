@@ -263,12 +263,12 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         buf.writeU8(p->rate().has_value() ? 1 : 0);
         buf.writeDouble(p->rate().value_or(0.0));
         buf.writeI32(p->settlement_days());
-        buf.writeDouble(p->face_amount());
+        buf.writeDouble(p->face_amount().value_or(0.0));
         writeSchedule(buf, p->schedule());
-        buf.writeDouble(p->coupon_rate());
+        buf.writeDouble(p->coupon_rate().value_or(0.0));
         writeOptEnum(p->day_counter());
         writeOptEnum(p->business_day_convention());
-        buf.writeDouble(p->redemption());
+        buf.writeDouble(p->redemption().value_or(0.0));
         buf.writeFbString(p->issue_date());
         break;
     }

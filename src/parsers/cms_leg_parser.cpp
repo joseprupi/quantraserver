@@ -3,6 +3,8 @@
 #include <cmath>
 #include <limits>
 
+#include "require_scalar.h"
+
 #include "vanilla_swap_generated.h"
 
 #include <ql/cashflows/cmscoupon.hpp>
@@ -79,7 +81,7 @@ QuantLib::Leg CmsLegParser::parse(
         swapIndexId, cmsTenor, indices, forwardingCurve, discountCurve);
 
     QuantLib::CmsLeg cmsBuilder(*schedule, swapIndex);
-    cmsBuilder.withNotionals(leg->notional());
+    cmsBuilder.withNotionals(requirePositive(leg->notional(), "SwapCmsLeg.notional"));
     cmsBuilder.withPaymentDayCounter(DayCounterToQL(leg->day_counter().value()));
     cmsBuilder.withPaymentAdjustment(ConventionToQL(leg->payment_convention().value()));
     cmsBuilder.withGearings(leg->gear());

@@ -130,7 +130,7 @@ inline ::flatbuffers::Offset<CallabilityEntry> CreateCallabilityEntryDirect(
 struct CallableFixedRateBondT : public ::flatbuffers::NativeTable {
   typedef CallableFixedRateBond TableType;
   int32_t settlement_days = 0;
-  double face_amount = 0.0;
+  ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt;
   double rate = 0.0;
   ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
@@ -168,8 +168,10 @@ struct CallableFixedRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
-  double face_amount() const {
-    return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  /// Face amount. Presence-required and must be > 0 (a bare double would
+  /// default to a silent zero face).
+  ::flatbuffers::Optional<double> face_amount() const {
+    return GetOptional<double, double>(VT_FACE_AMOUNT);
   }
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
@@ -224,7 +226,7 @@ struct CallableFixedRateBondBuilder {
     fbb_.AddElement<int32_t>(CallableFixedRateBond::VT_SETTLEMENT_DAYS, settlement_days, 0);
   }
   void add_face_amount(double face_amount) {
-    fbb_.AddElement<double>(CallableFixedRateBond::VT_FACE_AMOUNT, face_amount, 0.0);
+    fbb_.AddElement<double>(CallableFixedRateBond::VT_FACE_AMOUNT, face_amount);
   }
   void add_rate(double rate) {
     fbb_.AddElement<double>(CallableFixedRateBond::VT_RATE, rate, 0.0);
@@ -262,7 +264,7 @@ struct CallableFixedRateBondBuilder {
 inline ::flatbuffers::Offset<CallableFixedRateBond> CreateCallableFixedRateBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
@@ -273,7 +275,7 @@ inline ::flatbuffers::Offset<CallableFixedRateBond> CreateCallableFixedRateBond(
   CallableFixedRateBondBuilder builder_(_fbb);
   builder_.add_redemption(redemption);
   builder_.add_rate(rate);
-  builder_.add_face_amount(face_amount);
+  if(face_amount) { builder_.add_face_amount(*face_amount); }
   builder_.add_call_schedule(call_schedule);
   builder_.add_schedule(schedule);
   builder_.add_issue_date(issue_date);
@@ -286,7 +288,7 @@ inline ::flatbuffers::Offset<CallableFixedRateBond> CreateCallableFixedRateBond(
 inline ::flatbuffers::Offset<CallableFixedRateBond> CreateCallableFixedRateBondDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> accrual_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,

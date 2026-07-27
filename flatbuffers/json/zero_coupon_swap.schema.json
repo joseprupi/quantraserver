@@ -389,7 +389,7 @@
               },
         "base_nominal" : {
                 "type" : "number",
-                "description" : "Base notional prior to compounding."
+                "description" : "Base notional prior to compounding. Presence-required and must be > 0\n(a bare double would default to a silent zero notional)."
               },
         "start_date" : {
                 "type" : "string",

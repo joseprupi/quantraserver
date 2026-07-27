@@ -4,6 +4,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -51,8 +52,8 @@ CapFloorTrade extractTrade(const quantra::PriceCapFloor* pricing) {
     CapFloorTrade trade;
     trade.capFloorType = CapFloorTypeToQL(capFloor->cap_floor_type().value());
     trade.schedule = *schedule;
-    trade.notional = capFloor->notional();
-    trade.strike = capFloor->strike();
+    trade.notional = requirePositive(capFloor->notional(), "CapFloor.notional");
+    trade.strike = requireFinite(capFloor->strike(), "CapFloor.strike");
     trade.dayCounter = DayCounterToQL(capFloor->day_counter().value());
     trade.businessDayConvention = ConventionToQL(capFloor->business_day_convention().value());
     trade.includeDetails = pricing->include_details();

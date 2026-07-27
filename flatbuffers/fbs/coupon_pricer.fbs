@@ -7,7 +7,12 @@ table ConstantOptionletVolatility {
     settlement_days:int;
     calendar:enums.Calendar = null;
     business_day_convention:enums.BusinessDayConvention = null;
-    volatility:double;
+    /// Constant optionlet volatility. Presence-required (a bare double would
+    /// default to a silent zero) and must be finite and non-negative. A genuine
+    /// 0 is valid: for a coupon leg without caps/floors the Black pricer with
+    /// zero vol reproduces the deterministic forward, so 0 is accepted while an
+    /// omitted value is rejected.
+    volatility:double = null;
     day_counter:enums.DayCounter = null;
 }
 

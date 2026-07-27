@@ -25,7 +25,7 @@ struct CDST;
 struct CDST : public ::flatbuffers::NativeTable {
   typedef CDS TableType;
   ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt;
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt;
@@ -69,8 +69,9 @@ struct CDS FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::ProtectionSide> side() const {
     return GetOptional<int8_t, quantra::enums::ProtectionSide>(VT_SIDE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Running coupon in decimal (0.01 = 100bps). Required; presence-driven
   /// (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
@@ -152,7 +153,7 @@ struct CDSBuilder {
     fbb_.AddElement<int8_t>(CDS::VT_SIDE, static_cast<int8_t>(side));
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(CDS::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(CDS::VT_NOTIONAL, notional);
   }
   void add_running_coupon(double running_coupon) {
     fbb_.AddElement<double>(CDS::VT_RUNNING_COUPON, running_coupon);
@@ -207,7 +208,7 @@ struct CDSBuilder {
 inline ::flatbuffers::Offset<CDS> CreateCDS(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt,
@@ -224,7 +225,7 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(
   CDSBuilder builder_(_fbb);
   if(upfront) { builder_.add_upfront(*upfront); }
   if(running_coupon) { builder_.add_running_coupon(*running_coupon); }
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_cash_settlement_days(cash_settlement_days);
   builder_.add_trade_date(trade_date);
   builder_.add_upfront_date(upfront_date);
@@ -243,7 +244,7 @@ inline ::flatbuffers::Offset<CDS> CreateCDS(
 inline ::flatbuffers::Offset<CDS> CreateCDSDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::ProtectionSide> side = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> running_coupon = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> upfront = ::flatbuffers::nullopt,

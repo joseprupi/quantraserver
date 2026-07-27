@@ -488,7 +488,7 @@
               },
         "quote_value" : {
                 "type" : "number",
-                "description" : "Inline quote value used when quote_id is empty."
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
               },
         "swap_observation_lag" : {
                 "$ref" : "#/definitions/quantra_Period",
@@ -532,7 +532,7 @@
               },
         "quote_value" : {
                 "type" : "number",
-                "description" : "Inline quote value used when quote_id is empty."
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
               },
         "swap_observation_lag" : {
                 "$ref" : "#/definitions/quantra_Period"
@@ -634,7 +634,8 @@
                 "description" : "\"Payer\" / \"Receiver\" refers to the inflation leg. Presence-required: an\nomitted type is a 400, never the alphabetical-0 default (Payer)."
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Notional. Presence-required and must be > 0."
               },
         "start_date" : {
                 "type" : "string"

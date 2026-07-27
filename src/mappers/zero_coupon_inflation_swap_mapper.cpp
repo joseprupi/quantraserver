@@ -5,6 +5,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -47,7 +48,7 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
 
     ZeroCouponInflationSwapTrade trade;
     trade.swapType = ZeroCouponInflationSwapTypeToQL(swap->swap_type().value());
-    trade.notional = swap->notional();
+    trade.notional = requirePositive(swap->notional(), "ZeroCouponInflationSwap.notional");
     trade.startDate = DateToQL(swap->start_date()->str());
     trade.maturityDate = DateToQL(swap->maturity_date()->str());
     trade.fixedCalendar = CalendarToQL(swap->fixed_calendar());

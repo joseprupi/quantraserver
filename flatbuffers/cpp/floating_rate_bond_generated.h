@@ -26,7 +26,7 @@ struct FloatingRateBondT;
 struct FloatingRateBondT : public ::flatbuffers::NativeTable {
   typedef FloatingRateBond TableType;
   int32_t settlement_days = 0;
-  double face_amount = 0.0;
+  ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt;
   std::vector<double> notionals{};
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
@@ -64,8 +64,10 @@ struct FloatingRateBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
-  double face_amount() const {
-    return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  /// Face amount. Presence-required and must be > 0 (a bare double would
+  /// default to a silent zero face).
+  ::flatbuffers::Optional<double> face_amount() const {
+    return GetOptional<double, double>(VT_FACE_AMOUNT);
   }
   /// Optional per-period notionals, one entry per coupon period in schedule
   /// order. Present => amortizing/step-up bond (overrides `face_amount`,
@@ -135,7 +137,7 @@ struct FloatingRateBondBuilder {
     fbb_.AddElement<int32_t>(FloatingRateBond::VT_SETTLEMENT_DAYS, settlement_days, 0);
   }
   void add_face_amount(double face_amount) {
-    fbb_.AddElement<double>(FloatingRateBond::VT_FACE_AMOUNT, face_amount, 0.0);
+    fbb_.AddElement<double>(FloatingRateBond::VT_FACE_AMOUNT, face_amount);
   }
   void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
     fbb_.AddOffset(FloatingRateBond::VT_NOTIONALS, notionals);
@@ -182,7 +184,7 @@ struct FloatingRateBondBuilder {
 inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
@@ -196,7 +198,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
   FloatingRateBondBuilder builder_(_fbb);
   builder_.add_redemption(redemption);
   builder_.add_spread(spread);
-  builder_.add_face_amount(face_amount);
+  if(face_amount) { builder_.add_face_amount(*face_amount); }
   builder_.add_issue_date(issue_date);
   builder_.add_fixing_days(fixing_days);
   builder_.add_index(index);
@@ -212,7 +214,7 @@ inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBond(
 inline ::flatbuffers::Offset<FloatingRateBond> CreateFloatingRateBondDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     const std::vector<double> *notionals = nullptr,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,

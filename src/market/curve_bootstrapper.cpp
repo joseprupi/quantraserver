@@ -11,6 +11,7 @@
 #include "curve_cache.h"
 #include "curve_cache_key.h"
 #include "curve_serializer.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -199,7 +200,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
         for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
             auto q = quotes->Get(i);
             if (!q->id()) QUANTRA_INVALID_ARGUMENT("QuoteSpec.id is required");
-            double v = q->value();
+            double v = requireFinite(q->value(), "QuoteSpec.value");
             if (q->quote_type() == quantra::QuoteType_Curve) {
                 v += curveBump;
             }

@@ -11,8 +11,9 @@ table ZeroCouponSwap {
     /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
     /// type is a 400, never the alphabetical-0 default (Payer).
     swap_type:enums.SwapType = null;
-    /// Base notional prior to compounding.
-    base_nominal:double;
+    /// Base notional prior to compounding. Presence-required and must be > 0
+    /// (a bare double would default to a silent zero notional).
+    base_nominal:double = null;
     /// Contract start date (ISO yyyy-mm-dd).
     start_date:string;
     /// Contract maturity / single-payment date (ISO yyyy-mm-dd).

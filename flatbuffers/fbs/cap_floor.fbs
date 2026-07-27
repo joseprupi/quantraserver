@@ -7,9 +7,11 @@ namespace quantra;
 /// Cap or Floor instrument.
 table CapFloor {
     cap_floor_type:enums.CapFloorType = null;
-    notional:double;
-    /// Strike rate (e.g., 0.04 for 4%).
-    strike:double;
+    /// Notional. Presence-required and must be > 0.
+    notional:double = null;
+    /// Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
+    /// a missing or non-finite value is rejected.
+    strike:double = null;
     schedule:Schedule;
     /// Reference to an IndexDef by id (e.g., "EUR_3M").
     index:IndexRef (required);

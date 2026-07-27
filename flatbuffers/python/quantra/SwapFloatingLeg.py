@@ -36,12 +36,15 @@ class SwapFloatingLeg(object):
             return obj
         return None
 
+    # Constant notional. Presence-required and must be > 0 (unless the
+    # per-period `notionals` vector is supplied). A bare double would default
+    # to a silent zero notional.
     # SwapFloatingLeg
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Optional per-period notionals, one entry per coupon period in schedule
     # order. Present => amortizing/step-up leg (overrides `notional`); absent
@@ -135,7 +138,7 @@ def AddSchedule(builder, schedule):
     SwapFloatingLegAddSchedule(builder, schedule)
 
 def SwapFloatingLegAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     SwapFloatingLegAddNotional(builder, notional)
@@ -204,7 +207,7 @@ class SwapFloatingLegT(object):
     # SwapFloatingLegT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.notionals = None  # type: List[float]
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float

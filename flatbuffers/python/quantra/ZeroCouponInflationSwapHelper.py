@@ -33,13 +33,15 @@ class ZeroCouponInflationSwapHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Inline quote value used when quote_id is empty.
+    # Inline quote value used when quote_id is empty. Presence-required on the
+    # inline path (a bare double would default to a silent zero quote); may be
+    # negative, only a missing or non-finite value is rejected.
     # ZeroCouponInflationSwapHelper
     def QuoteValue(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Lag applied when observing the CPI index in the swap.
     # ZeroCouponInflationSwapHelper
@@ -121,7 +123,7 @@ def AddQuoteId(builder, quoteId):
     ZeroCouponInflationSwapHelperAddQuoteId(builder, quoteId)
 
 def ZeroCouponInflationSwapHelperAddQuoteValue(builder, quoteValue):
-    builder.PrependFloat64Slot(1, quoteValue, 0.0)
+    builder.PrependFloat64Slot(1, quoteValue, None)
 
 def AddQuoteValue(builder, quoteValue):
     ZeroCouponInflationSwapHelperAddQuoteValue(builder, quoteValue)
@@ -190,7 +192,7 @@ class ZeroCouponInflationSwapHelperT(object):
     # ZeroCouponInflationSwapHelperT
     def __init__(self):
         self.quoteId = None  # type: str
-        self.quoteValue = 0.0  # type: float
+        self.quoteValue = None  # type: Optional[float]
         self.swapObservationLag = None  # type: Optional[PeriodT]
         self.tenor = None  # type: Optional[PeriodT]
         self.startDate = None  # type: str

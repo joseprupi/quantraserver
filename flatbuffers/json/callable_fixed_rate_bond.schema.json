@@ -239,7 +239,8 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "face_amount" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Face amount. Presence-required and must be > 0 (a bare double would\ndefault to a silent zero face)."
               },
         "rate" : {
                 "type" : "number"

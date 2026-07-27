@@ -1,6 +1,7 @@
 #include "zero_coupon_bond_parser.h"
 
 #include "error.h"
+#include "require_scalar.h"
 
 std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroCouponBond *bond)
 {
@@ -32,7 +33,7 @@ std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroC
     return std::make_shared<QuantLib::ZeroCouponBond>(
         bond->settlement_days(),
         calendar,
-        bond->face_amount(),
+        quantra::requirePositive(bond->face_amount(), "ZeroCouponBond.face_amount"),
         maturityDate,
         paymentConvention,
         redemption,

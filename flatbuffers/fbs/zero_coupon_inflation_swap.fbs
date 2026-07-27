@@ -8,7 +8,8 @@ table ZeroCouponInflationSwap {
     /// "Payer" / "Receiver" refers to the inflation leg. Presence-required: an
     /// omitted type is a 400, never the alphabetical-0 default (Payer).
     swap_type:enums.SwapType = null;
-    notional:double;
+    /// Notional. Presence-required and must be > 0.
+    notional:double = null;
     start_date:string (required);
     /// Contract maturity date before any internal observation adjustment.
     maturity_date:string (required);

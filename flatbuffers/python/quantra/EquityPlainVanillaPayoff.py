@@ -32,12 +32,13 @@ class EquityPlainVanillaPayoff(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Strike price. Presence-required and must be > 0.
     # EquityPlainVanillaPayoff
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
 def EquityPlainVanillaPayoffStart(builder):
     builder.StartObject(2)
@@ -52,7 +53,7 @@ def AddOptionType(builder, optionType):
     EquityPlainVanillaPayoffAddOptionType(builder, optionType)
 
 def EquityPlainVanillaPayoffAddStrike(builder, strike):
-    builder.PrependFloat64Slot(1, strike, 0.0)
+    builder.PrependFloat64Slot(1, strike, None)
 
 def AddStrike(builder, strike):
     EquityPlainVanillaPayoffAddStrike(builder, strike)
@@ -69,7 +70,7 @@ class EquityPlainVanillaPayoffT(object):
     # EquityPlainVanillaPayoffT
     def __init__(self):
         self.optionType = 0  # type: int
-        self.strike = 0.0  # type: float
+        self.strike = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

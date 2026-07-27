@@ -32,19 +32,21 @@ class EquityCashOrNothingPayoff(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Strike price. Presence-required and must be > 0.
     # EquityCashOrNothingPayoff
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
+    # Cash payout on exercise. Presence-required and must be > 0.
     # EquityCashOrNothingPayoff
     def Cash(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
 def EquityCashOrNothingPayoffStart(builder):
     builder.StartObject(3)
@@ -59,13 +61,13 @@ def AddOptionType(builder, optionType):
     EquityCashOrNothingPayoffAddOptionType(builder, optionType)
 
 def EquityCashOrNothingPayoffAddStrike(builder, strike):
-    builder.PrependFloat64Slot(1, strike, 0.0)
+    builder.PrependFloat64Slot(1, strike, None)
 
 def AddStrike(builder, strike):
     EquityCashOrNothingPayoffAddStrike(builder, strike)
 
 def EquityCashOrNothingPayoffAddCash(builder, cash):
-    builder.PrependFloat64Slot(2, cash, 0.0)
+    builder.PrependFloat64Slot(2, cash, None)
 
 def AddCash(builder, cash):
     EquityCashOrNothingPayoffAddCash(builder, cash)
@@ -82,8 +84,8 @@ class EquityCashOrNothingPayoffT(object):
     # EquityCashOrNothingPayoffT
     def __init__(self):
         self.optionType = 0  # type: int
-        self.strike = 0.0  # type: float
-        self.cash = 0.0  # type: float
+        self.strike = None  # type: Optional[float]
+        self.cash = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

@@ -347,7 +347,7 @@
               },
         "notional" : {
                 "type" : "number",
-                "description" : "Notional per optionlet."
+                "description" : "Notional per optionlet. Presence-required and must be > 0."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule",

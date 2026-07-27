@@ -111,7 +111,11 @@ struct KeyContext {
             for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
                 auto q = quotes->Get(i);
                 if (q->id() && q->quote_type() == quantra::QuoteType_Curve) {
-                    ctx.quoteValues[q->id()->str()] = q->value();
+                    // Presence-optional on the wire; the parser rejects an
+                    // absent value, so an invalid request never reaches a cache
+                    // hit. For a valid request the value is present and this
+                    // records the real resolved quote value.
+                    ctx.quoteValues[q->id()->str()] = q->value().value_or(0.0);
                 }
             }
         }

@@ -6,6 +6,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "leg_notionals.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -26,7 +27,7 @@ BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
                                std::string("BasisSwap ") + legName);
     auto schedule = scheduleParser.parse(fb->schedule());
     leg.schedule = *schedule;
-    leg.notional = fb->notional();
+    leg.notional = requirePositive(fb->notional(), "SwapFloatingLeg.notional");
     leg.indexId = fb->index()->id()->str();
     leg.spread = fb->spread();
     leg.dayCounter = DayCounterToQL(fb->day_counter().value());

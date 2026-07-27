@@ -41,13 +41,13 @@ class YoYInflationCapFloor(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # Notional per optionlet.
+    # Notional per optionlet. Presence-required and must be > 0.
     # YoYInflationCapFloor
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Coupon schedule for the year-on-year optionlet strip.
     # YoYInflationCapFloor
@@ -148,7 +148,7 @@ def AddCapFloorType(builder, capFloorType):
     YoYInflationCapFloorAddCapFloorType(builder, capFloorType)
 
 def YoYInflationCapFloorAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     YoYInflationCapFloorAddNotional(builder, notional)
@@ -223,7 +223,7 @@ class YoYInflationCapFloorT(object):
     # YoYInflationCapFloorT
     def __init__(self):
         self.capFloorType = None  # type: Optional[int]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.inflationIndexId = None  # type: str
         self.observationLag = None  # type: Optional[PeriodT]

@@ -25,10 +25,10 @@ struct FRAT;
 struct FRAT : public ::flatbuffers::NativeTable {
   typedef FRA TableType;
   ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt;
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::string start_date{};
   std::string maturity_date{};
-  double strike = 0.0;
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::IndexRefT> index{};
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
@@ -57,8 +57,9 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::FRAType> fra_type() const {
     return GetOptional<int8_t, quantra::enums::FRAType>(VT_FRA_TYPE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// When the FRA period starts.
   const ::flatbuffers::String *start_date() const {
@@ -68,9 +69,10 @@ struct FRA FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *maturity_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_MATURITY_DATE);
   }
-  /// The agreed forward rate (e.g., 0.035 for 3.5%).
-  double strike() const {
-    return GetField<double>(VT_STRIKE, 0.0);
+  /// The agreed forward rate (e.g., 0.035 for 3.5%). Presence-required; may be
+  /// negative, only a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
   }
   /// Reference to an IndexDef by id (e.g., "EUR_3M").
   const quantra::IndexRef *index() const {
@@ -114,7 +116,7 @@ struct FRABuilder {
     fbb_.AddElement<int8_t>(FRA::VT_FRA_TYPE, static_cast<int8_t>(fra_type));
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(FRA::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(FRA::VT_NOTIONAL, notional);
   }
   void add_start_date(::flatbuffers::Offset<::flatbuffers::String> start_date) {
     fbb_.AddOffset(FRA::VT_START_DATE, start_date);
@@ -123,7 +125,7 @@ struct FRABuilder {
     fbb_.AddOffset(FRA::VT_MATURITY_DATE, maturity_date);
   }
   void add_strike(double strike) {
-    fbb_.AddElement<double>(FRA::VT_STRIKE, strike, 0.0);
+    fbb_.AddElement<double>(FRA::VT_STRIKE, strike);
   }
   void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
     fbb_.AddOffset(FRA::VT_INDEX, index);
@@ -152,17 +154,17 @@ struct FRABuilder {
 inline ::flatbuffers::Offset<FRA> CreateFRA(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
-    double strike = 0.0,
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   FRABuilder builder_(_fbb);
-  builder_.add_strike(strike);
-  builder_.add_notional(notional);
+  if(strike) { builder_.add_strike(*strike); }
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_index(index);
   builder_.add_maturity_date(maturity_date);
   builder_.add_start_date(start_date);
@@ -176,10 +178,10 @@ inline ::flatbuffers::Offset<FRA> CreateFRA(
 inline ::flatbuffers::Offset<FRA> CreateFRADirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::FRAType> fra_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     const char *start_date = nullptr,
     const char *maturity_date = nullptr,
-    double strike = 0.0,
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,

@@ -37,8 +37,10 @@ table InflationIndexSpec {
 table ZeroCouponInflationSwapHelper {
     /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
     quote_id:string;
-    /// Inline quote value used when quote_id is empty.
-    quote_value:double;
+    /// Inline quote value used when quote_id is empty. Presence-required on the
+    /// inline path (a bare double would default to a silent zero quote); may be
+    /// negative, only a missing or non-finite value is rejected.
+    quote_value:double = null;
     /// Lag applied when observing the CPI index in the swap.
     swap_observation_lag:Period (required);
     /// Relative helper maturity from InflationCurveBaseSpec.reference_date.
@@ -57,8 +59,10 @@ table ZeroCouponInflationSwapHelper {
 table YearOnYearInflationSwapHelper {
     /// Optional: resolve quote from pricing.quotes (QuoteType=Curve).
     quote_id:string;
-    /// Inline quote value used when quote_id is empty.
-    quote_value:double;
+    /// Inline quote value used when quote_id is empty. Presence-required on the
+    /// inline path (a bare double would default to a silent zero quote); may be
+    /// negative, only a missing or non-finite value is rejected.
+    quote_value:double = null;
     swap_observation_lag:Period (required);
     tenor:Period;
     start_date:string;

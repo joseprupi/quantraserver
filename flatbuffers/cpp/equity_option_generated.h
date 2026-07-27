@@ -728,7 +728,7 @@ inline ::flatbuffers::Offset<EquityBermudanExercise> CreateEquityBermudanExercis
 struct EquityPlainVanillaPayoffT : public ::flatbuffers::NativeTable {
   typedef EquityPlainVanillaPayoff TableType;
   quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call;
-  double strike = 0.0;
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
 };
 
 /// Plain vanilla payoff.
@@ -742,8 +742,9 @@ struct EquityPlainVanillaPayoff FLATBUFFERS_FINAL_CLASS : private ::flatbuffers:
   quantra::enums::EquityOptionType option_type() const {
     return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_OPTION_TYPE, 0));
   }
-  double strike() const {
-    return GetField<double>(VT_STRIKE, 0.0);
+  /// Strike price. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -764,7 +765,7 @@ struct EquityPlainVanillaPayoffBuilder {
     fbb_.AddElement<int8_t>(EquityPlainVanillaPayoff::VT_OPTION_TYPE, static_cast<int8_t>(option_type), 0);
   }
   void add_strike(double strike) {
-    fbb_.AddElement<double>(EquityPlainVanillaPayoff::VT_STRIKE, strike, 0.0);
+    fbb_.AddElement<double>(EquityPlainVanillaPayoff::VT_STRIKE, strike);
   }
   explicit EquityPlainVanillaPayoffBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -780,9 +781,9 @@ struct EquityPlainVanillaPayoffBuilder {
 inline ::flatbuffers::Offset<EquityPlainVanillaPayoff> CreateEquityPlainVanillaPayoff(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call,
-    double strike = 0.0) {
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt) {
   EquityPlainVanillaPayoffBuilder builder_(_fbb);
-  builder_.add_strike(strike);
+  if(strike) { builder_.add_strike(*strike); }
   builder_.add_option_type(option_type);
   return builder_.Finish();
 }
@@ -792,8 +793,8 @@ inline ::flatbuffers::Offset<EquityPlainVanillaPayoff> CreateEquityPlainVanillaP
 struct EquityCashOrNothingPayoffT : public ::flatbuffers::NativeTable {
   typedef EquityCashOrNothingPayoff TableType;
   quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call;
-  double strike = 0.0;
-  double cash = 0.0;
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> cash = ::flatbuffers::nullopt;
 };
 
 /// Cash-or-nothing digital payoff.
@@ -808,11 +809,13 @@ struct EquityCashOrNothingPayoff FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   quantra::enums::EquityOptionType option_type() const {
     return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_OPTION_TYPE, 0));
   }
-  double strike() const {
-    return GetField<double>(VT_STRIKE, 0.0);
+  /// Strike price. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
   }
-  double cash() const {
-    return GetField<double>(VT_CASH, 0.0);
+  /// Cash payout on exercise. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> cash() const {
+    return GetOptional<double, double>(VT_CASH);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -834,10 +837,10 @@ struct EquityCashOrNothingPayoffBuilder {
     fbb_.AddElement<int8_t>(EquityCashOrNothingPayoff::VT_OPTION_TYPE, static_cast<int8_t>(option_type), 0);
   }
   void add_strike(double strike) {
-    fbb_.AddElement<double>(EquityCashOrNothingPayoff::VT_STRIKE, strike, 0.0);
+    fbb_.AddElement<double>(EquityCashOrNothingPayoff::VT_STRIKE, strike);
   }
   void add_cash(double cash) {
-    fbb_.AddElement<double>(EquityCashOrNothingPayoff::VT_CASH, cash, 0.0);
+    fbb_.AddElement<double>(EquityCashOrNothingPayoff::VT_CASH, cash);
   }
   explicit EquityCashOrNothingPayoffBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -853,11 +856,11 @@ struct EquityCashOrNothingPayoffBuilder {
 inline ::flatbuffers::Offset<EquityCashOrNothingPayoff> CreateEquityCashOrNothingPayoff(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call,
-    double strike = 0.0,
-    double cash = 0.0) {
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> cash = ::flatbuffers::nullopt) {
   EquityCashOrNothingPayoffBuilder builder_(_fbb);
-  builder_.add_cash(cash);
-  builder_.add_strike(strike);
+  if(cash) { builder_.add_cash(*cash); }
+  if(strike) { builder_.add_strike(*strike); }
   builder_.add_option_type(option_type);
   return builder_.Finish();
 }
@@ -867,7 +870,7 @@ inline ::flatbuffers::Offset<EquityCashOrNothingPayoff> CreateEquityCashOrNothin
 struct EquityAssetOrNothingPayoffT : public ::flatbuffers::NativeTable {
   typedef EquityAssetOrNothingPayoff TableType;
   quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call;
-  double strike = 0.0;
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
 };
 
 /// Asset-or-nothing digital payoff.
@@ -881,8 +884,9 @@ struct EquityAssetOrNothingPayoff FLATBUFFERS_FINAL_CLASS : private ::flatbuffer
   quantra::enums::EquityOptionType option_type() const {
     return static_cast<quantra::enums::EquityOptionType>(GetField<int8_t>(VT_OPTION_TYPE, 0));
   }
-  double strike() const {
-    return GetField<double>(VT_STRIKE, 0.0);
+  /// Strike price. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -903,7 +907,7 @@ struct EquityAssetOrNothingPayoffBuilder {
     fbb_.AddElement<int8_t>(EquityAssetOrNothingPayoff::VT_OPTION_TYPE, static_cast<int8_t>(option_type), 0);
   }
   void add_strike(double strike) {
-    fbb_.AddElement<double>(EquityAssetOrNothingPayoff::VT_STRIKE, strike, 0.0);
+    fbb_.AddElement<double>(EquityAssetOrNothingPayoff::VT_STRIKE, strike);
   }
   explicit EquityAssetOrNothingPayoffBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -919,9 +923,9 @@ struct EquityAssetOrNothingPayoffBuilder {
 inline ::flatbuffers::Offset<EquityAssetOrNothingPayoff> CreateEquityAssetOrNothingPayoff(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     quantra::enums::EquityOptionType option_type = quantra::enums::EquityOptionType_Call,
-    double strike = 0.0) {
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt) {
   EquityAssetOrNothingPayoffBuilder builder_(_fbb);
-  builder_.add_strike(strike);
+  if(strike) { builder_.add_strike(*strike); }
   builder_.add_option_type(option_type);
   return builder_.Finish();
 }

@@ -23,6 +23,9 @@ enum QuoteType : byte {
 table QuoteSpec {
     id:string (required);
     kind:QuoteKind = Rate;
-    value:double;
+    /// Quote value. Presence-required (a bare double would default to 0 and
+    /// silently bootstrap every referencing helper off a zero rate). May be
+    /// negative (rates/spreads); only a missing or non-finite value is rejected.
+    value:double = null;
     quote_type:QuoteType = Curve;
 }

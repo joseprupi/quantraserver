@@ -220,7 +220,8 @@
                 "$ref" : "#/definitions/quantra_enums_ProtectionSide"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Notional. Presence-required and must be > 0."
               },
         "running_coupon" : {
                 "type" : "number",

@@ -39,12 +39,15 @@ class QuoteSpec(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Quote value. Presence-required (a bare double would default to 0 and
+    # silently bootstrap every referencing helper off a zero rate). May be
+    # negative (rates/spreads); only a missing or non-finite value is rejected.
     # QuoteSpec
     def Value(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # QuoteSpec
     def QuoteType(self):
@@ -72,7 +75,7 @@ def AddKind(builder, kind):
     QuoteSpecAddKind(builder, kind)
 
 def QuoteSpecAddValue(builder, value):
-    builder.PrependFloat64Slot(2, value, 0.0)
+    builder.PrependFloat64Slot(2, value, None)
 
 def AddValue(builder, value):
     QuoteSpecAddValue(builder, value)
@@ -96,7 +99,7 @@ class QuoteSpecT(object):
     def __init__(self):
         self.id = None  # type: str
         self.kind = 0  # type: int
-        self.value = 0.0  # type: float
+        self.value = None  # type: Optional[float]
         self.quoteType = 0  # type: int
 
     @classmethod

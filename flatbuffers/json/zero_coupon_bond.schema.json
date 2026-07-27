@@ -187,7 +187,7 @@
               },
         "face_amount" : {
                 "type" : "number",
-                "description" : "Notional / face amount the redemption percentage applies to."
+                "description" : "Notional / face amount the redemption percentage applies to.\nPresence-required and must be > 0 (a bare double would default to a\nsilent zero face)."
               },
         "maturity_date" : {
                 "type" : "string",

@@ -552,16 +552,39 @@ def _ec_swaption_rebump_without_rates():
     return f
 
 
-def _ec_basis_swap_zero_notional():
-    """Zero both basis-swap leg notionals so each leg BPS collapses to 0.
+def _ec_basis_swap_negative_notional():
+    """Set a basis-swap leg notional to a negative value.
 
-    The fair spread is npv - spread/BPS; a zero BPS makes it NaN. NaN has no
-    JSON representation, so the response mapper must omit the field, keeping the
-    HTTP-200 body valid JSON rather than emitting a bare `nan` token."""
+    A notional is a strictly-positive quantity; an omitted-or-nonpositive value
+    must be a named 400, never a silently-priced zero (a bare double on the wire
+    would default to 0)."""
     def f(req):
         bs = req["swaps"][0]["basis_swap"]
-        bs["leg1"]["notional"] = 0.0
-        bs["leg2"]["notional"] = 0.0
+        bs["leg1"]["notional"] = -1000000.0
+        return req
+    return f
+
+
+def _ec_del_quote_value():
+    """Drop the inline `value` from the first shared market quote (QuoteSpec).
+
+    A bare double on the wire defaults to 0, so an omitted quote value would
+    silently bootstrap every referencing helper off a zero rate. It must be a
+    named 400 instead."""
+    def f(req):
+        req["pricing"]["quotes"][0].pop("value", None)
+        return req
+    return f
+
+
+def _ec_del_cds_quote_type():
+    """Drop the presence-required `quote_type` from the first CDS market quote.
+
+    Without it a bare enum defaults to the alphabetical-0 value (ParSpread);
+    an omitted discriminator must be a named 400."""
+    def f(req):
+        req["pricing"]["credit"]["credit_curves"][0]["quotes"][0].pop(
+            "quote_type", None)
         return req
     return f
 
@@ -880,6 +903,34 @@ SCENARIOS = [
      "floating_rate_bond_request.json", 400,
      _ec_del_optionlet_vol_field("day_counter"),
      _ec_body_contains("ConstantOptionletVolatility.day_counter is required")),
+    # ---- 400 INVALID_ARGUMENT: request value scalars are presence-required ----
+    # A bare double/enum on the wire defaults to 0/first-enum when omitted, so a
+    # forgotten value would silently price as zero instead of erroring. Each of
+    # these must now be a named 400.
+    ("ec:400 coupon pricer optionlet vol missing volatility", "floating_rate_bond",
+     "floating_rate_bond_request.json", 400,
+     _ec_del_optionlet_vol_field("volatility"),
+     _ec_body_contains("ConstantOptionletVolatility.volatility is required")),
+    ("ec:400 quote spec missing value", "cds",
+     "cds_complex_request.json", 400,
+     _ec_del_quote_value(),
+     _ec_body_contains("QuoteSpec.value is required")),
+    ("ec:400 cds quote missing quote_type", "cds",
+     "cds_complex_request.json", 400,
+     _ec_del_cds_quote_type(),
+     _ec_body_contains("CdsQuote.quote_type is required")),
+    ("ec:400 bond helper missing redemption", "fixed_rate_bond",
+     "fixed_rate_bond_request.json", 400,
+     _ec_del_curve_point_field("BondHelper", "redemption"),
+     _ec_body_contains("BondHelper.redemption is required")),
+    ("ec:400 fra missing strike", "fra",
+     "fra_request.json", 400,
+     _ec_del_instrument_field("fras", "fra", "strike"),
+     _ec_body_contains("FRA.strike is required")),
+    ("ec:400 cap_floor missing strike", "cap_floor",
+     "cap_floor_request.json", 400,
+     _ec_del_instrument_field("cap_floors", "cap_floor", "strike"),
+     _ec_body_contains("CapFloor.strike is required")),
     # ---- 400 INVALID_ARGUMENT: fail-closed enum handling ----
     # The CDS credit-curve bootstrap supports LogLinear only; ForwardFlat
     # and LogCubic used to be silently priced as LogLinear. The complex request
@@ -948,13 +999,11 @@ SCENARIOS = [
      "swaption_request.json", 400,
      _ec_swaption_rebump_without_rates(),
      _ec_body_contains("Swaption rebump pricing requires pricing.rates.curves")),
-    # ---- 200 OK: non-finite outputs are omitted, never serialized as `nan` ----
-    # A zero-notional basis swap collapses each leg BPS to 0, making the fair
-    # spread NaN. The response must stay valid JSON with the field omitted.
-    ("ec:200 basis_swap zero notional omits non-finite fair spread", "basis_swap",
-     "basis_swap_request.json", 200,
-     _ec_basis_swap_zero_notional(),
-     _ec_body_valid_json_without("fair_spread_leg1", "fair_spread_leg2")),
+    # ---- 400 INVALID_ARGUMENT: a notional must be present and strictly positive ----
+    ("ec:400 basis_swap negative notional rejected", "basis_swap",
+     "basis_swap_request.json", 400,
+     _ec_basis_swap_negative_notional(),
+     _ec_body_contains("SwapFloatingLeg.notional must be positive")),
     # ---- 501 UNIMPLEMENTED: valid request, feature not built yet ----
     ("ec:501 swaption curve uses unimplemented helper", "swaption",
      "swaption_request.json", 501, _ec_unimplemented_curve_point()),

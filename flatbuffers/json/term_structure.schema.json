@@ -611,13 +611,15 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "face_amount" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Bond face amount. Presence-required and must be > 0 (a bare double would\ndefault to a silent zero face)."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "coupon_rate" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Coupon rate. Presence-required (a bare double would default to a silent\nzero coupon); may be negative, only a missing or non-finite value is rejected."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -626,7 +628,8 @@
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               },
         "redemption" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Redemption as a percentage of face. Presence-required and must be > 0\n(a bare double would default to a silent zero redemption that destroys\nthe helper)."
               },
         "issue_date" : {
                 "type" : "string"

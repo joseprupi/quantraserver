@@ -6,7 +6,9 @@ namespace quantra;
 /// CDS market quote specification.
 table CdsQuote {
     tenor:Period;
-    quote_type:enums.CdsQuoteType;
+    /// Quote convention (ParSpread / Upfront). Presence-required: an omitted
+    /// value is a 400, never the alphabetical-0 default (ParSpread).
+    quote_type:enums.CdsQuoteType = null;
     /// Optional; resolves from Pricing.quotes (QuoteType=Credit).
     quote_id:string;
     /// Used when quote_type=ParSpread (decimal, 0.01=100bps).

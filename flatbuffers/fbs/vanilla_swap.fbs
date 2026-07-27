@@ -7,7 +7,10 @@ namespace quantra;
 /// Fixed leg of a swap.
 table SwapFixedLeg {
     schedule:Schedule;
-    notional:double;
+    /// Constant notional. Presence-required and must be > 0 (unless the
+    /// per-period `notionals` vector is supplied). A bare double would default
+    /// to a silent zero notional.
+    notional:double = null;
     /// Optional per-period notionals, one entry per coupon period in schedule
     /// order. Present => amortizing/step-up leg (overrides `notional`); absent
     /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
@@ -21,7 +24,10 @@ table SwapFixedLeg {
 /// Floating leg of a swap.
 table SwapFloatingLeg {
     schedule:Schedule;
-    notional:double;
+    /// Constant notional. Presence-required and must be > 0 (unless the
+    /// per-period `notionals` vector is supplied). A bare double would default
+    /// to a silent zero notional.
+    notional:double = null;
     /// Optional per-period notionals, one entry per coupon period in schedule
     /// order. Present => amortizing/step-up leg (overrides `notional`); absent
     /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
@@ -62,8 +68,8 @@ table CmsPricerSpec {
 table SwapCmsLeg {
     /// Coupon/payment schedule.
     schedule:Schedule;
-    /// Coupon notional.
-    notional:double;
+    /// Coupon notional. Presence-required and must be > 0.
+    notional:double = null;
     /// Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
     swap_index_id:string (required);
     /// Constant maturity tenor for CMS fixing (e.g. 10Y).

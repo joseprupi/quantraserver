@@ -258,7 +258,8 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false
@@ -271,10 +272,12 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               },
         "cash" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Cash payout on exercise. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false
@@ -287,7 +290,8 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false

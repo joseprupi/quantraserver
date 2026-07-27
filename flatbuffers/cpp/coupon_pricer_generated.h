@@ -34,7 +34,7 @@ struct ConstantOptionletVolatilityT : public ::flatbuffers::NativeTable {
   int32_t settlement_days = 0;
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
-  double volatility = 0.0;
+  ::flatbuffers::Optional<double> volatility = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
 };
 
@@ -58,8 +58,13 @@ struct ConstantOptionletVolatility FLATBUFFERS_FINAL_CLASS : private ::flatbuffe
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  double volatility() const {
-    return GetField<double>(VT_VOLATILITY, 0.0);
+  /// Constant optionlet volatility. Presence-required (a bare double would
+  /// default to a silent zero) and must be finite and non-negative. A genuine
+  /// 0 is valid: for a coupon leg without caps/floors the Black pricer with
+  /// zero vol reproduces the deterministic forward, so 0 is accepted while an
+  /// omitted value is rejected.
+  ::flatbuffers::Optional<double> volatility() const {
+    return GetOptional<double, double>(VT_VOLATILITY);
   }
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
@@ -92,7 +97,7 @@ struct ConstantOptionletVolatilityBuilder {
     fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_volatility(double volatility) {
-    fbb_.AddElement<double>(ConstantOptionletVolatility::VT_VOLATILITY, volatility, 0.0);
+    fbb_.AddElement<double>(ConstantOptionletVolatility::VT_VOLATILITY, volatility);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(ConstantOptionletVolatility::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
@@ -113,10 +118,10 @@ inline ::flatbuffers::Offset<ConstantOptionletVolatility> CreateConstantOptionle
     int32_t settlement_days = 0,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
-    double volatility = 0.0,
+    ::flatbuffers::Optional<double> volatility = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt) {
   ConstantOptionletVolatilityBuilder builder_(_fbb);
-  builder_.add_volatility(volatility);
+  if(volatility) { builder_.add_volatility(*volatility); }
   builder_.add_settlement_days(settlement_days);
   if(day_counter) { builder_.add_day_counter(*day_counter); }
   if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }

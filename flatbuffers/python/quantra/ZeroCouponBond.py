@@ -44,12 +44,14 @@ class ZeroCouponBond(object):
         return None
 
     # Notional / face amount the redemption percentage applies to.
+    # Presence-required and must be > 0 (a bare double would default to a
+    # silent zero face).
     # ZeroCouponBond
     def FaceAmount(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Single redemption/maturity date (ISO yyyy-mm-dd).
     # ZeroCouponBond
@@ -104,7 +106,7 @@ def AddCalendar(builder, calendar):
     ZeroCouponBondAddCalendar(builder, calendar)
 
 def ZeroCouponBondAddFaceAmount(builder, faceAmount):
-    builder.PrependFloat64Slot(2, faceAmount, 0.0)
+    builder.PrependFloat64Slot(2, faceAmount, None)
 
 def AddFaceAmount(builder, faceAmount):
     ZeroCouponBondAddFaceAmount(builder, faceAmount)
@@ -146,7 +148,7 @@ class ZeroCouponBondT(object):
     def __init__(self):
         self.settlementDays = 0  # type: int
         self.calendar = None  # type: Optional[int]
-        self.faceAmount = 0.0  # type: float
+        self.faceAmount = None  # type: Optional[float]
         self.maturityDate = None  # type: str
         self.paymentConvention = None  # type: Optional[int]
         self.redemption = None  # type: Optional[float]

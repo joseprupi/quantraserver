@@ -25,7 +25,7 @@ struct ZeroCouponSwapT;
 struct ZeroCouponSwapT : public ::flatbuffers::NativeTable {
   typedef ZeroCouponSwap TableType;
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  double base_nominal = 0.0;
+  ::flatbuffers::Optional<double> base_nominal = ::flatbuffers::nullopt;
   std::string start_date{};
   std::string maturity_date{};
   ::flatbuffers::Optional<double> fixed_payment = ::flatbuffers::nullopt;
@@ -66,9 +66,10 @@ struct ZeroCouponSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
     return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
-  /// Base notional prior to compounding.
-  double base_nominal() const {
-    return GetField<double>(VT_BASE_NOMINAL, 0.0);
+  /// Base notional prior to compounding. Presence-required and must be > 0
+  /// (a bare double would default to a silent zero notional).
+  ::flatbuffers::Optional<double> base_nominal() const {
+    return GetOptional<double, double>(VT_BASE_NOMINAL);
   }
   /// Contract start date (ISO yyyy-mm-dd).
   const ::flatbuffers::String *start_date() const {
@@ -145,7 +146,7 @@ struct ZeroCouponSwapBuilder {
     fbb_.AddElement<int8_t>(ZeroCouponSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_base_nominal(double base_nominal) {
-    fbb_.AddElement<double>(ZeroCouponSwap::VT_BASE_NOMINAL, base_nominal, 0.0);
+    fbb_.AddElement<double>(ZeroCouponSwap::VT_BASE_NOMINAL, base_nominal);
   }
   void add_start_date(::flatbuffers::Offset<::flatbuffers::String> start_date) {
     fbb_.AddOffset(ZeroCouponSwap::VT_START_DATE, start_date);
@@ -189,7 +190,7 @@ struct ZeroCouponSwapBuilder {
 inline ::flatbuffers::Offset<ZeroCouponSwap> CreateZeroCouponSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    double base_nominal = 0.0,
+    ::flatbuffers::Optional<double> base_nominal = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
     ::flatbuffers::Optional<double> fixed_payment = ::flatbuffers::nullopt,
@@ -202,7 +203,7 @@ inline ::flatbuffers::Offset<ZeroCouponSwap> CreateZeroCouponSwap(
   ZeroCouponSwapBuilder builder_(_fbb);
   if(fixed_rate) { builder_.add_fixed_rate(*fixed_rate); }
   if(fixed_payment) { builder_.add_fixed_payment(*fixed_payment); }
-  builder_.add_base_nominal(base_nominal);
+  if(base_nominal) { builder_.add_base_nominal(*base_nominal); }
   builder_.add_payment_delay(payment_delay);
   builder_.add_index(index);
   builder_.add_maturity_date(maturity_date);
@@ -217,7 +218,7 @@ inline ::flatbuffers::Offset<ZeroCouponSwap> CreateZeroCouponSwap(
 inline ::flatbuffers::Offset<ZeroCouponSwap> CreateZeroCouponSwapDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    double base_nominal = 0.0,
+    ::flatbuffers::Optional<double> base_nominal = ::flatbuffers::nullopt,
     const char *start_date = nullptr,
     const char *maturity_date = nullptr,
     ::flatbuffers::Optional<double> fixed_payment = ::flatbuffers::nullopt,

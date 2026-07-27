@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -49,8 +50,8 @@ FraTrade extractTrade(const quantra::PriceFRA* pricing) {
     trade.startDate = DateToQL(fra->start_date()->str());
     trade.maturityDate = DateToQL(fra->maturity_date()->str());
     trade.position = FRATypeToQL(fra->fra_type().value());
-    trade.notional = fra->notional();
-    trade.strike = fra->strike();
+    trade.notional = requirePositive(fra->notional(), "FRA.notional");
+    trade.strike = requireFinite(fra->strike(), "FRA.strike");
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.forwardingCurveId = pricing->forwarding_curve()->str();
     trade.indexId = fra->index()->id()->str();

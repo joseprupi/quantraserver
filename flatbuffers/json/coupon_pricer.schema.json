@@ -187,7 +187,8 @@
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               },
         "volatility" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant optionlet volatility. Presence-required (a bare double would\ndefault to a silent zero) and must be finite and non-negative. A genuine\n0 is valid: for a coupon leg without caps/floors the Black pricer with\nzero vol reproduces the deterministic forward, so 0 is accepted while an\nomitted value is rejected."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"

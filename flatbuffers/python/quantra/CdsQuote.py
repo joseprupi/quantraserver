@@ -36,12 +36,14 @@ class CdsQuote(object):
             return obj
         return None
 
+    # Quote convention (ParSpread / Upfront). Presence-required: an omitted
+    # value is a 400, never the alphabetical-0 default (ParSpread).
     # CdsQuote
     def QuoteType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Optional; resolves from Pricing.quotes (QuoteType=Credit).
     # CdsQuote
@@ -90,7 +92,7 @@ def AddTenor(builder, tenor):
     CdsQuoteAddTenor(builder, tenor)
 
 def CdsQuoteAddQuoteType(builder, quoteType):
-    builder.PrependInt8Slot(1, quoteType, 0)
+    builder.PrependInt8Slot(1, quoteType, None)
 
 def AddQuoteType(builder, quoteType):
     CdsQuoteAddQuoteType(builder, quoteType)
@@ -135,7 +137,7 @@ class CdsQuoteT(object):
     # CdsQuoteT
     def __init__(self):
         self.tenor = None  # type: Optional[PeriodT]
-        self.quoteType = 0  # type: int
+        self.quoteType = None  # type: Optional[int]
         self.quoteId = None  # type: str
         self.quotedParSpread = 0.0  # type: float
         self.quotedUpfront = 0.0  # type: float
