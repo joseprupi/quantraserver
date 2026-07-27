@@ -323,6 +323,14 @@ def _ec_equity_set_exercise(exercise_type, exercise):
     return f
 
 
+def _ec_equity_set_barrier(barrier):
+    """Attach a barrier feature to the equity option."""
+    def f(req):
+        req["options"][0]["option"]["barrier"] = barrier
+        return req
+    return f
+
+
 def _ec_future_helper_missing_start_date():
     """Replace the first curve point with a FutureHelper that omits
     future_start_date (optional in the schema, deref'd by the parser)."""
@@ -945,13 +953,12 @@ SCENARIOS = [
      "swaption_request.json", 400,
      _ec_del_instrument_field("swaptions", "swaption", "settlement_type"),
      _ec_body_contains("Swaption.settlement_type is required")),
-    # ---- 400 INVALID_ARGUMENT: FRA / cap-floor / CDS convention presence ----
-    # An FRA, cap/floor or CDS convention enum omitted from the request must be
-    # rejected, not silently defaulted to the alphabetical-0 value.
-    ("ec:400 fra missing calendar", "fra",
-     "fra_request.json", 400,
-     _ec_del_instrument_field("fras", "fra", "calendar"),
-     _ec_body_contains("FRA.calendar is required")),
+    # ---- 400 INVALID_ARGUMENT: cap-floor / CDS convention presence ----
+    # A cap/floor or CDS convention enum omitted from the request must be
+    # rejected, not silently defaulted to the alphabetical-0 value. (The FRA's
+    # own day_counter/calendar/business_day_convention are accepted-but-unused —
+    # QuantLib builds the FRA from the index — so they are NOT presence-required;
+    # see test_fra.py::test_fra_conventions_optional_and_ignored.)
     ("ec:400 cap_floor missing business_day_convention", "cap_floor",
      "cap_floor_request.json", 400,
      _ec_del_instrument_field("cap_floors", "cap_floor", "business_day_convention"),
@@ -1106,6 +1113,16 @@ SCENARIOS = [
          _ec_equity_set_payoff("EquityCashOrNothingPayoff",
                                {"option_type": "Call", "strike": 100.0, "cash": 10.0})(req)),
      _ec_body_contains("Bermudan exercise is not supported for digital")),
+    # A barrier monitored on a discrete date schedule has no native QuantLib
+    # engine (all barrier engines monitor continuously). Rather than hand-roll a
+    # continuity correction, the request is rejected with a message naming the
+    # limitation. monitoring_dates is supplied to prove the schedule is not read.
+    ("ec:400 equity barrier discrete monitoring rejected", "equity_option",
+     "equity/eqopt_eur_call_atm_1y.json", 400,
+     _ec_equity_set_barrier({"barrier_type": "DownOut", "level": 80.0,
+                             "rebate": 0.0, "monitoring": "Discrete",
+                             "monitoring_dates": ["2025-07-15", "2026-01-15"]}),
+     _ec_body_contains("Discrete monitoring")),
     # ---- 400 INVALID_ARGUMENT: swaption rebump requires market data ----
     # Rebump snapshots are built in the mapper (before the registry's usual
     # rates-presence guard); omitting pricing.rates used to crash the worker.

@@ -2348,7 +2348,8 @@
                 "description" : "Reference to an IndexDef by id (e.g., \"EUR_3M\")."
               },
         "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. The FRA is built from the index (which\nalready carries the day count, calendar and business-day convention) plus\nthe dates and strike, so these three fields are ignored if present and may\nbe omitted. Kept optional for backward compatibility."
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar"

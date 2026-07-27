@@ -123,6 +123,14 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
     rejectUnsupportedNotionals(floatingLeg->notionals(),
                                "Swaption underlying VanillaSwap floating leg");
+    // The swaption is priced from a QuantLib::VanillaSwap underlying, which the
+    // swaption engines require and which cannot represent an in-arrears floating
+    // leg. Reject in_arrears=true rather than silently pricing it in-advance.
+    if (floatingLeg->in_arrears()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Swaption underlying floating leg does not support in_arrears "
+            "(the swaption is priced from a QuantLib::VanillaSwap, which fixes in advance)");
+    }
     trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
     trade.ibor.notional = requirePositive(floatingLeg->notional(), "SwapFloatingLeg.notional");
     trade.ibor.indexId = floatingLeg->index()->id()->str();

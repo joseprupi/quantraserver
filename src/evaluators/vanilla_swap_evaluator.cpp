@@ -253,15 +253,20 @@ VanillaSwapPerSwap priceIborConstant(
     return out;
 }
 
-/// Price the amortizing/step-up IBOR branch. QuantLib::VanillaSwap cannot carry
-/// per-period notionals, so both legs are assembled explicitly with
-/// .withNotionals() and priced as a generic QuantLib::Swap — exactly how
-/// QuantLib composes amortizing swaps. The fixed leg, floating leg and payment
-/// adjustments mirror what VanillaSwap builds internally (both legs use the
-/// floating schedule's business-day convention), so an all-equal notionals
-/// vector reproduces the VanillaSwap result bit-for-bit. fairRate/fairSpread
-/// are recomputed with VanillaSwap's own formula from the leg BPS values.
-VanillaSwapPerSwap priceIborAmortizing(
+/// Price the IBOR branch via explicitly assembled legs. QuantLib::VanillaSwap
+/// cannot carry per-period notionals nor an in-arrears / custom-fixing-days
+/// floating leg, so both legs are assembled explicitly with .withNotionals()
+/// (plus .withFixingDays()/.inArrears() from the leg conventions) and priced as
+/// a generic QuantLib::Swap. The fixed leg, floating leg and payment adjustments
+/// mirror what VanillaSwap builds internally (both legs use the floating
+/// schedule's business-day convention), so an all-equal notionals, in-advance,
+/// index-default-fixing-days leg reproduces the VanillaSwap result bit-for-bit.
+/// For an in-arrears leg the coupon fixes at the end of the accrual period; the
+/// zero-vol Black pricer applies no convexity/timing adjustment (none is priced
+/// here — no caplet volatility is supplied), so the difference vs in-advance is
+/// purely the shifted fixing date. fairRate/fairSpread are recomputed with
+/// VanillaSwap's own formula from the leg BPS values.
+VanillaSwapPerSwap priceIborManualLeg(
     const VanillaSwapTrade& trade,
     const std::shared_ptr<QuantLib::IborIndex>& iborIndex,
     const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& discHandle,
@@ -292,11 +297,14 @@ VanillaSwapPerSwap priceIborAmortizing(
         .withNotionals(iborNotionals)
         .withPaymentDayCounter(trade.ibor.dayCounter)
         .withPaymentAdjustment(paymentConvention)
-        .withSpreads(trade.ibor.spread);
+        .withSpreads(trade.ibor.spread)
+        .withFixingDays(static_cast<QuantLib::Natural>(trade.ibor.fixingDays))
+        .inArrears(trade.ibor.inArrears);
 
-    // Plain (non-capped, non-in-arrears) IBOR coupons need a pricer to compute
-    // their forward rate; a zero-vol Black pricer reproduces VanillaSwap's own
-    // internal pricing (no convexity/timing adjustment is triggered).
+    // IBOR coupons need a pricer to compute their forward rate; a zero-vol Black
+    // pricer reproduces VanillaSwap's own internal pricing for an in-advance leg
+    // (no convexity/timing adjustment is triggered) and, for an in-arrears leg,
+    // reads the shifted (end-of-period) fixing with no convexity adjustment.
     auto optionletVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
         0, iborIndex->fixingCalendar(), QuantLib::ModifiedFollowing, 0.0,
         QuantLib::Actual365Fixed());
@@ -360,8 +368,11 @@ VanillaSwapPerSwap priceIborBranch(
 
     const bool amortizing =
         !trade.fixed.notionals.empty() || !trade.ibor.notionals.empty();
-    if (amortizing) {
-        return priceIborAmortizing(trade, iborIndex, discHandle, ctx, includeFlows);
+    // In-arrears legs cannot be expressed by QuantLib::VanillaSwap, so they take
+    // the manual-leg path too. A plain, in-advance, constant-notional leg keeps
+    // the QuantLib::VanillaSwap path (byte-identical to prior behaviour).
+    if (amortizing || trade.ibor.inArrears) {
+        return priceIborManualLeg(trade, iborIndex, discHandle, ctx, includeFlows);
     }
     return priceIborConstant(trade, iborIndex, discHandle, ctx, includeFlows);
 }
