@@ -204,12 +204,18 @@
           "frequency": "Quarterly",
           "convention": "Following",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "TwentiethIMM"
+          "date_generation_rule": "TwentiethIMM",
+          "end_of_month": false
         },
         "day_counter": "Actual360",
         "business_day_convention": "Following",
         "protection_start": "2025-01-15",
-        "upfront_date": "2025-01-20"
+        "upfront_date": "2025-01-20",
+        "settles_accrual": true,
+        "pays_at_default_time": true,
+        "rebates_accrual": true,
+        "last_period_day_counter": "Actual360",
+        "cash_settlement_days": 3
       },
       "discounting_curve": "discount",
       "credit_curve_id": "eur_upfront",

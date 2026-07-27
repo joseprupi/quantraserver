@@ -30,7 +30,7 @@ struct ScheduleT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> termination_date_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule = ::flatbuffers::nullopt;
-  bool end_of_month = false;
+  ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt;
   std::string first_date{};
   std::string next_to_last_date{};
 };
@@ -72,8 +72,10 @@ struct Schedule FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule() const {
     return GetOptional<int8_t, quantra::enums::DateGenerationRule>(VT_DATE_GENERATION_RULE);
   }
-  bool end_of_month() const {
-    return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
+  /// Presence-required: absent-vs-false silently changes schedule dates for
+  /// month-end-anchored (money-market) schedules.
+  ::flatbuffers::Optional<bool> end_of_month() const {
+    return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
   }
   /// Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
   /// firstDate, which controls the FIRST stub coupon: with Backward date
@@ -141,7 +143,7 @@ struct ScheduleBuilder {
     fbb_.AddElement<int8_t>(Schedule::VT_DATE_GENERATION_RULE, static_cast<int8_t>(date_generation_rule));
   }
   void add_end_of_month(bool end_of_month) {
-    fbb_.AddElement<uint8_t>(Schedule::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 0);
+    fbb_.AddElement<uint8_t>(Schedule::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month));
   }
   void add_first_date(::flatbuffers::Offset<::flatbuffers::String> first_date) {
     fbb_.AddOffset(Schedule::VT_FIRST_DATE, first_date);
@@ -169,7 +171,7 @@ inline ::flatbuffers::Offset<Schedule> CreateSchedule(
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> termination_date_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule = ::flatbuffers::nullopt,
-    bool end_of_month = false,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> first_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> next_to_last_date = 0) {
   ScheduleBuilder builder_(_fbb);
@@ -177,7 +179,7 @@ inline ::flatbuffers::Offset<Schedule> CreateSchedule(
   builder_.add_first_date(first_date);
   builder_.add_termination_date(termination_date);
   builder_.add_effective_date(effective_date);
-  builder_.add_end_of_month(end_of_month);
+  if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
   if(date_generation_rule) { builder_.add_date_generation_rule(*date_generation_rule); }
   if(termination_date_convention) { builder_.add_termination_date_convention(*termination_date_convention); }
   if(convention) { builder_.add_convention(*convention); }
@@ -195,7 +197,7 @@ inline ::flatbuffers::Offset<Schedule> CreateScheduleDirect(
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> termination_date_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule = ::flatbuffers::nullopt,
-    bool end_of_month = false,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     const char *first_date = nullptr,
     const char *next_to_last_date = nullptr) {
   auto effective_date__ = effective_date ? _fbb.CreateString(effective_date) : 0;

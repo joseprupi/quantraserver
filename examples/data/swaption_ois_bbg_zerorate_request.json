@@ -15,7 +15,8 @@
           "tenor": {
             "n": 0,
             "unit": "Days"
-          }
+          },
+          "end_of_month": true
         }
       ],
       "curves": [
@@ -49,7 +50,9 @@
                 "tenor": {
                   "n": 2,
                   "unit": "Weeks"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -61,7 +64,9 @@
                 "tenor": {
                   "n": 3,
                   "unit": "Weeks"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -73,7 +78,9 @@
                 "tenor": {
                   "n": 1,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -85,7 +92,9 @@
                 "tenor": {
                   "n": 2,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -97,7 +106,9 @@
                 "tenor": {
                   "n": 3,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -109,7 +120,9 @@
                 "tenor": {
                   "n": 4,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -121,7 +134,9 @@
                 "tenor": {
                   "n": 5,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -133,7 +148,9 @@
                 "tenor": {
                   "n": 6,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -145,7 +162,9 @@
                 "tenor": {
                   "n": 7,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -157,7 +176,9 @@
                 "tenor": {
                   "n": 8,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -169,7 +190,9 @@
                 "tenor": {
                   "n": 9,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -181,7 +204,9 @@
                 "tenor": {
                   "n": 10,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -193,7 +218,9 @@
                 "tenor": {
                   "n": 11,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -205,7 +232,9 @@
                 "tenor": {
                   "n": 12,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -217,7 +246,9 @@
                 "tenor": {
                   "n": 18,
                   "unit": "Months"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -229,7 +260,9 @@
                 "tenor": {
                   "n": 2,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -241,7 +274,9 @@
                 "tenor": {
                   "n": 3,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -253,7 +288,9 @@
                 "tenor": {
                   "n": 4,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -265,7 +302,9 @@
                 "tenor": {
                   "n": 5,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -277,7 +316,9 @@
                 "tenor": {
                   "n": 6,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -289,7 +330,9 @@
                 "tenor": {
                   "n": 7,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -301,7 +344,9 @@
                 "tenor": {
                   "n": 8,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -313,7 +358,9 @@
                 "tenor": {
                   "n": 9,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -325,7 +372,9 @@
                 "tenor": {
                   "n": 10,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -337,7 +386,9 @@
                 "tenor": {
                   "n": 12,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -349,7 +400,9 @@
                 "tenor": {
                   "n": 15,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -361,7 +414,9 @@
                 "tenor": {
                   "n": 20,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -373,7 +428,9 @@
                 "tenor": {
                   "n": 25,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -385,7 +442,9 @@
                 "tenor": {
                   "n": 30,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -397,7 +456,9 @@
                 "tenor": {
                   "n": 40,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             },
             {
@@ -409,7 +470,9 @@
                 "tenor": {
                   "n": 50,
                   "unit": "Years"
-                }
+                },
+                "compounding": "Continuous",
+                "frequency": "Annual"
               }
             }
           ]
@@ -469,7 +532,8 @@
               "frequency": "Annual",
               "convention": "ModifiedFollowing",
               "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward"
+              "date_generation_rule": "Forward",
+              "end_of_month": false
             },
             "rate": 0.03367463,
             "day_counter": "Actual360",
@@ -484,7 +548,8 @@
               "frequency": "Annual",
               "convention": "ModifiedFollowing",
               "termination_date_convention": "ModifiedFollowing",
-              "date_generation_rule": "Forward"
+              "date_generation_rule": "Forward",
+              "end_of_month": false
             },
             "index": {
               "id": "USD_SOFR"

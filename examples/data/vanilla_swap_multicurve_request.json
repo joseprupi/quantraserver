@@ -30,7 +30,8 @@
           "tenor": {
             "n": 0,
             "unit": "Days"
-          }
+          },
+          "end_of_month": true
         }
       ],
       "curves": [
@@ -64,7 +65,12 @@
                 "tenor": {
                   "n": 1,
                   "unit": "Years"
-                }
+                },
+                "settlement_days": 2,
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             },
             {
@@ -77,7 +83,12 @@
                 "tenor": {
                   "n": 5,
                   "unit": "Years"
-                }
+                },
+                "settlement_days": 2,
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             },
             {
@@ -90,7 +101,12 @@
                 "tenor": {
                   "n": 10,
                   "unit": "Years"
-                }
+                },
+                "settlement_days": 2,
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             }
           ]

@@ -70,6 +70,7 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fsb.add_end_of_month(false);
     auto fixedSchOff = fsb.Finish();
 
     quantra::SwapFixedLegBuilder flb(b);
@@ -90,6 +91,7 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     osb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     osb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     osb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    osb.add_end_of_month(false);
     auto onSchOff = osb.Finish();
 
     auto sofrRef = buildIndexRef(b, "USD_SOFR");
@@ -183,6 +185,7 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fsb.add_end_of_month(false);
     auto fixedSchOff = fsb.Finish();
 
     quantra::SwapFixedLegBuilder flb(b);
@@ -203,6 +206,7 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     osb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     osb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     osb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    osb.add_end_of_month(false);
     auto onSchOff = osb.Finish();
 
     auto sofrRef = buildIndexRef(b, "USD_SOFR");

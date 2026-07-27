@@ -6,6 +6,8 @@
 #include "enum_convert.h"
 #include "date_convert.h"
 #include "error.h"
+#include "require_scalar.h"
+#include "require_period.h"
 
 #include <ql/indexes/iborindex.hpp>
 #include <ql/indexes/ibor/all.hpp>
@@ -83,22 +85,26 @@ public:
                 ? def->currency()->str() : "EUR";
             QuantLib::Currency currency = CurrencyFromString(ccyStr);
 
-            // Parse conventions
-            if (!def->tenor()) {
-                QUANTRA_INVALID_ARGUMENT("IndexDef.tenor is required for id: " + id);
-            }
-            int tenorN = def->tenor()->n();
-            QuantLib::TimeUnit tenorUnit = TimeUnitToQL(def->tenor()->unit());
-            QuantLib::Period tenor(tenorN, tenorUnit);
-            int fixingDays = def->fixing_days();
-            QuantLib::Calendar calendar = CalendarToQL(def->calendar());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(def->business_day_convention());
-            QuantLib::DayCounter dayCounter = DayCounterToQL(def->day_counter());
-            bool eom = def->end_of_month();
+            // Parse conventions (every convention is presence-required)
+            QuantLib::Period tenor =
+                requirePeriod(def->tenor(), "IndexDef.tenor for id: " + id);
+            int fixingDays = requireInt(def->fixing_days(),
+                                        "IndexDef.fixing_days for id: " + id);
+            QuantLib::Calendar calendar = CalendarToQL(
+                requireEnum(def->calendar(), "IndexDef.calendar for id: " + id));
+            QuantLib::BusinessDayConvention bdc = ConventionToQL(requireEnum(
+                def->business_day_convention(),
+                "IndexDef.business_day_convention for id: " + id));
+            QuantLib::DayCounter dayCounter = DayCounterToQL(requireEnum(
+                def->day_counter(), "IndexDef.day_counter for id: " + id));
+            bool eom = requireBool(def->end_of_month(),
+                                   "IndexDef.end_of_month for id: " + id);
+            quantra::IndexType indexType = requireEnum(
+                def->index_type(), "IndexDef.index_type for id: " + id);
 
             std::shared_ptr<QuantLib::InterestRateIndex> index;
 
-            if (def->index_type() == quantra::IndexType_Overnight) {
+            if (indexType == quantra::IndexType_Overnight) {
                 // Build OvernightIndex
                 index = std::make_shared<QuantLib::OvernightIndex>(
                     name,

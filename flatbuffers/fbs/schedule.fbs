@@ -11,7 +11,9 @@ table Schedule {
     convention:enums.BusinessDayConvention = null;
     termination_date_convention:enums.BusinessDayConvention = null;
     date_generation_rule:enums.DateGenerationRule = null;
-    end_of_month:bool;
+    /// Presence-required: absent-vs-false silently changes schedule dates for
+    /// month-end-anchored (money-market) schedules.
+    end_of_month:bool = null;
     /// Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
     /// firstDate, which controls the FIRST stub coupon: with Backward date
     /// generation a first_date after effective_date creates a short/long first

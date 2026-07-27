@@ -52,14 +52,14 @@ class DiscountFactorPoint(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # DiscountFactorPoint
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # Discount factor to this maturity. Required; must be in (0, 1]. The first
     # point (reference date) must carry a discount factor of exactly 1.0.
@@ -89,13 +89,13 @@ def AddTenor(builder, tenor):
     DiscountFactorPointAddTenor(builder, tenor)
 
 def DiscountFactorPointAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(2, calendar, 32)
+    builder.PrependInt8Slot(2, calendar, None)
 
 def AddCalendar(builder, calendar):
     DiscountFactorPointAddCalendar(builder, calendar)
 
 def DiscountFactorPointAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(3, businessDayConvention, 2)
+    builder.PrependInt8Slot(3, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     DiscountFactorPointAddBusinessDayConvention(builder, businessDayConvention)
@@ -123,8 +123,8 @@ class DiscountFactorPointT(object):
     def __init__(self):
         self.date = None  # type: str
         self.tenor = None  # type: Optional[PeriodT]
-        self.calendar = 32  # type: int
-        self.businessDayConvention = 2  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.discountFactor = None  # type: Optional[float]
 
     @classmethod

@@ -2096,7 +2096,8 @@
             "$ref": "#/components/schemas/quantra_enums_DateGenerationRule"
           },
           "end_of_month": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Presence-required: absent-vs-false silently changes schedule dates for\nmonth-end-anchored (money-market) schedules."
           },
           "first_date": {
             "type": "string",
@@ -2111,7 +2112,7 @@
       },
       "quantra_Period": {
         "type": "object",
-        "description": "Canonical period type used across APIs.",
+        "description": "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
         "properties": {
           "n": {
             "type": "integer",
@@ -2278,7 +2279,7 @@
           },
           "fixing_days": {
             "type": "integer",
-            "description": "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).",
+            "description": "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -2293,7 +2294,7 @@
           },
           "end_of_month": {
             "type": "boolean",
-            "description": "End of month rule (IBOR only, ignored for overnight)."
+            "description": "End of month rule (IBOR only, ignored for overnight). Presence-required:\nabsent-vs-false silently changes money-market schedule dates."
           },
           "currency": {
             "type": "string",
@@ -4203,7 +4204,7 @@
       },
       "quantra_SwapIndexFixedLegSpec": {
         "type": "object",
-        "description": "Fixed leg conventions for swap index.",
+        "description": "Fixed leg conventions for swap index. Every convention is presence-required.",
         "properties": {
           "fixed_frequency": {
             "$ref": "#/components/schemas/quantra_enums_Frequency"
@@ -4231,7 +4232,7 @@
       },
       "quantra_SwapIndexFloatLegSpec": {
         "type": "object",
-        "description": "Floating leg conventions for swap index.",
+        "description": "Floating leg conventions for swap index. Every convention is\npresence-required.",
         "properties": {
           "float_tenor": {
             "$ref": "#/components/schemas/quantra_Period"
@@ -4328,7 +4329,7 @@
       },
       "quantra_CdsHelperConventions": {
         "type": "object",
-        "description": "CDS helper conventions for curve building.",
+        "description": "CDS helper conventions for curve building. Every convention is\npresence-required: an omitted value is a 400 naming the field, never a\nsilent market-default assumption.",
         "properties": {
           "settlement_days": {
             "type": "integer",
@@ -4646,11 +4647,11 @@
           },
           "interpolated": {
             "type": "boolean",
-            "description": "Whether the index is interpolated between fixings."
+            "description": "Whether the index is interpolated between fixings. Presence-required:\nabsent-vs-false silently changes the observed CPI."
           },
           "revised": {
             "type": "boolean",
-            "description": "Whether index values can be revised (rare; defaults to false)."
+            "description": "Whether index values can be revised (rare). Presence-required."
           },
           "kind": {
             "$ref": "#/components/schemas/quantra_enums_InflationCurveKind"
@@ -4806,7 +4807,8 @@
             "$ref": "#/components/schemas/quantra_enums_Interpolator"
           },
           "bootstrap_accuracy": {
-            "type": "number"
+            "type": "number",
+            "description": "Numerical bootstrap tolerance (not a market convention): keeps its default."
           },
           "kind": {
             "$ref": "#/components/schemas/quantra_enums_InflationCurveKind"
@@ -6061,7 +6063,8 @@
             "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           },
           "settles_accrual": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "ISDA settlement conventions. Presence-required: each is a deliberate\nchoice (false round-trips) so an omission is a 400, never a silent true."
           },
           "pays_at_default_time": {
             "type": "boolean"

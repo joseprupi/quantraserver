@@ -6,6 +6,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "require_scalar.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -56,9 +57,8 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
     trade.dayCounter = DayCounterToQL(swap->day_counter());
     trade.fixedRate = swap->fixed_rate();
     trade.inflationIndexId = swap->inflation_index_id()->str();
-    trade.observationLag = QuantLib::Period(
-        swap->observation_lag()->n(),
-        TimeUnitToQL(swap->observation_lag()->unit()));
+    trade.observationLag = requirePeriod(
+        swap->observation_lag(), "ZeroCouponInflationSwap.observation_lag");
     trade.observationInterpolation = CPIInterpolationToQL(swap->observation_interpolation());
     if (swap->adjust_observation_dates()) {
         QUANTRA_INVALID_ARGUMENT(

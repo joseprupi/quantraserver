@@ -21,27 +21,29 @@ table CdsQuote {
     running_coupon:double = null;
 }
 
-/// CDS helper conventions for curve building.
+/// CDS helper conventions for curve building. Every convention is
+/// presence-required: an omitted value is a 400 naming the field, never a
+/// silent market-default assumption.
 table CdsHelperConventions {
-    settlement_days:int = 0;
-    frequency:enums.Frequency = Quarterly;
-    business_day_convention:enums.BusinessDayConvention = Following;
-    date_generation_rule:enums.DateGenerationRule = TwentiethIMM;
-    last_period_day_counter:enums.DayCounter = Actual365Fixed;
-    settles_accrual:bool = true;
-    pays_at_default_time:bool = true;
-    rebates_accrual:bool = true;
-    helper_model:enums.CdsHelperModel = MidPoint;
+    settlement_days:int = null;
+    frequency:enums.Frequency = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    date_generation_rule:enums.DateGenerationRule = null;
+    last_period_day_counter:enums.DayCounter = null;
+    settles_accrual:bool = null;
+    pays_at_default_time:bool = null;
+    rebates_accrual:bool = null;
+    helper_model:enums.CdsHelperModel = null;
 }
 
 /// Default probability curve specification for CDS pricing.
 table CreditCurveSpec {
     id:string (required);
     reference_date:string (required);
-    calendar:enums.Calendar = NullCalendar;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    recovery_rate:double = 0.4;
-    curve_interpolator:enums.Interpolator = LogLinear;
+    calendar:enums.Calendar = null;
+    day_counter:enums.DayCounter = null;
+    recovery_rate:double = null;
+    curve_interpolator:enums.Interpolator = null;
     helper_conventions:CdsHelperConventions;
     /// Build from CDS market quotes.
     quotes:[CdsQuote];

@@ -50,6 +50,8 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
         QUANTRA_INVALID_ARGUMENT("Schedule.termination_date_convention is required");
     if (!schedule->date_generation_rule().has_value())
         QUANTRA_INVALID_ARGUMENT("Schedule.date_generation_rule is required");
+    if (!schedule->end_of_month().has_value())
+        QUANTRA_INVALID_ARGUMENT("Schedule.end_of_month is required");
 
     const QuantLib::Date effective = DateToQL(schedule->effective_date()->str());
     const QuantLib::Date termination = DateToQL(schedule->termination_date()->str());
@@ -133,7 +135,7 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
                 ConventionToQL(schedule->convention().value()),
                 ConventionToQL(schedule->termination_date_convention().value()),
                 DateGenerationToQL(schedule->date_generation_rule().value()),
-                schedule->end_of_month(),
+                schedule->end_of_month().value(),
                 firstDate,
                 nextToLastDate);
         }
@@ -153,5 +155,5 @@ std::shared_ptr<QuantLib::Schedule> ScheduleParser::parse(const quantra::Schedul
         ConventionToQL(schedule->convention().value()),
         ConventionToQL(schedule->termination_date_convention().value()),
         DateGenerationToQL(schedule->date_generation_rule().value()),
-        schedule->end_of_month());
+        schedule->end_of_month().value());
 }

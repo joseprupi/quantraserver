@@ -56,14 +56,14 @@ class ForwardRatePoint(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # ForwardRatePoint
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # Instantaneous, continuously-compounded forward rate at this node.
     # Required. May be negative in some markets; only non-finite is rejected.
@@ -93,13 +93,13 @@ def AddTenor(builder, tenor):
     ForwardRatePointAddTenor(builder, tenor)
 
 def ForwardRatePointAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(2, calendar, 32)
+    builder.PrependInt8Slot(2, calendar, None)
 
 def AddCalendar(builder, calendar):
     ForwardRatePointAddCalendar(builder, calendar)
 
 def ForwardRatePointAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(3, businessDayConvention, 2)
+    builder.PrependInt8Slot(3, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     ForwardRatePointAddBusinessDayConvention(builder, businessDayConvention)
@@ -127,8 +127,8 @@ class ForwardRatePointT(object):
     def __init__(self):
         self.date = None  # type: str
         self.tenor = None  # type: Optional[PeriodT]
-        self.calendar = 32  # type: int
-        self.businessDayConvention = 2  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.forwardRate = None  # type: Optional[float]
 
     @classmethod

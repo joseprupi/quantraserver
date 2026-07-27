@@ -142,13 +142,13 @@ struct IndexDefT : public ::flatbuffers::NativeTable {
   typedef IndexDef TableType;
   std::string id{};
   std::string name{};
-  quantra::IndexType index_type = quantra::IndexType_Ibor;
+  ::flatbuffers::Optional<quantra::IndexType> index_type = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
-  int32_t fixing_days = 2;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  bool end_of_month = true;
+  ::flatbuffers::Optional<int32_t> fixing_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt;
   std::string currency{};
   std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
   IndexDefT() = default;
@@ -182,33 +182,35 @@ struct IndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *name() const {
     return GetPointer<const ::flatbuffers::String *>(VT_NAME);
   }
-  /// IBOR or Overnight. Determines QuantLib class used.
-  quantra::IndexType index_type() const {
-    return static_cast<quantra::IndexType>(GetField<int8_t>(VT_INDEX_TYPE, 0));
+  /// IBOR or Overnight. Determines QuantLib class used. Presence-required: an
+  /// omitted value is a 400, never the silent Ibor default.
+  ::flatbuffers::Optional<quantra::IndexType> index_type() const {
+    return GetOptional<int8_t, quantra::IndexType>(VT_INDEX_TYPE);
   }
   /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight).
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).
-  int32_t fixing_days() const {
-    return GetField<int32_t>(VT_FIXING_DAYS, 2);
+  /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required.
+  ::flatbuffers::Optional<int32_t> fixing_days() const {
+    return GetOptional<int32_t, int32_t>(VT_FIXING_DAYS);
   }
-  /// Calendar for fixing/payment dates.
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  /// Calendar for fixing/payment dates. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  /// Business day convention.
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  /// Business day convention. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  /// Day count convention.
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  /// Day count convention. Presence-required.
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  /// End of month rule (IBOR only, ignored for overnight).
-  bool end_of_month() const {
-    return GetField<uint8_t>(VT_END_OF_MONTH, 1) != 0;
+  /// End of month rule (IBOR only, ignored for overnight). Presence-required:
+  /// absent-vs-false silently changes money-market schedule dates.
+  ::flatbuffers::Optional<bool> end_of_month() const {
+    return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
   }
   /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY").
   const ::flatbuffers::String *currency() const {
@@ -255,25 +257,25 @@ struct IndexDefBuilder {
     fbb_.AddOffset(IndexDef::VT_NAME, name);
   }
   void add_index_type(quantra::IndexType index_type) {
-    fbb_.AddElement<int8_t>(IndexDef::VT_INDEX_TYPE, static_cast<int8_t>(index_type), 0);
+    fbb_.AddElement<int8_t>(IndexDef::VT_INDEX_TYPE, static_cast<int8_t>(index_type));
   }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(IndexDef::VT_TENOR, tenor);
   }
   void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(IndexDef::VT_FIXING_DAYS, fixing_days, 2);
+    fbb_.AddElement<int32_t>(IndexDef::VT_FIXING_DAYS, fixing_days);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(IndexDef::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(IndexDef::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(IndexDef::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(IndexDef::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(IndexDef::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(IndexDef::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_end_of_month(bool end_of_month) {
-    fbb_.AddElement<uint8_t>(IndexDef::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 1);
+    fbb_.AddElement<uint8_t>(IndexDef::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month));
   }
   void add_currency(::flatbuffers::Offset<::flatbuffers::String> currency) {
     fbb_.AddOffset(IndexDef::VT_CURRENCY, currency);
@@ -298,27 +300,27 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDef(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> name = 0,
-    quantra::IndexType index_type = quantra::IndexType_Ibor,
+    ::flatbuffers::Optional<quantra::IndexType> index_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    int32_t fixing_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    bool end_of_month = true,
+    ::flatbuffers::Optional<int32_t> fixing_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> currency = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings = 0) {
   IndexDefBuilder builder_(_fbb);
   builder_.add_fixings(fixings);
   builder_.add_currency(currency);
-  builder_.add_fixing_days(fixing_days);
+  if(fixing_days) { builder_.add_fixing_days(*fixing_days); }
   builder_.add_tenor(tenor);
   builder_.add_name(name);
   builder_.add_id(id);
-  builder_.add_end_of_month(end_of_month);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
-  builder_.add_index_type(index_type);
+  if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
+  if(index_type) { builder_.add_index_type(*index_type); }
   return builder_.Finish();
 }
 
@@ -326,13 +328,13 @@ inline ::flatbuffers::Offset<IndexDef> CreateIndexDefDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     const char *name = nullptr,
-    quantra::IndexType index_type = quantra::IndexType_Ibor,
+    ::flatbuffers::Optional<quantra::IndexType> index_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    int32_t fixing_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    bool end_of_month = true,
+    ::flatbuffers::Optional<int32_t> fixing_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     const char *currency = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::Fixing>> *fixings = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;

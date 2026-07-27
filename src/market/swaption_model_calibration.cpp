@@ -1,5 +1,7 @@
 #include "swaption_model_calibration.h"
 
+#include "require_period.h"
+
 #include <cmath>
 #include <atomic>
 #include <iostream>
@@ -46,10 +48,7 @@ QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
 }
 
 QuantLib::Period toQlPeriod(const quantra::Period* p) {
-    if (!p) {
-        QUANTRA_INVALID_ARGUMENT("Calibration Period is null");
-    }
-    return QuantLib::Period(p->n(), TimeUnitToQL(p->unit()));
+    return requirePeriod(p, "Calibration Period");
 }
 
 double marketVolAtNode(

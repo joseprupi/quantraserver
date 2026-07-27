@@ -144,7 +144,8 @@
           "frequency": "Semiannual",
           "convention": "ModifiedFollowing",
           "termination_date_convention": "ModifiedFollowing",
-          "date_generation_rule": "Forward"
+          "date_generation_rule": "Forward",
+          "end_of_month": false
         },
         "index": {
           "id": "EUR_6M"

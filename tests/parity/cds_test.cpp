@@ -79,6 +79,7 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     sb.add_convention(quantra::enums::BusinessDayConvention_Following);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
     
     quantra::CDSBuilder cdsb(b);
@@ -88,6 +89,11 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     cdsb.add_schedule(schedule);
     cdsb.add_day_counter(quantra::enums::DayCounter_Actual360);
     cdsb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+    cdsb.add_settles_accrual(true);
+    cdsb.add_pays_at_default_time(true);
+    cdsb.add_rebates_accrual(true);
+    cdsb.add_last_period_day_counter(quantra::enums::DayCounter_Actual360);
+    cdsb.add_cash_settlement_days(3);
     auto cds = cdsb.Finish();
 
     auto dc = b.CreateString("discount");
@@ -212,6 +218,7 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
     sb.add_convention(quantra::enums::BusinessDayConvention_Following);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     quantra::CDSBuilder cdsb(b);
@@ -221,6 +228,11 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
     cdsb.add_schedule(schedule);
     cdsb.add_day_counter(quantra::enums::DayCounter_Actual360);
     cdsb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+    cdsb.add_settles_accrual(true);
+    cdsb.add_pays_at_default_time(true);
+    cdsb.add_rebates_accrual(true);
+    cdsb.add_last_period_day_counter(quantra::enums::DayCounter_Actual360);
+    cdsb.add_cash_settlement_days(3);
     auto cds = cdsb.Finish();
 
     auto dc = b.CreateString("discount");
@@ -318,6 +330,7 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
     sb.add_convention(quantra::enums::BusinessDayConvention_Following);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     quantra::CDSBuilder cdsb(b);
@@ -327,6 +340,11 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
     cdsb.add_schedule(schedule);
     cdsb.add_day_counter(quantra::enums::DayCounter_Actual360);
     cdsb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
+    cdsb.add_settles_accrual(true);
+    cdsb.add_pays_at_default_time(true);
+    cdsb.add_rebates_accrual(true);
+    cdsb.add_last_period_day_counter(quantra::enums::DayCounter_Actual360);
+    cdsb.add_cash_settlement_days(3);
     auto cds = cdsb.Finish();
 
     auto dc = b.CreateString("discount");

@@ -54,21 +54,21 @@ class InflationIndexSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # InflationIndexSpec
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # InflationIndexSpec
     def Frequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 6
+        return None
 
     # Publication availability lag (e.g., 2 Months).
     # InflationIndexSpec
@@ -93,28 +93,29 @@ class InflationIndexSpec(object):
             return obj
         return None
 
-    # Whether the index is interpolated between fixings.
+    # Whether the index is interpolated between fixings. Presence-required:
+    # absent-vs-false silently changes the observed CPI.
     # InflationIndexSpec
     def Interpolated(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return True
+        return None
 
-    # Whether index values can be revised (rare; defaults to false).
+    # Whether index values can be revised (rare). Presence-required.
     # InflationIndexSpec
     def Revised(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
     # InflationIndexSpec
     def Kind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # For ratio-based YoY indices, link to the underlying zero inflation index id.
     # InflationIndexSpec
@@ -175,19 +176,19 @@ def AddCurrency(builder, currency):
     InflationIndexSpecAddCurrency(builder, currency)
 
 def InflationIndexSpecAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 32)
+    builder.PrependInt8Slot(3, calendar, None)
 
 def AddCalendar(builder, calendar):
     InflationIndexSpecAddCalendar(builder, calendar)
 
 def InflationIndexSpecAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, 1)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     InflationIndexSpecAddDayCounter(builder, dayCounter)
 
 def InflationIndexSpecAddFrequency(builder, frequency):
-    builder.PrependInt8Slot(5, frequency, 6)
+    builder.PrependInt8Slot(5, frequency, None)
 
 def AddFrequency(builder, frequency):
     InflationIndexSpecAddFrequency(builder, frequency)
@@ -205,19 +206,19 @@ def AddObservationLag(builder, observationLag):
     InflationIndexSpecAddObservationLag(builder, observationLag)
 
 def InflationIndexSpecAddInterpolated(builder, interpolated):
-    builder.PrependBoolSlot(8, interpolated, 1)
+    builder.PrependBoolSlot(8, interpolated, None)
 
 def AddInterpolated(builder, interpolated):
     InflationIndexSpecAddInterpolated(builder, interpolated)
 
 def InflationIndexSpecAddRevised(builder, revised):
-    builder.PrependBoolSlot(9, revised, 0)
+    builder.PrependBoolSlot(9, revised, None)
 
 def AddRevised(builder, revised):
     InflationIndexSpecAddRevised(builder, revised)
 
 def InflationIndexSpecAddKind(builder, kind):
-    builder.PrependInt8Slot(10, kind, 0)
+    builder.PrependInt8Slot(10, kind, None)
 
 def AddKind(builder, kind):
     InflationIndexSpecAddKind(builder, kind)
@@ -258,14 +259,14 @@ class InflationIndexSpecT(object):
         self.id = None  # type: str
         self.familyName = None  # type: str
         self.currency = None  # type: str
-        self.calendar = 32  # type: int
-        self.dayCounter = 1  # type: int
-        self.frequency = 6  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.frequency = None  # type: Optional[int]
         self.availabilityLag = None  # type: Optional[PeriodT]
         self.observationLag = None  # type: Optional[PeriodT]
-        self.interpolated = True  # type: bool
-        self.revised = False  # type: bool
-        self.kind = 0  # type: int
+        self.interpolated = None  # type: Optional[bool]
+        self.revised = None  # type: Optional[bool]
+        self.kind = None  # type: Optional[int]
         self.underlyingZeroIndexId = None  # type: str
         self.fixings = None  # type: List[FixingT]
 

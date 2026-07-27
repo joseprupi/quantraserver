@@ -5,6 +5,7 @@
 #include "schedule_parser.h"
 #include "error.h"
 #include "require_scalar.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -89,8 +90,8 @@ YoYInflationCapFloorTrade extractTrade(const quantra::PriceYoYInflationCapFloor*
     trade.notional = requirePositive(cf->notional(), "YoYInflationCapFloor.notional");
     trade.schedule = *schedule;
     trade.inflationIndexId = cf->inflation_index_id()->str();
-    trade.observationLag = QuantLib::Period(
-        cf->observation_lag()->n(), TimeUnitToQL(cf->observation_lag()->unit()));
+    trade.observationLag = requirePeriod(
+        cf->observation_lag(), "YoYInflationCapFloor.observation_lag");
     trade.dayCounter = DayCounterToQL(cf->day_counter().value());
     trade.paymentConvention = ConventionToQL(cf->payment_convention().value());
 

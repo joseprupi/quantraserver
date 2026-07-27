@@ -300,7 +300,8 @@
             "frequency": "Annual",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward"
+            "date_generation_rule": "Forward",
+            "end_of_month": false
           },
           "rate": 0.03,
           "day_counter": "Thirty360",
@@ -315,7 +316,8 @@
             "frequency": "Quarterly",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward"
+            "date_generation_rule": "Forward",
+            "end_of_month": false
           },
           "swap_index_id": "EUR_SWAP_6M",
           "swap_tenor": {

@@ -7,6 +7,7 @@
 #include <ql/settings.hpp>
 
 #include "require_scalar.h"
+#include "require_period.h"
 
 using namespace QuantLib;
 
@@ -103,7 +104,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         return std::make_shared<DepositRateHelper>(
             q,
-            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
+            requirePeriod(point->tenor(), "DepositHelper.tenor"),
             point->fixing_days(),
             CalendarToQL(point->calendar().value()),
             ConventionToQL(point->business_day_convention().value()),
@@ -276,7 +277,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         return std::make_shared<SwapRateHelper>(
             q,
-            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
+            requirePeriod(point->tenor(), "SwapHelper.tenor"),
             CalendarToQL(point->calendar().value()),
             FrequencyToQL(point->sw_fixed_leg_frequency().value()),
             ConventionToQL(point->sw_fixed_leg_convention().value()),
@@ -394,8 +395,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         }
 
         return std::make_shared<OISRateHelper>(
-            point->settlement_days(),
-            point->tenor()->n() * TimeUnitToQL(point->tenor()->unit()),
+            requireInt(point->settlement_days(), "OISHelper.settlement_days"),
+            requirePeriod(point->tenor(), "OISHelper.tenor"),
             q,
             on,
             discount
@@ -454,16 +455,17 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto tenor = (end - start) * Days;
 
         return std::make_shared<OISRateHelper>(
-            point->settlement_days(),
+            requireInt(point->settlement_days(), "DatedOISHelper.settlement_days"),
             tenor,
             q,
             on,
             discount,
             false,
             0,
-            ConventionToQL(point->fixed_leg_convention()),
+            ConventionToQL(requireEnum(point->fixed_leg_convention(),
+                                       "DatedOISHelper.fixed_leg_convention")),
             Frequency::Annual,
-            CalendarToQL(point->calendar()),
+            CalendarToQL(requireEnum(point->calendar(), "DatedOISHelper.calendar")),
             forwardStart,
             0.0,
             QuantLib::Pillar::LastRelevantDate,

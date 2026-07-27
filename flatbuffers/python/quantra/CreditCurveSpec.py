@@ -44,28 +44,28 @@ class CreditCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 21
+        return None
 
     # CreditCurveSpec
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # CreditCurveSpec
     def RecoveryRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.4
+        return None
 
     # CreditCurveSpec
     def CurveInterpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 4
+        return None
 
     # CreditCurveSpec
     def HelperConventions(self):
@@ -133,25 +133,25 @@ def AddReferenceDate(builder, referenceDate):
     CreditCurveSpecAddReferenceDate(builder, referenceDate)
 
 def CreditCurveSpecAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(2, calendar, 21)
+    builder.PrependInt8Slot(2, calendar, None)
 
 def AddCalendar(builder, calendar):
     CreditCurveSpecAddCalendar(builder, calendar)
 
 def CreditCurveSpecAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(3, dayCounter, 1)
+    builder.PrependInt8Slot(3, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     CreditCurveSpecAddDayCounter(builder, dayCounter)
 
 def CreditCurveSpecAddRecoveryRate(builder, recoveryRate):
-    builder.PrependFloat64Slot(4, recoveryRate, 0.4)
+    builder.PrependFloat64Slot(4, recoveryRate, None)
 
 def AddRecoveryRate(builder, recoveryRate):
     CreditCurveSpecAddRecoveryRate(builder, recoveryRate)
 
 def CreditCurveSpecAddCurveInterpolator(builder, curveInterpolator):
-    builder.PrependInt8Slot(5, curveInterpolator, 4)
+    builder.PrependInt8Slot(5, curveInterpolator, None)
 
 def AddCurveInterpolator(builder, curveInterpolator):
     CreditCurveSpecAddCurveInterpolator(builder, curveInterpolator)
@@ -197,10 +197,10 @@ class CreditCurveSpecT(object):
     def __init__(self):
         self.id = None  # type: str
         self.referenceDate = None  # type: str
-        self.calendar = 21  # type: int
-        self.dayCounter = 1  # type: int
-        self.recoveryRate = 0.4  # type: float
-        self.curveInterpolator = 4  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.recoveryRate = None  # type: Optional[float]
+        self.curveInterpolator = None  # type: Optional[int]
         self.helperConventions = None  # type: Optional[CdsHelperConventionsT]
         self.quotes = None  # type: List[CdsQuoteT]
         self.flatHazardRate = None  # type: Optional[float]

@@ -156,7 +156,8 @@
           "frequency": "Semiannual",
           "convention": "Unadjusted",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "Backward"
+          "date_generation_rule": "Backward",
+          "end_of_month": false
         }
       },
       "discounting_curve": "usd_zero_curve",

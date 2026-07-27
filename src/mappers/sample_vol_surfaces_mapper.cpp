@@ -4,6 +4,7 @@
 
 #include "date_convert.h"
 #include "enum_convert.h"
+#include "require_scalar.h"
 #include "error.h"
 #include "swaption_vol_diagnostics.h"
 
@@ -80,8 +81,8 @@ SampleDateGridSpec extractGridSpec(const quantra::DateGridSpec* spec) {
                 for (flatbuffers::uoffset_t i = 0; i < g->tenors()->size(); ++i) {
                     const auto* t = g->tenors()->Get(i);
                     SampleTenor st;
-                    st.n = t->n();
-                    st.unit = t->unit();
+                    st.n = requireInt(t->n(), "SwaptionTenorGrid.tenors.n");
+                    st.unit = requireEnum(t->unit(), "SwaptionTenorGrid.tenors.unit");
                     out.tenor.tenors.push_back(st);
                 }
             }

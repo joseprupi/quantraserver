@@ -127,6 +127,54 @@ def _ec_del_curve_field(field):
     return f
 
 
+def _ec_del_credit_field(field):
+    """Drop a convention field from the first credit curve (CreditCurveSpec).
+    recovery_rate / curve_interpolator / calendar / day_counter are
+    presence-required conventions: an omission is a named 400, never a silent
+    market-default assumption."""
+    def f(req):
+        req["pricing"]["credit"]["credit_curves"][0].pop(field, None)
+        return req
+    return f
+
+
+def _ec_del_credit_helper_field(field):
+    """Drop a convention field from the first credit curve's CdsHelperConventions
+    (e.g. settlement_days). Presence-required: an omission is a named 400."""
+    def f(req):
+        req["pricing"]["credit"]["credit_curves"][0]["helper_conventions"].pop(field, None)
+        return req
+    return f
+
+
+def _ec_del_index_field(field):
+    """Drop a convention field from the first registered IndexDef
+    (fixing_days / calendar / business_day_convention / day_counter /
+    end_of_month / index_type). Presence-required: an omission is a named 400."""
+    def f(req):
+        req["pricing"]["rates"]["indices"][0].pop(field, None)
+        return req
+    return f
+
+
+def _ec_del_index_tenor_unit():
+    """Drop `unit` from the first IndexDef's tenor Period. An omitted period unit
+    would otherwise silently mean Months, so it must be a named 400."""
+    def f(req):
+        req["pricing"]["rates"]["indices"][0]["tenor"].pop("unit", None)
+        return req
+    return f
+
+
+def _ec_del_cds_schedule_field(field):
+    """Drop a field from the CDS trade schedule (e.g. end_of_month). Presence-
+    required: absent-vs-false silently changes schedule dates."""
+    def f(req):
+        req["cds_list"][0]["cds"]["schedule"].pop(field, None)
+        return req
+    return f
+
+
 def _ec_set_curve_field(field, value):
     """Set a top-level field on the first pricing curve (TermStructure). Used to
     drive bootstrap_trait to a value that conflicts with the curve's points."""
@@ -669,6 +717,39 @@ SCENARIOS = [
      "vanilla_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "vanilla_swap", "fixed_leg", "payment_convention"),
      _ec_body_contains("SwapFixedLeg.payment_convention is required")),
+    # ---- 400 INVALID_ARGUMENT: hard-coded convention-default presence ----
+    # Conventions that previously carried a hard-coded default (recovery 0.4,
+    # fixing_days 2, calendar TARGET, period unit Months, schedule end-of-month,
+    # a helper settlement lag) are now presence-required: an omission is a named
+    # 400 rather than a silent market-default assumption.
+    ("ec:400 cds credit curve missing recovery_rate", "cds",
+     "cds_request.json", 400,
+     _ec_del_credit_field("recovery_rate"),
+     _ec_body_contains("CreditCurveSpec.recovery_rate is required")),
+    ("ec:400 cds credit curve missing curve_interpolator", "cds",
+     "cds_request.json", 400,
+     _ec_del_credit_field("curve_interpolator"),
+     _ec_body_contains("CreditCurveSpec.curve_interpolator is required")),
+    ("ec:400 cds credit helper missing settlement_days", "cds",
+     "cds_request.json", 400,
+     _ec_del_credit_helper_field("settlement_days"),
+     _ec_body_contains("CdsHelperConventions.settlement_days is required")),
+    ("ec:400 cds index missing fixing_days", "cds",
+     "cds_request.json", 400,
+     _ec_del_index_field("fixing_days"),
+     _ec_body_contains("IndexDef.fixing_days")),
+    ("ec:400 cds index missing calendar", "cds",
+     "cds_request.json", 400,
+     _ec_del_index_field("calendar"),
+     _ec_body_contains("IndexDef.calendar")),
+    ("ec:400 cds index tenor missing period unit", "cds",
+     "cds_request.json", 400,
+     _ec_del_index_tenor_unit(),
+     _ec_body_contains("unit is required")),
+    ("ec:400 cds schedule missing end_of_month", "cds",
+     "cds_request.json", 400,
+     _ec_del_cds_schedule_field("end_of_month"),
+     _ec_body_contains("Schedule.end_of_month is required")),
     # ---- 400 INVALID_ARGUMENT: bond / yield convention presence ----
     # A bond or yield convention enum omitted from the request must be rejected,
     # not silently defaulted to the alphabetical-0 value.

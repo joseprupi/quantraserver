@@ -127,7 +127,8 @@
             "frequency": "Annual",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "ThirdWednesday"
+            "date_generation_rule": "ThirdWednesday",
+            "end_of_month": false
           },
           "rate": 0.0302,
           "day_counter": "Thirty360",
@@ -142,7 +143,8 @@
             "frequency": "Quarterly",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "ThirdWednesday"
+            "date_generation_rule": "ThirdWednesday",
+            "end_of_month": false
           },
           "index": {
             "id": "EUR_3M"

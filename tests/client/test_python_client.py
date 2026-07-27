@@ -574,6 +574,7 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     fixed_schedule_q.convention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
+    fixed_schedule_q.endOfMonth = False
     
     fixed_leg = SwapFixedLegT()
     fixed_leg.notional = notional
@@ -590,6 +591,7 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     float_schedule_q.convention = BusinessDayConvention.ModifiedFollowing
     float_schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
+    float_schedule_q.endOfMonth = False
     
     float_leg = SwapFloatingLegT()
     float_leg.notional = notional
@@ -744,6 +746,7 @@ def test_cap(client: Client, curve_handle: ql.YieldTermStructureHandle):
     schedule_q.convention = BusinessDayConvention.ModifiedFollowing
     schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     schedule_q.dateGenerationRule = DateGenerationRule.Forward
+    schedule_q.endOfMonth = False
     
     cap = CapFloorT()
     cap.capFloorType = CapFloorType.Cap
@@ -840,6 +843,7 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     fixed_schedule_q.convention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
+    fixed_schedule_q.endOfMonth = False
     
     fixed_leg = SwapFixedLegT()
     fixed_leg.notional = notional
@@ -856,6 +860,7 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     float_schedule_q.convention = BusinessDayConvention.ModifiedFollowing
     float_schedule_q.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
+    float_schedule_q.endOfMonth = False
     
     float_leg = SwapFloatingLegT()
     float_leg.notional = notional
@@ -952,6 +957,7 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
     schedule_q.convention = BusinessDayConvention.Following
     schedule_q.terminationDateConvention = BusinessDayConvention.Unadjusted
     schedule_q.dateGenerationRule = DateGenerationRule.TwentiethIMM
+    schedule_q.endOfMonth = False
     
     cds = CDST()
     cds.side = ProtectionSide.Buyer
@@ -960,7 +966,12 @@ def test_cds(client: Client, curve_handle: ql.YieldTermStructureHandle):
     cds.schedule = schedule_q
     cds.dayCounter = DayCounter.Actual360
     cds.businessDayConvention = BusinessDayConvention.Following
-    
+    cds.settlesAccrual = True
+    cds.paysAtDefaultTime = True
+    cds.rebatesAccrual = True
+    cds.lastPeriodDayCounter = DayCounter.Actual360
+    cds.cashSettlementDays = 3
+
     credit_curve = CreditCurveSpecT()
     credit_curve.id = "credit"
     credit_curve.referenceDate = EVAL_DATE_STR

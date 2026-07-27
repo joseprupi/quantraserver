@@ -25,7 +25,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2026-01-15",
-                "discount_factor": 0.9700,
+                "discount_factor": 0.97,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -34,7 +34,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2027-01-15",
-                "discount_factor": 0.9400,
+                "discount_factor": 0.94,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -43,7 +43,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2028-01-15",
-                "discount_factor": 0.9100,
+                "discount_factor": 0.91,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -52,7 +52,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2029-01-15",
-                "discount_factor": 0.8800,
+                "discount_factor": 0.88,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -61,7 +61,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2030-01-15",
-                "discount_factor": 0.8500,
+                "discount_factor": 0.85,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -70,7 +70,7 @@
               "point_type": "DiscountFactorPoint",
               "point": {
                 "date": "2031-01-15",
-                "discount_factor": 0.8200,
+                "discount_factor": 0.82,
                 "calendar": "TARGET",
                 "business_day_convention": "ModifiedFollowing"
               }
@@ -97,7 +97,8 @@
           "frequency": "Annual",
           "convention": "ModifiedFollowing",
           "termination_date_convention": "ModifiedFollowing",
-          "date_generation_rule": "Forward"
+          "date_generation_rule": "Forward",
+          "end_of_month": false
         }
       },
       "discounting_curve": "discount",

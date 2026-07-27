@@ -87,28 +87,28 @@ class ZeroCouponInflationSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # ZeroCouponInflationSwapHelper
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # ZeroCouponInflationSwapHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # ZeroCouponInflationSwapHelper
     def ObservationInterpolation(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def ZeroCouponInflationSwapHelperStart(builder):
     builder.StartObject(10)
@@ -153,25 +153,25 @@ def AddEndDate(builder, endDate):
     ZeroCouponInflationSwapHelperAddEndDate(builder, endDate)
 
 def ZeroCouponInflationSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(6, calendar, None)
 
 def AddCalendar(builder, calendar):
     ZeroCouponInflationSwapHelperAddCalendar(builder, calendar)
 
 def ZeroCouponInflationSwapHelperAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, 2)
+    builder.PrependInt8Slot(7, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     ZeroCouponInflationSwapHelperAddPaymentConvention(builder, paymentConvention)
 
 def ZeroCouponInflationSwapHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(8, dayCounter, 1)
+    builder.PrependInt8Slot(8, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     ZeroCouponInflationSwapHelperAddDayCounter(builder, dayCounter)
 
 def ZeroCouponInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation):
-    builder.PrependInt8Slot(9, observationInterpolation, 0)
+    builder.PrependInt8Slot(9, observationInterpolation, None)
 
 def AddObservationInterpolation(builder, observationInterpolation):
     ZeroCouponInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation)
@@ -197,10 +197,10 @@ class ZeroCouponInflationSwapHelperT(object):
         self.tenor = None  # type: Optional[PeriodT]
         self.startDate = None  # type: str
         self.endDate = None  # type: str
-        self.calendar = 32  # type: int
-        self.paymentConvention = 2  # type: int
-        self.dayCounter = 1  # type: int
-        self.observationInterpolation = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.observationInterpolation = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

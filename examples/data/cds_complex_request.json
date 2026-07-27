@@ -307,7 +307,8 @@
           "frequency": "Quarterly",
           "convention": "Following",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "TwentiethIMM"
+          "date_generation_rule": "TwentiethIMM",
+          "end_of_month": false
         },
         "day_counter": "Actual360",
         "business_day_convention": "Following",

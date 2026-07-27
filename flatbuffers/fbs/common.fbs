@@ -2,10 +2,13 @@ include "enums.fbs";
 
 namespace quantra;
 
-/// Canonical period type used across APIs.
+/// Canonical period type used across APIs. Both fields are presence-required:
+/// a bare `n` would silently default to 0 and an omitted `unit` would silently
+/// mean Months, so a forgotten value is a 400 naming the field rather than a
+/// silent (0 Months) tenor.
 table Period {
-    n:int;
-    unit:enums.TimeUnit = Months;
+    n:int = null;
+    unit:enums.TimeUnit = null;
 }
 
 /// Yield/compounding convention specification.

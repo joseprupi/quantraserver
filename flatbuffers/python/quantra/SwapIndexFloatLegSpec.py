@@ -6,7 +6,8 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Floating leg conventions for swap index.
+# Floating leg conventions for swap index. Every convention is
+# presence-required.
 class SwapIndexFloatLegSpec(object):
     __slots__ = ['_tab']
 
@@ -41,35 +42,35 @@ class SwapIndexFloatLegSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # SwapIndexFloatLegSpec
     def FloatBdc(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFloatLegSpec
     def FloatTermBdc(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFloatLegSpec
     def FloatDateRule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFloatLegSpec
     def FloatEom(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
 def SwapIndexFloatLegSpecStart(builder):
     builder.StartObject(6)
@@ -84,31 +85,31 @@ def AddFloatTenor(builder, floatTenor):
     SwapIndexFloatLegSpecAddFloatTenor(builder, floatTenor)
 
 def SwapIndexFloatLegSpecAddFloatCalendar(builder, floatCalendar):
-    builder.PrependInt8Slot(1, floatCalendar, 32)
+    builder.PrependInt8Slot(1, floatCalendar, None)
 
 def AddFloatCalendar(builder, floatCalendar):
     SwapIndexFloatLegSpecAddFloatCalendar(builder, floatCalendar)
 
 def SwapIndexFloatLegSpecAddFloatBdc(builder, floatBdc):
-    builder.PrependInt8Slot(2, floatBdc, 2)
+    builder.PrependInt8Slot(2, floatBdc, None)
 
 def AddFloatBdc(builder, floatBdc):
     SwapIndexFloatLegSpecAddFloatBdc(builder, floatBdc)
 
 def SwapIndexFloatLegSpecAddFloatTermBdc(builder, floatTermBdc):
-    builder.PrependInt8Slot(3, floatTermBdc, 2)
+    builder.PrependInt8Slot(3, floatTermBdc, None)
 
 def AddFloatTermBdc(builder, floatTermBdc):
     SwapIndexFloatLegSpecAddFloatTermBdc(builder, floatTermBdc)
 
 def SwapIndexFloatLegSpecAddFloatDateRule(builder, floatDateRule):
-    builder.PrependInt8Slot(4, floatDateRule, 2)
+    builder.PrependInt8Slot(4, floatDateRule, None)
 
 def AddFloatDateRule(builder, floatDateRule):
     SwapIndexFloatLegSpecAddFloatDateRule(builder, floatDateRule)
 
 def SwapIndexFloatLegSpecAddFloatEom(builder, floatEom):
-    builder.PrependBoolSlot(5, floatEom, 0)
+    builder.PrependBoolSlot(5, floatEom, None)
 
 def AddFloatEom(builder, floatEom):
     SwapIndexFloatLegSpecAddFloatEom(builder, floatEom)
@@ -129,11 +130,11 @@ class SwapIndexFloatLegSpecT(object):
     # SwapIndexFloatLegSpecT
     def __init__(self):
         self.floatTenor = None  # type: Optional[PeriodT]
-        self.floatCalendar = 32  # type: int
-        self.floatBdc = 2  # type: int
-        self.floatTermBdc = 2  # type: int
-        self.floatDateRule = 2  # type: int
-        self.floatEom = False  # type: bool
+        self.floatCalendar = None  # type: Optional[int]
+        self.floatBdc = None  # type: Optional[int]
+        self.floatTermBdc = None  # type: Optional[int]
+        self.floatDateRule = None  # type: Optional[int]
+        self.floatEom = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

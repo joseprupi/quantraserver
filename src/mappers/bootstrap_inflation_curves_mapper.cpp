@@ -6,6 +6,7 @@
 
 #include "date_convert.h"
 #include "enum_convert.h"
+#include "require_scalar.h"
 #include "error.h"
 #include "grid_utils.h"
 
@@ -82,9 +83,10 @@ BootstrapInflationCurvesQuery extractQuery(
     out.allowExtrapolation = !options || options->allow_extrapolation();
     out.strict = !options || options->strict();
 
-    const QuantLib::Calendar fallbackCal = CalendarToQL(curveSpec->calendar());
-    const QuantLib::BusinessDayConvention fallbackBdc =
-        ConventionToQL(curveSpec->business_day_convention());
+    const QuantLib::Calendar fallbackCal = CalendarToQL(
+        requireEnum(curveSpec->calendar(), "InflationCurveSpec.calendar"));
+    const QuantLib::BusinessDayConvention fallbackBdc = ConventionToQL(requireEnum(
+        curveSpec->business_day_convention(), "InflationCurveSpec.business_day_convention"));
     const QuantLib::Date referenceDate = DateToQL(curveSpec->reference_date()->str());
 
     const QuantLib::Calendar gridCal =

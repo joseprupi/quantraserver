@@ -175,11 +175,14 @@ bool VerifyFlowVector(::flatbuffers::Verifier &verifier, const ::flatbuffers::Ve
 
 struct PeriodT : public ::flatbuffers::NativeTable {
   typedef Period TableType;
-  int32_t n = 0;
-  quantra::enums::TimeUnit unit = quantra::enums::TimeUnit_Months;
+  ::flatbuffers::Optional<int32_t> n = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::TimeUnit> unit = ::flatbuffers::nullopt;
 };
 
-/// Canonical period type used across APIs.
+/// Canonical period type used across APIs. Both fields are presence-required:
+/// a bare `n` would silently default to 0 and an omitted `unit` would silently
+/// mean Months, so a forgotten value is a 400 naming the field rather than a
+/// silent (0 Months) tenor.
 struct Period FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PeriodT NativeTableType;
   typedef PeriodBuilder Builder;
@@ -187,11 +190,11 @@ struct Period FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_N = 4,
     VT_UNIT = 6
   };
-  int32_t n() const {
-    return GetField<int32_t>(VT_N, 0);
+  ::flatbuffers::Optional<int32_t> n() const {
+    return GetOptional<int32_t, int32_t>(VT_N);
   }
-  quantra::enums::TimeUnit unit() const {
-    return static_cast<quantra::enums::TimeUnit>(GetField<int8_t>(VT_UNIT, 5));
+  ::flatbuffers::Optional<quantra::enums::TimeUnit> unit() const {
+    return GetOptional<int8_t, quantra::enums::TimeUnit>(VT_UNIT);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -209,10 +212,10 @@ struct PeriodBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_n(int32_t n) {
-    fbb_.AddElement<int32_t>(Period::VT_N, n, 0);
+    fbb_.AddElement<int32_t>(Period::VT_N, n);
   }
   void add_unit(quantra::enums::TimeUnit unit) {
-    fbb_.AddElement<int8_t>(Period::VT_UNIT, static_cast<int8_t>(unit), 5);
+    fbb_.AddElement<int8_t>(Period::VT_UNIT, static_cast<int8_t>(unit));
   }
   explicit PeriodBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -227,11 +230,11 @@ struct PeriodBuilder {
 
 inline ::flatbuffers::Offset<Period> CreatePeriod(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t n = 0,
-    quantra::enums::TimeUnit unit = quantra::enums::TimeUnit_Months) {
+    ::flatbuffers::Optional<int32_t> n = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::TimeUnit> unit = ::flatbuffers::nullopt) {
   PeriodBuilder builder_(_fbb);
-  builder_.add_n(n);
-  builder_.add_unit(unit);
+  if(n) { builder_.add_n(*n); }
+  if(unit) { builder_.add_unit(*unit); }
   return builder_.Finish();
 }
 

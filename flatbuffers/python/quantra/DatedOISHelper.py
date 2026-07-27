@@ -64,28 +64,28 @@ class DatedOISHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # DatedOISHelper
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # DatedOISHelper
     def FixedLegConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # DatedOISHelper
     def FixedLegDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Exogenous discount curve for dual-curve OIS bootstrapping.
     # DatedOISHelper
@@ -137,25 +137,25 @@ def AddOvernightIndex(builder, overnightIndex):
     DatedOISHelperAddOvernightIndex(builder, overnightIndex)
 
 def DatedOISHelperAddSettlementDays(builder, settlementDays):
-    builder.PrependInt32Slot(4, settlementDays, 2)
+    builder.PrependInt32Slot(4, settlementDays, None)
 
 def AddSettlementDays(builder, settlementDays):
     DatedOISHelperAddSettlementDays(builder, settlementDays)
 
 def DatedOISHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(5, calendar, 32)
+    builder.PrependInt8Slot(5, calendar, None)
 
 def AddCalendar(builder, calendar):
     DatedOISHelperAddCalendar(builder, calendar)
 
 def DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention):
-    builder.PrependInt8Slot(6, fixedLegConvention, 2)
+    builder.PrependInt8Slot(6, fixedLegConvention, None)
 
 def AddFixedLegConvention(builder, fixedLegConvention):
     DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention)
 
 def DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter):
-    builder.PrependInt8Slot(7, fixedLegDayCounter, 0)
+    builder.PrependInt8Slot(7, fixedLegDayCounter, None)
 
 def AddFixedLegDayCounter(builder, fixedLegDayCounter):
     DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter)
@@ -191,10 +191,10 @@ class DatedOISHelperT(object):
         self.startDate = None  # type: str
         self.endDate = None  # type: str
         self.overnightIndex = None  # type: Optional[IndexRefT]
-        self.settlementDays = 2  # type: int
-        self.calendar = 32  # type: int
-        self.fixedLegConvention = 2  # type: int
-        self.fixedLegDayCounter = 0  # type: int
+        self.settlementDays = None  # type: Optional[int]
+        self.calendar = None  # type: Optional[int]
+        self.fixedLegConvention = None  # type: Optional[int]
+        self.fixedLegDayCounter = None  # type: Optional[int]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 

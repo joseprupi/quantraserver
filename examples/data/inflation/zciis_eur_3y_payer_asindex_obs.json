@@ -15,7 +15,8 @@
           "calendar": "TARGET",
           "business_day_convention": "ModifiedFollowing",
           "day_counter": "Actual360",
-          "currency": "EUR"
+          "currency": "EUR",
+          "end_of_month": true
         }
       ],
       "curves": [

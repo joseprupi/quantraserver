@@ -57,6 +57,44 @@ inline double requirePositive(flatbuffers::Optional<double> v, const std::string
     return v.value();
 }
 
+/**
+ * Require a presence-optional enum to be provided. Convention enums
+ * (calendar / day_counter / business_day_convention / frequency / etc.) are
+ * declared `field:enums.Foo = null` on the wire so an omission is a named 400
+ * rather than the silent alphabetical-0 enum value.
+ */
+template <typename T>
+inline T requireEnum(flatbuffers::Optional<T> v, const std::string& name) {
+    if (!v.has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    return v.value();
+}
+
+/**
+ * Require a presence-optional integer convention (fixing_days / settlement_days
+ * / spot_days / cash_settlement_days) to be provided. A bare int would silently
+ * default to 0, so an omission is a named 400 instead.
+ */
+inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
+    if (!v.has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    return v.value();
+}
+
+/**
+ * Require a presence-optional bool convention (end_of_month, CDS ISDA flags,
+ * inflation interpolated/revised) to be provided. A bare bool would silently
+ * default to false (or a hard-coded true), so an omission is a named 400.
+ */
+inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) {
+    if (!v.has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    return v.value();
+}
+
 } // namespace quantra
 
 #endif // QUANTRA_REQUIRE_SCALAR_H

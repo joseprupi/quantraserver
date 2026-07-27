@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <sstream>
 #include "date_convert.h"
+#include "require_period.h"
 
 namespace quantra {
 namespace grid_utils {
@@ -84,7 +85,7 @@ std::vector<QuantLib::Date> BuildTenorGrid(
         if (!tenor) {
             QUANTRA_INVALID_ARGUMENT("TenorGrid.tenors[] contains null");
         }
-        QuantLib::Period p(tenor->n(), TimeUnitToQL(tenor->unit()));
+        QuantLib::Period p = requirePeriod(tenor, "TenorGrid.tenors");
         if (p.length() == 0 && p.units() != QuantLib::Days) {
             QUANTRA_INVALID_ARGUMENT("TenorGrid only allows zero period as 0 Days");
         }

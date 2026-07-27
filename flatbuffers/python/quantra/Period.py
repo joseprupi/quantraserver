@@ -6,7 +6,10 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Canonical period type used across APIs.
+# Canonical period type used across APIs. Both fields are presence-required:
+# a bare `n` would silently default to 0 and an omitted `unit` would silently
+# mean Months, so a forgotten value is a 400 naming the field rather than a
+# silent (0 Months) tenor.
 class Period(object):
     __slots__ = ['_tab']
 
@@ -30,14 +33,14 @@ class Period(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Period
     def Unit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 5
+        return None
 
 def PeriodStart(builder):
     builder.StartObject(2)
@@ -46,13 +49,13 @@ def Start(builder):
     PeriodStart(builder)
 
 def PeriodAddN(builder, n):
-    builder.PrependInt32Slot(0, n, 0)
+    builder.PrependInt32Slot(0, n, None)
 
 def AddN(builder, n):
     PeriodAddN(builder, n)
 
 def PeriodAddUnit(builder, unit):
-    builder.PrependInt8Slot(1, unit, 5)
+    builder.PrependInt8Slot(1, unit, None)
 
 def AddUnit(builder, unit):
     PeriodAddUnit(builder, unit)
@@ -68,8 +71,8 @@ class PeriodT(object):
 
     # PeriodT
     def __init__(self):
-        self.n = 0  # type: int
-        self.unit = 5  # type: int
+        self.n = None  # type: Optional[int]
+        self.unit = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

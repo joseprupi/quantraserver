@@ -74,12 +74,14 @@ class Schedule(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Presence-required: absent-vs-false silently changes schedule dates for
+    # month-end-anchored (money-market) schedules.
     # Schedule
     def EndOfMonth(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
     # Optional. ISO-8601 (YYYY-MM-DD). When present, passed as QuantLib's
     # firstDate, which controls the FIRST stub coupon: with Backward date
@@ -155,7 +157,7 @@ def AddDateGenerationRule(builder, dateGenerationRule):
     ScheduleAddDateGenerationRule(builder, dateGenerationRule)
 
 def ScheduleAddEndOfMonth(builder, endOfMonth):
-    builder.PrependBoolSlot(7, endOfMonth, 0)
+    builder.PrependBoolSlot(7, endOfMonth, None)
 
 def AddEndOfMonth(builder, endOfMonth):
     ScheduleAddEndOfMonth(builder, endOfMonth)
@@ -190,7 +192,7 @@ class ScheduleT(object):
         self.convention = None  # type: Optional[int]
         self.terminationDateConvention = None  # type: Optional[int]
         self.dateGenerationRule = None  # type: Optional[int]
-        self.endOfMonth = False  # type: bool
+        self.endOfMonth = None  # type: Optional[bool]
         self.firstDate = None  # type: str
         self.nextToLastDate = None  # type: str
 

@@ -66,7 +66,8 @@
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
-                  "date_generation_rule": "Backward"
+                  "date_generation_rule": "Backward",
+                  "end_of_month": false
                 },
                 "coupon_rate": 0.02375,
                 "day_counter": "ActualActualBond",
@@ -88,7 +89,8 @@
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
-                  "date_generation_rule": "Backward"
+                  "date_generation_rule": "Backward",
+                  "end_of_month": false
                 },
                 "coupon_rate": 0.04625,
                 "day_counter": "ActualActualBond",
@@ -110,7 +112,8 @@
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
-                  "date_generation_rule": "Backward"
+                  "date_generation_rule": "Backward",
+                  "end_of_month": false
                 },
                 "coupon_rate": 0.03125,
                 "day_counter": "ActualActualBond",
@@ -132,7 +135,8 @@
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
-                  "date_generation_rule": "Backward"
+                  "date_generation_rule": "Backward",
+                  "end_of_month": false
                 },
                 "coupon_rate": 0.04,
                 "day_counter": "ActualActualBond",
@@ -154,7 +158,8 @@
                   "frequency": "Semiannual",
                   "convention": "Unadjusted",
                   "termination_date_convention": "Unadjusted",
-                  "date_generation_rule": "Backward"
+                  "date_generation_rule": "Backward",
+                  "end_of_month": false
                 },
                 "coupon_rate": 0.045,
                 "day_counter": "ActualActualBond",
@@ -189,7 +194,8 @@
           "frequency": "Semiannual",
           "convention": "Unadjusted",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "Backward"
+          "date_generation_rule": "Backward",
+          "end_of_month": false
         }
       },
       "discounting_curve": "depos_curve",

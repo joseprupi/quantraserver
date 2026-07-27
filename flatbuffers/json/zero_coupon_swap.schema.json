@@ -183,7 +183,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
-      "description" : "Canonical period type used across APIs.",
+      "description" : "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -330,7 +330,7 @@
               },
         "index_type" : {
                 "$ref" : "#/definitions/quantra_IndexType",
-                "description" : "IBOR or Overnight. Determines QuantLib class used."
+                "description" : "IBOR or Overnight. Determines QuantLib class used. Presence-required: an\nomitted value is a 400, never the silent Ibor default."
               },
         "tenor" : {
                 "$ref" : "#/definitions/quantra_Period",
@@ -338,23 +338,23 @@
               },
         "fixing_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)."
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required."
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar for fixing/payment dates."
+                "description" : "Calendar for fixing/payment dates. Presence-required."
               },
         "business_day_convention" : {
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention."
+                "description" : "Business day convention. Presence-required."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter",
-                "description" : "Day count convention."
+                "description" : "Day count convention. Presence-required."
               },
         "end_of_month" : {
                 "type" : "boolean",
-                "description" : "End of month rule (IBOR only, ignored for overnight)."
+                "description" : "End of month rule (IBOR only, ignored for overnight). Presence-required:\nabsent-vs-false silently changes money-market schedule dates."
               },
         "currency" : {
                 "type" : "string",

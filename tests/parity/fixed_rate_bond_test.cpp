@@ -119,6 +119,7 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Semiannual_Thirty360_Details) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     auto idate = b.CreateString("2024-07-15");
@@ -192,6 +193,7 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Quarterly_NonParRedemption) {
     sb.add_convention(quantra::enums::BusinessDayConvention_Following);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Following);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     auto idate = b.CreateString("2025-01-15");

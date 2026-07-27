@@ -15,7 +15,9 @@
           },
           "fixing_days": 0,
           "calendar": "UnitedStatesGovernmentBond",
-          "day_counter": "Actual360"
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
         }
       ],
       "curves": [
@@ -37,7 +39,11 @@
                 "tenor": {
                   "n": 1,
                   "unit": "Years"
-                }
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             },
             {
@@ -51,7 +57,11 @@
                 "tenor": {
                   "n": 3,
                   "unit": "Years"
-                }
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             },
             {
@@ -65,7 +75,11 @@
                 "tenor": {
                   "n": 5,
                   "unit": "Years"
-                }
+                },
+                "calendar": "TARGET",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "fixed_leg_frequency": "Annual"
               }
             }
           ]
@@ -86,7 +100,8 @@
             "frequency": "Annual",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward"
+            "date_generation_rule": "Forward",
+            "end_of_month": false
           },
           "rate": 0.0405,
           "day_counter": "Actual360",
@@ -101,7 +116,8 @@
             "frequency": "Annual",
             "convention": "ModifiedFollowing",
             "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward"
+            "date_generation_rule": "Forward",
+            "end_of_month": false
           },
           "index": {
             "id": "USD_SOFR"
