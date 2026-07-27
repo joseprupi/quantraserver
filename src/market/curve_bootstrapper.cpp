@@ -11,7 +11,7 @@
 #include "curve_cache.h"
 #include "curve_cache_key.h"
 #include "curve_serializer.h"
-#include "require_field.h"
+#include "request_validation.h"
 
 namespace quantra {
 

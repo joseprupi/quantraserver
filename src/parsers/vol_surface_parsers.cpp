@@ -6,7 +6,7 @@
 
 #include "vol_surface_parsers.h"
 
-#include "require_field.h"
+#include "request_validation.h"
 
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
