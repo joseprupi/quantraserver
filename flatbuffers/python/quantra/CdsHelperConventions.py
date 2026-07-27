@@ -6,7 +6,9 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# CDS helper conventions for curve building.
+# CDS helper conventions for curve building. Every convention is
+# presence-required: an omitted value is a 400 naming the field, never a
+# silent market-default assumption.
 class CdsHelperConventions(object):
     __slots__ = ['_tab']
 
@@ -30,63 +32,63 @@ class CdsHelperConventions(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CdsHelperConventions
     def Frequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 10
+        return None
 
     # CdsHelperConventions
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CdsHelperConventions
     def DateGenerationRule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 6
+        return None
 
     # CdsHelperConventions
     def LastPeriodDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # CdsHelperConventions
     def SettlesAccrual(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return True
+        return None
 
     # CdsHelperConventions
     def PaysAtDefaultTime(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return True
+        return None
 
     # CdsHelperConventions
     def RebatesAccrual(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return True
+        return None
 
     # CdsHelperConventions
     def HelperModel(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
 def CdsHelperConventionsStart(builder):
     builder.StartObject(9)
@@ -95,55 +97,55 @@ def Start(builder):
     CdsHelperConventionsStart(builder)
 
 def CdsHelperConventionsAddSettlementDays(builder, settlementDays):
-    builder.PrependInt32Slot(0, settlementDays, 0)
+    builder.PrependInt32Slot(0, settlementDays, None)
 
 def AddSettlementDays(builder, settlementDays):
     CdsHelperConventionsAddSettlementDays(builder, settlementDays)
 
 def CdsHelperConventionsAddFrequency(builder, frequency):
-    builder.PrependInt8Slot(1, frequency, 10)
+    builder.PrependInt8Slot(1, frequency, None)
 
 def AddFrequency(builder, frequency):
     CdsHelperConventionsAddFrequency(builder, frequency)
 
 def CdsHelperConventionsAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(2, businessDayConvention, 0)
+    builder.PrependInt8Slot(2, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     CdsHelperConventionsAddBusinessDayConvention(builder, businessDayConvention)
 
 def CdsHelperConventionsAddDateGenerationRule(builder, dateGenerationRule):
-    builder.PrependInt8Slot(3, dateGenerationRule, 6)
+    builder.PrependInt8Slot(3, dateGenerationRule, None)
 
 def AddDateGenerationRule(builder, dateGenerationRule):
     CdsHelperConventionsAddDateGenerationRule(builder, dateGenerationRule)
 
 def CdsHelperConventionsAddLastPeriodDayCounter(builder, lastPeriodDayCounter):
-    builder.PrependInt8Slot(4, lastPeriodDayCounter, 1)
+    builder.PrependInt8Slot(4, lastPeriodDayCounter, None)
 
 def AddLastPeriodDayCounter(builder, lastPeriodDayCounter):
     CdsHelperConventionsAddLastPeriodDayCounter(builder, lastPeriodDayCounter)
 
 def CdsHelperConventionsAddSettlesAccrual(builder, settlesAccrual):
-    builder.PrependBoolSlot(5, settlesAccrual, 1)
+    builder.PrependBoolSlot(5, settlesAccrual, None)
 
 def AddSettlesAccrual(builder, settlesAccrual):
     CdsHelperConventionsAddSettlesAccrual(builder, settlesAccrual)
 
 def CdsHelperConventionsAddPaysAtDefaultTime(builder, paysAtDefaultTime):
-    builder.PrependBoolSlot(6, paysAtDefaultTime, 1)
+    builder.PrependBoolSlot(6, paysAtDefaultTime, None)
 
 def AddPaysAtDefaultTime(builder, paysAtDefaultTime):
     CdsHelperConventionsAddPaysAtDefaultTime(builder, paysAtDefaultTime)
 
 def CdsHelperConventionsAddRebatesAccrual(builder, rebatesAccrual):
-    builder.PrependBoolSlot(7, rebatesAccrual, 1)
+    builder.PrependBoolSlot(7, rebatesAccrual, None)
 
 def AddRebatesAccrual(builder, rebatesAccrual):
     CdsHelperConventionsAddRebatesAccrual(builder, rebatesAccrual)
 
 def CdsHelperConventionsAddHelperModel(builder, helperModel):
-    builder.PrependInt8Slot(8, helperModel, 0)
+    builder.PrependInt8Slot(8, helperModel, None)
 
 def AddHelperModel(builder, helperModel):
     CdsHelperConventionsAddHelperModel(builder, helperModel)
@@ -159,15 +161,15 @@ class CdsHelperConventionsT(object):
 
     # CdsHelperConventionsT
     def __init__(self):
-        self.settlementDays = 0  # type: int
-        self.frequency = 10  # type: int
-        self.businessDayConvention = 0  # type: int
-        self.dateGenerationRule = 6  # type: int
-        self.lastPeriodDayCounter = 1  # type: int
-        self.settlesAccrual = True  # type: bool
-        self.paysAtDefaultTime = True  # type: bool
-        self.rebatesAccrual = True  # type: bool
-        self.helperModel = 0  # type: int
+        self.settlementDays = None  # type: Optional[int]
+        self.frequency = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dateGenerationRule = None  # type: Optional[int]
+        self.lastPeriodDayCounter = None  # type: Optional[int]
+        self.settlesAccrual = None  # type: Optional[bool]
+        self.paysAtDefaultTime = None  # type: Optional[bool]
+        self.rebatesAccrual = None  # type: Optional[bool]
+        self.helperModel = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

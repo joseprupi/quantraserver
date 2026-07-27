@@ -115,11 +115,11 @@ table OISHelper {
     tenor:Period;
     /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     overnight_index:IndexRef (required);
-    settlement_days:int = 2;
-    calendar:enums.Calendar = TARGET;
-    fixed_leg_frequency:enums.Frequency = Annual;
-    fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    fixed_leg_day_counter:enums.DayCounter = Actual360;
+    settlement_days:int = null;
+    calendar:enums.Calendar = null;
+    fixed_leg_frequency:enums.Frequency = null;
+    fixed_leg_convention:enums.BusinessDayConvention = null;
+    fixed_leg_day_counter:enums.DayCounter = null;
     /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;
     quote_id:string;
@@ -133,10 +133,10 @@ table DatedOISHelper {
     end_date:string (required);
     /// Reference to an overnight IndexDef by id.
     overnight_index:IndexRef (required);
-    settlement_days:int = 2;
-    calendar:enums.Calendar = TARGET;
-    fixed_leg_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    fixed_leg_day_counter:enums.DayCounter = Actual360;
+    settlement_days:int = null;
+    calendar:enums.Calendar = null;
+    fixed_leg_convention:enums.BusinessDayConvention = null;
+    fixed_leg_day_counter:enums.DayCounter = null;
     /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;
     quote_id:string;
@@ -148,14 +148,14 @@ table ZeroRatePoint {
     date:string;
     /// Alternative: tenor from reference date.
     tenor:Period;
-    calendar:enums.Calendar = TARGET;
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     /// Zero rate for this maturity. Required.
     zero_rate:double = null;
     /// Compounding convention for the zero rate.
-    compounding:enums.Compounding = Continuous;
+    compounding:enums.Compounding = null;
     /// Frequency (used when compounding != Continuous).
-    frequency:enums.Frequency = Annual;
+    frequency:enums.Frequency = null;
 }
 
 /// Discount-factor point for direct curve construction (no bootstrapping).
@@ -166,8 +166,8 @@ table DiscountFactorPoint {
     date:string;
     /// Alternative: tenor from reference date.
     tenor:Period;
-    calendar:enums.Calendar = TARGET;
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     /// Discount factor to this maturity. Required; must be in (0, 1]. The first
     /// point (reference date) must carry a discount factor of exactly 1.0.
     discount_factor:double = null;
@@ -185,8 +185,8 @@ table ForwardRatePoint {
     date:string;
     /// Alternative: tenor from reference date.
     tenor:Period;
-    calendar:enums.Calendar = TARGET;
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
     /// Instantaneous, continuously-compounded forward rate at this node.
     /// Required. May be negative in some markets; only non-finite is rejected.
     forward_rate:double = null;
@@ -211,9 +211,9 @@ table FxSwapHelper {
     /// FX forward points. One of fx_points or quote_id must be provided.
     fx_points:double = null;
     tenor:Period;
-    spot_days:int = 2;
-    calendar_domestic:enums.Calendar = TARGET;
-    calendar_foreign:enums.Calendar = TARGET;
+    spot_days:int = null;
+    calendar_domestic:enums.Calendar = null;
+    calendar_foreign:enums.Calendar = null;
     deps:HelperDependencies;
     quote_id:string;
 }

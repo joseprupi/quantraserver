@@ -137,7 +137,8 @@
           "termination_date_convention": "ModifiedFollowing",
           "date_generation_rule": "Forward",
           "first_date": "2026-01-17",
-          "next_to_last_date": "2029-01-17"
+          "next_to_last_date": "2029-01-17",
+          "end_of_month": false
         }
       },
       "discounting_curve": "discount",

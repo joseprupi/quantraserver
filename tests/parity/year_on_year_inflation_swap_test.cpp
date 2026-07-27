@@ -119,6 +119,7 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     fixedSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fixedSb.add_end_of_month(false);
     auto fixedSchedule = fixedSb.Finish();
 
     quantra::ScheduleBuilder yoySb(b);
@@ -129,6 +130,7 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     yoySb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     yoySb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     yoySb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    yoySb.add_end_of_month(false);
     auto yoySchedule = yoySb.Finish();
 
     quantra::YearOnYearInflationSwapBuilder yyb(b);
@@ -326,6 +328,7 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     fixedSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fixedSb.add_end_of_month(false);
     auto fixedSchedule = fixedSb.Finish();
 
     quantra::ScheduleBuilder yoySb(b);
@@ -336,6 +339,7 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     yoySb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     yoySb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     yoySb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    yoySb.add_end_of_month(false);
     auto yoySchedule = yoySb.Finish();
 
     quantra::YearOnYearInflationSwapBuilder yyb(b);

@@ -23,6 +23,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "require_scalar.h"
+#include "require_period.h"
 #include "index_registry_builder.h" // CurrencyFromString
 
 namespace quantra {
@@ -56,10 +57,7 @@ std::unordered_map<std::string, const quantra::InflationIndexSpec*> buildInflati
 }
 
 QuantLib::Period toQlPeriodReq(const quantra::Period* p, const std::string& label) {
-    if (!p) {
-        QUANTRA_INVALID_ARGUMENT(label + " is required");
-    }
-    return QuantLib::Period(p->n(), TimeUnitToQL(p->unit()));
+    return requirePeriod(p, label);
 }
 
 QuantLib::CPI::InterpolationType cpiInterpolationToQL(quantra::enums::CPIInterpolationType interpolation) {
@@ -219,8 +217,9 @@ QuantLib::Schedule buildSchedule(
         !scheduleSpec->frequency().has_value() ||
         !scheduleSpec->convention().has_value() ||
         !scheduleSpec->termination_date_convention().has_value() ||
-        !scheduleSpec->date_generation_rule().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires calendar, frequency, convention, termination_date_convention and date_generation_rule for curve id: " + curveId);
+        !scheduleSpec->date_generation_rule().has_value() ||
+        !scheduleSpec->end_of_month().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires calendar, frequency, convention, termination_date_convention, date_generation_rule and end_of_month for curve id: " + curveId);
     }
     return QuantLib::Schedule(
         DateToQL(scheduleSpec->effective_date()->str()),
@@ -230,7 +229,7 @@ QuantLib::Schedule buildSchedule(
         ConventionToQL(scheduleSpec->convention().value()),
         ConventionToQL(scheduleSpec->termination_date_convention().value()),
         DateGenerationToQL(scheduleSpec->date_generation_rule().value()),
-        scheduleSpec->end_of_month());
+        scheduleSpec->end_of_month().value());
 }
 
 template <typename TTermStructure>
@@ -267,17 +266,20 @@ InflationIndexPtr buildInflationIndex(
     const std::string ccyStr = hasText(spec->currency()) ? spec->currency()->str() : "EUR";
     QuantLib::Currency ccy = CurrencyFromString(ccyStr);
     QuantLib::Region region = regionFromCurrency(ccyStr);
-    QuantLib::Frequency freq = FrequencyToQL(spec->frequency());
+    QuantLib::Frequency freq = FrequencyToQL(
+        requireEnum(spec->frequency(), "InflationIndexSpec.frequency"));
+    const bool revised = requireBool(spec->revised(), "InflationIndexSpec.revised");
     QuantLib::Period availLag = toQlPeriodReq(spec->availability_lag(), "InflationIndexSpec.availability_lag");
 
-    if (spec->kind() == enums::InflationCurveKind_ZeroInflation) {
+    if (requireEnum(spec->kind(), "InflationIndexSpec.kind") ==
+        enums::InflationCurveKind_ZeroInflation) {
         auto curveIt = zeroCurveHandles.find(id);
         QuantLib::Handle<QuantLib::ZeroInflationTermStructure> handle =
             curveIt != zeroCurveHandles.end() ? curveIt->second : QuantLib::Handle<QuantLib::ZeroInflationTermStructure>();
         auto index = QuantLib::ext::make_shared<QuantLib::ZeroInflationIndex>(
             family,
             region,
-            spec->revised(),
+            revised,
             freq,
             availLag,
             ccy,
@@ -311,7 +313,7 @@ InflationIndexPtr buildInflationIndex(
         yoyIndex = QuantLib::ext::make_shared<QuantLib::YoYInflationIndex>(
             family,
             region,
-            spec->revised(),
+            revised,
             freq,
             availLag,
             ccy,
@@ -359,7 +361,8 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
         if (!spec->points() || spec->points()->size() == 0) {
             QUANTRA_INVALID_ARGUMENT("InflationCurveSpec.points are required for curve id: " + id);
         }
-        validateInterpolator(spec->interpolator(), id);
+        validateInterpolator(
+            requireEnum(spec->interpolator(), "InflationCurveSpec.interpolator"), id);
 
         const std::string indexId = spec->index_id()->str();
         std::string discountCurveId;
@@ -376,11 +379,14 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
         }
 
         QuantLib::Date ref = DateToQL(spec->reference_date()->str());
-        QuantLib::Calendar cal = CalendarToQL(spec->calendar());
-        QuantLib::BusinessDayConvention bdc = ConventionToQL(spec->business_day_convention());
-        QuantLib::DayCounter dc = DayCounterToQL(spec->day_counter());
-        const auto kind = spec->kind();
-        if (idxSpec->kind() != kind) {
+        QuantLib::Calendar cal = CalendarToQL(
+            requireEnum(spec->calendar(), "InflationCurveSpec.calendar"));
+        QuantLib::BusinessDayConvention bdc = ConventionToQL(requireEnum(
+            spec->business_day_convention(), "InflationCurveSpec.business_day_convention"));
+        QuantLib::DayCounter dc = DayCounterToQL(
+            requireEnum(spec->day_counter(), "InflationCurveSpec.day_counter"));
+        const auto kind = requireEnum(spec->kind(), "InflationCurveSpec.kind");
+        if (requireEnum(idxSpec->kind(), "InflationIndexSpec.kind") != kind) {
             QUANTRA_INVALID_ARGUMENT("Inflation kind mismatch for curve id '" + id +
                           "': curve.kind and index.kind must match");
         }
@@ -388,8 +394,10 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
 
         QuantLib::Period obsLag = toQlPeriodReq(idxSpec->observation_lag(), "InflationIndexSpec.observation_lag");
         QuantLib::Period availLag = toQlPeriodReq(idxSpec->availability_lag(), "InflationIndexSpec.availability_lag");
-        QuantLib::Frequency freq = FrequencyToQL(idxSpec->frequency());
-        const bool idxInterpolated = idxSpec->interpolated();
+        QuantLib::Frequency freq = FrequencyToQL(
+            requireEnum(idxSpec->frequency(), "InflationIndexSpec.frequency"));
+        const bool idxInterpolated =
+            requireBool(idxSpec->interpolated(), "InflationIndexSpec.interpolated");
         std::vector<QuantLib::Date> pillarDates;
 
         std::unordered_map<std::string, InflationIndexPtr> localIndexCache;
@@ -423,11 +431,15 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                 if (!std::isfinite(quoteValue)) {
                     QUANTRA_INVALID_ARGUMENT(label + ".quote_value must be finite for curve id: " + id);
                 }
-                auto helperCalendar = CalendarToQL(helper->calendar());
-                auto helperBdc = ConventionToQL(helper->payment_convention());
-                auto helperDc = DayCounterToQL(helper->day_counter());
+                auto helperCalendar = CalendarToQL(
+                    requireEnum(helper->calendar(), label + ".calendar"));
+                auto helperBdc = ConventionToQL(
+                    requireEnum(helper->payment_convention(), label + ".payment_convention"));
+                auto helperDc = DayCounterToQL(
+                    requireEnum(helper->day_counter(), label + ".day_counter"));
                 auto helperObsLag = toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
-                auto helperInterpolation = cpiInterpolationToQL(helper->observation_interpolation());
+                auto helperInterpolation = cpiInterpolationToQL(requireEnum(
+                    helper->observation_interpolation(), label + ".observation_interpolation"));
                 auto dates = resolveHelperDates(helper, ref, helperCalendar, helperBdc, id, label);
                 auto quote = QuantLib::Handle<QuantLib::Quote>(
                     QuantLib::ext::make_shared<QuantLib::SimpleQuote>(quoteValue));
@@ -512,11 +524,15 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                 if (!std::isfinite(quoteValue)) {
                     QUANTRA_INVALID_ARGUMENT(label + ".quote_value must be finite for curve id: " + id);
                 }
-                auto helperCalendar = CalendarToQL(helper->calendar());
-                auto helperBdc = ConventionToQL(helper->payment_convention());
-                auto helperDc = DayCounterToQL(helper->day_counter());
+                auto helperCalendar = CalendarToQL(
+                    requireEnum(helper->calendar(), label + ".calendar"));
+                auto helperBdc = ConventionToQL(
+                    requireEnum(helper->payment_convention(), label + ".payment_convention"));
+                auto helperDc = DayCounterToQL(
+                    requireEnum(helper->day_counter(), label + ".day_counter"));
                 auto helperObsLag = toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
-                auto helperInterpolation = cpiInterpolationToQL(helper->observation_interpolation());
+                auto helperInterpolation = cpiInterpolationToQL(requireEnum(
+                    helper->observation_interpolation(), label + ".observation_interpolation"));
                 auto dates = resolveHelperDates(helper, ref, helperCalendar, helperBdc, id, label);
                 auto quote = QuantLib::Handle<QuantLib::Quote>(
                     QuantLib::ext::make_shared<QuantLib::SimpleQuote>(quoteValue));

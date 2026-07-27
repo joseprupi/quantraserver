@@ -173,18 +173,20 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuoteDirect(
 
 struct CdsHelperConventionsT : public ::flatbuffers::NativeTable {
   typedef CdsHelperConventions TableType;
-  int32_t settlement_days = 0;
-  quantra::enums::Frequency frequency = quantra::enums::Frequency_Quarterly;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following;
-  quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_TwentiethIMM;
-  quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  bool settles_accrual = true;
-  bool pays_at_default_time = true;
-  bool rebates_accrual = true;
-  quantra::enums::CdsHelperModel helper_model = quantra::enums::CdsHelperModel_MidPoint;
+  ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> last_period_day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> settles_accrual = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> pays_at_default_time = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> rebates_accrual = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::CdsHelperModel> helper_model = ::flatbuffers::nullopt;
 };
 
-/// CDS helper conventions for curve building.
+/// CDS helper conventions for curve building. Every convention is
+/// presence-required: an omitted value is a 400 naming the field, never a
+/// silent market-default assumption.
 struct CdsHelperConventions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CdsHelperConventionsT NativeTableType;
   typedef CdsHelperConventionsBuilder Builder;
@@ -199,32 +201,32 @@ struct CdsHelperConventions FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
     VT_REBATES_ACCRUAL = 18,
     VT_HELPER_MODEL = 20
   };
-  int32_t settlement_days() const {
-    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
+  ::flatbuffers::Optional<int32_t> settlement_days() const {
+    return GetOptional<int32_t, int32_t>(VT_SETTLEMENT_DAYS);
   }
-  quantra::enums::Frequency frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 10));
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FREQUENCY);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 0));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  quantra::enums::DateGenerationRule date_generation_rule() const {
-    return static_cast<quantra::enums::DateGenerationRule>(GetField<int8_t>(VT_DATE_GENERATION_RULE, 6));
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule() const {
+    return GetOptional<int8_t, quantra::enums::DateGenerationRule>(VT_DATE_GENERATION_RULE);
   }
-  quantra::enums::DayCounter last_period_day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_LAST_PERIOD_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> last_period_day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_LAST_PERIOD_DAY_COUNTER);
   }
-  bool settles_accrual() const {
-    return GetField<uint8_t>(VT_SETTLES_ACCRUAL, 1) != 0;
+  ::flatbuffers::Optional<bool> settles_accrual() const {
+    return GetOptional<uint8_t, bool>(VT_SETTLES_ACCRUAL);
   }
-  bool pays_at_default_time() const {
-    return GetField<uint8_t>(VT_PAYS_AT_DEFAULT_TIME, 1) != 0;
+  ::flatbuffers::Optional<bool> pays_at_default_time() const {
+    return GetOptional<uint8_t, bool>(VT_PAYS_AT_DEFAULT_TIME);
   }
-  bool rebates_accrual() const {
-    return GetField<uint8_t>(VT_REBATES_ACCRUAL, 1) != 0;
+  ::flatbuffers::Optional<bool> rebates_accrual() const {
+    return GetOptional<uint8_t, bool>(VT_REBATES_ACCRUAL);
   }
-  quantra::enums::CdsHelperModel helper_model() const {
-    return static_cast<quantra::enums::CdsHelperModel>(GetField<int8_t>(VT_HELPER_MODEL, 0));
+  ::flatbuffers::Optional<quantra::enums::CdsHelperModel> helper_model() const {
+    return GetOptional<int8_t, quantra::enums::CdsHelperModel>(VT_HELPER_MODEL);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -249,31 +251,31 @@ struct CdsHelperConventionsBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_settlement_days(int32_t settlement_days) {
-    fbb_.AddElement<int32_t>(CdsHelperConventions::VT_SETTLEMENT_DAYS, settlement_days, 0);
+    fbb_.AddElement<int32_t>(CdsHelperConventions::VT_SETTLEMENT_DAYS, settlement_days);
   }
   void add_frequency(quantra::enums::Frequency frequency) {
-    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_FREQUENCY, static_cast<int8_t>(frequency), 10);
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_FREQUENCY, static_cast<int8_t>(frequency));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 0);
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_date_generation_rule(quantra::enums::DateGenerationRule date_generation_rule) {
-    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_DATE_GENERATION_RULE, static_cast<int8_t>(date_generation_rule), 6);
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_DATE_GENERATION_RULE, static_cast<int8_t>(date_generation_rule));
   }
   void add_last_period_day_counter(quantra::enums::DayCounter last_period_day_counter) {
-    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_LAST_PERIOD_DAY_COUNTER, static_cast<int8_t>(last_period_day_counter), 1);
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_LAST_PERIOD_DAY_COUNTER, static_cast<int8_t>(last_period_day_counter));
   }
   void add_settles_accrual(bool settles_accrual) {
-    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_SETTLES_ACCRUAL, static_cast<uint8_t>(settles_accrual), 1);
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_SETTLES_ACCRUAL, static_cast<uint8_t>(settles_accrual));
   }
   void add_pays_at_default_time(bool pays_at_default_time) {
-    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_PAYS_AT_DEFAULT_TIME, static_cast<uint8_t>(pays_at_default_time), 1);
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_PAYS_AT_DEFAULT_TIME, static_cast<uint8_t>(pays_at_default_time));
   }
   void add_rebates_accrual(bool rebates_accrual) {
-    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_REBATES_ACCRUAL, static_cast<uint8_t>(rebates_accrual), 1);
+    fbb_.AddElement<uint8_t>(CdsHelperConventions::VT_REBATES_ACCRUAL, static_cast<uint8_t>(rebates_accrual));
   }
   void add_helper_model(quantra::enums::CdsHelperModel helper_model) {
-    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_HELPER_MODEL, static_cast<int8_t>(helper_model), 0);
+    fbb_.AddElement<int8_t>(CdsHelperConventions::VT_HELPER_MODEL, static_cast<int8_t>(helper_model));
   }
   explicit CdsHelperConventionsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -288,25 +290,25 @@ struct CdsHelperConventionsBuilder {
 
 inline ::flatbuffers::Offset<CdsHelperConventions> CreateCdsHelperConventions(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t settlement_days = 0,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Quarterly,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::DateGenerationRule date_generation_rule = quantra::enums::DateGenerationRule_TwentiethIMM,
-    quantra::enums::DayCounter last_period_day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    bool settles_accrual = true,
-    bool pays_at_default_time = true,
-    bool rebates_accrual = true,
-    quantra::enums::CdsHelperModel helper_model = quantra::enums::CdsHelperModel_MidPoint) {
+    ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DateGenerationRule> date_generation_rule = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> last_period_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> settles_accrual = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> pays_at_default_time = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> rebates_accrual = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CdsHelperModel> helper_model = ::flatbuffers::nullopt) {
   CdsHelperConventionsBuilder builder_(_fbb);
-  builder_.add_settlement_days(settlement_days);
-  builder_.add_helper_model(helper_model);
-  builder_.add_rebates_accrual(rebates_accrual);
-  builder_.add_pays_at_default_time(pays_at_default_time);
-  builder_.add_settles_accrual(settles_accrual);
-  builder_.add_last_period_day_counter(last_period_day_counter);
-  builder_.add_date_generation_rule(date_generation_rule);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_frequency(frequency);
+  if(settlement_days) { builder_.add_settlement_days(*settlement_days); }
+  if(helper_model) { builder_.add_helper_model(*helper_model); }
+  if(rebates_accrual) { builder_.add_rebates_accrual(*rebates_accrual); }
+  if(pays_at_default_time) { builder_.add_pays_at_default_time(*pays_at_default_time); }
+  if(settles_accrual) { builder_.add_settles_accrual(*settles_accrual); }
+  if(last_period_day_counter) { builder_.add_last_period_day_counter(*last_period_day_counter); }
+  if(date_generation_rule) { builder_.add_date_generation_rule(*date_generation_rule); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(frequency) { builder_.add_frequency(*frequency); }
   return builder_.Finish();
 }
 
@@ -316,10 +318,10 @@ struct CreditCurveSpecT : public ::flatbuffers::NativeTable {
   typedef CreditCurveSpec TableType;
   std::string id{};
   std::string reference_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  double recovery_rate = 0.4;
-  quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> recovery_rate = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Interpolator> curve_interpolator = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::CdsHelperConventionsT> helper_conventions{};
   std::vector<std::unique_ptr<quantra::CdsQuoteT>> quotes{};
   ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt;
@@ -350,17 +352,17 @@ struct CreditCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 21));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  double recovery_rate() const {
-    return GetField<double>(VT_RECOVERY_RATE, 0.4);
+  ::flatbuffers::Optional<double> recovery_rate() const {
+    return GetOptional<double, double>(VT_RECOVERY_RATE);
   }
-  quantra::enums::Interpolator curve_interpolator() const {
-    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_CURVE_INTERPOLATOR, 4));
+  ::flatbuffers::Optional<quantra::enums::Interpolator> curve_interpolator() const {
+    return GetOptional<int8_t, quantra::enums::Interpolator>(VT_CURVE_INTERPOLATOR);
   }
   const quantra::CdsHelperConventions *helper_conventions() const {
     return GetPointer<const quantra::CdsHelperConventions *>(VT_HELPER_CONVENTIONS);
@@ -409,16 +411,16 @@ struct CreditCurveSpecBuilder {
     fbb_.AddOffset(CreditCurveSpec::VT_REFERENCE_DATE, reference_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 21);
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_recovery_rate(double recovery_rate) {
-    fbb_.AddElement<double>(CreditCurveSpec::VT_RECOVERY_RATE, recovery_rate, 0.4);
+    fbb_.AddElement<double>(CreditCurveSpec::VT_RECOVERY_RATE, recovery_rate);
   }
   void add_curve_interpolator(quantra::enums::Interpolator curve_interpolator) {
-    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CURVE_INTERPOLATOR, static_cast<int8_t>(curve_interpolator), 4);
+    fbb_.AddElement<int8_t>(CreditCurveSpec::VT_CURVE_INTERPOLATOR, static_cast<int8_t>(curve_interpolator));
   }
   void add_helper_conventions(::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions) {
     fbb_.AddOffset(CreditCurveSpec::VT_HELPER_CONVENTIONS, helper_conventions);
@@ -446,23 +448,23 @@ inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    double recovery_rate = 0.4,
-    quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> recovery_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Interpolator> curve_interpolator = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CdsQuote>>> quotes = 0,
     ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt) {
   CreditCurveSpecBuilder builder_(_fbb);
   if(flat_hazard_rate) { builder_.add_flat_hazard_rate(*flat_hazard_rate); }
-  builder_.add_recovery_rate(recovery_rate);
+  if(recovery_rate) { builder_.add_recovery_rate(*recovery_rate); }
   builder_.add_quotes(quotes);
   builder_.add_helper_conventions(helper_conventions);
   builder_.add_reference_date(reference_date);
   builder_.add_id(id);
-  builder_.add_curve_interpolator(curve_interpolator);
-  builder_.add_day_counter(day_counter);
-  builder_.add_calendar(calendar);
+  if(curve_interpolator) { builder_.add_curve_interpolator(*curve_interpolator); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -470,10 +472,10 @@ inline ::flatbuffers::Offset<CreditCurveSpec> CreateCreditCurveSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_NullCalendar,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    double recovery_rate = 0.4,
-    quantra::enums::Interpolator curve_interpolator = quantra::enums::Interpolator_LogLinear,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> recovery_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Interpolator> curve_interpolator = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::CdsHelperConventions> helper_conventions = 0,
     const std::vector<::flatbuffers::Offset<quantra::CdsQuote>> *quotes = nullptr,
     ::flatbuffers::Optional<double> flat_hazard_rate = ::flatbuffers::nullopt) {

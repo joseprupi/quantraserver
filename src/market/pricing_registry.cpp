@@ -23,6 +23,7 @@
 #include "quote_registry.h"
 #include "inflation_curve_parsers.h"
 #include "require_scalar.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -258,12 +259,14 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                         if (c->swap_index_id()) hw.swap_index_id = c->swap_index_id()->str();
                         if (c->expiries()) {
                             for (auto pit = c->expiries()->begin(); pit != c->expiries()->end(); ++pit) {
-                                hw.expiries.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+                                hw.expiries.push_back(requirePeriod(
+                                    *pit, "SwaptionHwCalibrationSpec.expiries"));
                             }
                         }
                         if (c->tenors()) {
                             for (auto pit = c->tenors()->begin(); pit != c->tenors()->end(); ++pit) {
-                                hw.tenors.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+                                hw.tenors.push_back(requirePeriod(
+                                    *pit, "SwaptionHwCalibrationSpec.tenors"));
                             }
                         }
                         hw.calibrate_a = c->calibrate_a();
@@ -334,22 +337,39 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             CreditCurveDomain d;
             d.id = id;
             d.reference_date = DateToQL(spec->reference_date()->str());
-            d.calendar = CalendarToQL(spec->calendar());
-            d.day_counter = DayCounterToQL(spec->day_counter());
-            d.recovery_rate = spec->recovery_rate();
-            d.curve_interpolator =
-                static_cast<CreditCurveInterpolatorKind>(spec->curve_interpolator());
+            d.calendar = CalendarToQL(
+                requireEnum(spec->calendar(), "CreditCurveSpec.calendar"));
+            d.day_counter = DayCounterToQL(
+                requireEnum(spec->day_counter(), "CreditCurveSpec.day_counter"));
+            d.recovery_rate =
+                requireFinite(spec->recovery_rate(), "CreditCurveSpec.recovery_rate");
+            d.curve_interpolator = static_cast<CreditCurveInterpolatorKind>(
+                requireEnum(spec->curve_interpolator(),
+                            "CreditCurveSpec.curve_interpolator"));
             if (const auto* h = spec->helper_conventions()) {
                 CdsHelperConventionsDomain hc;
-                hc.settlement_days = h->settlement_days();
-                hc.frequency = FrequencyToQL(h->frequency());
-                hc.business_day_convention = ConventionToQL(h->business_day_convention());
-                hc.date_generation_rule = DateGenerationToQL(h->date_generation_rule());
-                hc.last_period_day_counter = DayCounterToQL(h->last_period_day_counter());
-                hc.settles_accrual = h->settles_accrual();
-                hc.pays_at_default_time = h->pays_at_default_time();
-                hc.rebates_accrual = h->rebates_accrual();
-                hc.helper_model = static_cast<CdsHelperModelKind>(h->helper_model());
+                hc.settlement_days = requireInt(
+                    h->settlement_days(), "CdsHelperConventions.settlement_days");
+                hc.frequency = FrequencyToQL(
+                    requireEnum(h->frequency(), "CdsHelperConventions.frequency"));
+                hc.business_day_convention = ConventionToQL(requireEnum(
+                    h->business_day_convention(),
+                    "CdsHelperConventions.business_day_convention"));
+                hc.date_generation_rule = DateGenerationToQL(requireEnum(
+                    h->date_generation_rule(),
+                    "CdsHelperConventions.date_generation_rule"));
+                hc.last_period_day_counter = DayCounterToQL(requireEnum(
+                    h->last_period_day_counter(),
+                    "CdsHelperConventions.last_period_day_counter"));
+                hc.settles_accrual = requireBool(
+                    h->settles_accrual(), "CdsHelperConventions.settles_accrual");
+                hc.pays_at_default_time = requireBool(
+                    h->pays_at_default_time(),
+                    "CdsHelperConventions.pays_at_default_time");
+                hc.rebates_accrual = requireBool(
+                    h->rebates_accrual(), "CdsHelperConventions.rebates_accrual");
+                hc.helper_model = static_cast<CdsHelperModelKind>(
+                    requireEnum(h->helper_model(), "CdsHelperConventions.helper_model"));
                 d.helper_conventions = hc;
             }
             if (spec->flat_hazard_rate().has_value()) {
@@ -360,8 +380,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                 for (auto qit = qs->begin(); qit != qs->end(); ++qit) {
                     CdsQuoteDomain q;
                     if (qit->tenor()) {
-                        q.tenor = QuantLib::Period(qit->tenor()->n(),
-                                                   TimeUnitToQL(qit->tenor()->unit()));
+                        q.tenor = requirePeriod(qit->tenor(), "CdsQuote.tenor");
                     }
                     if (!qit->quote_type().has_value()) {
                         QUANTRA_INVALID_ARGUMENT("CdsQuote.quote_type is required");

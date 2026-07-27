@@ -239,7 +239,8 @@
           "frequency": "Semiannual",
           "convention": "Following",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "Forward"
+          "date_generation_rule": "Forward",
+          "end_of_month": false
         },
         "day_counter": "Actual365Fixed",
         "business_day_convention": "Following",

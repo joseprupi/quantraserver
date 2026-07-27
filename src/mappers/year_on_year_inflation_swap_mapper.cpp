@@ -7,6 +7,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "require_scalar.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -59,9 +60,8 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
     trade.fixedDayCounter = DayCounterToQL(swap->fixed_day_counter());
     trade.yoySchedule = *yoySchedule;
     trade.inflationIndexId = swap->inflation_index_id()->str();
-    trade.observationLag = QuantLib::Period(
-        swap->observation_lag()->n(),
-        TimeUnitToQL(swap->observation_lag()->unit()));
+    trade.observationLag = requirePeriod(
+        swap->observation_lag(), "YearOnYearInflationSwap.observation_lag");
     trade.observationInterpolation = CPIInterpolationToQL(swap->observation_interpolation());
     trade.spread = swap->spread();
     trade.yoyDayCounter = DayCounterToQL(swap->yoy_day_counter());

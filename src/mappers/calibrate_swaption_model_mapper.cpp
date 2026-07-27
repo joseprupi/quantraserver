@@ -3,6 +3,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "model_generated.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -20,12 +21,14 @@ SwaptionHwCalibrationDomain toCalibrationDomain(
     if (c->swap_index_id()) hw.swap_index_id = c->swap_index_id()->str();
     if (c->expiries()) {
         for (auto pit = c->expiries()->begin(); pit != c->expiries()->end(); ++pit) {
-            hw.expiries.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+            hw.expiries.push_back(
+                requirePeriod(*pit, "SwaptionHwCalibrationSpec.expiries"));
         }
     }
     if (c->tenors()) {
         for (auto pit = c->tenors()->begin(); pit != c->tenors()->end(); ++pit) {
-            hw.tenors.emplace_back(pit->n(), TimeUnitToQL(pit->unit()));
+            hw.tenors.push_back(
+                requirePeriod(*pit, "SwaptionHwCalibrationSpec.tenors"));
         }
     }
     hw.calibrate_a = c->calibrate_a();

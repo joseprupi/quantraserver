@@ -2920,6 +2920,7 @@ def _make_multicurve_exogenous_request() -> dict:
                     "calendar": "TARGET",
                     "business_day_convention": "Following",
                     "day_counter": "Actual360",
+                    "end_of_month": true,
                     "currency": "EUR",
                     "tenor": {
                         "n": 0,

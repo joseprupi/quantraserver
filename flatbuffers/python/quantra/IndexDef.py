@@ -41,13 +41,14 @@ class IndexDef(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # IBOR or Overnight. Determines QuantLib class used.
+    # IBOR or Overnight. Determines QuantLib class used. Presence-required: an
+    # omitted value is a 400, never the silent Ibor default.
     # IndexDef
     def IndexType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight).
     # IndexDef
@@ -61,45 +62,46 @@ class IndexDef(object):
             return obj
         return None
 
-    # Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).
+    # Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required.
     # IndexDef
     def FixingDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 2
+        return None
 
-    # Calendar for fixing/payment dates.
+    # Calendar for fixing/payment dates. Presence-required.
     # IndexDef
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
-    # Business day convention.
+    # Business day convention. Presence-required.
     # IndexDef
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
-    # Day count convention.
+    # Day count convention. Presence-required.
     # IndexDef
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # End of month rule (IBOR only, ignored for overnight).
+    # End of month rule (IBOR only, ignored for overnight). Presence-required:
+    # absent-vs-false silently changes money-market schedule dates.
     # IndexDef
     def EndOfMonth(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return True
+        return None
 
     # ISO currency code (e.g., "EUR", "USD", "GBP", "JPY").
     # IndexDef
@@ -154,7 +156,7 @@ def AddName(builder, name):
     IndexDefAddName(builder, name)
 
 def IndexDefAddIndexType(builder, indexType):
-    builder.PrependInt8Slot(2, indexType, 0)
+    builder.PrependInt8Slot(2, indexType, None)
 
 def AddIndexType(builder, indexType):
     IndexDefAddIndexType(builder, indexType)
@@ -166,31 +168,31 @@ def AddTenor(builder, tenor):
     IndexDefAddTenor(builder, tenor)
 
 def IndexDefAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(4, fixingDays, 2)
+    builder.PrependInt32Slot(4, fixingDays, None)
 
 def AddFixingDays(builder, fixingDays):
     IndexDefAddFixingDays(builder, fixingDays)
 
 def IndexDefAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(5, calendar, 32)
+    builder.PrependInt8Slot(5, calendar, None)
 
 def AddCalendar(builder, calendar):
     IndexDefAddCalendar(builder, calendar)
 
 def IndexDefAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, 2)
+    builder.PrependInt8Slot(6, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     IndexDefAddBusinessDayConvention(builder, businessDayConvention)
 
 def IndexDefAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(7, dayCounter, 0)
+    builder.PrependInt8Slot(7, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     IndexDefAddDayCounter(builder, dayCounter)
 
 def IndexDefAddEndOfMonth(builder, endOfMonth):
-    builder.PrependBoolSlot(8, endOfMonth, 1)
+    builder.PrependBoolSlot(8, endOfMonth, None)
 
 def AddEndOfMonth(builder, endOfMonth):
     IndexDefAddEndOfMonth(builder, endOfMonth)
@@ -230,13 +232,13 @@ class IndexDefT(object):
     def __init__(self):
         self.id = None  # type: str
         self.name = None  # type: str
-        self.indexType = 0  # type: int
+        self.indexType = None  # type: Optional[int]
         self.tenor = None  # type: Optional[PeriodT]
-        self.fixingDays = 2  # type: int
-        self.calendar = 32  # type: int
-        self.businessDayConvention = 2  # type: int
-        self.dayCounter = 0  # type: int
-        self.endOfMonth = True  # type: bool
+        self.fixingDays = None  # type: Optional[int]
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.endOfMonth = None  # type: Optional[bool]
         self.currency = None  # type: str
         self.fixings = None  # type: List[FixingT]
 

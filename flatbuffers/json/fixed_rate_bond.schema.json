@@ -199,7 +199,8 @@
                 "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
               },
         "end_of_month" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Presence-required: absent-vs-false silently changes schedule dates for\nmonth-end-anchored (money-market) schedules."
               },
         "first_date" : {
                 "type" : "string",

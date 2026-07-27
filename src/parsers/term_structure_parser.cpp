@@ -9,6 +9,9 @@
 
 #include <cmath>
 
+#include "require_scalar.h"
+#include "require_period.h"
+
 using namespace QuantLib;
 
 namespace quantra {
@@ -126,18 +129,17 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             if (p->date()) {
                 d = DateToQL(p->date()->str());
             } else {
-                if (!p->tenor()) {
-                    QUANTRA_INVALID_ARGUMENT(
-                        "DiscountFactorPoint.tenor is required when date is not provided");
-                }
-                int tenorN = p->tenor()->n();
-                auto tenorUnit = p->tenor()->unit();
-                if (tenorN <= 0) {
+                QuantLib::Period tenor =
+                    requirePeriod(p->tenor(), "DiscountFactorPoint.tenor");
+                if (tenor.length() <= 0) {
                     QUANTRA_INVALID_ARGUMENT("DiscountFactorPoint requires date or tenor");
                 }
-                auto cal = CalendarToQL(p->calendar());
-                auto bdc = ConventionToQL(p->business_day_convention());
-                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
+                auto cal = CalendarToQL(
+                    requireEnum(p->calendar(), "DiscountFactorPoint.calendar"));
+                auto bdc = ConventionToQL(requireEnum(
+                    p->business_day_convention(),
+                    "DiscountFactorPoint.business_day_convention"));
+                d = cal.advance(ref, tenor, bdc);
             }
 
             if (!p->discount_factor().has_value()) {
@@ -205,18 +207,17 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             if (p->date()) {
                 d = DateToQL(p->date()->str());
             } else {
-                if (!p->tenor()) {
-                    QUANTRA_INVALID_ARGUMENT(
-                        "ForwardRatePoint.tenor is required when date is not provided");
-                }
-                int tenorN = p->tenor()->n();
-                auto tenorUnit = p->tenor()->unit();
-                if (tenorN <= 0) {
+                QuantLib::Period tenor =
+                    requirePeriod(p->tenor(), "ForwardRatePoint.tenor");
+                if (tenor.length() <= 0) {
                     QUANTRA_INVALID_ARGUMENT("ForwardRatePoint requires date or tenor");
                 }
-                auto cal = CalendarToQL(p->calendar());
-                auto bdc = ConventionToQL(p->business_day_convention());
-                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
+                auto cal = CalendarToQL(
+                    requireEnum(p->calendar(), "ForwardRatePoint.calendar"));
+                auto bdc = ConventionToQL(requireEnum(
+                    p->business_day_convention(),
+                    "ForwardRatePoint.business_day_convention"));
+                d = cal.advance(ref, tenor, bdc);
             }
 
             if (!p->forward_rate().has_value()) {
@@ -272,17 +273,17 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             if (p->date()) {
                 d = DateToQL(p->date()->str());
             } else {
-                if (!p->tenor()) {
-                    QUANTRA_INVALID_ARGUMENT("ZeroRatePoint.tenor is required when date is not provided");
-                }
-                int tenorN = p->tenor()->n();
-                auto tenorUnit = p->tenor()->unit();
-                if (tenorN <= 0) {
+                QuantLib::Period tenor =
+                    requirePeriod(p->tenor(), "ZeroRatePoint.tenor");
+                if (tenor.length() <= 0) {
                     QUANTRA_INVALID_ARGUMENT("ZeroRatePoint requires date or tenor");
                 }
-                auto cal = CalendarToQL(p->calendar());
-                auto bdc = ConventionToQL(p->business_day_convention());
-                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
+                auto cal = CalendarToQL(
+                    requireEnum(p->calendar(), "ZeroRatePoint.calendar"));
+                auto bdc = ConventionToQL(requireEnum(
+                    p->business_day_convention(),
+                    "ZeroRatePoint.business_day_convention"));
+                d = cal.advance(ref, tenor, bdc);
             }
             dates.push_back(d);
             if (!p->zero_rate().has_value()) {
@@ -294,8 +295,10 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
             // convention. Applying the first point's pair to every rate would
             // silently mis-build the curve if the points disagree, so require
             // them identical across all points.
-            Compounding pointComp = CompoundingToQL(p->compounding());
-            Frequency pointFreq = FrequencyToQL(p->frequency());
+            Compounding pointComp = CompoundingToQL(
+                requireEnum(p->compounding(), "ZeroRatePoint.compounding"));
+            Frequency pointFreq = FrequencyToQL(
+                requireEnum(p->frequency(), "ZeroRatePoint.frequency"));
             if (!convSet) {
                 comp = pointComp;
                 freq = pointFreq;

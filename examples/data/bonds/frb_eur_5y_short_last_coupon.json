@@ -136,7 +136,8 @@
           "convention": "ModifiedFollowing",
           "termination_date_convention": "ModifiedFollowing",
           "date_generation_rule": "Forward",
-          "next_to_last_date": "2029-10-17"
+          "next_to_last_date": "2029-10-17",
+          "end_of_month": false
         }
       },
       "discounting_curve": "discount",

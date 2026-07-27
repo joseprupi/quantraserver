@@ -131,7 +131,8 @@
             "frequency": "Annual",
             "convention": "Following",
             "termination_date_convention": "Following",
-            "date_generation_rule": "Backward"
+            "date_generation_rule": "Backward",
+            "end_of_month": false
           },
           "rate": 0.033,
           "day_counter": "Thirty360",
@@ -146,7 +147,8 @@
             "frequency": "Semiannual",
             "convention": "Following",
             "termination_date_convention": "Following",
-            "date_generation_rule": "Backward"
+            "date_generation_rule": "Backward",
+            "end_of_month": false
           },
           "index": {
             "id": "EUR_6M"

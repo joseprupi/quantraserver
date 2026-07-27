@@ -6,6 +6,8 @@
 
 #include "vol_surface_parsers.h"
 
+#include "require_period.h"
+
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
@@ -151,27 +153,7 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
 }
 
 QuantLib::Period toQlPeriod(const quantra::Period* p) {
-    if (!p) {
-        QUANTRA_INVALID_ARGUMENT("Period is null");
-    }
-    QuantLib::TimeUnit unit;
-    switch (p->unit()) {
-        case quantra::enums::TimeUnit_Days:
-            unit = QuantLib::Days;
-            break;
-        case quantra::enums::TimeUnit_Weeks:
-            unit = QuantLib::Weeks;
-            break;
-        case quantra::enums::TimeUnit_Months:
-            unit = QuantLib::Months;
-            break;
-        case quantra::enums::TimeUnit_Years:
-            unit = QuantLib::Years;
-            break;
-        default:
-            QUANTRA_INVALID_ARGUMENT("Unknown TimeUnit for Period");
-    }
-    return QuantLib::Period(p->n(), unit);
+    return requirePeriod(p, "Period");
 }
 
 double resolveMatrixValue(
@@ -2383,8 +2365,8 @@ YoYOptionletVolEntry parseYoYOptionletVol(const quantra::VolSurfaceSpec* spec) {
     entry.dayCounter = DayCounterToQL(p->day_counter().value());
     entry.calendar = CalendarToQL(p->calendar().value());
     entry.businessDayConvention = ConventionToQL(p->business_day_convention().value());
-    entry.observationLag = QuantLib::Period(
-        p->observation_lag()->n(), TimeUnitToQL(p->observation_lag()->unit()));
+    entry.observationLag = requirePeriod(
+        p->observation_lag(), "ConstantYoYOptionletVolSpec.observation_lag");
     return entry;
 }
 

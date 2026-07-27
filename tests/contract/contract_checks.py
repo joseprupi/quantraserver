@@ -338,6 +338,7 @@ def check_bootstrap_inflation_curves_smoke(client: ApiClient) -> dict:
                     "calendar": "TARGET",
                     "business_day_convention": "ModifiedFollowing",
                     "day_counter": "Actual360",
+                    "end_of_month": true,
                     "currency": "EUR",
                     "tenor": {
                         "n": 6,
@@ -658,7 +659,7 @@ def check_price_zero_coupon_inflation_swap_smoke(client: ApiClient) -> dict:
                         "tenor": {"n": 6, "unit": "Months"},
                         "fixing_days": 2, "calendar": "TARGET",
                         "business_day_convention": "ModifiedFollowing",
-                        "day_counter": "Actual360", "currency": "EUR"
+                        "day_counter": "Actual360", "end_of_month": True, "currency": "EUR"
                     }],
                     "curves": [{
                         "id": "DISC", "reference_date": "2025-01-15",
@@ -864,7 +865,7 @@ def check_price_year_on_year_inflation_swap_smoke(client: ApiClient) -> dict:
                         "tenor": {"n": 6, "unit": "Months"},
                         "fixing_days": 2, "calendar": "TARGET",
                         "business_day_convention": "ModifiedFollowing",
-                        "day_counter": "Actual360", "currency": "EUR"
+                        "day_counter": "Actual360", "end_of_month": True, "currency": "EUR"
                     }],
                     "curves": [{
                         "id": "DISC", "reference_date": "2025-01-15",
@@ -1002,7 +1003,8 @@ def check_price_year_on_year_inflation_swap_smoke(client: ApiClient) -> dict:
                         "frequency": "Annual",
                         "convention": "ModifiedFollowing",
                         "termination_date_convention": "ModifiedFollowing",
-                        "date_generation_rule": "Forward"
+                        "date_generation_rule": "Forward",
+                        "end_of_month": False
                     },
                     "fixed_rate": 0.0204,
                     "fixed_day_counter": "Actual365Fixed",
@@ -1013,7 +1015,8 @@ def check_price_year_on_year_inflation_swap_smoke(client: ApiClient) -> dict:
                         "frequency": "Annual",
                         "convention": "ModifiedFollowing",
                         "termination_date_convention": "ModifiedFollowing",
-                        "date_generation_rule": "Forward"
+                        "date_generation_rule": "Forward",
+                        "end_of_month": False
                     },
                     "inflation_index_id": "EUHICP_YY",
                     "observation_lag": {"n": 3, "unit": "Months"},

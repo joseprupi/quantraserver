@@ -136,7 +136,8 @@
           "convention": "ModifiedFollowing",
           "termination_date_convention": "ModifiedFollowing",
           "date_generation_rule": "Backward",
-          "first_date": "2025-03-17"
+          "first_date": "2025-03-17",
+          "end_of_month": false
         }
       },
       "discounting_curve": "discount",

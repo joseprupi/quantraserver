@@ -1478,11 +1478,11 @@ struct OISHelperT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
-  int32_t settlement_days = 2;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual;
-  quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360;
+  ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   OISHelperT() = default;
@@ -1518,20 +1518,20 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *overnight_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
-  int32_t settlement_days() const {
-    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 2);
+  ::flatbuffers::Optional<int32_t> settlement_days() const {
+    return GetOptional<int32_t, int32_t>(VT_SETTLEMENT_DAYS);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::Frequency fixed_leg_frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FIXED_LEG_FREQUENCY, 0));
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FIXED_LEG_FREQUENCY);
   }
-  quantra::enums::BusinessDayConvention fixed_leg_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FIXED_LEG_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_LEG_CONVENTION);
   }
-  quantra::enums::DayCounter fixed_leg_day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
@@ -1577,19 +1577,19 @@ struct OISHelperBuilder {
     fbb_.AddOffset(OISHelper::VT_OVERNIGHT_INDEX, overnight_index);
   }
   void add_settlement_days(int32_t settlement_days) {
-    fbb_.AddElement<int32_t>(OISHelper::VT_SETTLEMENT_DAYS, settlement_days, 2);
+    fbb_.AddElement<int32_t>(OISHelper::VT_SETTLEMENT_DAYS, settlement_days);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(OISHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_fixed_leg_frequency(quantra::enums::Frequency fixed_leg_frequency) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_FREQUENCY, static_cast<int8_t>(fixed_leg_frequency), 0);
+    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_FREQUENCY, static_cast<int8_t>(fixed_leg_frequency));
   }
   void add_fixed_leg_convention(quantra::enums::BusinessDayConvention fixed_leg_convention) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_CONVENTION, static_cast<int8_t>(fixed_leg_convention), 2);
+    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_CONVENTION, static_cast<int8_t>(fixed_leg_convention));
   }
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
-    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter), 0);
+    fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter));
   }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(OISHelper::VT_DEPS, deps);
@@ -1614,24 +1614,24 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
-    int32_t settlement_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual,
-    quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   OISHelperBuilder builder_(_fbb);
   if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
-  builder_.add_settlement_days(settlement_days);
+  if(settlement_days) { builder_.add_settlement_days(*settlement_days); }
   builder_.add_overnight_index(overnight_index);
   builder_.add_tenor(tenor);
-  builder_.add_fixed_leg_day_counter(fixed_leg_day_counter);
-  builder_.add_fixed_leg_convention(fixed_leg_convention);
-  builder_.add_fixed_leg_frequency(fixed_leg_frequency);
-  builder_.add_calendar(calendar);
+  if(fixed_leg_day_counter) { builder_.add_fixed_leg_day_counter(*fixed_leg_day_counter); }
+  if(fixed_leg_convention) { builder_.add_fixed_leg_convention(*fixed_leg_convention); }
+  if(fixed_leg_frequency) { builder_.add_fixed_leg_frequency(*fixed_leg_frequency); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -1640,11 +1640,11 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
     ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
-    int32_t settlement_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::Frequency fixed_leg_frequency = quantra::enums::Frequency_Annual,
-    quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
@@ -1670,10 +1670,10 @@ struct DatedOISHelperT : public ::flatbuffers::NativeTable {
   std::string start_date{};
   std::string end_date{};
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
-  int32_t settlement_days = 2;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360;
+  ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   DatedOISHelperT() = default;
@@ -1712,17 +1712,17 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *overnight_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_OVERNIGHT_INDEX);
   }
-  int32_t settlement_days() const {
-    return GetField<int32_t>(VT_SETTLEMENT_DAYS, 2);
+  ::flatbuffers::Optional<int32_t> settlement_days() const {
+    return GetOptional<int32_t, int32_t>(VT_SETTLEMENT_DAYS);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention fixed_leg_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FIXED_LEG_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_LEG_CONVENTION);
   }
-  quantra::enums::DayCounter fixed_leg_day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_LEG_DAY_COUNTER, 0));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
@@ -1772,16 +1772,16 @@ struct DatedOISHelperBuilder {
     fbb_.AddOffset(DatedOISHelper::VT_OVERNIGHT_INDEX, overnight_index);
   }
   void add_settlement_days(int32_t settlement_days) {
-    fbb_.AddElement<int32_t>(DatedOISHelper::VT_SETTLEMENT_DAYS, settlement_days, 2);
+    fbb_.AddElement<int32_t>(DatedOISHelper::VT_SETTLEMENT_DAYS, settlement_days);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(DatedOISHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(DatedOISHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_fixed_leg_convention(quantra::enums::BusinessDayConvention fixed_leg_convention) {
-    fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_CONVENTION, static_cast<int8_t>(fixed_leg_convention), 2);
+    fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_CONVENTION, static_cast<int8_t>(fixed_leg_convention));
   }
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
-    fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter), 0);
+    fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter));
   }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(DatedOISHelper::VT_DEPS, deps);
@@ -1809,23 +1809,23 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
-    int32_t settlement_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   DatedOISHelperBuilder builder_(_fbb);
   if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
-  builder_.add_settlement_days(settlement_days);
+  if(settlement_days) { builder_.add_settlement_days(*settlement_days); }
   builder_.add_overnight_index(overnight_index);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
-  builder_.add_fixed_leg_day_counter(fixed_leg_day_counter);
-  builder_.add_fixed_leg_convention(fixed_leg_convention);
-  builder_.add_calendar(calendar);
+  if(fixed_leg_day_counter) { builder_.add_fixed_leg_day_counter(*fixed_leg_day_counter); }
+  if(fixed_leg_convention) { builder_.add_fixed_leg_convention(*fixed_leg_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -1835,10 +1835,10 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
     const char *start_date = nullptr,
     const char *end_date = nullptr,
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
-    int32_t settlement_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention fixed_leg_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter fixed_leg_day_counter = quantra::enums::DayCounter_Actual360,
+    ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
@@ -1864,11 +1864,11 @@ struct ZeroRatePointT : public ::flatbuffers::NativeTable {
   typedef ZeroRatePoint TableType;
   std::string date{};
   std::unique_ptr<quantra::PeriodT> tenor{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt;
-  quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous;
-  quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual;
+  ::flatbuffers::Optional<quantra::enums::Compounding> compounding = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt;
   ZeroRatePointT() = default;
   ZeroRatePointT(const ZeroRatePointT &o);
   ZeroRatePointT(ZeroRatePointT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -1896,23 +1896,23 @@ struct ZeroRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   /// Zero rate for this maturity. Required.
   ::flatbuffers::Optional<double> zero_rate() const {
     return GetOptional<double, double>(VT_ZERO_RATE);
   }
   /// Compounding convention for the zero rate.
-  quantra::enums::Compounding compounding() const {
-    return static_cast<quantra::enums::Compounding>(GetField<int8_t>(VT_COMPOUNDING, 1));
+  ::flatbuffers::Optional<quantra::enums::Compounding> compounding() const {
+    return GetOptional<int8_t, quantra::enums::Compounding>(VT_COMPOUNDING);
   }
   /// Frequency (used when compounding != Continuous).
-  quantra::enums::Frequency frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 0));
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FREQUENCY);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -1943,19 +1943,19 @@ struct ZeroRatePointBuilder {
     fbb_.AddOffset(ZeroRatePoint::VT_TENOR, tenor);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_zero_rate(double zero_rate) {
     fbb_.AddElement<double>(ZeroRatePoint::VT_ZERO_RATE, zero_rate);
   }
   void add_compounding(quantra::enums::Compounding compounding) {
-    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_COMPOUNDING, static_cast<int8_t>(compounding), 1);
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_COMPOUNDING, static_cast<int8_t>(compounding));
   }
   void add_frequency(quantra::enums::Frequency frequency) {
-    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_FREQUENCY, static_cast<int8_t>(frequency), 0);
+    fbb_.AddElement<int8_t>(ZeroRatePoint::VT_FREQUENCY, static_cast<int8_t>(frequency));
   }
   explicit ZeroRatePointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -1972,19 +1972,19 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePoint(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> date = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt,
-    quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
+    ::flatbuffers::Optional<quantra::enums::Compounding> compounding = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt) {
   ZeroRatePointBuilder builder_(_fbb);
   if(zero_rate) { builder_.add_zero_rate(*zero_rate); }
   builder_.add_tenor(tenor);
   builder_.add_date(date);
-  builder_.add_frequency(frequency);
-  builder_.add_compounding(compounding);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(frequency) { builder_.add_frequency(*frequency); }
+  if(compounding) { builder_.add_compounding(*compounding); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -1992,11 +1992,11 @@ inline ::flatbuffers::Offset<ZeroRatePoint> CreateZeroRatePointDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *date = nullptr,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> zero_rate = ::flatbuffers::nullopt,
-    quantra::enums::Compounding compounding = quantra::enums::Compounding_Continuous,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Annual) {
+    ::flatbuffers::Optional<quantra::enums::Compounding> compounding = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateZeroRatePoint(
       _fbb,
@@ -2015,8 +2015,8 @@ struct DiscountFactorPointT : public ::flatbuffers::NativeTable {
   typedef DiscountFactorPoint TableType;
   std::string date{};
   std::unique_ptr<quantra::PeriodT> tenor{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt;
   DiscountFactorPointT() = default;
   DiscountFactorPointT(const DiscountFactorPointT &o);
@@ -2045,11 +2045,11 @@ struct DiscountFactorPoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   /// Discount factor to this maturity. Required; must be in (0, 1]. The first
   /// point (reference date) must carry a discount factor of exactly 1.0.
@@ -2083,10 +2083,10 @@ struct DiscountFactorPointBuilder {
     fbb_.AddOffset(DiscountFactorPoint::VT_TENOR, tenor);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(DiscountFactorPoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_discount_factor(double discount_factor) {
     fbb_.AddElement<double>(DiscountFactorPoint::VT_DISCOUNT_FACTOR, discount_factor);
@@ -2106,15 +2106,15 @@ inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> date = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt) {
   DiscountFactorPointBuilder builder_(_fbb);
   if(discount_factor) { builder_.add_discount_factor(*discount_factor); }
   builder_.add_tenor(tenor);
   builder_.add_date(date);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -2122,8 +2122,8 @@ inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPointDirec
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *date = nullptr,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> discount_factor = ::flatbuffers::nullopt) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateDiscountFactorPoint(
@@ -2141,8 +2141,8 @@ struct ForwardRatePointT : public ::flatbuffers::NativeTable {
   typedef ForwardRatePoint TableType;
   std::string date{};
   std::unique_ptr<quantra::PeriodT> tenor{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt;
   ForwardRatePointT() = default;
   ForwardRatePointT(const ForwardRatePointT &o);
@@ -2175,11 +2175,11 @@ struct ForwardRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   /// Instantaneous, continuously-compounded forward rate at this node.
   /// Required. May be negative in some markets; only non-finite is rejected.
@@ -2213,10 +2213,10 @@ struct ForwardRatePointBuilder {
     fbb_.AddOffset(ForwardRatePoint::VT_TENOR, tenor);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_forward_rate(double forward_rate) {
     fbb_.AddElement<double>(ForwardRatePoint::VT_FORWARD_RATE, forward_rate);
@@ -2236,15 +2236,15 @@ inline ::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePoint(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> date = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt) {
   ForwardRatePointBuilder builder_(_fbb);
   if(forward_rate) { builder_.add_forward_rate(*forward_rate); }
   builder_.add_tenor(tenor);
   builder_.add_date(date);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -2252,8 +2252,8 @@ inline ::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePointDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *date = nullptr,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
   return quantra::CreateForwardRatePoint(
@@ -2425,9 +2425,9 @@ struct FxSwapHelperT : public ::flatbuffers::NativeTable {
   typedef FxSwapHelper TableType;
   ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> tenor{};
-  int32_t spot_days = 2;
-  quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET;
-  quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET;
+  ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   FxSwapHelperT() = default;
@@ -2456,14 +2456,14 @@ struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  int32_t spot_days() const {
-    return GetField<int32_t>(VT_SPOT_DAYS, 2);
+  ::flatbuffers::Optional<int32_t> spot_days() const {
+    return GetOptional<int32_t, int32_t>(VT_SPOT_DAYS);
   }
-  quantra::enums::Calendar calendar_domestic() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR_DOMESTIC, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR_DOMESTIC);
   }
-  quantra::enums::Calendar calendar_foreign() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR_FOREIGN, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR_FOREIGN);
   }
   const quantra::HelperDependencies *deps() const {
     return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
@@ -2501,13 +2501,13 @@ struct FxSwapHelperBuilder {
     fbb_.AddOffset(FxSwapHelper::VT_TENOR, tenor);
   }
   void add_spot_days(int32_t spot_days) {
-    fbb_.AddElement<int32_t>(FxSwapHelper::VT_SPOT_DAYS, spot_days, 2);
+    fbb_.AddElement<int32_t>(FxSwapHelper::VT_SPOT_DAYS, spot_days);
   }
   void add_calendar_domestic(quantra::enums::Calendar calendar_domestic) {
-    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_DOMESTIC, static_cast<int8_t>(calendar_domestic), 32);
+    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_DOMESTIC, static_cast<int8_t>(calendar_domestic));
   }
   void add_calendar_foreign(quantra::enums::Calendar calendar_foreign) {
-    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_FOREIGN, static_cast<int8_t>(calendar_foreign), 32);
+    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_FOREIGN, static_cast<int8_t>(calendar_foreign));
   }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(FxSwapHelper::VT_DEPS, deps);
@@ -2530,19 +2530,19 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    int32_t spot_days = 2,
-    quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
-    quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET,
+    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   FxSwapHelperBuilder builder_(_fbb);
   if(fx_points) { builder_.add_fx_points(*fx_points); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
-  builder_.add_spot_days(spot_days);
+  if(spot_days) { builder_.add_spot_days(*spot_days); }
   builder_.add_tenor(tenor);
-  builder_.add_calendar_foreign(calendar_foreign);
-  builder_.add_calendar_domestic(calendar_domestic);
+  if(calendar_foreign) { builder_.add_calendar_foreign(*calendar_foreign); }
+  if(calendar_domestic) { builder_.add_calendar_domestic(*calendar_domestic); }
   return builder_.Finish();
 }
 
@@ -2550,9 +2550,9 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    int32_t spot_days = 2,
-    quantra::enums::Calendar calendar_domestic = quantra::enums::Calendar_TARGET,
-    quantra::enums::Calendar calendar_foreign = quantra::enums::Calendar_TARGET,
+    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;

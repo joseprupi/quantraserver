@@ -83,28 +83,28 @@ class YearOnYearInflationSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # YearOnYearInflationSwapHelper
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # YearOnYearInflationSwapHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # YearOnYearInflationSwapHelper
     def ObservationInterpolation(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # QuantLib YoY helper requires a nominal term structure id.
     # YearOnYearInflationSwapHelper
@@ -157,25 +157,25 @@ def AddEndDate(builder, endDate):
     YearOnYearInflationSwapHelperAddEndDate(builder, endDate)
 
 def YearOnYearInflationSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(6, calendar, None)
 
 def AddCalendar(builder, calendar):
     YearOnYearInflationSwapHelperAddCalendar(builder, calendar)
 
 def YearOnYearInflationSwapHelperAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, 2)
+    builder.PrependInt8Slot(7, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     YearOnYearInflationSwapHelperAddPaymentConvention(builder, paymentConvention)
 
 def YearOnYearInflationSwapHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(8, dayCounter, 1)
+    builder.PrependInt8Slot(8, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     YearOnYearInflationSwapHelperAddDayCounter(builder, dayCounter)
 
 def YearOnYearInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation):
-    builder.PrependInt8Slot(9, observationInterpolation, 0)
+    builder.PrependInt8Slot(9, observationInterpolation, None)
 
 def AddObservationInterpolation(builder, observationInterpolation):
     YearOnYearInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation)
@@ -207,10 +207,10 @@ class YearOnYearInflationSwapHelperT(object):
         self.tenor = None  # type: Optional[PeriodT]
         self.startDate = None  # type: str
         self.endDate = None  # type: str
-        self.calendar = 32  # type: int
-        self.paymentConvention = 2  # type: int
-        self.dayCounter = 1  # type: int
-        self.observationInterpolation = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.observationInterpolation = None  # type: Optional[int]
         self.nominalCurveId = None  # type: str
 
     @classmethod

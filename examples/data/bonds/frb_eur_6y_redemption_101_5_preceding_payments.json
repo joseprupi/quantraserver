@@ -135,7 +135,8 @@
           "frequency": "Annual",
           "convention": "Unadjusted",
           "termination_date_convention": "Unadjusted",
-          "date_generation_rule": "Forward"
+          "date_generation_rule": "Forward",
+          "end_of_month": false
         }
       },
       "discounting_curve": "discount",

@@ -59,10 +59,12 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     }
     trade.dayCounter = DayCounterToQL(cds->day_counter().value());
     trade.businessDayConvention = ConventionToQL(cds->business_day_convention().value());
-    trade.settlesAccrual = cds->settles_accrual();
-    trade.paysAtDefaultTime = cds->pays_at_default_time();
-    trade.rebatesAccrual = cds->rebates_accrual();
-    trade.lastPeriodDayCounter = DayCounterToQL(cds->last_period_day_counter());
+    trade.settlesAccrual = requireBool(cds->settles_accrual(), "CDS.settles_accrual");
+    trade.paysAtDefaultTime =
+        requireBool(cds->pays_at_default_time(), "CDS.pays_at_default_time");
+    trade.rebatesAccrual = requireBool(cds->rebates_accrual(), "CDS.rebates_accrual");
+    trade.lastPeriodDayCounter = DayCounterToQL(
+        requireEnum(cds->last_period_day_counter(), "CDS.last_period_day_counter"));
     if (cds->protection_start() && cds->protection_start()->size() > 0) {
         trade.protectionStart = DateToQL(cds->protection_start()->str());
     }
@@ -73,7 +75,8 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     if (cds->trade_date() && cds->trade_date()->size() > 0) {
         trade.tradeDate = DateToQL(cds->trade_date()->str());
     }
-    trade.cashSettlementDays = cds->cash_settlement_days();
+    trade.cashSettlementDays =
+        requireInt(cds->cash_settlement_days(), "CDS.cash_settlement_days");
 
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.creditCurveId = pricing->credit_curve_id()->str();

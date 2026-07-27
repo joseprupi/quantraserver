@@ -43,6 +43,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
     
     quantra::SwapFixedLegBuilder flb(b);
@@ -64,6 +65,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    flsb.add_end_of_month(false);
     auto floatSch = flsb.Finish();
     
     auto idx6m = buildIndexRef(b, "EUR_6M");
@@ -194,6 +196,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_NPVMatches) {
     fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
     quantra::SwapFixedLegBuilder flb(b);
@@ -214,6 +217,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_NPVMatches) {
     cmsSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     cmsSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     cmsSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    cmsSb.add_end_of_month(false);
     auto cmsSchOff = cmsSb.Finish();
 
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
@@ -282,6 +286,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_MissingVolThrows) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto sch = sb.Finish();
 
     quantra::SwapFixedLegBuilder flb(b);
@@ -353,6 +358,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_UnknownSwapIndexThrows) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto sch = sb.Finish();
 
     quantra::SwapFixedLegBuilder flb(b);
@@ -430,6 +436,7 @@ TEST_F(QuantraComparisonTest, CMSCoupons_PricerAttached) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto sch = sb.Finish();
 
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);

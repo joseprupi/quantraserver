@@ -50,6 +50,7 @@ TEST_F(QuantraComparisonTest, Cap_NPVMatches) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
     
     auto idx3m = buildIndexRef(b, "EUR_3M");
@@ -135,6 +136,7 @@ TEST_F(QuantraComparisonTest, Floor_NPVMatches) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     auto idx3m = buildIndexRef(b, "EUR_3M");
@@ -216,6 +218,7 @@ TEST_F(QuantraComparisonTest, Cap_Bachelier_NormalVol) {
     sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+    sb.add_end_of_month(false);
     auto schedule = sb.Finish();
 
     auto idx3m = buildIndexRef(b, "EUR_3M");

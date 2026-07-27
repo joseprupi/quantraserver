@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Fixed leg conventions for swap index.
+# Fixed leg conventions for swap index. Every convention is presence-required.
 class SwapIndexFixedLegSpec(object):
     __slots__ = ['_tab']
 
@@ -30,49 +30,49 @@ class SwapIndexFixedLegSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedDayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 14
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedCalendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedBdc(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedTermBdc(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedDateRule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # SwapIndexFixedLegSpec
     def FixedEom(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
 def SwapIndexFixedLegSpecStart(builder):
     builder.StartObject(7)
@@ -81,43 +81,43 @@ def Start(builder):
     SwapIndexFixedLegSpecStart(builder)
 
 def SwapIndexFixedLegSpecAddFixedFrequency(builder, fixedFrequency):
-    builder.PrependInt8Slot(0, fixedFrequency, 0)
+    builder.PrependInt8Slot(0, fixedFrequency, None)
 
 def AddFixedFrequency(builder, fixedFrequency):
     SwapIndexFixedLegSpecAddFixedFrequency(builder, fixedFrequency)
 
 def SwapIndexFixedLegSpecAddFixedDayCounter(builder, fixedDayCounter):
-    builder.PrependInt8Slot(1, fixedDayCounter, 14)
+    builder.PrependInt8Slot(1, fixedDayCounter, None)
 
 def AddFixedDayCounter(builder, fixedDayCounter):
     SwapIndexFixedLegSpecAddFixedDayCounter(builder, fixedDayCounter)
 
 def SwapIndexFixedLegSpecAddFixedCalendar(builder, fixedCalendar):
-    builder.PrependInt8Slot(2, fixedCalendar, 32)
+    builder.PrependInt8Slot(2, fixedCalendar, None)
 
 def AddFixedCalendar(builder, fixedCalendar):
     SwapIndexFixedLegSpecAddFixedCalendar(builder, fixedCalendar)
 
 def SwapIndexFixedLegSpecAddFixedBdc(builder, fixedBdc):
-    builder.PrependInt8Slot(3, fixedBdc, 2)
+    builder.PrependInt8Slot(3, fixedBdc, None)
 
 def AddFixedBdc(builder, fixedBdc):
     SwapIndexFixedLegSpecAddFixedBdc(builder, fixedBdc)
 
 def SwapIndexFixedLegSpecAddFixedTermBdc(builder, fixedTermBdc):
-    builder.PrependInt8Slot(4, fixedTermBdc, 2)
+    builder.PrependInt8Slot(4, fixedTermBdc, None)
 
 def AddFixedTermBdc(builder, fixedTermBdc):
     SwapIndexFixedLegSpecAddFixedTermBdc(builder, fixedTermBdc)
 
 def SwapIndexFixedLegSpecAddFixedDateRule(builder, fixedDateRule):
-    builder.PrependInt8Slot(5, fixedDateRule, 2)
+    builder.PrependInt8Slot(5, fixedDateRule, None)
 
 def AddFixedDateRule(builder, fixedDateRule):
     SwapIndexFixedLegSpecAddFixedDateRule(builder, fixedDateRule)
 
 def SwapIndexFixedLegSpecAddFixedEom(builder, fixedEom):
-    builder.PrependBoolSlot(6, fixedEom, 0)
+    builder.PrependBoolSlot(6, fixedEom, None)
 
 def AddFixedEom(builder, fixedEom):
     SwapIndexFixedLegSpecAddFixedEom(builder, fixedEom)
@@ -133,13 +133,13 @@ class SwapIndexFixedLegSpecT(object):
 
     # SwapIndexFixedLegSpecT
     def __init__(self):
-        self.fixedFrequency = 0  # type: int
-        self.fixedDayCounter = 14  # type: int
-        self.fixedCalendar = 32  # type: int
-        self.fixedBdc = 2  # type: int
-        self.fixedTermBdc = 2  # type: int
-        self.fixedDateRule = 2  # type: int
-        self.fixedEom = False  # type: bool
+        self.fixedFrequency = None  # type: Optional[int]
+        self.fixedDayCounter = None  # type: Optional[int]
+        self.fixedCalendar = None  # type: Optional[int]
+        self.fixedBdc = None  # type: Optional[int]
+        self.fixedTermBdc = None  # type: Optional[int]
+        self.fixedDateRule = None  # type: Optional[int]
+        self.fixedEom = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

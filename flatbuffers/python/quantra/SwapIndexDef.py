@@ -37,7 +37,7 @@ class SwapIndexDef(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Spot/effective-date lag used for exercise-to-swap-start advancement.
     # SwapIndexDef
@@ -45,7 +45,7 @@ class SwapIndexDef(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
@@ -53,7 +53,7 @@ class SwapIndexDef(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
@@ -61,7 +61,7 @@ class SwapIndexDef(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # Metadata only; pricing uses fixed_leg/float_leg conventions.
     # SwapIndexDef
@@ -69,7 +69,7 @@ class SwapIndexDef(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
     # SwapIndexDef
     def FixedLeg(self):
@@ -114,31 +114,31 @@ def AddId(builder, id):
     SwapIndexDefAddId(builder, id)
 
 def SwapIndexDefAddKind(builder, kind):
-    builder.PrependInt8Slot(1, kind, 0)
+    builder.PrependInt8Slot(1, kind, None)
 
 def AddKind(builder, kind):
     SwapIndexDefAddKind(builder, kind)
 
 def SwapIndexDefAddSpotDays(builder, spotDays):
-    builder.PrependInt32Slot(2, spotDays, 2)
+    builder.PrependInt32Slot(2, spotDays, None)
 
 def AddSpotDays(builder, spotDays):
     SwapIndexDefAddSpotDays(builder, spotDays)
 
 def SwapIndexDefAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(3, calendar, 32)
+    builder.PrependInt8Slot(3, calendar, None)
 
 def AddCalendar(builder, calendar):
     SwapIndexDefAddCalendar(builder, calendar)
 
 def SwapIndexDefAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(4, businessDayConvention, 2)
+    builder.PrependInt8Slot(4, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     SwapIndexDefAddBusinessDayConvention(builder, businessDayConvention)
 
 def SwapIndexDefAddEndOfMonth(builder, endOfMonth):
-    builder.PrependBoolSlot(5, endOfMonth, 0)
+    builder.PrependBoolSlot(5, endOfMonth, None)
 
 def AddEndOfMonth(builder, endOfMonth):
     SwapIndexDefAddEndOfMonth(builder, endOfMonth)
@@ -177,11 +177,11 @@ class SwapIndexDefT(object):
     # SwapIndexDefT
     def __init__(self):
         self.id = None  # type: str
-        self.kind = 0  # type: int
-        self.spotDays = 2  # type: int
-        self.calendar = 32  # type: int
-        self.businessDayConvention = 2  # type: int
-        self.endOfMonth = False  # type: bool
+        self.kind = None  # type: Optional[int]
+        self.spotDays = None  # type: Optional[int]
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.endOfMonth = None  # type: Optional[bool]
         self.fixedLeg = None  # type: Optional[SwapIndexFixedLegSpecT]
         self.floatIndexId = None  # type: str
         self.floatLeg = None  # type: Optional[SwapIndexFloatLegSpecT]

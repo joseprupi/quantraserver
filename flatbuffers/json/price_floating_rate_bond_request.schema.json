@@ -223,7 +223,7 @@
     },
     "quantra_Period" : {
       "type" : "object",
-      "description" : "Canonical period type used across APIs.",
+      "description" : "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
       "properties" : {
         "n" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -368,7 +368,8 @@
                 "$ref" : "#/definitions/quantra_enums_DateGenerationRule"
               },
         "end_of_month" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Presence-required: absent-vs-false silently changes schedule dates for\nmonth-end-anchored (money-market) schedules."
               },
         "first_date" : {
                 "type" : "string",
@@ -409,7 +410,7 @@
               },
         "index_type" : {
                 "$ref" : "#/definitions/quantra_IndexType",
-                "description" : "IBOR or Overnight. Determines QuantLib class used."
+                "description" : "IBOR or Overnight. Determines QuantLib class used. Presence-required: an\nomitted value is a 400, never the silent Ibor default."
               },
         "tenor" : {
                 "$ref" : "#/definitions/quantra_Period",
@@ -417,23 +418,23 @@
               },
         "fixing_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
-                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR)."
+                "description" : "Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required."
               },
         "calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Calendar for fixing/payment dates."
+                "description" : "Calendar for fixing/payment dates. Presence-required."
               },
         "business_day_convention" : {
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
-                "description" : "Business day convention."
+                "description" : "Business day convention. Presence-required."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter",
-                "description" : "Day count convention."
+                "description" : "Day count convention. Presence-required."
               },
         "end_of_month" : {
                 "type" : "boolean",
-                "description" : "End of month rule (IBOR only, ignored for overnight)."
+                "description" : "End of month rule (IBOR only, ignored for overnight). Presence-required:\nabsent-vs-false silently changes money-market schedule dates."
               },
         "currency" : {
                 "type" : "string",
@@ -1616,7 +1617,7 @@
     },
     "quantra_SwapIndexFixedLegSpec" : {
       "type" : "object",
-      "description" : "Fixed leg conventions for swap index.",
+      "description" : "Fixed leg conventions for swap index. Every convention is presence-required.",
       "properties" : {
         "fixed_frequency" : {
                 "$ref" : "#/definitions/quantra_enums_Frequency"
@@ -1644,7 +1645,7 @@
     },
     "quantra_SwapIndexFloatLegSpec" : {
       "type" : "object",
-      "description" : "Floating leg conventions for swap index.",
+      "description" : "Floating leg conventions for swap index. Every convention is\npresence-required.",
       "properties" : {
         "float_tenor" : {
                 "$ref" : "#/definitions/quantra_Period"
@@ -1739,7 +1740,7 @@
     },
     "quantra_CdsHelperConventions" : {
       "type" : "object",
-      "description" : "CDS helper conventions for curve building.",
+      "description" : "CDS helper conventions for curve building. Every convention is\npresence-required: an omitted value is a 400 naming the field, never a\nsilent market-default assumption.",
       "properties" : {
         "settlement_days" : {
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
@@ -2015,11 +2016,11 @@
               },
         "interpolated" : {
                 "type" : "boolean",
-                "description" : "Whether the index is interpolated between fixings."
+                "description" : "Whether the index is interpolated between fixings. Presence-required:\nabsent-vs-false silently changes the observed CPI."
               },
         "revised" : {
                 "type" : "boolean",
-                "description" : "Whether index values can be revised (rare; defaults to false)."
+                "description" : "Whether index values can be revised (rare). Presence-required."
               },
         "kind" : {
                 "$ref" : "#/definitions/quantra_enums_InflationCurveKind"
@@ -2160,7 +2161,8 @@
                 "$ref" : "#/definitions/quantra_enums_Interpolator"
               },
         "bootstrap_accuracy" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Numerical bootstrap tolerance (not a market convention): keeps its default."
               },
         "kind" : {
                 "$ref" : "#/definitions/quantra_enums_InflationCurveKind"

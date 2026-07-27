@@ -44,29 +44,30 @@ class InflationCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # InflationCurveSpec
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # InflationCurveSpec
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # InflationCurveSpec
     def Interpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
+    # Numerical bootstrap tolerance (not a market convention): keeps its default.
     # InflationCurveSpec
     def BootstrapAccuracy(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
@@ -79,7 +80,7 @@ class InflationCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Link to InflationIndexSpec.id.
     # InflationCurveSpec
@@ -148,25 +149,25 @@ def AddReferenceDate(builder, referenceDate):
     InflationCurveSpecAddReferenceDate(builder, referenceDate)
 
 def InflationCurveSpecAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(2, calendar, 32)
+    builder.PrependInt8Slot(2, calendar, None)
 
 def AddCalendar(builder, calendar):
     InflationCurveSpecAddCalendar(builder, calendar)
 
 def InflationCurveSpecAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(3, businessDayConvention, 2)
+    builder.PrependInt8Slot(3, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     InflationCurveSpecAddBusinessDayConvention(builder, businessDayConvention)
 
 def InflationCurveSpecAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, 1)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     InflationCurveSpecAddDayCounter(builder, dayCounter)
 
 def InflationCurveSpecAddInterpolator(builder, interpolator):
-    builder.PrependInt8Slot(5, interpolator, 2)
+    builder.PrependInt8Slot(5, interpolator, None)
 
 def AddInterpolator(builder, interpolator):
     InflationCurveSpecAddInterpolator(builder, interpolator)
@@ -178,7 +179,7 @@ def AddBootstrapAccuracy(builder, bootstrapAccuracy):
     InflationCurveSpecAddBootstrapAccuracy(builder, bootstrapAccuracy)
 
 def InflationCurveSpecAddKind(builder, kind):
-    builder.PrependInt8Slot(7, kind, 0)
+    builder.PrependInt8Slot(7, kind, None)
 
 def AddKind(builder, kind):
     InflationCurveSpecAddKind(builder, kind)
@@ -230,12 +231,12 @@ class InflationCurveSpecT(object):
     def __init__(self):
         self.id = None  # type: str
         self.referenceDate = None  # type: str
-        self.calendar = 32  # type: int
-        self.businessDayConvention = 2  # type: int
-        self.dayCounter = 1  # type: int
-        self.interpolator = 2  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.interpolator = None  # type: Optional[int]
         self.bootstrapAccuracy = 1.0e-12  # type: float
-        self.kind = 0  # type: int
+        self.kind = None  # type: Optional[int]
         self.indexId = None  # type: str
         self.discountCurveId = None  # type: str
         self.allowExtrapolation = True  # type: bool

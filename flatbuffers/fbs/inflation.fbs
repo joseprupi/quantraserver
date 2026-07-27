@@ -13,20 +13,21 @@ table InflationIndexSpec {
     family_name:string;
     /// ISO currency code (e.g., "GBP", "EUR", "USD").
     currency:string;
-    calendar:enums.Calendar = TARGET;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    frequency:enums.Frequency = Monthly;
+    calendar:enums.Calendar = null;
+    day_counter:enums.DayCounter = null;
+    frequency:enums.Frequency = null;
 
     /// Publication availability lag (e.g., 2 Months).
     availability_lag:Period;
     /// Observation lag used for swaps (e.g., 3 Months).
     observation_lag:Period;
-    /// Whether the index is interpolated between fixings.
-    interpolated:bool = true;
-    /// Whether index values can be revised (rare; defaults to false).
-    revised:bool = false;
+    /// Whether the index is interpolated between fixings. Presence-required:
+    /// absent-vs-false silently changes the observed CPI.
+    interpolated:bool = null;
+    /// Whether index values can be revised (rare). Presence-required.
+    revised:bool = null;
 
-    kind:enums.InflationCurveKind = ZeroInflation;
+    kind:enums.InflationCurveKind = null;
     /// For ratio-based YoY indices, link to the underlying zero inflation index id.
     underlying_zero_index_id:string;
     /// Historical CPI/YoY fixings needed for helper-based bootstrap and forecasting.
@@ -49,10 +50,10 @@ table ZeroCouponInflationSwapHelper {
     start_date:string;
     /// Optional explicit end/maturity date for dated helper construction.
     end_date:string;
-    calendar:enums.Calendar = TARGET;
-    payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    calendar:enums.Calendar = null;
+    payment_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
+    observation_interpolation:enums.CPIInterpolationType = null;
 }
 
 /// Year-on-year inflation swap helper point.
@@ -67,10 +68,10 @@ table YearOnYearInflationSwapHelper {
     tenor:Period;
     start_date:string;
     end_date:string;
-    calendar:enums.Calendar = TARGET;
-    payment_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    observation_interpolation:enums.CPIInterpolationType = AsIndex;
+    calendar:enums.Calendar = null;
+    payment_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
+    observation_interpolation:enums.CPIInterpolationType = null;
     /// QuantLib YoY helper requires a nominal term structure id.
     nominal_curve_id:string (required);
 }
@@ -90,13 +91,14 @@ table InflationPointWrapper {
 table InflationCurveSpec {
     id:string (required);
     reference_date:string (required);
-    calendar:enums.Calendar = TARGET;
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    day_counter:enums.DayCounter = Actual365Fixed;
-    interpolator:enums.Interpolator = Linear;
+    calendar:enums.Calendar = null;
+    business_day_convention:enums.BusinessDayConvention = null;
+    day_counter:enums.DayCounter = null;
+    interpolator:enums.Interpolator = null;
+    /// Numerical bootstrap tolerance (not a market convention): keeps its default.
     bootstrap_accuracy:double = 1.0e-12;
 
-    kind:enums.InflationCurveKind = ZeroInflation;
+    kind:enums.InflationCurveKind = null;
     /// Link to InflationIndexSpec.id.
     index_id:string (required);
     /// Optional discount curve id for inflation-leg projection/discounting models.

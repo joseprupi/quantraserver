@@ -154,14 +154,14 @@ struct InflationIndexSpecT : public ::flatbuffers::NativeTable {
   std::string id{};
   std::string family_name{};
   std::string currency{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  quantra::enums::Frequency frequency = quantra::enums::Frequency_Monthly;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> availability_lag{};
   std::unique_ptr<quantra::PeriodT> observation_lag{};
-  bool interpolated = true;
-  bool revised = false;
-  quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation;
+  ::flatbuffers::Optional<bool> interpolated = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> revised = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt;
   std::string underlying_zero_index_id{};
   std::vector<std::unique_ptr<quantra::FixingT>> fixings{};
   InflationIndexSpecT() = default;
@@ -201,14 +201,14 @@ struct InflationIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   const ::flatbuffers::String *currency() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CURRENCY);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::Frequency frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FREQUENCY, 6));
+  ::flatbuffers::Optional<quantra::enums::Frequency> frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FREQUENCY);
   }
   /// Publication availability lag (e.g., 2 Months).
   const quantra::Period *availability_lag() const {
@@ -218,16 +218,17 @@ struct InflationIndexSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   const quantra::Period *observation_lag() const {
     return GetPointer<const quantra::Period *>(VT_OBSERVATION_LAG);
   }
-  /// Whether the index is interpolated between fixings.
-  bool interpolated() const {
-    return GetField<uint8_t>(VT_INTERPOLATED, 1) != 0;
+  /// Whether the index is interpolated between fixings. Presence-required:
+  /// absent-vs-false silently changes the observed CPI.
+  ::flatbuffers::Optional<bool> interpolated() const {
+    return GetOptional<uint8_t, bool>(VT_INTERPOLATED);
   }
-  /// Whether index values can be revised (rare; defaults to false).
-  bool revised() const {
-    return GetField<uint8_t>(VT_REVISED, 0) != 0;
+  /// Whether index values can be revised (rare). Presence-required.
+  ::flatbuffers::Optional<bool> revised() const {
+    return GetOptional<uint8_t, bool>(VT_REVISED);
   }
-  quantra::enums::InflationCurveKind kind() const {
-    return static_cast<quantra::enums::InflationCurveKind>(GetField<int8_t>(VT_KIND, 0));
+  ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind() const {
+    return GetOptional<int8_t, quantra::enums::InflationCurveKind>(VT_KIND);
   }
   /// For ratio-based YoY indices, link to the underlying zero inflation index id.
   const ::flatbuffers::String *underlying_zero_index_id() const {
@@ -281,13 +282,13 @@ struct InflationIndexSpecBuilder {
     fbb_.AddOffset(InflationIndexSpec::VT_CURRENCY, currency);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_frequency(quantra::enums::Frequency frequency) {
-    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_FREQUENCY, static_cast<int8_t>(frequency), 6);
+    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_FREQUENCY, static_cast<int8_t>(frequency));
   }
   void add_availability_lag(::flatbuffers::Offset<quantra::Period> availability_lag) {
     fbb_.AddOffset(InflationIndexSpec::VT_AVAILABILITY_LAG, availability_lag);
@@ -296,13 +297,13 @@ struct InflationIndexSpecBuilder {
     fbb_.AddOffset(InflationIndexSpec::VT_OBSERVATION_LAG, observation_lag);
   }
   void add_interpolated(bool interpolated) {
-    fbb_.AddElement<uint8_t>(InflationIndexSpec::VT_INTERPOLATED, static_cast<uint8_t>(interpolated), 1);
+    fbb_.AddElement<uint8_t>(InflationIndexSpec::VT_INTERPOLATED, static_cast<uint8_t>(interpolated));
   }
   void add_revised(bool revised) {
-    fbb_.AddElement<uint8_t>(InflationIndexSpec::VT_REVISED, static_cast<uint8_t>(revised), 0);
+    fbb_.AddElement<uint8_t>(InflationIndexSpec::VT_REVISED, static_cast<uint8_t>(revised));
   }
   void add_kind(quantra::enums::InflationCurveKind kind) {
-    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_KIND, static_cast<int8_t>(kind), 0);
+    fbb_.AddElement<int8_t>(InflationIndexSpec::VT_KIND, static_cast<int8_t>(kind));
   }
   void add_underlying_zero_index_id(::flatbuffers::Offset<::flatbuffers::String> underlying_zero_index_id) {
     fbb_.AddOffset(InflationIndexSpec::VT_UNDERLYING_ZERO_INDEX_ID, underlying_zero_index_id);
@@ -327,14 +328,14 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> family_name = 0,
     ::flatbuffers::Offset<::flatbuffers::String> currency = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Monthly,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> availability_lag = 0,
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,
-    bool interpolated = true,
-    bool revised = false,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Optional<bool> interpolated = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> revised = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> underlying_zero_index_id = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::Fixing>>> fixings = 0) {
   InflationIndexSpecBuilder builder_(_fbb);
@@ -345,12 +346,12 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpec(
   builder_.add_currency(currency);
   builder_.add_family_name(family_name);
   builder_.add_id(id);
-  builder_.add_kind(kind);
-  builder_.add_revised(revised);
-  builder_.add_interpolated(interpolated);
-  builder_.add_frequency(frequency);
-  builder_.add_day_counter(day_counter);
-  builder_.add_calendar(calendar);
+  if(kind) { builder_.add_kind(*kind); }
+  if(revised) { builder_.add_revised(*revised); }
+  if(interpolated) { builder_.add_interpolated(*interpolated); }
+  if(frequency) { builder_.add_frequency(*frequency); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -359,14 +360,14 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpecDirect(
     const char *id = nullptr,
     const char *family_name = nullptr,
     const char *currency = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::Frequency frequency = quantra::enums::Frequency_Monthly,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> availability_lag = 0,
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,
-    bool interpolated = true,
-    bool revised = false,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Optional<bool> interpolated = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> revised = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt,
     const char *underlying_zero_index_id = nullptr,
     const std::vector<::flatbuffers::Offset<quantra::Fixing>> *fixings = nullptr) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
@@ -401,10 +402,10 @@ struct ZeroCouponInflationSwapHelperT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::string start_date{};
   std::string end_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt;
   ZeroCouponInflationSwapHelperT() = default;
   ZeroCouponInflationSwapHelperT(const ZeroCouponInflationSwapHelperT &o);
   ZeroCouponInflationSwapHelperT(ZeroCouponInflationSwapHelperT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -453,17 +454,17 @@ struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::CPIInterpolationType observation_interpolation() const {
-    return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
+  ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation() const {
+    return GetOptional<int8_t, quantra::enums::CPIInterpolationType>(VT_OBSERVATION_INTERPOLATION);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -512,16 +513,16 @@ struct ZeroCouponInflationSwapHelperBuilder {
     fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_END_DATE, end_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 2);
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_observation_interpolation(quantra::enums::CPIInterpolationType observation_interpolation) {
-    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation), 0);
+    fbb_.AddElement<int8_t>(ZeroCouponInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation));
   }
   explicit ZeroCouponInflationSwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -543,10 +544,10 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex) {
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt) {
   ZeroCouponInflationSwapHelperBuilder builder_(_fbb);
   if(quote_value) { builder_.add_quote_value(*quote_value); }
   builder_.add_end_date(end_date);
@@ -554,10 +555,10 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
   builder_.add_tenor(tenor);
   builder_.add_swap_observation_lag(swap_observation_lag);
   builder_.add_quote_id(quote_id);
-  builder_.add_observation_interpolation(observation_interpolation);
-  builder_.add_day_counter(day_counter);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_calendar(calendar);
+  if(observation_interpolation) { builder_.add_observation_interpolation(*observation_interpolation); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -569,10 +570,10 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     const char *start_date = nullptr,
     const char *end_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex) {
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
   auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
@@ -600,10 +601,10 @@ struct YearOnYearInflationSwapHelperT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::string start_date{};
   std::string end_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt;
   std::string nominal_curve_id{};
   YearOnYearInflationSwapHelperT() = default;
   YearOnYearInflationSwapHelperT(const YearOnYearInflationSwapHelperT &o);
@@ -650,17 +651,17 @@ struct YearOnYearInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   const ::flatbuffers::String *end_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_END_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::CPIInterpolationType observation_interpolation() const {
-    return static_cast<quantra::enums::CPIInterpolationType>(GetField<int8_t>(VT_OBSERVATION_INTERPOLATION, 0));
+  ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation() const {
+    return GetOptional<int8_t, quantra::enums::CPIInterpolationType>(VT_OBSERVATION_INTERPOLATION);
   }
   /// QuantLib YoY helper requires a nominal term structure id.
   const ::flatbuffers::String *nominal_curve_id() const {
@@ -715,16 +716,16 @@ struct YearOnYearInflationSwapHelperBuilder {
     fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_END_DATE, end_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 2);
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_observation_interpolation(quantra::enums::CPIInterpolationType observation_interpolation) {
-    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation), 0);
+    fbb_.AddElement<int8_t>(YearOnYearInflationSwapHelper::VT_OBSERVATION_INTERPOLATION, static_cast<int8_t>(observation_interpolation));
   }
   void add_nominal_curve_id(::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id) {
     fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_NOMINAL_CURVE_ID, nominal_curve_id);
@@ -750,10 +751,10 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInfl
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id = 0) {
   YearOnYearInflationSwapHelperBuilder builder_(_fbb);
   if(quote_value) { builder_.add_quote_value(*quote_value); }
@@ -763,10 +764,10 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInfl
   builder_.add_tenor(tenor);
   builder_.add_swap_observation_lag(swap_observation_lag);
   builder_.add_quote_id(quote_id);
-  builder_.add_observation_interpolation(observation_interpolation);
-  builder_.add_day_counter(day_counter);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_calendar(calendar);
+  if(observation_interpolation) { builder_.add_observation_interpolation(*observation_interpolation); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -778,10 +779,10 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInfl
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     const char *start_date = nullptr,
     const char *end_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::CPIInterpolationType> observation_interpolation = ::flatbuffers::nullopt,
     const char *nominal_curve_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
@@ -887,12 +888,12 @@ struct InflationCurveSpecT : public ::flatbuffers::NativeTable {
   typedef InflationCurveSpec TableType;
   std::string id{};
   std::string reference_date{};
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed;
-  quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt;
   double bootstrap_accuracy = 1.0e-12;
-  quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation;
+  ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt;
   std::string index_id{};
   std::string discount_curve_id{};
   bool allow_extrapolation = true;
@@ -927,23 +928,24 @@ struct InflationCurveSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   const ::flatbuffers::String *reference_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_REFERENCE_DATE);
   }
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 1));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::Interpolator interpolator() const {
-    return static_cast<quantra::enums::Interpolator>(GetField<int8_t>(VT_INTERPOLATOR, 2));
+  ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator() const {
+    return GetOptional<int8_t, quantra::enums::Interpolator>(VT_INTERPOLATOR);
   }
+  /// Numerical bootstrap tolerance (not a market convention): keeps its default.
   double bootstrap_accuracy() const {
     return GetField<double>(VT_BOOTSTRAP_ACCURACY, 1.0e-12);
   }
-  quantra::enums::InflationCurveKind kind() const {
-    return static_cast<quantra::enums::InflationCurveKind>(GetField<int8_t>(VT_KIND, 0));
+  ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind() const {
+    return GetOptional<int8_t, quantra::enums::InflationCurveKind>(VT_KIND);
   }
   /// Link to InflationIndexSpec.id.
   const ::flatbuffers::String *index_id() const {
@@ -997,22 +999,22 @@ struct InflationCurveSpecBuilder {
     fbb_.AddOffset(InflationCurveSpec::VT_REFERENCE_DATE, reference_date);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 1);
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_interpolator(quantra::enums::Interpolator interpolator) {
-    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_INTERPOLATOR, static_cast<int8_t>(interpolator), 2);
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_INTERPOLATOR, static_cast<int8_t>(interpolator));
   }
   void add_bootstrap_accuracy(double bootstrap_accuracy) {
     fbb_.AddElement<double>(InflationCurveSpec::VT_BOOTSTRAP_ACCURACY, bootstrap_accuracy, 1.0e-12);
   }
   void add_kind(quantra::enums::InflationCurveKind kind) {
-    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_KIND, static_cast<int8_t>(kind), 0);
+    fbb_.AddElement<int8_t>(InflationCurveSpec::VT_KIND, static_cast<int8_t>(kind));
   }
   void add_index_id(::flatbuffers::Offset<::flatbuffers::String> index_id) {
     fbb_.AddOffset(InflationCurveSpec::VT_INDEX_ID, index_id);
@@ -1045,12 +1047,12 @@ inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> reference_date = 0,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt,
     double bootstrap_accuracy = 1.0e-12,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> index_id = 0,
     ::flatbuffers::Offset<::flatbuffers::String> discount_curve_id = 0,
     bool allow_extrapolation = true,
@@ -1063,11 +1065,11 @@ inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpec(
   builder_.add_reference_date(reference_date);
   builder_.add_id(id);
   builder_.add_allow_extrapolation(allow_extrapolation);
-  builder_.add_kind(kind);
-  builder_.add_interpolator(interpolator);
-  builder_.add_day_counter(day_counter);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
+  if(kind) { builder_.add_kind(*kind); }
+  if(interpolator) { builder_.add_interpolator(*interpolator); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
 
@@ -1075,12 +1077,12 @@ inline ::flatbuffers::Offset<InflationCurveSpec> CreateInflationCurveSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     const char *reference_date = nullptr,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
-    quantra::enums::Interpolator interpolator = quantra::enums::Interpolator_Linear,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Interpolator> interpolator = ::flatbuffers::nullopt,
     double bootstrap_accuracy = 1.0e-12,
-    quantra::enums::InflationCurveKind kind = quantra::enums::InflationCurveKind_ZeroInflation,
+    ::flatbuffers::Optional<quantra::enums::InflationCurveKind> kind = ::flatbuffers::nullopt,
     const char *index_id = nullptr,
     const char *discount_curve_id = nullptr,
     bool allow_extrapolation = true,

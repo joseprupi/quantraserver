@@ -21,20 +21,22 @@ table IndexDef {
     id:string (required);
     /// Human-readable name / family label (e.g., "Euribor", "SOFR").
     name:string (required);
-    /// IBOR or Overnight. Determines QuantLib class used.
-    index_type:IndexType = Ibor;
+    /// IBOR or Overnight. Determines QuantLib class used. Presence-required: an
+    /// omitted value is a 400, never the silent Ibor default.
+    index_type:IndexType = null;
     /// Tenor period (e.g., 6 Months for Euribor 6M, 0 Days for overnight).
     tenor:Period;
-    /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR).
-    fixing_days:int = 2;
-    /// Calendar for fixing/payment dates.
-    calendar:enums.Calendar = TARGET;
-    /// Business day convention.
-    business_day_convention:enums.BusinessDayConvention = ModifiedFollowing;
-    /// Day count convention.
-    day_counter:enums.DayCounter = Actual360;
-    /// End of month rule (IBOR only, ignored for overnight).
-    end_of_month:bool = true;
+    /// Fixing days (e.g., 2 for Euribor, 0 for SOFR/ESTR). Presence-required.
+    fixing_days:int = null;
+    /// Calendar for fixing/payment dates. Presence-required.
+    calendar:enums.Calendar = null;
+    /// Business day convention. Presence-required.
+    business_day_convention:enums.BusinessDayConvention = null;
+    /// Day count convention. Presence-required.
+    day_counter:enums.DayCounter = null;
+    /// End of month rule (IBOR only, ignored for overnight). Presence-required:
+    /// absent-vs-false silently changes money-market schedule dates.
+    end_of_month:bool = null;
     /// ISO currency code (e.g., "EUR", "USD", "GBP", "JPY").
     currency:string;
     /// Past fixings needed for seasoned instruments.

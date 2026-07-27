@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "require_scalar.h"
+#include "require_period.h"
 
 #include "vanilla_swap_generated.h"
 
@@ -73,9 +74,7 @@ QuantLib::Leg CmsLegParser::parse(
 
     ScheduleParser scheduleParser;
     auto schedule = scheduleParser.parse(leg->schedule());
-    QuantLib::Period cmsTenor(
-        leg->swap_tenor()->n(),
-        TimeUnitToQL(leg->swap_tenor()->unit()));
+    QuantLib::Period cmsTenor = requirePeriod(leg->swap_tenor(), "SwapCmsLeg.swap_tenor");
     const std::string swapIndexId = leg->swap_index_id()->str();
     auto swapIndex = swapIndices.getIborSwapIndexWithCurves(
         swapIndexId, cmsTenor, indices, forwardingCurve, discountCurve);

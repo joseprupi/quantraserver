@@ -35,6 +35,7 @@ flatbuffers::Offset<quantra::Schedule> makeBondSchedule(
     sb.add_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
+    sb.add_end_of_month(false);
     return sb.Finish();
 }
 

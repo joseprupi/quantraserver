@@ -49,21 +49,21 @@ class FxSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # FxSwapHelper
     def CalendarDomestic(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # FxSwapHelper
     def CalendarForeign(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # FxSwapHelper
     def Deps(self):
@@ -102,19 +102,19 @@ def AddTenor(builder, tenor):
     FxSwapHelperAddTenor(builder, tenor)
 
 def FxSwapHelperAddSpotDays(builder, spotDays):
-    builder.PrependInt32Slot(2, spotDays, 2)
+    builder.PrependInt32Slot(2, spotDays, None)
 
 def AddSpotDays(builder, spotDays):
     FxSwapHelperAddSpotDays(builder, spotDays)
 
 def FxSwapHelperAddCalendarDomestic(builder, calendarDomestic):
-    builder.PrependInt8Slot(3, calendarDomestic, 32)
+    builder.PrependInt8Slot(3, calendarDomestic, None)
 
 def AddCalendarDomestic(builder, calendarDomestic):
     FxSwapHelperAddCalendarDomestic(builder, calendarDomestic)
 
 def FxSwapHelperAddCalendarForeign(builder, calendarForeign):
-    builder.PrependInt8Slot(4, calendarForeign, 32)
+    builder.PrependInt8Slot(4, calendarForeign, None)
 
 def AddCalendarForeign(builder, calendarForeign):
     FxSwapHelperAddCalendarForeign(builder, calendarForeign)
@@ -148,9 +148,9 @@ class FxSwapHelperT(object):
     def __init__(self):
         self.fxPoints = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
-        self.spotDays = 2  # type: int
-        self.calendarDomestic = 32  # type: int
-        self.calendarForeign = 32  # type: int
+        self.spotDays = None  # type: Optional[int]
+        self.calendarDomestic = None  # type: Optional[int]
+        self.calendarForeign = None  # type: Optional[int]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 

@@ -63,16 +63,16 @@ inline const char *EnumNameSwapIndexKind(SwapIndexKind e) {
 
 struct SwapIndexFixedLegSpecT : public ::flatbuffers::NativeTable {
   typedef SwapIndexFixedLegSpec TableType;
-  quantra::enums::Frequency fixed_frequency = quantra::enums::Frequency_Annual;
-  quantra::enums::DayCounter fixed_day_counter = quantra::enums::DayCounter_Thirty360;
-  quantra::enums::Calendar fixed_calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention fixed_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::BusinessDayConvention fixed_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DateGenerationRule fixed_date_rule = quantra::enums::DateGenerationRule_Forward;
-  bool fixed_eom = false;
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_frequency = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> fixed_calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_bdc = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_term_bdc = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> fixed_date_rule = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> fixed_eom = ::flatbuffers::nullopt;
 };
 
-/// Fixed leg conventions for swap index.
+/// Fixed leg conventions for swap index. Every convention is presence-required.
 struct SwapIndexFixedLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexFixedLegSpecT NativeTableType;
   typedef SwapIndexFixedLegSpecBuilder Builder;
@@ -85,26 +85,26 @@ struct SwapIndexFixedLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
     VT_FIXED_DATE_RULE = 14,
     VT_FIXED_EOM = 16
   };
-  quantra::enums::Frequency fixed_frequency() const {
-    return static_cast<quantra::enums::Frequency>(GetField<int8_t>(VT_FIXED_FREQUENCY, 0));
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FIXED_FREQUENCY);
   }
-  quantra::enums::DayCounter fixed_day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_FIXED_DAY_COUNTER, 14));
+  ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_DAY_COUNTER);
   }
-  quantra::enums::Calendar fixed_calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_FIXED_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> fixed_calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_FIXED_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention fixed_bdc() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FIXED_BDC, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_bdc() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_BDC);
   }
-  quantra::enums::BusinessDayConvention fixed_term_bdc() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FIXED_TERM_BDC, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_term_bdc() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_TERM_BDC);
   }
-  quantra::enums::DateGenerationRule fixed_date_rule() const {
-    return static_cast<quantra::enums::DateGenerationRule>(GetField<int8_t>(VT_FIXED_DATE_RULE, 2));
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> fixed_date_rule() const {
+    return GetOptional<int8_t, quantra::enums::DateGenerationRule>(VT_FIXED_DATE_RULE);
   }
-  bool fixed_eom() const {
-    return GetField<uint8_t>(VT_FIXED_EOM, 0) != 0;
+  ::flatbuffers::Optional<bool> fixed_eom() const {
+    return GetOptional<uint8_t, bool>(VT_FIXED_EOM);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -127,25 +127,25 @@ struct SwapIndexFixedLegSpecBuilder {
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_fixed_frequency(quantra::enums::Frequency fixed_frequency) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_FREQUENCY, static_cast<int8_t>(fixed_frequency), 0);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_FREQUENCY, static_cast<int8_t>(fixed_frequency));
   }
   void add_fixed_day_counter(quantra::enums::DayCounter fixed_day_counter) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_DAY_COUNTER, static_cast<int8_t>(fixed_day_counter), 14);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_DAY_COUNTER, static_cast<int8_t>(fixed_day_counter));
   }
   void add_fixed_calendar(quantra::enums::Calendar fixed_calendar) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_CALENDAR, static_cast<int8_t>(fixed_calendar), 32);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_CALENDAR, static_cast<int8_t>(fixed_calendar));
   }
   void add_fixed_bdc(quantra::enums::BusinessDayConvention fixed_bdc) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_BDC, static_cast<int8_t>(fixed_bdc), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_BDC, static_cast<int8_t>(fixed_bdc));
   }
   void add_fixed_term_bdc(quantra::enums::BusinessDayConvention fixed_term_bdc) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_TERM_BDC, static_cast<int8_t>(fixed_term_bdc), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_TERM_BDC, static_cast<int8_t>(fixed_term_bdc));
   }
   void add_fixed_date_rule(quantra::enums::DateGenerationRule fixed_date_rule) {
-    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_DATE_RULE, static_cast<int8_t>(fixed_date_rule), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFixedLegSpec::VT_FIXED_DATE_RULE, static_cast<int8_t>(fixed_date_rule));
   }
   void add_fixed_eom(bool fixed_eom) {
-    fbb_.AddElement<uint8_t>(SwapIndexFixedLegSpec::VT_FIXED_EOM, static_cast<uint8_t>(fixed_eom), 0);
+    fbb_.AddElement<uint8_t>(SwapIndexFixedLegSpec::VT_FIXED_EOM, static_cast<uint8_t>(fixed_eom));
   }
   explicit SwapIndexFixedLegSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -160,21 +160,21 @@ struct SwapIndexFixedLegSpecBuilder {
 
 inline ::flatbuffers::Offset<SwapIndexFixedLegSpec> CreateSwapIndexFixedLegSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::Frequency fixed_frequency = quantra::enums::Frequency_Annual,
-    quantra::enums::DayCounter fixed_day_counter = quantra::enums::DayCounter_Thirty360,
-    quantra::enums::Calendar fixed_calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention fixed_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::BusinessDayConvention fixed_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DateGenerationRule fixed_date_rule = quantra::enums::DateGenerationRule_Forward,
-    bool fixed_eom = false) {
+    ::flatbuffers::Optional<quantra::enums::Frequency> fixed_frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> fixed_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_bdc = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_term_bdc = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DateGenerationRule> fixed_date_rule = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> fixed_eom = ::flatbuffers::nullopt) {
   SwapIndexFixedLegSpecBuilder builder_(_fbb);
-  builder_.add_fixed_eom(fixed_eom);
-  builder_.add_fixed_date_rule(fixed_date_rule);
-  builder_.add_fixed_term_bdc(fixed_term_bdc);
-  builder_.add_fixed_bdc(fixed_bdc);
-  builder_.add_fixed_calendar(fixed_calendar);
-  builder_.add_fixed_day_counter(fixed_day_counter);
-  builder_.add_fixed_frequency(fixed_frequency);
+  if(fixed_eom) { builder_.add_fixed_eom(*fixed_eom); }
+  if(fixed_date_rule) { builder_.add_fixed_date_rule(*fixed_date_rule); }
+  if(fixed_term_bdc) { builder_.add_fixed_term_bdc(*fixed_term_bdc); }
+  if(fixed_bdc) { builder_.add_fixed_bdc(*fixed_bdc); }
+  if(fixed_calendar) { builder_.add_fixed_calendar(*fixed_calendar); }
+  if(fixed_day_counter) { builder_.add_fixed_day_counter(*fixed_day_counter); }
+  if(fixed_frequency) { builder_.add_fixed_frequency(*fixed_frequency); }
   return builder_.Finish();
 }
 
@@ -183,18 +183,19 @@ inline ::flatbuffers::Offset<SwapIndexFixedLegSpec> CreateSwapIndexFixedLegSpec(
 struct SwapIndexFloatLegSpecT : public ::flatbuffers::NativeTable {
   typedef SwapIndexFloatLegSpec TableType;
   std::unique_ptr<quantra::PeriodT> float_tenor{};
-  quantra::enums::Calendar float_calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention float_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::BusinessDayConvention float_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  quantra::enums::DateGenerationRule float_date_rule = quantra::enums::DateGenerationRule_Forward;
-  bool float_eom = false;
+  ::flatbuffers::Optional<quantra::enums::Calendar> float_calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_bdc = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_term_bdc = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> float_date_rule = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> float_eom = ::flatbuffers::nullopt;
   SwapIndexFloatLegSpecT() = default;
   SwapIndexFloatLegSpecT(const SwapIndexFloatLegSpecT &o);
   SwapIndexFloatLegSpecT(SwapIndexFloatLegSpecT&&) FLATBUFFERS_NOEXCEPT = default;
   SwapIndexFloatLegSpecT &operator=(SwapIndexFloatLegSpecT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Floating leg conventions for swap index.
+/// Floating leg conventions for swap index. Every convention is
+/// presence-required.
 struct SwapIndexFloatLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SwapIndexFloatLegSpecT NativeTableType;
   typedef SwapIndexFloatLegSpecBuilder Builder;
@@ -209,20 +210,20 @@ struct SwapIndexFloatLegSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Ta
   const quantra::Period *float_tenor() const {
     return GetPointer<const quantra::Period *>(VT_FLOAT_TENOR);
   }
-  quantra::enums::Calendar float_calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_FLOAT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> float_calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_FLOAT_CALENDAR);
   }
-  quantra::enums::BusinessDayConvention float_bdc() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FLOAT_BDC, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_bdc() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FLOAT_BDC);
   }
-  quantra::enums::BusinessDayConvention float_term_bdc() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_FLOAT_TERM_BDC, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_term_bdc() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FLOAT_TERM_BDC);
   }
-  quantra::enums::DateGenerationRule float_date_rule() const {
-    return static_cast<quantra::enums::DateGenerationRule>(GetField<int8_t>(VT_FLOAT_DATE_RULE, 2));
+  ::flatbuffers::Optional<quantra::enums::DateGenerationRule> float_date_rule() const {
+    return GetOptional<int8_t, quantra::enums::DateGenerationRule>(VT_FLOAT_DATE_RULE);
   }
-  bool float_eom() const {
-    return GetField<uint8_t>(VT_FLOAT_EOM, 0) != 0;
+  ::flatbuffers::Optional<bool> float_eom() const {
+    return GetOptional<uint8_t, bool>(VT_FLOAT_EOM);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -248,19 +249,19 @@ struct SwapIndexFloatLegSpecBuilder {
     fbb_.AddOffset(SwapIndexFloatLegSpec::VT_FLOAT_TENOR, float_tenor);
   }
   void add_float_calendar(quantra::enums::Calendar float_calendar) {
-    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_CALENDAR, static_cast<int8_t>(float_calendar), 32);
+    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_CALENDAR, static_cast<int8_t>(float_calendar));
   }
   void add_float_bdc(quantra::enums::BusinessDayConvention float_bdc) {
-    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_BDC, static_cast<int8_t>(float_bdc), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_BDC, static_cast<int8_t>(float_bdc));
   }
   void add_float_term_bdc(quantra::enums::BusinessDayConvention float_term_bdc) {
-    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_TERM_BDC, static_cast<int8_t>(float_term_bdc), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_TERM_BDC, static_cast<int8_t>(float_term_bdc));
   }
   void add_float_date_rule(quantra::enums::DateGenerationRule float_date_rule) {
-    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_DATE_RULE, static_cast<int8_t>(float_date_rule), 2);
+    fbb_.AddElement<int8_t>(SwapIndexFloatLegSpec::VT_FLOAT_DATE_RULE, static_cast<int8_t>(float_date_rule));
   }
   void add_float_eom(bool float_eom) {
-    fbb_.AddElement<uint8_t>(SwapIndexFloatLegSpec::VT_FLOAT_EOM, static_cast<uint8_t>(float_eom), 0);
+    fbb_.AddElement<uint8_t>(SwapIndexFloatLegSpec::VT_FLOAT_EOM, static_cast<uint8_t>(float_eom));
   }
   explicit SwapIndexFloatLegSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -276,18 +277,18 @@ struct SwapIndexFloatLegSpecBuilder {
 inline ::flatbuffers::Offset<SwapIndexFloatLegSpec> CreateSwapIndexFloatLegSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Period> float_tenor = 0,
-    quantra::enums::Calendar float_calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention float_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::BusinessDayConvention float_term_bdc = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    quantra::enums::DateGenerationRule float_date_rule = quantra::enums::DateGenerationRule_Forward,
-    bool float_eom = false) {
+    ::flatbuffers::Optional<quantra::enums::Calendar> float_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_bdc = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> float_term_bdc = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::DateGenerationRule> float_date_rule = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> float_eom = ::flatbuffers::nullopt) {
   SwapIndexFloatLegSpecBuilder builder_(_fbb);
   builder_.add_float_tenor(float_tenor);
-  builder_.add_float_eom(float_eom);
-  builder_.add_float_date_rule(float_date_rule);
-  builder_.add_float_term_bdc(float_term_bdc);
-  builder_.add_float_bdc(float_bdc);
-  builder_.add_float_calendar(float_calendar);
+  if(float_eom) { builder_.add_float_eom(*float_eom); }
+  if(float_date_rule) { builder_.add_float_date_rule(*float_date_rule); }
+  if(float_term_bdc) { builder_.add_float_term_bdc(*float_term_bdc); }
+  if(float_bdc) { builder_.add_float_bdc(*float_bdc); }
+  if(float_calendar) { builder_.add_float_calendar(*float_calendar); }
   return builder_.Finish();
 }
 
@@ -296,11 +297,11 @@ inline ::flatbuffers::Offset<SwapIndexFloatLegSpec> CreateSwapIndexFloatLegSpec(
 struct SwapIndexDefT : public ::flatbuffers::NativeTable {
   typedef SwapIndexDef TableType;
   std::string id{};
-  quantra::SwapIndexKind kind = quantra::SwapIndexKind_IborSwapIndex;
-  int32_t spot_days = 2;
-  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
-  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
-  bool end_of_month = false;
+  ::flatbuffers::Optional<quantra::SwapIndexKind> kind = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::SwapIndexFixedLegSpecT> fixed_leg{};
   std::string float_index_id{};
   std::unique_ptr<quantra::SwapIndexFloatLegSpecT> float_leg{};
@@ -328,24 +329,24 @@ struct SwapIndexDef FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::String *id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ID);
   }
-  quantra::SwapIndexKind kind() const {
-    return static_cast<quantra::SwapIndexKind>(GetField<int8_t>(VT_KIND, 0));
+  ::flatbuffers::Optional<quantra::SwapIndexKind> kind() const {
+    return GetOptional<int8_t, quantra::SwapIndexKind>(VT_KIND);
   }
   /// Spot/effective-date lag used for exercise-to-swap-start advancement.
-  int32_t spot_days() const {
-    return GetField<int32_t>(VT_SPOT_DAYS, 2);
+  ::flatbuffers::Optional<int32_t> spot_days() const {
+    return GetOptional<int32_t, int32_t>(VT_SPOT_DAYS);
   }
   /// Metadata only; pricing uses fixed_leg/float_leg conventions.
-  quantra::enums::Calendar calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
   /// Metadata only; pricing uses fixed_leg/float_leg conventions.
-  quantra::enums::BusinessDayConvention business_day_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
   /// Metadata only; pricing uses fixed_leg/float_leg conventions.
-  bool end_of_month() const {
-    return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
+  ::flatbuffers::Optional<bool> end_of_month() const {
+    return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
   }
   const quantra::SwapIndexFixedLegSpec *fixed_leg() const {
     return GetPointer<const quantra::SwapIndexFixedLegSpec *>(VT_FIXED_LEG);
@@ -387,19 +388,19 @@ struct SwapIndexDefBuilder {
     fbb_.AddOffset(SwapIndexDef::VT_ID, id);
   }
   void add_kind(quantra::SwapIndexKind kind) {
-    fbb_.AddElement<int8_t>(SwapIndexDef::VT_KIND, static_cast<int8_t>(kind), 0);
+    fbb_.AddElement<int8_t>(SwapIndexDef::VT_KIND, static_cast<int8_t>(kind));
   }
   void add_spot_days(int32_t spot_days) {
-    fbb_.AddElement<int32_t>(SwapIndexDef::VT_SPOT_DAYS, spot_days, 2);
+    fbb_.AddElement<int32_t>(SwapIndexDef::VT_SPOT_DAYS, spot_days);
   }
   void add_calendar(quantra::enums::Calendar calendar) {
-    fbb_.AddElement<int8_t>(SwapIndexDef::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+    fbb_.AddElement<int8_t>(SwapIndexDef::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
-    fbb_.AddElement<int8_t>(SwapIndexDef::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+    fbb_.AddElement<int8_t>(SwapIndexDef::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_end_of_month(bool end_of_month) {
-    fbb_.AddElement<uint8_t>(SwapIndexDef::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 0);
+    fbb_.AddElement<uint8_t>(SwapIndexDef::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month));
   }
   void add_fixed_leg(::flatbuffers::Offset<quantra::SwapIndexFixedLegSpec> fixed_leg) {
     fbb_.AddOffset(SwapIndexDef::VT_FIXED_LEG, fixed_leg);
@@ -426,11 +427,11 @@ struct SwapIndexDefBuilder {
 inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
-    quantra::SwapIndexKind kind = quantra::SwapIndexKind_IborSwapIndex,
-    int32_t spot_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    bool end_of_month = false,
+    ::flatbuffers::Optional<quantra::SwapIndexKind> kind = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::SwapIndexFixedLegSpec> fixed_leg = 0,
     ::flatbuffers::Offset<::flatbuffers::String> float_index_id = 0,
     ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0) {
@@ -438,23 +439,23 @@ inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDef(
   builder_.add_float_leg(float_leg);
   builder_.add_float_index_id(float_index_id);
   builder_.add_fixed_leg(fixed_leg);
-  builder_.add_spot_days(spot_days);
+  if(spot_days) { builder_.add_spot_days(*spot_days); }
   builder_.add_id(id);
-  builder_.add_end_of_month(end_of_month);
-  builder_.add_business_day_convention(business_day_convention);
-  builder_.add_calendar(calendar);
-  builder_.add_kind(kind);
+  if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
+  if(kind) { builder_.add_kind(*kind); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<SwapIndexDef> CreateSwapIndexDefDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
-    quantra::SwapIndexKind kind = quantra::SwapIndexKind_IborSwapIndex,
-    int32_t spot_days = 2,
-    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
-    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
-    bool end_of_month = false,
+    ::flatbuffers::Optional<quantra::SwapIndexKind> kind = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::SwapIndexFixedLegSpec> fixed_leg = 0,
     const char *float_index_id = nullptr,
     ::flatbuffers::Offset<quantra::SwapIndexFloatLegSpec> float_leg = 0) {

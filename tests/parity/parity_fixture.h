@@ -188,6 +188,7 @@ protected:
         idb.add_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
         idb.add_business_day_convention(quantra::enums::BusinessDayConvention_Following);
         idb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        idb.add_end_of_month(true);
         idb.add_currency(ccy);
         return idb.Finish();
     }

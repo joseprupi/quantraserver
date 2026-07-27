@@ -7,6 +7,7 @@
 #include "error.h"
 #include "leg_notionals.h"
 #include "require_scalar.h"
+#include "require_period.h"
 
 namespace quantra {
 
@@ -141,8 +142,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     trade.cms.schedule = *cmsSchedule;
     trade.cms.notional = requirePositive(cmsFb->notional(), "SwapCmsLeg.notional");
     trade.cms.swapIndexId = cmsFb->swap_index_id()->str();
-    trade.cms.swapTenor = QuantLib::Period(
-        cmsFb->swap_tenor()->n(), TimeUnitToQL(cmsFb->swap_tenor()->unit()));
+    trade.cms.swapTenor = requirePeriod(cmsFb->swap_tenor(), "SwapCmsLeg.swap_tenor");
     trade.cms.swaptionVolId = cmsFb->swaption_vol_id()->str();
     trade.cms.fixingDays = cmsFb->fixing_days();
     trade.cms.dayCounter = DayCounterToQL(cmsFb->day_counter().value());
