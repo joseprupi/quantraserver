@@ -10,6 +10,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "leg_notionals.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -50,7 +51,7 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
 
     FloatingRateBondTrade trade;
     trade.settlement_days = fbBond->settlement_days();
-    trade.face_amount = fbBond->face_amount();
+    trade.face_amount = requirePositive(fbBond->face_amount(), "FloatingRateBond.face_amount");
     trade.schedule = *scheduleParser.parse(fbBond->schedule());
     // Optional per-period notionals: present => amortizing/step-up bond.
     parseOptionalNotionals(fbBond->notionals(), trade.schedule.size() - 1,

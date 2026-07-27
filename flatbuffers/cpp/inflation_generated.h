@@ -396,7 +396,7 @@ inline ::flatbuffers::Offset<InflationIndexSpec> CreateInflationIndexSpecDirect(
 struct ZeroCouponInflationSwapHelperT : public ::flatbuffers::NativeTable {
   typedef ZeroCouponInflationSwapHelper TableType;
   std::string quote_id{};
-  double quote_value = 0.0;
+  ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> swap_observation_lag{};
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::string start_date{};
@@ -431,9 +431,11 @@ struct ZeroCouponInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
-  /// Inline quote value used when quote_id is empty.
-  double quote_value() const {
-    return GetField<double>(VT_QUOTE_VALUE, 0.0);
+  /// Inline quote value used when quote_id is empty. Presence-required on the
+  /// inline path (a bare double would default to a silent zero quote); may be
+  /// negative, only a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> quote_value() const {
+    return GetOptional<double, double>(VT_QUOTE_VALUE);
   }
   /// Lag applied when observing the CPI index in the swap.
   const quantra::Period *swap_observation_lag() const {
@@ -495,7 +497,7 @@ struct ZeroCouponInflationSwapHelperBuilder {
     fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_QUOTE_ID, quote_id);
   }
   void add_quote_value(double quote_value) {
-    fbb_.AddElement<double>(ZeroCouponInflationSwapHelper::VT_QUOTE_VALUE, quote_value, 0.0);
+    fbb_.AddElement<double>(ZeroCouponInflationSwapHelper::VT_QUOTE_VALUE, quote_value);
   }
   void add_swap_observation_lag(::flatbuffers::Offset<quantra::Period> swap_observation_lag) {
     fbb_.AddOffset(ZeroCouponInflationSwapHelper::VT_SWAP_OBSERVATION_LAG, swap_observation_lag);
@@ -536,7 +538,7 @@ struct ZeroCouponInflationSwapHelperBuilder {
 inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
-    double quote_value = 0.0,
+    ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
@@ -546,7 +548,7 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
     quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual365Fixed,
     quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex) {
   ZeroCouponInflationSwapHelperBuilder builder_(_fbb);
-  builder_.add_quote_value(quote_value);
+  if(quote_value) { builder_.add_quote_value(*quote_value); }
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
   builder_.add_tenor(tenor);
@@ -562,7 +564,7 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
 inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInflationSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *quote_id = nullptr,
-    double quote_value = 0.0,
+    ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     const char *start_date = nullptr,
@@ -593,7 +595,7 @@ inline ::flatbuffers::Offset<ZeroCouponInflationSwapHelper> CreateZeroCouponInfl
 struct YearOnYearInflationSwapHelperT : public ::flatbuffers::NativeTable {
   typedef YearOnYearInflationSwapHelper TableType;
   std::string quote_id{};
-  double quote_value = 0.0;
+  ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::PeriodT> swap_observation_lag{};
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::string start_date{};
@@ -630,9 +632,11 @@ struct YearOnYearInflationSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuf
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
-  /// Inline quote value used when quote_id is empty.
-  double quote_value() const {
-    return GetField<double>(VT_QUOTE_VALUE, 0.0);
+  /// Inline quote value used when quote_id is empty. Presence-required on the
+  /// inline path (a bare double would default to a silent zero quote); may be
+  /// negative, only a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> quote_value() const {
+    return GetOptional<double, double>(VT_QUOTE_VALUE);
   }
   const quantra::Period *swap_observation_lag() const {
     return GetPointer<const quantra::Period *>(VT_SWAP_OBSERVATION_LAG);
@@ -696,7 +700,7 @@ struct YearOnYearInflationSwapHelperBuilder {
     fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_QUOTE_ID, quote_id);
   }
   void add_quote_value(double quote_value) {
-    fbb_.AddElement<double>(YearOnYearInflationSwapHelper::VT_QUOTE_VALUE, quote_value, 0.0);
+    fbb_.AddElement<double>(YearOnYearInflationSwapHelper::VT_QUOTE_VALUE, quote_value);
   }
   void add_swap_observation_lag(::flatbuffers::Offset<quantra::Period> swap_observation_lag) {
     fbb_.AddOffset(YearOnYearInflationSwapHelper::VT_SWAP_OBSERVATION_LAG, swap_observation_lag);
@@ -741,7 +745,7 @@ struct YearOnYearInflationSwapHelperBuilder {
 inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
-    double quote_value = 0.0,
+    ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
@@ -752,7 +756,7 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInfl
     quantra::enums::CPIInterpolationType observation_interpolation = quantra::enums::CPIInterpolationType_AsIndex,
     ::flatbuffers::Offset<::flatbuffers::String> nominal_curve_id = 0) {
   YearOnYearInflationSwapHelperBuilder builder_(_fbb);
-  builder_.add_quote_value(quote_value);
+  if(quote_value) { builder_.add_quote_value(*quote_value); }
   builder_.add_nominal_curve_id(nominal_curve_id);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
@@ -769,7 +773,7 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInfl
 inline ::flatbuffers::Offset<YearOnYearInflationSwapHelper> CreateYearOnYearInflationSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *quote_id = nullptr,
-    double quote_value = 0.0,
+    ::flatbuffers::Optional<double> quote_value = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Period> swap_observation_lag = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     const char *start_date = nullptr,

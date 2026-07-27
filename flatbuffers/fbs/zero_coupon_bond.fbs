@@ -11,7 +11,9 @@ table ZeroCouponBond {
     /// 400, never the alphabetical-0 default (Argentina).
     calendar:enums.Calendar = null;
     /// Notional / face amount the redemption percentage applies to.
-    face_amount:double;
+    /// Presence-required and must be > 0 (a bare double would default to a
+    /// silent zero face).
+    face_amount:double = null;
     /// Single redemption/maturity date (ISO yyyy-mm-dd).
     maturity_date:string;
     /// Business-day convention for the payment date. Presence-required: an

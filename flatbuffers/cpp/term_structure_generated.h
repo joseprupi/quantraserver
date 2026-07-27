@@ -1267,12 +1267,12 @@ struct BondHelperT : public ::flatbuffers::NativeTable {
   typedef BondHelper TableType;
   ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt;
   int32_t settlement_days = 0;
-  double face_amount = 0.0;
+  ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  double coupon_rate = 0.0;
+  ::flatbuffers::Optional<double> coupon_rate = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
-  double redemption = 0.0;
+  ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt;
   std::string issue_date{};
   ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt;
   std::string quote_id{};
@@ -1307,14 +1307,18 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   int32_t settlement_days() const {
     return GetField<int32_t>(VT_SETTLEMENT_DAYS, 0);
   }
-  double face_amount() const {
-    return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  /// Bond face amount. Presence-required and must be > 0 (a bare double would
+  /// default to a silent zero face).
+  ::flatbuffers::Optional<double> face_amount() const {
+    return GetOptional<double, double>(VT_FACE_AMOUNT);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  double coupon_rate() const {
-    return GetField<double>(VT_COUPON_RATE, 0.0);
+  /// Coupon rate. Presence-required (a bare double would default to a silent
+  /// zero coupon); may be negative, only a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> coupon_rate() const {
+    return GetOptional<double, double>(VT_COUPON_RATE);
   }
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
@@ -1322,8 +1326,11 @@ struct BondHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
   }
-  double redemption() const {
-    return GetField<double>(VT_REDEMPTION, 0.0);
+  /// Redemption as a percentage of face. Presence-required and must be > 0
+  /// (a bare double would default to a silent zero redemption that destroys
+  /// the helper).
+  ::flatbuffers::Optional<double> redemption() const {
+    return GetOptional<double, double>(VT_REDEMPTION);
   }
   const ::flatbuffers::String *issue_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_ISSUE_DATE);
@@ -1369,13 +1376,13 @@ struct BondHelperBuilder {
     fbb_.AddElement<int32_t>(BondHelper::VT_SETTLEMENT_DAYS, settlement_days, 0);
   }
   void add_face_amount(double face_amount) {
-    fbb_.AddElement<double>(BondHelper::VT_FACE_AMOUNT, face_amount, 0.0);
+    fbb_.AddElement<double>(BondHelper::VT_FACE_AMOUNT, face_amount);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(BondHelper::VT_SCHEDULE, schedule);
   }
   void add_coupon_rate(double coupon_rate) {
-    fbb_.AddElement<double>(BondHelper::VT_COUPON_RATE, coupon_rate, 0.0);
+    fbb_.AddElement<double>(BondHelper::VT_COUPON_RATE, coupon_rate);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
     fbb_.AddElement<int8_t>(BondHelper::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
@@ -1384,7 +1391,7 @@ struct BondHelperBuilder {
     fbb_.AddElement<int8_t>(BondHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
   }
   void add_redemption(double redemption) {
-    fbb_.AddElement<double>(BondHelper::VT_REDEMPTION, redemption, 0.0);
+    fbb_.AddElement<double>(BondHelper::VT_REDEMPTION, redemption);
   }
   void add_issue_date(::flatbuffers::Offset<::flatbuffers::String> issue_date) {
     fbb_.AddOffset(BondHelper::VT_ISSUE_DATE, issue_date);
@@ -1410,20 +1417,20 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double coupon_rate = 0.0,
+    ::flatbuffers::Optional<double> coupon_rate = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
-    double redemption = 0.0,
+    ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> issue_date = 0,
     ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   BondHelperBuilder builder_(_fbb);
   if(price) { builder_.add_price(*price); }
-  builder_.add_redemption(redemption);
-  builder_.add_coupon_rate(coupon_rate);
-  builder_.add_face_amount(face_amount);
+  if(redemption) { builder_.add_redemption(*redemption); }
+  if(coupon_rate) { builder_.add_coupon_rate(*coupon_rate); }
+  if(face_amount) { builder_.add_face_amount(*face_amount); }
   if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_issue_date(issue_date);
@@ -1438,12 +1445,12 @@ inline ::flatbuffers::Offset<BondHelper> CreateBondHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> rate = ::flatbuffers::nullopt,
     int32_t settlement_days = 0,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double coupon_rate = 0.0,
+    ::flatbuffers::Optional<double> coupon_rate = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
-    double redemption = 0.0,
+    ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt,
     const char *issue_date = nullptr,
     ::flatbuffers::Optional<double> price = ::flatbuffers::nullopt,
     const char *quote_id = nullptr) {

@@ -26,8 +26,8 @@ struct CapFloorT;
 struct CapFloorT : public ::flatbuffers::NativeTable {
   typedef CapFloor TableType;
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt;
-  double notional = 0.0;
-  double strike = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::unique_ptr<quantra::IndexRefT> index{};
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
@@ -54,12 +54,14 @@ struct CapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type() const {
     return GetOptional<int8_t, quantra::enums::CapFloorType>(VT_CAP_FLOOR_TYPE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
-  /// Strike rate (e.g., 0.04 for 4%).
-  double strike() const {
-    return GetField<double>(VT_STRIKE, 0.0);
+  /// Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
+  /// a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> strike() const {
+    return GetOptional<double, double>(VT_STRIKE);
   }
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
@@ -100,10 +102,10 @@ struct CapFloorBuilder {
     fbb_.AddElement<int8_t>(CapFloor::VT_CAP_FLOOR_TYPE, static_cast<int8_t>(cap_floor_type));
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(CapFloor::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(CapFloor::VT_NOTIONAL, notional);
   }
   void add_strike(double strike) {
-    fbb_.AddElement<double>(CapFloor::VT_STRIKE, strike, 0.0);
+    fbb_.AddElement<double>(CapFloor::VT_STRIKE, strike);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(CapFloor::VT_SCHEDULE, schedule);
@@ -132,15 +134,15 @@ struct CapFloorBuilder {
 inline ::flatbuffers::Offset<CapFloor> CreateCapFloor(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
-    double strike = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> strike = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt) {
   CapFloorBuilder builder_(_fbb);
-  builder_.add_strike(strike);
-  builder_.add_notional(notional);
+  if(strike) { builder_.add_strike(*strike); }
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_index(index);
   builder_.add_schedule(schedule);
   if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }

@@ -6,7 +6,8 @@ namespace quantra;
 /// Credit Default Swap instrument.
 table CDS {
     side:enums.ProtectionSide = null;
-    notional:double;
+    /// Notional. Presence-required and must be > 0.
+    notional:double = null;
     /// Running coupon in decimal (0.01 = 100bps). Required; presence-driven
     /// (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
     running_coupon:double = null;

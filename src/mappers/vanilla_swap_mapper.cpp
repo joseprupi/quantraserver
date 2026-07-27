@@ -6,6 +6,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "leg_notionals.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -75,7 +76,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
 
     auto fixedSchedule = scheduleParser.parse(fixedFb->schedule());
     trade.fixed.schedule = *fixedSchedule;
-    trade.fixed.notional = fixedFb->notional();
+    trade.fixed.notional = requirePositive(fixedFb->notional(), "SwapFixedLeg.notional");
     trade.fixed.rate = fixedFb->rate();
     trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter().value());
     trade.fixed.paymentConvention = ConventionToQL(fixedFb->payment_convention().value());
@@ -94,7 +95,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         trade.branch = VanillaSwapTrade::Branch::Ibor;
         auto floatSchedule = scheduleParser.parse(floatFb->schedule());
         trade.ibor.schedule = *floatSchedule;
-        trade.ibor.notional = floatFb->notional();
+        trade.ibor.notional = requirePositive(floatFb->notional(), "SwapFloatingLeg.notional");
         trade.ibor.indexId = floatFb->index()->id()->str();
         trade.ibor.spread = floatFb->spread();
         trade.ibor.dayCounter = DayCounterToQL(floatFb->day_counter().value());
@@ -138,7 +139,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     trade.branch = VanillaSwapTrade::Branch::Cms;
     auto cmsSchedule = scheduleParser.parse(cmsFb->schedule());
     trade.cms.schedule = *cmsSchedule;
-    trade.cms.notional = cmsFb->notional();
+    trade.cms.notional = requirePositive(cmsFb->notional(), "SwapCmsLeg.notional");
     trade.cms.swapIndexId = cmsFb->swap_index_id()->str();
     trade.cms.swapTenor = QuantLib::Period(
         cmsFb->swap_tenor()->n(), TimeUnitToQL(cmsFb->swap_tenor()->unit()));

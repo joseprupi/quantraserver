@@ -6,6 +6,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -52,7 +53,7 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
 
     YearOnYearInflationSwapTrade trade;
     trade.swapType = YearOnYearInflationSwapTypeToQL(swap->swap_type().value());
-    trade.notional = swap->notional();
+    trade.notional = requirePositive(swap->notional(), "YearOnYearInflationSwap.notional");
     trade.fixedSchedule = *fixedSchedule;
     trade.fixedRate = swap->fixed_rate();
     trade.fixedDayCounter = DayCounterToQL(swap->fixed_day_counter());

@@ -6,6 +6,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -84,7 +85,7 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
             }
             parsed.payoffKind = EquityPayoffKind::PlainVanilla;
             parsed.optionType = EquityOptionTypeToQL(po->option_type());
-            parsed.strike = po->strike();
+            parsed.strike = requirePositive(po->strike(), "EquityPlainVanillaPayoff.strike");
             break;
         }
         case quantra::EquityPayoff_EquityCashOrNothingPayoff: {
@@ -94,8 +95,8 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
             }
             parsed.payoffKind = EquityPayoffKind::CashOrNothing;
             parsed.optionType = EquityOptionTypeToQL(po->option_type());
-            parsed.strike = po->strike();
-            parsed.cash = po->cash();
+            parsed.strike = requirePositive(po->strike(), "EquityCashOrNothingPayoff.strike");
+            parsed.cash = requirePositive(po->cash(), "EquityCashOrNothingPayoff.cash");
             break;
         }
         case quantra::EquityPayoff_EquityAssetOrNothingPayoff: {
@@ -105,7 +106,7 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
             }
             parsed.payoffKind = EquityPayoffKind::AssetOrNothing;
             parsed.optionType = EquityOptionTypeToQL(po->option_type());
-            parsed.strike = po->strike();
+            parsed.strike = requirePositive(po->strike(), "EquityAssetOrNothingPayoff.strike");
             break;
         }
         default:

@@ -6,6 +6,7 @@
 #include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -41,7 +42,7 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     }
     CdsTrade trade;
     trade.side = ProtectionSideToQL(cds->side().value());
-    trade.notional = cds->notional();
+    trade.notional = requirePositive(cds->notional(), "CDS.notional");
     if (!cds->running_coupon().has_value()) {
         QUANTRA_INVALID_ARGUMENT("CDS.running_coupon is required");
     }

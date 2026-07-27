@@ -42,7 +42,7 @@ struct VanillaSwapT;
 struct SwapFixedLegT : public ::flatbuffers::NativeTable {
   typedef SwapFixedLeg TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::vector<double> notionals{};
   double rate = 0.0;
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
@@ -68,8 +68,11 @@ struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Constant notional. Presence-required and must be > 0 (unless the
+  /// per-period `notionals` vector is supplied). A bare double would default
+  /// to a silent zero notional.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Optional per-period notionals, one entry per coupon period in schedule
   /// order. Present => amortizing/step-up leg (overrides `notional`); absent
@@ -112,7 +115,7 @@ struct SwapFixedLegBuilder {
     fbb_.AddOffset(SwapFixedLeg::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapFixedLeg::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(SwapFixedLeg::VT_NOTIONAL, notional);
   }
   void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
     fbb_.AddOffset(SwapFixedLeg::VT_NOTIONALS, notionals);
@@ -140,14 +143,14 @@ struct SwapFixedLegBuilder {
 inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
   SwapFixedLegBuilder builder_(_fbb);
   builder_.add_rate(rate);
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_notionals(notionals);
   builder_.add_schedule(schedule);
   if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
@@ -158,7 +161,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
 inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLegDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     const std::vector<double> *notionals = nullptr,
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
@@ -179,7 +182,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLegDirect(
 struct SwapFloatingLegT : public ::flatbuffers::NativeTable {
   typedef SwapFloatingLeg TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::vector<double> notionals{};
   std::unique_ptr<quantra::IndexRefT> index{};
   double spread = 0.0;
@@ -211,8 +214,11 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Constant notional. Presence-required and must be > 0 (unless the
+  /// per-period `notionals` vector is supplied). A bare double would default
+  /// to a silent zero notional.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Optional per-period notionals, one entry per coupon period in schedule
   /// order. Present => amortizing/step-up leg (overrides `notional`); absent
@@ -270,7 +276,7 @@ struct SwapFloatingLegBuilder {
     fbb_.AddOffset(SwapFloatingLeg::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapFloatingLeg::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(SwapFloatingLeg::VT_NOTIONAL, notional);
   }
   void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
     fbb_.AddOffset(SwapFloatingLeg::VT_NOTIONALS, notionals);
@@ -308,7 +314,7 @@ struct SwapFloatingLegBuilder {
 inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     double spread = 0.0,
@@ -318,7 +324,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
     bool in_arrears = false) {
   SwapFloatingLegBuilder builder_(_fbb);
   builder_.add_spread(spread);
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_fixing_days(fixing_days);
   builder_.add_index(index);
   builder_.add_notionals(notionals);
@@ -332,7 +338,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
 inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLegDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     const std::vector<double> *notionals = nullptr,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     double spread = 0.0,
@@ -487,7 +493,7 @@ inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(
 struct SwapCmsLegT : public ::flatbuffers::NativeTable {
   typedef SwapCmsLeg TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::string swap_index_id{};
   std::unique_ptr<quantra::PeriodT> swap_tenor{};
   std::string swaption_vol_id{};
@@ -529,9 +535,9 @@ struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Schedule *schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
   }
-  /// Coupon notional.
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Coupon notional. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
   const ::flatbuffers::String *swap_index_id() const {
@@ -615,7 +621,7 @@ struct SwapCmsLegBuilder {
     fbb_.AddOffset(SwapCmsLeg::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(SwapCmsLeg::VT_NOTIONAL, notional);
   }
   void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
     fbb_.AddOffset(SwapCmsLeg::VT_SWAP_INDEX_ID, swap_index_id);
@@ -667,7 +673,7 @@ struct SwapCmsLegBuilder {
 inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> swap_index_id = 0,
     ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id = 0,
@@ -684,7 +690,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
   if(cap) { builder_.add_cap(*cap); }
   builder_.add_spread(spread);
   builder_.add_gear(gear);
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_pricer(pricer);
   builder_.add_fixing_days(fixing_days);
   builder_.add_swaption_vol_id(swaption_vol_id);
@@ -699,7 +705,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
 inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     const char *swap_index_id = nullptr,
     ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
     const char *swaption_vol_id = nullptr,

@@ -7,7 +7,9 @@ namespace quantra;
 /// Floating-rate bond instrument.
 table FloatingRateBond {
     settlement_days:int;
-    face_amount:double;
+    /// Face amount. Presence-required and must be > 0 (a bare double would
+    /// default to a silent zero face).
+    face_amount:double = null;
     /// Optional per-period notionals, one entry per coupon period in schedule
     /// order. Present => amortizing/step-up bond (overrides `face_amount`,
     /// priced as a QuantLib AmortizingFloatingRateBond); absent => constant

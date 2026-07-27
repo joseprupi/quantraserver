@@ -6,6 +6,8 @@
 #include <ql/instruments/makeois.hpp>
 #include <ql/settings.hpp>
 
+#include "require_scalar.h"
+
 using namespace QuantLib;
 
 namespace quantra {
@@ -319,15 +321,19 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->business_day_convention().has_value())
             QUANTRA_INVALID_ARGUMENT("BondHelper.business_day_convention is required");
 
+        const double faceAmount = requirePositive(point->face_amount(), "BondHelper.face_amount");
+        const double couponRate = requireFinite(point->coupon_rate(), "BondHelper.coupon_rate");
+        const double redemption = requirePositive(point->redemption(), "BondHelper.redemption");
+
         return std::make_shared<FixedRateBondHelper>(
             q,
             point->settlement_days(),
-            point->face_amount(),
+            faceAmount,
             *schedule_parser.parse(point->schedule()),
-            std::vector<Rate>(1, point->coupon_rate()),
+            std::vector<Rate>(1, couponRate),
             DayCounterToQL(point->day_counter().value()),
             ConventionToQL(point->business_day_convention().value()),
-            point->redemption(),
+            redemption,
             DateToQL(point->issue_date()->str()));
     }
 

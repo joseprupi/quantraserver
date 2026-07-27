@@ -647,13 +647,15 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "face_amount" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Bond face amount. Presence-required and must be > 0 (a bare double would\ndefault to a silent zero face)."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "coupon_rate" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Coupon rate. Presence-required (a bare double would default to a silent\nzero coupon); may be negative, only a missing or non-finite value is rejected."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -662,7 +664,8 @@
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               },
         "redemption" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Redemption as a percentage of face. Presence-required and must be > 0\n(a bare double would default to a silent zero redemption that destroys\nthe helper)."
               },
         "issue_date" : {
                 "type" : "string"
@@ -1403,7 +1406,8 @@
                 "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
               },
         "volatility" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant optionlet volatility. Presence-required (a bare double would\ndefault to a silent zero) and must be finite and non-negative. A genuine\n0 is valid: for a coupon leg without caps/floors the Black pricer with\nzero vol reproduces the deterministic forward, so 0 is accepted while an\nomitted value is rejected."
               },
         "day_counter" : {
                 "$ref" : "#/definitions/quantra_enums_DayCounter"
@@ -1445,7 +1449,8 @@
                 "$ref" : "#/definitions/quantra_QuoteKind"
               },
         "value" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Quote value. Presence-required (a bare double would default to 0 and\nsilently bootstrap every referencing helper off a zero rate). May be\nnegative (rates/spreads); only a missing or non-finite value is rejected."
               },
         "quote_type" : {
                 "$ref" : "#/definitions/quantra_QuoteType"
@@ -1710,7 +1715,8 @@
                 "$ref" : "#/definitions/quantra_Period"
               },
         "quote_type" : {
-                "$ref" : "#/definitions/quantra_enums_CdsQuoteType"
+                "$ref" : "#/definitions/quantra_enums_CdsQuoteType",
+                "description" : "Quote convention (ParSpread / Upfront). Presence-required: an omitted\nvalue is a 400, never the alphabetical-0 default (ParSpread)."
               },
         "quote_id" : {
                 "type" : "string",
@@ -1879,7 +1885,8 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false
@@ -1892,10 +1899,12 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               },
         "cash" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Cash payout on exercise. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false
@@ -1908,7 +1917,8 @@
                 "$ref" : "#/definitions/quantra_enums_EquityOptionType"
               },
         "strike" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Strike price. Presence-required and must be > 0."
               }
       },
       "additionalProperties" : false
@@ -2036,7 +2046,7 @@
               },
         "quote_value" : {
                 "type" : "number",
-                "description" : "Inline quote value used when quote_id is empty."
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
               },
         "swap_observation_lag" : {
                 "$ref" : "#/definitions/quantra_Period",
@@ -2080,7 +2090,7 @@
               },
         "quote_value" : {
                 "type" : "number",
-                "description" : "Inline quote value used when quote_id is empty."
+                "description" : "Inline quote value used when quote_id is empty. Presence-required on the\ninline path (a bare double would default to a silent zero quote); may be\nnegative, only a missing or non-finite value is rejected."
               },
         "swap_observation_lag" : {
                 "$ref" : "#/definitions/quantra_Period"
@@ -2316,7 +2326,8 @@
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
               },
         "notionals" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -2342,7 +2353,8 @@
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
               },
         "notionals" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -2416,7 +2428,7 @@
               },
         "notional" : {
                 "type" : "number",
-                "description" : "Coupon notional."
+                "description" : "Coupon notional. Presence-required and must be > 0."
               },
         "swap_index_id" : {
                 "type" : "string",

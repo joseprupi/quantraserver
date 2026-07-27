@@ -6,6 +6,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "leg_notionals.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -63,13 +64,13 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
 
     auto fixedSchedule = scheduleParser.parse(fixedFb->schedule());
     trade.fixed.schedule = *fixedSchedule;
-    trade.fixed.notional = fixedFb->notional();
+    trade.fixed.notional = requirePositive(fixedFb->notional(), "SwapFixedLeg.notional");
     trade.fixed.rate = fixedFb->rate();
     trade.fixed.dayCounter = DayCounterToQL(fixedFb->day_counter().value());
 
     auto overnightSchedule = scheduleParser.parse(overnightFb->schedule());
     trade.overnight.schedule = *overnightSchedule;
-    trade.overnight.notional = overnightFb->notional();
+    trade.overnight.notional = requirePositive(overnightFb->notional(), "OisFloatingLeg.notional");
     trade.overnight.indexId = overnightFb->index()->id()->str();
     trade.overnight.spread = overnightFb->spread();
     trade.overnight.paymentConvention = ConventionToQL(overnightFb->payment_convention());

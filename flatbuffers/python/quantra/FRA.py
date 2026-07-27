@@ -32,12 +32,13 @@ class FRA(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Notional. Presence-required and must be > 0.
     # FRA
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # When the FRA period starts.
     # FRA
@@ -55,13 +56,14 @@ class FRA(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # The agreed forward rate (e.g., 0.035 for 3.5%).
+    # The agreed forward rate (e.g., 0.035 for 3.5%). Presence-required; may be
+    # negative, only a missing or non-finite value is rejected.
     # FRA
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Reference to an IndexDef by id (e.g., "EUR_3M").
     # FRA
@@ -109,7 +111,7 @@ def AddFraType(builder, fraType):
     FRAAddFraType(builder, fraType)
 
 def FRAAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     FRAAddNotional(builder, notional)
@@ -127,7 +129,7 @@ def AddMaturityDate(builder, maturityDate):
     FRAAddMaturityDate(builder, maturityDate)
 
 def FRAAddStrike(builder, strike):
-    builder.PrependFloat64Slot(4, strike, 0.0)
+    builder.PrependFloat64Slot(4, strike, None)
 
 def AddStrike(builder, strike):
     FRAAddStrike(builder, strike)
@@ -172,10 +174,10 @@ class FRAT(object):
     # FRAT
     def __init__(self):
         self.fraType = None  # type: Optional[int]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
-        self.strike = 0.0  # type: float
+        self.strike = None  # type: Optional[float]
         self.index = None  # type: Optional[IndexRefT]
         self.dayCounter = None  # type: Optional[int]
         self.calendar = None  # type: Optional[int]

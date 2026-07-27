@@ -32,12 +32,13 @@ class CDS(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Notional. Presence-required and must be > 0.
     # CDS
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Running coupon in decimal (0.01 = 100bps). Required; presence-driven
     # (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
@@ -152,7 +153,7 @@ def AddSide(builder, side):
     CDSAddSide(builder, side)
 
 def CDSAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     CDSAddNotional(builder, notional)
@@ -251,7 +252,7 @@ class CDST(object):
     # CDST
     def __init__(self):
         self.side = None  # type: Optional[int]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.runningCoupon = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.upfront = None  # type: Optional[float]

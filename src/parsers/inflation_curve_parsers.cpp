@@ -22,6 +22,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 #include "index_registry_builder.h" // CurrencyFromString
 
 namespace quantra {
@@ -96,7 +97,7 @@ double resolveQuoteOrInline(
         }
         return quotes->getValue(helper->quote_id()->str(), quantra::QuoteType_Curve);
     }
-    return helper->quote_value();
+    return requireFinite(helper->quote_value(), helperLabel + ".quote_value");
 }
 
 QuantLib::Date parseDateReq(const flatbuffers::String* s, const std::string& label) {

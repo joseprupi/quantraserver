@@ -5,6 +5,7 @@
 #include <ql/time/date.hpp>
 
 #include "error.h"
+#include "require_scalar.h"
 
 std::shared_ptr<QuantLib::CallableFixedRateBond> CallableFixedRateBondParser::parse(
     const quantra::CallableFixedRateBond *bond)
@@ -76,7 +77,7 @@ std::shared_ptr<QuantLib::CallableFixedRateBond> CallableFixedRateBondParser::pa
 
     return std::make_shared<QuantLib::CallableFixedRateBond>(
         bond->settlement_days(),
-        bond->face_amount(),
+        quantra::requirePositive(bond->face_amount(), "CallableFixedRateBond.face_amount"),
         *schedule,
         std::vector<QuantLib::Rate>(1, bond->rate()),
         dayCounter,

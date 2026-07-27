@@ -32,12 +32,14 @@ class FloatingRateBond(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
+    # Face amount. Presence-required and must be > 0 (a bare double would
+    # default to a silent zero face).
     # FloatingRateBond
     def FaceAmount(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Optional per-period notionals, one entry per coupon period in schedule
     # order. Present => amortizing/step-up bond (overrides `face_amount`,
@@ -155,7 +157,7 @@ def AddSettlementDays(builder, settlementDays):
     FloatingRateBondAddSettlementDays(builder, settlementDays)
 
 def FloatingRateBondAddFaceAmount(builder, faceAmount):
-    builder.PrependFloat64Slot(1, faceAmount, 0.0)
+    builder.PrependFloat64Slot(1, faceAmount, None)
 
 def AddFaceAmount(builder, faceAmount):
     FloatingRateBondAddFaceAmount(builder, faceAmount)
@@ -242,7 +244,7 @@ class FloatingRateBondT(object):
     # FloatingRateBondT
     def __init__(self):
         self.settlementDays = 0  # type: int
-        self.faceAmount = 0.0  # type: float
+        self.faceAmount = None  # type: Optional[float]
         self.notionals = None  # type: List[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]

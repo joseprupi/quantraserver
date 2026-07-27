@@ -8,7 +8,9 @@ namespace quantra;
 /// Floating leg for OIS swaps (compounded overnight).
 table OisFloatingLeg {
     schedule:Schedule;
-    notional:double;
+    /// Notional. Presence-required and must be > 0 (a bare double would default
+    /// to a silent zero notional).
+    notional:double = null;
     /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     index:IndexRef (required);
     spread:double = 0.0;

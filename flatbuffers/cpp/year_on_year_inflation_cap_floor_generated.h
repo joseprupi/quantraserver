@@ -26,7 +26,7 @@ struct YoYInflationCapFloorT;
 struct YoYInflationCapFloorT : public ::flatbuffers::NativeTable {
   typedef YoYInflationCapFloor TableType;
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt;
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   std::string inflation_index_id{};
   std::unique_ptr<quantra::PeriodT> observation_lag{};
@@ -71,9 +71,9 @@ struct YoYInflationCapFloor FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tab
   ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type() const {
     return GetOptional<int8_t, quantra::enums::CapFloorType>(VT_CAP_FLOOR_TYPE);
   }
-  /// Notional per optionlet.
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional per optionlet. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   /// Coupon schedule for the year-on-year optionlet strip.
   const quantra::Schedule *schedule() const {
@@ -148,7 +148,7 @@ struct YoYInflationCapFloorBuilder {
     fbb_.AddElement<int8_t>(YoYInflationCapFloor::VT_CAP_FLOOR_TYPE, static_cast<int8_t>(cap_floor_type));
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(YoYInflationCapFloor::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(YoYInflationCapFloor::VT_NOTIONAL, notional);
   }
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
     fbb_.AddOffset(YoYInflationCapFloor::VT_SCHEDULE, schedule);
@@ -193,7 +193,7 @@ struct YoYInflationCapFloorBuilder {
 inline ::flatbuffers::Offset<YoYInflationCapFloor> CreateYoYInflationCapFloor(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Offset<::flatbuffers::String> inflation_index_id = 0,
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,
@@ -208,7 +208,7 @@ inline ::flatbuffers::Offset<YoYInflationCapFloor> CreateYoYInflationCapFloor(
   if(gearing) { builder_.add_gearing(*gearing); }
   if(floor_rate) { builder_.add_floor_rate(*floor_rate); }
   if(cap_rate) { builder_.add_cap_rate(*cap_rate); }
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_observation_lag(observation_lag);
   builder_.add_inflation_index_id(inflation_index_id);
   builder_.add_schedule(schedule);
@@ -221,7 +221,7 @@ inline ::flatbuffers::Offset<YoYInflationCapFloor> CreateYoYInflationCapFloor(
 inline ::flatbuffers::Offset<YoYInflationCapFloor> CreateYoYInflationCapFloorDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::CapFloorType> cap_floor_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     const char *inflation_index_id = nullptr,
     ::flatbuffers::Offset<quantra::Period> observation_lag = 0,

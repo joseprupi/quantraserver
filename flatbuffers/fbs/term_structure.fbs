@@ -89,12 +89,19 @@ table BondHelper {
     /// rate, price or quote_id must be provided.
     rate:double = null;
     settlement_days:int;
-    face_amount:double;
+    /// Bond face amount. Presence-required and must be > 0 (a bare double would
+    /// default to a silent zero face).
+    face_amount:double = null;
     schedule:Schedule;
-    coupon_rate:double;
+    /// Coupon rate. Presence-required (a bare double would default to a silent
+    /// zero coupon); may be negative, only a missing or non-finite value is rejected.
+    coupon_rate:double = null;
     day_counter:enums.DayCounter = null;
     business_day_convention:enums.BusinessDayConvention = null;
-    redemption:double;
+    /// Redemption as a percentage of face. Presence-required and must be > 0
+    /// (a bare double would default to a silent zero redemption that destroys
+    /// the helper).
+    redemption:double = null;
     issue_date:string;
     /// Bond (clean) price; when present, rate is ignored.
     price:double = null;

@@ -4,6 +4,7 @@
 #include "enum_convert.h"
 #include "schedule_parser.h"
 #include "error.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -85,7 +86,7 @@ YoYInflationCapFloorTrade extractTrade(const quantra::PriceYoYInflationCapFloor*
 
     YoYInflationCapFloorTrade trade;
     trade.capFloorType = static_cast<QuantLib::YoYInflationCapFloor::Type>(capFloorType);
-    trade.notional = cf->notional();
+    trade.notional = requirePositive(cf->notional(), "YoYInflationCapFloor.notional");
     trade.schedule = *schedule;
     trade.inflationIndexId = cf->inflation_index_id()->str();
     trade.observationLag = QuantLib::Period(

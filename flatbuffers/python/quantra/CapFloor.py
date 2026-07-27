@@ -32,20 +32,22 @@ class CapFloor(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Notional. Presence-required and must be > 0.
     # CapFloor
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Strike rate (e.g., 0.04 for 4%).
+    # Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only
+    # a missing or non-finite value is rejected.
     # CapFloor
     def Strike(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # CapFloor
     def Schedule(self):
@@ -97,13 +99,13 @@ def AddCapFloorType(builder, capFloorType):
     CapFloorAddCapFloorType(builder, capFloorType)
 
 def CapFloorAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     CapFloorAddNotional(builder, notional)
 
 def CapFloorAddStrike(builder, strike):
-    builder.PrependFloat64Slot(2, strike, 0.0)
+    builder.PrependFloat64Slot(2, strike, None)
 
 def AddStrike(builder, strike):
     CapFloorAddStrike(builder, strike)
@@ -148,8 +150,8 @@ class CapFloorT(object):
     # CapFloorT
     def __init__(self):
         self.capFloorType = None  # type: Optional[int]
-        self.notional = 0.0  # type: float
-        self.strike = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
+        self.strike = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
         self.index = None  # type: Optional[IndexRefT]
         self.dayCounter = None  # type: Optional[int]

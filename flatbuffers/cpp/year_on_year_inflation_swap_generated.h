@@ -26,7 +26,7 @@ struct YearOnYearInflationSwapT;
 struct YearOnYearInflationSwapT : public ::flatbuffers::NativeTable {
   typedef YearOnYearInflationSwap TableType;
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  double notional = 0.0;
+  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::ScheduleT> fixed_schedule{};
   double fixed_rate = 0.0;
   quantra::enums::DayCounter fixed_day_counter = quantra::enums::DayCounter_Actual365Fixed;
@@ -70,8 +70,9 @@ struct YearOnYearInflationSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
     return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
-  double notional() const {
-    return GetField<double>(VT_NOTIONAL, 0.0);
+  /// Notional. Presence-required and must be > 0.
+  ::flatbuffers::Optional<double> notional() const {
+    return GetOptional<double, double>(VT_NOTIONAL);
   }
   const quantra::Schedule *fixed_schedule() const {
     return GetPointer<const quantra::Schedule *>(VT_FIXED_SCHEDULE);
@@ -141,7 +142,7 @@ struct YearOnYearInflationSwapBuilder {
     fbb_.AddElement<int8_t>(YearOnYearInflationSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(YearOnYearInflationSwap::VT_NOTIONAL, notional, 0.0);
+    fbb_.AddElement<double>(YearOnYearInflationSwap::VT_NOTIONAL, notional);
   }
   void add_fixed_schedule(::flatbuffers::Offset<quantra::Schedule> fixed_schedule) {
     fbb_.AddOffset(YearOnYearInflationSwap::VT_FIXED_SCHEDULE, fixed_schedule);
@@ -194,7 +195,7 @@ struct YearOnYearInflationSwapBuilder {
 inline ::flatbuffers::Offset<YearOnYearInflationSwap> CreateYearOnYearInflationSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> fixed_schedule = 0,
     double fixed_rate = 0.0,
     quantra::enums::DayCounter fixed_day_counter = quantra::enums::DayCounter_Actual365Fixed,
@@ -209,7 +210,7 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwap> CreateYearOnYearInflationS
   YearOnYearInflationSwapBuilder builder_(_fbb);
   builder_.add_spread(spread);
   builder_.add_fixed_rate(fixed_rate);
-  builder_.add_notional(notional);
+  if(notional) { builder_.add_notional(*notional); }
   builder_.add_observation_lag(observation_lag);
   builder_.add_inflation_index_id(inflation_index_id);
   builder_.add_yoy_schedule(yoy_schedule);
@@ -226,7 +227,7 @@ inline ::flatbuffers::Offset<YearOnYearInflationSwap> CreateYearOnYearInflationS
 inline ::flatbuffers::Offset<YearOnYearInflationSwap> CreateYearOnYearInflationSwapDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    double notional = 0.0,
+    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::Schedule> fixed_schedule = 0,
     double fixed_rate = 0.0,
     quantra::enums::DayCounter fixed_day_counter = quantra::enums::DayCounter_Actual365Fixed,

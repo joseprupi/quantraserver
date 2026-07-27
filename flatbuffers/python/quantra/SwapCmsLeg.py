@@ -38,13 +38,13 @@ class SwapCmsLeg(object):
             return obj
         return None
 
-    # Coupon notional.
+    # Coupon notional. Presence-required and must be > 0.
     # SwapCmsLeg
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
     # SwapCmsLeg
@@ -158,7 +158,7 @@ def AddSchedule(builder, schedule):
     SwapCmsLegAddSchedule(builder, schedule)
 
 def SwapCmsLegAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     SwapCmsLegAddNotional(builder, notional)
@@ -245,7 +245,7 @@ class SwapCmsLegT(object):
     # SwapCmsLegT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.swapIndexId = None  # type: str
         self.swapTenor = None  # type: Optional[PeriodT]
         self.swaptionVolId = None  # type: str

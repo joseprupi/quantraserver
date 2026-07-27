@@ -10,6 +10,7 @@
 #include "curve_bootstrapper.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "require_scalar.h"
 #include "leg_notionals.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"
@@ -108,7 +109,7 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
     rejectUnsupportedNotionals(fixedLeg->notionals(),
                                "Swaption underlying VanillaSwap fixed leg");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
-    trade.fixed.notional = fixedLeg->notional();
+    trade.fixed.notional = requirePositive(fixedLeg->notional(), "SwapFixedLeg.notional");
     trade.fixed.rate = fixedLeg->rate();
     trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
@@ -122,7 +123,7 @@ VanillaSwapTrade extractVanillaUnderlying(const quantra::VanillaSwap* swap) {
     rejectUnsupportedNotionals(floatingLeg->notionals(),
                                "Swaption underlying VanillaSwap floating leg");
     trade.ibor.schedule = *scheduleParser.parse(floatingLeg->schedule());
-    trade.ibor.notional = floatingLeg->notional();
+    trade.ibor.notional = requirePositive(floatingLeg->notional(), "SwapFloatingLeg.notional");
     trade.ibor.indexId = floatingLeg->index()->id()->str();
     trade.ibor.spread = floatingLeg->spread();
     trade.ibor.dayCounter = DayCounterToQL(floatingLeg->day_counter().value());
@@ -167,7 +168,7 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
     rejectUnsupportedNotionals(fixedLeg->notionals(),
                                "Swaption underlying OisSwap fixed leg");
     trade.fixed.schedule = *scheduleParser.parse(fixedLeg->schedule());
-    trade.fixed.notional = fixedLeg->notional();
+    trade.fixed.notional = requirePositive(fixedLeg->notional(), "SwapFixedLeg.notional");
     trade.fixed.rate = fixedLeg->rate();
     trade.fixed.dayCounter = DayCounterToQL(fixedLeg->day_counter().value());
 
@@ -177,7 +178,7 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
     if (!overnightLeg->index() || !overnightLeg->index()->id())
         QUANTRA_INVALID_ARGUMENT("OisSwap overnight_leg index.id is required");
     trade.overnight.schedule = *scheduleParser.parse(overnightLeg->schedule());
-    trade.overnight.notional = overnightLeg->notional();
+    trade.overnight.notional = requirePositive(overnightLeg->notional(), "OisFloatingLeg.notional");
     trade.overnight.indexId = overnightLeg->index()->id()->str();
     trade.overnight.spread = overnightLeg->spread();
     trade.overnight.paymentConvention = ConventionToQL(overnightLeg->payment_convention());

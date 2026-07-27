@@ -33,7 +33,7 @@ struct CreditCurveSpecT;
 struct CdsQuoteT : public ::flatbuffers::NativeTable {
   typedef CdsQuote TableType;
   std::unique_ptr<quantra::PeriodT> tenor{};
-  quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread;
+  ::flatbuffers::Optional<quantra::enums::CdsQuoteType> quote_type = ::flatbuffers::nullopt;
   std::string quote_id{};
   double quoted_par_spread = 0.0;
   double quoted_upfront = 0.0;
@@ -59,8 +59,10 @@ struct CdsQuote FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  quantra::enums::CdsQuoteType quote_type() const {
-    return static_cast<quantra::enums::CdsQuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
+  /// Quote convention (ParSpread / Upfront). Presence-required: an omitted
+  /// value is a 400, never the alphabetical-0 default (ParSpread).
+  ::flatbuffers::Optional<quantra::enums::CdsQuoteType> quote_type() const {
+    return GetOptional<int8_t, quantra::enums::CdsQuoteType>(VT_QUOTE_TYPE);
   }
   /// Optional; resolves from Pricing.quotes (QuoteType=Credit).
   const ::flatbuffers::String *quote_id() const {
@@ -105,7 +107,7 @@ struct CdsQuoteBuilder {
     fbb_.AddOffset(CdsQuote::VT_TENOR, tenor);
   }
   void add_quote_type(quantra::enums::CdsQuoteType quote_type) {
-    fbb_.AddElement<int8_t>(CdsQuote::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type), 0);
+    fbb_.AddElement<int8_t>(CdsQuote::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type));
   }
   void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
     fbb_.AddOffset(CdsQuote::VT_QUOTE_ID, quote_id);
@@ -133,7 +135,7 @@ struct CdsQuoteBuilder {
 inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread,
+    ::flatbuffers::Optional<quantra::enums::CdsQuoteType> quote_type = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
     double quoted_par_spread = 0.0,
     double quoted_upfront = 0.0,
@@ -144,14 +146,14 @@ inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuote(
   builder_.add_quoted_par_spread(quoted_par_spread);
   builder_.add_quote_id(quote_id);
   builder_.add_tenor(tenor);
-  builder_.add_quote_type(quote_type);
+  if(quote_type) { builder_.add_quote_type(*quote_type); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CdsQuote> CreateCdsQuoteDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    quantra::enums::CdsQuoteType quote_type = quantra::enums::CdsQuoteType_ParSpread,
+    ::flatbuffers::Optional<quantra::enums::CdsQuoteType> quote_type = ::flatbuffers::nullopt,
     const char *quote_id = nullptr,
     double quoted_par_spread = 0.0,
     double quoted_upfront = 0.0,

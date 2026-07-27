@@ -43,20 +43,24 @@ union EquityExercise {
 /// Plain vanilla payoff.
 table EquityPlainVanillaPayoff {
     option_type:enums.EquityOptionType = Call;
-    strike:double;
+    /// Strike price. Presence-required and must be > 0.
+    strike:double = null;
 }
 
 /// Cash-or-nothing digital payoff.
 table EquityCashOrNothingPayoff {
     option_type:enums.EquityOptionType = Call;
-    strike:double;
-    cash:double;
+    /// Strike price. Presence-required and must be > 0.
+    strike:double = null;
+    /// Cash payout on exercise. Presence-required and must be > 0.
+    cash:double = null;
 }
 
 /// Asset-or-nothing digital payoff.
 table EquityAssetOrNothingPayoff {
     option_type:enums.EquityOptionType = Call;
-    strike:double;
+    /// Strike price. Presence-required and must be > 0.
+    strike:double = null;
 }
 
 /// Equity payoff payload.

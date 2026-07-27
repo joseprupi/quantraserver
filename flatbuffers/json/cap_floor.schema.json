@@ -426,11 +426,12 @@
                 "$ref" : "#/definitions/quantra_enums_CapFloorType"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Notional. Presence-required and must be > 0."
               },
         "strike" : {
                 "type" : "number",
-                "description" : "Strike rate (e.g., 0.04 for 4%)."
+                "description" : "Strike rate (e.g., 0.04 for 4%). Presence-required; may be negative, only\na missing or non-finite value is rejected."
               },
         "schedule" : {
                 "$ref" : "#/definitions/quantra_Schedule"

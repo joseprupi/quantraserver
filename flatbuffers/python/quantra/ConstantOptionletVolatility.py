@@ -46,12 +46,17 @@ class ConstantOptionletVolatility(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Constant optionlet volatility. Presence-required (a bare double would
+    # default to a silent zero) and must be finite and non-negative. A genuine
+    # 0 is valid: for a coupon leg without caps/floors the Black pricer with
+    # zero vol reproduces the deterministic forward, so 0 is accepted while an
+    # omitted value is rejected.
     # ConstantOptionletVolatility
     def Volatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # ConstantOptionletVolatility
     def DayCounter(self):
@@ -85,7 +90,7 @@ def AddBusinessDayConvention(builder, businessDayConvention):
     ConstantOptionletVolatilityAddBusinessDayConvention(builder, businessDayConvention)
 
 def ConstantOptionletVolatilityAddVolatility(builder, volatility):
-    builder.PrependFloat64Slot(3, volatility, 0.0)
+    builder.PrependFloat64Slot(3, volatility, None)
 
 def AddVolatility(builder, volatility):
     ConstantOptionletVolatilityAddVolatility(builder, volatility)
@@ -110,7 +115,7 @@ class ConstantOptionletVolatilityT(object):
         self.settlementDays = 0  # type: int
         self.calendar = None  # type: Optional[int]
         self.businessDayConvention = None  # type: Optional[int]
-        self.volatility = 0.0  # type: float
+        self.volatility = None  # type: Optional[float]
         self.dayCounter = None  # type: Optional[int]
 
     @classmethod

@@ -18,8 +18,11 @@
 #include "swap_index_registry.h"
 #include "enum_convert.h"
 #include "date_convert.h"
+#include <cmath>
+
 #include "quote_registry.h"
 #include "inflation_curve_parsers.h"
+#include "require_scalar.h"
 
 namespace quantra {
 
@@ -51,8 +54,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                 QUANTRA_INVALID_ARGUMENT("QuoteSpec.id is required");
             }
             std::string id = it->id()->str();
-            auto sq = std::make_shared<QuantLib::SimpleQuote>(it->value());
-            quoteRegistry.upsert(id, it->value(), it->quote_type());
+            const double quoteValue = requireFinite(it->value(), "QuoteSpec.value");
+            quoteRegistry.upsert(id, quoteValue, it->quote_type());
         }
     }
     reg.quoteRegistry = quoteRegistry;
@@ -360,7 +363,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                         q.tenor = QuantLib::Period(qit->tenor()->n(),
                                                    TimeUnitToQL(qit->tenor()->unit()));
                     }
-                    q.quote_type = static_cast<CdsQuoteTypeKind>(qit->quote_type());
+                    if (!qit->quote_type().has_value()) {
+                        QUANTRA_INVALID_ARGUMENT("CdsQuote.quote_type is required");
+                    }
+                    q.quote_type = static_cast<CdsQuoteTypeKind>(qit->quote_type().value());
                     if (qit->quote_id()) q.quote_id = qit->quote_id()->str();
                     q.quoted_par_spread = qit->quoted_par_spread();
                     q.quoted_upfront = qit->quoted_upfront();
@@ -415,7 +421,17 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             d.settlement_days = ov->settlement_days();
             d.calendar = CalendarToQL(ov->calendar().value());
             d.business_day_convention = ConventionToQL(ov->business_day_convention().value());
-            d.volatility = ov->volatility();
+            // Presence-required and finite; a genuine 0 is valid (a leg without
+            // caps/floors reproduces the deterministic forward), so only a
+            // missing, non-finite or negative volatility is rejected.
+            if (!ov->volatility().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.volatility is required");
+            }
+            if (!std::isfinite(ov->volatility().value()) || ov->volatility().value() < 0.0) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "ConstantOptionletVolatility.volatility must be finite and non-negative");
+            }
+            d.volatility = ov->volatility().value();
             d.day_counter = DayCounterToQL(ov->day_counter().value());
             domain.payload = std::move(d);
             reg.rates.couponPricerDomains.emplace(id, std::move(domain));

@@ -102,7 +102,7 @@ struct QuoteSpecT : public ::flatbuffers::NativeTable {
   typedef QuoteSpec TableType;
   std::string id{};
   quantra::QuoteKind kind = quantra::QuoteKind_Rate;
-  double value = 0.0;
+  ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt;
   quantra::QuoteType quote_type = quantra::QuoteType_Curve;
 };
 
@@ -122,8 +122,11 @@ struct QuoteSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::QuoteKind kind() const {
     return static_cast<quantra::QuoteKind>(GetField<int8_t>(VT_KIND, 0));
   }
-  double value() const {
-    return GetField<double>(VT_VALUE, 0.0);
+  /// Quote value. Presence-required (a bare double would default to 0 and
+  /// silently bootstrap every referencing helper off a zero rate). May be
+  /// negative (rates/spreads); only a missing or non-finite value is rejected.
+  ::flatbuffers::Optional<double> value() const {
+    return GetOptional<double, double>(VT_VALUE);
   }
   quantra::QuoteType quote_type() const {
     return static_cast<quantra::QuoteType>(GetField<int8_t>(VT_QUOTE_TYPE, 0));
@@ -153,7 +156,7 @@ struct QuoteSpecBuilder {
     fbb_.AddElement<int8_t>(QuoteSpec::VT_KIND, static_cast<int8_t>(kind), 0);
   }
   void add_value(double value) {
-    fbb_.AddElement<double>(QuoteSpec::VT_VALUE, value, 0.0);
+    fbb_.AddElement<double>(QuoteSpec::VT_VALUE, value);
   }
   void add_quote_type(quantra::QuoteType quote_type) {
     fbb_.AddElement<int8_t>(QuoteSpec::VT_QUOTE_TYPE, static_cast<int8_t>(quote_type), 0);
@@ -174,10 +177,10 @@ inline ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpec(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> id = 0,
     quantra::QuoteKind kind = quantra::QuoteKind_Rate,
-    double value = 0.0,
+    ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt,
     quantra::QuoteType quote_type = quantra::QuoteType_Curve) {
   QuoteSpecBuilder builder_(_fbb);
-  builder_.add_value(value);
+  if(value) { builder_.add_value(*value); }
   builder_.add_id(id);
   builder_.add_quote_type(quote_type);
   builder_.add_kind(kind);
@@ -188,7 +191,7 @@ inline ::flatbuffers::Offset<QuoteSpec> CreateQuoteSpecDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *id = nullptr,
     quantra::QuoteKind kind = quantra::QuoteKind_Rate,
-    double value = 0.0,
+    ::flatbuffers::Optional<double> value = ::flatbuffers::nullopt,
     quantra::QuoteType quote_type = quantra::QuoteType_Curve) {
   auto id__ = id ? _fbb.CreateString(id) : 0;
   return quantra::CreateQuoteSpec(

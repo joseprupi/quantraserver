@@ -426,7 +426,8 @@
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
               },
         "notionals" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -452,7 +453,8 @@
                 "$ref" : "#/definitions/quantra_Schedule"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Constant notional. Presence-required and must be > 0 (unless the\nper-period `notionals` vector is supplied). A bare double would default\nto a silent zero notional."
               },
         "notionals" : {
                 "type" : "array", "items" : {"type" : "number"},
@@ -526,7 +528,7 @@
               },
         "notional" : {
                 "type" : "number",
-                "description" : "Coupon notional."
+                "description" : "Coupon notional. Presence-required and must be > 0."
               },
         "swap_index_id" : {
                 "type" : "string",

@@ -34,12 +34,13 @@ class ZeroCouponInflationSwap(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Notional. Presence-required and must be > 0.
     # ZeroCouponInflationSwap
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # ZeroCouponInflationSwap
     def StartDate(self):
@@ -148,7 +149,7 @@ def AddSwapType(builder, swapType):
     ZeroCouponInflationSwapAddSwapType(builder, swapType)
 
 def ZeroCouponInflationSwapAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, 0.0)
+    builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
     ZeroCouponInflationSwapAddNotional(builder, notional)
@@ -241,7 +242,7 @@ class ZeroCouponInflationSwapT(object):
     # ZeroCouponInflationSwapT
     def __init__(self):
         self.swapType = None  # type: Optional[int]
-        self.notional = 0.0  # type: float
+        self.notional = None  # type: Optional[float]
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str
         self.fixedCalendar = 32  # type: int

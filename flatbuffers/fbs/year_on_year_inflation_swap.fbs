@@ -11,7 +11,8 @@ table YearOnYearInflationSwap {
     /// Presence-required: an omitted type is a 400, never the alphabetical-0
     /// default (Payer).
     swap_type:enums.SwapType = null;
-    notional:double;
+    /// Notional. Presence-required and must be > 0.
+    notional:double = null;
     fixed_schedule:Schedule (required);
     fixed_rate:double;
     fixed_day_counter:enums.DayCounter = Actual365Fixed;

@@ -387,7 +387,8 @@
                 "$ref" : "#/definitions/quantra_enums_FRAType"
               },
         "notional" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Notional. Presence-required and must be > 0."
               },
         "start_date" : {
                 "type" : "string",
@@ -399,7 +400,7 @@
               },
         "strike" : {
                 "type" : "number",
-                "description" : "The agreed forward rate (e.g., 0.035 for 3.5%)."
+                "description" : "The agreed forward rate (e.g., 0.035 for 3.5%). Presence-required; may be\nnegative, only a missing or non-finite value is rejected."
               },
         "index" : {
                 "$ref" : "#/definitions/quantra_IndexRef",

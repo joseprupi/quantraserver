@@ -25,7 +25,7 @@ struct ZeroCouponBondT : public ::flatbuffers::NativeTable {
   typedef ZeroCouponBond TableType;
   int32_t settlement_days = 0;
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
-  double face_amount = 0.0;
+  ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt;
   std::string maturity_date{};
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt;
@@ -56,8 +56,10 @@ struct ZeroCouponBond FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
   /// Notional / face amount the redemption percentage applies to.
-  double face_amount() const {
-    return GetField<double>(VT_FACE_AMOUNT, 0.0);
+  /// Presence-required and must be > 0 (a bare double would default to a
+  /// silent zero face).
+  ::flatbuffers::Optional<double> face_amount() const {
+    return GetOptional<double, double>(VT_FACE_AMOUNT);
   }
   /// Single redemption/maturity date (ISO yyyy-mm-dd).
   const ::flatbuffers::String *maturity_date() const {
@@ -106,7 +108,7 @@ struct ZeroCouponBondBuilder {
     fbb_.AddElement<int8_t>(ZeroCouponBond::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
   void add_face_amount(double face_amount) {
-    fbb_.AddElement<double>(ZeroCouponBond::VT_FACE_AMOUNT, face_amount, 0.0);
+    fbb_.AddElement<double>(ZeroCouponBond::VT_FACE_AMOUNT, face_amount);
   }
   void add_maturity_date(::flatbuffers::Offset<::flatbuffers::String> maturity_date) {
     fbb_.AddOffset(ZeroCouponBond::VT_MATURITY_DATE, maturity_date);
@@ -135,14 +137,14 @@ inline ::flatbuffers::Offset<ZeroCouponBond> CreateZeroCouponBond(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> maturity_date = 0,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::String> issue_date = 0) {
   ZeroCouponBondBuilder builder_(_fbb);
   if(redemption) { builder_.add_redemption(*redemption); }
-  builder_.add_face_amount(face_amount);
+  if(face_amount) { builder_.add_face_amount(*face_amount); }
   builder_.add_issue_date(issue_date);
   builder_.add_maturity_date(maturity_date);
   builder_.add_settlement_days(settlement_days);
@@ -155,7 +157,7 @@ inline ::flatbuffers::Offset<ZeroCouponBond> CreateZeroCouponBondDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     int32_t settlement_days = 0,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
-    double face_amount = 0.0,
+    ::flatbuffers::Optional<double> face_amount = ::flatbuffers::nullopt,
     const char *maturity_date = nullptr,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> redemption = ::flatbuffers::nullopt,

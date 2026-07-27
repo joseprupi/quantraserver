@@ -16,8 +16,8 @@ table YoYInflationCapFloor {
     /// never the alphabetical-0 default (Cap). Reuses the shared CapFloorType
     /// enum (Cap/Floor/Collar).
     cap_floor_type:enums.CapFloorType = null;
-    /// Notional per optionlet.
-    notional:double;
+    /// Notional per optionlet. Presence-required and must be > 0.
+    notional:double = null;
     /// Coupon schedule for the year-on-year optionlet strip.
     schedule:Schedule (required);
     /// Link to InflationIndexSpec.id — the YoY inflation index (must resolve to

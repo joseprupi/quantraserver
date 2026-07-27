@@ -1,5 +1,7 @@
 #include "fixed_rate_bond_parser.h"
 
+#include "require_scalar.h"
+
 std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedRateBond *bond)
 {
     if (bond == NULL)
@@ -43,7 +45,7 @@ std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedR
 
     return std::make_shared<QuantLib::FixedRateBond>(
         bond->settlement_days(),
-        bond->face_amount(),
+        quantra::requirePositive(bond->face_amount(), "FixedRateBond.face_amount"),
         *schedule,
         std::vector<Rate>(1, bond->rate()),
         dayCounter,
