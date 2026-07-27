@@ -177,61 +177,61 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Effective Hull-White mean reversion "a" used by pricing. -1.0 when model is not HullWhiteLattice.
+    # Effective Hull-White mean reversion "a" used by pricing. Absent when model is not HullWhiteLattice.
     # SwaptionResponse
     def UsedHwA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(42))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice.
+    # Effective Hull-White sigma used by pricing. Absent when model is not HullWhiteLattice.
     # SwaptionResponse
     def UsedHwSigma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(44))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration.
+    # Calibration RMSE for inline-calibrated Hull-White. Absent when no inline calibration.
     # SwaptionResponse
     def UsedHwRmse(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(46))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.
+    # Number of calibration helpers for inline-calibrated Hull-White. Absent when no inline calibration.
     # SwaptionResponse
     def UsedHwNumHelpers(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(48))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return -1
+        return None
 
-    # Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.
+    # Calibration grid rows for inline-calibrated Hull-White. Absent when no inline calibration.
     # SwaptionResponse
     def UsedHwGridRows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(50))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return -1
+        return None
 
-    # Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.
+    # Calibration grid columns for inline-calibrated Hull-White. Absent when no inline calibration.
     # SwaptionResponse
     def UsedHwGridCols(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(52))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return -1
+        return None
 
-    # Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.
+    # Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.
     # SwaptionResponse
     def UsedHwGridPoints(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(54))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return -1
+        return None
 
 def SwaptionResponseStart(builder):
     builder.StartObject(26)
@@ -354,43 +354,43 @@ def AddUsedModelParamMode(builder, usedModelParamMode):
     SwaptionResponseAddUsedModelParamMode(builder, usedModelParamMode)
 
 def SwaptionResponseAddUsedHwA(builder, usedHwA):
-    builder.PrependFloat64Slot(19, usedHwA, -1.0)
+    builder.PrependFloat64Slot(19, usedHwA, None)
 
 def AddUsedHwA(builder, usedHwA):
     SwaptionResponseAddUsedHwA(builder, usedHwA)
 
 def SwaptionResponseAddUsedHwSigma(builder, usedHwSigma):
-    builder.PrependFloat64Slot(20, usedHwSigma, -1.0)
+    builder.PrependFloat64Slot(20, usedHwSigma, None)
 
 def AddUsedHwSigma(builder, usedHwSigma):
     SwaptionResponseAddUsedHwSigma(builder, usedHwSigma)
 
 def SwaptionResponseAddUsedHwRmse(builder, usedHwRmse):
-    builder.PrependFloat64Slot(21, usedHwRmse, -1.0)
+    builder.PrependFloat64Slot(21, usedHwRmse, None)
 
 def AddUsedHwRmse(builder, usedHwRmse):
     SwaptionResponseAddUsedHwRmse(builder, usedHwRmse)
 
 def SwaptionResponseAddUsedHwNumHelpers(builder, usedHwNumHelpers):
-    builder.PrependInt32Slot(22, usedHwNumHelpers, -1)
+    builder.PrependInt32Slot(22, usedHwNumHelpers, None)
 
 def AddUsedHwNumHelpers(builder, usedHwNumHelpers):
     SwaptionResponseAddUsedHwNumHelpers(builder, usedHwNumHelpers)
 
 def SwaptionResponseAddUsedHwGridRows(builder, usedHwGridRows):
-    builder.PrependInt32Slot(23, usedHwGridRows, -1)
+    builder.PrependInt32Slot(23, usedHwGridRows, None)
 
 def AddUsedHwGridRows(builder, usedHwGridRows):
     SwaptionResponseAddUsedHwGridRows(builder, usedHwGridRows)
 
 def SwaptionResponseAddUsedHwGridCols(builder, usedHwGridCols):
-    builder.PrependInt32Slot(24, usedHwGridCols, -1)
+    builder.PrependInt32Slot(24, usedHwGridCols, None)
 
 def AddUsedHwGridCols(builder, usedHwGridCols):
     SwaptionResponseAddUsedHwGridCols(builder, usedHwGridCols)
 
 def SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints):
-    builder.PrependInt32Slot(25, usedHwGridPoints, -1)
+    builder.PrependInt32Slot(25, usedHwGridPoints, None)
 
 def AddUsedHwGridPoints(builder, usedHwGridPoints):
     SwaptionResponseAddUsedHwGridPoints(builder, usedHwGridPoints)
@@ -425,13 +425,13 @@ class SwaptionResponseT(object):
         self.usedCubeNodeAtm = 0.0  # type: float
         self.volKind = 0  # type: int
         self.usedModelParamMode = 0  # type: int
-        self.usedHwA = -1.0  # type: float
-        self.usedHwSigma = -1.0  # type: float
-        self.usedHwRmse = -1.0  # type: float
-        self.usedHwNumHelpers = -1  # type: int
-        self.usedHwGridRows = -1  # type: int
-        self.usedHwGridCols = -1  # type: int
-        self.usedHwGridPoints = -1  # type: int
+        self.usedHwA = None  # type: Optional[float]
+        self.usedHwSigma = None  # type: Optional[float]
+        self.usedHwRmse = None  # type: Optional[float]
+        self.usedHwNumHelpers = None  # type: Optional[int]
+        self.usedHwGridRows = None  # type: Optional[int]
+        self.usedHwGridCols = None  # type: Optional[int]
+        self.usedHwGridPoints = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

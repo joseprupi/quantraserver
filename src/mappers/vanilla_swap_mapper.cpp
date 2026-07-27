@@ -197,7 +197,7 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
     if (f.isFloating) {
         fb.add_fixing_date(fixingDate);
         if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
-        fb.add_has_cms_swap_rate(f.hasCmsSwapRate);
+        // CMS swap-rate fixing is added only for CMS coupons; absent otherwise.
         if (f.hasCmsSwapRate && std::isfinite(f.cmsSwapRate)) {
             fb.add_cms_swap_rate(f.cmsSwapRate);
         }

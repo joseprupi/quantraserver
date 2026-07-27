@@ -24,8 +24,10 @@
  * IndexRegistry directly.
  */
 
+#include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -152,7 +154,9 @@ struct SwaptionInputs {
 /// enums.h, neither of which is a *_generated.h header).
 struct SwaptionPerTrade {
     double npv = 0.0;
-    double impliedVolatility = -1.0;
+    // Non-finite (NaN) means "no implied vol available"; the mapper omits the
+    // field entirely in that case rather than emitting a sentinel.
+    double impliedVolatility = std::numeric_limits<double>::quiet_NaN();
     double atmForward = 0.0;
     double annuity = 0.0;
     double delta = 0.0;
@@ -173,13 +177,18 @@ struct SwaptionPerTrade {
         quantra::enums::SwaptionVolKind_Constant;
     quantra::enums::ModelParamMode usedModelParamMode =
         quantra::enums::ModelParamMode_Explicit;
-    double usedHwA = -1.0;
-    double usedHwSigma = -1.0;
-    double usedHwRmse = -1.0;
-    int usedHwNumHelpers = -1;
-    int usedHwGridRows = -1;
-    int usedHwGridCols = -1;
-    int usedHwGridPoints = -1;
+    // Present only when the swaption engine used a Hull-White model. The a/sigma
+    // pair is set for both explicit and inline-calibrated Hull-White; the RMSE,
+    // helper count and grid dimensions are set only for inline calibration.
+    // The mapper adds each field only when its optional holds a value, so an
+    // inapplicable field is simply absent in the response.
+    std::optional<double> usedHwA;
+    std::optional<double> usedHwSigma;
+    std::optional<double> usedHwRmse;
+    std::optional<int> usedHwNumHelpers;
+    std::optional<int> usedHwGridRows;
+    std::optional<int> usedHwGridCols;
+    std::optional<int> usedHwGridPoints;
 };
 
 /// SABR-kind vol surfaces emit a SwaptionVolDiagnostics block when the request

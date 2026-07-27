@@ -1,5 +1,6 @@
 #include "swaption_mapper.h"
 
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -367,7 +368,11 @@ flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toResponse(
 
         quantra::SwaptionResponseBuilder rb(builder);
         rb.add_npv(r.npv);
-        rb.add_implied_volatility(r.impliedVolatility);
+        // Non-finite implied vol (no analytic value for this setup) is omitted,
+        // matching the equity-option greeks: absent rather than a sentinel.
+        if (std::isfinite(r.impliedVolatility)) {
+            rb.add_implied_volatility(r.impliedVolatility);
+        }
         rb.add_atm_forward(r.atmForward);
         rb.add_annuity(r.annuity);
         rb.add_delta(r.delta);
@@ -385,13 +390,15 @@ flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toResponse(
         rb.add_used_cube_node_atm(r.usedCubeNodeAtm);
         rb.add_vol_kind(r.volKind);
         rb.add_used_model_param_mode(r.usedModelParamMode);
-        rb.add_used_hw_a(r.usedHwA);
-        rb.add_used_hw_sigma(r.usedHwSigma);
-        rb.add_used_hw_rmse(r.usedHwRmse);
-        rb.add_used_hw_num_helpers(r.usedHwNumHelpers);
-        rb.add_used_hw_grid_rows(r.usedHwGridRows);
-        rb.add_used_hw_grid_cols(r.usedHwGridCols);
-        rb.add_used_hw_grid_points(r.usedHwGridPoints);
+        // Hull-White diagnostics are added only when applicable; an unset
+        // optional leaves the field absent in the response JSON.
+        if (r.usedHwA) rb.add_used_hw_a(*r.usedHwA);
+        if (r.usedHwSigma) rb.add_used_hw_sigma(*r.usedHwSigma);
+        if (r.usedHwRmse) rb.add_used_hw_rmse(*r.usedHwRmse);
+        if (r.usedHwNumHelpers) rb.add_used_hw_num_helpers(*r.usedHwNumHelpers);
+        if (r.usedHwGridRows) rb.add_used_hw_grid_rows(*r.usedHwGridRows);
+        if (r.usedHwGridCols) rb.add_used_hw_grid_cols(*r.usedHwGridCols);
+        if (r.usedHwGridPoints) rb.add_used_hw_grid_points(*r.usedHwGridPoints);
         rowOffsets.push_back(rb.Finish());
     }
 

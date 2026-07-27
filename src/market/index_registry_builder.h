@@ -78,6 +78,9 @@ public:
             }
 
             std::string id = def->id()->str();
+            if (registry.has(id)) {
+                QUANTRA_INVALID_ARGUMENT("duplicate index id: " + id);
+            }
             std::string name = def->name()->str();
 
             // Parse currency (required field, default to EUR if somehow empty)

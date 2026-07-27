@@ -160,7 +160,7 @@ void extractFixedLegFlows(
 /**
  * Pre-serialize a floating-leg coupon (IBOR or CMS). Mirrors the
  * vanilla_swap_flow_builder floating-leg path: indexFixing/spread/rate plus
- * the CmsCoupon-specific has_cms_swap_rate/cms_swap_rate fields. The fixing
+ * the CmsCoupon-specific cms_swap_rate field. The fixing
  * call is wrapped in try/catch to preserve the legacy NaN-on-fixing-error
  * fallback.
  */

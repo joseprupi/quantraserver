@@ -91,7 +91,7 @@ VanillaSwapFlowsBuildResult buildVanillaSwapFlows(
             // indexFixing() can fail (missing historical fixing); we caught the
             // throw and left `fixing` as NaN. NaN is not valid JSON, so omit it.
             if (std::isfinite(fixing)) fb.add_index_fixing(fixing);
-            fb.add_has_cms_swap_rate(hasCmsSwapRate);
+            // CMS swap-rate fixing is added only for CMS coupons; absent otherwise.
             if (hasCmsSwapRate && std::isfinite(cmsSwapRate)) {
                 fb.add_cms_swap_rate(cmsSwapRate);
             }

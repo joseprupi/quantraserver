@@ -140,45 +140,45 @@ class VanillaSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Effective CMS mean reversion used by pricer (-1.0 when no CMS leg).
+    # Effective CMS mean reversion used by pricer. Absent when no CMS leg.
     # VanillaSwapResponse
     def UsedCmsMeanReversion(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Effective Numeric Hagan lower integration limit (-1.0 when not applicable).
+    # Effective Numeric Hagan lower integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganLowerLimit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Effective Numeric Hagan upper integration limit (-1.0 when not applicable).
+    # Effective Numeric Hagan upper integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganUpperLimit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Effective Numeric Hagan integration precision (-1.0 when not applicable).
+    # Effective Numeric Hagan integration precision. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganPrecision(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Effective Numeric Hagan hard upper integration limit (-1.0 when not applicable).
+    # Effective Numeric Hagan hard upper integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganHardUpperLimit(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
 def VanillaSwapResponseStart(builder):
     builder.StartObject(16)
@@ -265,31 +265,31 @@ def AddUsedCmsYieldCurveModel(builder, usedCmsYieldCurveModel):
     VanillaSwapResponseAddUsedCmsYieldCurveModel(builder, usedCmsYieldCurveModel)
 
 def VanillaSwapResponseAddUsedCmsMeanReversion(builder, usedCmsMeanReversion):
-    builder.PrependFloat64Slot(11, usedCmsMeanReversion, -1.0)
+    builder.PrependFloat64Slot(11, usedCmsMeanReversion, None)
 
 def AddUsedCmsMeanReversion(builder, usedCmsMeanReversion):
     VanillaSwapResponseAddUsedCmsMeanReversion(builder, usedCmsMeanReversion)
 
 def VanillaSwapResponseAddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit):
-    builder.PrependFloat64Slot(12, usedCmsHaganLowerLimit, -1.0)
+    builder.PrependFloat64Slot(12, usedCmsHaganLowerLimit, None)
 
 def AddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit):
     VanillaSwapResponseAddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit)
 
 def VanillaSwapResponseAddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit):
-    builder.PrependFloat64Slot(13, usedCmsHaganUpperLimit, -1.0)
+    builder.PrependFloat64Slot(13, usedCmsHaganUpperLimit, None)
 
 def AddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit):
     VanillaSwapResponseAddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit)
 
 def VanillaSwapResponseAddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision):
-    builder.PrependFloat64Slot(14, usedCmsHaganPrecision, -1.0)
+    builder.PrependFloat64Slot(14, usedCmsHaganPrecision, None)
 
 def AddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision):
     VanillaSwapResponseAddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision)
 
 def VanillaSwapResponseAddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit):
-    builder.PrependFloat64Slot(15, usedCmsHaganHardUpperLimit, -1.0)
+    builder.PrependFloat64Slot(15, usedCmsHaganHardUpperLimit, None)
 
 def AddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit):
     VanillaSwapResponseAddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit)
@@ -320,11 +320,11 @@ class VanillaSwapResponseT(object):
         self.floatingLegFlows = None  # type: List[SwapLegFlowT]
         self.usedCmsPricerType = 0  # type: int
         self.usedCmsYieldCurveModel = 0  # type: int
-        self.usedCmsMeanReversion = -1.0  # type: float
-        self.usedCmsHaganLowerLimit = -1.0  # type: float
-        self.usedCmsHaganUpperLimit = -1.0  # type: float
-        self.usedCmsHaganPrecision = -1.0  # type: float
-        self.usedCmsHaganHardUpperLimit = -1.0  # type: float
+        self.usedCmsMeanReversion = None  # type: Optional[float]
+        self.usedCmsHaganLowerLimit = None  # type: Optional[float]
+        self.usedCmsHaganUpperLimit = None  # type: Optional[float]
+        self.usedCmsHaganPrecision = None  # type: Optional[float]
+        self.usedCmsHaganHardUpperLimit = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):

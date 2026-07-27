@@ -166,6 +166,27 @@ def _ec_del_index_tenor_unit():
     return f
 
 
+def _ec_dup_curve_id():
+    """Append a second curve reusing the first curve's id. Defining the same id
+    twice silently kept the first and dropped the second (first-wins), which can
+    change the price without warning; it must now be a named 400."""
+    def f(req):
+        curves = req["pricing"]["rates"]["curves"]
+        curves.append(json.loads(json.dumps(curves[0])))
+        return req
+    return f
+
+
+def _ec_dup_index_id():
+    """Append a second index reusing the first index's id. A duplicate index id
+    must be a named 400 rather than silently keeping the first definition."""
+    def f(req):
+        indices = req["pricing"]["rates"]["indices"]
+        indices.append(json.loads(json.dumps(indices[0])))
+        return req
+    return f
+
+
 def _ec_del_cds_schedule_field(field):
     """Drop a field from the CDS trade schedule (e.g. end_of_month). Presence-
     required: absent-vs-false silently changes schedule dates."""
@@ -706,6 +727,18 @@ SCENARIOS = [
      "swaption_request.json", 400, _ec_del_field("swaptions", "model")),
     ("ec:400 fixed_rate_bond missing discounting_curve field", "fixed_rate_bond",
      "fixed_rate_bond_request.json", 400, _ec_del_field("bonds", "discounting_curve")),
+    # ---- 400 INVALID_ARGUMENT: duplicate ids in a request list ----
+    # Defining the same id twice in a curves/indices list previously kept the
+    # first definition and silently dropped the rest, which can change the
+    # priced result. A duplicate id must be a named 400.
+    ("ec:400 vanilla_swap duplicate curve id", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_dup_curve_id(),
+     _ec_body_contains("duplicate curve id")),
+    ("ec:400 vanilla_swap duplicate index id", "vanilla_swap",
+     "vanilla_swap_request.json", 400,
+     _ec_dup_index_id(),
+     _ec_body_contains("duplicate index id")),
     # ---- 400 INVALID_ARGUMENT: swap-leg convention presence ----
     # A swap-leg convention enum omitted from the request must be rejected, not
     # silently defaulted to the alphabetical-0 value.

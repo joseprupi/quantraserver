@@ -2568,13 +2568,9 @@
             "type": "number",
             "description": "Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing."
           },
-          "has_cms_swap_rate": {
-            "type": "boolean",
-            "description": "True when cms_swap_rate is populated for a CMS coupon."
-          },
           "cms_swap_rate": {
             "type": "number",
-            "description": "CMS swap-rate fixing when has_cms_swap_rate is true."
+            "description": "CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons."
           },
           "spread": {
             "type": "number"
@@ -2651,23 +2647,23 @@
           },
           "used_cms_mean_reversion": {
             "type": "number",
-            "description": "Effective CMS mean reversion used by pricer (-1.0 when no CMS leg)."
+            "description": "Effective CMS mean reversion used by pricer. Absent when no CMS leg."
           },
           "used_cms_hagan_lower_limit": {
             "type": "number",
-            "description": "Effective Numeric Hagan lower integration limit (-1.0 when not applicable)."
+            "description": "Effective Numeric Hagan lower integration limit. Absent when not applicable."
           },
           "used_cms_hagan_upper_limit": {
             "type": "number",
-            "description": "Effective Numeric Hagan upper integration limit (-1.0 when not applicable)."
+            "description": "Effective Numeric Hagan upper integration limit. Absent when not applicable."
           },
           "used_cms_hagan_precision": {
             "type": "number",
-            "description": "Effective Numeric Hagan integration precision (-1.0 when not applicable)."
+            "description": "Effective Numeric Hagan integration precision. Absent when not applicable."
           },
           "used_cms_hagan_hard_upper_limit": {
             "type": "number",
-            "description": "Effective Numeric Hagan hard upper integration limit (-1.0 when not applicable)."
+            "description": "Effective Numeric Hagan hard upper integration limit. Absent when not applicable."
           }
         },
         "additionalProperties": false
@@ -7865,37 +7861,37 @@
           },
           "used_hw_a": {
             "type": "number",
-            "description": "Effective Hull-White mean reversion \"a\" used by pricing. -1.0 when model is not HullWhiteLattice."
+            "description": "Effective Hull-White mean reversion \"a\" used by pricing. Absent when model is not HullWhiteLattice."
           },
           "used_hw_sigma": {
             "type": "number",
-            "description": "Effective Hull-White sigma used by pricing. -1.0 when model is not HullWhiteLattice."
+            "description": "Effective Hull-White sigma used by pricing. Absent when model is not HullWhiteLattice."
           },
           "used_hw_rmse": {
             "type": "number",
-            "description": "Calibration RMSE for inline-calibrated Hull-White. -1.0 when no inline calibration."
+            "description": "Calibration RMSE for inline-calibrated Hull-White. Absent when no inline calibration."
           },
           "used_hw_num_helpers": {
             "type": "integer",
-            "description": "Number of calibration helpers for inline-calibrated Hull-White. -1 when no inline calibration.",
+            "description": "Number of calibration helpers for inline-calibrated Hull-White. Absent when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_rows": {
             "type": "integer",
-            "description": "Calibration grid rows for inline-calibrated Hull-White. -1 when no inline calibration.",
+            "description": "Calibration grid rows for inline-calibrated Hull-White. Absent when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_cols": {
             "type": "integer",
-            "description": "Calibration grid columns for inline-calibrated Hull-White. -1 when no inline calibration.",
+            "description": "Calibration grid columns for inline-calibrated Hull-White. Absent when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "used_hw_grid_points": {
             "type": "integer",
-            "description": "Calibration grid points for inline-calibrated Hull-White. -1 when no inline calibration.",
+            "description": "Calibration grid points for inline-calibrated Hull-White. Absent when no inline calibration.",
             "minimum": -2147483648,
             "maximum": 2147483647
           }

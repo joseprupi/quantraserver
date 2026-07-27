@@ -21,6 +21,9 @@ std::unordered_map<std::string, EquityUnderlyingRuntime> EquityUnderlyingRegistr
         if (!u->spot_quote_id() || !u->dividend_yield_curve_id()) {
             QUANTRA_INVALID_ARGUMENT("EquityUnderlyingSpec requires spot_quote_id and dividend_yield_curve_id");
         }
+        if (out.count(u->id()->str()) != 0) {
+            QUANTRA_INVALID_ARGUMENT("duplicate equity underlying id: " + u->id()->str());
+        }
 
         auto divIt = reg.rates.curves.find(u->dividend_yield_curve_id()->str());
         if (divIt == reg.rates.curves.end()) {

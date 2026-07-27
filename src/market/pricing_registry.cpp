@@ -25,6 +25,8 @@
 #include "require_scalar.h"
 #include "require_period.h"
 
+#include <unordered_set>
+
 namespace quantra {
 
 PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
@@ -129,12 +131,16 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     // Parsed after rates so equity SurfaceFromPrices can resolve curve ids.
     // ==========================================================================
     if (volatility && volatility->vol_surfaces()) {
+        std::unordered_set<std::string> seenVolIds;
         for (auto it = volatility->vol_surfaces()->begin(); it != volatility->vol_surfaces()->end(); ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.id is required");
             }
             std::string id = spec->id()->str();
+            if (!seenVolIds.insert(id).second) {
+                QUANTRA_INVALID_ARGUMENT("duplicate volatility surface id: " + id);
+            }
 
             switch (spec->payload_type()) {
                 case quantra::VolPayload_OptionletVolSpec:
@@ -210,6 +216,9 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                 QUANTRA_INVALID_ARGUMENT("ModelSpec.id is required");
             }
             std::string id = spec->id()->str();
+            if (reg.volatility.modelDomains.count(id) != 0) {
+                QUANTRA_INVALID_ARGUMENT("duplicate model id: " + id);
+            }
 
             if (spec->payload_type() == quantra::ModelPayload_NONE) {
                 QUANTRA_INVALID_ARGUMENT("ModelSpec.payload is required for model id: " + id);
@@ -328,6 +337,9 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                 QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.reference_date is required");
             }
             std::string id = spec->id()->str();
+            if (reg.credit.creditCurves.count(id) != 0) {
+                QUANTRA_INVALID_ARGUMENT("duplicate credit curve id: " + id);
+            }
 
             // Plain-domain mirror. QL conversions (Calendar/DayCounter/BDC/
             // Frequency/DateGeneration::Rule/TimeUnit) go through
