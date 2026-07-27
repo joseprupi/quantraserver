@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <sstream>
 #include "date_convert.h"
-#include "require_period.h"
+#include "require_field.h"
 
 namespace quantra {
 namespace grid_utils {

@@ -22,8 +22,7 @@
 
 #include "quote_registry.h"
 #include "inflation_curve_parsers.h"
-#include "require_scalar.h"
-#include "require_period.h"
+#include "require_field.h"
 
 #include <unordered_set>
 

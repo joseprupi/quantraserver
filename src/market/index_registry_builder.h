@@ -6,8 +6,7 @@
 #include "enum_convert.h"
 #include "date_convert.h"
 #include "error.h"
-#include "require_scalar.h"
-#include "require_period.h"
+#include "require_field.h"
 
 #include <ql/indexes/iborindex.hpp>
 #include <ql/indexes/ibor/all.hpp>

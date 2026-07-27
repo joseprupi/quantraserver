@@ -6,8 +6,7 @@
 #include <ql/instruments/makeois.hpp>
 #include <ql/settings.hpp>
 
-#include "require_scalar.h"
-#include "require_period.h"
+#include "require_field.h"
 
 using namespace QuantLib;
 
