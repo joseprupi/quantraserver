@@ -26,6 +26,79 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.5.0 (July 2026) — BREAKING: no implicit values, richer curves
+
+`v0.5.0` completes the "an omitted field is an error, never a silent default"
+theme across the whole request surface, redesigns curve construction around an
+explicit trait, and cleans up response-side sentinels. It is **wire-breaking**:
+requests that omitted a field and relied on its default, and gRPC/FlatBuffers
+consumers reading response fields whose accessor type changed, must migrate.
+Numbers are unchanged — a request made fully explicit prices exactly as before.
+
+### Curve construction is now trait-driven (six explicit families)
+
+`TermStructure.bootstrap_trait` is **required** and selects the curve family;
+the server no longer guesses from the point types, and each trait validates the
+points it receives (mismatch → 400):
+
+- `Discount` / `ZeroRate` / `FwdRate` — bootstrap a `PiecewiseYieldCurve` from
+  rate helpers (deposits, swaps, …).
+- `InterpolatedZero` — interpolate zero rates directly from `ZeroRatePoint`s.
+- `InterpolatedDiscount` — interpolate discount factors from the new
+  `DiscountFactorPoint`s.
+- `InterpolatedFwd` — interpolate instantaneous forwards from the new
+  `ForwardRatePoint`s (Linear / BackwardFlat / ForwardFlat only — QuantLib
+  cannot integrate a log-interpolated forward).
+
+The three interpolated families are genuinely distinct curves (interpolating
+zeros, discount factors or forwards off the same points yields different values
+between nodes). **Explicit zero-rate curves that previously sent
+`bootstrap_trait: Discount` must send `InterpolatedZero`.** Zero-rate points in
+one curve must share one `compounding`/`frequency` (a mixed set was silently
+mis-built before).
+
+### Every request value and convention must be explicit
+
+- **Values** (were silent zeros): notionals, `base_nominal`, `face_amount`,
+  `redemption`, strikes and digital `cash`, `QuoteSpec.value`, `coupon_rate`,
+  optionlet `volatility`, inflation helper quotes, and `CdsQuote.quote_type`.
+  Amounts must be positive; rates may be negative but must be present and finite.
+- **Conventions** (were hard defaults): calendars, day counters, frequencies,
+  business-day conventions, settlement/fixing days, `recovery_rate`,
+  `end_of_month`, `Period` unit/count, curve interpolator, and the CDS ISDA
+  accrual flags, across the index, swap-index, curve-helper, inflation and
+  credit-curve specs. Omission → 400 naming the field.
+- **Duplicate ids** in a curves / indices / vol-surfaces / models /
+  credit-curves list are rejected (were silently first-wins).
+
+### Response changes
+
+- Swaption Hull-White diagnostics, swaption implied volatility and the
+  vanilla-swap CMS diagnostics are now **omitted when inapplicable** instead of
+  reporting a `-1.0` / `-1` sentinel (which was ambiguous for a legitimate
+  negative value). The `has_cms_swap_rate` flag is removed — the `cms_swap_rate`
+  field alone carries presence. JSON consumers: those keys are simply absent;
+  the only visible removal is `has_cms_swap_rate`. gRPC/FlatBuffers consumers:
+  the accessors are now optional.
+
+### Behavior fixes
+
+- `in_arrears` / `fixing_days` on a floating swap leg are now honored on the
+  vanilla-swap path (an in-arrears swap was silently priced in advance); the
+  swaption underlying rejects `in_arrears` (QuantLib's `VanillaSwap` cannot
+  express it) rather than mispricing it.
+- The unused `FRA` day-counter/calendar/convention fields are no longer
+  required (accepted-but-ignored, deprecated); discrete equity-barrier
+  monitoring is rejected with a clear message (no native QuantLib engine).
+
+### Migration
+
+Make every request fully explicit — the ~130 payloads under `examples/data/`
+are all valid, fully-explicit 0.5.0 requests and serve as templates. The
+functional catalog (`tests/functional/CATALOG.md`) maps each to its expected
+QuantLib result. `bootstrap_trait` and the presence rules are runtime contracts
+the OpenAPI schema cannot express, so this section is authoritative.
+
 ## Version 0.4.0 (July 2026) — product expansion, backward-compatible
 
 `v0.4.0` widens the product catalog. Every 0.3.0 request prices identically on
