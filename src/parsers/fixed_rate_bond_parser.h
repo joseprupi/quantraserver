@@ -25,7 +25,7 @@
 #include "enum_convert.h"
 #include "date_convert.h"
 #include "schedule_parser.h"
-#include "leg_notionals.h"
+#include "request_validation.h"
 
 using namespace QuantLib;
 using namespace quantra;
