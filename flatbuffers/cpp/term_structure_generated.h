@@ -64,6 +64,10 @@ struct DiscountFactorPoint;
 struct DiscountFactorPointBuilder;
 struct DiscountFactorPointT;
 
+struct ForwardRatePoint;
+struct ForwardRatePointBuilder;
+struct ForwardRatePointT;
+
 struct TenorBasisSwapHelper;
 struct TenorBasisSwapHelperBuilder;
 struct TenorBasisSwapHelperT;
@@ -99,11 +103,12 @@ enum Point : uint8_t {
   Point_FxSwapHelper = 10,
   Point_CrossCcyBasisHelper = 11,
   Point_DiscountFactorPoint = 12,
+  Point_ForwardRatePoint = 13,
   Point_MIN = Point_NONE,
-  Point_MAX = Point_DiscountFactorPoint
+  Point_MAX = Point_ForwardRatePoint
 };
 
-inline const Point (&EnumValuesPoint())[13] {
+inline const Point (&EnumValuesPoint())[14] {
   static const Point values[] = {
     Point_NONE,
     Point_DepositHelper,
@@ -117,13 +122,14 @@ inline const Point (&EnumValuesPoint())[13] {
     Point_TenorBasisSwapHelper,
     Point_FxSwapHelper,
     Point_CrossCcyBasisHelper,
-    Point_DiscountFactorPoint
+    Point_DiscountFactorPoint,
+    Point_ForwardRatePoint
   };
   return values;
 }
 
 inline const char * const *EnumNamesPoint() {
-  static const char * const names[14] = {
+  static const char * const names[15] = {
     "NONE",
     "DepositHelper",
     "FRAHelper",
@@ -137,13 +143,14 @@ inline const char * const *EnumNamesPoint() {
     "FxSwapHelper",
     "CrossCcyBasisHelper",
     "DiscountFactorPoint",
+    "ForwardRatePoint",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNamePoint(Point e) {
-  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_DiscountFactorPoint)) return "";
+  if (::flatbuffers::IsOutRange(e, Point_NONE, Point_ForwardRatePoint)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesPoint()[index];
 }
@@ -200,6 +207,10 @@ template<> struct PointTraits<quantra::DiscountFactorPoint> {
   static const Point enum_value = Point_DiscountFactorPoint;
 };
 
+template<> struct PointTraits<quantra::ForwardRatePoint> {
+  static const Point enum_value = Point_ForwardRatePoint;
+};
+
 template<typename T> struct PointUnionTraits {
   static const Point enum_value = Point_NONE;
 };
@@ -250,6 +261,10 @@ template<> struct PointUnionTraits<quantra::CrossCcyBasisHelperT> {
 
 template<> struct PointUnionTraits<quantra::DiscountFactorPointT> {
   static const Point enum_value = Point_DiscountFactorPoint;
+};
+
+template<> struct PointUnionTraits<quantra::ForwardRatePointT> {
+  static const Point enum_value = Point_ForwardRatePoint;
 };
 
 struct PointUnion {
@@ -377,6 +392,14 @@ struct PointUnion {
   const quantra::DiscountFactorPointT *AsDiscountFactorPoint() const {
     return type == Point_DiscountFactorPoint ?
       reinterpret_cast<const quantra::DiscountFactorPointT *>(value) : nullptr;
+  }
+  quantra::ForwardRatePointT *AsForwardRatePoint() {
+    return type == Point_ForwardRatePoint ?
+      reinterpret_cast<quantra::ForwardRatePointT *>(value) : nullptr;
+  }
+  const quantra::ForwardRatePointT *AsForwardRatePoint() const {
+    return type == Point_ForwardRatePoint ?
+      reinterpret_cast<const quantra::ForwardRatePointT *>(value) : nullptr;
   }
 };
 
@@ -2107,6 +2130,136 @@ inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPointDirec
 
 ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(::flatbuffers::FlatBufferBuilder &_fbb, const DiscountFactorPointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct ForwardRatePointT : public ::flatbuffers::NativeTable {
+  typedef ForwardRatePoint TableType;
+  std::string date{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET;
+  quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+  ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt;
+  ForwardRatePointT() = default;
+  ForwardRatePointT(const ForwardRatePointT &o);
+  ForwardRatePointT(ForwardRatePointT&&) FLATBUFFERS_NOEXCEPT = default;
+  ForwardRatePointT &operator=(ForwardRatePointT o) FLATBUFFERS_NOEXCEPT;
+};
+
+/// Forward-rate point for direct curve construction (no bootstrapping).
+/// Feeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,
+/// continuously-compounded forward rate f(t) is interpolated directly (this is
+/// the quantity InterpolatedForwardCurve integrates to obtain zero rates and
+/// discount factors — NOT a simple/discrete forward over a period). This
+/// interpolates a DIFFERENT quantity than InterpolatedZero or
+/// InterpolatedDiscount, so off-node values differ for the same market data.
+struct ForwardRatePoint FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ForwardRatePointT NativeTableType;
+  typedef ForwardRatePointBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DATE = 4,
+    VT_TENOR = 6,
+    VT_CALENDAR = 8,
+    VT_BUSINESS_DAY_CONVENTION = 10,
+    VT_FORWARD_RATE = 12
+  };
+  /// Node date for the forward rate (YYYY-MM-DD).
+  const ::flatbuffers::String *date() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_DATE);
+  }
+  /// Alternative: tenor from reference date.
+  const quantra::Period *tenor() const {
+    return GetPointer<const quantra::Period *>(VT_TENOR);
+  }
+  quantra::enums::Calendar calendar() const {
+    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
+  }
+  quantra::enums::BusinessDayConvention business_day_convention() const {
+    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_BUSINESS_DAY_CONVENTION, 2));
+  }
+  /// Instantaneous, continuously-compounded forward rate at this node.
+  /// Required. May be negative in some markets; only non-finite is rejected.
+  ::flatbuffers::Optional<double> forward_rate() const {
+    return GetOptional<double, double>(VT_FORWARD_RATE);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_DATE) &&
+           verifier.VerifyString(date()) &&
+           VerifyOffset(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<double>(verifier, VT_FORWARD_RATE, 8) &&
+           verifier.EndTable();
+  }
+  ForwardRatePointT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ForwardRatePointT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<ForwardRatePoint> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ForwardRatePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ForwardRatePointBuilder {
+  typedef ForwardRatePoint Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_date(::flatbuffers::Offset<::flatbuffers::String> date) {
+    fbb_.AddOffset(ForwardRatePoint::VT_DATE, date);
+  }
+  void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
+    fbb_.AddOffset(ForwardRatePoint::VT_TENOR, tenor);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_CALENDAR, static_cast<int8_t>(calendar), 32);
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(ForwardRatePoint::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention), 2);
+  }
+  void add_forward_rate(double forward_rate) {
+    fbb_.AddElement<double>(ForwardRatePoint::VT_FORWARD_RATE, forward_rate);
+  }
+  explicit ForwardRatePointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ForwardRatePoint> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ForwardRatePoint>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePoint(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> date = 0,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt) {
+  ForwardRatePointBuilder builder_(_fbb);
+  if(forward_rate) { builder_.add_forward_rate(*forward_rate); }
+  builder_.add_tenor(tenor);
+  builder_.add_date(date);
+  builder_.add_business_day_convention(business_day_convention);
+  builder_.add_calendar(calendar);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePointDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *date = nullptr,
+    ::flatbuffers::Offset<quantra::Period> tenor = 0,
+    quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
+    quantra::enums::BusinessDayConvention business_day_convention = quantra::enums::BusinessDayConvention_ModifiedFollowing,
+    ::flatbuffers::Optional<double> forward_rate = ::flatbuffers::nullopt) {
+  auto date__ = date ? _fbb.CreateString(date) : 0;
+  return quantra::CreateForwardRatePoint(
+      _fbb,
+      date__,
+      tenor,
+      calendar,
+      business_day_convention,
+      forward_rate);
+}
+
+::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePoint(::flatbuffers::FlatBufferBuilder &_fbb, const ForwardRatePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct TenorBasisSwapHelperT : public ::flatbuffers::NativeTable {
   typedef TenorBasisSwapHelper TableType;
   ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt;
@@ -2606,6 +2759,9 @@ struct PointsWrapper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::DiscountFactorPoint *point_as_DiscountFactorPoint() const {
     return point_type() == quantra::Point_DiscountFactorPoint ? static_cast<const quantra::DiscountFactorPoint *>(point()) : nullptr;
   }
+  const quantra::ForwardRatePoint *point_as_ForwardRatePoint() const {
+    return point_type() == quantra::Point_ForwardRatePoint ? static_cast<const quantra::ForwardRatePoint *>(point()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_POINT_TYPE, 1) &&
@@ -2664,6 +2820,10 @@ template<> inline const quantra::CrossCcyBasisHelper *PointsWrapper::point_as<qu
 
 template<> inline const quantra::DiscountFactorPoint *PointsWrapper::point_as<quantra::DiscountFactorPoint>() const {
   return point_as_DiscountFactorPoint();
+}
+
+template<> inline const quantra::ForwardRatePoint *PointsWrapper::point_as<quantra::ForwardRatePoint>() const {
+  return point_as_ForwardRatePoint();
 }
 
 struct PointsWrapperBuilder {
@@ -3528,6 +3688,61 @@ inline ::flatbuffers::Offset<DiscountFactorPoint> CreateDiscountFactorPoint(::fl
       _discount_factor);
 }
 
+inline ForwardRatePointT::ForwardRatePointT(const ForwardRatePointT &o)
+      : date(o.date),
+        tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        forward_rate(o.forward_rate) {
+}
+
+inline ForwardRatePointT &ForwardRatePointT::operator=(ForwardRatePointT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(date, o.date);
+  std::swap(tenor, o.tenor);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(forward_rate, o.forward_rate);
+  return *this;
+}
+
+inline ForwardRatePointT *ForwardRatePoint::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ForwardRatePointT>(new ForwardRatePointT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void ForwardRatePoint::UnPackTo(ForwardRatePointT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = date(); if (_e) _o->date = _e->str(); }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = forward_rate(); _o->forward_rate = _e; }
+}
+
+inline ::flatbuffers::Offset<ForwardRatePoint> ForwardRatePoint::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ForwardRatePointT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateForwardRatePoint(_fbb, _o, _rehasher);
+}
+
+inline ::flatbuffers::Offset<ForwardRatePoint> CreateForwardRatePoint(::flatbuffers::FlatBufferBuilder &_fbb, const ForwardRatePointT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ForwardRatePointT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _date = _o->date.empty() ? 0 : _fbb.CreateString(_o->date);
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _forward_rate = _o->forward_rate;
+  return quantra::CreateForwardRatePoint(
+      _fbb,
+      _date,
+      _tenor,
+      _calendar,
+      _business_day_convention,
+      _forward_rate);
+}
+
 inline TenorBasisSwapHelperT::TenorBasisSwapHelperT(const TenorBasisSwapHelperT &o)
       : spread(o.spread),
         tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
@@ -3861,6 +4076,10 @@ inline bool VerifyPoint(::flatbuffers::Verifier &verifier, const void *obj, Poin
       auto ptr = reinterpret_cast<const quantra::DiscountFactorPoint *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case Point_ForwardRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ForwardRatePoint *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -3928,6 +4147,10 @@ inline void *PointUnion::UnPack(const void *obj, Point type, const ::flatbuffers
       auto ptr = reinterpret_cast<const quantra::DiscountFactorPoint *>(obj);
       return ptr->UnPack(resolver);
     }
+    case Point_ForwardRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ForwardRatePoint *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -3983,6 +4206,10 @@ inline ::flatbuffers::Offset<void> PointUnion::Pack(::flatbuffers::FlatBufferBui
       auto ptr = reinterpret_cast<const quantra::DiscountFactorPointT *>(value);
       return CreateDiscountFactorPoint(_fbb, ptr, _rehasher).Union();
     }
+    case Point_ForwardRatePoint: {
+      auto ptr = reinterpret_cast<const quantra::ForwardRatePointT *>(value);
+      return CreateForwardRatePoint(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -4035,6 +4262,10 @@ inline PointUnion::PointUnion(const PointUnion &u) : type(u.type), value(nullptr
     }
     case Point_DiscountFactorPoint: {
       value = new quantra::DiscountFactorPointT(*reinterpret_cast<quantra::DiscountFactorPointT *>(u.value));
+      break;
+    }
+    case Point_ForwardRatePoint: {
+      value = new quantra::ForwardRatePointT(*reinterpret_cast<quantra::ForwardRatePointT *>(u.value));
       break;
     }
     default:
@@ -4101,6 +4332,11 @@ inline void PointUnion::Reset() {
     }
     case Point_DiscountFactorPoint: {
       auto ptr = reinterpret_cast<quantra::DiscountFactorPointT *>(value);
+      delete ptr;
+      break;
+    }
+    case Point_ForwardRatePoint: {
+      auto ptr = reinterpret_cast<quantra::ForwardRatePointT *>(value);
       delete ptr;
       break;
     }

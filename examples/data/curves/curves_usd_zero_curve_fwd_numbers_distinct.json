@@ -1,0 +1,115 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [],
+      "curves": [
+        {
+          "id": "USD_ZERO_LIN",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "InterpolatedZero",
+          "points": [
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2025-01-15",
+                "zero_rate": 0.0300,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2026-01-15",
+                "zero_rate": 0.0320,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2027-01-15",
+                "zero_rate": 0.0335,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2029-01-15",
+                "zero_rate": 0.0350,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2032-01-15",
+                "zero_rate": 0.0360,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            },
+            {
+              "point_type": "ZeroRatePoint",
+              "point": {
+                "date": "2035-01-15",
+                "zero_rate": 0.0365,
+                "compounding": "Continuous",
+                "frequency": "Annual",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "USD_ZERO_LIN",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            { "n": 6, "unit": "Months" },
+            { "n": 1, "unit": "Years" },
+            { "n": 18, "unit": "Months" },
+            { "n": 2, "unit": "Years" },
+            { "n": 3, "unit": "Years" },
+            { "n": 5, "unit": "Years" },
+            { "n": 7, "unit": "Years" }
+          ],
+          "calendar": "TARGET",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

@@ -829,6 +829,28 @@ CASES = [
                       "DiscountFactorPoint"],
     },
     {
+        "id": "frb_usd_5y_on_forward_rate_curve",
+        "product": "fixed_rate_bond",
+        "family": "Bonds",
+        "title": "USD 5Y bond discounted on an explicit forward-rate curve",
+        "description": (
+            "A 5Y 3.0% annual bond (30/360, 1m face) discounted on a curve "
+            "defined directly by six explicit instantaneous, "
+            "continuously-compounded forward rates interpolated linearly "
+            "(InterpolatedFwd, Linear) rather than bootstrapped from rate "
+            "helpers. Exercises the new ForwardRatePoint curve feeding a "
+            "QuantLib InterpolatedForwardCurve as a bond discounting curve; the "
+            "nodes span past the final cash flow so no extrapolation is needed."
+        ),
+        "request": "bonds/frb_usd_5y_on_forward_rate_curve.json",
+        "list_key": "bonds",
+        "ql_pricer": "price_fixed_rate_bond_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["fixed coupon", "annual 30/360",
+                      "InterpolatedFwd discount curve",
+                      "ForwardRatePoint"],
+    },
+    {
         "id": "frb_eur_2y_settlement_t3_annual_30360",
         "product": "fixed_rate_bond",
         "family": "Bonds",
@@ -2177,6 +2199,84 @@ CASES = [
         "compare": "series",
         "exercises": ["explicit zero-rate curve", "Linear zero interpolation",
                       "InterpolatedZero trait", "distinctness partner",
+                      "discount factors", "zero rates"],
+    },
+    {
+        "id": "curves_usd_forward_curve_linear_fwd_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit forward-rate curve (Linear), DF, zero and forward",
+        "description": (
+            "A curve defined directly by six explicit instantaneous, "
+            "continuously-compounded forward rates (no bootstrap) with LINEAR "
+            "interpolation of the forward rate (InterpolatedFwd). Sampled for "
+            "discount factors, continuous zero rates and instantaneous forwards "
+            "at seven tenors. Exercises the new ForwardRatePoint curve branch "
+            "feeding a QuantLib InterpolatedForwardCurve<Linear> (native "
+            "ql.LinearForwardCurve reference): the server interpolates the "
+            "forward rate directly and integrates it to obtain zero rates and "
+            "discount factors, a genuinely different quantity than "
+            "interpolating zero rates or discount factors."
+        ),
+        "request": "curves/curves_usd_forward_curve_linear_fwd_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit forward-rate curve", "Linear forward interpolation",
+                      "InterpolatedFwd trait", "instantaneous forward",
+                      "discount factors", "zero rates"],
+    },
+    {
+        "id": "curves_usd_forward_curve_backwardflat_fwd_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit forward-rate curve (BackwardFlat), DF and zero rates",
+        "description": (
+            "The same six forward-rate nodes as the Linear forward curve, but "
+            "interpolated BACKWARD-FLAT in the forward rate (InterpolatedFwd). "
+            "Sampled for discount factors and continuous zero rates at seven "
+            "tenors. Exercises InterpolatedForwardCurve<BackwardFlat> (native "
+            "ql.ForwardCurve reference, the QuantLib BackwardFlat typedef) so "
+            "the forward family is covered by a second interpolator whose "
+            "piecewise-constant forwards give distinctly different off-node "
+            "zero rates than the Linear curve."
+        ),
+        "request": "curves/curves_usd_forward_curve_backwardflat_fwd_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit forward-rate curve", "BackwardFlat forward interpolation",
+                      "InterpolatedFwd trait", "discount factors", "zero rates"],
+    },
+    {
+        "id": "curves_usd_zero_curve_fwd_numbers_distinct",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD explicit zero-rate curve (Linear) — forward distinctness partner",
+        "description": (
+            "The distinctness partner for the Linear forward curve: the SAME "
+            "six node dates and numeric values and the SAME Linear "
+            "interpolation and grid, but the numbers are interpreted as "
+            "continuously-compounded ZERO rates (InterpolatedZero) instead of "
+            "instantaneous forward rates. Because a forward curve's node "
+            "discount factor is a path integral of the interpolated forwards "
+            "while a zero curve's is exp(-z*t), the two curves differ even AT "
+            "the nodes (they are not per-node equivalent), and they diverge "
+            "further off-node. Pair this with "
+            "curves_usd_forward_curve_linear_fwd_zero to see that interpolating "
+            "the forward rate yields a genuinely different curve than "
+            "interpolating the zero rate for identical node numbers; each "
+            "matches its own QuantLib reference."
+        ),
+        "request": "curves/curves_usd_zero_curve_fwd_numbers_distinct.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["explicit zero-rate curve", "Linear zero interpolation",
+                      "InterpolatedZero trait", "forward distinctness partner",
                       "discount factors", "zero rates"],
     },
 

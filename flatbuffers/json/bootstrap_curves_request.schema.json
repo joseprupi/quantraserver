@@ -183,7 +183,7 @@
     },
     "quantra_Point" : {
       "type" : "string",
-      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper", "DiscountFactorPoint"]
+      "enum": ["NONE", "DepositHelper", "FRAHelper", "FutureHelper", "SwapHelper", "BondHelper", "OISHelper", "DatedOISHelper", "ZeroRatePoint", "TenorBasisSwapHelper", "FxSwapHelper", "CrossCcyBasisHelper", "DiscountFactorPoint", "ForwardRatePoint"]
     },
     "quantra_SwaptionVolPayload" : {
       "type" : "string",
@@ -829,6 +829,31 @@
       },
       "additionalProperties" : false
     },
+    "quantra_ForwardRatePoint" : {
+      "type" : "object",
+      "description" : "Forward-rate point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,\ncontinuously-compounded forward rate f(t) is interpolated directly (this is\nthe quantity InterpolatedForwardCurve integrates to obtain zero rates and\ndiscount factors — NOT a simple/discrete forward over a period). This\ninterpolates a DIFFERENT quantity than InterpolatedZero or\nInterpolatedDiscount, so off-node values differ for the same market data.",
+      "properties" : {
+        "date" : {
+                "type" : "string",
+                "description" : "Node date for the forward rate (YYYY-MM-DD)."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Alternative: tenor from reference date."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar"
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+              },
+        "forward_rate" : {
+                "type" : "number",
+                "description" : "Instantaneous, continuously-compounded forward rate at this node.\nRequired. May be negative in some markets; only non-finite is rejected."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_TenorBasisSwapHelper" : {
       "type" : "object",
       "description" : "Tenor basis swap helper.",
@@ -927,7 +952,7 @@
                 "$ref" : "#/definitions/quantra_Point"
               },
         "point" : {
-                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" },{ "$ref" : "#/definitions/quantra_DiscountFactorPoint" }]
+                "anyOf": [{ "$ref" : "#/definitions/quantra_DepositHelper" },{ "$ref" : "#/definitions/quantra_FRAHelper" },{ "$ref" : "#/definitions/quantra_FutureHelper" },{ "$ref" : "#/definitions/quantra_SwapHelper" },{ "$ref" : "#/definitions/quantra_BondHelper" },{ "$ref" : "#/definitions/quantra_OISHelper" },{ "$ref" : "#/definitions/quantra_DatedOISHelper" },{ "$ref" : "#/definitions/quantra_ZeroRatePoint" },{ "$ref" : "#/definitions/quantra_TenorBasisSwapHelper" },{ "$ref" : "#/definitions/quantra_FxSwapHelper" },{ "$ref" : "#/definitions/quantra_CrossCcyBasisHelper" },{ "$ref" : "#/definitions/quantra_DiscountFactorPoint" },{ "$ref" : "#/definitions/quantra_ForwardRatePoint" }]
               }
       },
       "additionalProperties" : false

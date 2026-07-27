@@ -3,6 +3,7 @@
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 
@@ -39,6 +40,7 @@ std::string pointTypeName(quantra::Point type) {
     case quantra::Point_DatedOISHelper:       return "DatedOISHelper";
     case quantra::Point_ZeroRatePoint:        return "ZeroRatePoint";
     case quantra::Point_DiscountFactorPoint:  return "DiscountFactorPoint";
+    case quantra::Point_ForwardRatePoint:     return "ForwardRatePoint";
     case quantra::Point_TenorBasisSwapHelper: return "TenorBasisSwapHelper";
     case quantra::Point_FxSwapHelper:         return "FxSwapHelper";
     case quantra::Point_CrossCcyBasisHelper:  return "CrossCcyBasisHelper";
@@ -167,9 +169,72 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         return buildDiscountCurve(ts, dates, dfs);
     }
 
-    case enums::BootstrapTrait_InterpolatedFwd:
-        QUANTRA_INVALID_ARGUMENT(
-            "bootstrap_trait InterpolatedFwd is not supported yet");
+    case enums::BootstrapTrait_InterpolatedFwd: {
+        // InterpolatedFwd interpolates explicit instantaneous, continuously
+        // compounded forward-rate points directly (no bootstrap), feeding a
+        // QuantLib InterpolatedForwardCurve. Every point MUST be a
+        // ForwardRatePoint; a rate helper or any other point type is a request
+        // error. This interpolates the forward rate — a DIFFERENT quantity than
+        // InterpolatedZero (zero rates) or InterpolatedDiscount (discount
+        // factors) — so off-node values differ for the same market data.
+        std::vector<Date> dates;
+        std::vector<Rate> forwards;
+        dates.reserve(points->size());
+        forwards.reserve(points->size());
+
+        Date ref;
+        if (ts->reference_date()) {
+            ref = DateToQL(ts->reference_date()->str());
+        } else {
+            ref = Settings::instance().evaluationDate();
+        }
+
+        for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
+            auto pw = points->Get(i);
+            if (pw->point_type() != quantra::Point_ForwardRatePoint) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "bootstrap_trait InterpolatedFwd builds from forward-rate "
+                    "points but received a " + pointTypeName(pw->point_type()));
+            }
+            auto p = pw->point_as_ForwardRatePoint();
+            if (!p) {
+                QUANTRA_INVALID_ARGUMENT("ForwardRatePoint is null");
+            }
+
+            Date d;
+            if (p->date()) {
+                d = DateToQL(p->date()->str());
+            } else {
+                if (!p->tenor()) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "ForwardRatePoint.tenor is required when date is not provided");
+                }
+                int tenorN = p->tenor()->n();
+                auto tenorUnit = p->tenor()->unit();
+                if (tenorN <= 0) {
+                    QUANTRA_INVALID_ARGUMENT("ForwardRatePoint requires date or tenor");
+                }
+                auto cal = CalendarToQL(p->calendar());
+                auto bdc = ConventionToQL(p->business_day_convention());
+                d = cal.advance(ref, tenorN * TimeUnitToQL(tenorUnit), bdc);
+            }
+
+            if (!p->forward_rate().has_value()) {
+                QUANTRA_INVALID_ARGUMENT("ForwardRatePoint.forward_rate is required");
+            }
+            double fwd = p->forward_rate().value();
+            if (!std::isfinite(fwd)) {
+                QUANTRA_INVALID_ARGUMENT("ForwardRatePoint.forward_rate must be finite");
+            }
+            // Forward rates may legitimately be negative in some markets, so no
+            // positivity bound is imposed — only non-finite is rejected above.
+
+            dates.push_back(d);
+            forwards.push_back(fwd + bump);
+        }
+
+        return buildForwardCurve(ts, dates, forwards);
+    }
 
     case enums::BootstrapTrait_InterpolatedZero: {
         // InterpolatedZero interpolates explicit zero-rate points directly (no
@@ -263,7 +328,8 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
         for (flatbuffers::uoffset_t i = 0; i < points->size(); i++) {
             auto pw = points->Get(i);
             if (pw->point_type() == quantra::Point_ZeroRatePoint ||
-                pw->point_type() == quantra::Point_DiscountFactorPoint) {
+                pw->point_type() == quantra::Point_DiscountFactorPoint ||
+                pw->point_type() == quantra::Point_ForwardRatePoint) {
                 QUANTRA_INVALID_ARGUMENT(
                     "bootstrap_trait " + bootstrapTraitName(trait) +
                     " builds from rate helpers but received a " +
@@ -481,6 +547,52 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildDiscountCurve(
             dates, discountFactors, dc, Calendar(), ForwardFlat());
     default:
         QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator for discount curve");
+    }
+
+    return nullptr;
+}
+
+// =============================================================================
+// Build forward curve from explicit instantaneous forward rates
+// =============================================================================
+std::shared_ptr<YieldTermStructure> TermStructureParser::buildForwardCurve(
+    const quantra::TermStructure* ts,
+    const std::vector<Date>& dates,
+    const std::vector<Rate>& forwards)
+{
+    if (dates.size() != forwards.size() || dates.empty()) {
+        QUANTRA_INVALID_ARGUMENT(
+            "Forward curve requires matching non-empty date/forward-rate vectors");
+    }
+
+    DayCounter dc = DayCounterToQL(ts->day_counter().value());
+
+    // Mirrors buildDiscountCurve's interpolator switch, but interpolates the
+    // instantaneous forward rates directly (InterpolatedForwardCurve). QuantLib
+    // derives zero rates from the interpolated forwards by integration
+    // (primitive of the interpolation), so only interpolators that implement
+    // that primitive are usable. Linear/BackwardFlat/ForwardFlat do;
+    // LogLinear/LogCubic do NOT (QuantLib's LogInterpolation::primitive throws
+    // "not implemented"), which would surface as a 500 at pricing time. Reject
+    // them here as a named 400 instead.
+    switch (ts->interpolator().value()) {
+    case enums::Interpolator_Linear:
+        return std::make_shared<InterpolatedForwardCurve<Linear>>(
+            dates, forwards, dc, Calendar(), Linear());
+    case enums::Interpolator_BackwardFlat:
+        return std::make_shared<InterpolatedForwardCurve<BackwardFlat>>(
+            dates, forwards, dc, Calendar(), BackwardFlat());
+    case enums::Interpolator_ForwardFlat:
+        return std::make_shared<InterpolatedForwardCurve<ForwardFlat>>(
+            dates, forwards, dc, Calendar(), ForwardFlat());
+    case enums::Interpolator_LogLinear:
+    case enums::Interpolator_LogCubic:
+        QUANTRA_INVALID_ARGUMENT(
+            "InterpolatedFwd does not support log interpolators (LogLinear, "
+            "LogCubic): QuantLib cannot integrate a log-interpolated forward "
+            "rate. Use Linear, BackwardFlat or ForwardFlat.");
+    default:
+        QUANTRA_INVALID_ARGUMENT("Unsupported Interpolator for forward curve");
     }
 
     return nullptr;

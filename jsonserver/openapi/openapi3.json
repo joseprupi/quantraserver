@@ -2758,7 +2758,8 @@
           "TenorBasisSwapHelper",
           "FxSwapHelper",
           "CrossCcyBasisHelper",
-          "DiscountFactorPoint"
+          "DiscountFactorPoint",
+          "ForwardRatePoint"
         ]
       },
       "quantra_SwaptionVolPayload": {
@@ -3241,6 +3242,30 @@
         },
         "additionalProperties": false
       },
+      "quantra_ForwardRatePoint": {
+        "type": "object",
+        "description": "Forward-rate point for direct curve construction (no bootstrapping).\nFeeds a QuantLib InterpolatedForwardCurve: the INSTANTANEOUS,\ncontinuously-compounded forward rate f(t) is interpolated directly (this is\nthe quantity InterpolatedForwardCurve integrates to obtain zero rates and\ndiscount factors \u2014 NOT a simple/discrete forward over a period). This\ninterpolates a DIFFERENT quantity than InterpolatedZero or\nInterpolatedDiscount, so off-node values differ for the same market data.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Node date for the forward rate (YYYY-MM-DD)."
+          },
+          "tenor": {
+            "$ref": "#/components/schemas/quantra_Period"
+          },
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "business_day_convention": {
+            "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
+          },
+          "forward_rate": {
+            "type": "number",
+            "description": "Instantaneous, continuously-compounded forward rate at this node.\nRequired. May be negative in some markets; only non-finite is rejected."
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_TenorBasisSwapHelper": {
         "type": "object",
         "description": "Tenor basis swap helper.",
@@ -3379,6 +3404,9 @@
               },
               {
                 "$ref": "#/components/schemas/quantra_DiscountFactorPoint"
+              },
+              {
+                "$ref": "#/components/schemas/quantra_ForwardRatePoint"
               }
             ]
           }
