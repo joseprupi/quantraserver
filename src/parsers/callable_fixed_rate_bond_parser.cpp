@@ -5,7 +5,7 @@
 #include <ql/time/date.hpp>
 
 #include "error.h"
-#include "require_scalar.h"
+#include "require_field.h"
 
 std::shared_ptr<QuantLib::CallableFixedRateBond> CallableFixedRateBondParser::parse(
     const quantra::CallableFixedRateBond *bond)

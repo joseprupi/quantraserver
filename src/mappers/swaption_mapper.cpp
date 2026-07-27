@@ -11,7 +11,7 @@
 #include "curve_bootstrapper.h"
 #include "enum_convert.h"
 #include "error.h"
-#include "require_scalar.h"
+#include "require_field.h"
 #include "leg_notionals.h"
 #include "eval_date_guard.h"
 #include "index_registry_builder.h"

@@ -3,8 +3,7 @@
 #include <cmath>
 #include <limits>
 
-#include "require_scalar.h"
-#include "require_period.h"
+#include "require_field.h"
 
 #include "vanilla_swap_generated.h"
 

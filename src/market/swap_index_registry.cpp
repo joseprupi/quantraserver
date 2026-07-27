@@ -1,7 +1,6 @@
 #include "swap_index_registry.h"
 
-#include "require_scalar.h"
-#include "require_period.h"
+#include "require_field.h"
 
 namespace quantra {
 

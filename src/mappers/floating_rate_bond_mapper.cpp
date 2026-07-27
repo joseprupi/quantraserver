@@ -10,7 +10,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "leg_notionals.h"
-#include "require_scalar.h"
+#include "require_field.h"
 
 namespace quantra {
 

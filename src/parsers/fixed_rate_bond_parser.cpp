@@ -1,6 +1,6 @@
 #include "fixed_rate_bond_parser.h"
 
-#include "require_scalar.h"
+#include "require_field.h"
 
 std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedRateBond *bond)
 {

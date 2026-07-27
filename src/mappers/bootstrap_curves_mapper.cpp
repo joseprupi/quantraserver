@@ -9,8 +9,7 @@
 #include "enum_convert.h"
 #include "error.h"
 #include "grid_utils.h"
-#include "require_period.h"
-#include "require_scalar.h"
+#include "require_field.h"
 
 namespace quantra {
 
