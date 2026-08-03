@@ -26,6 +26,69 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.6.0 (July 2026) — BREAKING: explicit OIS conventions
+
+`v0.6.0` closes a gap reported by an external validation POC: the OIS curve
+helpers could not be given the market-standard payment lag (or the other
+overnight-coupon conventions), so a curve bootstrapped from OIS quotes
+silently assumed a zero-day lag. The per-coupon effect is tiny but compounds
+along the bootstrap into a measurable long-end discount-factor shift.
+
+### OIS helpers and the OIS swap leg: conventions are now explicit and required
+
+`OISHelper` and `DatedOISHelper` gain five required fields, mirroring the
+priced `OisFloatingLeg` field-for-field:
+
+- `payment_lag` — business days between accrual end and coupon payment
+  (US SOFR market standard: 2). Must be >= 0.
+- `averaging_method` — `Compound` or `Simple` averaging of the overnight
+  fixings.
+- `lookback_days` — observation lookback; `0` = no lookback. Must be >= 0.
+- `lockout_days` — end-of-period fixing lockout; `0` = no lockout. Must
+  be >= 0.
+- `apply_observation_shift` — whether lookback uses the shifted date's
+  day-count weight.
+
+On the priced `OisFloatingLeg`, the same fields (plus `payment_convention`
+and `payment_calendar`) are now required rather than silently defaulted, and
+the old `lookback_days = -1` "none" sentinel is gone — `0` means no lookback.
+Internally a wire `0` maps to QuantLib's null lookback (measurably different
+from a literal zero-day lookback on indices with fixing days).
+
+Two behavior corrections ride along:
+
+- The helper fields `fixed_leg_convention`, `fixed_leg_frequency` and
+  `calendar` were previously accepted but **ignored** (QuantLib used
+  Following / Annual / the index calendar regardless). They are now honored —
+  they feed QuantLib's payment convention/frequency/calendar — and the
+  migrated examples state the values the engine previously applied, so
+  results are unchanged for migrated requests. If your payloads stated
+  different values, your curves will now (correctly) reflect them.
+- `fixed_leg_day_counter` on both helpers and `day_counter` on the overnight
+  leg are deprecated: no QuantLib overload consumes them (the day count comes
+  from the overnight index). They are accepted-but-ignored and documented as
+  such.
+
+### Migration (0.5.0 → 0.6.0)
+
+Add the five fields to every OIS helper point and the required conventions to
+every OIS swap leg. A standard US SOFR curve is:
+
+```json
+"payment_lag": 2,
+"averaging_method": "Compound",
+"lookback_days": 0,
+"lockout_days": 0,
+"apply_observation_shift": false
+```
+
+To reproduce pre-0.6.0 behavior exactly, state `payment_lag: 0` and, on
+helper points, `fixed_leg_convention: Following`, `fixed_leg_frequency:
+Annual` (the values the engine silently used). The functional catalog
+contains worked SOFR-style examples, including a payment-lag-2 curve, its
+zero-lag twin (documenting the long-end divergence between them), and a
+lookback/lockout curve, each verified against QuantLib.
+
 ## Version 0.5.0 (July 2026) — BREAKING: no implicit values, richer curves
 
 `v0.5.0` completes the "an omitted field is an error, never a silent default"
