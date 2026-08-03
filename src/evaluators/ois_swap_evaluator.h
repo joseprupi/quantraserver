@@ -49,8 +49,9 @@ struct OisSwapOvernightLegData {
     QuantLib::Calendar paymentCalendar;
     int paymentLag = 0;
     QuantLib::RateAveraging::Type averagingMethod = QuantLib::RateAveraging::Compound;
-    /// Negative sentinel preserved: evaluator translates <0 to QL's Null<Natural>().
-    int lookbackDays = -1;
+    /// 0 = no lookback: the evaluator translates <=0 to QL's Null<Natural>()
+    /// (QuantLib's off-state), never to a literal zero-day lookback.
+    int lookbackDays = 0;
     int lockoutDays = 0;
     bool applyObservationShift = false;
     bool telescopicValueDates = false;

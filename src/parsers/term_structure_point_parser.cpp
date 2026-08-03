@@ -393,12 +393,48 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             discount = resolveCurve(point->deps()->discount_curve(), curves);
         }
 
+        // Wire 0 = "no lookback". QuantLib encodes the off-state as
+        // Null<Natural>, NOT as a zero-day lookback: an explicit 0 would force
+        // the coupon fixing delay to 0 even when the index carries a non-zero
+        // intrinsic fixing delay (different fixing dates, and it disables the
+        // telescopic formula), so the two are not interchangeable.
+        const int lookbackWire =
+            requireNonNegativeInt(point->lookback_days(), "OISHelper.lookback_days");
+        const Natural lookbackDays = lookbackWire == 0
+            ? Null<Natural>()
+            : static_cast<Natural>(lookbackWire);
+
+        // fixed_leg_frequency / fixed_leg_convention / calendar feed QuantLib's
+        // PAYMENT frequency / convention / calendar slots (see the schema
+        // doc-comments). fixed_leg_day_counter is accepted-but-unused: no
+        // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
             requireInt(point->settlement_days(), "OISHelper.settlement_days"),
             requirePeriod(point->tenor(), "OISHelper.tenor"),
             q,
             on,
-            discount
+            discount,
+            false, // telescopicValueDates: helper-internal performance toggle
+            requireNonNegativeInt(point->payment_lag(), "OISHelper.payment_lag"),
+            ConventionToQL(requireEnum(point->fixed_leg_convention(),
+                                       "OISHelper.fixed_leg_convention")),
+            FrequencyToQL(requireEnum(point->fixed_leg_frequency(),
+                                      "OISHelper.fixed_leg_frequency")),
+            CalendarToQL(requireEnum(point->calendar(), "OISHelper.calendar")),
+            0 * Days, // forwardStart: spot-starting (tenor helper)
+            0.0,      // overnightSpread
+            QuantLib::Pillar::LastRelevantDate,
+            Date(),   // customPillarDate: unused with LastRelevantDate
+            RateAveragingToQL(requireEnum(point->averaging_method(),
+                                          "OISHelper.averaging_method")),
+            ext::nullopt, // endOfMonth: QuantLib default
+            ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
+            Calendar(),   // fixedCalendar: QuantLib default (index calendar)
+            lookbackDays,
+            static_cast<Natural>(requireNonNegativeInt(
+                point->lockout_days(), "OISHelper.lockout_days")),
+            requireBool(point->apply_observation_shift(),
+                        "OISHelper.apply_observation_shift")
         );
     }
 
@@ -453,23 +489,46 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto forwardStart = (start - asof) * Days;
         auto tenor = (end - start) * Days;
 
+        // Wire 0 = "no lookback"; QuantLib's off-state is Null<Natural>, not a
+        // zero-day lookback (see the OISHelper branch above for why the two
+        // differ when the index has a non-zero intrinsic fixing delay).
+        const int lookbackWire = requireNonNegativeInt(
+            point->lookback_days(), "DatedOISHelper.lookback_days");
+        const Natural lookbackDays = lookbackWire == 0
+            ? Null<Natural>()
+            : static_cast<Natural>(lookbackWire);
+
+        // fixed_leg_frequency / fixed_leg_convention / calendar feed QuantLib's
+        // PAYMENT frequency / convention / calendar slots (see the schema
+        // doc-comments). fixed_leg_day_counter is accepted-but-unused: no
+        // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
             requireInt(point->settlement_days(), "DatedOISHelper.settlement_days"),
             tenor,
             q,
             on,
             discount,
-            false,
-            0,
+            false, // telescopicValueDates: helper-internal performance toggle
+            requireNonNegativeInt(point->payment_lag(), "DatedOISHelper.payment_lag"),
             ConventionToQL(requireEnum(point->fixed_leg_convention(),
                                        "DatedOISHelper.fixed_leg_convention")),
-            Frequency::Annual,
+            FrequencyToQL(requireEnum(point->fixed_leg_frequency(),
+                                      "DatedOISHelper.fixed_leg_frequency")),
             CalendarToQL(requireEnum(point->calendar(), "DatedOISHelper.calendar")),
             forwardStart,
-            0.0,
+            0.0,      // overnightSpread
             QuantLib::Pillar::LastRelevantDate,
             end,
-            QuantLib::RateAveraging::Compound
+            RateAveragingToQL(requireEnum(point->averaging_method(),
+                                          "DatedOISHelper.averaging_method")),
+            ext::nullopt, // endOfMonth: QuantLib default
+            ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
+            Calendar(),   // fixedCalendar: QuantLib default (index calendar)
+            lookbackDays,
+            static_cast<Natural>(requireNonNegativeInt(
+                point->lockout_days(), "DatedOISHelper.lockout_days")),
+            requireBool(point->apply_observation_shift(),
+                        "DatedOISHelper.apply_observation_shift")
         );
     }
 

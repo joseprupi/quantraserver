@@ -422,10 +422,18 @@ protected:
             ois.add_tenor(oisTenor);
             ois.add_overnight_index(idxRef);
             ois.add_settlement_days(2);
+            // calendar / fixed_leg_frequency / fixed_leg_convention feed the
+            // payment calendar / frequency / convention slots; these values
+            // mirror the QuantLib defaults the native reference side uses.
             ois.add_calendar(calendar);
             ois.add_fixed_leg_frequency(quantra::enums::Frequency_Annual);
-            ois.add_fixed_leg_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+            ois.add_fixed_leg_convention(quantra::enums::BusinessDayConvention_Following);
             ois.add_fixed_leg_day_counter(quantra::enums::DayCounter_Actual360);
+            ois.add_payment_lag(0);
+            ois.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+            ois.add_lookback_days(0);
+            ois.add_lockout_days(0);
+            ois.add_apply_observation_shift(false);
             auto ois_off = ois.Finish();
 
             quantra::PointsWrapperBuilder pw(b);

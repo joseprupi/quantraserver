@@ -13,17 +13,36 @@ table OisFloatingLeg {
     notional:double = null;
     /// Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
     index:IndexRef (required);
+    /// Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
+    /// default on purpose: zero is the genuine market-standard value, not a
+    /// convention that could silently diverge.
     spread:double = 0.0;
-    day_counter:enums.DayCounter = Actual360;
-    payment_convention:enums.BusinessDayConvention = Following;
-    /// Payment adjustments.
-    payment_calendar:enums.Calendar = TARGET;
-    payment_lag:int = 0;
-    /// Overnight accrual conventions.
-    averaging_method:enums.RateAveragingType = Compound;
-    lookback_days:int = -1;
-    lockout_days:int = 0;
-    apply_observation_shift:bool = false;
+    /// DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes
+    /// the overnight leg's day counter from the overnight index itself, so this
+    /// field is ignored if present and may be omitted. Kept optional for
+    /// backward compatibility.
+    day_counter:enums.DayCounter = null;
+    /// Payment-date business-day convention. Required.
+    payment_convention:enums.BusinessDayConvention = null;
+    /// Payment-date adjustment calendar. Required.
+    payment_calendar:enums.Calendar = null;
+    /// Payment lag in business days between accrual end and payment. Required;
+    /// must be >= 0.
+    payment_lag:int = null;
+    /// Compound or Simple averaging of the overnight fixings. Required.
+    averaging_method:enums.RateAveragingType = null;
+    /// Fixing lookback in business days. Required; must be >= 0; 0 = no
+    /// lookback (the index's own fixing delay applies — QuantLib encodes this
+    /// as Null, not as a zero-day lookback).
+    lookback_days:int = null;
+    /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+    /// 0 = no lockout.
+    lockout_days:int = null;
+    /// Whether the observation-shift convention applies to the lookback.
+    /// Required.
+    apply_observation_shift:bool = null;
+    /// Performance toggle for QuantLib's telescopic value-dates optimization,
+    /// not a market convention — keeps a literal false default on purpose.
     telescopic_value_dates:bool = false;
 }
 

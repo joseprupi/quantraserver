@@ -560,7 +560,7 @@
             "payment_calendar": "UnitedStatesGovernmentBond",
             "payment_lag": 2,
             "averaging_method": "Compound",
-            "lookback_days": -1,
+            "lookback_days": 0,
             "lockout_days": 0,
             "apply_observation_shift": false,
             "telescopic_value_dates": false

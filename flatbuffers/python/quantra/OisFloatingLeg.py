@@ -57,6 +57,9 @@ class OisFloatingLeg(object):
             return obj
         return None
 
+    # Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
+    # default on purpose: zero is the genuine market-standard value, not a
+    # convention that could silently diverge.
     # OisFloatingLeg
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
@@ -64,64 +67,80 @@ class OisFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes
+    # the overnight leg's day counter from the overnight index itself, so this
+    # field is ignored if present and may be omitted. Kept optional for
+    # backward compatibility.
     # OisFloatingLeg
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
+    # Payment-date business-day convention. Required.
     # OisFloatingLeg
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # Payment adjustments.
+    # Payment-date adjustment calendar. Required.
     # OisFloatingLeg
     def PaymentCalendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
+    # Payment lag in business days between accrual end and payment. Required;
+    # must be >= 0.
     # OisFloatingLeg
     def PaymentLag(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # Overnight accrual conventions.
+    # Compound or Simple averaging of the overnight fixings. Required.
     # OisFloatingLeg
     def AveragingMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
+    # Fixing lookback in business days. Required; must be >= 0; 0 = no
+    # lookback (the index's own fixing delay applies — QuantLib encodes this
+    # as Null, not as a zero-day lookback).
     # OisFloatingLeg
     def LookbackDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return -1
+        return None
 
+    # Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+    # 0 = no lockout.
     # OisFloatingLeg
     def LockoutDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 0
+        return None
 
+    # Whether the observation-shift convention applies to the lookback.
+    # Required.
     # OisFloatingLeg
     def ApplyObservationShift(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+        return None
 
+    # Performance toggle for QuantLib's telescopic value-dates optimization,
+    # not a market convention — keeps a literal false default on purpose.
     # OisFloatingLeg
     def TelescopicValueDates(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
@@ -160,49 +179,49 @@ def AddSpread(builder, spread):
     OisFloatingLegAddSpread(builder, spread)
 
 def OisFloatingLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(4, dayCounter, 0)
+    builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     OisFloatingLegAddDayCounter(builder, dayCounter)
 
 def OisFloatingLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(5, paymentConvention, 0)
+    builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     OisFloatingLegAddPaymentConvention(builder, paymentConvention)
 
 def OisFloatingLegAddPaymentCalendar(builder, paymentCalendar):
-    builder.PrependInt8Slot(6, paymentCalendar, 32)
+    builder.PrependInt8Slot(6, paymentCalendar, None)
 
 def AddPaymentCalendar(builder, paymentCalendar):
     OisFloatingLegAddPaymentCalendar(builder, paymentCalendar)
 
 def OisFloatingLegAddPaymentLag(builder, paymentLag):
-    builder.PrependInt32Slot(7, paymentLag, 0)
+    builder.PrependInt32Slot(7, paymentLag, None)
 
 def AddPaymentLag(builder, paymentLag):
     OisFloatingLegAddPaymentLag(builder, paymentLag)
 
 def OisFloatingLegAddAveragingMethod(builder, averagingMethod):
-    builder.PrependInt8Slot(8, averagingMethod, 0)
+    builder.PrependInt8Slot(8, averagingMethod, None)
 
 def AddAveragingMethod(builder, averagingMethod):
     OisFloatingLegAddAveragingMethod(builder, averagingMethod)
 
 def OisFloatingLegAddLookbackDays(builder, lookbackDays):
-    builder.PrependInt32Slot(9, lookbackDays, -1)
+    builder.PrependInt32Slot(9, lookbackDays, None)
 
 def AddLookbackDays(builder, lookbackDays):
     OisFloatingLegAddLookbackDays(builder, lookbackDays)
 
 def OisFloatingLegAddLockoutDays(builder, lockoutDays):
-    builder.PrependInt32Slot(10, lockoutDays, 0)
+    builder.PrependInt32Slot(10, lockoutDays, None)
 
 def AddLockoutDays(builder, lockoutDays):
     OisFloatingLegAddLockoutDays(builder, lockoutDays)
 
 def OisFloatingLegAddApplyObservationShift(builder, applyObservationShift):
-    builder.PrependBoolSlot(11, applyObservationShift, 0)
+    builder.PrependBoolSlot(11, applyObservationShift, None)
 
 def AddApplyObservationShift(builder, applyObservationShift):
     OisFloatingLegAddApplyObservationShift(builder, applyObservationShift)
@@ -232,14 +251,14 @@ class OisFloatingLegT(object):
         self.notional = None  # type: Optional[float]
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
-        self.dayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
-        self.paymentCalendar = 32  # type: int
-        self.paymentLag = 0  # type: int
-        self.averagingMethod = 0  # type: int
-        self.lookbackDays = -1  # type: int
-        self.lockoutDays = 0  # type: int
-        self.applyObservationShift = False  # type: bool
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
+        self.paymentCalendar = None  # type: Optional[int]
+        self.paymentLag = None  # type: Optional[int]
+        self.averagingMethod = None  # type: Optional[int]
+        self.lookbackDays = None  # type: Optional[int]
+        self.lockoutDays = None  # type: Optional[int]
+        self.applyObservationShift = None  # type: Optional[bool]
         self.telescopicValueDates = False  # type: bool
 
     @classmethod

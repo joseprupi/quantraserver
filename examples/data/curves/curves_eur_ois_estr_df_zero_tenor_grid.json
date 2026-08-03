@@ -40,9 +40,14 @@
                   "unit": "Years"
                 },
                 "calendar": "TARGET",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
-                "fixed_leg_frequency": "Annual"
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -58,9 +63,14 @@
                   "unit": "Years"
                 },
                 "calendar": "TARGET",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
-                "fixed_leg_frequency": "Annual"
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -76,9 +86,14 @@
                   "unit": "Years"
                 },
                 "calendar": "TARGET",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
-                "fixed_leg_frequency": "Annual"
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -94,9 +109,14 @@
                   "unit": "Years"
                 },
                 "calendar": "TARGET",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
-                "fixed_leg_frequency": "Annual"
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             }
           ]

@@ -37,12 +37,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 1,
                   "unit": "Weeks"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -55,12 +60,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 2,
                   "unit": "Weeks"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -73,12 +83,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 3,
                   "unit": "Weeks"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -91,12 +106,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 1,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -109,12 +129,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 2,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -127,12 +152,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 3,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -145,12 +175,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 4,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -163,12 +198,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 5,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -181,12 +221,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 6,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -199,12 +244,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 7,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -217,12 +267,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 8,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -235,12 +290,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 9,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -253,12 +313,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 10,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -271,12 +336,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 11,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -289,12 +359,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 12,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -307,12 +382,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 18,
                   "unit": "Months"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -325,12 +405,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 2,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -343,12 +428,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 3,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -361,12 +451,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 4,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -379,12 +474,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 5,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -397,12 +497,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 6,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -415,12 +520,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 7,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -433,12 +543,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 8,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -451,12 +566,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 9,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -469,12 +589,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 10,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -487,12 +612,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 12,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -505,12 +635,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 15,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -523,12 +658,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 20,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -541,12 +681,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 25,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -559,12 +704,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 30,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -577,12 +727,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 40,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             },
             {
@@ -595,12 +750,17 @@
                 "settlement_days": 2,
                 "calendar": "UnitedStatesGovernmentBond",
                 "fixed_leg_frequency": "Annual",
-                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_convention": "Following",
                 "fixed_leg_day_counter": "Actual360",
                 "tenor": {
                   "n": 50,
                   "unit": "Years"
-                }
+                },
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
               }
             }
           ]
@@ -688,7 +848,7 @@
             "payment_calendar": "UnitedStatesGovernmentBond",
             "payment_lag": 2,
             "averaging_method": "Compound",
-            "lookback_days": -1,
+            "lookback_days": 0,
             "lockout_days": 0,
             "apply_observation_shift": false,
             "telescopic_value_dates": false

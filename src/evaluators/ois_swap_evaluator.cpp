@@ -90,7 +90,10 @@ OisSwapPerSwap priceTrade(const OisSwapTrade& trade,
                   << std::endl;
     }
 
-    QuantLib::Natural lookbackDays = trade.overnight.lookbackDays < 0
+    // 0 = no lookback: QuantLib's off-state is Null<Natural>, not a zero-day
+    // lookback (a literal 0 would force the fixing delay to 0 even when the
+    // index carries a non-zero intrinsic fixing delay).
+    QuantLib::Natural lookbackDays = trade.overnight.lookbackDays <= 0
         ? QuantLib::Null<QuantLib::Natural>()
         : static_cast<QuantLib::Natural>(trade.overnight.lookbackDays);
     QuantLib::Natural lockoutDays =

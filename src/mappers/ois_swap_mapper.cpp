@@ -72,13 +72,24 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     trade.overnight.notional = requirePositive(overnightFb->notional(), "OisFloatingLeg.notional");
     trade.overnight.indexId = overnightFb->index()->id()->str();
     trade.overnight.spread = overnightFb->spread();
-    trade.overnight.paymentConvention = ConventionToQL(overnightFb->payment_convention());
-    trade.overnight.paymentCalendar = CalendarToQL(overnightFb->payment_calendar());
-    trade.overnight.paymentLag = overnightFb->payment_lag();
-    trade.overnight.averagingMethod = RateAveragingToQL(overnightFb->averaging_method());
-    trade.overnight.lookbackDays = overnightFb->lookback_days();
-    trade.overnight.lockoutDays = overnightFb->lockout_days();
-    trade.overnight.applyObservationShift = overnightFb->apply_observation_shift();
+    // OisFloatingLeg.day_counter is accepted-but-unused: QuantLib's
+    // OvernightIndexedSwap takes the overnight leg's day counter from the
+    // overnight index itself, so the field is deliberately not read here.
+    trade.overnight.paymentConvention = ConventionToQL(requireEnum(
+        overnightFb->payment_convention(), "OisFloatingLeg.payment_convention"));
+    trade.overnight.paymentCalendar = CalendarToQL(requireEnum(
+        overnightFb->payment_calendar(), "OisFloatingLeg.payment_calendar"));
+    trade.overnight.paymentLag = requireNonNegativeInt(
+        overnightFb->payment_lag(), "OisFloatingLeg.payment_lag");
+    trade.overnight.averagingMethod = RateAveragingToQL(requireEnum(
+        overnightFb->averaging_method(), "OisFloatingLeg.averaging_method"));
+    trade.overnight.lookbackDays = requireNonNegativeInt(
+        overnightFb->lookback_days(), "OisFloatingLeg.lookback_days");
+    trade.overnight.lockoutDays = requireNonNegativeInt(
+        overnightFb->lockout_days(), "OisFloatingLeg.lockout_days");
+    trade.overnight.applyObservationShift = requireBool(
+        overnightFb->apply_observation_shift(),
+        "OisFloatingLeg.apply_observation_shift");
     trade.overnight.telescopicValueDates = overnightFb->telescopic_value_dates();
     return trade;
 }

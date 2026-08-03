@@ -1,0 +1,406 @@
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "rates": {
+      "indices": [
+        {
+          "id": "USD_SOFR",
+          "name": "SOFR",
+          "index_type": "Overnight",
+          "currency": "USD",
+          "tenor": {
+            "n": 0,
+            "unit": "Days"
+          },
+          "fixing_days": 0,
+          "calendar": "UnitedStatesGovernmentBond",
+          "day_counter": "Actual360",
+          "business_day_convention": "ModifiedFollowing",
+          "end_of_month": true
+        }
+      ],
+      "curves": [
+        {
+          "id": "USD_SOFR_OIS",
+          "reference_date": "2025-01-15",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "points": [
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0533,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.053,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.052,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 6,
+                  "unit": "Months"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0495,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.044,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0405,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 3,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0375,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0365,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 7,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.036,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0358,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 15,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0352,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 20,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0342,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 25,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.0332,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 30,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "rate": 0.031,
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "USD_SOFR"
+                },
+                "tenor": {
+                  "n": 40,
+                  "unit": "Years"
+                },
+                "calendar": "UnitedStatesGovernmentBond",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_frequency": "Annual",
+                "payment_lag": 0,
+                "averaging_method": "Compound",
+                "lookback_days": 0,
+                "lockout_days": 0,
+                "apply_observation_shift": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "queries": [
+    {
+      "curve_id": "USD_SOFR_OIS",
+      "measures": [
+        "DF",
+        "ZERO"
+      ],
+      "grid": {
+        "grid_type": "TenorGrid",
+        "grid": {
+          "tenors": [
+            {
+              "n": 1,
+              "unit": "Months"
+            },
+            {
+              "n": 6,
+              "unit": "Months"
+            },
+            {
+              "n": 1,
+              "unit": "Years"
+            },
+            {
+              "n": 2,
+              "unit": "Years"
+            },
+            {
+              "n": 5,
+              "unit": "Years"
+            },
+            {
+              "n": 10,
+              "unit": "Years"
+            },
+            {
+              "n": 15,
+              "unit": "Years"
+            },
+            {
+              "n": 20,
+              "unit": "Years"
+            },
+            {
+              "n": 30,
+              "unit": "Years"
+            },
+            {
+              "n": 40,
+              "unit": "Years"
+            }
+          ],
+          "calendar": "UnitedStatesGovernmentBond",
+          "business_day_convention": "ModifiedFollowing"
+        }
+      },
+      "zero": {
+        "use_curve_day_counter": true,
+        "compounding": "Continuous",
+        "frequency": "Annual"
+      }
+    }
+  ]
+}

@@ -1483,6 +1483,11 @@ struct OISHelperT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   OISHelperT() = default;
@@ -1504,8 +1509,13 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_FIXED_LEG_FREQUENCY = 14,
     VT_FIXED_LEG_CONVENTION = 16,
     VT_FIXED_LEG_DAY_COUNTER = 18,
-    VT_DEPS = 20,
-    VT_QUOTE_ID = 22
+    VT_PAYMENT_LAG = 20,
+    VT_AVERAGING_METHOD = 22,
+    VT_LOOKBACK_DAYS = 24,
+    VT_LOCKOUT_DAYS = 26,
+    VT_APPLY_OBSERVATION_SHIFT = 28,
+    VT_DEPS = 30,
+    VT_QUOTE_ID = 32
   };
   /// OIS rate. One of rate or quote_id must be provided.
   ::flatbuffers::Optional<double> rate() const {
@@ -1521,17 +1531,56 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<int32_t> settlement_days() const {
     return GetOptional<int32_t, int32_t>(VT_SETTLEMENT_DAYS);
   }
+  /// Required. Feeds QuantLib's PAYMENT calendar slot on the bootstrapped
+  /// OIS (payment-date adjustment on both legs).
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
     return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
+  /// Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped
+  /// OIS (the coupon frequency of both legs unless overridden by QuantLib's
+  /// fixed-frequency override, which is not exposed here).
   ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency() const {
     return GetOptional<int8_t, quantra::enums::Frequency>(VT_FIXED_LEG_FREQUENCY);
   }
+  /// Required. Feeds QuantLib's PAYMENT business-day convention slot on the
+  /// bootstrapped OIS.
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_LEG_CONVENTION);
   }
+  /// DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload
+  /// accepts a fixed-leg or payment day counter (the day counts come from the
+  /// overnight index and QuantLib's internal fixed-leg default), so this field
+  /// is ignored if present and may be omitted. Kept optional for backward
+  /// compatibility.
   ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
+  }
+  /// Payment lag in business days between accrual end and payment. Required;
+  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
+  }
+  /// Compound or Simple averaging of the overnight fixings. Required.
+  /// Name mirrors OisFloatingLeg.averaging_method.
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
+    return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
+  }
+  /// Fixing lookback in business days. Required; must be >= 0; 0 = no
+  /// lookback (the index's own fixing delay applies — QuantLib encodes this
+  /// as Null, not as a zero-day lookback). Name mirrors
+  /// OisFloatingLeg.lookback_days.
+  ::flatbuffers::Optional<int32_t> lookback_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
+  }
+  /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  ::flatbuffers::Optional<int32_t> lockout_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
+  }
+  /// Whether the observation-shift convention applies to the lookback.
+  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  ::flatbuffers::Optional<bool> apply_observation_shift() const {
+    return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
   /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
@@ -1552,6 +1601,11 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_FREQUENCY, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
+           VerifyField<int8_t>(verifier, VT_AVERAGING_METHOD, 1) &&
+           VerifyField<int32_t>(verifier, VT_LOOKBACK_DAYS, 4) &&
+           VerifyField<int32_t>(verifier, VT_LOCKOUT_DAYS, 4) &&
+           VerifyField<uint8_t>(verifier, VT_APPLY_OBSERVATION_SHIFT, 1) &&
            VerifyOffset(verifier, VT_DEPS) &&
            verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
@@ -1591,6 +1645,21 @@ struct OISHelperBuilder {
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
     fbb_.AddElement<int8_t>(OISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter));
   }
+  void add_payment_lag(int32_t payment_lag) {
+    fbb_.AddElement<int32_t>(OISHelper::VT_PAYMENT_LAG, payment_lag);
+  }
+  void add_averaging_method(quantra::enums::RateAveragingType averaging_method) {
+    fbb_.AddElement<int8_t>(OISHelper::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
+  }
+  void add_lookback_days(int32_t lookback_days) {
+    fbb_.AddElement<int32_t>(OISHelper::VT_LOOKBACK_DAYS, lookback_days);
+  }
+  void add_lockout_days(int32_t lockout_days) {
+    fbb_.AddElement<int32_t>(OISHelper::VT_LOCKOUT_DAYS, lockout_days);
+  }
+  void add_apply_observation_shift(bool apply_observation_shift) {
+    fbb_.AddElement<uint8_t>(OISHelper::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
+  }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(OISHelper::VT_DEPS, deps);
   }
@@ -1619,15 +1688,25 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(
     ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   OISHelperBuilder builder_(_fbb);
   if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
+  if(lockout_days) { builder_.add_lockout_days(*lockout_days); }
+  if(lookback_days) { builder_.add_lookback_days(*lookback_days); }
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
   if(settlement_days) { builder_.add_settlement_days(*settlement_days); }
   builder_.add_overnight_index(overnight_index);
   builder_.add_tenor(tenor);
+  if(apply_observation_shift) { builder_.add_apply_observation_shift(*apply_observation_shift); }
+  if(averaging_method) { builder_.add_averaging_method(*averaging_method); }
   if(fixed_leg_day_counter) { builder_.add_fixed_leg_day_counter(*fixed_leg_day_counter); }
   if(fixed_leg_convention) { builder_.add_fixed_leg_convention(*fixed_leg_convention); }
   if(fixed_leg_frequency) { builder_.add_fixed_leg_frequency(*fixed_leg_frequency); }
@@ -1645,6 +1724,11 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
     ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
@@ -1658,6 +1742,11 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelperDirect(
       fixed_leg_frequency,
       fixed_leg_convention,
       fixed_leg_day_counter,
+      payment_lag,
+      averaging_method,
+      lookback_days,
+      lockout_days,
+      apply_observation_shift,
       deps,
       quote_id__);
 }
@@ -1672,8 +1761,14 @@ struct DatedOISHelperT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::IndexRefT> overnight_index{};
   ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
   DatedOISHelperT() = default;
@@ -1693,10 +1788,16 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_OVERNIGHT_INDEX = 10,
     VT_SETTLEMENT_DAYS = 12,
     VT_CALENDAR = 14,
-    VT_FIXED_LEG_CONVENTION = 16,
-    VT_FIXED_LEG_DAY_COUNTER = 18,
-    VT_DEPS = 20,
-    VT_QUOTE_ID = 22
+    VT_FIXED_LEG_FREQUENCY = 16,
+    VT_FIXED_LEG_CONVENTION = 18,
+    VT_FIXED_LEG_DAY_COUNTER = 20,
+    VT_PAYMENT_LAG = 22,
+    VT_AVERAGING_METHOD = 24,
+    VT_LOOKBACK_DAYS = 26,
+    VT_LOCKOUT_DAYS = 28,
+    VT_APPLY_OBSERVATION_SHIFT = 30,
+    VT_DEPS = 32,
+    VT_QUOTE_ID = 34
   };
   /// OIS rate. One of rate or quote_id must be provided.
   ::flatbuffers::Optional<double> rate() const {
@@ -1715,14 +1816,57 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<int32_t> settlement_days() const {
     return GetOptional<int32_t, int32_t>(VT_SETTLEMENT_DAYS);
   }
+  /// Required. Despite the generic name, this feeds QuantLib's PAYMENT
+  /// calendar slot on the bootstrapped OIS (kept under its historical name
+  /// for wire compatibility).
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
     return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
+  /// Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped
+  /// OIS (the coupon frequency of both legs unless overridden by QuantLib's
+  /// fixed-frequency override, which is not exposed here). Name mirrors
+  /// OISHelper.fixed_leg_frequency.
+  ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_FIXED_LEG_FREQUENCY);
+  }
+  /// Required. Despite the fixed-leg name, this feeds QuantLib's PAYMENT
+  /// business-day convention slot on the bootstrapped OIS (kept under its
+  /// historical name for wire compatibility).
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_FIXED_LEG_CONVENTION);
   }
+  /// DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload
+  /// accepts a fixed-leg or payment day counter, so this field is ignored if
+  /// present and may be omitted. Kept optional for backward compatibility.
   ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
+  }
+  /// Payment lag in business days between accrual end and payment. Required;
+  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
+  }
+  /// Compound or Simple averaging of the overnight fixings. Required.
+  /// Name mirrors OisFloatingLeg.averaging_method.
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
+    return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
+  }
+  /// Fixing lookback in business days. Required; must be >= 0; 0 = no
+  /// lookback (the index's own fixing delay applies — QuantLib encodes this
+  /// as Null, not as a zero-day lookback). Name mirrors
+  /// OisFloatingLeg.lookback_days.
+  ::flatbuffers::Optional<int32_t> lookback_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
+  }
+  /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  ::flatbuffers::Optional<int32_t> lockout_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
+  }
+  /// Whether the observation-shift convention applies to the lookback.
+  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  ::flatbuffers::Optional<bool> apply_observation_shift() const {
+    return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
   /// Exogenous discount curve for dual-curve OIS bootstrapping.
   const quantra::HelperDependencies *deps() const {
@@ -1742,8 +1886,14 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyTable(overnight_index()) &&
            VerifyField<int32_t>(verifier, VT_SETTLEMENT_DAYS, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_FIXED_LEG_FREQUENCY, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_CONVENTION, 1) &&
            VerifyField<int8_t>(verifier, VT_FIXED_LEG_DAY_COUNTER, 1) &&
+           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
+           VerifyField<int8_t>(verifier, VT_AVERAGING_METHOD, 1) &&
+           VerifyField<int32_t>(verifier, VT_LOOKBACK_DAYS, 4) &&
+           VerifyField<int32_t>(verifier, VT_LOCKOUT_DAYS, 4) &&
+           VerifyField<uint8_t>(verifier, VT_APPLY_OBSERVATION_SHIFT, 1) &&
            VerifyOffset(verifier, VT_DEPS) &&
            verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
@@ -1777,11 +1927,29 @@ struct DatedOISHelperBuilder {
   void add_calendar(quantra::enums::Calendar calendar) {
     fbb_.AddElement<int8_t>(DatedOISHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
   }
+  void add_fixed_leg_frequency(quantra::enums::Frequency fixed_leg_frequency) {
+    fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_FREQUENCY, static_cast<int8_t>(fixed_leg_frequency));
+  }
   void add_fixed_leg_convention(quantra::enums::BusinessDayConvention fixed_leg_convention) {
     fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_CONVENTION, static_cast<int8_t>(fixed_leg_convention));
   }
   void add_fixed_leg_day_counter(quantra::enums::DayCounter fixed_leg_day_counter) {
     fbb_.AddElement<int8_t>(DatedOISHelper::VT_FIXED_LEG_DAY_COUNTER, static_cast<int8_t>(fixed_leg_day_counter));
+  }
+  void add_payment_lag(int32_t payment_lag) {
+    fbb_.AddElement<int32_t>(DatedOISHelper::VT_PAYMENT_LAG, payment_lag);
+  }
+  void add_averaging_method(quantra::enums::RateAveragingType averaging_method) {
+    fbb_.AddElement<int8_t>(DatedOISHelper::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
+  }
+  void add_lookback_days(int32_t lookback_days) {
+    fbb_.AddElement<int32_t>(DatedOISHelper::VT_LOOKBACK_DAYS, lookback_days);
+  }
+  void add_lockout_days(int32_t lockout_days) {
+    fbb_.AddElement<int32_t>(DatedOISHelper::VT_LOCKOUT_DAYS, lockout_days);
+  }
+  void add_apply_observation_shift(bool apply_observation_shift) {
+    fbb_.AddElement<uint8_t>(DatedOISHelper::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
   }
   void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
     fbb_.AddOffset(DatedOISHelper::VT_DEPS, deps);
@@ -1811,20 +1979,32 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
   DatedOISHelperBuilder builder_(_fbb);
   if(rate) { builder_.add_rate(*rate); }
   builder_.add_quote_id(quote_id);
   builder_.add_deps(deps);
+  if(lockout_days) { builder_.add_lockout_days(*lockout_days); }
+  if(lookback_days) { builder_.add_lookback_days(*lookback_days); }
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
   if(settlement_days) { builder_.add_settlement_days(*settlement_days); }
   builder_.add_overnight_index(overnight_index);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
+  if(apply_observation_shift) { builder_.add_apply_observation_shift(*apply_observation_shift); }
+  if(averaging_method) { builder_.add_averaging_method(*averaging_method); }
   if(fixed_leg_day_counter) { builder_.add_fixed_leg_day_counter(*fixed_leg_day_counter); }
   if(fixed_leg_convention) { builder_.add_fixed_leg_convention(*fixed_leg_convention); }
+  if(fixed_leg_frequency) { builder_.add_fixed_leg_frequency(*fixed_leg_frequency); }
   if(calendar) { builder_.add_calendar(*calendar); }
   return builder_.Finish();
 }
@@ -1837,8 +2017,14 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
     ::flatbuffers::Offset<quantra::IndexRef> overnight_index = 0,
     ::flatbuffers::Optional<int32_t> settlement_days = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> fixed_leg_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> fixed_leg_convention = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::DayCounter> fixed_leg_day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
     const char *quote_id = nullptr) {
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
@@ -1852,8 +2038,14 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelperDirect(
       overnight_index,
       settlement_days,
       calendar,
+      fixed_leg_frequency,
       fixed_leg_convention,
       fixed_leg_day_counter,
+      payment_lag,
+      averaging_method,
+      lookback_days,
+      lockout_days,
+      apply_observation_shift,
       deps,
       quote_id__);
 }
@@ -3424,6 +3616,11 @@ inline OISHelperT::OISHelperT(const OISHelperT &o)
         fixed_leg_frequency(o.fixed_leg_frequency),
         fixed_leg_convention(o.fixed_leg_convention),
         fixed_leg_day_counter(o.fixed_leg_day_counter),
+        payment_lag(o.payment_lag),
+        averaging_method(o.averaging_method),
+        lookback_days(o.lookback_days),
+        lockout_days(o.lockout_days),
+        apply_observation_shift(o.apply_observation_shift),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
 }
@@ -3437,6 +3634,11 @@ inline OISHelperT &OISHelperT::operator=(OISHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(fixed_leg_frequency, o.fixed_leg_frequency);
   std::swap(fixed_leg_convention, o.fixed_leg_convention);
   std::swap(fixed_leg_day_counter, o.fixed_leg_day_counter);
+  std::swap(payment_lag, o.payment_lag);
+  std::swap(averaging_method, o.averaging_method);
+  std::swap(lookback_days, o.lookback_days);
+  std::swap(lockout_days, o.lockout_days);
+  std::swap(apply_observation_shift, o.apply_observation_shift);
   std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
   return *this;
@@ -3459,6 +3661,11 @@ inline void OISHelper::UnPackTo(OISHelperT *_o, const ::flatbuffers::resolver_fu
   { auto _e = fixed_leg_frequency(); _o->fixed_leg_frequency = _e; }
   { auto _e = fixed_leg_convention(); _o->fixed_leg_convention = _e; }
   { auto _e = fixed_leg_day_counter(); _o->fixed_leg_day_counter = _e; }
+  { auto _e = payment_lag(); _o->payment_lag = _e; }
+  { auto _e = averaging_method(); _o->averaging_method = _e; }
+  { auto _e = lookback_days(); _o->lookback_days = _e; }
+  { auto _e = lockout_days(); _o->lockout_days = _e; }
+  { auto _e = apply_observation_shift(); _o->apply_observation_shift = _e; }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
@@ -3479,6 +3686,11 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
   auto _fixed_leg_frequency = _o->fixed_leg_frequency;
   auto _fixed_leg_convention = _o->fixed_leg_convention;
   auto _fixed_leg_day_counter = _o->fixed_leg_day_counter;
+  auto _payment_lag = _o->payment_lag;
+  auto _averaging_method = _o->averaging_method;
+  auto _lookback_days = _o->lookback_days;
+  auto _lockout_days = _o->lockout_days;
+  auto _apply_observation_shift = _o->apply_observation_shift;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateOISHelper(
@@ -3491,6 +3703,11 @@ inline ::flatbuffers::Offset<OISHelper> CreateOISHelper(::flatbuffers::FlatBuffe
       _fixed_leg_frequency,
       _fixed_leg_convention,
       _fixed_leg_day_counter,
+      _payment_lag,
+      _averaging_method,
+      _lookback_days,
+      _lockout_days,
+      _apply_observation_shift,
       _deps,
       _quote_id);
 }
@@ -3502,8 +3719,14 @@ inline DatedOISHelperT::DatedOISHelperT(const DatedOISHelperT &o)
         overnight_index((o.overnight_index) ? new quantra::IndexRefT(*o.overnight_index) : nullptr),
         settlement_days(o.settlement_days),
         calendar(o.calendar),
+        fixed_leg_frequency(o.fixed_leg_frequency),
         fixed_leg_convention(o.fixed_leg_convention),
         fixed_leg_day_counter(o.fixed_leg_day_counter),
+        payment_lag(o.payment_lag),
+        averaging_method(o.averaging_method),
+        lookback_days(o.lookback_days),
+        lockout_days(o.lockout_days),
+        apply_observation_shift(o.apply_observation_shift),
         deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
         quote_id(o.quote_id) {
 }
@@ -3515,8 +3738,14 @@ inline DatedOISHelperT &DatedOISHelperT::operator=(DatedOISHelperT o) FLATBUFFER
   std::swap(overnight_index, o.overnight_index);
   std::swap(settlement_days, o.settlement_days);
   std::swap(calendar, o.calendar);
+  std::swap(fixed_leg_frequency, o.fixed_leg_frequency);
   std::swap(fixed_leg_convention, o.fixed_leg_convention);
   std::swap(fixed_leg_day_counter, o.fixed_leg_day_counter);
+  std::swap(payment_lag, o.payment_lag);
+  std::swap(averaging_method, o.averaging_method);
+  std::swap(lookback_days, o.lookback_days);
+  std::swap(lockout_days, o.lockout_days);
+  std::swap(apply_observation_shift, o.apply_observation_shift);
   std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
   return *this;
@@ -3537,8 +3766,14 @@ inline void DatedOISHelper::UnPackTo(DatedOISHelperT *_o, const ::flatbuffers::r
   { auto _e = overnight_index(); if (_e) { if(_o->overnight_index) { _e->UnPackTo(_o->overnight_index.get(), _resolver); } else { _o->overnight_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->overnight_index) { _o->overnight_index.reset(); } }
   { auto _e = settlement_days(); _o->settlement_days = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = fixed_leg_frequency(); _o->fixed_leg_frequency = _e; }
   { auto _e = fixed_leg_convention(); _o->fixed_leg_convention = _e; }
   { auto _e = fixed_leg_day_counter(); _o->fixed_leg_day_counter = _e; }
+  { auto _e = payment_lag(); _o->payment_lag = _e; }
+  { auto _e = averaging_method(); _o->averaging_method = _e; }
+  { auto _e = lookback_days(); _o->lookback_days = _e; }
+  { auto _e = lockout_days(); _o->lockout_days = _e; }
+  { auto _e = apply_observation_shift(); _o->apply_observation_shift = _e; }
   { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
 }
@@ -3557,8 +3792,14 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
   auto _overnight_index = _o->overnight_index ? CreateIndexRef(_fbb, _o->overnight_index.get(), _rehasher) : 0;
   auto _settlement_days = _o->settlement_days;
   auto _calendar = _o->calendar;
+  auto _fixed_leg_frequency = _o->fixed_leg_frequency;
   auto _fixed_leg_convention = _o->fixed_leg_convention;
   auto _fixed_leg_day_counter = _o->fixed_leg_day_counter;
+  auto _payment_lag = _o->payment_lag;
+  auto _averaging_method = _o->averaging_method;
+  auto _lookback_days = _o->lookback_days;
+  auto _lockout_days = _o->lockout_days;
+  auto _apply_observation_shift = _o->apply_observation_shift;
   auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
   return quantra::CreateDatedOISHelper(
@@ -3569,8 +3810,14 @@ inline ::flatbuffers::Offset<DatedOISHelper> CreateDatedOISHelper(::flatbuffers:
       _overnight_index,
       _settlement_days,
       _calendar,
+      _fixed_leg_frequency,
       _fixed_leg_convention,
       _fixed_leg_day_counter,
+      _payment_lag,
+      _averaging_method,
+      _lookback_days,
+      _lockout_days,
+      _apply_observation_shift,
       _deps,
       _quote_id);
 }
