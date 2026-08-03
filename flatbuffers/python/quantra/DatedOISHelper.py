@@ -66,6 +66,9 @@ class DatedOISHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return None
 
+    # Required. Despite the generic name, this feeds QuantLib's PAYMENT
+    # calendar slot on the bootstrapped OIS (kept under its historical name
+    # for wire compatibility).
     # DatedOISHelper
     def Calendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
@@ -73,24 +76,88 @@ class DatedOISHelper(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped
+    # OIS (the coupon frequency of both legs unless overridden by QuantLib's
+    # fixed-frequency override, which is not exposed here). Name mirrors
+    # OISHelper.fixed_leg_frequency.
     # DatedOISHelper
-    def FixedLegConvention(self):
+    def FixedLegFrequency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # Required. Despite the fixed-leg name, this feeds QuantLib's PAYMENT
+    # business-day convention slot on the bootstrapped OIS (kept under its
+    # historical name for wire compatibility).
     # DatedOISHelper
-    def FixedLegDayCounter(self):
+    def FixedLegConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
+    # DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload
+    # accepts a fixed-leg or payment day counter, so this field is ignored if
+    # present and may be omitted. Kept optional for backward compatibility.
+    # DatedOISHelper
+    def FixedLegDayCounter(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Payment lag in business days between accrual end and payment. Required;
+    # must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+    # DatedOISHelper
+    def PaymentLag(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
+    # Compound or Simple averaging of the overnight fixings. Required.
+    # Name mirrors OisFloatingLeg.averaging_method.
+    # DatedOISHelper
+    def AveragingMethod(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Fixing lookback in business days. Required; must be >= 0; 0 = no
+    # lookback (the index's own fixing delay applies — QuantLib encodes this
+    # as Null, not as a zero-day lookback). Name mirrors
+    # OisFloatingLeg.lookback_days.
+    # DatedOISHelper
+    def LookbackDays(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
+    # Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+    # 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+    # DatedOISHelper
+    def LockoutDays(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
+    # Whether the observation-shift convention applies to the lookback.
+    # Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+    # DatedOISHelper
+    def ApplyObservationShift(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
     # Exogenous discount curve for dual-curve OIS bootstrapping.
     # DatedOISHelper
     def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.HelperDependencies import HelperDependencies
@@ -101,13 +168,13 @@ class DatedOISHelper(object):
 
     # DatedOISHelper
     def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
 def DatedOISHelperStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(16)
 
 def Start(builder):
     DatedOISHelperStart(builder)
@@ -148,26 +215,62 @@ def DatedOISHelperAddCalendar(builder, calendar):
 def AddCalendar(builder, calendar):
     DatedOISHelperAddCalendar(builder, calendar)
 
+def DatedOISHelperAddFixedLegFrequency(builder, fixedLegFrequency):
+    builder.PrependInt8Slot(6, fixedLegFrequency, None)
+
+def AddFixedLegFrequency(builder, fixedLegFrequency):
+    DatedOISHelperAddFixedLegFrequency(builder, fixedLegFrequency)
+
 def DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention):
-    builder.PrependInt8Slot(6, fixedLegConvention, None)
+    builder.PrependInt8Slot(7, fixedLegConvention, None)
 
 def AddFixedLegConvention(builder, fixedLegConvention):
     DatedOISHelperAddFixedLegConvention(builder, fixedLegConvention)
 
 def DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter):
-    builder.PrependInt8Slot(7, fixedLegDayCounter, None)
+    builder.PrependInt8Slot(8, fixedLegDayCounter, None)
 
 def AddFixedLegDayCounter(builder, fixedLegDayCounter):
     DatedOISHelperAddFixedLegDayCounter(builder, fixedLegDayCounter)
 
+def DatedOISHelperAddPaymentLag(builder, paymentLag):
+    builder.PrependInt32Slot(9, paymentLag, None)
+
+def AddPaymentLag(builder, paymentLag):
+    DatedOISHelperAddPaymentLag(builder, paymentLag)
+
+def DatedOISHelperAddAveragingMethod(builder, averagingMethod):
+    builder.PrependInt8Slot(10, averagingMethod, None)
+
+def AddAveragingMethod(builder, averagingMethod):
+    DatedOISHelperAddAveragingMethod(builder, averagingMethod)
+
+def DatedOISHelperAddLookbackDays(builder, lookbackDays):
+    builder.PrependInt32Slot(11, lookbackDays, None)
+
+def AddLookbackDays(builder, lookbackDays):
+    DatedOISHelperAddLookbackDays(builder, lookbackDays)
+
+def DatedOISHelperAddLockoutDays(builder, lockoutDays):
+    builder.PrependInt32Slot(12, lockoutDays, None)
+
+def AddLockoutDays(builder, lockoutDays):
+    DatedOISHelperAddLockoutDays(builder, lockoutDays)
+
+def DatedOISHelperAddApplyObservationShift(builder, applyObservationShift):
+    builder.PrependBoolSlot(13, applyObservationShift, None)
+
+def AddApplyObservationShift(builder, applyObservationShift):
+    DatedOISHelperAddApplyObservationShift(builder, applyObservationShift)
+
 def DatedOISHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+    builder.PrependUOffsetTRelativeSlot(14, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
 
 def AddDeps(builder, deps):
     DatedOISHelperAddDeps(builder, deps)
 
 def DatedOISHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+    builder.PrependUOffsetTRelativeSlot(15, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
 
 def AddQuoteId(builder, quoteId):
     DatedOISHelperAddQuoteId(builder, quoteId)
@@ -193,8 +296,14 @@ class DatedOISHelperT(object):
         self.overnightIndex = None  # type: Optional[IndexRefT]
         self.settlementDays = None  # type: Optional[int]
         self.calendar = None  # type: Optional[int]
+        self.fixedLegFrequency = None  # type: Optional[int]
         self.fixedLegConvention = None  # type: Optional[int]
         self.fixedLegDayCounter = None  # type: Optional[int]
+        self.paymentLag = None  # type: Optional[int]
+        self.averagingMethod = None  # type: Optional[int]
+        self.lookbackDays = None  # type: Optional[int]
+        self.lockoutDays = None  # type: Optional[int]
+        self.applyObservationShift = None  # type: Optional[bool]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 
@@ -226,8 +335,14 @@ class DatedOISHelperT(object):
             self.overnightIndex = IndexRefT.InitFromObj(datedOishelper.OvernightIndex())
         self.settlementDays = datedOishelper.SettlementDays()
         self.calendar = datedOishelper.Calendar()
+        self.fixedLegFrequency = datedOishelper.FixedLegFrequency()
         self.fixedLegConvention = datedOishelper.FixedLegConvention()
         self.fixedLegDayCounter = datedOishelper.FixedLegDayCounter()
+        self.paymentLag = datedOishelper.PaymentLag()
+        self.averagingMethod = datedOishelper.AveragingMethod()
+        self.lookbackDays = datedOishelper.LookbackDays()
+        self.lockoutDays = datedOishelper.LockoutDays()
+        self.applyObservationShift = datedOishelper.ApplyObservationShift()
         if datedOishelper.Deps() is not None:
             self.deps = HelperDependenciesT.InitFromObj(datedOishelper.Deps())
         self.quoteId = datedOishelper.QuoteId()
@@ -254,8 +369,14 @@ class DatedOISHelperT(object):
             DatedOISHelperAddOvernightIndex(builder, overnightIndex)
         DatedOISHelperAddSettlementDays(builder, self.settlementDays)
         DatedOISHelperAddCalendar(builder, self.calendar)
+        DatedOISHelperAddFixedLegFrequency(builder, self.fixedLegFrequency)
         DatedOISHelperAddFixedLegConvention(builder, self.fixedLegConvention)
         DatedOISHelperAddFixedLegDayCounter(builder, self.fixedLegDayCounter)
+        DatedOISHelperAddPaymentLag(builder, self.paymentLag)
+        DatedOISHelperAddAveragingMethod(builder, self.averagingMethod)
+        DatedOISHelperAddLookbackDays(builder, self.lookbackDays)
+        DatedOISHelperAddLockoutDays(builder, self.lockoutDays)
+        DatedOISHelperAddApplyObservationShift(builder, self.applyObservationShift)
         if self.deps is not None:
             DatedOISHelperAddDeps(builder, deps)
         if self.quoteId is not None:

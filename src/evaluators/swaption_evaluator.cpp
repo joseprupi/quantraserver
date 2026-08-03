@@ -71,7 +71,10 @@ std::shared_ptr<QuantLib::FixedVsFloatingSwap> buildUnderlyingSwap(
 
     const auto& o = inst.oisUnderlying;
     auto overnightIndex = indices.getOvernightWithCurve(o.overnight.indexId, forwarding);
-    QuantLib::Natural lookbackDays = o.overnight.lookbackDays < 0
+    // 0 = no lookback: QuantLib's off-state is Null<Natural>, not a zero-day
+    // lookback (a literal 0 would force the fixing delay to 0 even when the
+    // index carries a non-zero intrinsic fixing delay).
+    QuantLib::Natural lookbackDays = o.overnight.lookbackDays <= 0
         ? QuantLib::Null<QuantLib::Natural>()
         : static_cast<QuantLib::Natural>(o.overnight.lookbackDays);
     QuantLib::Natural lockoutDays =

@@ -2394,7 +2394,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     olb.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
     olb.add_payment_lag(2);
     olb.add_averaging_method(quantra::enums::RateAveragingType_Compound);
-    olb.add_lookback_days(-1);
+    olb.add_lookback_days(0);
     olb.add_lockout_days(0);
     olb.add_apply_observation_shift(false);
     olb.add_telescopic_value_dates(false);
@@ -2527,7 +2527,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     olb.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
     olb.add_payment_lag(2);
     olb.add_averaging_method(quantra::enums::RateAveragingType_Compound);
-    olb.add_lookback_days(-1);
+    olb.add_lookback_days(0);
     olb.add_lockout_days(0);
     olb.add_apply_observation_shift(false);
     olb.add_telescopic_value_dates(false);

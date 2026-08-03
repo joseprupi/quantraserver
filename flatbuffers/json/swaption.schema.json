@@ -621,36 +621,44 @@
                 "description" : "Reference to an overnight IndexDef by id (e.g., \"USD_SOFR\")."
               },
         "spread" : {
-                "type" : "number"
+                "type" : "number",
+                "description" : "Spread over the compounded/averaged overnight rate. Keeps a literal 0.0\ndefault on purpose: zero is the genuine market-standard value, not a\nconvention that could silently diverge."
               },
         "day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes\nthe overnight leg's day counter from the overnight index itself, so this\nfield is ignored if present and may be omitted. Kept optional for\nbackward compatibility."
               },
         "payment_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Payment-date business-day convention. Required."
               },
         "payment_calendar" : {
                 "$ref" : "#/definitions/quantra_enums_Calendar",
-                "description" : "Payment adjustments."
+                "description" : "Payment-date adjustment calendar. Required."
               },
         "payment_lag" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0."
               },
         "averaging_method" : {
                 "$ref" : "#/definitions/quantra_enums_RateAveragingType",
-                "description" : "Overnight accrual conventions."
+                "description" : "Compound or Simple averaging of the overnight fixings. Required."
               },
         "lookback_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies — QuantLib encodes this\nas Null, not as a zero-day lookback)."
               },
         "lockout_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout."
               },
         "apply_observation_shift" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Whether the observation-shift convention applies to the lookback.\nRequired."
               },
         "telescopic_value_dates" : {
-                "type" : "boolean"
+                "type" : "boolean",
+                "description" : "Performance toggle for QuantLib's telescopic value-dates optimization,\nnot a market convention — keeps a literal false default on purpose."
               }
       },
       "required" : ["index"],

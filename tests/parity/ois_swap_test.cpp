@@ -103,7 +103,11 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     ob.add_day_counter(quantra::enums::DayCounter_Actual360);
     ob.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     ob.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
+    ob.add_payment_lag(0);
     ob.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+    ob.add_lookback_days(0);
+    ob.add_lockout_days(0);
+    ob.add_apply_observation_shift(false);
     auto onLeg = ob.Finish();
 
     quantra::OisSwapBuilder sb(b);
@@ -220,6 +224,9 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     ob.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
     ob.add_payment_lag(paymentLag);
     ob.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+    ob.add_lookback_days(0);
+    ob.add_lockout_days(0);
+    ob.add_apply_observation_shift(false);
     auto onLeg = ob.Finish();
 
     quantra::OisSwapBuilder sb(b);

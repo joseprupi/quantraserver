@@ -313,6 +313,14 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         writeOptEnum(p->fixed_leg_frequency());
         writeOptEnum(p->fixed_leg_convention());
         writeOptEnum(p->fixed_leg_day_counter());
+        // Payment-lag / overnight-coupon conventions: each changes the
+        // bootstrapped curve, so an unkeyed one would serve a wrong cached
+        // curve across requests.
+        writeOptInt(p->payment_lag());
+        writeOptEnum(p->averaging_method());
+        writeOptInt(p->lookback_days());
+        writeOptInt(p->lockout_days());
+        writeOptBool(p->apply_observation_shift());
         writeDeps(buf, p->deps());
         break;
     }
@@ -326,8 +334,17 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         writeIndexRef(buf, p->overnight_index());
         writeOptInt(p->settlement_days());
         writeOptEnum(p->calendar());
+        writeOptEnum(p->fixed_leg_frequency());
         writeOptEnum(p->fixed_leg_convention());
         writeOptEnum(p->fixed_leg_day_counter());
+        // Payment-lag / overnight-coupon conventions: each changes the
+        // bootstrapped curve, so an unkeyed one would serve a wrong cached
+        // curve across requests.
+        writeOptInt(p->payment_lag());
+        writeOptEnum(p->averaging_method());
+        writeOptInt(p->lookback_days());
+        writeOptInt(p->lockout_days());
+        writeOptBool(p->apply_observation_shift());
         writeDeps(buf, p->deps());
         break;
     }

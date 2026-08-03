@@ -189,13 +189,24 @@ OisSwapTrade extractOisUnderlying(const quantra::OisSwap* swap) {
     trade.overnight.notional = requirePositive(overnightLeg->notional(), "OisFloatingLeg.notional");
     trade.overnight.indexId = overnightLeg->index()->id()->str();
     trade.overnight.spread = overnightLeg->spread();
-    trade.overnight.paymentConvention = ConventionToQL(overnightLeg->payment_convention());
-    trade.overnight.paymentCalendar = CalendarToQL(overnightLeg->payment_calendar());
-    trade.overnight.paymentLag = overnightLeg->payment_lag();
-    trade.overnight.averagingMethod = RateAveragingToQL(overnightLeg->averaging_method());
-    trade.overnight.lookbackDays = overnightLeg->lookback_days();
-    trade.overnight.lockoutDays = overnightLeg->lockout_days();
-    trade.overnight.applyObservationShift = overnightLeg->apply_observation_shift();
+    // OisFloatingLeg.day_counter is accepted-but-unused: QuantLib's
+    // OvernightIndexedSwap takes the overnight leg's day counter from the
+    // overnight index itself, so the field is deliberately not read here.
+    trade.overnight.paymentConvention = ConventionToQL(requireEnum(
+        overnightLeg->payment_convention(), "OisFloatingLeg.payment_convention"));
+    trade.overnight.paymentCalendar = CalendarToQL(requireEnum(
+        overnightLeg->payment_calendar(), "OisFloatingLeg.payment_calendar"));
+    trade.overnight.paymentLag = requireNonNegativeInt(
+        overnightLeg->payment_lag(), "OisFloatingLeg.payment_lag");
+    trade.overnight.averagingMethod = RateAveragingToQL(requireEnum(
+        overnightLeg->averaging_method(), "OisFloatingLeg.averaging_method"));
+    trade.overnight.lookbackDays = requireNonNegativeInt(
+        overnightLeg->lookback_days(), "OisFloatingLeg.lookback_days");
+    trade.overnight.lockoutDays = requireNonNegativeInt(
+        overnightLeg->lockout_days(), "OisFloatingLeg.lockout_days");
+    trade.overnight.applyObservationShift = requireBool(
+        overnightLeg->apply_observation_shift(),
+        "OisFloatingLeg.apply_observation_shift");
     trade.overnight.telescopicValueDates = overnightLeg->telescopic_value_dates();
     return trade;
 }

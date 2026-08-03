@@ -2042,6 +2042,77 @@ CASES = [
                       "zero rates continuous", "inverted short end"],
     },
     {
+        "id": "curves_usd_ois_sofr_paylag2_df_zero_long_end",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD SOFR OIS curve with 2-day payment lag, long end to 40Y",
+        "description": (
+            "A SOFR OIS curve bootstrapped from fourteen par quotes (1M to "
+            "40Y) with the market-standard 2-business-day payment lag on "
+            "every helper, sampled for discount factors and continuous zero "
+            "rates out to 40Y and compared to a QuantLib reference built "
+            "with the same lag. Payment lag shifts every coupon's payment "
+            "date, so a curve built without it drifts at the long end — see "
+            "the payment-lag-0 twin case for the measured gap."
+        ),
+        "request": "curves/curves_usd_ois_sofr_paylag2_df_zero_long_end.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["OIS bootstrap", "SOFR", "payment_lag 2",
+                      "long end 40Y", "discount factors",
+                      "zero rates continuous"],
+    },
+    {
+        "id": "curves_usd_ois_sofr_paylag0_df_zero_long_end",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD SOFR OIS curve with zero payment lag (divergence twin)",
+        "description": (
+            "The identical SOFR OIS curve as the payment-lag-2 case but "
+            "with payment_lag 0 on every helper. Each twin matches its own "
+            "QuantLib reference at 1e-9, while the two curves differ from "
+            "each other at the long end (measured: discount factors ~1.8e-7 "
+            "apart at 30Y and ~1.8e-6 at 40Y, zero rates ~1.5e-8 at 30Y "
+            "and ~1.5e-7 at 40Y) — the reproduction of the long-end "
+            "discount-factor drift seen when the payment lag is ignored."
+        ),
+        "request": "curves/curves_usd_ois_sofr_paylag0_df_zero_long_end.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["OIS bootstrap", "SOFR", "payment_lag 0",
+                      "long-end divergence twin", "discount factors",
+                      "zero rates continuous"],
+    },
+    {
+        "id": "curves_usd_ois_sofr_lookback2_lockout2_df_zero",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "USD SOFR OIS curve with 2-day lookback and 2-day lockout",
+        "description": (
+            "The SOFR OIS curve bootstrapped with lookback_days 2 and "
+            "lockout_days 2 on every helper — the observation conventions "
+            "used by lagged-payment overnight markets. Both parameters "
+            "genuinely reach QuantLib (the resulting discount factors sit "
+            "~6e-5 away from the no-lookback curve at the long end, far "
+            "above the 1e-9 comparison tolerance) and the curve matches a "
+            "QuantLib reference built with the same parameters. Wire "
+            "lookback_days 0 means no lookback (QuantLib Null), so the "
+            "off-state is locked by every other OIS case."
+        ),
+        "request": "curves/curves_usd_ois_sofr_lookback2_lockout2_df_zero.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["OIS bootstrap", "SOFR", "lookback_days 2",
+                      "lockout_days 2", "discount factors",
+                      "zero rates continuous"],
+    },
+    {
         "id": "curves_eur_depo_future_df_zero_tenor_grid",
         "product": "bootstrap_curves",
         "family": "Curves",

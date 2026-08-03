@@ -34,14 +34,14 @@ struct OisFloatingLegT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::IndexRefT> index{};
   double spread = 0.0;
-  quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360;
-  quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following;
-  quantra::enums::Calendar payment_calendar = quantra::enums::Calendar_TARGET;
-  int32_t payment_lag = 0;
-  quantra::enums::RateAveragingType averaging_method = quantra::enums::RateAveragingType_Compound;
-  int32_t lookback_days = -1;
-  int32_t lockout_days = 0;
-  bool apply_observation_shift = false;
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt;
   bool telescopic_value_dates = false;
   OisFloatingLegT() = default;
   OisFloatingLegT(const OisFloatingLegT &o);
@@ -80,35 +80,54 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
+  /// Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
+  /// default on purpose: zero is the genuine market-standard value, not a
+  /// convention that could silently diverge.
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
-  quantra::enums::DayCounter day_counter() const {
-    return static_cast<quantra::enums::DayCounter>(GetField<int8_t>(VT_DAY_COUNTER, 0));
+  /// DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes
+  /// the overnight leg's day counter from the overnight index itself, so this
+  /// field is ignored if present and may be omitted. Kept optional for
+  /// backward compatibility.
+  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
+    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
-  quantra::enums::BusinessDayConvention payment_convention() const {
-    return static_cast<quantra::enums::BusinessDayConvention>(GetField<int8_t>(VT_PAYMENT_CONVENTION, 0));
+  /// Payment-date business-day convention. Required.
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
-  /// Payment adjustments.
-  quantra::enums::Calendar payment_calendar() const {
-    return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_PAYMENT_CALENDAR, 32));
+  /// Payment-date adjustment calendar. Required.
+  ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_PAYMENT_CALENDAR);
   }
-  int32_t payment_lag() const {
-    return GetField<int32_t>(VT_PAYMENT_LAG, 0);
+  /// Payment lag in business days between accrual end and payment. Required;
+  /// must be >= 0.
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
-  /// Overnight accrual conventions.
-  quantra::enums::RateAveragingType averaging_method() const {
-    return static_cast<quantra::enums::RateAveragingType>(GetField<int8_t>(VT_AVERAGING_METHOD, 0));
+  /// Compound or Simple averaging of the overnight fixings. Required.
+  ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
+    return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
   }
-  int32_t lookback_days() const {
-    return GetField<int32_t>(VT_LOOKBACK_DAYS, -1);
+  /// Fixing lookback in business days. Required; must be >= 0; 0 = no
+  /// lookback (the index's own fixing delay applies — QuantLib encodes this
+  /// as Null, not as a zero-day lookback).
+  ::flatbuffers::Optional<int32_t> lookback_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
   }
-  int32_t lockout_days() const {
-    return GetField<int32_t>(VT_LOCKOUT_DAYS, 0);
+  /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
+  /// 0 = no lockout.
+  ::flatbuffers::Optional<int32_t> lockout_days() const {
+    return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
   }
-  bool apply_observation_shift() const {
-    return GetField<uint8_t>(VT_APPLY_OBSERVATION_SHIFT, 0) != 0;
+  /// Whether the observation-shift convention applies to the lookback.
+  /// Required.
+  ::flatbuffers::Optional<bool> apply_observation_shift() const {
+    return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
+  /// Performance toggle for QuantLib's telescopic value-dates optimization,
+  /// not a market convention — keeps a literal false default on purpose.
   bool telescopic_value_dates() const {
     return GetField<uint8_t>(VT_TELESCOPIC_VALUE_DATES, 0) != 0;
   }
@@ -153,28 +172,28 @@ struct OisFloatingLegBuilder {
     fbb_.AddElement<double>(OisFloatingLeg::VT_SPREAD, spread, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter), 0);
+    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention), 0);
+    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_payment_calendar(quantra::enums::Calendar payment_calendar) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar), 32);
+    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
   }
   void add_payment_lag(int32_t payment_lag) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_PAYMENT_LAG, payment_lag, 0);
+    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_PAYMENT_LAG, payment_lag);
   }
   void add_averaging_method(quantra::enums::RateAveragingType averaging_method) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method), 0);
+    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
   }
   void add_lookback_days(int32_t lookback_days) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOOKBACK_DAYS, lookback_days, -1);
+    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOOKBACK_DAYS, lookback_days);
   }
   void add_lockout_days(int32_t lockout_days) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOCKOUT_DAYS, lockout_days, 0);
+    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOCKOUT_DAYS, lockout_days);
   }
   void add_apply_observation_shift(bool apply_observation_shift) {
-    fbb_.AddElement<uint8_t>(OisFloatingLeg::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift), 0);
+    fbb_.AddElement<uint8_t>(OisFloatingLeg::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
   }
   void add_telescopic_value_dates(bool telescopic_value_dates) {
     fbb_.AddElement<uint8_t>(OisFloatingLeg::VT_TELESCOPIC_VALUE_DATES, static_cast<uint8_t>(telescopic_value_dates), 0);
@@ -197,29 +216,29 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<quantra::IndexRef> index = 0,
     double spread = 0.0,
-    quantra::enums::DayCounter day_counter = quantra::enums::DayCounter_Actual360,
-    quantra::enums::BusinessDayConvention payment_convention = quantra::enums::BusinessDayConvention_Following,
-    quantra::enums::Calendar payment_calendar = quantra::enums::Calendar_TARGET,
-    int32_t payment_lag = 0,
-    quantra::enums::RateAveragingType averaging_method = quantra::enums::RateAveragingType_Compound,
-    int32_t lookback_days = -1,
-    int32_t lockout_days = 0,
-    bool apply_observation_shift = false,
+    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> payment_calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lookback_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     bool telescopic_value_dates = false) {
   OisFloatingLegBuilder builder_(_fbb);
   builder_.add_spread(spread);
   if(notional) { builder_.add_notional(*notional); }
-  builder_.add_lockout_days(lockout_days);
-  builder_.add_lookback_days(lookback_days);
-  builder_.add_payment_lag(payment_lag);
+  if(lockout_days) { builder_.add_lockout_days(*lockout_days); }
+  if(lookback_days) { builder_.add_lookback_days(*lookback_days); }
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
   builder_.add_index(index);
   builder_.add_schedule(schedule);
   builder_.add_telescopic_value_dates(telescopic_value_dates);
-  builder_.add_apply_observation_shift(apply_observation_shift);
-  builder_.add_averaging_method(averaging_method);
-  builder_.add_payment_calendar(payment_calendar);
-  builder_.add_payment_convention(payment_convention);
-  builder_.add_day_counter(day_counter);
+  if(apply_observation_shift) { builder_.add_apply_observation_shift(*apply_observation_shift); }
+  if(averaging_method) { builder_.add_averaging_method(*averaging_method); }
+  if(payment_calendar) { builder_.add_payment_calendar(*payment_calendar); }
+  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
+  if(day_counter) { builder_.add_day_counter(*day_counter); }
   return builder_.Finish();
 }
 

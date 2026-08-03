@@ -98,6 +98,23 @@ inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
 }
 
 /**
+ * Require an optional integer day-count convention (payment_lag / lookback_days
+ * / lockout_days) to be present AND non-negative — these feed QuantLib
+ * `Natural` parameters, where a negative value would silently wrap into a huge
+ * unsigned day count.
+ */
+inline int requireNonNegativeInt(flatbuffers::Optional<int> v,
+                                 const std::string& name) {
+    if (!v.has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
+    }
+    if (v.value() < 0) {
+        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+    }
+    return v.value();
+}
+
+/**
  * Require an optional bool convention (end_of_month, CDS ISDA flags, inflation
  * interpolated/revised) to be present — a bare bool would silently default to
  * false (or a hard-coded true).

@@ -664,16 +664,40 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Required. Feeds QuantLib's PAYMENT calendar slot on the bootstrapped\nOIS (payment-date adjustment on both legs)."
               },
         "fixed_leg_frequency" : {
-                "$ref" : "#/definitions/quantra_enums_Frequency"
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped\nOIS (the coupon frequency of both legs unless overridden by QuantLib's\nfixed-frequency override, which is not exposed here)."
               },
         "fixed_leg_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Required. Feeds QuantLib's PAYMENT business-day convention slot on the\nbootstrapped OIS."
               },
         "fixed_leg_day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload\naccepts a fixed-leg or payment day counter (the day counts come from the\novernight index and QuantLib's internal fixed-leg default), so this field\nis ignored if present and may be omitted. Kept optional for backward\ncompatibility."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OisFloatingLeg.payment_lag."
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Compound or Simple averaging of the overnight fixings. Required.\nName mirrors OisFloatingLeg.averaging_method."
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies — QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOisFloatingLeg.lookback_days."
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OisFloatingLeg.lockout_days."
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean",
+                "description" : "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OisFloatingLeg.apply_observation_shift."
               },
         "deps" : {
                 "$ref" : "#/definitions/quantra_HelperDependencies",
@@ -708,13 +732,40 @@
                 "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
               },
         "calendar" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Required. Despite the generic name, this feeds QuantLib's PAYMENT\ncalendar slot on the bootstrapped OIS (kept under its historical name\nfor wire compatibility)."
+              },
+        "fixed_leg_frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency",
+                "description" : "Required. Feeds QuantLib's PAYMENT frequency slot on the bootstrapped\nOIS (the coupon frequency of both legs unless overridden by QuantLib's\nfixed-frequency override, which is not exposed here). Name mirrors\nOISHelper.fixed_leg_frequency."
               },
         "fixed_leg_convention" : {
-                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention"
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Required. Despite the fixed-leg name, this feeds QuantLib's PAYMENT\nbusiness-day convention slot on the bootstrapped OIS (kept under its\nhistorical name for wire compatibility)."
               },
         "fixed_leg_day_counter" : {
-                "$ref" : "#/definitions/quantra_enums_DayCounter"
+                "$ref" : "#/definitions/quantra_enums_DayCounter",
+                "description" : "DEPRECATED / accepted-but-unused. No QuantLib OISRateHelper overload\naccepts a fixed-leg or payment day counter, so this field is ignored if\npresent and may be omitted. Kept optional for backward compatibility."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OisFloatingLeg.payment_lag."
+              },
+        "averaging_method" : {
+                "$ref" : "#/definitions/quantra_enums_RateAveragingType",
+                "description" : "Compound or Simple averaging of the overnight fixings. Required.\nName mirrors OisFloatingLeg.averaging_method."
+              },
+        "lookback_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies — QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOisFloatingLeg.lookback_days."
+              },
+        "lockout_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OisFloatingLeg.lockout_days."
+              },
+        "apply_observation_shift" : {
+                "type" : "boolean",
+                "description" : "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OisFloatingLeg.apply_observation_shift."
               },
         "deps" : {
                 "$ref" : "#/definitions/quantra_HelperDependencies",

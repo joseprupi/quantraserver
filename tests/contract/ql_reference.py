@@ -40,6 +40,13 @@ except ImportError:
     exit(1)
 
 
+# QuantLib's Null<Natural>() as seen through the Python bindings: Null<int>
+# (INT_MAX) cast to Natural. Passing this value for lookbackDays reproduces
+# the C++ "no lookback" off-state; a literal 0 does NOT (it forces the fixing
+# delay to 0 even when the index carries a non-zero intrinsic fixing delay).
+QL_NULL_NATURAL = 2147483647
+
+
 # =============================================================================
 # API Client
 # =============================================================================
@@ -684,11 +691,28 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 overnight_idx = ql.OvernightIndex(
                     "ON", 0, ql.USDCurrency(), ql.TARGET(), ql.Actual360()
                 )
+            # Mirror the server's OISRateHelper wiring: fixed_leg_convention /
+            # fixed_leg_frequency / calendar feed the PAYMENT convention /
+            # frequency / calendar slots, and the payment-lag and
+            # overnight-coupon parameters are applied verbatim. Wire
+            # lookback_days == 0 means "no lookback" = QuantLib Null<Natural>,
+            # NOT a zero-day lookback (the two differ whenever the index has a
+            # non-zero intrinsic fixing delay).
+            lookback = int(point.get("lookback_days", 0))
             helper = ql.OISRateHelper(
                 point.get("settlement_days", 2),
                 ql.Period(tenor_num, tenor_unit),
                 resolve_point_rate(point),
-                overnight_idx
+                overnight_idx,
+                telescopicValueDates=False,
+                paymentLag=int(point.get("payment_lag", 0)),
+                paymentConvention=get_convention(point.get("fixed_leg_convention", "Following")),
+                paymentFrequency=get_frequency(point.get("fixed_leg_frequency", "Annual")),
+                paymentCalendar=get_calendar(point.get("calendar", "TARGET")),
+                averagingMethod=get_rate_averaging(point.get("averaging_method", "Compound")),
+                lookbackDays=(QL_NULL_NATURAL if lookback <= 0 else lookback),
+                lockoutDays=int(point.get("lockout_days", 0)),
+                applyObservationShift=bool(point.get("apply_observation_shift", False)),
             )
             pillar = helper.pillarDate()
             if pillar not in seen_pillars:
@@ -1655,8 +1679,10 @@ def price_ois_swap_ql(request: dict) -> float:
     overnight_index = _build_overnight_index(idx_def, forward_curve)
 
     swap_type = ql.OvernightIndexedSwap.Payer if swap["swap_type"] == "Payer" else ql.OvernightIndexedSwap.Receiver
-    lookback = overnight.get("lookback_days", -1)
-    lookback = 0 if lookback < 0 else int(lookback)
+    # Wire lookback_days == 0 means "no lookback" = QuantLib Null<Natural>,
+    # NOT a zero-day lookback — mirrors the server's mapping.
+    lookback = int(overnight.get("lookback_days", 0))
+    lookback = QL_NULL_NATURAL if lookback <= 0 else lookback
     # Python bindings in our QuantLib wheel expose the one-schedule overload.
     # For this request shape fixed and overnight schedules are aligned.
     ql_swap = ql.OvernightIndexedSwap(
@@ -1945,14 +1971,10 @@ def price_swaption_ql(request: dict) -> float:
         payment_calendar = get_calendar(on_leg.get("payment_calendar", on_sch.get("calendar", "TARGET")))
         payment_lag = on_leg.get("payment_lag", 0)
         averaging = get_rate_averaging(on_leg.get("averaging_method", "Compound"))
-        lookback = on_leg.get("lookback_days", -1)
-        if lookback < 0:
-            if hasattr(ql, "NullNatural"):
-                lookback = ql.NullNatural()
-            elif hasattr(ql, "NullInteger"):
-                lookback = ql.NullInteger()
-            else:
-                lookback = 0
+        # Wire lookback_days == 0 means "no lookback" = QuantLib Null<Natural>,
+        # NOT a zero-day lookback — mirrors the server's mapping.
+        lookback = int(on_leg.get("lookback_days", 0))
+        lookback = QL_NULL_NATURAL if lookback <= 0 else lookback
         lockout = on_leg.get("lockout_days", 0)
         apply_shift = on_leg.get("apply_observation_shift", False)
         telescopic = on_leg.get("telescopic_value_dates", False)
@@ -2972,8 +2994,13 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
-                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_convention": "Following",
                                 "fixed_leg_day_counter": "Actual360",
+                                "payment_lag": 0,
+                                "averaging_method": "Compound",
+                                "lookback_days": 0,
+                                "lockout_days": 0,
+                                "apply_observation_shift": false,
                                 "tenor": {
                                     "n": 1,
                                     "unit": "Years"
@@ -2990,8 +3017,13 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
-                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_convention": "Following",
                                 "fixed_leg_day_counter": "Actual360",
+                                "payment_lag": 0,
+                                "averaging_method": "Compound",
+                                "lookback_days": 0,
+                                "lockout_days": 0,
+                                "apply_observation_shift": false,
                                 "tenor": {
                                     "n": 5,
                                     "unit": "Years"
@@ -3008,8 +3040,13 @@ def _make_multicurve_exogenous_request() -> dict:
                                 "settlement_days": 2,
                                 "calendar": "TARGET",
                                 "fixed_leg_frequency": "Annual",
-                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_convention": "Following",
                                 "fixed_leg_day_counter": "Actual360",
+                                "payment_lag": 0,
+                                "averaging_method": "Compound",
+                                "lookback_days": 0,
+                                "lockout_days": 0,
+                                "apply_observation_shift": false,
                                 "tenor": {
                                     "n": 10,
                                     "unit": "Years"

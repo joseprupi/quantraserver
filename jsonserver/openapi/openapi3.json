@@ -3133,6 +3133,31 @@
           "fixed_leg_day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
           },
+          "payment_lag": {
+            "type": "integer",
+            "description": "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OisFloatingLeg.payment_lag.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "averaging_method": {
+            "$ref": "#/components/schemas/quantra_enums_RateAveragingType"
+          },
+          "lookback_days": {
+            "type": "integer",
+            "description": "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies \u2014 QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOisFloatingLeg.lookback_days.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "lockout_days": {
+            "type": "integer",
+            "description": "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "apply_observation_shift": {
+            "type": "boolean",
+            "description": "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OisFloatingLeg.apply_observation_shift."
+          },
           "deps": {
             "$ref": "#/components/schemas/quantra_HelperDependencies"
           },
@@ -3170,11 +3195,39 @@
           "calendar": {
             "$ref": "#/components/schemas/quantra_enums_Calendar"
           },
+          "fixed_leg_frequency": {
+            "$ref": "#/components/schemas/quantra_enums_Frequency"
+          },
           "fixed_leg_convention": {
             "$ref": "#/components/schemas/quantra_enums_BusinessDayConvention"
           },
           "fixed_leg_day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
+          },
+          "payment_lag": {
+            "type": "integer",
+            "description": "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0. Name mirrors OisFloatingLeg.payment_lag.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "averaging_method": {
+            "$ref": "#/components/schemas/quantra_enums_RateAveragingType"
+          },
+          "lookback_days": {
+            "type": "integer",
+            "description": "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies \u2014 QuantLib encodes this\nas Null, not as a zero-day lookback). Name mirrors\nOisFloatingLeg.lookback_days.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "lockout_days": {
+            "type": "integer",
+            "description": "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "apply_observation_shift": {
+            "type": "boolean",
+            "description": "Whether the observation-shift convention applies to the lookback.\nRequired. Name mirrors OisFloatingLeg.apply_observation_shift."
           },
           "deps": {
             "$ref": "#/components/schemas/quantra_HelperDependencies"
@@ -6857,7 +6910,8 @@
             "$ref": "#/components/schemas/quantra_IndexRef"
           },
           "spread": {
-            "type": "number"
+            "type": "number",
+            "description": "Spread over the compounded/averaged overnight rate. Keeps a literal 0.0\ndefault on purpose: zero is the genuine market-standard value, not a\nconvention that could silently diverge."
           },
           "day_counter": {
             "$ref": "#/components/schemas/quantra_enums_DayCounter"
@@ -6870,6 +6924,7 @@
           },
           "payment_lag": {
             "type": "integer",
+            "description": "Payment lag in business days between accrual end and payment. Required;\nmust be >= 0.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -6878,19 +6933,23 @@
           },
           "lookback_days": {
             "type": "integer",
+            "description": "Fixing lookback in business days. Required; must be >= 0; 0 = no\nlookback (the index's own fixing delay applies \u2014 QuantLib encodes this\nas Null, not as a zero-day lookback).",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "lockout_days": {
             "type": "integer",
+            "description": "Lockout (rate-cutoff) days at period end. Required; must be >= 0;\n0 = no lockout.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "apply_observation_shift": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the observation-shift convention applies to the lookback.\nRequired."
           },
           "telescopic_value_dates": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Performance toggle for QuantLib's telescopic value-dates optimization,\nnot a market convention \u2014 keeps a literal false default on purpose."
           }
         },
         "required": [

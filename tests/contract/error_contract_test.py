@@ -401,6 +401,29 @@ def _ec_del_swap_leg_field(arr_key, swap_key, leg_key, field):
     return f
 
 
+def _ec_set_swap_leg_field(arr_key, swap_key, leg_key, field, value):
+    """Set a field on a swap leg to an invalid value (e.g. a negative day
+    count that would wrap into QuantLib's unsigned Natural)."""
+    def f(req):
+        req[arr_key][0][swap_key][leg_key][field] = value
+        return req
+    return f
+
+
+def _ec_set_curve_point_field(point_type, field, value):
+    """Set `field` on the first curve helper of `point_type` to an invalid
+    value (e.g. a negative day count that would wrap into QuantLib's unsigned
+    Natural)."""
+    def f(req):
+        for curve in req["pricing"]["rates"]["curves"]:
+            for p in curve.get("points", []):
+                if p.get("point_type") == point_type:
+                    p["point"][field] = value
+                    return req
+        raise AssertionError(f"no {point_type} point found in request")
+    return f
+
+
 def _ec_del_instrument_field(arr_key, product_key, field):
     """Drop a convention or discriminator field from the product instrument
     block. The instrument-level enums (day_counter, calendar,
@@ -995,6 +1018,55 @@ SCENARIOS = [
      "ois_swap_request.json", 400,
      _ec_del_instrument_field("swaps", "ois_swap", "swap_type"),
      _ec_body_contains("OisSwap.swap_type is required")),
+    # ---- 400 INVALID_ARGUMENT: OIS payment-lag / overnight-coupon presence ----
+    # The payment-lag and overnight-coupon parameters shift every payment /
+    # fixing date, so an omitted value must be a named 400, never a silent
+    # default; a negative day count would wrap into QuantLib's unsigned
+    # Natural, so it is rejected explicitly. Locked on both the priced leg
+    # (OisFloatingLeg) and the curve helper (OISHelper).
+    ("ec:400 ois_swap leg missing payment_lag", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "payment_lag"),
+     _ec_body_contains("OisFloatingLeg.payment_lag is required")),
+    ("ec:400 ois_swap leg missing averaging_method", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "averaging_method"),
+     _ec_body_contains("OisFloatingLeg.averaging_method is required")),
+    ("ec:400 ois_swap leg missing apply_observation_shift", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg",
+                            "apply_observation_shift"),
+     _ec_body_contains("OisFloatingLeg.apply_observation_shift is required")),
+    ("ec:400 ois_swap leg negative lockout_days", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_set_swap_leg_field("swaps", "ois_swap", "overnight_leg",
+                            "lockout_days", -1),
+     _ec_body_contains("OisFloatingLeg.lockout_days must be non-negative")),
+    ("ec:400 ois_swap leg negative lookback_days", "ois_swap",
+     "ois_swap_request.json", 400,
+     _ec_set_swap_leg_field("swaps", "ois_swap", "overnight_leg",
+                            "lookback_days", -1),
+     _ec_body_contains("OisFloatingLeg.lookback_days must be non-negative")),
+    ("ec:400 ois helper missing payment_lag", "ois_swap",
+     "ir_swaps/ois_eur_5y_payer_estr.json", 400,
+     _ec_del_curve_point_field("OISHelper", "payment_lag"),
+     _ec_body_contains("OISHelper.payment_lag is required")),
+    ("ec:400 ois helper missing averaging_method", "ois_swap",
+     "ir_swaps/ois_eur_5y_payer_estr.json", 400,
+     _ec_del_curve_point_field("OISHelper", "averaging_method"),
+     _ec_body_contains("OISHelper.averaging_method is required")),
+    ("ec:400 ois helper missing apply_observation_shift", "ois_swap",
+     "ir_swaps/ois_eur_5y_payer_estr.json", 400,
+     _ec_del_curve_point_field("OISHelper", "apply_observation_shift"),
+     _ec_body_contains("OISHelper.apply_observation_shift is required")),
+    ("ec:400 ois helper negative lockout_days", "ois_swap",
+     "ir_swaps/ois_eur_5y_payer_estr.json", 400,
+     _ec_set_curve_point_field("OISHelper", "lockout_days", -2),
+     _ec_body_contains("OISHelper.lockout_days must be non-negative")),
+    ("ec:400 ois helper negative lookback_days", "ois_swap",
+     "ir_swaps/ois_eur_5y_payer_estr.json", 400,
+     _ec_set_curve_point_field("OISHelper", "lookback_days", -1),
+     _ec_body_contains("OISHelper.lookback_days must be non-negative")),
     ("ec:400 basis_swap missing swap_type", "basis_swap",
      "basis_swap_request.json", 400,
      _ec_del_instrument_field("swaps", "basis_swap", "swap_type"),
