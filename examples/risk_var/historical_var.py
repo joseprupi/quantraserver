@@ -21,6 +21,10 @@ What this does
 5. Reports one-day 99% VaR (interpolated quantile), Expected Shortfall,
    best/worst scenarios, throughput, and an ASCII P&L histogram. --json writes
    the same numbers machine-readably.
+6. Optional --sweep 1,2,4,8,12,24 runs the FULL identical workload once per
+   client-concurrency level against the same server and prints a scaling
+   table (wall time, req/s, avg latency, speedup vs the first level) plus a
+   check that the risk numbers agree across levels.
 
 Requires a running QuantraServer JSON API (v0.6.0+ wire contract) and the
 `requests` package. Everything else is the Python standard library.
@@ -29,6 +33,7 @@ Usage:
     python3 historical_var.py --url http://localhost:8080
     python3 historical_var.py --swaps 100 --scenarios 250 --concurrency 12
     python3 historical_var.py --history-csv my_pillar_moves_bp.csv --json out.json
+    python3 historical_var.py --sweep 1,2,4,8,12,24
 """
 
 import argparse
@@ -374,8 +379,20 @@ def tail_stats(pnl: list, confidence: float = 0.99) -> dict:
 
 def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42,
             concurrency: int = 12, history_csv: str = None,
-            direction: str = "mixed", vol_scale: float = 1.0) -> dict:
-    """Full historical-simulation VaR run. Returns a machine-readable dict."""
+            direction: str = "mixed", vol_scale: float = 1.0,
+            quote_epsilon: float = 0.0) -> dict:
+    """Full historical-simulation VaR run. Returns a machine-readable dict.
+
+    `quote_epsilon` is added to EVERY par quote (base curve and all scenario
+    curves alike). The sweep mode uses a distinct epsilon per concurrency
+    level as a cache-poisoning guard: the server's curve cache is keyed on
+    the curve's content, so re-running byte-identical scenarios would let
+    later sweep levels skip the bootstrap and look artificially fast. A
+    per-level epsilon of ~1e-9 (1e-5 bp) changes every cache key, forcing an
+    honest re-bootstrap, while being economically negligible — and because
+    the base valuation carries the same epsilon, it cancels out of the P&L
+    to first order, so VaR/ES agree across levels to well under $1.
+    """
     portfolio = build_portfolio(n_swaps, seed, direction)
 
     if history_csv:
@@ -390,13 +407,14 @@ def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42
     t_start = time.perf_counter()
 
     # Base (reference) book value first: fails fast on any wire/market problem.
+    base_rates = [r + quote_epsilon for r in BASE_RATES]
     base_value, base_latency = price_book(
-        url, build_request(portfolio, BASE_RATES), n_swaps
+        url, build_request(portfolio, base_rates), n_swaps
     )
 
     # One request per scenario: full shocked quote vector + the whole book.
     def price_scenario(bumps):
-        shocked = [r + b for r, b in zip(BASE_RATES, bumps)]
+        shocked = [r + b for r, b in zip(base_rates, bumps)]
         return price_book(url, build_request(portfolio, shocked), n_swaps)
 
     t_fan = time.perf_counter()
@@ -424,6 +442,7 @@ def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42
             "vol_scale": vol_scale,
             "history_csv": history_csv,
             "as_of_date": AS_OF_DATE,
+            "quote_epsilon": quote_epsilon,
         },
         "synthetic_history": synthetic,
         "base_value": base_value,
@@ -448,6 +467,97 @@ def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42
             "requests_per_s": len(scenarios) / fan_wall if fan_wall > 0 else 0.0,
             "avg_latency_ms": 1000.0 * sum(latencies) / len(latencies),
         },
+    }
+
+
+# --------------------------------------------------------------------------
+# Scaling sweep: the full identical workload once per concurrency level.
+# --------------------------------------------------------------------------
+
+# Sweep levels must agree on VaR to well under this (USD). The per-level
+# quote epsilon (~1e-9 on each rate) cancels out of P&L to first order, so
+# any real disagreement here would mean parallelism changed the numbers.
+SWEEP_VAR_TOLERANCE_USD = 1.0
+
+
+def run_sweep(url: str, levels: list, n_swaps: int = 100,
+              n_scenarios: int = 250, seed: int = 42, history_csv: str = None,
+              direction: str = "mixed", vol_scale: float = 1.0) -> dict:
+    """Run the FULL identical workload once per client-concurrency level.
+
+    One server, one workload, several client fan-out widths — the resulting
+    table is the sequential-vs-full-fleet comparison. Levels run in the
+    order given.
+
+    Cache-poisoning guard: each level adds its own deterministic epsilon
+    ((position+1) * 1e-9) to every par quote. The server's curve cache is
+    content-keyed, so byte-identical re-runs would be served from cache and
+    make later levels artificially fast; the per-level epsilon changes every
+    cache key so every level re-bootstraps honestly. It is economically
+    negligible and cancels out of P&L (see run_var), which we verify: VaR
+    must agree across levels to well under $1 or this raises.
+    """
+    if not levels:
+        raise ValueError("--sweep needs at least one concurrency level")
+    if any(lv < 1 for lv in levels):
+        raise ValueError("sweep concurrency levels must be >= 1")
+
+    runs = []
+    for pos, level in enumerate(levels):
+        runs.append(run_var(
+            url=url, n_swaps=n_swaps, n_scenarios=n_scenarios, seed=seed,
+            concurrency=level, history_csv=history_csv, direction=direction,
+            vol_scale=vol_scale, quote_epsilon=(pos + 1) * 1e-9,
+        ))
+
+    first_wall = runs[0]["timing"]["scenario_wall_s"]
+    table = []
+    for level, r in zip(levels, runs):
+        t = r["timing"]
+        table.append({
+            "concurrency": level,
+            "wall_s": t["scenario_wall_s"],
+            "requests_per_s": t["requests_per_s"],
+            "avg_latency_ms": t["avg_latency_ms"],
+            "speedup": first_wall / t["scenario_wall_s"]
+            if t["scenario_wall_s"] > 0 else 0.0,
+        })
+
+    vars_ = [r["var_99"] for r in runs]
+    ess = [r["es_99"] for r in runs]
+    max_var_delta = max(vars_) - min(vars_)
+    max_es_delta = max(ess) - min(ess)
+    if not (max_var_delta < SWEEP_VAR_TOLERANCE_USD):
+        raise RuntimeError(
+            f"sweep levels disagree on VaR by ${max_var_delta:,.2f} "
+            f"(tolerance ${SWEEP_VAR_TOLERANCE_USD:,.2f}) — parallelism must "
+            "not change the numbers"
+        )
+
+    return {
+        "mode": "sweep",
+        "config": {
+            "url": url,
+            "swaps": n_swaps,
+            "scenarios": runs[0]["config"]["scenarios"],
+            "seed": seed,
+            "levels": list(levels),
+            "direction": direction,
+            "vol_scale": vol_scale,
+            "history_csv": history_csv,
+            "as_of_date": AS_OF_DATE,
+        },
+        "sweep_table": table,
+        "identical_check": {
+            "var_99_by_level": vars_,
+            "es_99_by_level": ess,
+            "max_var_delta": max_var_delta,
+            "max_es_delta": max_es_delta,
+            "tolerance_usd": SWEEP_VAR_TOLERANCE_USD,
+        },
+        # Risk numbers reported once, from the first level: every level prices
+        # the same book over the same history (modulo the ~1e-9 epsilon).
+        "risk": runs[0],
     }
 
 
@@ -528,6 +638,49 @@ def print_report(r: dict) -> None:
     print("not accelerate this workload; throughput comes from parallel workers.")
 
 
+def print_sweep_report(r: dict) -> None:
+    cfg, risk = r["config"], r["risk"]
+    check = r["identical_check"]
+    print()
+    print("Scaling sweep — same workload, one server, rising client concurrency")
+    print("=" * 70)
+    print(f"Portfolio      : {cfg['swaps']} SOFR OIS swaps "
+          f"({cfg['direction']}, seed {cfg['seed']})")
+    print(f"Workload/level : {cfg['scenarios']} scenario requests + 1 base "
+          "(full re-bootstrap + book revaluation each)")
+    print("Cache guard    : per-level ~1e-9 quote epsilon defeats the "
+          "content-keyed curve cache")
+    print()
+    print(f"{'concurrency':>11} | {'wall time':>9} | {'req/s':>7} | "
+          f"{'avg latency':>11} | {'speedup vs level-1':>18}")
+    print(f"{'-' * 11} | {'-' * 9} | {'-' * 7} | {'-' * 11} | {'-' * 18}")
+    for row in r["sweep_table"]:
+        print(f"{row['concurrency']:>11} | {row['wall_s']:>8.2f}s | "
+              f"{row['requests_per_s']:>7.1f} | "
+              f"{row['avg_latency_ms']:>9.0f}ms | {row['speedup']:>17.2f}x")
+    print("-" * 70)
+    print(f"Base book value: {fmt_usd(risk['base_value'])}")
+    print(f"99% 1-day VaR  : {fmt_usd(risk['var_99'])}")
+    print(f"99% ES         : {fmt_usd(risk['es_99'])}")
+    print(f"Worst scenario : {fmt_usd(risk['worst_pnl'])} P&L "
+          f"(#{risk['worst_scenario_index']})")
+    print(f"Best scenario  : {fmt_usd(risk['best_pnl'])} P&L "
+          f"(#{risk['best_scenario_index']})")
+    print()
+    print(f"results identical across levels: max VaR delta "
+          f"${check['max_var_delta']:,.6f} "
+          f"(ES delta ${check['max_es_delta']:,.6f}) — parallelism does not "
+          "change the numbers")
+    print()
+    print("P&L distribution:")
+    print(ascii_histogram(risk["pnl"]))
+    print()
+    print("Notes: every level re-prices the identical book over the identical")
+    print("history; only the client fan-out width changes. Wall time is the")
+    print("scenario fan-out. Keep each level at or below the server's")
+    print("QUANTRA_WORKERS or the excess requests 504 on the gateway deadline.")
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Historical-simulation VaR for a SOFR OIS swap book "
@@ -541,11 +694,17 @@ def main(argv=None) -> int:
                              "ignored when --history-csv is given)")
     parser.add_argument("--seed", type=int, default=42,
                         help="RNG seed for portfolio + synthetic history")
-    parser.add_argument("--concurrency", type=int, default=12,
+    parser.add_argument("--concurrency", type=int, default=None,
                         help="parallel in-flight requests (default 12; keep at "
                              "or below the server's QUANTRA_WORKERS — the "
                              "gateway's 10s per-request deadline includes "
-                             "queue time, so a deeper queue returns 504s)")
+                             "queue time, so a deeper queue returns 504s; "
+                             "mutually exclusive with --sweep)")
+    parser.add_argument("--sweep", default=None, metavar="1,2,4,8,12,24",
+                        help="comma-separated client concurrency levels: run "
+                             "the FULL identical workload once per level (in "
+                             "the order given) and print a scaling table; "
+                             "mutually exclusive with --concurrency")
     parser.add_argument("--history-csv", default=None,
                         help="CSV of real daily pillar moves in bp "
                              "(rows=days, 12 columns: 1M,3M,6M,1Y,2Y,3Y,5Y,"
@@ -559,17 +718,42 @@ def main(argv=None) -> int:
                         help="write full machine-readable results to this file")
     args = parser.parse_args(argv)
 
+    if args.sweep is not None and args.concurrency is not None:
+        parser.error("--sweep and --concurrency are mutually exclusive "
+                     "(--sweep supplies its own per-level concurrency)")
+    sweep_levels = None
+    if args.sweep is not None:
+        try:
+            sweep_levels = [int(tok) for tok in args.sweep.split(",") if tok.strip()]
+        except ValueError:
+            parser.error(f"--sweep must be comma-separated integers, got "
+                         f"{args.sweep!r}")
+        if not sweep_levels or any(lv < 1 for lv in sweep_levels):
+            parser.error("--sweep levels must be integers >= 1")
+
     try:
-        result = run_var(
-            url=args.url,
-            n_swaps=args.swaps,
-            n_scenarios=args.scenarios,
-            seed=args.seed,
-            concurrency=args.concurrency,
-            history_csv=args.history_csv,
-            direction=args.direction,
-            vol_scale=args.vol_scale,
-        )
+        if sweep_levels is not None:
+            result = run_sweep(
+                url=args.url,
+                levels=sweep_levels,
+                n_swaps=args.swaps,
+                n_scenarios=args.scenarios,
+                seed=args.seed,
+                history_csv=args.history_csv,
+                direction=args.direction,
+                vol_scale=args.vol_scale,
+            )
+        else:
+            result = run_var(
+                url=args.url,
+                n_swaps=args.swaps,
+                n_scenarios=args.scenarios,
+                seed=args.seed,
+                concurrency=args.concurrency if args.concurrency is not None else 12,
+                history_csv=args.history_csv,
+                direction=args.direction,
+                vol_scale=args.vol_scale,
+            )
     except requests.ConnectionError:
         print(f"ERROR: cannot reach QuantraServer at {args.url} "
               "(is the server running?)", file=sys.stderr)
@@ -578,7 +762,10 @@ def main(argv=None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    print_report(result)
+    if sweep_levels is not None:
+        print_sweep_report(result)
+    else:
+        print_report(result)
     if args.json_out:
         with open(args.json_out, "w") as f:
             json.dump(result, f, indent=2)

@@ -41,7 +41,9 @@ python3 historical_var.py --url http://localhost:8080
 Defaults: 100 swaps, 250 scenarios, 12 concurrent requests, fixed seed
 (reproducible). Knobs: `--swaps`, `--scenarios`, `--seed`, `--concurrency`,
 `--direction payer|receiver|mixed` (make the book directional), `--vol-scale`
-(stress the synthetic vols), `--json out.json` (machine-readable results).
+(stress the synthetic vols), `--json out.json` (machine-readable results),
+`--sweep 1,2,4,8,12,24` (scaling sweep, see below; mutually exclusive with
+`--concurrency`).
 
 Keep `--concurrency` at or below the server's worker count. The JSON gateway
 enforces a fixed 10-second deadline per forwarded request that *includes time
@@ -74,6 +76,62 @@ scenario requests are independent, so the script fans them out over a thread
 pool and the server spreads them across its worker processes. Note the curve
 cache does not help here — every scenario is a *different* curve, so this
 workload measures genuine parallel pricing throughput, not cache hits.
+
+## Measuring parallel scaling
+
+`--sweep` turns one run against one server into the sequential-vs-full-fleet
+comparison: it executes the FULL identical workload once per client
+concurrency level (in the order given) and prints a scaling table.
+
+```bash
+# Bench server on a Ryzen 3900X (12 cores / 24 threads). Workers are
+# single-threaded, compute-bound processes, so ~12 is where near-linear
+# scaling should end and 24 tests what SMT adds on top. The image's default
+# worker count caps at 8, so QUANTRA_WORKERS must be set explicitly:
+docker run --rm \
+  -e QUANTRA_WORKERS=24 \
+  -p 8080:8080 \
+  -p 50051:50051 \
+  ghcr.io/joseprupi/quantra-server:0.6.0
+
+python3 historical_var.py --sweep 1,2,4,8,12,24
+```
+
+The deadline rule from above applies per level: every sweep level's
+concurrency must stay at or below the server's `QUANTRA_WORKERS`, because the
+gateway's fixed 10-second deadline includes queue time — sweeping up to 24
+therefore needs the `QUANTRA_WORKERS=24` server.
+
+**Why each level nudges the quotes.** The server's curve cache is keyed on
+curve *content*, so re-running byte-identical scenarios would serve later
+levels from cache and make them artificially fast. The sweep therefore adds a
+deterministic per-level epsilon (level position × 1e-9, i.e. 1e-5 bp) to every
+par quote — base curve included — so every cache key changes and every level
+re-bootstraps honestly. The epsilon is economically negligible and cancels
+out of the P&L (base and scenarios shift together): the script asserts that
+VaR agrees across levels to well under $1 and prints the check
+(`results identical across levels: max VaR delta $...`), which doubles as a
+demonstration that parallelism does not change the numbers. Purist variant:
+start the bench server with `-e QUANTRA_CURVE_CACHE_ENABLED=0` and the cache
+is out of the picture entirely (the epsilon then simply does nothing).
+
+Example output (**placeholder numbers — entirely machine-dependent**, shape
+shown for a 12-core/24-thread box with `QUANTRA_WORKERS=24`):
+
+```
+concurrency | wall time |   req/s | avg latency | speedup vs level-1
+          1 |   120.00s |     2.1 |       480ms |              1.00x
+          2 |    61.00s |     4.1 |       485ms |              1.97x
+          4 |    31.00s |     8.1 |       492ms |              3.87x
+          8 |    16.00s |    15.6 |       505ms |              7.50x
+         12 |    11.00s |    22.7 |       520ms |             10.91x
+         24 |     8.50s |    29.4 |       780ms |             14.12x
+```
+
+Near-linear to ~12 (the physical cores), then a flatter SMT tail to 24 —
+higher per-request latency, but still more throughput. The risk numbers, the
+identical-results check and the histogram are printed once after the table,
+and `--json` includes the table machine-readably.
 
 ## Synthetic history — and how to plug in real data
 

@@ -67,6 +67,41 @@ def test_mini_var_run_completes(client):
     assert any(abs(p) > 1e-6 for p in result["pnl"])
 
 
+def test_mini_sweep_two_levels(client):
+    """Sweep mode: identical tiny workload at concurrency 1 then 2.
+
+    Asserts the table has one row per level, wall times are finite/positive,
+    and the per-level ~1e-9 quote epsilon (the cache-poisoning guard) leaves
+    VaR identical across levels to well under $1 — run_sweep itself raises
+    if that ever breaks.
+    """
+    result = hv.run_sweep(
+        url=client.base_url,
+        levels=[1, 2],
+        n_swaps=4,
+        n_scenarios=3,
+        seed=SEED,
+    )
+    rows = result["sweep_table"]
+    assert len(rows) == 2
+    assert [r["concurrency"] for r in rows] == [1, 2]
+    assert all(math.isfinite(r["wall_s"]) and r["wall_s"] > 0 for r in rows)
+    assert all(math.isfinite(r["requests_per_s"]) for r in rows)
+    assert all(math.isfinite(r["avg_latency_ms"]) for r in rows)
+    assert rows[0]["speedup"] == 1.0
+
+    check = result["identical_check"]
+    assert len(check["var_99_by_level"]) == 2
+    assert math.isfinite(check["max_var_delta"])
+    assert check["max_var_delta"] < 1.0, (
+        "sweep levels must agree on VaR to well under $1 "
+        f"(got delta ${check['max_var_delta']})"
+    )
+    # Risk numbers are reported once, from the first level.
+    assert result["risk"]["config"]["concurrency"] == 1
+    assert math.isfinite(result["risk"]["var_99"])
+
+
 def test_tail_stats_pure_math():
     """The quantile/ES math is stdlib-only; pin its conventions."""
     pnl = [-100.0, -50.0, -10.0, 0.0, 5.0, 20.0]
