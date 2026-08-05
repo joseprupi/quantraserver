@@ -149,6 +149,49 @@ where `moves.csv` has one row per day and 12 columns of par-quote changes in
 basis points, ordered `1M,3M,6M,1Y,2Y,3Y,5Y,7Y,10Y,15Y,20Y,30Y` (an optional
 header row is skipped). The scenario count then equals the number of rows.
 
+## Cross-checking against raw QuantLib
+
+`native_var_check.cpp` is a standalone C++ program that recomputes the exact
+same VaR run — same book, same base and scenario curves — with **direct
+QuantLib calls**: no server, no gRPC, no JSON. Comparing its numbers against
+the script's proves that the server pipeline adds zero pricing error: what
+you get over the wire is exactly what native QuantLib produces from the same
+inputs, matching P&L for P&L (residual differences are doubles round-tripping
+through JSON, i.e. cents on multi-million P&Ls).
+
+Three steps (all runnable inside the `quantraserver:test` image, which has
+QuantLib under `/opt/quantra-deps`):
+
+```bash
+# 1. Run the script and dump the exact inputs it priced (full precision):
+python3 historical_var.py --swaps 50 --scenarios 100 --concurrency 3 \
+    --dump-inputs work/ --json work/result.json
+
+# 2. Compile and run the native re-pricer on the dumped inputs:
+g++ -O2 -std=c++17 native_var_check.cpp \
+    -I/opt/quantra-deps/include -L/opt/quantra-deps/lib -lQuantLib \
+    -o native_var_check
+LD_LIBRARY_PATH=/opt/quantra-deps/lib \
+    ./native_var_check work/swaps.csv work/quotes.csv work/native_results.csv
+
+# 3. Re-run the SAME configuration with the comparison flag:
+python3 historical_var.py --swaps 50 --scenarios 100 --concurrency 3 \
+    --compare-native work/native_results.csv
+```
+
+The comparison block reports the base-book-value difference, the max/mean
+absolute per-scenario P&L difference, and the VaR/ES differences (also in
+`--json` under `native_comparison`). The .cpp mirrors, call for call, the
+conventions the engine applies to the script's JSON (curve trait and
+interpolation, OIS helper construction, schedule generation, payment lag,
+index definition, discounting engine) — see the comment at the top of the
+file for the full list.
+
+Note: `native_var_check.cpp` is a standalone validation artifact. It is
+deliberately **not** wired into the repo's CMake build or test suite — it
+exists so anyone can verify the server against raw QuantLib with one compile
+line.
+
 ## What this is not
 
 There is no GPU, no Taylor expansion, no DV01-times-shift shortcut and no

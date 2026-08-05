@@ -34,12 +34,18 @@ Usage:
     python3 historical_var.py --swaps 100 --scenarios 250 --concurrency 12
     python3 historical_var.py --history-csv my_pillar_moves_bp.csv --json out.json
     python3 historical_var.py --sweep 1,2,4,8,12,24
+    python3 historical_var.py --dump-inputs work/ --json work/result.json
+    python3 historical_var.py --compare-native work/native_results.csv
+
+The last two support the raw-QuantLib cross-check (see README section
+"Cross-checking against raw QuantLib" and native_var_check.cpp).
 """
 
 import argparse
 import csv
 import json
 import math
+import os
 import random
 import sys
 import threading
@@ -223,6 +229,46 @@ def build_portfolio(n_swaps: int, seed: int, direction: str = "mixed") -> list:
     return trades
 
 
+def pillar_labels() -> list:
+    """Human-readable pillar tenor labels, e.g. 1M, 3M, ..., 30Y."""
+    return [f"{n}{'M' if unit == 'Months' else 'Y'}" for (n, unit, *_rest) in PILLARS]
+
+
+def dump_inputs(dir_path: str, portfolio: list, base_rates: list,
+                scenarios: list) -> None:
+    """Write swaps.csv + quotes.csv for the native QuantLib cross-check.
+
+    swaps.csv: one row per swap — tenor_years, is_payer (1/0), notional,
+    fixed_rate — exactly the four degrees of freedom of a book trade (every
+    other swap field is a fixed convention mirrored by native_var_check.cpp).
+    quotes.csv: header = pillar tenor labels; first data row = the base par
+    quotes actually priced (epsilon included, if any), then one row per
+    scenario with that scenario's full shocked quote vector.
+
+    All numbers are written with repr() (full double precision) so the native
+    program prices bit-identical inputs.
+    """
+    os.makedirs(dir_path, exist_ok=True)
+    with open(os.path.join(dir_path, "swaps.csv"), "w") as f:
+        f.write("tenor_years,is_payer,notional,fixed_rate\n")
+        for trade in portfolio:
+            swap = trade["ois_swap"]
+            fixed = swap["fixed_leg"]
+            # make_ois_trade sets termination to (start_year + tenor)-01-17.
+            tenor_years = (int(fixed["schedule"]["termination_date"][:4])
+                           - int(SPOT_DATE[:4]))
+            is_payer = 1 if swap["swap_type"] == "Payer" else 0
+            f.write(f"{tenor_years},{is_payer},{fixed['notional']!r},"
+                    f"{fixed['rate']!r}\n")
+    with open(os.path.join(dir_path, "quotes.csv"), "w") as f:
+        f.write(",".join(pillar_labels()) + "\n")
+        f.write(",".join(repr(r) for r in base_rates) + "\n")
+        for bumps in scenarios:
+            # Same float arithmetic as price_scenario, so identical doubles.
+            f.write(",".join(repr(r + b)
+                             for r, b in zip(base_rates, bumps)) + "\n")
+
+
 # --------------------------------------------------------------------------
 # Scenarios: daily bump vectors on the par quotes (decimal, not bp).
 # --------------------------------------------------------------------------
@@ -380,7 +426,7 @@ def tail_stats(pnl: list, confidence: float = 0.99) -> dict:
 def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42,
             concurrency: int = 12, history_csv: str = None,
             direction: str = "mixed", vol_scale: float = 1.0,
-            quote_epsilon: float = 0.0) -> dict:
+            quote_epsilon: float = 0.0, dump_inputs_dir: str = None) -> dict:
     """Full historical-simulation VaR run. Returns a machine-readable dict.
 
     `quote_epsilon` is added to EVERY par quote (base curve and all scenario
@@ -404,10 +450,13 @@ def run_var(url: str, n_swaps: int = 100, n_scenarios: int = 250, seed: int = 42
         scenarios = synthetic_history(n_scenarios, seed + 1, vol_scale)
         synthetic = True
 
+    base_rates = [r + quote_epsilon for r in BASE_RATES]
+    if dump_inputs_dir:
+        dump_inputs(dump_inputs_dir, portfolio, base_rates, scenarios)
+
     t_start = time.perf_counter()
 
     # Base (reference) book value first: fails fast on any wire/market problem.
-    base_rates = [r + quote_epsilon for r in BASE_RATES]
     base_value, base_latency = price_book(
         url, build_request(portfolio, base_rates), n_swaps
     )
@@ -559,6 +608,84 @@ def run_sweep(url: str, levels: list, n_swaps: int = 100,
         # the same book over the same history (modulo the ~1e-9 epsilon).
         "risk": runs[0],
     }
+
+
+# --------------------------------------------------------------------------
+# Native QuantLib cross-check (see native_var_check.cpp).
+# --------------------------------------------------------------------------
+
+
+def load_native_results(path: str) -> tuple:
+    """Read native_var_check.cpp output: first line = base book value, then
+    one P&L per scenario. Returns (base_value, pnl_list)."""
+    values = []
+    try:
+        with open(path) as f:
+            for line_num, line in enumerate(f, start=1):
+                cell = line.strip()
+                if not cell:
+                    continue
+                try:
+                    values.append(float(cell))
+                except ValueError:
+                    raise RuntimeError(
+                        f"{path}:{line_num}: non-numeric line {cell!r}")
+    except OSError as exc:
+        raise RuntimeError(f"cannot read native results {path}: {exc}")
+    if len(values) < 3:
+        raise RuntimeError(
+            f"{path}: expected a base value plus at least 2 scenario P&Ls, "
+            f"got {len(values)} numbers")
+    return values[0], values[1:]
+
+
+def compare_native(result: dict, path: str) -> dict:
+    """Compare this run's results against a native_var_check.cpp CSV.
+
+    The native program prices the SAME dumped inputs with direct QuantLib
+    calls (no server), so any difference beyond double round-tripping through
+    JSON means a pricing-convention divergence.
+    """
+    base_native, pnl_native = load_native_results(path)
+    pnl = result["pnl"]
+    if len(pnl_native) != len(pnl):
+        raise RuntimeError(
+            f"native results have {len(pnl_native)} scenario P&Ls but this "
+            f"run produced {len(pnl)} — compare against the SAME inputs "
+            "(same --swaps/--scenarios/--seed as the --dump-inputs run)")
+    diffs = [abs(a - b) for a, b in zip(pnl, pnl_native)]
+    native_stats = tail_stats(pnl_native)
+    return {
+        "native_csv": path,
+        "scenarios": len(pnl),
+        "base_value_server": result["base_value"],
+        "base_value_native": base_native,
+        "base_value_diff": result["base_value"] - base_native,
+        "max_abs_pnl_diff": max(diffs),
+        "mean_abs_pnl_diff": sum(diffs) / len(diffs),
+        "var_99_server": result["var_99"],
+        "var_99_native": native_stats["var"],
+        "var_99_diff": result["var_99"] - native_stats["var"],
+        "es_99_server": result["es_99"],
+        "es_99_native": native_stats["es"],
+        "es_99_diff": result["es_99"] - native_stats["es"],
+    }
+
+
+def print_native_comparison(c: dict) -> None:
+    print()
+    print("Native QuantLib cross-check (direct QuantLib calls, no server)")
+    print("=" * 70)
+    print(f"Native results : {c['native_csv']} ({c['scenarios']} scenarios)")
+    print(f"Base book value: server {c['base_value_server']:,.6f}  "
+          f"native {c['base_value_native']:,.6f}  "
+          f"diff {c['base_value_diff']:+.6g}")
+    print(f"Scenario P&L   : max |diff| {c['max_abs_pnl_diff']:.6g}, "
+          f"mean |diff| {c['mean_abs_pnl_diff']:.6g}")
+    print(f"99% 1-day VaR  : server {c['var_99_server']:,.6f}  "
+          f"native {c['var_99_native']:,.6f}  diff {c['var_99_diff']:+.6g}")
+    print(f"99% ES         : server {c['es_99_server']:,.6f}  "
+          f"native {c['es_99_native']:,.6f}  diff {c['es_99_diff']:+.6g}")
 
 
 # --------------------------------------------------------------------------
@@ -716,11 +843,24 @@ def main(argv=None) -> int:
                         help="multiplier on the synthetic daily vols")
     parser.add_argument("--json", dest="json_out", default=None,
                         help="write full machine-readable results to this file")
+    parser.add_argument("--dump-inputs", dest="dump_inputs", default=None,
+                        metavar="DIR",
+                        help="write swaps.csv + quotes.csv (full precision) "
+                             "for the native QuantLib cross-check "
+                             "(native_var_check.cpp)")
+    parser.add_argument("--compare-native", dest="compare_native", default=None,
+                        metavar="CSV",
+                        help="compare this run against a native_results.csv "
+                             "produced by native_var_check.cpp on the SAME "
+                             "dumped inputs")
     args = parser.parse_args(argv)
 
     if args.sweep is not None and args.concurrency is not None:
         parser.error("--sweep and --concurrency are mutually exclusive "
                      "(--sweep supplies its own per-level concurrency)")
+    if args.sweep is not None and (args.dump_inputs or args.compare_native):
+        parser.error("--dump-inputs/--compare-native target a single run; "
+                     "they are mutually exclusive with --sweep")
     sweep_levels = None
     if args.sweep is not None:
         try:
@@ -753,7 +893,11 @@ def main(argv=None) -> int:
                 history_csv=args.history_csv,
                 direction=args.direction,
                 vol_scale=args.vol_scale,
+                dump_inputs_dir=args.dump_inputs,
             )
+            if args.compare_native:
+                result["native_comparison"] = compare_native(
+                    result, args.compare_native)
     except requests.ConnectionError:
         print(f"ERROR: cannot reach QuantraServer at {args.url} "
               "(is the server running?)", file=sys.stderr)
@@ -766,6 +910,8 @@ def main(argv=None) -> int:
         print_sweep_report(result)
     else:
         print_report(result)
+        if "native_comparison" in result:
+            print_native_comparison(result["native_comparison"])
     if args.json_out:
         with open(args.json_out, "w") as f:
             json.dump(result, f, indent=2)
