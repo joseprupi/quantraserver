@@ -26,6 +26,42 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.7.0 (October 2026) — per-request calendar holiday overrides, backward-compatible
+
+`v0.7.0` adds one feature, requested during an external validation POC: a
+request can carry its own holiday corrections, so a short-notice or one-off
+holiday no longer needs a new server image. Every 0.6.0 request prices
+identically on 0.7.0: the change is one new optional field, and a request
+without it behaves — and is cached — exactly as before. No migration is needed.
+
+### Calendar holiday overrides
+
+- New optional `calendar_overrides` list: one entry per calendar, with
+  `added_holidays` (dates that must be holidays) and `removed_holidays` (dates
+  that must be business days).
+- It goes inside `pricing`, beside `as_of_date`, on every endpoint that has a
+  `pricing` block (pricing, curve bootstrapping, calibration, sampling), and at
+  the top level of `/calendar-holidays`, `/calendar-advance` and
+  `/calendar-business-days`.
+- Overrides apply for the duration of that one request and to every use of the
+  calendar in it (indices, curve helpers, schedules, query grids). Nothing is
+  stored on the server.
+- An override that is already true is accepted with no effect, so a client's
+  override list keeps working if a later server version already includes that
+  holiday.
+- Rejected with `400`, naming the field path: an entry without a calendar, an
+  unparseable date, a date in both lists, a duplicate date, the same calendar
+  in two entries (`UnitedStates` and `UnitedStatesSettlement` are the same
+  calendar), `BespokeCalendar` / `NullCalendar`, and a weekend date in
+  `removed_holidays`.
+- Cached curves and calibrations are kept per override set: requests with
+  different overrides never share a cached result.
+
+The intended workflow is to fetch the server's holidays from
+`/calendar-holidays`, reconcile them against your own calendar client-side, and
+send only the differences. Full reference:
+[`docs/http-api.md`](http-api.md#calendar-holiday-overrides).
+
 ## Version 0.6.0 (July 2026) — BREAKING: explicit OIS conventions
 
 `v0.6.0` closes a gap reported by an external validation POC: the OIS curve
