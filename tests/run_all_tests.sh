@@ -71,14 +71,6 @@ extract_case_count() {
             # number of concurrent requests fired at one endpoint).
             awk '/^TOTAL SCENARIOS:/ {split($3, a, "/"); total=a[2]} END {if (total == "") total="?"; print total}' "$logfile"
             ;;
-        cache)
-            # Parse "Cache transparency OK (N comparisons checked)" → N (number
-            # of product cache-OFF vs cache-ON comparisons). Default ? when the
-            # success line isn't present (e.g. on failure).
-            local n
-            n="$(sed -n 's/.*Cache transparency OK (\([0-9]\+\) comparisons checked).*/\1/p' "$logfile" | head -1)"
-            [ -n "$n" ] && echo "$n" || echo "?"
-            ;;
         *)
             echo "?"
             ;;
@@ -136,7 +128,6 @@ run_test() {
         python) SUITE_CASE_LABELS[$idx]="scenarios" ;;
         boundary) SUITE_CASE_LABELS[$idx]="files" ;;
         concurrency) SUITE_CASE_LABELS[$idx]="requests" ;;
-        cache) SUITE_CASE_LABELS[$idx]="comparisons" ;;
         *) SUITE_CASE_LABELS[$idx]="items" ;;
     esac
     rm -f "$logfile"
@@ -444,7 +435,7 @@ if [ -d "$CACHING_DIR" ]; then
         run_test 6 \
             "6. Curve Cache Correctness" \
             "Cache transparency: cache-OFF and cache-ON results are bit-for-bit identical (gated)" \
-            cache \
+            pytest \
             "cd ${WORKSPACE} && python3 -m pytest ${CACHING_DIR} --url-nocache http://localhost:8080 --url-cache http://localhost:8081 --data-dir ${WORKSPACE}/examples/data --cache-log /tmp/grpc_cache.log -q -s"
     fi
 else

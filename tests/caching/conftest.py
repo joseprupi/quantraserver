@@ -87,13 +87,14 @@ def cache_client(pytestconfig) -> ApiClient:
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
-    """Emit the greppable case count run_all_tests.sh parses for Suite 6.
+    """Emit a greppable count of the transparency comparisons that passed.
 
     The count is the number of cache-OFF vs cache-ON comparisons that passed
     (one per CASES row, plus the beyond-pillar error-transparency case).
     Only emitted on a fully green run, mirroring the
-    Suite 0 boundary guard's "OK (N ... checked)" convention; on failure the
-    runner reports the count as unknown.
+    Suite 0 boundary guard's "OK (N ... checked)" convention. Informational:
+    run_all_tests.sh reports Suite 6 coverage as the pytest test count, which
+    also includes the tests in this directory that are not comparisons.
     """
     if exitstatus != 0:
         return

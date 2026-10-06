@@ -42,7 +42,7 @@ their log lines appear in the engine's output, not the gateway's.
 | `QUANTRA_CURVE_CACHE_MAX_ENTRIES` | engine | `100` | LRU capacity of the curve cache. An unparseable or non-positive value logs a warning and keeps the default. |
 | `QUANTRA_SABR_CACHE_ENABLED` | engine | off | `1` enables the SABR swaption-cube calibration cache (fixed LRU capacity). Set to `1` in the container. |
 | `QUANTRA_SABR_CACHE_LOG` | engine | off | `1` logs SABR cache hits/misses. |
-| `QUANTRA_HW_CACHE_ENABLED` | engine | off | `1` enables the Hull-White model-calibration cache (fixed LRU capacity). Not set in the shipped container. |
+| `QUANTRA_HW_CACHE_ENABLED` | engine | off | `1` enables the Hull-White model-calibration cache (fixed LRU capacity). Set to `1` in the container (from 0.5.0). |
 | `QUANTRA_HW_CACHE_LOG` | engine | off | `1` logs Hull-White calibration cache hits/misses. |
 
 The cache flags are read once, at first use, and cached for the process

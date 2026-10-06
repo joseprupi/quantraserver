@@ -27,6 +27,18 @@ echo "========================================"
 echo "Workspace: $WORKSPACE"
 echo ""
 
+# 0. Check the toolchain BEFORE touching anything: step 1 deletes the tracked
+# generated files, so failing later on a missing tool would leave the tree
+# with hundreds of deletions and nothing to regenerate them.
+if ! command -v flatc >/dev/null 2>&1; then
+    echo "ERROR: flatc not found; nothing was deleted. Set DEPS_INSTALL_PREFIX and add \$DEPS_INSTALL_PREFIX/bin to PATH so generate_schemas.sh can find the FlatBuffers toolchain (scripts/build.sh does this for you)." >&2
+    exit 1
+fi
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 not found; nothing was deleted. It is needed for the Python import fix-up and the OpenAPI generator." >&2
+    exit 1
+fi
+
 # 1. Clean generated code
 echo "[1/6] Cleaning generated files..."
 rm -rf "$GEN_PYTHON_DIR/quantra"
