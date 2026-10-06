@@ -4888,6 +4888,30 @@
         ],
         "additionalProperties": false
       },
+      "quantra_CalendarOverride": {
+        "type": "object",
+        "description": "Per-request holiday overrides for one calendar. The overrides apply to every\nuse of that calendar while the request is processed and are discarded\nafterwards; nothing is stored on the server.",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/quantra_enums_Calendar"
+          },
+          "added_holidays": {
+            "type": "array",
+            "description": "Dates (YYYY-MM-DD) that must be treated as holidays. A date that is\nalready a holiday or a weekend is accepted and has no effect.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removed_holidays": {
+            "type": "array",
+            "description": "Dates (YYYY-MM-DD) that must be treated as business days. A date that is\nalready a business day is accepted and has no effect; weekend dates are\nrejected.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "quantra_RatesMarketData": {
         "type": "object",
         "description": "Rates market data shared across interest-rate products.",
@@ -5053,6 +5077,13 @@
           },
           "options": {
             "$ref": "#/components/schemas/quantra_PricingOptions"
+          },
+          "calendar_overrides": {
+            "type": "array",
+            "description": "Per-request holiday overrides (optional). Applied to every use of the\nnamed calendars in this request. Used by: ALL.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CalendarOverride"
+            }
           }
         },
         "required": [
@@ -5480,6 +5511,13 @@
           },
           "end_of_month": {
             "type": "boolean"
+          },
+          "calendar_overrides": {
+            "type": "array",
+            "description": "Per-request holiday overrides (optional).",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CalendarOverride"
+            }
           }
         },
         "required": [
@@ -5523,6 +5561,13 @@
           },
           "include_end": {
             "type": "boolean"
+          },
+          "calendar_overrides": {
+            "type": "array",
+            "description": "Per-request holiday overrides (optional).",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CalendarOverride"
+            }
           }
         },
         "required": [
@@ -5578,6 +5623,13 @@
           },
           "include_weekends": {
             "type": "boolean"
+          },
+          "calendar_overrides": {
+            "type": "array",
+            "description": "Per-request holiday overrides (optional).",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CalendarOverride"
+            }
           }
         },
         "required": [

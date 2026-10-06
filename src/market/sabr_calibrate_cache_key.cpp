@@ -83,6 +83,11 @@ std::string buildSabrCalibrateCacheKey(
     // bypasses the standard finalize.
     writeDoubles(buf, atmForwardsFlat);
 
+    // Active calendar holiday overrides (absent when there are none). The
+    // curve keys above already carry them when populated; written here too so
+    // the cube key never relies on that.
+    appendCalendarOverridesSection(buf);
+
     return "sabr-cube:v1:" + sha256hex(buf.data());
 }
 

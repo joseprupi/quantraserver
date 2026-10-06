@@ -3627,6 +3627,36 @@ components:
       - index_id
       - points
       additionalProperties: false
+    quantra_CalendarOverride:
+      type: object
+      description: 'Per-request holiday overrides for one calendar. The overrides
+        apply to every
+
+        use of that calendar while the request is processed and are discarded
+
+        afterwards; nothing is stored on the server.'
+      properties:
+        calendar:
+          $ref: '#/components/schemas/quantra_enums_Calendar'
+        added_holidays:
+          type: array
+          description: 'Dates (YYYY-MM-DD) that must be treated as holidays. A date
+            that is
+
+            already a holiday or a weekend is accepted and has no effect.'
+          items:
+            type: string
+        removed_holidays:
+          type: array
+          description: 'Dates (YYYY-MM-DD) that must be treated as business days.
+            A date that is
+
+            already a business day is accepted and has no effect; weekend dates are
+
+            rejected.'
+          items:
+            type: string
+      additionalProperties: false
     quantra_RatesMarketData:
       type: object
       description: Rates market data shared across interest-rate products.
@@ -3749,6 +3779,14 @@ components:
           $ref: '#/components/schemas/quantra_InflationMarketData'
         options:
           $ref: '#/components/schemas/quantra_PricingOptions'
+        calendar_overrides:
+          type: array
+          description: 'Per-request holiday overrides (optional). Applied to every
+            use of the
+
+            named calendars in this request. Used by: ALL.'
+          items:
+            $ref: '#/components/schemas/quantra_CalendarOverride'
       required:
       - as_of_date
       additionalProperties: false
@@ -4043,6 +4081,11 @@ components:
           $ref: '#/components/schemas/quantra_enums_BusinessDayConvention'
         end_of_month:
           type: boolean
+        calendar_overrides:
+          type: array
+          description: Per-request holiday overrides (optional).
+          items:
+            $ref: '#/components/schemas/quantra_CalendarOverride'
       required:
       - date
       additionalProperties: false
@@ -4073,6 +4116,11 @@ components:
           type: boolean
         include_end:
           type: boolean
+        calendar_overrides:
+          type: array
+          description: Per-request holiday overrides (optional).
+          items:
+            $ref: '#/components/schemas/quantra_CalendarOverride'
       required:
       - start_date
       - end_date
@@ -4112,6 +4160,11 @@ components:
           description: End date in YYYY-MM-DD format.
         include_weekends:
           type: boolean
+        calendar_overrides:
+          type: array
+          description: Per-request holiday overrides (optional).
+          items:
+            $ref: '#/components/schemas/quantra_CalendarOverride'
       required:
       - start_date
       - end_date

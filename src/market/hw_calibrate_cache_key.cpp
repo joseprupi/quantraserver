@@ -92,6 +92,11 @@ std::string buildHwCalibrateCacheKey(const HwCalibrateKeyInputs& in) {
     // Evaluation date.
     buf.writeI32(static_cast<int32_t>(in.asOf.serialNumber()));
 
+    // Active calendar holiday overrides (absent when there are none). The
+    // calendars above are keyed by name only; the helper grid is built on
+    // their holidays, so an override changes the calibration.
+    appendCalendarOverridesSection(buf);
+
     return "hw-calib:v1:" + sha256hex(buf.data());
 }
 

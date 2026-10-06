@@ -55,8 +55,34 @@ class CalendarHolidaysRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Per-request holiday overrides (optional).
+    # CalendarHolidaysRequest
+    def CalendarOverrides(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CalendarOverride import CalendarOverride
+            obj = CalendarOverride()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # CalendarHolidaysRequest
+    def CalendarOverridesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # CalendarHolidaysRequest
+    def CalendarOverridesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        return o == 0
+
 def CalendarHolidaysRequestStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(5)
 
 def Start(builder):
     CalendarHolidaysRequestStart(builder)
@@ -85,12 +111,28 @@ def CalendarHolidaysRequestAddIncludeWeekends(builder, includeWeekends):
 def AddIncludeWeekends(builder, includeWeekends):
     CalendarHolidaysRequestAddIncludeWeekends(builder, includeWeekends)
 
+def CalendarHolidaysRequestAddCalendarOverrides(builder, calendarOverrides):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(calendarOverrides), 0)
+
+def AddCalendarOverrides(builder, calendarOverrides):
+    CalendarHolidaysRequestAddCalendarOverrides(builder, calendarOverrides)
+
+def CalendarHolidaysRequestStartCalendarOverridesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCalendarOverridesVector(builder, numElems):
+    return CalendarHolidaysRequestStartCalendarOverridesVector(builder, numElems)
+
 def CalendarHolidaysRequestEnd(builder):
     return builder.EndObject()
 
 def End(builder):
     return CalendarHolidaysRequestEnd(builder)
 
+try:
+    from typing import List
+except:
+    pass
 
 class CalendarHolidaysRequestT(object):
 
@@ -100,6 +142,7 @@ class CalendarHolidaysRequestT(object):
         self.startDate = None  # type: str
         self.endDate = None  # type: str
         self.includeWeekends = False  # type: bool
+        self.calendarOverrides = None  # type: List[CalendarOverrideT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -126,6 +169,14 @@ class CalendarHolidaysRequestT(object):
         self.startDate = calendarHolidaysRequest.StartDate()
         self.endDate = calendarHolidaysRequest.EndDate()
         self.includeWeekends = calendarHolidaysRequest.IncludeWeekends()
+        if not calendarHolidaysRequest.CalendarOverridesIsNone():
+            self.calendarOverrides = []
+            for i in range(calendarHolidaysRequest.CalendarOverridesLength()):
+                if calendarHolidaysRequest.CalendarOverrides(i) is None:
+                    self.calendarOverrides.append(None)
+                else:
+                    calendarOverride_ = CalendarOverrideT.InitFromObj(calendarHolidaysRequest.CalendarOverrides(i))
+                    self.calendarOverrides.append(calendarOverride_)
 
     # CalendarHolidaysRequestT
     def Pack(self, builder):
@@ -133,6 +184,14 @@ class CalendarHolidaysRequestT(object):
             startDate = builder.CreateString(self.startDate)
         if self.endDate is not None:
             endDate = builder.CreateString(self.endDate)
+        if self.calendarOverrides is not None:
+            calendarOverrideslist = []
+            for i in range(len(self.calendarOverrides)):
+                calendarOverrideslist.append(self.calendarOverrides[i].Pack(builder))
+            CalendarHolidaysRequestStartCalendarOverridesVector(builder, len(self.calendarOverrides))
+            for i in reversed(range(len(self.calendarOverrides))):
+                builder.PrependUOffsetTRelative(calendarOverrideslist[i])
+            calendarOverrides = builder.EndVector()
         CalendarHolidaysRequestStart(builder)
         CalendarHolidaysRequestAddCalendar(builder, self.calendar)
         if self.startDate is not None:
@@ -140,5 +199,7 @@ class CalendarHolidaysRequestT(object):
         if self.endDate is not None:
             CalendarHolidaysRequestAddEndDate(builder, endDate)
         CalendarHolidaysRequestAddIncludeWeekends(builder, self.includeWeekends)
+        if self.calendarOverrides is not None:
+            CalendarHolidaysRequestAddCalendarOverrides(builder, calendarOverrides)
         calendarHolidaysRequest = CalendarHolidaysRequestEnd(builder)
         return calendarHolidaysRequest

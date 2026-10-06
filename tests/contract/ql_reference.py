@@ -25,6 +25,9 @@ pricers/helpers from here; conftest.py exposes the client/data-dir fixtures.
 """
 
 import bisect
+import contextlib
+import functools
+import inspect
 import json
 import argparse
 import math
@@ -4403,3 +4406,87 @@ def api_npv(response: dict, list_key: str) -> float:
     (bonds/swaps/fras/cap_floors/swaptions/cds_list) with an "npv" field.
     """
     return response[list_key][0]["npv"]
+
+
+# =============================================================================
+# Per-request calendar holiday overrides (applied centrally to every *_ql
+# reference entry point)
+# =============================================================================
+#
+# QuantLib keeps added/removed holidays in process-global state shared by every
+# instance of a calendar, so the reference applies a request's
+# `calendar_overrides` to the Python-side calendars BEFORE building anything
+# (schedules, helpers, indices) and restores the previous state afterwards.
+# Restoration is manual and exact — each date is put back to the business-day
+# status it had before the request — rather than a blanket
+# resetAddedAndRemovedHolidays(), so state that predates the call survives and
+# the undo does not depend on which Calendar methods the binding exposes.
+
+_calendar_override_depth = 0
+
+
+def request_calendar_overrides(request: dict) -> list:
+    """The request's calendar_overrides entries (possibly empty).
+
+    Pricing / bootstrap requests carry them inside `pricing`; the three
+    calendar-utility requests carry them at the top level.
+    """
+    if not isinstance(request, dict):
+        return []
+    pricing = request.get("pricing")
+    if isinstance(pricing, dict) and pricing.get("calendar_overrides"):
+        return pricing["calendar_overrides"]
+    return request.get("calendar_overrides") or []
+
+
+@contextlib.contextmanager
+def applied_calendar_overrides(request: dict):
+    """Apply the request's holiday overrides for the duration of the block.
+
+    added_holidays -> Calendar.addHoliday, removed_holidays ->
+    Calendar.removeHoliday, exactly like the server. On exit (also on error)
+    every touched date is restored to its previous business-day status, in
+    reverse order. Re-entrant: only the outermost block applies and restores,
+    so reference pricers that call each other see one consistent state.
+    """
+    global _calendar_override_depth
+    overrides = request_calendar_overrides(request) \
+        if _calendar_override_depth == 0 else []
+    undo = []  # (calendar, date, was_business_day)
+    _calendar_override_depth += 1
+    try:
+        for entry in overrides:
+            calendar = _calendar_from_enum(entry["calendar"])
+            for iso in entry.get("added_holidays") or []:
+                d = parse_date(iso)
+                undo.append((calendar, d, calendar.isBusinessDay(d)))
+                calendar.addHoliday(d)
+            for iso in entry.get("removed_holidays") or []:
+                d = parse_date(iso)
+                undo.append((calendar, d, calendar.isBusinessDay(d)))
+                calendar.removeHoliday(d)
+        yield
+    finally:
+        _calendar_override_depth -= 1
+        for calendar, d, was_business_day in reversed(undo):
+            if was_business_day:
+                calendar.removeHoliday(d)
+            else:
+                calendar.addHoliday(d)
+
+
+def _with_calendar_overrides(pricer):
+    @functools.wraps(pricer)
+    def wrapper(request, *args, **kwargs):
+        with applied_calendar_overrides(request):
+            return pricer(request, *args, **kwargs)
+    return wrapper
+
+
+# Wrap every public reference entry point once, so no product can forget to
+# honour (or to undo) the overrides.
+for _name, _obj in list(globals().items()):
+    if _name.endswith("_ql") and not _name.startswith("_") \
+            and inspect.isfunction(_obj):
+        globals()[_name] = _with_calendar_overrides(_obj)
+del _name, _obj

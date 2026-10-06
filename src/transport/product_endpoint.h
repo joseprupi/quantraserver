@@ -12,6 +12,8 @@
 #include "pricing_registry.h"
 #include "pricing_context.h"
 #include "eval_date_guard.h"
+#include "calendar_overrides.h"
+#include "calendar_override_parser.h"
 
 namespace quantra {
 
@@ -26,6 +28,16 @@ struct has_pricing : std::false_type {};
 
 template <class T>
 struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>>
+    : std::true_type {};
+
+/// Detects whether a FlatBuffers request table carries `calendar_overrides()`
+/// directly (the calendar utility requests, which have no Pricing block).
+template <class T, class = void>
+struct has_calendar_overrides : std::false_type {};
+
+template <class T>
+struct has_calendar_overrides<
+    T, std::void_t<decltype(std::declval<const T&>().calendar_overrides())>>
     : std::true_type {};
 
 /// Detects whether a Mapper exposes an
@@ -62,6 +74,7 @@ struct has_build_error_hook<
  * The glue is identical for every pricing product:
  *
  *   EvalDateGuard guard;                      // handler owns global state
+ *   CalendarOverridesGuard calendarGuard;     // ... incl. holiday overrides
  *   mapper.toInputs(req);                     // FlatBuffers -> domain
  *   PricingRegistryBuilder{}.build(pricing);  // market data
  *   makeContext(pricing, reg);                // ambient: asOf/settlement/options
@@ -90,6 +103,21 @@ public:
         const RequestBudget& budget = RequestBudget::unlimited()) const override
     {
         EvalDateGuard guard;
+        // Holiday overrides are process-global QuantLib state: reset on entry
+        // and exit, and apply before the mapper runs (mappers already build
+        // schedules and advance dates). A malformed overrides field is a
+        // transport-level error on every endpoint.
+        CalendarOverridesGuard calendarGuard;
+        if constexpr (detail::has_pricing<Req>::value) {
+            if (req->pricing() != nullptr) {
+                applyRequestCalendarOverrides(
+                    req->pricing()->calendar_overrides(),
+                    "pricing.calendar_overrides");
+            }
+        } else if constexpr (detail::has_calendar_overrides<Req>::value) {
+            applyRequestCalendarOverrides(req->calendar_overrides(),
+                                          "calendar_overrides");
+        }
         auto inputs = mapper_.toInputs(req);
         // Bail out before touching market data if the caller has already timed
         // out (curve bootstrapping is the single most expensive step).

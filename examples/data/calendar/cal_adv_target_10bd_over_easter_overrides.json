@@ -1,0 +1,20 @@
+{
+  "calendar": "TARGET",
+  "date": "2025-04-14",
+  "tenor_number": 10,
+  "tenor_unit": "Days",
+  "convention": "Following",
+  "end_of_month": false,
+  "calendar_overrides": [
+    {
+      "calendar": "TARGET",
+      "added_holidays": [
+        "2025-04-23"
+      ],
+      "removed_holidays": [
+        "2025-04-18",
+        "2025-04-21"
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "calendar_overrides.h"
 #include "error.h"
 
 #include <openssl/sha.h>
@@ -652,8 +653,18 @@ std::string CurveKeyBuilder::compute(
         buf.writeString(depKey);
     }
 
-    // 5. Hash
+    // 5. Active calendar holiday overrides (absent when there are none)
+    appendCalendarOverridesSection(buf);
+
+    // 6. Hash
     return "yc:v3:" + sha256hex(buf.data());
+}
+
+void appendCalendarOverridesSection(CanonicalBuffer& buf) {
+    const std::string& fingerprint = activeCalendarOverridesFingerprint();
+    if (fingerprint.empty()) return;
+    buf.writeTag("CALOVR");
+    buf.writeString(fingerprint);
 }
 
 } // namespace quantra

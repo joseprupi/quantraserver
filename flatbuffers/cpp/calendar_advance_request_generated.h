@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "calendar_override_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -29,6 +30,11 @@ struct CalendarAdvanceRequestT : public ::flatbuffers::NativeTable {
   quantra::enums::TimeUnit tenor_unit = quantra::enums::TimeUnit_Days;
   quantra::enums::BusinessDayConvention convention = quantra::enums::BusinessDayConvention_Following;
   bool end_of_month = false;
+  std::vector<std::unique_ptr<quantra::CalendarOverrideT>> calendar_overrides{};
+  CalendarAdvanceRequestT() = default;
+  CalendarAdvanceRequestT(const CalendarAdvanceRequestT &o);
+  CalendarAdvanceRequestT(CalendarAdvanceRequestT&&) FLATBUFFERS_NOEXCEPT = default;
+  CalendarAdvanceRequestT &operator=(CalendarAdvanceRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// Request to advance a date by a calendar-aware period.
@@ -41,7 +47,8 @@ struct CalendarAdvanceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
     VT_TENOR_NUMBER = 8,
     VT_TENOR_UNIT = 10,
     VT_CONVENTION = 12,
-    VT_END_OF_MONTH = 14
+    VT_END_OF_MONTH = 14,
+    VT_CALENDAR_OVERRIDES = 16
   };
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
@@ -63,6 +70,10 @@ struct CalendarAdvanceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   bool end_of_month() const {
     return GetField<uint8_t>(VT_END_OF_MONTH, 0) != 0;
   }
+  /// Per-request holiday overrides (optional).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *>(VT_CALENDAR_OVERRIDES);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
@@ -72,6 +83,9 @@ struct CalendarAdvanceRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
            VerifyField<int8_t>(verifier, VT_TENOR_UNIT, 1) &&
            VerifyField<int8_t>(verifier, VT_CONVENTION, 1) &&
            VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
+           VerifyOffset(verifier, VT_CALENDAR_OVERRIDES) &&
+           verifier.VerifyVector(calendar_overrides()) &&
+           verifier.VerifyVectorOfTables(calendar_overrides()) &&
            verifier.EndTable();
   }
   CalendarAdvanceRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -101,6 +115,9 @@ struct CalendarAdvanceRequestBuilder {
   void add_end_of_month(bool end_of_month) {
     fbb_.AddElement<uint8_t>(CalendarAdvanceRequest::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month), 0);
   }
+  void add_calendar_overrides(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides) {
+    fbb_.AddOffset(CalendarAdvanceRequest::VT_CALENDAR_OVERRIDES, calendar_overrides);
+  }
   explicit CalendarAdvanceRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -120,8 +137,10 @@ inline ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceReques
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_unit = quantra::enums::TimeUnit_Days,
     quantra::enums::BusinessDayConvention convention = quantra::enums::BusinessDayConvention_Following,
-    bool end_of_month = false) {
+    bool end_of_month = false,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides = 0) {
   CalendarAdvanceRequestBuilder builder_(_fbb);
+  builder_.add_calendar_overrides(calendar_overrides);
   builder_.add_tenor_number(tenor_number);
   builder_.add_date(date);
   builder_.add_end_of_month(end_of_month);
@@ -138,8 +157,10 @@ inline ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceReques
     int32_t tenor_number = 0,
     quantra::enums::TimeUnit tenor_unit = quantra::enums::TimeUnit_Days,
     quantra::enums::BusinessDayConvention convention = quantra::enums::BusinessDayConvention_Following,
-    bool end_of_month = false) {
+    bool end_of_month = false,
+    const std::vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides = nullptr) {
   auto date__ = date ? _fbb.CreateString(date) : 0;
+  auto calendar_overrides__ = calendar_overrides ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CalendarOverride>>(*calendar_overrides) : 0;
   return quantra::CreateCalendarAdvanceRequest(
       _fbb,
       calendar,
@@ -147,10 +168,33 @@ inline ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceReques
       tenor_number,
       tenor_unit,
       convention,
-      end_of_month);
+      end_of_month,
+      calendar_overrides__);
 }
 
 ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceRequest(::flatbuffers::FlatBufferBuilder &_fbb, const CalendarAdvanceRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline CalendarAdvanceRequestT::CalendarAdvanceRequestT(const CalendarAdvanceRequestT &o)
+      : calendar(o.calendar),
+        date(o.date),
+        tenor_number(o.tenor_number),
+        tenor_unit(o.tenor_unit),
+        convention(o.convention),
+        end_of_month(o.end_of_month) {
+  calendar_overrides.reserve(o.calendar_overrides.size());
+  for (const auto &calendar_overrides_ : o.calendar_overrides) { calendar_overrides.emplace_back((calendar_overrides_) ? new quantra::CalendarOverrideT(*calendar_overrides_) : nullptr); }
+}
+
+inline CalendarAdvanceRequestT &CalendarAdvanceRequestT::operator=(CalendarAdvanceRequestT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(calendar, o.calendar);
+  std::swap(date, o.date);
+  std::swap(tenor_number, o.tenor_number);
+  std::swap(tenor_unit, o.tenor_unit);
+  std::swap(convention, o.convention);
+  std::swap(end_of_month, o.end_of_month);
+  std::swap(calendar_overrides, o.calendar_overrides);
+  return *this;
+}
 
 inline CalendarAdvanceRequestT *CalendarAdvanceRequest::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<CalendarAdvanceRequestT>(new CalendarAdvanceRequestT());
@@ -167,6 +211,7 @@ inline void CalendarAdvanceRequest::UnPackTo(CalendarAdvanceRequestT *_o, const 
   { auto _e = tenor_unit(); _o->tenor_unit = _e; }
   { auto _e = convention(); _o->convention = _e; }
   { auto _e = end_of_month(); _o->end_of_month = _e; }
+  { auto _e = calendar_overrides(); if (_e) { _o->calendar_overrides.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->calendar_overrides[_i]) { _e->Get(_i)->UnPackTo(_o->calendar_overrides[_i].get(), _resolver); } else { _o->calendar_overrides[_i] = std::unique_ptr<quantra::CalendarOverrideT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->calendar_overrides.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CalendarAdvanceRequest> CalendarAdvanceRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalendarAdvanceRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -183,6 +228,7 @@ inline ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceReques
   auto _tenor_unit = _o->tenor_unit;
   auto _convention = _o->convention;
   auto _end_of_month = _o->end_of_month;
+  auto _calendar_overrides = _o->calendar_overrides.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CalendarOverride>> (_o->calendar_overrides.size(), [](size_t i, _VectorArgs *__va) { return CreateCalendarOverride(*__va->__fbb, __va->__o->calendar_overrides[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCalendarAdvanceRequest(
       _fbb,
       _calendar,
@@ -190,7 +236,8 @@ inline ::flatbuffers::Offset<CalendarAdvanceRequest> CreateCalendarAdvanceReques
       _tenor_number,
       _tenor_unit,
       _convention,
-      _end_of_month);
+      _end_of_month,
+      _calendar_overrides);
 }
 
 inline const quantra::CalendarAdvanceRequest *GetCalendarAdvanceRequest(const void *buf) {
