@@ -51,7 +51,7 @@ The repository currently builds around:
 
 - gRPC `v1.60.0`
 - FlatBuffers `v24.12.23`
-- QuantLib `1.41` in Docker builds
+- QuantLib `1.43` in Docker builds
 - CMake `3.16+`
 - GCC `12+` or Clang `14+`
 

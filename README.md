@@ -246,7 +246,7 @@ The repository currently documents and builds around:
 - GCC `12+` or Clang `14+`
 - gRPC `v1.60.0`
 - FlatBuffers `v24.12.23`
-- QuantLib `1.41` in Docker builds
+- QuantLib `1.43` in Docker builds
 - Envoy for worker load balancing
 
 ## License
