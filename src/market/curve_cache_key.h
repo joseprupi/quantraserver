@@ -203,6 +203,22 @@ private:
     static std::string sha256hex(const std::vector<uint8_t>& data);
 };
 
+/**
+ * Append the active calendar holiday overrides to a cache key buffer.
+ *
+ * Every process-lifetime cache (curve, SABR cube, Hull-White calibration) holds
+ * results computed under the calendars in force when the entry was built, so
+ * per-request overrides are part of each key. The section is written ONLY when
+ * overrides are active: with none, the key bytes are exactly what they were
+ * before overrides existed. The "CALOVR" tag plus a length-prefixed fingerprint
+ * keeps the section from aliasing any other section.
+ *
+ * Reads activeCalendarOverridesFingerprint() directly — the process-global
+ * calendar state is the truth during a request, so a key can never disagree
+ * with the calendars actually in force.
+ */
+void appendCalendarOverridesSection(CanonicalBuffer& buf);
+
 } // namespace quantra
 
 #endif // QUANTRASERVER_CURVE_CACHE_KEY_H

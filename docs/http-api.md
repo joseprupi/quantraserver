@@ -74,6 +74,135 @@ Every non-2xx response is a JSON object:
 Send an `X-Request-Id` on anything you may need to trace: it is the only way to
 correlate a client-side failure with the engine log lines that produced it.
 
+## Calendar holiday overrides
+
+A request may carry its own holiday corrections in an optional
+`calendar_overrides` field. The overrides apply while that request is processed
+and are discarded afterwards: nothing is stored on the server, and every request
+that needs an override must carry it. A request without the field behaves
+exactly as before.
+
+### Where the field goes
+
+- **Inside `pricing`**, beside `as_of_date`, on every endpoint whose request has
+  a `pricing` block (pricing, curve bootstrapping, calibration, sampling).
+- **At the top level** of `/calendar-holidays`, `/calendar-advance` and
+  `/calendar-business-days`, which have no `pricing` block.
+
+The shape is the same in both places: a list with one entry per calendar.
+
+| Field | Meaning |
+| --- | --- |
+| `calendar` | The calendar to override. Required. |
+| `added_holidays` | Dates (`YYYY-MM-DD`) that must be holidays. Optional. |
+| `removed_holidays` | Dates (`YYYY-MM-DD`) that must be business days. Optional. |
+
+In a pricing request (only the relevant part of `pricing` is shown; the rest of
+the block is unchanged). This one overrides two calendars:
+
+```json
+{
+  "pricing": {
+    "as_of_date": "2024-01-15",
+    "calendar_overrides": [
+      {
+        "calendar": "TARGET",
+        "added_holidays": ["2024-06-14"],
+        "removed_holidays": ["2024-05-01"]
+      },
+      {
+        "calendar": "UnitedKingdom",
+        "added_holidays": ["2024-07-05"]
+      }
+    ]
+  }
+}
+```
+
+In a calendar request:
+
+```json
+{
+  "calendar": "TARGET",
+  "start_date": "2024-04-29",
+  "end_date": "2024-06-21",
+  "include_weekends": false,
+  "calendar_overrides": [
+    {
+      "calendar": "TARGET",
+      "added_holidays": ["2024-06-14"],
+      "removed_holidays": ["2024-05-01"]
+    }
+  ]
+}
+```
+
+Posted to `/calendar-holidays`, the returned `dates` include `2024-06-14` and no
+longer include `2024-05-01`.
+
+### Semantics
+
+- `added_holidays` asserts "this date is a holiday"; `removed_holidays` asserts
+  "this date is a business day".
+- An override applies to **every use of that calendar in the request**: indices,
+  curve helpers, schedules, and query grids. It cannot be scoped to one
+  instrument or one curve.
+- **An override that is already true is accepted and has no effect** — adding a
+  date that is already a holiday (or a weekend), or removing a date that is
+  already a business day. A client's override list therefore keeps working if a
+  later server version already includes that holiday.
+- An override for a calendar the request does not use is accepted. So are an
+  entry with no dates and an empty list.
+
+### Rejected requests
+
+Each of these is a `400` whose message names the field path, including indexes
+— for example
+`pricing.calendar_overrides[0].removed_holidays[0]: 2024-06-15 is a weekend day; a weekend cannot be turned into a business day`.
+On the calendar endpoints the path has no `pricing.` prefix.
+
+- An entry without `calendar`.
+- A date that does not parse as `YYYY-MM-DD`, or is outside the supported date
+  range.
+- The same date in both `added_holidays` and `removed_holidays` of one entry.
+- A duplicate date inside one list.
+- The same calendar in two entries.
+- `BespokeCalendar` or `NullCalendar` as the `calendar`: these cannot be
+  overridden.
+- A weekend date in `removed_holidays`: a weekend cannot be turned into a
+  business day.
+
+The whole field is validated before anything is applied, and an invalid field
+fails the whole request with `400` — including on endpoints that otherwise
+report per-item errors inside a `200` response.
+
+### Notes
+
+- **`UnitedStates` and `UnitedStatesSettlement` are the same calendar.** An
+  override on one applies to both, and listing both in one request is rejected
+  as a duplicate. `UnitedStatesNYSE` and the other United States calendars are
+  separate.
+- **Fixings.** An added holiday can move an index fixing date. If it moves one
+  before `as_of_date`, the request fails with the usual missing-fixing error
+  (`422`) unless that fixing is supplied.
+- **Query grids on `NullCalendar`.** A grid with `business_days_only` set and
+  `NullCalendar` as its calendar uses a weekends-only calendar internally. To
+  affect it, override `WeekendsOnly`.
+- **Caching.** Cached curves and calibrations are kept per override set.
+  Requests with different overrides never share a cached result, the order of
+  entries and dates does not matter, and requests without overrides are
+  unaffected.
+
+### Suggested workflow
+
+1. Fetch the server's holidays for the calendars and date range you care about
+   from `/calendar-holidays`.
+2. Compare them with your own calendar, client-side.
+3. Send only the differences as `calendar_overrides` on each request.
+
+To check the effect, call `/calendar-holidays`, `/calendar-advance` or
+`/calendar-business-days` with the same overrides.
+
 ## Service endpoints
 
 | Endpoint | Returns |

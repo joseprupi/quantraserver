@@ -69,8 +69,34 @@ class CalendarAdvanceRequest(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
+    # Per-request holiday overrides (optional).
+    # CalendarAdvanceRequest
+    def CalendarOverrides(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.CalendarOverride import CalendarOverride
+            obj = CalendarOverride()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # CalendarAdvanceRequest
+    def CalendarOverridesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # CalendarAdvanceRequest
+    def CalendarOverridesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        return o == 0
+
 def CalendarAdvanceRequestStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(7)
 
 def Start(builder):
     CalendarAdvanceRequestStart(builder)
@@ -111,12 +137,28 @@ def CalendarAdvanceRequestAddEndOfMonth(builder, endOfMonth):
 def AddEndOfMonth(builder, endOfMonth):
     CalendarAdvanceRequestAddEndOfMonth(builder, endOfMonth)
 
+def CalendarAdvanceRequestAddCalendarOverrides(builder, calendarOverrides):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(calendarOverrides), 0)
+
+def AddCalendarOverrides(builder, calendarOverrides):
+    CalendarAdvanceRequestAddCalendarOverrides(builder, calendarOverrides)
+
+def CalendarAdvanceRequestStartCalendarOverridesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCalendarOverridesVector(builder, numElems):
+    return CalendarAdvanceRequestStartCalendarOverridesVector(builder, numElems)
+
 def CalendarAdvanceRequestEnd(builder):
     return builder.EndObject()
 
 def End(builder):
     return CalendarAdvanceRequestEnd(builder)
 
+try:
+    from typing import List
+except:
+    pass
 
 class CalendarAdvanceRequestT(object):
 
@@ -128,6 +170,7 @@ class CalendarAdvanceRequestT(object):
         self.tenorUnit = 0  # type: int
         self.convention = 0  # type: int
         self.endOfMonth = False  # type: bool
+        self.calendarOverrides = None  # type: List[CalendarOverrideT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -156,11 +199,27 @@ class CalendarAdvanceRequestT(object):
         self.tenorUnit = calendarAdvanceRequest.TenorUnit()
         self.convention = calendarAdvanceRequest.Convention()
         self.endOfMonth = calendarAdvanceRequest.EndOfMonth()
+        if not calendarAdvanceRequest.CalendarOverridesIsNone():
+            self.calendarOverrides = []
+            for i in range(calendarAdvanceRequest.CalendarOverridesLength()):
+                if calendarAdvanceRequest.CalendarOverrides(i) is None:
+                    self.calendarOverrides.append(None)
+                else:
+                    calendarOverride_ = CalendarOverrideT.InitFromObj(calendarAdvanceRequest.CalendarOverrides(i))
+                    self.calendarOverrides.append(calendarOverride_)
 
     # CalendarAdvanceRequestT
     def Pack(self, builder):
         if self.date is not None:
             date = builder.CreateString(self.date)
+        if self.calendarOverrides is not None:
+            calendarOverrideslist = []
+            for i in range(len(self.calendarOverrides)):
+                calendarOverrideslist.append(self.calendarOverrides[i].Pack(builder))
+            CalendarAdvanceRequestStartCalendarOverridesVector(builder, len(self.calendarOverrides))
+            for i in reversed(range(len(self.calendarOverrides))):
+                builder.PrependUOffsetTRelative(calendarOverrideslist[i])
+            calendarOverrides = builder.EndVector()
         CalendarAdvanceRequestStart(builder)
         CalendarAdvanceRequestAddCalendar(builder, self.calendar)
         if self.date is not None:
@@ -169,5 +228,7 @@ class CalendarAdvanceRequestT(object):
         CalendarAdvanceRequestAddTenorUnit(builder, self.tenorUnit)
         CalendarAdvanceRequestAddConvention(builder, self.convention)
         CalendarAdvanceRequestAddEndOfMonth(builder, self.endOfMonth)
+        if self.calendarOverrides is not None:
+            CalendarAdvanceRequestAddCalendarOverrides(builder, calendarOverrides)
         calendarAdvanceRequest = CalendarAdvanceRequestEnd(builder)
         return calendarAdvanceRequest

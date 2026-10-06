@@ -2248,6 +2248,25 @@
       "required" : ["id", "reference_date", "index_id", "points"],
       "additionalProperties" : false
     },
+    "quantra_CalendarOverride" : {
+      "type" : "object",
+      "description" : "Per-request holiday overrides for one calendar. The overrides apply to every\nuse of that calendar while the request is processed and are discarded\nafterwards; nothing is stored on the server.",
+      "properties" : {
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar to override (required). Aliases of the same underlying calendar\n(e.g. UnitedStates / UnitedStatesSettlement) share their overrides."
+              },
+        "added_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that must be treated as holidays. A date that is\nalready a holiday or a weekend is accepted and has no effect."
+              },
+        "removed_holidays" : {
+                "type" : "array", "items" : {"type" : "string"},
+                "description" : "Dates (YYYY-MM-DD) that must be treated as business days. A date that is\nalready a business day is accepted and has no effect; weekend dates are\nrejected."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_RatesMarketData" : {
       "type" : "object",
       "description" : "Rates market data shared across interest-rate products.",
@@ -2378,6 +2397,10 @@
               },
         "options" : {
                 "$ref" : "#/definitions/quantra_PricingOptions"
+              },
+        "calendar_overrides" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CalendarOverride"},
+                "description" : "Per-request holiday overrides (optional). Applied to every use of the\nnamed calendars in this request. Used by: ALL."
               }
       },
       "required" : ["as_of_date"],

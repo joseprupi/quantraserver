@@ -1,0 +1,19 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Per-request holiday overrides for one calendar. The overrides apply to every
+/// use of that calendar while the request is processed and are discarded
+/// afterwards; nothing is stored on the server.
+table CalendarOverride {
+    /// Calendar to override (required). Aliases of the same underlying calendar
+    /// (e.g. UnitedStates / UnitedStatesSettlement) share their overrides.
+    calendar:enums.Calendar = null;
+    /// Dates (YYYY-MM-DD) that must be treated as holidays. A date that is
+    /// already a holiday or a weekend is accepted and has no effect.
+    added_holidays:[string];
+    /// Dates (YYYY-MM-DD) that must be treated as business days. A date that is
+    /// already a business day is accepted and has no effect; weekend dates are
+    /// rejected.
+    removed_holidays:[string];
+}

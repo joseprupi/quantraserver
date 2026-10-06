@@ -9,6 +9,7 @@ include "swap_index.fbs";
 include "credit_curve.fbs";
 include "equity_option.fbs";
 include "inflation.fbs";
+include "calendar_override.fbs";
 
 namespace quantra;
 
@@ -79,4 +80,8 @@ table Pricing {
     equity:EquityMarketData;
     inflation:InflationMarketData;
     options:PricingOptions;
+
+    /// Per-request holiday overrides (optional). Applied to every use of the
+    /// named calendars in this request. Used by: ALL.
+    calendar_overrides:[CalendarOverride];
 }

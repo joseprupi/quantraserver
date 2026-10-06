@@ -138,7 +138,8 @@ lists; `grpc.health.v1.Health` answers standard `Check`/`Watch` probes. See
 `docs/client.md`.
 
 Request rules, HTTP status codes, the error body, and the `X-Request-Id` /
-`X-Quantra-Api-Version` headers are documented in `docs/http-api.md`.
+`X-Quantra-Api-Version` headers are documented in `docs/http-api.md`, as are
+per-request calendar holiday overrides (`calendar_overrides`).
 
 The public API reference is available at <https://quantra.io/docs/api>.
 

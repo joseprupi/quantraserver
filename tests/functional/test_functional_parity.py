@@ -255,6 +255,127 @@ def test_functional_parity(client, data_dir, case):
 # Catalog freshness — committed CATALOG.md / catalog.html match the manifest
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Override cases must actually move the result
+# ---------------------------------------------------------------------------
+#
+# A case that names a "differs_from" twin (the same request without its
+# calendar_overrides) passes parity trivially if the server AND the reference
+# both ignored the overrides. This test closes that hole on the server side:
+# the two responses must differ — by more than the case's "min_twin_gap" for
+# npv / series cases (a gap well above the parity tolerance), or by plain
+# inequality for exact date cases.
+
+_CASES_BY_ID = {c["id"]: c for c in CASES}
+_TWIN_CASES = [c for c in CASES if "differs_from" in c]
+
+
+def _comparable_result(case, response):
+    """The value a case is compared on, reduced to something diff-able."""
+    compare = case.get("compare", "npv")
+    if compare == "exact":
+        return response[case["list_key"]]
+    if compare == "series":
+        return _api_series(response, case["list_key"], case["id"])
+    assert compare == "npv", (
+        f"{case['id']}: differs_from is not supported for compare={compare}"
+    )
+    return api_npv(response, case["list_key"])
+
+
+def test_differs_from_well_formed():
+    for case in _TWIN_CASES:
+        twin = _CASES_BY_ID.get(case["differs_from"])
+        assert twin is not None, (
+            f"{case['id']}: differs_from names an unknown case: "
+            f"{case['differs_from']}"
+        )
+        assert twin["product"] == case["product"] and \
+            twin.get("compare", "npv") == case.get("compare", "npv"), (
+                f"{case['id']}: twin {twin['id']} is not the same product / "
+                f"compare mode"
+            )
+        if case.get("compare", "npv") == "exact":
+            assert "min_twin_gap" not in case, (
+                f"{case['id']}: exact cases differ by inequality, not a gap"
+            )
+        else:
+            assert case.get("min_twin_gap", 0) > case["tolerance"], (
+                f"{case['id']}: min_twin_gap must exceed the parity tolerance"
+            )
+
+
+@pytest.mark.parametrize("case", _TWIN_CASES,
+                         ids=[c["id"] for c in _TWIN_CASES])
+def test_override_case_differs_from_twin(client, data_dir, case):
+    twin = _CASES_BY_ID[case["differs_from"]]
+    ours = _comparable_result(case, client.price(
+        case["product"], load_json(data_dir / case["request"])))
+    theirs = _comparable_result(twin, client.price(
+        twin["product"], load_json(data_dir / twin["request"])))
+    if case.get("compare", "npv") == "exact":
+        assert ours != theirs, (
+            f"{case['id']}: result equals twin {twin['id']}: {ours!r}"
+        )
+        return
+    if isinstance(ours, dict):
+        assert set(ours) == set(theirs), (
+            f"{case['id']}: series {sorted(ours)} != twin {sorted(theirs)}"
+        )
+        gap = max(abs(a - b)
+                  for name in ours
+                  for a, b in zip(ours[name], theirs[name]))
+    else:
+        gap = abs(ours - theirs)
+    assert gap > case["min_twin_gap"], (
+        f"{case['id']}: result moved only {gap:.6g} vs twin {twin['id']} "
+        f"(needs > {case['min_twin_gap']}) — the override looks inert"
+    )
+
+
+def test_reference_restores_calendar_state(data_dir):
+    """The reference must leave QuantLib's global holiday state untouched.
+
+    Server-free: runs every override case's reference pricer and checks each
+    overridden date is back to its prior business-day status afterwards, then
+    checks the same holds when the wrapped block raises.
+    """
+    import QuantLib as ql
+
+    def snapshot(overrides):
+        return [
+            (entry["calendar"], iso,
+             ql_reference._calendar_from_enum(entry["calendar"])
+             .isBusinessDay(ql_reference.parse_date(iso)))
+            for entry in overrides
+            for iso in (entry.get("added_holidays") or [])
+            + (entry.get("removed_holidays") or [])
+        ]
+
+    seen = 0
+    for case in CASES:
+        request = load_json(data_dir / case["request"])
+        overrides = ql_reference.request_calendar_overrides(request)
+        if not overrides:
+            continue
+        seen += 1
+        before = snapshot(overrides)
+        with ql_reference.applied_calendar_overrides(request):
+            during = snapshot(overrides)
+        assert during != before, f"{case['id']}: overrides were not applied"
+        getattr(ql_reference, case["ql_pricer"])(request)
+        assert snapshot(overrides) == before, (
+            f"{case['id']}: reference left calendar overrides behind"
+        )
+        with pytest.raises(RuntimeError):
+            with ql_reference.applied_calendar_overrides(request):
+                raise RuntimeError("boom")
+        assert snapshot(overrides) == before, (
+            f"{case['id']}: overrides survived an exception"
+        )
+    assert seen, "no manifest case carries calendar_overrides"
+
+
 def test_catalog_in_sync():
     """Regenerating the catalog must produce exactly the committed files."""
     import generate_catalog

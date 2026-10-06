@@ -161,6 +161,32 @@ python3 -m pytest tests/functional -q \
 5. **Run the full gate** (command above) — your case must pass within
    tolerance, and `test_catalog_in_sync` must see the regenerated files.
 
+## Calendar holiday overrides
+
+Requests may carry `calendar_overrides` (inside `pricing`, or at the top level
+of the three calendar requests). The reference honours them centrally: every
+public `*_ql` entry point in `tests/contract/ql_reference.py` is wrapped by
+`applied_calendar_overrides`, which applies the request's `added_holidays` /
+`removed_holidays` to the Python-side QuantLib calendars before anything is
+built and restores each touched date afterwards (`try/finally`), so one case
+can never leak holiday state into the next. No per-product code is needed —
+a case with overrides is just a request JSON plus a manifest row.
+
+Two optional manifest keys keep override cases honest:
+
+- `differs_from` — the id of the no-override twin case (same product, same
+  compare mode). `test_override_case_differs_from_twin` POSTs both requests
+  and fails if the override left the server's result where it was.
+- `min_twin_gap` — for npv / series cases, how far the result must move
+  (must exceed the parity tolerance). Exact cases just have to be unequal.
+
+Current override cases: holidays / advance / business-days on the calendar
+endpoints (added + removed dates; one case overriding two calendars of which
+only one is the request's), a deposit+swap bootstrap whose spot date becomes a
+holiday, a vanilla swap whose payment and maturity dates become holidays, a
+swap with UK-calendar schedules on a TARGET curve with one override per
+calendar, and a SOFR OIS with one added and one removed holiday.
+
 ## Current coverage (IR Swaps)
 
 * Vanilla fixed-vs-IBOR: payer/receiver, fixed 30/360 annual and Act/365F

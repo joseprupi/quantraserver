@@ -339,3 +339,194 @@ def test_hw_calib_cache_engaged(cache_client, data_dir, cache_log_path):
         f"curve keys the HW key delegates to are populated)?"
     )
     print(f"[cache] HW calibration cache engaged — hits: {before} -> {after}")
+
+
+# ---------------------------------------------------------------------------
+# Per-request calendar holiday overrides
+#
+# A cached entry holds a result computed under the calendars in force when it
+# was built, so the active overrides are part of every process-lifetime cache
+# key (curve, SABR cube, Hull-White calibration). These tests prove, per cache:
+#   - transparency: a request WITH overrides is identical cache-ON vs cache-OFF;
+#   - isolation: an entry built without overrides is never served to a request
+#     with them, nor the reverse;
+#   - engagement: overrides do not simply switch caching off.
+# ---------------------------------------------------------------------------
+
+# (id, product, example request file, TARGET business day declared a holiday,
+# cache the row targets). Each date is a roll or expiry date of the request's
+# instruments, so the override moves a schedule date and changes the response —
+# asserted in the isolation tests, which would prove nothing with an inert
+# override.
+OverrideCase = namedtuple("OverrideCase", "id product filename added_holiday cache")
+
+OVERRIDE_CASES = [
+    OverrideCase("vanilla_swap_multicurve", "vanilla_swap",
+                 "vanilla_swap_multicurve_request.json", "2024-07-17", "curve"),
+    OverrideCase("bootstrap_curves_forward", "bootstrap_curves",
+                 "bootstrap_curves_forward.json", "2025-06-17", "curve"),
+    OverrideCase("swaption_sabr_calibrate", "swaption",
+                 "swaption_sabr_calibrate_request.json", "2026-01-19", "sabr"),
+    OverrideCase("calibrate_swaption_model", "calibrate_swaption_model",
+                 "calibrate_swaption_model_request.json", "2026-01-15", "hw"),
+    OverrideCase("swaption_bermudan_hw_calibrated", "swaption",
+                 "swaption_bermudan_hw_calibrated.json", "2026-01-15", "hw"),
+]
+OVERRIDE_IDS = [c.id for c in OVERRIDE_CASES]
+
+# Log markers of a hit in each cache (the three loggers differ in casing).
+_HIT_MARKERS = {
+    "curve": ("[CurveCache]", "event=L1_HIT"),
+    "sabr": ("[SabrCalibrateCache]", "event=HIT"),
+    "hw": ("[HwCalibCache]", "event=hit"),
+}
+
+
+def _with_overrides(request: dict, case) -> dict:
+    out = copy.deepcopy(request)
+    out["pricing"]["calendar_overrides"] = [
+        {"calendar": "TARGET", "added_holidays": [case.added_holiday]}
+    ]
+    return out
+
+
+def _bump_first_rate(node, eps: float) -> bool:
+    """Shift the first numeric `rate` found under `node` by eps (in place)."""
+    if isinstance(node, dict):
+        rate = node.get("rate")
+        if isinstance(rate, float):
+            node["rate"] = rate + eps
+            return True
+        return any(_bump_first_rate(v, eps) for v in node.values())
+    if isinstance(node, list):
+        return any(_bump_first_rate(v, eps) for v in node)
+    return False
+
+
+def _count_hits(log_path: Path, cache: str) -> int:
+    if not log_path.exists():
+        return 0
+    tag, event = _HIT_MARKERS[cache]
+    return sum(
+        1
+        for line in log_path.read_text(errors="replace").splitlines()
+        if tag in line and event in line
+    )
+
+
+@pytest.mark.parametrize("case", OVERRIDE_CASES, ids=OVERRIDE_IDS)
+def test_calendar_overrides_cache_transparency(case, nocache_client,
+                                               cache_client, data_dir):
+    request = _with_overrides(load_json(data_dir / case.filename), case)
+
+    off = nocache_client.price(case.product, request)   # reference (cache OFF)
+    cold = cache_client.price(case.product, request)    # cache ON, populates
+    warm = cache_client.price(case.product, request)    # cache ON, serves hit
+
+    assert _canonical(off) == _canonical(cold), (
+        f"{case.id}: with calendar overrides, the cold cache-ON response "
+        f"differs from cache-OFF"
+    )
+    assert _canonical(off) == _canonical(warm), (
+        f"{case.id}: with calendar overrides, the warm cache-ON response "
+        f"differs from cache-OFF"
+    )
+    print(f"[cache] {case.id}: +{case.added_holiday} TARGET holiday "
+          f"off==cold==warm identical")
+
+
+@pytest.mark.parametrize("case", OVERRIDE_CASES, ids=OVERRIDE_IDS)
+def test_calendar_overrides_not_served_from_plain_entry(
+        case, nocache_client, cache_client, data_dir):
+    """Warm the cache WITHOUT overrides, then send the same request WITH them:
+    the answer must be the with-overrides one, not the warm entry."""
+    plain = load_json(data_dir / case.filename)
+    overridden = _with_overrides(plain, case)
+
+    off_plain = nocache_client.price(case.product, plain)
+    off_overridden = nocache_client.price(case.product, overridden)
+    assert _canonical(off_plain) != _canonical(off_overridden), (
+        f"{case.id}: the {case.added_holiday} override does not change the "
+        f"cache-OFF response, so this case cannot detect a stale cache entry"
+    )
+
+    cache_client.price(case.product, plain)             # populate
+    warm_plain = cache_client.price(case.product, plain)
+    assert _canonical(warm_plain) == _canonical(off_plain)
+
+    got = cache_client.price(case.product, overridden)
+    assert _canonical(got) != _canonical(off_plain), (
+        f"{case.id}: a request with calendar overrides was served the entry "
+        f"cached without them"
+    )
+    assert _canonical(got) == _canonical(off_overridden), (
+        f"{case.id}: with-overrides response after a no-override warm-up "
+        f"differs from cache-OFF"
+    )
+
+    # And the with-overrides entry just stored must not shadow the plain one.
+    again_plain = cache_client.price(case.product, plain)
+    assert _canonical(again_plain) == _canonical(off_plain)
+
+
+@pytest.mark.parametrize("case", OVERRIDE_CASES, ids=OVERRIDE_IDS)
+def test_plain_request_not_served_from_overridden_entry(
+        case, nocache_client, cache_client, data_dir):
+    """The reverse order: warm the cache WITH overrides, then send the request
+    WITHOUT them. The market is shifted by a negligible epsilon first so that
+    neither variant is cached yet on the freshly started cache-ON server (every
+    earlier test used the unshifted request) — the with-overrides request really
+    is the one that populates the cache."""
+    plain = load_json(data_dir / case.filename)
+    assert _bump_first_rate(plain["pricing"], 1e-9), (
+        f"{case.id}: no numeric rate found to shift"
+    )
+    overridden = _with_overrides(plain, case)
+
+    off_plain = nocache_client.price(case.product, plain)
+    off_overridden = nocache_client.price(case.product, overridden)
+    assert _canonical(off_plain) != _canonical(off_overridden), (
+        f"{case.id}: the {case.added_holiday} override does not change the "
+        f"cache-OFF response, so this case cannot detect a stale cache entry"
+    )
+
+    cache_client.price(case.product, overridden)        # populate
+    warm_overridden = cache_client.price(case.product, overridden)
+    assert _canonical(warm_overridden) == _canonical(off_overridden)
+
+    got = cache_client.price(case.product, plain)
+    assert _canonical(got) != _canonical(off_overridden), (
+        f"{case.id}: a request without calendar overrides was served the entry "
+        f"cached with them"
+    )
+    assert _canonical(got) == _canonical(off_plain), (
+        f"{case.id}: no-override response after a with-overrides warm-up "
+        f"differs from cache-OFF"
+    )
+
+
+@pytest.mark.parametrize("case", OVERRIDE_CASES, ids=OVERRIDE_IDS)
+def test_calendar_overrides_cache_engaged(case, cache_client, data_dir,
+                                          cache_log_path):
+    """Overrides must not simply disable caching: the second identical request
+    WITH overrides is a hit in the cache this row targets."""
+    request = _with_overrides(load_json(data_dir / case.filename), case)
+
+    cache_client.price(case.product, request)           # warm (may miss)
+    before = _count_hits(cache_log_path, case.cache)
+    cache_client.price(case.product, request)           # must hit
+
+    after = before
+    for _ in range(20):
+        after = _count_hits(cache_log_path, case.cache)
+        if after > before:
+            break
+        time.sleep(0.1)
+
+    assert after > before, (
+        f"{case.id}: no {case.cache} cache hit logged in {cache_log_path} for a "
+        f"repeated request with calendar overrides (hits before={before}, "
+        f"after={after}); overrides appear to bypass the cache"
+    )
+    print(f"[cache] {case.id}: {case.cache} cache engaged with overrides — "
+          f"hits: {before} -> {after}")

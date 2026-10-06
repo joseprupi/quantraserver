@@ -7,7 +7,8 @@ This directory is the canonical home for project documentation.
 - `../README.md`: project overview, architecture, and quick start
 - `build.md`: build environments, Docker targets, and local setup
 - `configuration.md`: every environment variable the runtime reads
-- `http-api.md`: request rules, HTTP status codes, error body, headers
+- `http-api.md`: request rules, HTTP status codes, error body, headers,
+  per-request calendar holiday overrides
 - `scripts.md`: code generation, build, and runtime helper scripts
 - `testing.md`: full test workflow and individual test entrypoints
 - `process-manager.md`: multi-process runtime and packaged `quantra` CLI
@@ -43,7 +44,7 @@ bash tests/run_all_tests.sh
 | --- | --- |
 | `build.md` | Docker, devcontainer, local dependencies, build commands, troubleshooting |
 | `configuration.md` | Runtime environment variables: workers, ports, request budget, caches |
-| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers |
+| `http-api.md` | Cross-product HTTP contract: presence rules, dates, status codes, headers, calendar holiday overrides |
 | `scripts.md` | `generate_schemas.sh`, `generate_openapi.py`, `build.sh`, `scripts/quantra`, `envoy_config.py` |
 | `testing.md` | Full suite behavior, direct test entrypoints, CI expectations |
 | `process-manager.md` | Envoy-backed runtime model and installable process manager tooling |

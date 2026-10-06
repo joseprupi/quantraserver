@@ -249,6 +249,30 @@
 <td><a href="../../examples/data/ir_swaps/irs_eur_5y_short_first_both_legs.json">irs_eur_5y_short_first_both_legs.json</a></td>
 <td class="npv">-47,079.51</td>
 </tr>
+<tr>
+<td><div class="title">EUR 5Y payer swap with payment dates made holidays</div><div class="desc">The baseline 5Y EUR payer swap with two TARGET holidays added: 2025-07-17 (the first floating payment / second reset date, which rolls to 07-18) and 2030-01-17 (the maturity of both legs and the 5Y curve pillar, which rolls to 01-18 and lengthens the last coupons). Curve helpers, index and schedules all see the same overridden calendar, as in native QuantLib.</div></td>
+<td><code>calendar_overrides</code> <code>added holidays</code> <code>payment date moved</code> <code>maturity date moved</code> <code>payer</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_overrides_added_payment_holidays.json">irs_eur_5y_payer_overrides_added_payment_holidays.json</a></td>
+<td class="npv">-45,725.90</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer swap: UK-calendar schedules on a TARGET curve</div><div class="desc">The baseline 5Y EUR payer swap with both leg schedules rolled on the UnitedKingdom calendar while the curve helpers and the Euribor 6M index stay on TARGET — two different calendars in one request. No-override twin of the two-calendar override case.</div></td>
+<td><code>mixed calendars</code> <code>UnitedKingdom schedules</code> <code>TARGET curve helpers</code> <code>payer</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_uk_schedules_target_curve.json">irs_eur_5y_payer_uk_schedules_target_curve.json</a></td>
+<td class="npv">-45,702.75</td>
+</tr>
+<tr>
+<td><div class="title">EUR 5Y payer swap: overrides on both calendars it uses</div><div class="desc">UK-calendar schedules on a TARGET curve, with one override per calendar: UnitedKingdom gains 2030-01-17 (the swap maturity rolls to 01-18; the TARGET curve pillars do not move) and TARGET gains 2027-01-18 (the 2Y helper pillar rolls to 01-19; the UK schedules do not move). Each override reaches exactly the dates built on its own calendar.</div></td>
+<td><code>calendar_overrides</code> <code>two calendars overridden</code> <code>schedule calendar vs helper calendar</code> <code>UnitedKingdom</code> <code>TARGET</code> <code>payer</code></td>
+<td><a href="../../examples/data/ir_swaps/irs_eur_5y_payer_uk_schedules_target_curve_overrides_both.json">irs_eur_5y_payer_uk_schedules_target_curve_overrides_both.json</a></td>
+<td class="npv">-45,633.38</td>
+</tr>
+<tr>
+<td><div class="title">USD 3Y payer OIS vs SOFR with an added and a removed holiday</div><div class="desc">The 3Y SOFR OIS on the US government-bond calendar with Martin Luther King Day 2026-01-19 removed (the first annual schedule date, 01-17 being a Saturday, now rolls to 01-19 instead of 01-20, and SOFR compounds over that day) and 2027-01-19 added (the second schedule date rolls on to 01-20). Schedules, the overnight fixing calendar and the OIS curve helpers all see the same overrides.</div></td>
+<td><code>calendar_overrides</code> <code>added holiday</code> <code>removed holiday</code> <code>OIS</code> <code>SOFR</code> <code>UnitedStatesGovernmentBond</code></td>
+<td><a href="../../examples/data/ir_swaps/ois_usd_3y_payer_sofr_overrides_added_removed.json">ois_usd_3y_payer_sofr_overrides_added_removed.json</a></td>
+<td class="npv">-28,117.65</td>
+</tr>
 </tbody>
 </table>
 <h2>Bonds</h2>
@@ -795,6 +819,12 @@
 <td><a href="../../examples/data/curves/curves_usd_zero_curve_fwd_numbers_distinct.json">curves_usd_zero_curve_fwd_numbers_distinct.json</a></td>
 <td class="npv">DF/ZERO series, 7 points</td>
 </tr>
+<tr>
+<td><div class="title">EUR deposit+swap curve with the spot date made a holiday</div><div class="desc">The baseline EUR deposit+swap curve (as of 2025-01-15) with TARGET overrides: 2025-01-17, the two-day spot date of every helper, is added as a holiday so all pillars start from 2025-01-20, and Easter Monday 2025-04-21 is removed so the 3M deposit now matures on it instead of rolling to 04-22. Discount factors and zero rates must match native QuantLib bootstrapped under the same overrides, and differ from the no-override twin.</div></td>
+<td><code>calendar_overrides</code> <code>added holiday on spot date</code> <code>removed holiday on a pillar date</code> <code>deposit+swap bootstrap</code> <code>discount factors</code> <code>zero rates continuous</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/curves/curves_eur_depo_swap_df_zero_overrides_settlement_holiday.json">curves_eur_depo_swap_df_zero_overrides_settlement_holiday.json</a></td>
+<td class="npv">DF/ZERO series, 10 points</td>
+</tr>
 </tbody>
 </table>
 <h2>Calendars</h2>
@@ -878,6 +908,24 @@
 <td><code>advance</code> <code>1 year</code> <code>Following</code> <code>weekend landing</code> <code>UnitedKingdom calendar</code></td>
 <td><a href="../../examples/data/calendar/cal_adv_uk_1y_weekend_following.json">cal_adv_uk_1y_weekend_following.json</a></td>
 <td class="npv">advanced date = 2026-08-24</td>
+</tr>
+<tr>
+<td><div class="title">TARGET holidays 2025 with one added and one removed holiday</div><div class="desc">The TARGET 2025 holiday list with calendar_overrides adding 2025-06-16 (an ordinary Monday) as a holiday and removing Labour Day 2025-05-01: the list gains the added date and loses the removed one, still six weekday holidays but a different six.</div></td>
+<td><code>calendar_overrides</code> <code>added holiday</code> <code>removed holiday</code> <code>holidays</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/calendar/cal_hol_target_2025_overrides_added_removed.json">cal_hol_target_2025_overrides_added_removed.json</a></td>
+<td class="npv">6 holidays</td>
+</tr>
+<tr>
+<td><div class="title">TARGET: advance 10 business days across an overridden Easter</div><div class="desc">2025-04-14 advanced by 10 business days on TARGET with Good Friday 2025-04-18 and Easter Monday 2025-04-21 removed as holidays and 2025-04-23 added: the count now skips one holiday instead of two and lands on 2025-04-29 rather than 2025-04-30.</div></td>
+<td><code>calendar_overrides</code> <code>added holiday</code> <code>removed holidays</code> <code>advance</code> <code>10 business days</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/calendar/cal_adv_target_10bd_over_easter_overrides.json">cal_adv_target_10bd_over_easter_overrides.json</a></td>
+<td class="npv">advanced date = 2025-04-29</td>
+</tr>
+<tr>
+<td><div class="title">UK business days over Easter 2025, two calendars overridden</div><div class="desc">Business days 2025-04-14 to 2025-04-25 on the UnitedKingdom calendar while the request overrides TWO calendars: UnitedKingdom (2025-04-23 added, Easter Monday 2025-04-21 removed) and TARGET (2025-04-24 added, Good Friday 2025-04-18 removed). Only the UnitedKingdom entry may show: 04-21 becomes a business day and 04-23 drops out, while 04-18 stays a UK holiday and 04-24 stays a UK business day — an override never leaks onto a calendar it does not name.</div></td>
+<td><code>calendar_overrides</code> <code>two calendars overridden</code> <code>no cross-calendar leak</code> <code>business days</code> <code>UnitedKingdom</code> <code>TARGET</code></td>
+<td><a href="../../examples/data/calendar/cal_bd_uk_easter_2025_overrides_two_calendars.json">cal_bd_uk_easter_2025_overrides_two_calendars.json</a></td>
+<td class="npv">8 business days</td>
 </tr>
 </tbody>
 </table>
@@ -1211,6 +1259,6 @@
 </tr>
 </tbody>
 </table>
-<footer>184 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>192 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

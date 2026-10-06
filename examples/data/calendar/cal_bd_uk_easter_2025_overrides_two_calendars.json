@@ -1,0 +1,27 @@
+{
+  "calendar": "UnitedKingdom",
+  "start_date": "2025-04-14",
+  "end_date": "2025-04-25",
+  "include_start": true,
+  "include_end": true,
+  "calendar_overrides": [
+    {
+      "calendar": "UnitedKingdom",
+      "added_holidays": [
+        "2025-04-23"
+      ],
+      "removed_holidays": [
+        "2025-04-21"
+      ]
+    },
+    {
+      "calendar": "TARGET",
+      "added_holidays": [
+        "2025-04-24"
+      ],
+      "removed_holidays": [
+        "2025-04-18"
+      ]
+    }
+  ]
+}

@@ -13,6 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
+#include "calendar_override_generated.h"
 #include "enums_generated.h"
 
 namespace quantra {
@@ -27,6 +28,11 @@ struct CalendarHolidaysRequestT : public ::flatbuffers::NativeTable {
   std::string start_date{};
   std::string end_date{};
   bool include_weekends = false;
+  std::vector<std::unique_ptr<quantra::CalendarOverrideT>> calendar_overrides{};
+  CalendarHolidaysRequestT() = default;
+  CalendarHolidaysRequestT(const CalendarHolidaysRequestT &o);
+  CalendarHolidaysRequestT(CalendarHolidaysRequestT&&) FLATBUFFERS_NOEXCEPT = default;
+  CalendarHolidaysRequestT &operator=(CalendarHolidaysRequestT o) FLATBUFFERS_NOEXCEPT;
 };
 
 /// Request holidays/vacations between two dates for a calendar.
@@ -37,7 +43,8 @@ struct CalendarHolidaysRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
     VT_CALENDAR = 4,
     VT_START_DATE = 6,
     VT_END_DATE = 8,
-    VT_INCLUDE_WEEKENDS = 10
+    VT_INCLUDE_WEEKENDS = 10,
+    VT_CALENDAR_OVERRIDES = 12
   };
   quantra::enums::Calendar calendar() const {
     return static_cast<quantra::enums::Calendar>(GetField<int8_t>(VT_CALENDAR, 32));
@@ -53,6 +60,10 @@ struct CalendarHolidaysRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
   bool include_weekends() const {
     return GetField<uint8_t>(VT_INCLUDE_WEEKENDS, 0) != 0;
   }
+  /// Per-request holiday overrides (optional).
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *>(VT_CALENDAR_OVERRIDES);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
@@ -61,6 +72,9 @@ struct CalendarHolidaysRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::
            VerifyOffsetRequired(verifier, VT_END_DATE) &&
            verifier.VerifyString(end_date()) &&
            VerifyField<uint8_t>(verifier, VT_INCLUDE_WEEKENDS, 1) &&
+           VerifyOffset(verifier, VT_CALENDAR_OVERRIDES) &&
+           verifier.VerifyVector(calendar_overrides()) &&
+           verifier.VerifyVectorOfTables(calendar_overrides()) &&
            verifier.EndTable();
   }
   CalendarHolidaysRequestT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -84,6 +98,9 @@ struct CalendarHolidaysRequestBuilder {
   void add_include_weekends(bool include_weekends) {
     fbb_.AddElement<uint8_t>(CalendarHolidaysRequest::VT_INCLUDE_WEEKENDS, static_cast<uint8_t>(include_weekends), 0);
   }
+  void add_calendar_overrides(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides) {
+    fbb_.AddOffset(CalendarHolidaysRequest::VT_CALENDAR_OVERRIDES, calendar_overrides);
+  }
   explicit CalendarHolidaysRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -102,8 +119,10 @@ inline ::flatbuffers::Offset<CalendarHolidaysRequest> CreateCalendarHolidaysRequ
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     ::flatbuffers::Offset<::flatbuffers::String> start_date = 0,
     ::flatbuffers::Offset<::flatbuffers::String> end_date = 0,
-    bool include_weekends = false) {
+    bool include_weekends = false,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides = 0) {
   CalendarHolidaysRequestBuilder builder_(_fbb);
+  builder_.add_calendar_overrides(calendar_overrides);
   builder_.add_end_date(end_date);
   builder_.add_start_date(start_date);
   builder_.add_include_weekends(include_weekends);
@@ -116,18 +135,39 @@ inline ::flatbuffers::Offset<CalendarHolidaysRequest> CreateCalendarHolidaysRequ
     quantra::enums::Calendar calendar = quantra::enums::Calendar_TARGET,
     const char *start_date = nullptr,
     const char *end_date = nullptr,
-    bool include_weekends = false) {
+    bool include_weekends = false,
+    const std::vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides = nullptr) {
   auto start_date__ = start_date ? _fbb.CreateString(start_date) : 0;
   auto end_date__ = end_date ? _fbb.CreateString(end_date) : 0;
+  auto calendar_overrides__ = calendar_overrides ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CalendarOverride>>(*calendar_overrides) : 0;
   return quantra::CreateCalendarHolidaysRequest(
       _fbb,
       calendar,
       start_date__,
       end_date__,
-      include_weekends);
+      include_weekends,
+      calendar_overrides__);
 }
 
 ::flatbuffers::Offset<CalendarHolidaysRequest> CreateCalendarHolidaysRequest(::flatbuffers::FlatBufferBuilder &_fbb, const CalendarHolidaysRequestT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline CalendarHolidaysRequestT::CalendarHolidaysRequestT(const CalendarHolidaysRequestT &o)
+      : calendar(o.calendar),
+        start_date(o.start_date),
+        end_date(o.end_date),
+        include_weekends(o.include_weekends) {
+  calendar_overrides.reserve(o.calendar_overrides.size());
+  for (const auto &calendar_overrides_ : o.calendar_overrides) { calendar_overrides.emplace_back((calendar_overrides_) ? new quantra::CalendarOverrideT(*calendar_overrides_) : nullptr); }
+}
+
+inline CalendarHolidaysRequestT &CalendarHolidaysRequestT::operator=(CalendarHolidaysRequestT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(calendar, o.calendar);
+  std::swap(start_date, o.start_date);
+  std::swap(end_date, o.end_date);
+  std::swap(include_weekends, o.include_weekends);
+  std::swap(calendar_overrides, o.calendar_overrides);
+  return *this;
+}
 
 inline CalendarHolidaysRequestT *CalendarHolidaysRequest::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<CalendarHolidaysRequestT>(new CalendarHolidaysRequestT());
@@ -142,6 +182,7 @@ inline void CalendarHolidaysRequest::UnPackTo(CalendarHolidaysRequestT *_o, cons
   { auto _e = start_date(); if (_e) _o->start_date = _e->str(); }
   { auto _e = end_date(); if (_e) _o->end_date = _e->str(); }
   { auto _e = include_weekends(); _o->include_weekends = _e; }
+  { auto _e = calendar_overrides(); if (_e) { _o->calendar_overrides.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->calendar_overrides[_i]) { _e->Get(_i)->UnPackTo(_o->calendar_overrides[_i].get(), _resolver); } else { _o->calendar_overrides[_i] = std::unique_ptr<quantra::CalendarOverrideT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->calendar_overrides.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CalendarHolidaysRequest> CalendarHolidaysRequest::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CalendarHolidaysRequestT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -156,12 +197,14 @@ inline ::flatbuffers::Offset<CalendarHolidaysRequest> CreateCalendarHolidaysRequ
   auto _start_date = _fbb.CreateString(_o->start_date);
   auto _end_date = _fbb.CreateString(_o->end_date);
   auto _include_weekends = _o->include_weekends;
+  auto _calendar_overrides = _o->calendar_overrides.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CalendarOverride>> (_o->calendar_overrides.size(), [](size_t i, _VectorArgs *__va) { return CreateCalendarOverride(*__va->__fbb, __va->__o->calendar_overrides[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCalendarHolidaysRequest(
       _fbb,
       _calendar,
       _start_date,
       _end_date,
-      _include_weekends);
+      _include_weekends,
+      _calendar_overrides);
 }
 
 inline const quantra::CalendarHolidaysRequest *GetCalendarHolidaysRequest(const void *buf) {

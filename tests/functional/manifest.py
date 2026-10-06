@@ -3787,4 +3787,191 @@ CASES = [
         "exercises": ["short first period", "Schedule.first_date",
                       "both legs stubbed", "payer swap"],
     },
+
+    # ------------------------------------------------------------------
+    # Per-request calendar holiday overrides (calendar_overrides)
+    #
+    # Each case sends added_holidays / removed_holidays for one or more
+    # calendars; the reference applies the same overrides to native QuantLib
+    # (and restores the global calendar state afterwards). "differs_from"
+    # names the no-override twin: test_override_case_differs_from_twin
+    # asserts the server's result moves by more than "min_twin_gap" (or, for
+    # exact cases, is simply not equal), proving the override is not inert.
+    # ------------------------------------------------------------------
+    {
+        "id": "cal_hol_target_2025_overrides_added_removed",
+        "product": "calendar_holidays",
+        "family": "Calendars",
+        "title": "TARGET holidays 2025 with one added and one removed holiday",
+        "description": (
+            "The TARGET 2025 holiday list with calendar_overrides adding "
+            "2025-06-16 (an ordinary Monday) as a holiday and removing "
+            "Labour Day 2025-05-01: the list gains the added date and loses "
+            "the removed one, still six weekday holidays but a different six."
+        ),
+        "request": "calendar/cal_hol_target_2025_overrides_added_removed.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_holidays_ql",
+        "compare": "exact",
+        "differs_from": "cal_hol_target_2025",
+        "exercises": ["calendar_overrides", "added holiday",
+                      "removed holiday", "holidays", "TARGET"],
+    },
+    {
+        "id": "cal_adv_target_10bd_over_easter_overrides",
+        "product": "calendar_advance",
+        "family": "Calendars",
+        "title": "TARGET: advance 10 business days across an overridden Easter",
+        "description": (
+            "2025-04-14 advanced by 10 business days on TARGET with Good "
+            "Friday 2025-04-18 and Easter Monday 2025-04-21 removed as "
+            "holidays and 2025-04-23 added: the count now skips one holiday "
+            "instead of two and lands on 2025-04-29 rather than 2025-04-30."
+        ),
+        "request": "calendar/cal_adv_target_10bd_over_easter_overrides.json",
+        "list_key": "advanced_date",
+        "ql_pricer": "calendar_advance_ql",
+        "compare": "exact",
+        "differs_from": "cal_adv_target_10bd_over_easter",
+        "exercises": ["calendar_overrides", "added holiday",
+                      "removed holidays", "advance", "10 business days",
+                      "TARGET"],
+    },
+    {
+        "id": "cal_bd_uk_easter_2025_overrides_two_calendars",
+        "product": "calendar_business_days",
+        "family": "Calendars",
+        "title": "UK business days over Easter 2025, two calendars overridden",
+        "description": (
+            "Business days 2025-04-14 to 2025-04-25 on the UnitedKingdom "
+            "calendar while the request overrides TWO calendars: "
+            "UnitedKingdom (2025-04-23 added, Easter Monday 2025-04-21 "
+            "removed) and TARGET (2025-04-24 added, Good Friday 2025-04-18 "
+            "removed). Only the UnitedKingdom entry may show: 04-21 becomes "
+            "a business day and 04-23 drops out, while 04-18 stays a UK "
+            "holiday and 04-24 stays a UK business day — an override never "
+            "leaks onto a calendar it does not name."
+        ),
+        "request": "calendar/cal_bd_uk_easter_2025_overrides_two_calendars.json",
+        "list_key": "dates",
+        "ql_pricer": "calendar_business_days_ql",
+        "compare": "exact",
+        "exercises": ["calendar_overrides", "two calendars overridden",
+                      "no cross-calendar leak", "business days",
+                      "UnitedKingdom", "TARGET"],
+    },
+    {
+        "id": "curves_eur_depo_swap_df_zero_overrides_settlement_holiday",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR deposit+swap curve with the spot date made a holiday",
+        "description": (
+            "The baseline EUR deposit+swap curve (as of 2025-01-15) with "
+            "TARGET overrides: 2025-01-17, the two-day spot date of every "
+            "helper, is added as a holiday so all pillars start from "
+            "2025-01-20, and Easter Monday 2025-04-21 is removed so the 3M "
+            "deposit now matures on it instead of rolling to 04-22. Discount "
+            "factors and zero rates must match native QuantLib bootstrapped "
+            "under the same overrides, and differ from the no-override twin."
+        ),
+        "request": "curves/curves_eur_depo_swap_df_zero_overrides_settlement_holiday.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "differs_from": "curves_eur_depo_swap_df_zero_tenor_grid",
+        "min_twin_gap": 1e-6,
+        "exercises": ["calendar_overrides", "added holiday on spot date",
+                      "removed holiday on a pillar date",
+                      "deposit+swap bootstrap", "discount factors",
+                      "zero rates continuous", "TARGET"],
+    },
+    {
+        "id": "irs_eur_5y_payer_overrides_added_payment_holidays",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap with payment dates made holidays",
+        "description": (
+            "The baseline 5Y EUR payer swap with two TARGET holidays added: "
+            "2025-07-17 (the first floating payment / second reset date, "
+            "which rolls to 07-18) and 2030-01-17 (the maturity of both legs "
+            "and the 5Y curve pillar, which rolls to 01-18 and lengthens the "
+            "last coupons). Curve helpers, index and schedules all see the "
+            "same overridden calendar, as in native QuantLib."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_overrides_added_payment_holidays.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "differs_from": "irs_eur_5y_payer_fixed_30360_vs_euribor6m",
+        "min_twin_gap": 1.0,
+        "exercises": ["calendar_overrides", "added holidays",
+                      "payment date moved", "maturity date moved", "payer",
+                      "TARGET"],
+    },
+    {
+        "id": "irs_eur_5y_payer_uk_schedules_target_curve",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap: UK-calendar schedules on a TARGET curve",
+        "description": (
+            "The baseline 5Y EUR payer swap with both leg schedules rolled "
+            "on the UnitedKingdom calendar while the curve helpers and the "
+            "Euribor 6M index stay on TARGET — two different calendars in "
+            "one request. No-override twin of the two-calendar override case."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_uk_schedules_target_curve.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "exercises": ["mixed calendars", "UnitedKingdom schedules",
+                      "TARGET curve helpers", "payer"],
+    },
+    {
+        "id": "irs_eur_5y_payer_uk_schedules_target_curve_overrides_both",
+        "product": "vanilla_swap",
+        "family": "IR Swaps",
+        "title": "EUR 5Y payer swap: overrides on both calendars it uses",
+        "description": (
+            "UK-calendar schedules on a TARGET curve, with one override per "
+            "calendar: UnitedKingdom gains 2030-01-17 (the swap maturity "
+            "rolls to 01-18; the TARGET curve pillars do not move) and "
+            "TARGET gains 2027-01-18 (the 2Y helper pillar rolls to 01-19; "
+            "the UK schedules do not move). Each override reaches exactly "
+            "the dates built on its own calendar."
+        ),
+        "request": "ir_swaps/irs_eur_5y_payer_uk_schedules_target_curve_overrides_both.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_vanilla_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "differs_from": "irs_eur_5y_payer_uk_schedules_target_curve",
+        "min_twin_gap": 1.0,
+        "exercises": ["calendar_overrides", "two calendars overridden",
+                      "schedule calendar vs helper calendar",
+                      "UnitedKingdom", "TARGET", "payer"],
+    },
+    {
+        "id": "ois_usd_3y_payer_sofr_overrides_added_removed",
+        "product": "ois_swap",
+        "family": "IR Swaps",
+        "title": "USD 3Y payer OIS vs SOFR with an added and a removed holiday",
+        "description": (
+            "The 3Y SOFR OIS on the US government-bond calendar with Martin "
+            "Luther King Day 2026-01-19 removed (the first annual schedule "
+            "date, 01-17 being a Saturday, now rolls to 01-19 instead of "
+            "01-20, and SOFR compounds over that day) and 2027-01-19 added "
+            "(the second schedule date rolls on to 01-20). Schedules, the "
+            "overnight fixing calendar and the OIS curve helpers all see the "
+            "same overrides."
+        ),
+        "request": "ir_swaps/ois_usd_3y_payer_sofr_overrides_added_removed.json",
+        "list_key": "swaps",
+        "ql_pricer": "price_ois_swap_ql",
+        "tolerance": DEFAULT_TOLERANCE,
+        "differs_from": "ois_usd_3y_payer_sofr",
+        "min_twin_gap": 0.05,
+        "exercises": ["calendar_overrides", "added holiday",
+                      "removed holiday", "OIS", "SOFR",
+                      "UnitedStatesGovernmentBond"],
+    },
 ]
