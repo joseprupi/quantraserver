@@ -189,6 +189,9 @@ mis-built before).
 - The unused `FRA` day-counter/calendar/convention fields are no longer
   required (accepted-but-ignored, deprecated); discrete equity-barrier
   monitoring is rejected with a clear message (no native QuantLib engine).
+- The shipped container now enables the Hull-White calibration cache
+  (`QUANTRA_HW_CACHE_ENABLED=1`). In the 0.3.0 and 0.4.0 images it was
+  available but off unless set explicitly.
 
 ### Migration
 
@@ -268,9 +271,10 @@ timeout).
   dividends with American/Bermudan or digital payoffs) return a 400 naming
   the combination. Greeks an engine cannot compute are omitted from the
   response instead of serializing as invalid JSON.
-- **Hull-White calibration cache** (`QUANTRA_HW_CACHE_ENABLED`, on in the
-  shipped container): repeat calibrations ~150ms → ~47ms, bit-for-bit
-  transparent (gated by the cache-correctness suite).
+- **Hull-White calibration cache** (`QUANTRA_HW_CACHE_ENABLED`, off by
+  default; on in the shipped container from 0.5.0): repeat calibrations
+  ~150ms → ~47ms, bit-for-bit transparent (gated by the cache-correctness
+  suite).
 
 ### Behavior changes (degenerate cases only)
 

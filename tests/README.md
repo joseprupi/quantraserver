@@ -30,30 +30,30 @@ At the end it prints a human-readable summary box, plus machine-readable lines
 you can grep:
 
 ```
-RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=118 unit=cases
-SUMMARY suites_passed=7 suites_failed=0 total_cases=628
+RESULT suite=1 name="1. C++ QuantLib Parity" status=PASS count=145 unit=cases
+SUMMARY suites_passed=7 suites_failed=0 total_cases=858
 ```
 
 ## The seven suites
 
 Counts are from the current green gate run (`SUMMARY suites_passed=7
-suites_failed=0 total_cases=628`).
+suites_failed=0 total_cases=858`).
 
 | # | What it checks | How | Files | Count |
 |---|---|---|---|---|
 | 0 | No FlatBuffers/gRPC types leak into the pricing core | static grep, no server | `../scripts/check_evaluator_boundary.sh` | 48 files |
-| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` | 118 cases |
+| 1 | Engine prices match QuantLib | C++, in-process (no socket) | `parity/` | 145 cases |
 | 2 | gRPC server round-trips correctly | C++, real gRPC call over a socket | `integration/test_server_client.cpp` | 28 cases |
-| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` + `functional/` | 319 tests |
+| 3 | JSON API prices match QuantLib + returns right HTTP status codes | Python, real HTTP POST | `contract/` + `functional/` | 498 tests |
 | 4 | The Python client library works against the server | Python, gRPC | `client/test_python_client.py` | 7 scenarios |
 | 5 | Concurrent JSON requests don't race | Python, many parallel HTTP POSTs | `concurrency/test_json_concurrency.py` | 96 requests |
-| 6 | The curve, SABR, and Hull-White caches are transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` | 12 comparisons |
+| 6 | The curve, SABR, and Hull-White caches are transparent (cache-OFF == cache-ON, warm == hit) | Python, real HTTP POST to two servers | `caching/` | 36 tests |
 
 Suites 1 and 3 are the two correctness anchors: both build the equivalent
 instrument in raw QuantLib and compare numbers. Suite 1 tests the C++ code path
 directly; Suite 3 tests the full JSON-over-HTTP stack a real client uses.
 Within Suite 3, the **[functional parity catalog](functional/README.md)**
-(`functional/`) is the QuantLib-parity showcase: 172 curated cases across 13
+(`functional/`) is the QuantLib-parity showcase: 192 curated cases across 13
 product families, each a complete request JSON asserted against an independent
 QuantLib reference — browse them all in
 [`functional/CATALOG.md`](functional/CATALOG.md).
@@ -120,7 +120,7 @@ Suite 3 runs `contract/` and `functional/` (next section) together.
 
 ## `functional/` — the functional parity catalog (Suite 3)
 
-The QuantLib-parity showcase: a manifest-driven catalog of **172 cases across
+The QuantLib-parity showcase: a manifest-driven catalog of **192 cases across
 13 product families** (IR swaps, zero-coupon swaps, bonds, callable bonds,
 FRAs, caps/floors, swaptions, CDS, curves, calendars, inflation, equity,
 vol/calibration), each a complete, curated request JSON POSTed to the server
