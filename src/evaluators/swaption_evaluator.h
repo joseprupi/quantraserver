@@ -154,25 +154,27 @@ struct SwaptionInputs {
 /// enums.h, neither of which is a *_generated.h header).
 struct SwaptionPerTrade {
     double npv = 0.0;
-    // Non-finite (NaN) means "no implied vol available"; the mapper omits the
-    // field entirely in that case rather than emitting a sentinel.
-    double impliedVolatility = std::numeric_limits<double>::quiet_NaN();
-    double atmForward = 0.0;
-    double annuity = 0.0;
-    double delta = 0.0;
-    double vega = 0.0;
-    double gamma = 0.0;
-    double theta = 0.0;
-    double dv01 = 0.0;
+    // Conditionally computed scalars are optionals: the mapper adds each field
+    // only when it holds a value, so a greek that was not requested (or an
+    // ATM level the vol surface does not carry) is absent from the response
+    // instead of showing up as 0.0 / a sentinel.
+    std::optional<double> impliedVolatility;            // engine-provided, when finite
+    std::optional<double> atmForward;                   // swaption_pricing_details
+    std::optional<double> annuity;                      // swaption_pricing_details
+    std::optional<double> delta;                        // swaption_pricing_details
+    std::optional<double> vega;                         // either flag
+    std::optional<double> gamma;                        // either flag
+    std::optional<double> theta;                        // either flag
+    std::optional<double> dv01;                         // either flag
     double usedVolatility = 0.0;
     std::string usedOptionExpiry;
     std::string usedSwapTenor;
     double usedStrike = 0.0;
-    double usedAtmForward = -1.0;
+    std::optional<double> usedAtmForward;               // surface carries ATM levels
     quantra::enums::SwaptionStrikeKind usedStrikeKind =
         quantra::enums::SwaptionStrikeKind_Absolute;
-    double usedSpreadFromAtm = 0.0;
-    double usedCubeNodeAtm = -1.0;
+    std::optional<double> usedSpreadFromAtm;            // spread-from-ATM surfaces only
+    std::optional<double> usedCubeNodeAtm;              // surface carries ATM levels
     quantra::enums::SwaptionVolKind volKind =
         quantra::enums::SwaptionVolKind_Constant;
     quantra::enums::ModelParamMode usedModelParamMode =

@@ -13,6 +13,7 @@
 #include "error.h"
 #include "request_validation.h"
 #include "eval_date_guard.h"
+#include "roll_offset.h"
 #include "index_registry_builder.h"
 #include "swaption_generated.h"
 #include "swaption_vol_diagnostics.h"
@@ -350,8 +351,15 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
         const QuantLib::Date asOf = DateToQL(pricing->as_of_date()->str());
         const auto& cfg = kSwaptionRebumpConfig;
 
-        auto buildSnapshot = [&](double curveBump, QuantLib::Date evalDate) {
-            QuantLib::Settings::instance().evaluationDate() = evalDate;
+        // `rollDays` != 0 only for the theta roll: the evaluation date moves AND
+        // every explicit reference_date (curves, helper curves; the vol surface
+        // is re-referenced by the evaluator for the roll leg) moves with it,
+        // so the snapshot is a clean roll of the market rather than a hybrid
+        // with the curve origins pinned to as-of. Date-anchored points/fixings
+        // are data and stay put. The guard resets the offset on exit.
+        auto buildSnapshot = [&](double curveBump, int rollDays) {
+            RollOffsetGuard rollOffset(rollDays);
+            QuantLib::Settings::instance().evaluationDate() = asOf + rollDays;
             SwaptionRebumpedMarket out;
             CurveBootstrapper bootstrapper;
             out.curves = bootstrapper.bootstrapAll(
@@ -365,9 +373,9 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
         };
 
         EvalDateGuard guard;
-        inputs.rebumpMarkets.curveUp = buildSnapshot(cfg.curveBump, asOf);
-        inputs.rebumpMarkets.curveDown = buildSnapshot(-cfg.curveBump, asOf);
-        inputs.rebumpMarkets.roll = buildSnapshot(0.0, asOf + cfg.rollDays);
+        inputs.rebumpMarkets.curveUp = buildSnapshot(cfg.curveBump, 0);
+        inputs.rebumpMarkets.curveDown = buildSnapshot(-cfg.curveBump, 0);
+        inputs.rebumpMarkets.roll = buildSnapshot(0.0, cfg.rollDays);
         inputs.rebumpMarkets.present = true;
     }
 
@@ -388,24 +396,24 @@ flatbuffers::Offset<quantra::PriceSwaptionResponse> SwaptionMapper::toResponse(
         rb.add_npv(r.npv);
         // Non-finite implied vol (no analytic value for this setup) is omitted,
         // matching the equity-option greeks: absent rather than a sentinel.
-        if (std::isfinite(r.impliedVolatility)) {
-            rb.add_implied_volatility(r.impliedVolatility);
-        }
-        rb.add_atm_forward(r.atmForward);
-        rb.add_annuity(r.annuity);
-        rb.add_delta(r.delta);
-        rb.add_vega(r.vega);
-        rb.add_gamma(r.gamma);
-        rb.add_theta(r.theta);
-        rb.add_dv01(r.dv01);
+        // Conditionally computed scalars are `= null` optionals in the schema:
+        // added only when the evaluator produced them (see SwaptionPerTrade).
+        if (r.impliedVolatility) rb.add_implied_volatility(*r.impliedVolatility);
+        if (r.atmForward) rb.add_atm_forward(*r.atmForward);
+        if (r.annuity) rb.add_annuity(*r.annuity);
+        if (r.delta) rb.add_delta(*r.delta);
+        if (r.vega) rb.add_vega(*r.vega);
+        if (r.gamma) rb.add_gamma(*r.gamma);
+        if (r.theta) rb.add_theta(*r.theta);
+        if (r.dv01) rb.add_dv01(*r.dv01);
         rb.add_used_volatility(r.usedVolatility);
         rb.add_used_option_expiry(expiryOff);
         rb.add_used_swap_tenor(tenorOff);
         rb.add_used_strike(r.usedStrike);
-        rb.add_used_atm_forward(r.usedAtmForward);
+        if (r.usedAtmForward) rb.add_used_atm_forward(*r.usedAtmForward);
         rb.add_used_strike_kind(r.usedStrikeKind);
-        rb.add_used_spread_from_atm(r.usedSpreadFromAtm);
-        rb.add_used_cube_node_atm(r.usedCubeNodeAtm);
+        if (r.usedSpreadFromAtm) rb.add_used_spread_from_atm(*r.usedSpreadFromAtm);
+        if (r.usedCubeNodeAtm) rb.add_used_cube_node_atm(*r.usedCubeNodeAtm);
         rb.add_vol_kind(r.volKind);
         rb.add_used_model_param_mode(r.usedModelParamMode);
         // Hull-White diagnostics are added only when applicable; an unset

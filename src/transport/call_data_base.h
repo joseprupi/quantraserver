@@ -118,6 +118,13 @@ public:
 
             std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder =
                 std::make_shared<flatbuffers::grpc::MessageBuilder>();
+            // Serialize scalars even when they equal the schema default.
+            // Without this a response double that is exactly 0.0 (npv,
+            // fair_spread, count, theta...) is elided from the buffer and the
+            // JSON gateway, which prints only present fields, drops it.
+            // `= null` optionals are a separate mechanism and stay absent
+            // until explicitly set.
+            builder->ForceDefaults(true);
             try
             {
                 // Spawn the handler for the NEXT request first, so the deadline

@@ -820,11 +820,14 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_SmileCube3D);
-    EXPECT_GT(res->used_atm_forward(), 0.0);
+    ASSERT_TRUE(res->used_atm_forward().has_value());
+    EXPECT_GT(*res->used_atm_forward(), 0.0);
     EXPECT_EQ(res->used_strike_kind(), quantra::enums::SwaptionStrikeKind_SpreadFromATM);
+    ASSERT_TRUE(res->used_cube_node_atm().has_value());
+    ASSERT_TRUE(res->used_spread_from_atm().has_value());
     EXPECT_NEAR(
         res->used_strike(),
-        res->used_cube_node_atm() + res->used_spread_from_atm(),
+        *res->used_cube_node_atm() + *res->used_spread_from_atm(),
         1.0e-12);
 }
 
@@ -2575,8 +2578,10 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
 
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_SmileCube3D);
     EXPECT_EQ(res->used_strike_kind(), quantra::enums::SwaptionStrikeKind_SpreadFromATM);
-    EXPECT_GT(res->used_atm_forward(), 0.0);
-    EXPECT_GT(res->used_cube_node_atm(), 0.0);
+    ASSERT_TRUE(res->used_atm_forward().has_value());
+    ASSERT_TRUE(res->used_cube_node_atm().has_value());
+    EXPECT_GT(*res->used_atm_forward(), 0.0);
+    EXPECT_GT(*res->used_cube_node_atm(), 0.0);
 }
 
 }} // namespace quantra::testing

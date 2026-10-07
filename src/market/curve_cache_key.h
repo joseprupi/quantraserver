@@ -218,6 +218,8 @@ private:
  * with the calendars actually in force.
  */
 void appendCalendarOverridesSection(CanonicalBuffer& buf);
+/// Appends the active roll offset (see roll_offset.h); absent when zero.
+void appendRollOffsetSection(CanonicalBuffer& buf);
 
 } // namespace quantra
 

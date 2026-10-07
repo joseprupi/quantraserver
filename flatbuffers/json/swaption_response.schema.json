@@ -405,35 +405,35 @@
               },
         "implied_volatility" : {
                 "type" : "number",
-                "description" : "Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value."
+                "description" : "Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.\nAbsent when the engine provides none."
               },
         "atm_forward" : {
                 "type" : "number",
-                "description" : "ATM forward swap rate used for pricing diagnostics."
+                "description" : "ATM forward swap rate used for pricing diagnostics. Present only with\nswaption_pricing_details."
               },
         "annuity" : {
                 "type" : "number",
-                "description" : "Underlying swap annuity (PV01-style quantity)."
+                "description" : "Underlying swap annuity (PV01-style quantity). Present only with\nswaption_pricing_details."
               },
         "delta" : {
                 "type" : "number",
-                "description" : "Option delta from pricing details/rebump logic."
+                "description" : "Analytic forward delta (swaption_pricing_details): change in NPV for a 1bp\nmove of the forward swap rate, annuity held fixed (Black/Bachelier\ndeltaForward x annuity x 1e-4). Currency per bp. Absent unless\nswaption_pricing_details is set (the rebump path does not compute it)."
               },
         "vega" : {
                 "type" : "number",
-                "description" : "Option vega from pricing details/rebump logic."
+                "description" : "Vega: change in NPV for a 1bp (1e-4) move of the quoted volatility\n(lognormal vol for Black, normal vol for Bachelier). Currency per bp of vol.\nswaption_pricing_details: analytic (calculator vega x annuity x 1e-4).\nswaption_pricing_rebump: central difference of a +/-1bp vol bump.\nWhen both flags are set the rebump value is reported. Absent when neither\nflag is set."
               },
         "gamma" : {
                 "type" : "number",
-                "description" : "Option gamma from pricing details/rebump logic."
+                "description" : "Gamma per bp^2. swaption_pricing_details: analytic d2NPV/dF2 of the forward\nswap rate x 1e-8, annuity held fixed. swaption_pricing_rebump: second\ndifference of a +/-1bp parallel curve bump (npvUp - 2 npv + npvDown).\nWhen both flags are set the rebump value is reported. Absent when neither\nflag is set."
               },
         "theta" : {
                 "type" : "number",
-                "description" : "Option theta from pricing details/rebump logic."
+                "description" : "Theta in currency per calendar day. swaption_pricing_details: pure time\ndecay of the option premium with forward, volatility and annuity held fixed\n(-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2 Gamma for Bachelier,\nper year, divided by 365). swaption_pricing_rebump: NPV(as_of + 1 calendar\nday) - NPV(as_of) from a full market roll. When both flags are set the\nrebump value is reported. Absent when neither flag is set."
               },
         "dv01" : {
                 "type" : "number",
-                "description" : "1bp rate sensitivity. May be analytic or rebump-based depending on request flags."
+                "description" : "DV01 in currency per bp. swaption_pricing_details: equals `delta` (forward\nrate moved 1bp, annuity held fixed). swaption_pricing_rebump: central\ndifference of a +/-1bp parallel bump of the discounting and forwarding\ncurves (forward and annuity both move). When both flags are set the rebump\nvalue is reported. Absent when neither flag is set."
               },
         "used_volatility" : {
                 "type" : "number",
@@ -453,7 +453,7 @@
               },
         "used_atm_forward" : {
                 "type" : "number",
-                "description" : "ATM forward used when smile conventions need ATM anchoring."
+                "description" : "ATM forward used when smile conventions need ATM anchoring. Absent when the\nvol surface carries no ATM levels."
               },
         "used_strike_kind" : {
                 "$ref" : "#/definitions/quantra_enums_SwaptionStrikeKind",
@@ -461,11 +461,11 @@
               },
         "used_spread_from_atm" : {
                 "type" : "number",
-                "description" : "Difference between used strike and cube ATM level when spread-from-ATM is active."
+                "description" : "Difference between used strike and cube ATM level. Absent unless the\nsurface uses spread-from-ATM strikes and an ATM level is available."
               },
         "used_cube_node_atm" : {
                 "type" : "number",
-                "description" : "ATM level retrieved from cube node when available."
+                "description" : "ATM level retrieved from cube node. Absent when no ATM level is available."
               },
         "vol_kind" : {
                 "$ref" : "#/definitions/quantra_enums_SwaptionVolKind",

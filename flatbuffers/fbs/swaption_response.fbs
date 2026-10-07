@@ -8,21 +8,45 @@ table SwaptionResponse {
     /// Present value of the swaption under the selected model and market inputs.
     npv:double;
     /// Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
-    implied_volatility:double;
-    /// ATM forward swap rate used for pricing diagnostics.
-    atm_forward:double;
-    /// Underlying swap annuity (PV01-style quantity).
-    annuity:double;
-    /// Option delta from pricing details/rebump logic.
-    delta:double;
-    /// Option vega from pricing details/rebump logic.
-    vega:double;
-    /// Option gamma from pricing details/rebump logic.
-    gamma:double;
-    /// Option theta from pricing details/rebump logic.
-    theta:double;
-    /// 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
-    dv01:double;
+    /// Absent when the engine provides none.
+    implied_volatility:double = null;
+    /// ATM forward swap rate used for pricing diagnostics. Present only with
+    /// swaption_pricing_details.
+    atm_forward:double = null;
+    /// Underlying swap annuity (PV01-style quantity). Present only with
+    /// swaption_pricing_details.
+    annuity:double = null;
+    /// Analytic forward delta (swaption_pricing_details): change in NPV for a 1bp
+    /// move of the forward swap rate, annuity held fixed (Black/Bachelier
+    /// deltaForward x annuity x 1e-4). Currency per bp. Absent unless
+    /// swaption_pricing_details is set (the rebump path does not compute it).
+    delta:double = null;
+    /// Vega: change in NPV for a 1bp (1e-4) move of the quoted volatility
+    /// (lognormal vol for Black, normal vol for Bachelier). Currency per bp of vol.
+    /// swaption_pricing_details: analytic (calculator vega x annuity x 1e-4).
+    /// swaption_pricing_rebump: central difference of a +/-1bp vol bump.
+    /// When both flags are set the rebump value is reported. Absent when neither
+    /// flag is set.
+    vega:double = null;
+    /// Gamma per bp^2. swaption_pricing_details: analytic d2NPV/dF2 of the forward
+    /// swap rate x 1e-8, annuity held fixed. swaption_pricing_rebump: second
+    /// difference of a +/-1bp parallel curve bump (npvUp - 2 npv + npvDown).
+    /// When both flags are set the rebump value is reported. Absent when neither
+    /// flag is set.
+    gamma:double = null;
+    /// Theta in currency per calendar day. swaption_pricing_details: pure time
+    /// decay of the option premium with forward, volatility and annuity held fixed
+    /// (-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2 Gamma for Bachelier,
+    /// per year, divided by 365). swaption_pricing_rebump: NPV(as_of + 1 calendar
+    /// day) - NPV(as_of) from a full market roll. When both flags are set the
+    /// rebump value is reported. Absent when neither flag is set.
+    theta:double = null;
+    /// DV01 in currency per bp. swaption_pricing_details: equals `delta` (forward
+    /// rate moved 1bp, annuity held fixed). swaption_pricing_rebump: central
+    /// difference of a +/-1bp parallel bump of the discounting and forwarding
+    /// curves (forward and annuity both move). When both flags are set the rebump
+    /// value is reported. Absent when neither flag is set.
+    dv01:double = null;
     /// Volatility actually queried from the resolved vol surface.
     used_volatility:double;
     /// Option expiry date used by surface lookup (ISO date).
@@ -31,14 +55,16 @@ table SwaptionResponse {
     used_swap_tenor:string;
     /// Strike used to query the volatility structure.
     used_strike:double;
-    /// ATM forward used when smile conventions need ATM anchoring.
-    used_atm_forward:double;
+    /// ATM forward used when smile conventions need ATM anchoring. Absent when the
+    /// vol surface carries no ATM levels.
+    used_atm_forward:double = null;
     /// Strike convention used by the source swaption vol surface.
     used_strike_kind:enums.SwaptionStrikeKind = Absolute;
-    /// Difference between used strike and cube ATM level when spread-from-ATM is active.
-    used_spread_from_atm:double;
-    /// ATM level retrieved from cube node when available.
-    used_cube_node_atm:double;
+    /// Difference between used strike and cube ATM level. Absent unless the
+    /// surface uses spread-from-ATM strikes and an ATM level is available.
+    used_spread_from_atm:double = null;
+    /// ATM level retrieved from cube node. Absent when no ATM level is available.
+    used_cube_node_atm:double = null;
     /// Resolved swaption volatility kind used by pricing.
     vol_kind:enums.SwaptionVolKind;
     /// Effective model parameter mode used by the swaption engine.
