@@ -526,10 +526,9 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
 
         SwaptionPerTrade row;
         row.npv = npv;
-        row.impliedVolatility =
-            (volEntry.volKind == quantra::enums::SwaptionVolKind_Constant)
-                ? volEntry.constantVol
-                : std::numeric_limits<double>::quiet_NaN();
+        if (volEntry.volKind == quantra::enums::SwaptionVolKind_Constant) {
+            row.impliedVolatility = volEntry.constantVol;
+        }
         row.volKind = volEntry.volKind;
         row.usedStrikeKind = volEntry.strikeKind;
         row.usedModelParamMode =
@@ -607,7 +606,10 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
 
             auto bumpSwap = buildSwaptionInstrument(trade.instrument, *bumpIndices, bForwarding);
 
-            SwaptionVolEntry volEntryBumped = bumpSwaptionVolEntry(volEntry, volBump);
+            // The roll leg also moves the vol surface's reference date so the
+            // option variance decays with the market (a surface pinned to as-of
+            // would hide the time decay of the premium).
+            SwaptionVolEntry volEntryBumped = bumpSwaptionVolEntry(volEntry, volBump, rollDays);
             const bool forceAtmRecompute = (curveBump != 0.0) || (rollDays != 0);
             volEntryBumped = finalizeVolEntry(
                 volEntryBumped, reg, bDiscount, bForwarding, forceAtmRecompute, trade);
@@ -619,7 +621,12 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
         };
 
         if (ctx.options.swaptionPricingDetails) {
-            row.impliedVolatility = resultOrDefault(swaption, "impliedVolatility", row.impliedVolatility);
+            {
+                const double iv = resultOrDefault(
+                    swaption, "impliedVolatility",
+                    row.impliedVolatility.value_or(std::numeric_limits<double>::quiet_NaN()));
+                if (std::isfinite(iv)) row.impliedVolatility = iv;
+            }
             row.atmForward = resultOrDefault(swaption, "atmForward", 0.0);
             row.annuity = resultOrDefault(swaption, "annuity", 0.0);
 
@@ -627,30 +634,50 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
             const double stdDev = resultOrDefault(swaption, "stdDev", 0.0);
             const double timeToExpiry = resultOrDefault(swaption, "timeToExpiry", 0.0);
 
-            if (row.annuity != 0.0 && stdDev > 0.0 && timeToExpiry > 0.0) {
+            if (*row.annuity != 0.0 && stdDev > 0.0 && timeToExpiry > 0.0) {
+                // Analytic greeks in the same units as the rebump path:
+                //   delta = dNPV/dF for a 1bp move of the forward swap rate
+                //   gamma = d2NPV/dF2 per bp^2
+                //   vega  = dNPV/dsigma for a 1bp (1e-4) move of the quoted vol
+                //   theta = currency per calendar day of pure time decay,
+                //           forward, vol and annuity held fixed.
+                // The calculator is built with discount = 1 so every output is
+                // "per unit annuity"; the annuity is applied explicitly. For
+                // theta this matters: QuantLib's theta(spot, T) carries a
+                // log(discount)/T * value term that is only meaningful when the
+                // discount is a true discount factor, not an annuity. With
+                // discount = 1 and spot = forward it reduces to the driftless
+                // decay (-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2
+                // Gamma for Bachelier).
                 QuantLib::Option::Type optType =
                     (swaption->underlying()->type() == QuantLib::Swap::Payer)
                         ? QuantLib::Option::Call
                         : QuantLib::Option::Put;
+                const double annuity = *row.annuity;
+                const double bp = 1.0e-4;
                 if (volEntry.qlVolType == QuantLib::Normal) {
                     QuantLib::BachelierCalculator calc(
-                        optType, strike, row.atmForward, stdDev, row.annuity);
-                    row.delta = calc.deltaForward();
-                    row.vega = calc.vega(timeToExpiry);
-                    row.gamma = calc.gammaForward();
-                    row.theta = calc.theta(row.atmForward, timeToExpiry);
+                        optType, strike, *row.atmForward, stdDev, 1.0);
+                    row.delta = annuity * calc.deltaForward() * bp;
+                    row.gamma = annuity * calc.gammaForward() * bp * bp;
+                    row.vega = annuity * calc.vega(timeToExpiry) * bp;
+                    row.theta = annuity * calc.theta(*row.atmForward, timeToExpiry) / 365.0;
                 } else {
                     const double displacement = volEntry.displacement;
+                    const double shiftedForward = *row.atmForward + displacement;
                     QuantLib::BlackCalculator calc(
-                        optType, strike + displacement, row.atmForward + displacement,
-                        stdDev, row.annuity);
-                    row.delta = calc.deltaForward();
-                    row.vega = calc.vega(timeToExpiry);
-                    row.gamma = calc.gammaForward();
-                    row.theta = calc.theta(row.atmForward + displacement, timeToExpiry);
+                        optType, strike + displacement, shiftedForward, stdDev, 1.0);
+                    row.delta = annuity * calc.deltaForward() * bp;
+                    row.gamma = annuity * calc.gammaForward() * bp * bp;
+                    row.vega = annuity * calc.vega(timeToExpiry) * bp;
+                    row.theta = annuity * calc.theta(shiftedForward, timeToExpiry) / 365.0;
                 }
             }
-            row.dv01 = row.delta * 1.0e-4;
+            // Analytic DV01: the forward-rate delta per 1bp (annuity held
+            // fixed). The rebump DV01 below bumps the whole curve instead and
+            // overwrites this value when both flags are set. Absent (like the
+            // other analytic greeks) when the option is expired or has no vol.
+            if (row.delta) row.dv01 = row.delta;
         }
 
         if (ctx.options.swaptionPricingRebump) {
@@ -702,12 +729,12 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
                     row.usedCubeNodeAtm = row.usedAtmForward;
                 }
             } catch (...) {
-                row.usedAtmForward = -1.0;
-                row.usedCubeNodeAtm = -1.0;
+                row.usedAtmForward.reset();
+                row.usedCubeNodeAtm.reset();
             }
             if (volEntry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM &&
-                row.usedCubeNodeAtm >= 0.0) {
-                row.usedSpreadFromAtm = row.usedStrike - row.usedCubeNodeAtm;
+                row.usedCubeNodeAtm) {
+                row.usedSpreadFromAtm = row.usedStrike - *row.usedCubeNodeAtm;
             }
 
             row.usedOptionExpiry = DateToIso(exerciseDate);

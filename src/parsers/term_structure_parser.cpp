@@ -1,4 +1,5 @@
 #include "term_structure_parser.h"
+#include "roll_offset.h"
 
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
@@ -106,7 +107,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 
         Date ref;
         if (ts->reference_date()) {
-            ref = DateToQL(ts->reference_date()->str());
+            ref = applyRollOffset(DateToQL(ts->reference_date()->str()));
         } else {
             ref = Settings::instance().evaluationDate();
         }
@@ -185,7 +186,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 
         Date ref;
         if (ts->reference_date()) {
-            ref = DateToQL(ts->reference_date()->str());
+            ref = applyRollOffset(DateToQL(ts->reference_date()->str()));
         } else {
             ref = Settings::instance().evaluationDate();
         }
@@ -251,7 +252,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
 
         Date ref;
         if (ts->reference_date()) {
-            ref = DateToQL(ts->reference_date()->str());
+            ref = applyRollOffset(DateToQL(ts->reference_date()->str()));
         } else {
             ref = Settings::instance().evaluationDate();
         }
@@ -366,7 +367,7 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::buildCurve(
     
     Date ref;
     if (ts->reference_date()) {
-        ref = DateToQL(ts->reference_date()->str());
+        ref = applyRollOffset(DateToQL(ts->reference_date()->str()));
     } else {
         ref = Settings::instance().evaluationDate();
     }

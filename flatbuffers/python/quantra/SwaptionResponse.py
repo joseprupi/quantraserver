@@ -34,68 +34,92 @@ class SwaptionResponse(object):
         return 0.0
 
     # Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
+    # Absent when the engine provides none.
     # SwaptionResponse
     def ImpliedVolatility(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # ATM forward swap rate used for pricing diagnostics.
+    # ATM forward swap rate used for pricing diagnostics. Present only with
+    # swaption_pricing_details.
     # SwaptionResponse
     def AtmForward(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Underlying swap annuity (PV01-style quantity).
+    # Underlying swap annuity (PV01-style quantity). Present only with
+    # swaption_pricing_details.
     # SwaptionResponse
     def Annuity(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Option delta from pricing details/rebump logic.
+    # Analytic forward delta (swaption_pricing_details): change in NPV for a 1bp
+    # move of the forward swap rate, annuity held fixed (Black/Bachelier
+    # deltaForward x annuity x 1e-4). Currency per bp. Absent unless
+    # swaption_pricing_details is set (the rebump path does not compute it).
     # SwaptionResponse
     def Delta(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Option vega from pricing details/rebump logic.
+    # Vega: change in NPV for a 1bp (1e-4) move of the quoted volatility
+    # (lognormal vol for Black, normal vol for Bachelier). Currency per bp of vol.
+    # swaption_pricing_details: analytic (calculator vega x annuity x 1e-4).
+    # swaption_pricing_rebump: central difference of a +/-1bp vol bump.
+    # When both flags are set the rebump value is reported. Absent when neither
+    # flag is set.
     # SwaptionResponse
     def Vega(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Option gamma from pricing details/rebump logic.
+    # Gamma per bp^2. swaption_pricing_details: analytic d2NPV/dF2 of the forward
+    # swap rate x 1e-8, annuity held fixed. swaption_pricing_rebump: second
+    # difference of a +/-1bp parallel curve bump (npvUp - 2 npv + npvDown).
+    # When both flags are set the rebump value is reported. Absent when neither
+    # flag is set.
     # SwaptionResponse
     def Gamma(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # Option theta from pricing details/rebump logic.
+    # Theta in currency per calendar day. swaption_pricing_details: pure time
+    # decay of the option premium with forward, volatility and annuity held fixed
+    # (-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2 Gamma for Bachelier,
+    # per year, divided by 365). swaption_pricing_rebump: NPV(as_of + 1 calendar
+    # day) - NPV(as_of) from a full market roll. When both flags are set the
+    # rebump value is reported. Absent when neither flag is set.
     # SwaptionResponse
     def Theta(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
+    # DV01 in currency per bp. swaption_pricing_details: equals `delta` (forward
+    # rate moved 1bp, annuity held fixed). swaption_pricing_rebump: central
+    # difference of a +/-1bp parallel bump of the discounting and forwarding
+    # curves (forward and annuity both move). When both flags are set the rebump
+    # value is reported. Absent when neither flag is set.
     # SwaptionResponse
     def Dv01(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Volatility actually queried from the resolved vol surface.
     # SwaptionResponse
@@ -129,13 +153,14 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # ATM forward used when smile conventions need ATM anchoring.
+    # ATM forward used when smile conventions need ATM anchoring. Absent when the
+    # vol surface carries no ATM levels.
     # SwaptionResponse
     def UsedAtmForward(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Strike convention used by the source swaption vol surface.
     # SwaptionResponse
@@ -145,21 +170,22 @@ class SwaptionResponse(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
-    # Difference between used strike and cube ATM level when spread-from-ATM is active.
+    # Difference between used strike and cube ATM level. Absent unless the
+    # surface uses spread-from-ATM strikes and an ATM level is available.
     # SwaptionResponse
     def UsedSpreadFromAtm(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
-    # ATM level retrieved from cube node when available.
+    # ATM level retrieved from cube node. Absent when no ATM level is available.
     # SwaptionResponse
     def UsedCubeNodeAtm(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # Resolved swaption volatility kind used by pricing.
     # SwaptionResponse
@@ -246,49 +272,49 @@ def AddNpv(builder, npv):
     SwaptionResponseAddNpv(builder, npv)
 
 def SwaptionResponseAddImpliedVolatility(builder, impliedVolatility):
-    builder.PrependFloat64Slot(1, impliedVolatility, 0.0)
+    builder.PrependFloat64Slot(1, impliedVolatility, None)
 
 def AddImpliedVolatility(builder, impliedVolatility):
     SwaptionResponseAddImpliedVolatility(builder, impliedVolatility)
 
 def SwaptionResponseAddAtmForward(builder, atmForward):
-    builder.PrependFloat64Slot(2, atmForward, 0.0)
+    builder.PrependFloat64Slot(2, atmForward, None)
 
 def AddAtmForward(builder, atmForward):
     SwaptionResponseAddAtmForward(builder, atmForward)
 
 def SwaptionResponseAddAnnuity(builder, annuity):
-    builder.PrependFloat64Slot(3, annuity, 0.0)
+    builder.PrependFloat64Slot(3, annuity, None)
 
 def AddAnnuity(builder, annuity):
     SwaptionResponseAddAnnuity(builder, annuity)
 
 def SwaptionResponseAddDelta(builder, delta):
-    builder.PrependFloat64Slot(4, delta, 0.0)
+    builder.PrependFloat64Slot(4, delta, None)
 
 def AddDelta(builder, delta):
     SwaptionResponseAddDelta(builder, delta)
 
 def SwaptionResponseAddVega(builder, vega):
-    builder.PrependFloat64Slot(5, vega, 0.0)
+    builder.PrependFloat64Slot(5, vega, None)
 
 def AddVega(builder, vega):
     SwaptionResponseAddVega(builder, vega)
 
 def SwaptionResponseAddGamma(builder, gamma):
-    builder.PrependFloat64Slot(6, gamma, 0.0)
+    builder.PrependFloat64Slot(6, gamma, None)
 
 def AddGamma(builder, gamma):
     SwaptionResponseAddGamma(builder, gamma)
 
 def SwaptionResponseAddTheta(builder, theta):
-    builder.PrependFloat64Slot(7, theta, 0.0)
+    builder.PrependFloat64Slot(7, theta, None)
 
 def AddTheta(builder, theta):
     SwaptionResponseAddTheta(builder, theta)
 
 def SwaptionResponseAddDv01(builder, dv01):
-    builder.PrependFloat64Slot(8, dv01, 0.0)
+    builder.PrependFloat64Slot(8, dv01, None)
 
 def AddDv01(builder, dv01):
     SwaptionResponseAddDv01(builder, dv01)
@@ -318,7 +344,7 @@ def AddUsedStrike(builder, usedStrike):
     SwaptionResponseAddUsedStrike(builder, usedStrike)
 
 def SwaptionResponseAddUsedAtmForward(builder, usedAtmForward):
-    builder.PrependFloat64Slot(13, usedAtmForward, 0.0)
+    builder.PrependFloat64Slot(13, usedAtmForward, None)
 
 def AddUsedAtmForward(builder, usedAtmForward):
     SwaptionResponseAddUsedAtmForward(builder, usedAtmForward)
@@ -330,13 +356,13 @@ def AddUsedStrikeKind(builder, usedStrikeKind):
     SwaptionResponseAddUsedStrikeKind(builder, usedStrikeKind)
 
 def SwaptionResponseAddUsedSpreadFromAtm(builder, usedSpreadFromAtm):
-    builder.PrependFloat64Slot(15, usedSpreadFromAtm, 0.0)
+    builder.PrependFloat64Slot(15, usedSpreadFromAtm, None)
 
 def AddUsedSpreadFromAtm(builder, usedSpreadFromAtm):
     SwaptionResponseAddUsedSpreadFromAtm(builder, usedSpreadFromAtm)
 
 def SwaptionResponseAddUsedCubeNodeAtm(builder, usedCubeNodeAtm):
-    builder.PrependFloat64Slot(16, usedCubeNodeAtm, 0.0)
+    builder.PrependFloat64Slot(16, usedCubeNodeAtm, None)
 
 def AddUsedCubeNodeAtm(builder, usedCubeNodeAtm):
     SwaptionResponseAddUsedCubeNodeAtm(builder, usedCubeNodeAtm)
@@ -407,22 +433,22 @@ class SwaptionResponseT(object):
     # SwaptionResponseT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.impliedVolatility = 0.0  # type: float
-        self.atmForward = 0.0  # type: float
-        self.annuity = 0.0  # type: float
-        self.delta = 0.0  # type: float
-        self.vega = 0.0  # type: float
-        self.gamma = 0.0  # type: float
-        self.theta = 0.0  # type: float
-        self.dv01 = 0.0  # type: float
+        self.impliedVolatility = None  # type: Optional[float]
+        self.atmForward = None  # type: Optional[float]
+        self.annuity = None  # type: Optional[float]
+        self.delta = None  # type: Optional[float]
+        self.vega = None  # type: Optional[float]
+        self.gamma = None  # type: Optional[float]
+        self.theta = None  # type: Optional[float]
+        self.dv01 = None  # type: Optional[float]
         self.usedVolatility = 0.0  # type: float
         self.usedOptionExpiry = None  # type: str
         self.usedSwapTenor = None  # type: str
         self.usedStrike = 0.0  # type: float
-        self.usedAtmForward = 0.0  # type: float
+        self.usedAtmForward = None  # type: Optional[float]
         self.usedStrikeKind = 0  # type: int
-        self.usedSpreadFromAtm = 0.0  # type: float
-        self.usedCubeNodeAtm = 0.0  # type: float
+        self.usedSpreadFromAtm = None  # type: Optional[float]
+        self.usedCubeNodeAtm = None  # type: Optional[float]
         self.volKind = 0  # type: int
         self.usedModelParamMode = 0  # type: int
         self.usedHwA = None  # type: Optional[float]

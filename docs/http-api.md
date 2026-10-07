@@ -203,6 +203,55 @@ report per-item errors inside a `200` response.
 To check the effect, call `/calendar-holidays`, `/calendar-advance` or
 `/calendar-business-days` with the same overrides.
 
+## Swaption greeks: units and definitions
+
+`POST /price-swaption` can return greeks under two request flags in
+`pricing.options`. Both report the same units, so the numbers are directly
+comparable:
+
+| Field | `swaption_pricing_details` (analytic) | `swaption_pricing_rebump` (bump-and-reprice) |
+| --- | --- | --- |
+| `delta` | dNPV for a 1bp move of the forward swap rate, annuity held fixed (currency per bp) | not produced (field absent) |
+| `dv01` | equals `delta` | central difference of a +/-1bp parallel bump of the discounting and forwarding curves (currency per bp) |
+| `gamma` | d2NPV/dF2 x 1e-8 (currency per bp^2) | second difference of the +/-1bp parallel curve bump |
+| `vega` | dNPV for a 1bp (1e-4) move of the quoted vol (lognormal for Black, normal for Bachelier) | central difference of a +/-1bp vol bump |
+| `theta` | pure time decay with forward, vol and annuity held fixed (-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2 Gamma for Bachelier), per calendar day | NPV(as_of + 1 calendar day) - NPV(as_of) after a clean one-day roll of the market (see below) |
+
+The analytic values come from QuantLib's `BlackCalculator` /
+`BachelierCalculator` built with discount `1`, multiplied by the swap annuity.
+`atm_forward`, `annuity` and `delta` are filled only by
+`swaption_pricing_details`; `implied_volatility` is reported whenever the
+engine provides one. Every greek is an optional field (`= null` in the
+schema): it is present exactly when it was computed. With
+`swaption_pricing_rebump` alone, `delta`, `atm_forward` and `annuity` are
+absent; with neither flag no greek is present at all.
+
+The rebump roll rebuilds the market at `as_of_date + 1` with every explicit
+`reference_date` (curves, helper curves, vol surfaces) shifted by the same
+day, so the result equals `NPV(as_of_date + 1, reference dates + 1) -
+NPV(as_of_date)` obtained from two plain requests. Date-anchored market data
+(zero/discount/forward points pinned to a date, index fixings) is not shifted:
+it describes the market, not the observer. The `used_atm_forward`,
+`used_cube_node_atm` and `used_spread_from_atm` diagnostics are likewise
+optional and absent when the vol surface carries no ATM level (or does not use
+spread-from-ATM strikes).
+
+Precedence: when both flags are set, the rebump `dv01`, `gamma`, `vega` and
+`theta` overwrite the analytic ones; `delta`, `atm_forward` and `annuity` are
+kept from the analytic pass.
+
+## Response fields at their default value
+
+Every scalar response field is serialized even when it equals its schema
+default, so a `double` that is exactly `0.0` (for example a bond's
+`accrued_amount` on a coupon date or a holiday `count`) is present in the JSON.
+Fields declared optional (`= null` in the schema) are the exception: they are
+absent until the engine sets them. A scalar that the engine computes only under
+a request flag or condition (the swaption greeks, `atm_forward`, `annuity`,
+the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, `fair_spread`) is
+declared optional for that reason, so its absence always means "not computed"
+and a reported `0.0` always means "computed and equal to zero".
+
 ## Service endpoints
 
 | Endpoint | Returns |

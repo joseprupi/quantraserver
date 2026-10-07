@@ -4,6 +4,7 @@
 #include <iomanip>
 
 #include "calendar_overrides.h"
+#include "roll_offset.h"
 #include "error.h"
 
 #include <openssl/sha.h>
@@ -656,8 +657,21 @@ std::string CurveKeyBuilder::compute(
     // 5. Active calendar holiday overrides (absent when there are none)
     appendCalendarOverridesSection(buf);
 
-    // 6. Hash
+    // 6. Active roll offset (absent when zero). The rolled evaluation date is
+    // already the as-of in the header, but the explicit reference_date above is
+    // the raw request string: a curve built under a roll offset must not share
+    // an entry with the same curve built at the same date without the shift.
+    appendRollOffsetSection(buf);
+
+    // 7. Hash
     return "yc:v3:" + sha256hex(buf.data());
+}
+
+void appendRollOffsetSection(CanonicalBuffer& buf) {
+    const int days = activeRollOffsetDays();
+    if (days == 0) return;
+    buf.writeTag("ROLLOFF");
+    buf.writeU32(static_cast<uint32_t>(days));
 }
 
 void appendCalendarOverridesSection(CanonicalBuffer& buf) {

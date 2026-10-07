@@ -29,22 +29,22 @@ struct PriceSwaptionResponseT;
 struct SwaptionResponseT : public ::flatbuffers::NativeTable {
   typedef SwaptionResponse TableType;
   double npv = 0.0;
-  double implied_volatility = 0.0;
-  double atm_forward = 0.0;
-  double annuity = 0.0;
-  double delta = 0.0;
-  double vega = 0.0;
-  double gamma = 0.0;
-  double theta = 0.0;
-  double dv01 = 0.0;
+  ::flatbuffers::Optional<double> implied_volatility = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> atm_forward = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> annuity = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> delta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> vega = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> gamma = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> dv01 = ::flatbuffers::nullopt;
   double used_volatility = 0.0;
   std::string used_option_expiry{};
   std::string used_swap_tenor{};
   double used_strike = 0.0;
-  double used_atm_forward = 0.0;
+  ::flatbuffers::Optional<double> used_atm_forward = ::flatbuffers::nullopt;
   quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute;
-  double used_spread_from_atm = 0.0;
-  double used_cube_node_atm = 0.0;
+  ::flatbuffers::Optional<double> used_spread_from_atm = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> used_cube_node_atm = ::flatbuffers::nullopt;
   quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant;
   quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit;
   ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt;
@@ -93,36 +93,60 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetField<double>(VT_NPV, 0.0);
   }
   /// Implied volatility reported by the engine. For non-constant vol setups this may be a best-effort value.
-  double implied_volatility() const {
-    return GetField<double>(VT_IMPLIED_VOLATILITY, 0.0);
+  /// Absent when the engine provides none.
+  ::flatbuffers::Optional<double> implied_volatility() const {
+    return GetOptional<double, double>(VT_IMPLIED_VOLATILITY);
   }
-  /// ATM forward swap rate used for pricing diagnostics.
-  double atm_forward() const {
-    return GetField<double>(VT_ATM_FORWARD, 0.0);
+  /// ATM forward swap rate used for pricing diagnostics. Present only with
+  /// swaption_pricing_details.
+  ::flatbuffers::Optional<double> atm_forward() const {
+    return GetOptional<double, double>(VT_ATM_FORWARD);
   }
-  /// Underlying swap annuity (PV01-style quantity).
-  double annuity() const {
-    return GetField<double>(VT_ANNUITY, 0.0);
+  /// Underlying swap annuity (PV01-style quantity). Present only with
+  /// swaption_pricing_details.
+  ::flatbuffers::Optional<double> annuity() const {
+    return GetOptional<double, double>(VT_ANNUITY);
   }
-  /// Option delta from pricing details/rebump logic.
-  double delta() const {
-    return GetField<double>(VT_DELTA, 0.0);
+  /// Analytic forward delta (swaption_pricing_details): change in NPV for a 1bp
+  /// move of the forward swap rate, annuity held fixed (Black/Bachelier
+  /// deltaForward x annuity x 1e-4). Currency per bp. Absent unless
+  /// swaption_pricing_details is set (the rebump path does not compute it).
+  ::flatbuffers::Optional<double> delta() const {
+    return GetOptional<double, double>(VT_DELTA);
   }
-  /// Option vega from pricing details/rebump logic.
-  double vega() const {
-    return GetField<double>(VT_VEGA, 0.0);
+  /// Vega: change in NPV for a 1bp (1e-4) move of the quoted volatility
+  /// (lognormal vol for Black, normal vol for Bachelier). Currency per bp of vol.
+  /// swaption_pricing_details: analytic (calculator vega x annuity x 1e-4).
+  /// swaption_pricing_rebump: central difference of a +/-1bp vol bump.
+  /// When both flags are set the rebump value is reported. Absent when neither
+  /// flag is set.
+  ::flatbuffers::Optional<double> vega() const {
+    return GetOptional<double, double>(VT_VEGA);
   }
-  /// Option gamma from pricing details/rebump logic.
-  double gamma() const {
-    return GetField<double>(VT_GAMMA, 0.0);
+  /// Gamma per bp^2. swaption_pricing_details: analytic d2NPV/dF2 of the forward
+  /// swap rate x 1e-8, annuity held fixed. swaption_pricing_rebump: second
+  /// difference of a +/-1bp parallel curve bump (npvUp - 2 npv + npvDown).
+  /// When both flags are set the rebump value is reported. Absent when neither
+  /// flag is set.
+  ::flatbuffers::Optional<double> gamma() const {
+    return GetOptional<double, double>(VT_GAMMA);
   }
-  /// Option theta from pricing details/rebump logic.
-  double theta() const {
-    return GetField<double>(VT_THETA, 0.0);
+  /// Theta in currency per calendar day. swaption_pricing_details: pure time
+  /// decay of the option premium with forward, volatility and annuity held fixed
+  /// (-1/2 sigma^2 F^2 Gamma for Black, -1/2 sigma_N^2 Gamma for Bachelier,
+  /// per year, divided by 365). swaption_pricing_rebump: NPV(as_of + 1 calendar
+  /// day) - NPV(as_of) from a full market roll. When both flags are set the
+  /// rebump value is reported. Absent when neither flag is set.
+  ::flatbuffers::Optional<double> theta() const {
+    return GetOptional<double, double>(VT_THETA);
   }
-  /// 1bp rate sensitivity. May be analytic or rebump-based depending on request flags.
-  double dv01() const {
-    return GetField<double>(VT_DV01, 0.0);
+  /// DV01 in currency per bp. swaption_pricing_details: equals `delta` (forward
+  /// rate moved 1bp, annuity held fixed). swaption_pricing_rebump: central
+  /// difference of a +/-1bp parallel bump of the discounting and forwarding
+  /// curves (forward and annuity both move). When both flags are set the rebump
+  /// value is reported. Absent when neither flag is set.
+  ::flatbuffers::Optional<double> dv01() const {
+    return GetOptional<double, double>(VT_DV01);
   }
   /// Volatility actually queried from the resolved vol surface.
   double used_volatility() const {
@@ -140,21 +164,23 @@ struct SwaptionResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double used_strike() const {
     return GetField<double>(VT_USED_STRIKE, 0.0);
   }
-  /// ATM forward used when smile conventions need ATM anchoring.
-  double used_atm_forward() const {
-    return GetField<double>(VT_USED_ATM_FORWARD, 0.0);
+  /// ATM forward used when smile conventions need ATM anchoring. Absent when the
+  /// vol surface carries no ATM levels.
+  ::flatbuffers::Optional<double> used_atm_forward() const {
+    return GetOptional<double, double>(VT_USED_ATM_FORWARD);
   }
   /// Strike convention used by the source swaption vol surface.
   quantra::enums::SwaptionStrikeKind used_strike_kind() const {
     return static_cast<quantra::enums::SwaptionStrikeKind>(GetField<int8_t>(VT_USED_STRIKE_KIND, 0));
   }
-  /// Difference between used strike and cube ATM level when spread-from-ATM is active.
-  double used_spread_from_atm() const {
-    return GetField<double>(VT_USED_SPREAD_FROM_ATM, 0.0);
+  /// Difference between used strike and cube ATM level. Absent unless the
+  /// surface uses spread-from-ATM strikes and an ATM level is available.
+  ::flatbuffers::Optional<double> used_spread_from_atm() const {
+    return GetOptional<double, double>(VT_USED_SPREAD_FROM_ATM);
   }
-  /// ATM level retrieved from cube node when available.
-  double used_cube_node_atm() const {
-    return GetField<double>(VT_USED_CUBE_NODE_ATM, 0.0);
+  /// ATM level retrieved from cube node. Absent when no ATM level is available.
+  ::flatbuffers::Optional<double> used_cube_node_atm() const {
+    return GetOptional<double, double>(VT_USED_CUBE_NODE_ATM);
   }
   /// Resolved swaption volatility kind used by pricing.
   quantra::enums::SwaptionVolKind vol_kind() const {
@@ -237,28 +263,28 @@ struct SwaptionResponseBuilder {
     fbb_.AddElement<double>(SwaptionResponse::VT_NPV, npv, 0.0);
   }
   void add_implied_volatility(double implied_volatility) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_IMPLIED_VOLATILITY, implied_volatility, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_IMPLIED_VOLATILITY, implied_volatility);
   }
   void add_atm_forward(double atm_forward) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_ATM_FORWARD, atm_forward, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_ATM_FORWARD, atm_forward);
   }
   void add_annuity(double annuity) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_ANNUITY, annuity, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_ANNUITY, annuity);
   }
   void add_delta(double delta) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_DELTA, delta, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_DELTA, delta);
   }
   void add_vega(double vega) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_VEGA, vega, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_VEGA, vega);
   }
   void add_gamma(double gamma) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_GAMMA, gamma, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_GAMMA, gamma);
   }
   void add_theta(double theta) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_THETA, theta, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_THETA, theta);
   }
   void add_dv01(double dv01) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_DV01, dv01, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_DV01, dv01);
   }
   void add_used_volatility(double used_volatility) {
     fbb_.AddElement<double>(SwaptionResponse::VT_USED_VOLATILITY, used_volatility, 0.0);
@@ -273,16 +299,16 @@ struct SwaptionResponseBuilder {
     fbb_.AddElement<double>(SwaptionResponse::VT_USED_STRIKE, used_strike, 0.0);
   }
   void add_used_atm_forward(double used_atm_forward) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_ATM_FORWARD, used_atm_forward, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_ATM_FORWARD, used_atm_forward);
   }
   void add_used_strike_kind(quantra::enums::SwaptionStrikeKind used_strike_kind) {
     fbb_.AddElement<int8_t>(SwaptionResponse::VT_USED_STRIKE_KIND, static_cast<int8_t>(used_strike_kind), 0);
   }
   void add_used_spread_from_atm(double used_spread_from_atm) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_SPREAD_FROM_ATM, used_spread_from_atm, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_SPREAD_FROM_ATM, used_spread_from_atm);
   }
   void add_used_cube_node_atm(double used_cube_node_atm) {
-    fbb_.AddElement<double>(SwaptionResponse::VT_USED_CUBE_NODE_ATM, used_cube_node_atm, 0.0);
+    fbb_.AddElement<double>(SwaptionResponse::VT_USED_CUBE_NODE_ATM, used_cube_node_atm);
   }
   void add_vol_kind(quantra::enums::SwaptionVolKind vol_kind) {
     fbb_.AddElement<int8_t>(SwaptionResponse::VT_VOL_KIND, static_cast<int8_t>(vol_kind), 0);
@@ -325,22 +351,22 @@ struct SwaptionResponseBuilder {
 inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double implied_volatility = 0.0,
-    double atm_forward = 0.0,
-    double annuity = 0.0,
-    double delta = 0.0,
-    double vega = 0.0,
-    double gamma = 0.0,
-    double theta = 0.0,
-    double dv01 = 0.0,
+    ::flatbuffers::Optional<double> implied_volatility = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> atm_forward = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> annuity = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> delta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> vega = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> gamma = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> dv01 = ::flatbuffers::nullopt,
     double used_volatility = 0.0,
     ::flatbuffers::Offset<::flatbuffers::String> used_option_expiry = 0,
     ::flatbuffers::Offset<::flatbuffers::String> used_swap_tenor = 0,
     double used_strike = 0.0,
-    double used_atm_forward = 0.0,
+    ::flatbuffers::Optional<double> used_atm_forward = ::flatbuffers::nullopt,
     quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
-    double used_spread_from_atm = 0.0,
-    double used_cube_node_atm = 0.0,
+    ::flatbuffers::Optional<double> used_spread_from_atm = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cube_node_atm = ::flatbuffers::nullopt,
     quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
     quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
     ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt,
@@ -354,19 +380,19 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
   if(used_hw_rmse) { builder_.add_used_hw_rmse(*used_hw_rmse); }
   if(used_hw_sigma) { builder_.add_used_hw_sigma(*used_hw_sigma); }
   if(used_hw_a) { builder_.add_used_hw_a(*used_hw_a); }
-  builder_.add_used_cube_node_atm(used_cube_node_atm);
-  builder_.add_used_spread_from_atm(used_spread_from_atm);
-  builder_.add_used_atm_forward(used_atm_forward);
+  if(used_cube_node_atm) { builder_.add_used_cube_node_atm(*used_cube_node_atm); }
+  if(used_spread_from_atm) { builder_.add_used_spread_from_atm(*used_spread_from_atm); }
+  if(used_atm_forward) { builder_.add_used_atm_forward(*used_atm_forward); }
   builder_.add_used_strike(used_strike);
   builder_.add_used_volatility(used_volatility);
-  builder_.add_dv01(dv01);
-  builder_.add_theta(theta);
-  builder_.add_gamma(gamma);
-  builder_.add_vega(vega);
-  builder_.add_delta(delta);
-  builder_.add_annuity(annuity);
-  builder_.add_atm_forward(atm_forward);
-  builder_.add_implied_volatility(implied_volatility);
+  if(dv01) { builder_.add_dv01(*dv01); }
+  if(theta) { builder_.add_theta(*theta); }
+  if(gamma) { builder_.add_gamma(*gamma); }
+  if(vega) { builder_.add_vega(*vega); }
+  if(delta) { builder_.add_delta(*delta); }
+  if(annuity) { builder_.add_annuity(*annuity); }
+  if(atm_forward) { builder_.add_atm_forward(*atm_forward); }
+  if(implied_volatility) { builder_.add_implied_volatility(*implied_volatility); }
   builder_.add_npv(npv);
   if(used_hw_grid_points) { builder_.add_used_hw_grid_points(*used_hw_grid_points); }
   if(used_hw_grid_cols) { builder_.add_used_hw_grid_cols(*used_hw_grid_cols); }
@@ -383,22 +409,22 @@ inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponse(
 inline ::flatbuffers::Offset<SwaptionResponse> CreateSwaptionResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double implied_volatility = 0.0,
-    double atm_forward = 0.0,
-    double annuity = 0.0,
-    double delta = 0.0,
-    double vega = 0.0,
-    double gamma = 0.0,
-    double theta = 0.0,
-    double dv01 = 0.0,
+    ::flatbuffers::Optional<double> implied_volatility = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> atm_forward = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> annuity = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> delta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> vega = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> gamma = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> theta = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> dv01 = ::flatbuffers::nullopt,
     double used_volatility = 0.0,
     const char *used_option_expiry = nullptr,
     const char *used_swap_tenor = nullptr,
     double used_strike = 0.0,
-    double used_atm_forward = 0.0,
+    ::flatbuffers::Optional<double> used_atm_forward = ::flatbuffers::nullopt,
     quantra::enums::SwaptionStrikeKind used_strike_kind = quantra::enums::SwaptionStrikeKind_Absolute,
-    double used_spread_from_atm = 0.0,
-    double used_cube_node_atm = 0.0,
+    ::flatbuffers::Optional<double> used_spread_from_atm = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> used_cube_node_atm = ::flatbuffers::nullopt,
     quantra::enums::SwaptionVolKind vol_kind = quantra::enums::SwaptionVolKind_Constant,
     quantra::enums::ModelParamMode used_model_param_mode = quantra::enums::ModelParamMode_Explicit,
     ::flatbuffers::Optional<double> used_hw_a = ::flatbuffers::nullopt,

@@ -150,7 +150,11 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
 /**
  * Build a bumped swaption vol entry (parallel bump).
  */
-SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump);
+/// Rebuilds a swaption vol entry with its quoted vols shifted by `volBump` and
+/// (for the theta roll) its reference date moved by `rollDays`. Returns the
+/// input unchanged when both are zero.
+SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump,
+                                      int rollDays = 0);
 
 /**
  * Rebuild smile cube entry with server-computed ATM forwards.

@@ -5,6 +5,7 @@
  */
 
 #include "vol_surface_parsers.h"
+#include "roll_offset.h"
 
 #include "request_validation.h"
 
@@ -877,7 +878,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     const auto* b = payload->base();
     validateIrVolBaseConstant(b, id);
 
-    QuantLib::Date ref = DateToQL(b->reference_date()->str());
+    QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
     QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
     QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -932,7 +933,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             const auto* b = payload->base();
             validateIrVolBaseConstant(b, id);
 
-            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -968,7 +969,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
             validateSupportedInterpolator(payload->tenor_interpolator(), "tenor_interpolator", id);
 
-            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -1051,7 +1052,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             validateSupportedInterpolator(payload->tenor_interpolator(), "tenor_interpolator", id);
             validateSupportedInterpolator(payload->strike_interpolator(), "strike_interpolator", id);
 
-            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -1163,7 +1164,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
             }
 
-            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -1289,7 +1290,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     "use vega_weighted_smile_fit instead, for vol id: " + id);
             }
 
-            QuantLib::Date ref = DateToQL(b->reference_date()->str());
+            QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
             QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -1471,7 +1472,7 @@ BlackVolEntry parseBlackVol(
     const auto* b = payload->base();
     validateBlackVolBase(b, id);
 
-    QuantLib::Date ref = DateToQL(b->reference_date()->str());
+    QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
     QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
     QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
     QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
@@ -1851,19 +1852,25 @@ BlackVolEntry parseBlackVol(
     return entry;
 }
 
-SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump) {
-    if (volBump == 0.0) {
+SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump,
+                                      int rollDays) {
+    if (volBump == 0.0 && rollDays == 0) {
         return base;
     }
 
+    // A rolled entry is the same surface re-referenced `rollDays` later (the
+    // market roll used for theta): quoted vols are market data and stay put,
+    // only the origin the expiries are measured from moves.
+    const QuantLib::Date ref = base.referenceDate + rollDays;
     SwaptionVolEntry entry = base;
+    entry.referenceDate = ref;
 
     switch (base.volKind) {
         case quantra::enums::SwaptionVolKind_Constant: {
             double bumpedVol = base.constantVol + volBump;
             if (bumpedVol <= 0.0) bumpedVol = 1.0e-8;
             auto qlVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-                base.referenceDate,
+                ref,
                 base.calendar,
                 base.businessDayConvention,
                 bumpedVol,
@@ -1898,7 +1905,7 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
                 shifts = QuantLib::Matrix(nExp, nTen, base.displacement);
             }
             auto qlVol = std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
-                base.referenceDate,
+                ref,
                 base.calendar,
                 base.businessDayConvention,
                 base.expiries,
@@ -1932,7 +1939,7 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
             const bool hasAtm = !base.atmForwardsFlat.empty();
             if (!(needsAtm && !hasAtm)) {
                 auto qlVol = std::make_shared<SwaptionSmileCubeCustom>(
-                    base.referenceDate,
+                    ref,
                     base.calendar,
                     base.businessDayConvention,
                     base.dayCounter,
@@ -1953,12 +1960,17 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
         }
 
         case quantra::enums::SwaptionVolKind_SabrParams: {
+            // Roll-only request on a SABR surface: the calibrated surface is
+            // kept as is (re-referencing it would need a re-calibration).
+            if (volBump == 0.0) return base;
             // Placeholder semantics: for now we treat SABR risk as unsupported until
             // forward-aware SABR cube wiring is implemented.
             QUANTRA_NOT_IMPLEMENTED("SABR bump semantics are placeholder-only; runtime bumping is not supported yet");
         }
 
         case quantra::enums::SwaptionVolKind_SabrCalibrate:
+            if (volBump == 0.0) return base;
+            [[fallthrough]];
         default:
             QUANTRA_NOT_IMPLEMENTED("Vol bump not supported for this swaption vol kind");
     }

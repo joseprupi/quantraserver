@@ -132,6 +132,55 @@ def test_cache_transparency(case, nocache_client, cache_client, data_dir):
     print(f"[cache] {case.id}: {detail}")
 
 
+REBUMP_FIXTURE = "swaption_ois_bbg_zerorate_request.json"
+
+
+def _rebump_request(data_dir):
+    request = load_json(data_dir / REBUMP_FIXTURE)
+    request["pricing"].setdefault("options", {})["swaption_pricing_rebump"] = True
+    return request
+
+
+def test_cache_transparency_swaption_rebump(nocache_client, cache_client, data_dir):
+    """The rebump greeks build four extra market snapshots (curve +/-1bp and a
+    one-day roll with the curve reference dates shifted). Each must key
+    separately from the base curve and from each other: cache-ON == cache-OFF
+    cold and warm, including theta, which collapses to 0.0 if the rolled
+    curve is served from the unrolled entry."""
+    request = _rebump_request(data_dir)
+
+    off = nocache_client.price("swaption", request)
+    warm = cache_client.price("swaption", request)
+    hit = cache_client.price("swaption", request)
+
+    assert _canonical(off) == _canonical(warm), (
+        "swaption_rebump: cache-ON response differs from cache-OFF")
+    assert _canonical(warm) == _canonical(hit), (
+        "swaption_rebump: cache-hit response differs from the warm response")
+    theta = off["swaptions"][0]["theta"]
+    assert theta != 0.0, f"rebump theta is exactly 0.0: the roll did not move: {off}"
+    print(f"[cache] swaption_rebump: theta off==warm==hit = {theta}")
+
+
+def test_rebump_after_warm_plain_request_is_isolated(nocache_client, cache_client,
+                                                     data_dir):
+    """Price the PLAIN request first on the cache-ON server (base curve cached
+    at as-of), then the rebump request: the rolled snapshot must not be
+    satisfied by the base entry, so theta equals the cache-OFF theta."""
+    request = _rebump_request(data_dir)
+    plain = copy.deepcopy(request)
+    plain["pricing"]["options"].pop("swaption_pricing_rebump")
+
+    cache_client.price("swaption", plain)   # warms the base curve entry
+    on = cache_client.price("swaption", request)["swaptions"][0]
+    off = nocache_client.price("swaption", request)["swaptions"][0]
+
+    for key in ("npv", "dv01", "gamma", "vega", "theta"):
+        assert on[key] == off[key], (
+            f"swaption_rebump after warm plain: {key} cache-ON {on[key]} != "
+            f"cache-OFF {off[key]}")
+
+
 def _post_raw(client: ApiClient, product: str, request: dict):
     """POST like ApiClient.price but without raising on non-200: returns
     (status_code, body_text) so error responses can be compared bit-for-bit."""

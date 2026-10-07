@@ -1926,6 +1926,17 @@ def price_cap_floor_ql(request: dict) -> float:
 
 def price_swaption_ql(request: dict) -> float:
     """Price swaption using QuantLib."""
+    return build_swaption_ql(request)["swaption"].NPV()
+
+
+def build_swaption_ql(request: dict) -> dict:
+    """Build the native QuantLib swaption for a request.
+
+    Returns ``{"swaption", "swap", "curve", "vol", "vol_type", "displacement",
+    "eval_date"}`` with the pricing engine already attached, so callers can
+    read diagnostics (annuity, forward, exercise date) besides the NPV. ``vol``
+    is the constant volatility for constant specs, else None.
+    """
     pricing = _reference_pricing_view(request)
     sw_data = request["swaptions"][0]
     sw = sw_data["swaption"]
@@ -2086,6 +2097,7 @@ def price_swaption_ql(request: dict) -> float:
     vol_type = ql.ShiftedLognormal
     displacement = 0.0
     vol_handle = None
+    inner_is_constant = False
 
     quote_values = {}
     quote_types = {}
@@ -2103,6 +2115,7 @@ def price_swaption_ql(request: dict) -> float:
             inner = payload.get("payload", {})
 
             if inner_type == "SwaptionVolConstantSpec":
+                inner_is_constant = True
                 base = inner.get("base", {})
                 vol = base.get("constant_vol", vol)
                 vol_type = get_volatility_type(base.get("volatility_type", "Lognormal"))
@@ -2208,7 +2221,15 @@ def price_swaption_ql(request: dict) -> float:
     else:
         swaption.setPricingEngine(ql.BlackSwaptionEngine(curve, vol_handle))
 
-    return swaption.NPV()
+    return {
+        "swaption": swaption,
+        "swap": swap,
+        "curve": curve,
+        "vol": vol if vol_handle is None or inner_is_constant else None,
+        "vol_type": vol_type,
+        "displacement": displacement,
+        "eval_date": eval_date,
+    }
 
 
 def price_cds_ql(request: dict) -> float:

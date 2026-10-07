@@ -41,7 +41,10 @@ class PricingOptions(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Include detailed swaption analytics (delta/vega/gamma/theta/DV01).
+    # Include analytic swaption greeks (delta/vega/gamma/theta/DV01) from the
+    # Black/Bachelier calculator: rate sensitivities per 1bp (gamma per bp^2),
+    # vega per 1bp of vol, theta per calendar day. Also fills atm_forward,
+    # annuity and implied_volatility. See SwaptionResponse field comments.
     # PricingOptions
     def SwaptionPricingDetails(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
@@ -49,7 +52,13 @@ class PricingOptions(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-    # Include curve-rebump swaption analytics (Bloomberg-style).
+    # Include bump-and-reprice swaption analytics: dv01 and gamma from a +/-1bp
+    # parallel curve bump, vega from a +/-1bp vol bump, theta from a 1-calendar-
+    # day clean market roll (evaluation date AND every explicit reference_date
+    # move one day; date-anchored points and fixings stay). Same units as the
+    # analytic greeks. When both flags are set the rebump dv01/gamma/vega/theta
+    # overwrite the analytic ones; delta, atm_forward and annuity are only
+    # produced by swaption_pricing_details. Greeks not computed are absent.
     # PricingOptions
     def SwaptionPricingRebump(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
