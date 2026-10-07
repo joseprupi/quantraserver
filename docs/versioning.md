@@ -26,6 +26,69 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.8.0 (October 2026) — response fixes: zero values kept, swaption greeks corrected
+
+`v0.8.0` fixes three response defects. Requests are unchanged; what changes is
+what comes back, so this is a MINOR bump under the 0.x rules. Every change is
+listed here so a client can tell what to expect.
+
+### Zero-valued fields are no longer dropped
+
+A response number that was exactly zero (`npv`, `fair_spread`, a holiday
+`count`, `theta`, …) used to disappear from the JSON because the FlatBuffer did
+not store scalars equal to their schema default. Responses now carry every
+scalar, so a computed zero is returned as `0` / `0.0`. Fields declared optional
+(`= null`) are unaffected: they are still present only when set.
+
+Clients that treated a missing field as zero are unaffected. Clients that
+treated a missing field as "not applicable" should rely on the optional fields,
+which keep that meaning.
+
+### Swaption `swaption_pricing_details` greeks: units corrected
+
+The analytic greeks were written in the raw units of QuantLib's Black and
+Bachelier calculators, and `theta` was computed with the swap annuity passed
+where the calculator expects a discount factor, which made the number
+meaningless. All details greeks are now in the same units as the rebump
+greeks:
+
+| Field | Unit (both modes) | Change from 0.7.0 (details mode) |
+| --- | --- | --- |
+| `delta` | currency per 1 bp move of the forward | divided by 10,000 |
+| `gamma` | currency per bp² | divided by 1e8 |
+| `vega` | currency per 1 bp of volatility | divided by 10,000 |
+| `theta` | currency per calendar day | recomputed: time decay of the option premium with forward, volatility and annuity held fixed |
+| `dv01` | currency per 1 bp | unchanged (equals `delta`) |
+
+The values match native QuantLib computed with the same definitions.
+
+### Swaption `swaption_pricing_rebump` theta: the roll now moves the whole market
+
+Rebump `theta` is `NPV(tomorrow) − NPV(today)` with the market rolled one
+calendar day. In 0.7.0 the roll moved the evaluation date but left explicit
+curve and volatility `reference_date`s where they were, so a request whose
+curves carry a `reference_date` (the common shape) reported `theta` as exactly
+zero, which was then dropped, and helper-curve requests produced a partial
+roll without option time decay. The roll now shifts every explicit reference
+date and re-references the volatility entry, so `theta` includes both the
+curve roll and the option's time decay. Rebump theta values therefore change
+for every request. Known limit: SABR-calibrated surfaces roll curves only.
+
+### Swaption greek fields are optional
+
+`delta`, `annuity`, `atm_forward`, `vega`, `gamma`, `theta`, `dv01`,
+`implied_volatility` and the `used_*` diagnostics are now `= null` optionals,
+present only when the request flag that produces them is set. When both flags
+are set, the rebump values of `dv01`, `gamma`, `vega` and `theta` take
+precedence. Units, definitions and precedence are documented in
+[`docs/http-api.md`](http-api.md).
+
+### Migration (0.7.0 → 0.8.0)
+
+No request changes. If you consume swaption greeks, re-read the units above;
+if you parse responses strictly, expect scalars that were previously absent at
+zero to be present.
+
 ## Version 0.7.0 (October 2026) — per-request calendar holiday overrides, backward-compatible
 
 `v0.7.0` adds one feature, requested during an external validation POC: a
