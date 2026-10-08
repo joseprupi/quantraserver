@@ -10,8 +10,6 @@
 #include "date_convert.h"
 #include "schedule_parser.h"
 
-using namespace QuantLib;
-using namespace quantra;
 
 class CallableFixedRateBondParser
 {

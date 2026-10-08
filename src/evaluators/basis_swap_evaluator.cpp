@@ -21,7 +21,7 @@ namespace {
 
 /**
  * Pre-serialize a single basis swap cash flow to a plain flow record. Mirrors
- * the legacy swap_leg_flow_builder shape verbatim, so the mapper can emit
+ * the original swap-leg flow shape verbatim, so the mapper can emit
  * SwapLegFlow offsets without ever touching QuantLib types. Coupons that have
  * already occurred relative to ctx.asOf are skipped (legacy behaviour).
  */

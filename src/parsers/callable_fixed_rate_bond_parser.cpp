@@ -76,7 +76,7 @@ std::shared_ptr<QuantLib::CallableFixedRateBond> CallableFixedRateBondParser::pa
     }
 
     return std::make_shared<QuantLib::CallableFixedRateBond>(
-        bond->settlement_days(),
+        quantra::requireNonNegative(bond->settlement_days(), "CallableFixedRateBond.settlement_days"),
         quantra::requirePositive(bond->face_amount(), "CallableFixedRateBond.face_amount"),
         *schedule,
         std::vector<QuantLib::Rate>(1, bond->rate()),

@@ -102,7 +102,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         // and floating-bond paths already do). in_arrears=true moves the fixing
         // to the end of the accrual period, which QuantLib::VanillaSwap cannot
         // express — the evaluator routes such trades to the manual-leg path.
-        trade.ibor.fixingDays = floatFb->fixing_days();
+        trade.ibor.fixingDays = requireNonNegative(floatFb->fixing_days(), "SwapFloatingLeg.fixing_days");
         trade.ibor.inArrears = floatFb->in_arrears();
         // Optional amortizing/step-up notionals: one entry per coupon period on
         // each leg. Absent => the constant scalar notionals above stand.

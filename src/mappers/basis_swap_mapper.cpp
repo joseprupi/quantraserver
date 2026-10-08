@@ -31,7 +31,7 @@ BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
     leg.spread = fb->spread();
     leg.dayCounter = DayCounterToQL(fb->day_counter().value());
     leg.paymentConvention = ConventionToQL(fb->payment_convention().value());
-    leg.fixingDays = fb->fixing_days();
+    leg.fixingDays = requireNonNegative(fb->fixing_days(), "SwapFloatingLeg.fixing_days");
     leg.inArrears = fb->in_arrears();
     return leg;
 }

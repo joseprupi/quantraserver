@@ -51,7 +51,7 @@ struct CapFloorInputs {
 
 /// Per-caplet/floorlet detail. Mirrors the CapFloorLet FB schema. Populated
 /// only when CapFloorTrade::includeDetails is true; fields not set by the
-/// legacy buildCapFloorDetails (strike, price) are left at their default
+/// original detail serialization (strike, price) are left at their default
 /// values so the mapper can copy them verbatim.
 struct CapFloorLetDetail {
     std::string paymentDate;

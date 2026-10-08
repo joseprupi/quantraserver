@@ -460,7 +460,7 @@ TEST_F(QuantraComparisonTest, CMSCoupons_PricerAttached) {
 
     auto dIt = reg.rates.curves.find("discount");
     ASSERT_TRUE(dIt != reg.rates.curves.end());
-    Handle<YieldTermStructure> discountCurve(dIt->second->currentLink());
+    QuantLib::Handle<QuantLib::YieldTermStructure> discountCurve(dIt->second->currentLink());
 
     CmsLegParser parser;
     auto cmsLeg = parser.parse(

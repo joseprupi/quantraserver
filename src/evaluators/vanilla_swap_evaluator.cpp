@@ -129,7 +129,7 @@ CmsPricerBuildResult buildCmsPricer(
 
 /**
  * Pre-serialize a fixed-leg coupon to a plain flow record. Mirrors the
- * vanilla_swap_flow_builder fixed-leg path verbatim, including the gearing=1.0
+ * original fixed-leg flow serialization verbatim, including the gearing=1.0
  * default the FB schema bakes in for fixed coupons.
  */
 void extractFixedLegFlows(
@@ -159,7 +159,7 @@ void extractFixedLegFlows(
 
 /**
  * Pre-serialize a floating-leg coupon (IBOR or CMS). Mirrors the
- * vanilla_swap_flow_builder floating-leg path: indexFixing/spread/rate plus
+ * original floating-leg flow serialization: indexFixing/spread/rate plus
  * the CmsCoupon-specific cms_swap_rate field. The fixing
  * call is wrapped in try/catch to preserve the legacy NaN-on-fixing-error
  * fallback.

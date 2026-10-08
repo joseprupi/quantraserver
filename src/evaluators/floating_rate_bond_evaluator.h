@@ -70,7 +70,7 @@ struct FloatingRateBondInputs {
 
 /**
  * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the FlowsWrapper union shape the legacy buildFloatingBondFlows
+ * mapper. Mirrors the FlowsWrapper union shape the original flow serialization
  * emits. `indexFixing` carries the QuantLib FloatingRateCoupon::indexFixing()
  * value as a double; the mapper passes it through the same FB `fixing_date`
  * field the legacy serializer used (the legacy path stores the raw double

@@ -14,6 +14,8 @@ struct EvalDateGuard {
     QuantLib::Date saved;
     EvalDateGuard() : saved(QuantLib::Settings::instance().evaluationDate()) {}
     ~EvalDateGuard() { QuantLib::Settings::instance().evaluationDate() = saved; }
+    EvalDateGuard(const EvalDateGuard&) = delete;
+    EvalDateGuard& operator=(const EvalDateGuard&) = delete;
 };
 
 } // namespace quantra

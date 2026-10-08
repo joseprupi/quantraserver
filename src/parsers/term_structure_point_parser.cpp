@@ -104,7 +104,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         return std::make_shared<DepositRateHelper>(
             q,
             requirePeriod(point->tenor(), "DepositHelper.tenor"),
-            point->fixing_days(),
+            requireNonNegative(point->fixing_days(), "DepositHelper.fixing_days"),
             CalendarToQL(point->calendar().value()),
             ConventionToQL(point->business_day_convention().value()),
             true,
@@ -138,7 +138,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             q,
             point->months_to_start(),
             point->months_to_end(),
-            point->fixing_days(),
+            requireNonNegative(point->fixing_days(), "FRAHelper.fixing_days"),
             CalendarToQL(point->calendar().value()),
             ConventionToQL(point->business_day_convention().value()),
             true,
@@ -327,7 +327,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
 
         return std::make_shared<FixedRateBondHelper>(
             q,
-            point->settlement_days(),
+            requireNonNegative(point->settlement_days(), "BondHelper.settlement_days"),
             faceAmount,
             *schedule_parser.parse(point->schedule()),
             std::vector<Rate>(1, couponRate),
@@ -409,7 +409,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // doc-comments). fixed_leg_day_counter is accepted-but-unused: no
         // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
-            requireInt(point->settlement_days(), "OISHelper.settlement_days"),
+            requireNonNegativeInt(point->settlement_days(), "OISHelper.settlement_days"),
             requirePeriod(point->tenor(), "OISHelper.tenor"),
             q,
             on,
@@ -503,7 +503,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // doc-comments). fixed_leg_day_counter is accepted-but-unused: no
         // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
-            requireInt(point->settlement_days(), "DatedOISHelper.settlement_days"),
+            requireNonNegativeInt(point->settlement_days(), "DatedOISHelper.settlement_days"),
             tenor,
             q,
             on,

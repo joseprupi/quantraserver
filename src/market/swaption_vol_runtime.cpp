@@ -8,52 +8,6 @@
 #include "sabr_calibrate_cache_key.h"
 #include "date_convert.h"
 
-namespace {
-
-std::string getTradeFloatingIndexId(const quantra::PriceSwaption* p) {
-    if (!p || !p->swaption()) return "";
-    auto* sw = p->swaption();
-    if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
-        auto* u = sw->underlying_as_VanillaSwap();
-        if (u && u->floating_leg() && u->floating_leg()->index() && u->floating_leg()->index()->id()) {
-            return u->floating_leg()->index()->id()->str();
-        }
-    } else if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
-        auto* u = sw->underlying_as_OisSwap();
-        if (u && u->overnight_leg() && u->overnight_leg()->index() && u->overnight_leg()->index()->id()) {
-            return u->overnight_leg()->index()->id()->str();
-        }
-    }
-    return "";
-}
-
-bool getTradeExerciseAndStartDates(
-    const quantra::PriceSwaption* p,
-    QuantLib::Date& exerciseDate,
-    QuantLib::Date& startDate) {
-    if (!p || !p->swaption() || !p->swaption()->exercise_date()) return false;
-    const auto* sw = p->swaption();
-    exerciseDate = DateToQL(sw->exercise_date()->str());
-
-    if (sw->underlying_type() == quantra::SwaptionUnderlying_VanillaSwap) {
-        const auto* u = sw->underlying_as_VanillaSwap();
-        if (u && u->fixed_leg() && u->fixed_leg()->schedule() && u->fixed_leg()->schedule()->effective_date()) {
-            startDate = DateToQL(u->fixed_leg()->schedule()->effective_date()->str());
-            return true;
-        }
-    } else if (sw->underlying_type() == quantra::SwaptionUnderlying_OisSwap) {
-        const auto* u = sw->underlying_as_OisSwap();
-        if (u && u->fixed_leg() && u->fixed_leg()->schedule() && u->fixed_leg()->schedule()->effective_date()) {
-            startDate = DateToQL(u->fixed_leg()->schedule()->effective_date()->str());
-            return true;
-        }
-    }
-
-    return false;
-}
-
-} // namespace
-
 namespace quantra {
 
 std::vector<double> computeServerAtmForwards(
@@ -167,43 +121,6 @@ std::vector<double> computeServerAtmForwardsForExerciseDates(
 
 namespace {
 
-void validateTradeAgainstSwapIndex(
-    const quantra::PriceSwaption* trade,
-    const std::string& swapIndexId,
-    const quantra::SwapIndexRuntime& sidx) {
-    if (trade == nullptr) return;
-    std::string tradeIndexId = getTradeFloatingIndexId(trade);
-    if (!tradeIndexId.empty() && tradeIndexId != sidx.floatIndexId) {
-        QUANTRA_INVALID_ARGUMENT(
-            "Swap index '" + swapIndexId + "' float_index_id '" + sidx.floatIndexId +
-            "' does not match swaption floating index '" + tradeIndexId + "'");
-    }
-
-    QuantLib::Date tradeExerciseDate, tradeStartDate;
-    if (getTradeExerciseAndStartDates(trade, tradeExerciseDate, tradeStartDate)) {
-        QuantLib::Date tradeExerciseAdjusted = sidx.fixedCalendar.adjust(tradeExerciseDate, sidx.fixedBdc);
-        QuantLib::Date expectedStart = sidx.fixedCalendar.advance(
-            tradeExerciseAdjusted, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
-        QuantLib::Date tradeStartAdjusted = sidx.fixedCalendar.adjust(tradeStartDate, sidx.fixedBdc);
-        if (expectedStart != tradeStartAdjusted) {
-            std::ostringstream err;
-            err << "Swap index '" << swapIndexId
-                << "' spot_days mismatch against trade start convention: expected start "
-                << DateToIso(expectedStart) << " from exercise "
-                << DateToIso(tradeExerciseDate)
-                << " (adjusted: " << DateToIso(tradeExerciseAdjusted) << ")"
-                << " with spot_days=" << sidx.spotDays
-                << ", but trade start is " << DateToIso(tradeStartDate)
-                << " (adjusted: " << DateToIso(tradeStartAdjusted) << ")";
-            QUANTRA_INVALID_ARGUMENT(err.str());
-        }
-    }
-}
-
-} // namespace
-
-namespace {
-
 // Resolve a curve cache key by curve id, returning "" when the curve cache is
 // disabled or the curve is missing from the keys map. An empty key disables
 // downstream caching for the SABR cube (safe fallback — never wrong, only slower).
@@ -266,7 +183,6 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         QUANTRA_NOT_FOUND("Missing swap index definition for id: " + raw.swapIndexId);
     }
     const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
-    validateTradeAgainstSwapIndex(trade, raw.swapIndexId, sidx);
 
     auto atms = computeServerAtmForwards(
         raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);

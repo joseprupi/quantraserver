@@ -21,17 +21,17 @@ std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroC
 
     // Redemption is optional: presence decides. Absent => QuantLib's 100.0 (par)
     // default, matching the ZeroCouponBond constructor default.
-    const Real redemption = bond->redemption().has_value()
-                                ? static_cast<Real>(bond->redemption().value())
+    const QuantLib::Real redemption = bond->redemption().has_value()
+                                ? static_cast<QuantLib::Real>(bond->redemption().value())
                                 : 100.0;
 
     // issue_date is optional: absent => QuantLib's null Date default.
-    const Date issueDate = bond->issue_date()
+    const QuantLib::Date issueDate = bond->issue_date()
                                ? DateToQL(bond->issue_date()->str())
-                               : Date();
+                               : QuantLib::Date();
 
     return std::make_shared<QuantLib::ZeroCouponBond>(
-        bond->settlement_days(),
+        quantra::requireNonNegative(bond->settlement_days(), "ZeroCouponBond.settlement_days"),
         calendar,
         quantra::requirePositive(bond->face_amount(), "ZeroCouponBond.face_amount"),
         maturityDate,

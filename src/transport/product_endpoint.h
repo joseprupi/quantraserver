@@ -12,6 +12,7 @@
 #include "pricing_registry.h"
 #include "pricing_context.h"
 #include "eval_date_guard.h"
+#include "fixings_guard.h"
 #include "calendar_overrides.h"
 #include "calendar_override_parser.h"
 
@@ -74,6 +75,7 @@ struct has_build_error_hook<
  * The glue is identical for every pricing product:
  *
  *   EvalDateGuard guard;                      // handler owns global state
+ *   FixingsGuard fixingsGuard;                // ... incl. the index fixing store
  *   CalendarOverridesGuard calendarGuard;     // ... incl. holiday overrides
  *   mapper.toInputs(req);                     // FlatBuffers -> domain
  *   PricingRegistryBuilder{}.build(pricing);  // market data
@@ -103,6 +105,10 @@ public:
         const RequestBudget& budget = RequestBudget::unlimited()) const override
     {
         EvalDateGuard guard;
+        // Index fixings are process-global QuantLib state too: start every
+        // request from an empty fixing store so the only fixings visible are
+        // the ones this request supplies (and leave it empty on exit).
+        FixingsGuard fixingsGuard;
         // Holiday overrides are process-global QuantLib state: reset on entry
         // and exit, and apply before the mapper runs (mappers already build
         // schedules and advance dates). A malformed overrides field is a

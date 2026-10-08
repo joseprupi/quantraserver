@@ -188,14 +188,12 @@ private:
         #define TRY_EXTRACT(TraitT, InterpT) \
             { \
                 auto ptr = std::dynamic_pointer_cast< \
-                    QuantLib::PiecewiseYieldCurve<TraitT, InterpT>>(curve); \
+                    QuantLib::PiecewiseYieldCurve<QuantLib::TraitT, QuantLib::InterpT>>(curve); \
                 if (ptr) { \
                     out = ptr->dates(); \
                     return true; \
                 } \
             }
-
-        using namespace QuantLib;
 
         auto interp = ts->interpolator().value();
         // bootstrap_trait is presence-required and always set by the time a curve
