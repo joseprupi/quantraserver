@@ -26,6 +26,34 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.8.1 (October 2026) — request isolation and input guards
+
+`v0.8.1` is a patch release: no schema change, no change to any correctly
+formed request's results.
+
+### Fixes
+
+- **Index fixings no longer leak between requests.** QuantLib keeps past
+  fixings in a process-global store, and the server only cleared an index's
+  fixings when the request supplied `fixings`. A request that supplied none
+  inherited the previous request's fixings on that worker and could price with
+  them. The store is now cleared at the start and end of every request.
+  Requests that relied on this by accident (omitting fixings a seasoned trade
+  needs) will now get the missing-fixing error they should always have had.
+- **Negative day counts are rejected.** `fixing_days`, `settlement_days`,
+  `cash_settlement_days` and `spot_days` across indices, bonds, deposit / FRA /
+  OIS / bond helpers, swap floating legs, CDS and constant optionlet volatility
+  used to be passed to QuantLib's unsigned parameters, so a negative value
+  became a day count of about four billion (a 500, or a silently wrong date).
+  They now return a `400` naming the field.
+
+### Internal
+
+- Dead code removed (unused flow builders, unreachable swaption helpers, a
+  duplicate guard); global `using namespace` directives removed from headers.
+- A `.clang-format` now encodes the existing code style and was applied once
+  to all hand-written C++ sources; `scripts/format.sh` reproduces it.
+
 ## Version 0.8.0 (October 2026) — response fixes: zero values kept, swaption greeks corrected
 
 `v0.8.0` fixes three response defects. Requests are unchanged; what changes is
