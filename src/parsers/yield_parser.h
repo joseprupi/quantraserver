@@ -16,8 +16,6 @@
 #include "common_generated.h"
 #include "enum_convert.h"
 
-using namespace QuantLib;
-using namespace quantra;
 
 struct YieldStruct
 {

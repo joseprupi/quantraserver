@@ -49,7 +49,7 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
     YieldParser yieldParser;
 
     FloatingRateBondTrade trade;
-    trade.settlement_days = fbBond->settlement_days();
+    trade.settlement_days = requireNonNegative(fbBond->settlement_days(), "FloatingRateBond.settlement_days");
     trade.face_amount = requirePositive(fbBond->face_amount(), "FloatingRateBond.face_amount");
     trade.schedule = *scheduleParser.parse(fbBond->schedule());
     // Optional per-period notionals: present => amortizing/step-up bond.
@@ -61,7 +61,7 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
         QUANTRA_INVALID_ARGUMENT("FloatingRateBond.payment_convention is required");
     trade.accrual_day_counter = DayCounterToQL(fbBond->accrual_day_counter().value());
     trade.payment_convention = ConventionToQL(fbBond->payment_convention().value());
-    trade.fixing_days = fbBond->fixing_days();
+    trade.fixing_days = requireNonNegative(fbBond->fixing_days(), "FloatingRateBond.fixing_days");
     trade.spread = fbBond->spread();
     trade.in_arrears = fbBond->in_arrears();
     trade.redemption = fbBond->redemption();
@@ -82,12 +82,12 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
 }
 
 /**
- * Serialize one plain flow into a FlowsWrapper offset. Mirrors the existing
- * buildFloatingBondFlows shape verbatim — including the legacy quirk that the
+ * Serialize one plain flow into a FlowsWrapper offset. This is the wire
+ * shape for floating-bond flows — including the long-standing quirk that the
  * floating-coupon `fixing_date` slot (typed `string` in the schema) is written
  * via the implicit double→uint32→Offset<String> conversion of the underlying
- * FloatingRateCoupon::indexFixing() value. Keeping this here (instead of
- * reusing bond_flow_builder) means the pricer stays FB-free.
+ * FloatingRateCoupon::indexFixing() value. Keeping the FB serialization here
+ * means the pricer stays FB-free.
  */
 flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
     flatbuffers::grpc::MessageBuilder& builder,
@@ -115,7 +115,7 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
         case Kind::PastInterest: {
             auto accrualStart = builder.CreateString(f.accrualStartDate);
             auto accrualEnd = builder.CreateString(f.accrualEndDate);
-            // Legacy buildFloatingBondFlows uses FlowPastInterestBuilder here
+            // The floating-bond wire shape uses FlowPastInterestBuilder here
             // (the fixed-rate path uses FlowInterestBuilder + the past tag —
             // a separate quirk preserved in fixed_rate_bond_mapper).
             quantra::FlowPastInterestBuilder fib(builder);

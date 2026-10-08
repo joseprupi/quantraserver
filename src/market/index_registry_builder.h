@@ -90,8 +90,8 @@ public:
             // Parse conventions (every convention is presence-required)
             QuantLib::Period tenor =
                 requirePeriod(def->tenor(), "IndexDef.tenor for id: " + id);
-            int fixingDays = requireInt(def->fixing_days(),
-                                        "IndexDef.fixing_days for id: " + id);
+            int fixingDays = requireNonNegativeInt(def->fixing_days(),
+                                                   "IndexDef.fixing_days for id: " + id);
             QuantLib::Calendar calendar = CalendarToQL(
                 requireEnum(def->calendar(), "IndexDef.calendar for id: " + id));
             QuantLib::BusinessDayConvention bdc = ConventionToQL(requireEnum(

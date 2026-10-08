@@ -15,7 +15,7 @@ namespace {
 
 /**
  * Pre-serialize a swap-leg cashflow to a plain flow record. Mirrors
- * parser/swap_leg_flow_builder.cpp verbatim — including its rule that
+ * the original swap-leg flow serialization verbatim — including its rule that
  * accrual/fixing fields are emitted only when the cashflow is a Coupon /
  * FloatingRateCoupon respectively, and that occurred cashflows are skipped.
  * Returns false when the cashflow has occurred and the mapper must drop it.

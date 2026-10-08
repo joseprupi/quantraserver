@@ -76,7 +76,7 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
         trade.tradeDate = DateToQL(cds->trade_date()->str());
     }
     trade.cashSettlementDays =
-        requireInt(cds->cash_settlement_days(), "CDS.cash_settlement_days");
+        requireNonNegativeInt(cds->cash_settlement_days(), "CDS.cash_settlement_days");
 
     trade.discountingCurveId = pricing->discounting_curve()->str();
     trade.creditCurveId = pricing->credit_curve_id()->str();

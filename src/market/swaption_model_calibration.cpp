@@ -21,6 +21,7 @@
 #include <ql/settings.hpp>
 
 #include "date_convert.h"
+#include "eval_date_guard.h"
 #include "error.h"
 #include "hw_calibrate_cache.h"
 #include "hw_calibrate_cache_key.h"
@@ -28,12 +29,6 @@
 namespace {
 
 std::atomic<int> g_hwCalibrationCallCount{0};
-
-struct EvalDateGuard {
-    QuantLib::Date saved;
-    EvalDateGuard() : saved(QuantLib::Settings::instance().evaluationDate()) {}
-    ~EvalDateGuard() { QuantLib::Settings::instance().evaluationDate() = saved; }
-};
 
 QuantLib::Period frequencyToPeriod(QuantLib::Frequency f) {
     switch (f) {

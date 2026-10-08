@@ -67,7 +67,7 @@ SwapIndexRegistry SwapIndexRegistryBuilder::build(
         const std::string sid = d->id()->str();
         SwapIndexRuntime r;
         r.kind = requireEnum(d->kind(), "SwapIndexDef.kind for id: " + sid);
-        r.spotDays = requireInt(d->spot_days(), "SwapIndexDef.spot_days for id: " + sid);
+        r.spotDays = requireNonNegativeInt(d->spot_days(), "SwapIndexDef.spot_days for id: " + sid);
         r.calendar = CalendarToQL(
             requireEnum(d->calendar(), "SwapIndexDef.calendar for id: " + sid));
         r.bdc = ConventionToQL(requireEnum(

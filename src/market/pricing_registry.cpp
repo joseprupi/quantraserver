@@ -359,7 +359,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                             "CreditCurveSpec.curve_interpolator"));
             if (const auto* h = spec->helper_conventions()) {
                 CdsHelperConventionsDomain hc;
-                hc.settlement_days = requireInt(
+                hc.settlement_days = requireNonNegativeInt(
                     h->settlement_days(), "CdsHelperConventions.settlement_days");
                 hc.frequency = FrequencyToQL(
                     requireEnum(h->frequency(), "CdsHelperConventions.frequency"));
@@ -448,7 +448,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             CouponPricerDomain domain;
             domain.id = id;
             BlackIborCouponPricerDomain d;
-            d.settlement_days = ov->settlement_days();
+            d.settlement_days = requireNonNegative(ov->settlement_days(), "ConstantOptionletVolatility.settlement_days");
             d.calendar = CalendarToQL(ov->calendar().value());
             d.business_day_convention = ConventionToQL(ov->business_day_convention().value());
             // Presence-required and finite; a genuine 0 is valid (a leg without

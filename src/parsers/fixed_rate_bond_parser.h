@@ -27,8 +27,6 @@
 #include "schedule_parser.h"
 #include "request_validation.h"
 
-using namespace QuantLib;
-using namespace quantra;
 
 class FixedRateBondParser
 {

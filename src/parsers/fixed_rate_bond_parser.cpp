@@ -29,10 +29,10 @@ std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedR
         // the redemption cashflows are derived from the notional decrements at
         // `redemption` percent (matching the constant bond's redemption field).
         return std::make_shared<QuantLib::AmortizingFixedRateBond>(
-            bond->settlement_days(),
-            std::vector<Real>(notionals.begin(), notionals.end()),
+            quantra::requireNonNegative(bond->settlement_days(), "FixedRateBond.settlement_days"),
+            std::vector<QuantLib::Real>(notionals.begin(), notionals.end()),
             *schedule,
-            std::vector<Rate>(1, bond->rate()),
+            std::vector<QuantLib::Rate>(1, bond->rate()),
             dayCounter,
             paymentConvention,
             issueDate,
@@ -40,14 +40,14 @@ std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedR
             QuantLib::Calendar(),
             QuantLib::Unadjusted,
             false,
-            std::vector<Real>(1, bond->redemption()));
+            std::vector<QuantLib::Real>(1, bond->redemption()));
     }
 
     return std::make_shared<QuantLib::FixedRateBond>(
-        bond->settlement_days(),
+        quantra::requireNonNegative(bond->settlement_days(), "FixedRateBond.settlement_days"),
         quantra::requirePositive(bond->face_amount(), "FixedRateBond.face_amount"),
         *schedule,
-        std::vector<Rate>(1, bond->rate()),
+        std::vector<QuantLib::Rate>(1, bond->rate()),
         dayCounter,
         paymentConvention,
         bond->redemption(),

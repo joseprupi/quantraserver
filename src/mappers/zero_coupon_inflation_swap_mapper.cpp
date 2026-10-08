@@ -76,7 +76,7 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
 
 /**
  * Serialize one plain flow into a SwapLegFlow offset. Mirrors
- * parser/swap_leg_flow_builder.cpp exactly: accrual fields are added only
+ * the original swap-leg flow serialization exactly: accrual fields are added only
  * when the underlying cashflow was a Coupon; fixing fields only when it was
  * a FloatingRateCoupon. amount/discount/present_value/rate are always
  * written (rate defaults to 0.0 for plain CashFlows, matching the legacy

@@ -15,8 +15,6 @@
 #include "enum_convert.h"
 #include "date_convert.h"
 
-using namespace QuantLib;
-using namespace quantra;
 
 class ScheduleParser
 {

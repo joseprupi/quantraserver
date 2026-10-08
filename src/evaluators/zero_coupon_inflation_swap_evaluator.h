@@ -56,7 +56,7 @@ struct ZeroCouponInflationSwapInputs {
 
 /**
  * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the legacy buildSwapLegFlow output verbatim: accrual fields
+ * mapper. Mirrors the original swap-leg flow output verbatim: accrual fields
  * only appear when the cashflow is a Coupon; fixing fields only appear when
  * the cashflow is a FloatingRateCoupon. The pricer pre-computes everything
  * that depends on the discount curve so the mapper never touches QuantLib.

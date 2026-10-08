@@ -115,6 +115,19 @@ inline int requireNonNegativeInt(flatbuffers::Optional<int> v,
 }
 
 /**
+ * Reject a negative value on a plain (non-optional) schema integer that feeds
+ * a QuantLib `Natural` / `Size` parameter (settlement_days / fixing_days on
+ * the bond and helper tables). The schema cannot express the constraint, and
+ * an unchecked `-1` would wrap into a ~4e9-day offset.
+ */
+inline int requireNonNegative(int v, const std::string& name) {
+    if (v < 0) {
+        QUANTRA_INVALID_ARGUMENT(name + " must be non-negative");
+    }
+    return v;
+}
+
+/**
  * Require an optional bool convention (end_of_month, CDS ISDA flags, inflation
  * interpolated/revised) to be present — a bare bool would silently default to
  * false (or a hard-coded true).
