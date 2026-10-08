@@ -1,21 +1,22 @@
 #ifndef QUANTRA_INFLATION_CURVE_PARSERS_H
 #define QUANTRA_INFLATION_CURVE_PARSERS_H
 
+#include "pricing_registry.h"
+#include "quote_registry.h"
+
+#include "inflation_generated.h"
+
+#include <ql/handle.hpp>
+#include <ql/termstructures/inflationtermstructure.hpp>
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
+#include <ql/time/daycounter.hpp>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <ql/handle.hpp>
-#include <ql/termstructures/inflationtermstructure.hpp>
-#include <ql/time/calendar.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/date.hpp>
-
-#include "inflation_generated.h"
-#include "pricing_registry.h"
-#include "quote_registry.h"
 
 namespace quantra {
 

@@ -13,8 +13,7 @@ CalendarBusinessDaysResult CalendarBusinessDaysEvaluator::evaluate(
 
     const auto& trade = inputs.trade;
     if (trade.startDate > trade.endDate) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarBusinessDaysRequest.start_date must be <= end_date");
+        QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest.start_date must be <= end_date");
     }
 
     CalendarBusinessDaysResult result;

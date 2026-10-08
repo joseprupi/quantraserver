@@ -11,10 +11,9 @@
  * vanilla_swap_mapper.{h,cpp}.
  */
 
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
+#include "cms_leg_parser.h" // CmsPricerUsed (plain struct) and enum-only deps
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/instruments/vanillaswap.hpp>
@@ -23,9 +22,10 @@
 #include <ql/time/period.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "cms_leg_parser.h"      // CmsPricerUsed (plain struct) and enum-only deps
-#include "pricing_registry.h"
-#include "pricing_context.h"
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -35,8 +35,7 @@ namespace quantra {
  * the pricer never sees the FB CmsPricerSpec table directly.
  */
 struct VanillaSwapCmsPricerParams {
-    quantra::enums::CmsPricerType pricerType =
-        quantra::enums::CmsPricerType_LinearTsr;
+    quantra::enums::CmsPricerType pricerType = quantra::enums::CmsPricerType_LinearTsr;
     quantra::enums::CmsYieldCurveModel yieldCurveModel =
         quantra::enums::CmsYieldCurveModel_Standard;
     double meanReversion = 0.03;
@@ -113,8 +112,8 @@ struct VanillaSwapTrade {
     std::string discountingCurveId;
     std::string forwardingCurveId;
     VanillaSwapFixedLegData fixed;
-    VanillaSwapIborLegData ibor;   // populated when branch == Ibor
-    VanillaSwapCmsLegData cms;     // populated when branch == Cms
+    VanillaSwapIborLegData ibor; // populated when branch == Ibor
+    VanillaSwapCmsLegData cms;   // populated when branch == Cms
 };
 
 struct VanillaSwapInputs {
@@ -170,9 +169,10 @@ struct VanillaSwapResult {
 
 class VanillaSwapEvaluator {
 public:
-    VanillaSwapResult evaluate(const VanillaSwapInputs& inputs,
-                            const PricingRegistry& reg,
-                            const PricingContext& ctx) const;
+    VanillaSwapResult evaluate(
+        const VanillaSwapInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

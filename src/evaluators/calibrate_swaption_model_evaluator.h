@@ -18,13 +18,13 @@
  * reg.rates.curves, reg.rates.swapIndices, reg.volatility.swaptionVols).
  */
 
-#include <string>
-
-#include <ql/time/date.hpp>
-
 #include "model_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+
+#include <ql/time/date.hpp>
+
+#include <string>
 
 namespace quantra {
 
@@ -51,9 +51,10 @@ struct CalibrateSwaptionModelResult {
 
 class CalibrateSwaptionModelEvaluator {
 public:
-    CalibrateSwaptionModelResult evaluate(const CalibrateSwaptionModelInputs& inputs,
-                                       const PricingRegistry& reg,
-                                       const PricingContext& ctx) const;
+    CalibrateSwaptionModelResult evaluate(
+        const CalibrateSwaptionModelInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

@@ -14,7 +14,8 @@ ZeroCouponBondInputs ZeroCouponBondMapper::toInputs(
     }
     const auto* bondPricings = req->bonds();
     if (bondPricings == nullptr || bondPricings->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("PriceZeroCouponBondRequest.bonds is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT(
+            "PriceZeroCouponBondRequest.bonds is required and must be non-empty");
     }
 
     ZeroCouponBondParser bondParser;
@@ -54,8 +55,7 @@ ZeroCouponBondInputs ZeroCouponBondMapper::toInputs(
 }
 
 flatbuffers::Offset<quantra::PriceZeroCouponBondResponse> ZeroCouponBondMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const ZeroCouponBondResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponBondResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::ZeroCouponBondResponse>> bondsVector;
     bondsVector.reserve(result.bonds.size());

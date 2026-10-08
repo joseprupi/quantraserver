@@ -1,12 +1,12 @@
 #include "sample_vol_surfaces_mapper.h"
 
-#include <vector>
-
 #include "date_convert.h"
 #include "enum_convert.h"
-#include "request_validation.h"
 #include "error.h"
+#include "request_validation.h"
 #include "swaption_vol_diagnostics.h"
+
+#include <vector>
 
 namespace quantra {
 
@@ -14,12 +14,9 @@ namespace {
 
 SampleSurfaceType toSampleSurfaceType(quantra::VolSurfaceType t) {
     switch (t) {
-    case quantra::VolSurfaceType_Swaption:
-        return SampleSurfaceType::Swaption;
-    case quantra::VolSurfaceType_Optionlet:
-        return SampleSurfaceType::Optionlet;
-    case quantra::VolSurfaceType_EquityBlack:
-        return SampleSurfaceType::EquityBlack;
+        case quantra::VolSurfaceType_Swaption: return SampleSurfaceType::Swaption;
+        case quantra::VolSurfaceType_Optionlet: return SampleSurfaceType::Optionlet;
+        case quantra::VolSurfaceType_EquityBlack: return SampleSurfaceType::EquityBlack;
     }
     return SampleSurfaceType::Swaption;
 }
@@ -31,14 +28,10 @@ SampleStrikeAxis toSampleStrikeAxis(quantra::VolStrikeAxis a) {
 
 SampleOutputMode toSampleOutputMode(quantra::VolOutputMode m) {
     switch (m) {
-    case quantra::VolOutputMode_Cube:
-        return SampleOutputMode::Cube;
-    case quantra::VolOutputMode_SmileSlice:
-        return SampleOutputMode::SmileSlice;
-    case quantra::VolOutputMode_TermSlice:
-        return SampleOutputMode::TermSlice;
-    case quantra::VolOutputMode_ExpirySlice:
-        return SampleOutputMode::ExpirySlice;
+        case quantra::VolOutputMode_Cube: return SampleOutputMode::Cube;
+        case quantra::VolOutputMode_SmileSlice: return SampleOutputMode::SmileSlice;
+        case quantra::VolOutputMode_TermSlice: return SampleOutputMode::TermSlice;
+        case quantra::VolOutputMode_ExpirySlice: return SampleOutputMode::ExpirySlice;
     }
     return SampleOutputMode::Cube;
 }
@@ -168,7 +161,8 @@ flatbuffers::Offset<quantra::Period> toFbPeriod(
 SampleVolSurfacesInputs SampleVolSurfacesMapper::toInputs(
     const quantra::SampleVolSurfacesRequest* req) const {
     if (!req || !req->pricing() || !req->queries() || req->queries()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("SampleVolSurfacesRequest.pricing and non-empty queries are required");
+        QUANTRA_INVALID_ARGUMENT(
+            "SampleVolSurfacesRequest.pricing and non-empty queries are required");
     }
     SampleVolSurfacesInputs inputs;
     inputs.includeDiagnostics = req->include_diagnostics();
@@ -179,10 +173,8 @@ SampleVolSurfacesInputs SampleVolSurfacesMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::SampleVolSurfacesResponse>
-SampleVolSurfacesMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const SampleVolSurfacesResult& result) const {
+flatbuffers::Offset<quantra::SampleVolSurfacesResponse> SampleVolSurfacesMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const SampleVolSurfacesResult& result) const {
     std::vector<flatbuffers::Offset<quantra::VolSurfaceSample>> results;
     results.reserve(result.samples.size());
 
@@ -206,7 +198,8 @@ SampleVolSurfacesMapper::toResponse(
 
         std::vector<flatbuffers::Offset<flatbuffers::String>> expiriesStr;
         expiriesStr.reserve(s.expiries.size());
-        for (const auto& d : s.expiries) expiriesStr.push_back(builder.CreateString(DateToIso(d)));
+        for (const auto& d : s.expiries)
+            expiriesStr.push_back(builder.CreateString(DateToIso(d)));
 
         std::vector<flatbuffers::Offset<flatbuffers::String>> requestedExpiryStr;
         requestedExpiryStr.reserve(s.requestedExpiryGridPoints.size());
@@ -215,7 +208,8 @@ SampleVolSurfacesMapper::toResponse(
 
         std::vector<flatbuffers::Offset<quantra::Period>> tenorOffs;
         tenorOffs.reserve(s.tenors.size());
-        for (const auto& p : s.tenors) tenorOffs.push_back(toFbPeriod(builder, p));
+        for (const auto& p : s.tenors)
+            tenorOffs.push_back(toFbPeriod(builder, p));
 
         std::vector<flatbuffers::Offset<flatbuffers::String>> effectiveStartsStr;
         effectiveStartsStr.reserve(s.effectiveSwapStarts.size());
@@ -273,7 +267,8 @@ SampleVolSurfacesMapper::toResponse(
     }
 
     auto resultsVec = builder.CreateVector(results);
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>>> diagVec = 0;
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwaptionVolDiagnostics>>>
+        diagVec = 0;
     if (!diagnosticsOffs.empty()) {
         diagVec = builder.CreateVector(diagnosticsOffs);
     }

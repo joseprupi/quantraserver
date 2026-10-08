@@ -1,15 +1,15 @@
 #include "bootstrap_curves_mapper.h"
 
-#include <set>
-#include <utility>
-
-#include <ql/time/calendars/target.hpp>
-
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "grid_utils.h"
 #include "request_validation.h"
+
+#include <ql/time/calendars/target.hpp>
+
+#include <set>
+#include <utility>
 
 namespace quantra {
 
@@ -60,15 +60,14 @@ QuantLib::Calendar calendarFromTermStructure(const quantra::TermStructure* ts) {
 /// Reproduce the curve's bootstrap-time reference date from the FB spec:
 /// TermStructureParser uses `ts->reference_date()` when present, else the
 /// global evaluation date (= as_of_date).
-QuantLib::Date resolveCurveReferenceDate(const quantra::TermStructure* ts,
-                                         const QuantLib::Date& asOfDate) {
+QuantLib::Date resolveCurveReferenceDate(
+    const quantra::TermStructure* ts, const QuantLib::Date& asOfDate) {
     if (ts->reference_date()) return DateToQL(ts->reference_date()->str());
     return asOfDate;
 }
 
 std::vector<QuantLib::Date> extractPillarDates(
-    const quantra::TermStructure* ts,
-    const QuantLib::Date& referenceDate) {
+    const quantra::TermStructure* ts, const QuantLib::Date& referenceDate) {
     std::set<QuantLib::Date> dateSet;
     dateSet.insert(referenceDate);
     if (!ts->points()) {
@@ -81,29 +80,25 @@ std::vector<QuantLib::Date> extractPillarDates(
         const auto* point = points->Get(i);
         QuantLib::Date maturityDate;
         if (auto deposit = point->point_as_DepositHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(deposit->tenor(), "DepositHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(deposit->tenor(), "DepositHelper.tenor");
             if (!deposit->business_day_convention().has_value())
                 QUANTRA_INVALID_ARGUMENT("DepositHelper.business_day_convention is required");
             maturityDate = calendar.advance(
                 referenceDate, tenor, ConventionToQL(deposit->business_day_convention().value()));
         } else if (auto swap = point->point_as_SwapHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(swap->tenor(), "SwapHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(swap->tenor(), "SwapHelper.tenor");
             if (!swap->sw_fixed_leg_convention().has_value())
                 QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_convention is required");
             maturityDate = calendar.advance(
                 referenceDate, tenor, ConventionToQL(swap->sw_fixed_leg_convention().value()));
         } else if (auto fra = point->point_as_FRAHelper()) {
             QuantLib::Period startPeriod(fra->months_to_start(), QuantLib::Months);
-            QuantLib::Period tenor(
-                fra->months_to_end() - fra->months_to_start(), QuantLib::Months);
+            QuantLib::Period tenor(fra->months_to_end() - fra->months_to_start(), QuantLib::Months);
             QuantLib::Date startDate = calendar.advance(referenceDate, startPeriod);
             maturityDate = calendar.advance(startDate, tenor);
         } else if (auto future = point->point_as_FutureHelper()) {
             if (!future->future_start_date()) {
-                QUANTRA_INVALID_ARGUMENT(
-                    "FutureHelper.future_start_date is required");
+                QUANTRA_INVALID_ARGUMENT("FutureHelper.future_start_date is required");
             }
             QuantLib::Date startDate = DateToQL(future->future_start_date()->str());
             maturityDate = calendar.advance(
@@ -113,25 +108,21 @@ std::vector<QuantLib::Date> extractPillarDates(
                 maturityDate = DateToQL(bond->schedule()->termination_date()->str());
             }
         } else if (auto ois = point->point_as_OISHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(ois->tenor(), "OISHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(ois->tenor(), "OISHelper.tenor");
             maturityDate = calendar.advance(
                 referenceDate, tenor,
-                ConventionToQL(requireEnum(ois->fixed_leg_convention(),
-                                           "OISHelper.fixed_leg_convention")));
+                ConventionToQL(
+                    requireEnum(ois->fixed_leg_convention(), "OISHelper.fixed_leg_convention")));
         } else if (auto datedOis = point->point_as_DatedOISHelper()) {
             maturityDate = DateToQL(datedOis->end_date()->str());
         } else if (auto basis = point->point_as_TenorBasisSwapHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(basis->tenor(), "TenorBasisSwapHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(basis->tenor(), "TenorBasisSwapHelper.tenor");
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto fx = point->point_as_FxSwapHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(fx->tenor(), "FxSwapHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(fx->tenor(), "FxSwapHelper.tenor");
             maturityDate = calendar.advance(referenceDate, tenor);
         } else if (auto xccy = point->point_as_CrossCcyBasisHelper()) {
-            QuantLib::Period tenor =
-                requirePeriod(xccy->tenor(), "CrossCcyBasisHelper.tenor");
+            QuantLib::Period tenor = requirePeriod(xccy->tenor(), "CrossCcyBasisHelper.tenor");
             maturityDate = calendar.advance(referenceDate, tenor);
         }
         if (maturityDate != QuantLib::Date()) {
@@ -178,19 +169,18 @@ ForwardSampleSpec extractForwardSpec(
 
 quantra::CurveMeasure toFbMeasure(CurveSampleMeasure m) {
     switch (m) {
-    case CurveSampleMeasure::DiscountFactor: return quantra::CurveMeasure_DF;
-    case CurveSampleMeasure::ZeroRate:       return quantra::CurveMeasure_ZERO;
-    case CurveSampleMeasure::ForwardRate:    return quantra::CurveMeasure_FWD;
+        case CurveSampleMeasure::DiscountFactor: return quantra::CurveMeasure_DF;
+        case CurveSampleMeasure::ZeroRate: return quantra::CurveMeasure_ZERO;
+        case CurveSampleMeasure::ForwardRate: return quantra::CurveMeasure_FWD;
     }
     return quantra::CurveMeasure_DF;
 }
 
-CurveSampleMeasure fromFbMeasure(quantra::CurveMeasure m,
-                                 const std::string& curveId) {
+CurveSampleMeasure fromFbMeasure(quantra::CurveMeasure m, const std::string& curveId) {
     switch (m) {
-    case quantra::CurveMeasure_DF:   return CurveSampleMeasure::DiscountFactor;
-    case quantra::CurveMeasure_ZERO: return CurveSampleMeasure::ZeroRate;
-    case quantra::CurveMeasure_FWD:  return CurveSampleMeasure::ForwardRate;
+        case quantra::CurveMeasure_DF: return CurveSampleMeasure::DiscountFactor;
+        case quantra::CurveMeasure_ZERO: return CurveSampleMeasure::ZeroRate;
+        case quantra::CurveMeasure_FWD: return CurveSampleMeasure::ForwardRate;
     }
     QUANTRA_INVALID_ARGUMENT("Unsupported CurveMeasure for curve_id: " + curveId);
     return CurveSampleMeasure::DiscountFactor; // unreachable
@@ -208,16 +198,13 @@ BootstrapCurvesQuery extractQuery(
     }
     const std::string curveId = query->curve_id()->str();
     if (!query->grid()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CurveQuerySpec.grid is required for curve_id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT("CurveQuerySpec.grid is required for curve_id: " + curveId);
     }
     if (!query->measures() || query->measures()->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CurveQuerySpec.measures is required for curve_id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT("CurveQuerySpec.measures is required for curve_id: " + curveId);
     }
     if (tsSpec == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(
-            "curve_id '" + curveId + "' not found in pricing.rates.curves");
+        QUANTRA_INVALID_ARGUMENT("curve_id '" + curveId + "' not found in pricing.rates.curves");
     }
 
     BootstrapCurvesQuery out;
@@ -227,29 +214,24 @@ BootstrapCurvesQuery extractQuery(
     out.allowExtrapolation = !options || options->allow_extrapolation();
 
     const QuantLib::Calendar curveCalendar = calendarFromTermStructure(tsSpec);
-    const QuantLib::Date referenceDate =
-        resolveCurveReferenceDate(tsSpec, asOfDate);
+    const QuantLib::Date referenceDate = resolveCurveReferenceDate(tsSpec, asOfDate);
 
     const QuantLib::Calendar gridCalendar =
         grid_utils::ResolveCalendar(query->grid(), options, curveCalendar);
     const QuantLib::BusinessDayConvention gridBdc =
-        grid_utils::ResolveBusinessDayConvention(
-            query->grid(), options, QuantLib::Following);
+        grid_utils::ResolveBusinessDayConvention(query->grid(), options, QuantLib::Following);
 
     if (query->grid()->grid_type() == quantra::DateGrid_TenorGrid) {
         out.gridDates = grid_utils::BuildTenorGrid(
-            query->grid()->grid_as_TenorGrid(),
-            referenceDate,
-            curveCalendar,
+            query->grid()->grid_as_TenorGrid(), referenceDate, curveCalendar,
             /*forceCalendarAdvance=*/false);
     } else if (query->grid()->grid_type() == quantra::DateGrid_RangeGrid) {
         const int maxPoints =
             (options && options->max_points() > 0) ? options->max_points() : 50000;
-        out.gridDates = grid_utils::BuildRangeGrid(
-            query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
+        out.gridDates =
+            grid_utils::BuildRangeGrid(query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
     } else {
-        QUANTRA_INVALID_ARGUMENT(
-            "DateGridSpec.grid is required for curve_id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required for curve_id: " + curveId);
     }
 
     out.pillarDates = extractPillarDates(tsSpec, referenceDate);
@@ -302,10 +284,8 @@ BootstrapCurvesInputs BootstrapCurvesMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::BootstrapCurvesResponse>
-BootstrapCurvesMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const BootstrapCurvesResult& result) const {
+flatbuffers::Offset<quantra::BootstrapCurvesResponse> BootstrapCurvesMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const BootstrapCurvesResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::BootstrapCurveResult>> results;
     results.reserve(result.curves.size());

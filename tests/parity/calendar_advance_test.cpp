@@ -5,23 +5,26 @@
 // exactly.
 // Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib binary.
-#include "parity_fixture.h"
-
 #include "date_convert.h"
+#include "parity_fixture.h"
 
 namespace quantra { namespace testing {
 
 namespace {
 
-void runAndCompare(quantra::enums::Calendar calEnum,
-                   const QuantLib::Calendar& cal, const std::string& date,
-                   int tenorNumber, quantra::enums::TimeUnit fbUnit,
-                   QuantLib::TimeUnit qlUnit,
-                   quantra::enums::BusinessDayConvention fbConv,
-                   QuantLib::BusinessDayConvention qlConv, bool endOfMonth) {
+void runAndCompare(
+    quantra::enums::Calendar calEnum,
+    const QuantLib::Calendar& cal,
+    const std::string& date,
+    int tenorNumber,
+    quantra::enums::TimeUnit fbUnit,
+    QuantLib::TimeUnit qlUnit,
+    quantra::enums::BusinessDayConvention fbConv,
+    QuantLib::BusinessDayConvention qlConv,
+    bool endOfMonth) {
     const QuantLib::Date input = DateToQL(date);
-    const QuantLib::Date expected = cal.advance(
-        input, QuantLib::Period(tenorNumber, qlUnit), qlConv, endOfMonth);
+    const QuantLib::Date expected =
+        cal.advance(input, QuantLib::Period(tenorNumber, qlUnit), qlConv, endOfMonth);
 
     flatbuffers::grpc::MessageBuilder b;
     auto d = b.CreateString(date);
@@ -36,9 +39,11 @@ void runAndCompare(quantra::enums::Calendar calEnum,
 
     CalendarAdvanceEndpoint req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalendarAdvanceRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::CalendarAdvanceRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::CalendarAdvanceResponse>(respB->GetBufferPointer());
+    const auto* r =
+        flatbuffers::GetRoot<quantra::CalendarAdvanceResponse>(respB->GetBufferPointer());
 
     EXPECT_EQ(r->calendar(), calEnum);
     ASSERT_NE(r->input_date(), nullptr);
@@ -51,35 +56,35 @@ void runAndCompare(quantra::enums::Calendar calEnum,
 
 // Forward advance by business days under TARGET.
 TEST_F(QuantraComparisonTest, CalendarAdvance_ForwardDays) {
-    runAndCompare(quantra::enums::Calendar_TARGET, QuantLib::TARGET(),
-                  "2025-01-15", 5, quantra::enums::TimeUnit_Days, QuantLib::Days,
-                  quantra::enums::BusinessDayConvention_Following, QuantLib::Following,
-                  false);
+    runAndCompare(
+        quantra::enums::Calendar_TARGET, QuantLib::TARGET(), "2025-01-15", 5,
+        quantra::enums::TimeUnit_Days, QuantLib::Days,
+        quantra::enums::BusinessDayConvention_Following, QuantLib::Following, false);
 }
 
 // Negative tenor (back-shift) under TARGET.
 TEST_F(QuantraComparisonTest, CalendarAdvance_BackwardDays) {
-    runAndCompare(quantra::enums::Calendar_TARGET, QuantLib::TARGET(),
-                  "2025-01-15", -3, quantra::enums::TimeUnit_Days, QuantLib::Days,
-                  quantra::enums::BusinessDayConvention_Preceding, QuantLib::Preceding,
-                  false);
+    runAndCompare(
+        quantra::enums::Calendar_TARGET, QuantLib::TARGET(), "2025-01-15", -3,
+        quantra::enums::TimeUnit_Days, QuantLib::Days,
+        quantra::enums::BusinessDayConvention_Preceding, QuantLib::Preceding, false);
 }
 
 // Month advance from a month-end date with end_of_month set, ModifiedFollowing.
 TEST_F(QuantraComparisonTest, CalendarAdvance_MonthsEndOfMonth) {
-    runAndCompare(quantra::enums::Calendar_TARGET, QuantLib::TARGET(),
-                  "2025-01-31", 1, quantra::enums::TimeUnit_Months, QuantLib::Months,
-                  quantra::enums::BusinessDayConvention_ModifiedFollowing,
-                  QuantLib::ModifiedFollowing, true);
+    runAndCompare(
+        quantra::enums::Calendar_TARGET, QuantLib::TARGET(), "2025-01-31", 1,
+        quantra::enums::TimeUnit_Months, QuantLib::Months,
+        quantra::enums::BusinessDayConvention_ModifiedFollowing, QuantLib::ModifiedFollowing, true);
 }
 
 // Year advance under the US government-bond calendar.
 TEST_F(QuantraComparisonTest, CalendarAdvance_UsGovBond_Years) {
-    runAndCompare(quantra::enums::Calendar_UnitedStatesGovernmentBond,
-                  QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond),
-                  "2025-07-04", 1, quantra::enums::TimeUnit_Years, QuantLib::Years,
-                  quantra::enums::BusinessDayConvention_Following, QuantLib::Following,
-                  false);
+    runAndCompare(
+        quantra::enums::Calendar_UnitedStatesGovernmentBond,
+        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), "2025-07-04", 1,
+        quantra::enums::TimeUnit_Years, QuantLib::Years,
+        quantra::enums::BusinessDayConvention_Following, QuantLib::Following, false);
 }
 
 }} // namespace quantra::testing

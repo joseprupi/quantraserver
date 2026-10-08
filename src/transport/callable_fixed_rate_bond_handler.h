@@ -2,12 +2,13 @@
 #define QUANTRASERVER_CALLABLE_FIXED_RATE_BOND_HANDLER_H
 
 #include "call_data_base.h"
+#include "callable_fixed_rate_bond_evaluator.h"
+#include "callable_fixed_rate_bond_mapper.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "callable_fixed_rate_bond_mapper.h"
-#include "callable_fixed_rate_bond_evaluator.h"
-#include "price_callable_fixed_rate_bond_request_generated.h"
+
 #include "callable_fixed_rate_bond_response_generated.h"
+#include "price_callable_fixed_rate_bond_request_generated.h"
 
 using quantra::PriceCallableFixedRateBondRequest;
 using quantra::PriceCallableFixedRateBondResponse;
@@ -27,26 +28,22 @@ using CallableFixedRateBondEndpoint = quantra::ProductEndpoint<
  * bond pricing.
  */
 class PriceCallableFixedRateBondData : public CallDataGeneric<
-    PriceCallableFixedRateBondRequest,
-    CallableFixedRateBondEndpoint,
-    PriceCallableFixedRateBondResponse,
-    PriceCallableFixedRateBondResponseBuilder>
-{
+                                           PriceCallableFixedRateBondRequest,
+                                           CallableFixedRateBondEndpoint,
+                                           PriceCallableFixedRateBondResponse,
+                                           PriceCallableFixedRateBondResponseBuilder> {
 public:
-    PriceCallableFixedRateBondData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
-    }
+    PriceCallableFixedRateBondData(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
 
-    void RequestCall() override
-    {
+    void RequestCall() override {
         service_->RequestPriceCallableFixedRateBond(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
+            &ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceCallableFixedRateBondData(service, cq);
         handler->start();
     }

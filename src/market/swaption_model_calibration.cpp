@@ -1,14 +1,11 @@
 #include "swaption_model_calibration.h"
 
+#include "date_convert.h"
+#include "error.h"
+#include "eval_date_guard.h"
+#include "hw_calibrate_cache.h"
+#include "hw_calibrate_cache_key.h"
 #include "request_validation.h"
-
-#include <cmath>
-#include <atomic>
-#include <iostream>
-#include <limits>
-#include <memory>
-#include <sstream>
-#include <vector>
 
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
@@ -20,11 +17,13 @@
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
 #include <ql/settings.hpp>
 
-#include "date_convert.h"
-#include "eval_date_guard.h"
-#include "error.h"
-#include "hw_calibrate_cache.h"
-#include "hw_calibrate_cache_key.h"
+#include <atomic>
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <vector>
 
 namespace {
 
@@ -52,9 +51,7 @@ double marketVolAtNode(
     const QuantLib::Period& tenor) {
     double v = 0.0;
     switch (volEntry.volKind) {
-        case quantra::enums::SwaptionVolKind_Constant:
-            v = volEntry.constantVol;
-            break;
+        case quantra::enums::SwaptionVolKind_Constant: v = volEntry.constantVol; break;
         case quantra::enums::SwaptionVolKind_AtmMatrix2D:
             v = volEntry.handle->volatility(expiry, tenor, 0.0, true);
             break;
@@ -189,13 +186,13 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     }
     const auto& sidx = reg.rates.swapIndices.get(swapIndexId);
     if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
-        QUANTRA_INVALID_ARGUMENT("Hull-White calibration currently supports Ibor swap_index_id only");
+        QUANTRA_INVALID_ARGUMENT(
+            "Hull-White calibration currently supports Ibor swap_index_id only");
     }
     // Guard against convention drift: helper constructor cannot fully encode non-standard swap conventions.
     if (sidx.fixedDateRule != QuantLib::DateGeneration::Forward ||
         sidx.fixedBdc != QuantLib::ModifiedFollowing ||
-        sidx.fixedTermBdc != QuantLib::ModifiedFollowing ||
-        sidx.fixedEom) {
+        sidx.fixedTermBdc != QuantLib::ModifiedFollowing || sidx.fixedEom) {
         QUANTRA_INVALID_ARGUMENT(
             "Hull-White calibration currently supports swap indices with Forward generation, "
             "ModifiedFollowing conventions, and fixed_eom=false");
@@ -208,8 +205,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         fallbackTenors = volEntry.tenors;
     }
     auto pickGrid = [&](const std::vector<QuantLib::Period>& fromSpec,
-                        const std::vector<QuantLib::Period>& fallback,
-                        const std::string& label) {
+                        const std::vector<QuantLib::Period>& fallback, const std::string& label) {
         if (!fromSpec.empty()) return fromSpec;
         if (!fallback.empty()) return fallback;
         QUANTRA_INVALID_ARGUMENT("Hull-White calibration requires non-empty " + label + " grid");
@@ -228,8 +224,7 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         std::ostringstream os;
         os << "Hull-White calibration grid too large: "
            << "rows=" << gridRows << ", cols=" << gridCols << ", points=" << gridPoints
-           << " (max rows=" << kMaxCalibrationGridRows
-           << ", max cols=" << kMaxCalibrationGridCols
+           << " (max rows=" << kMaxCalibrationGridRows << ", max cols=" << kMaxCalibrationGridCols
            << ", max points=" << kMaxCalibrationGridPoints << ")";
         QUANTRA_INVALID_ARGUMENT(os.str());
     }
@@ -247,10 +242,9 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     QuantLib::DayCounter floatingDc = ibor->dayCounter();
     // RelativePriceError can overweight low-price instruments, especially under Normal vols.
     // Use PriceError for Normal vols and ImpliedVolError for Black/ShiftedBlack stability.
-    const auto calibErrorType =
-        (volEntry.qlVolType == QuantLib::Normal)
-            ? QuantLib::BlackCalibrationHelper::PriceError
-            : QuantLib::BlackCalibrationHelper::ImpliedVolError;
+    const auto calibErrorType = (volEntry.qlVolType == QuantLib::Normal)
+                                    ? QuantLib::BlackCalibrationHelper::PriceError
+                                    : QuantLib::BlackCalibrationHelper::ImpliedVolError;
 
     // Clamp client knobs so no single calibration can be driven unbounded. These
     // CLAMPED values (not the raw request values) feed both the cache key and the
@@ -322,9 +316,8 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
         // without flooding logs.
         static std::atomic<bool> warned{false};
         if (!warned.exchange(true)) {
-            std::cerr << "[HwCalibCache] WARNING: cache key build failed: "
-                      << e.what() << " — caching skipped (logged once per process)"
-                      << std::endl;
+            std::cerr << "[HwCalibCache] WARNING: cache key build failed: " << e.what()
+                      << " — caching skipped (logged once per process)" << std::endl;
         }
         cacheKey.clear();
     }
@@ -348,19 +341,9 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
             auto volQuote = QuantLib::Handle<QuantLib::Quote>(
                 QuantLib::ext::make_shared<QuantLib::SimpleQuote>(marketVol));
             auto helper = QuantLib::ext::make_shared<QuantLib::SwaptionHelper>(
-                exp,
-                ten,
-                volQuote,
-                ibor,
-                fixedLegTenor,
-                sidx.fixedDayCounter,
-                floatingDc,
-                discountCurve,
-                calibErrorType,
-                QuantLib::Null<QuantLib::Real>(),
-                1.0,
-                volEntry.qlVolType,
-                volEntry.displacement,
+                exp, ten, volQuote, ibor, fixedLegTenor, sidx.fixedDayCounter, floatingDc,
+                discountCurve, calibErrorType, QuantLib::Null<QuantLib::Real>(), 1.0,
+                volEntry.qlVolType, volEntry.displacement,
                 static_cast<QuantLib::Natural>(sidx.spotDays));
             helpers.push_back(helper);
         }
@@ -390,19 +373,11 @@ HwCalibResult calibrateHullWhiteFromSwaptionVol(
     // clampedFunctionEvaluations / clampedMaxIterations computed above (and fed
     // into the cache key) so the entry reflects the work actually performed.
     QuantLib::EndCriteria endCriteria(
-        clampedFunctionEvaluations,
-        clampedMaxIterations,
-        calibSpec.end_criteria_eps,
-        calibSpec.end_criteria_eps,
-        calibSpec.end_criteria_eps);
-    std::vector<bool> fixParams = { !calibrateA, !calibrateSigma };
+        clampedFunctionEvaluations, clampedMaxIterations, calibSpec.end_criteria_eps,
+        calibSpec.end_criteria_eps, calibSpec.end_criteria_eps);
+    std::vector<bool> fixParams = {!calibrateA, !calibrateSigma};
     hwModel->calibrate(
-        helpers,
-        lm,
-        endCriteria,
-        QuantLib::NoConstraint(),
-        std::vector<double>(),
-        fixParams);
+        helpers, lm, endCriteria, QuantLib::NoConstraint(), std::vector<double>(), fixParams);
 
     const auto params = hwModel->params();
     if (params.size() < 2) {

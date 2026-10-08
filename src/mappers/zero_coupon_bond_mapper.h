@@ -7,11 +7,12 @@
  * serializes the ZeroCouponBondResult back into a PriceZeroCouponBondResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "zero_coupon_bond_evaluator.h"
+
 #include "price_zero_coupon_bond_request_generated.h"
 #include "zero_coupon_bond_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     ZeroCouponBondInputs toInputs(const quantra::PriceZeroCouponBondRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceZeroCouponBondResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const ZeroCouponBondResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponBondResult& result) const;
 };
 
 } // namespace quantra

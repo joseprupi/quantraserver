@@ -1,15 +1,16 @@
 #ifndef QUANTRA_EQUITY_OPTION_PARSER_H
 #define QUANTRA_EQUITY_OPTION_PARSER_H
 
-#include <memory>
-#include <string>
+#include "equity_option_evaluator.h"
+
+#include "equity_option_generated.h"
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/option.hpp>
 
-#include "equity_option_evaluator.h"
-#include "equity_option_generated.h"
+#include <memory>
+#include <string>
 
 namespace quantra {
 

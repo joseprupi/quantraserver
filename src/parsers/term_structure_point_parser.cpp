@@ -1,12 +1,12 @@
 #include "term_structure_point_parser.h"
 
-#include <ql/quotes/simplequote.hpp>
-#include <ql/termstructures/yield/ratehelpers.hpp>
-#include <ql/termstructures/yield/oisratehelper.hpp>
-#include <ql/instruments/makeois.hpp>
-#include <ql/settings.hpp>
-
 #include "request_validation.h"
+
+#include <ql/instruments/makeois.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/settings.hpp>
+#include <ql/termstructures/yield/oisratehelper.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
 
 using namespace QuantLib;
 
@@ -21,8 +21,7 @@ Handle<Quote> TermStructurePointParser::resolveQuote(
     const flatbuffers::String* quoteId,
     const QuoteRegistry* quotes,
     quantra::QuoteType expectedType,
-    double bump
-) const {
+    double bump) const {
     if (quoteId && quotes) {
         const std::string id = quoteId->str();
         if (!id.empty()) {
@@ -43,13 +42,11 @@ Handle<Quote> TermStructurePointParser::resolveQuote(
 // =============================================================================
 
 Handle<YieldTermStructure> TermStructurePointParser::resolveCurve(
-    const quantra::CurveRef* ref,
-    const CurveRegistry* curves
-) const {
+    const quantra::CurveRef* ref, const CurveRegistry* curves) const {
     if (!ref || !ref->id()) return Handle<YieldTermStructure>();
     if (!curves) {
-        QUANTRA_ERROR("Curve dependency '" + ref->id()->str() +
-                      "' specified but CurveRegistry is null");
+        QUANTRA_ERROR(
+            "Curve dependency '" + ref->id()->str() + "' specified but CurveRegistry is null");
     }
     return curves->get(ref->id()->str());
 }
@@ -64,15 +61,13 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
     const IndexRegistry* indices,
-    double bump
-) const {
+    double bump) const {
 
     // A union whose type byte names a helper but whose value offset is absent
     // survives FlatBuffers verification; the static_casts in each branch below
     // would then dereference a null table and crash. Reject it up front.
     if (point_type != quantra::Point_NONE && data == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(
-            "Term structure point union type is set but its value is missing");
+        QUANTRA_INVALID_ARGUMENT("Term structure point union type is set but its value is missing");
     }
 
     // ------------------------------------------------------------------
@@ -102,12 +97,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             QUANTRA_INVALID_ARGUMENT("DepositHelper.day_counter is required");
 
         return std::make_shared<DepositRateHelper>(
-            q,
-            requirePeriod(point->tenor(), "DepositHelper.tenor"),
+            q, requirePeriod(point->tenor(), "DepositHelper.tenor"),
             requireNonNegative(point->fixing_days(), "DepositHelper.fixing_days"),
             CalendarToQL(point->calendar().value()),
-            ConventionToQL(point->business_day_convention().value()),
-            true,
+            ConventionToQL(point->business_day_convention().value()), true,
             DayCounterToQL(point->day_counter().value()));
     }
 
@@ -135,13 +128,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             QUANTRA_INVALID_ARGUMENT("FRAHelper.day_counter is required");
 
         return std::make_shared<FraRateHelper>(
-            q,
-            point->months_to_start(),
-            point->months_to_end(),
+            q, point->months_to_start(), point->months_to_end(),
             requireNonNegative(point->fixing_days(), "FRAHelper.fixing_days"),
             CalendarToQL(point->calendar().value()),
-            ConventionToQL(point->business_day_convention().value()),
-            true,
+            ConventionToQL(point->business_day_convention().value()), true,
             DayCounterToQL(point->day_counter().value()));
     }
 
@@ -168,7 +158,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
                 "FutureHelper requires one of futures_price, rate or quote_id");
         }
 
-        auto q = resolveQuote(priceValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+        auto q =
+            resolveQuote(priceValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
 
         if (!point->future_start_date()) {
             QUANTRA_INVALID_ARGUMENT("FutureHelper.future_start_date is required");
@@ -180,18 +171,14 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         if (!point->day_counter().has_value())
             QUANTRA_INVALID_ARGUMENT("FutureHelper.day_counter is required");
 
-        auto convexity = Handle<Quote>(
-            std::make_shared<SimpleQuote>(point->convexity_adjustment()));
+        auto convexity =
+            Handle<Quote>(std::make_shared<SimpleQuote>(point->convexity_adjustment()));
 
         return std::make_shared<FuturesRateHelper>(
-            q,
-            DateToQL(point->future_start_date()->str()),
-            point->future_months(),
+            q, DateToQL(point->future_start_date()->str()), point->future_months(),
             CalendarToQL(point->calendar().value()),
-            ConventionToQL(point->business_day_convention().value()),
-            true,
-            DayCounterToQL(point->day_counter().value()),
-            convexity);
+            ConventionToQL(point->business_day_convention().value()), true,
+            DayCounterToQL(point->day_counter().value()), convexity);
     }
 
     // ------------------------------------------------------------------
@@ -275,17 +262,12 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
             QUANTRA_INVALID_ARGUMENT("SwapHelper.sw_fixed_leg_day_counter is required");
 
         return std::make_shared<SwapRateHelper>(
-            q,
-            requirePeriod(point->tenor(), "SwapHelper.tenor"),
+            q, requirePeriod(point->tenor(), "SwapHelper.tenor"),
             CalendarToQL(point->calendar().value()),
             FrequencyToQL(point->sw_fixed_leg_frequency().value()),
             ConventionToQL(point->sw_fixed_leg_convention().value()),
-            DayCounterToQL(point->sw_fixed_leg_day_counter().value()),
-            ibor,
-            spread,
-            point->fwd_start_days() * Days,
-            discount
-        );
+            DayCounterToQL(point->sw_fixed_leg_day_counter().value()), ibor, spread,
+            point->fwd_start_days() * Days, discount);
     }
 
     // ------------------------------------------------------------------
@@ -304,8 +286,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         } else if (has_quote) {
             px = 0.0; // unused: quote_id supplies the value below
         } else {
-            QUANTRA_INVALID_ARGUMENT(
-                "BondHelper requires one of price, rate or quote_id");
+            QUANTRA_INVALID_ARGUMENT("BondHelper requires one of price, rate or quote_id");
         }
 
         auto q = resolveQuote(px, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
@@ -326,14 +307,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         const double redemption = requirePositive(point->redemption(), "BondHelper.redemption");
 
         return std::make_shared<FixedRateBondHelper>(
-            q,
-            requireNonNegative(point->settlement_days(), "BondHelper.settlement_days"),
-            faceAmount,
-            *schedule_parser.parse(point->schedule()),
-            std::vector<Rate>(1, couponRate),
+            q, requireNonNegative(point->settlement_days(), "BondHelper.settlement_days"),
+            faceAmount, *schedule_parser.parse(point->schedule()), std::vector<Rate>(1, couponRate),
             DayCounterToQL(point->day_counter().value()),
-            ConventionToQL(point->business_day_convention().value()),
-            redemption,
+            ConventionToQL(point->business_day_convention().value()), redemption,
             DateToQL(point->issue_date()->str()));
     }
 
@@ -400,9 +377,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // telescopic formula), so the two are not interchangeable.
         const int lookbackWire =
             requireNonNegativeInt(point->lookback_days(), "OISHelper.lookback_days");
-        const Natural lookbackDays = lookbackWire == 0
-            ? Null<Natural>()
-            : static_cast<Natural>(lookbackWire);
+        const Natural lookbackDays =
+            lookbackWire == 0 ? Null<Natural>() : static_cast<Natural>(lookbackWire);
 
         // fixed_leg_frequency / fixed_leg_convention / calendar feed QuantLib's
         // PAYMENT frequency / convention / calendar slots (see the schema
@@ -410,32 +386,26 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
             requireNonNegativeInt(point->settlement_days(), "OISHelper.settlement_days"),
-            requirePeriod(point->tenor(), "OISHelper.tenor"),
-            q,
-            on,
-            discount,
+            requirePeriod(point->tenor(), "OISHelper.tenor"), q, on, discount,
             false, // telescopicValueDates: helper-internal performance toggle
             requireNonNegativeInt(point->payment_lag(), "OISHelper.payment_lag"),
-            ConventionToQL(requireEnum(point->fixed_leg_convention(),
-                                       "OISHelper.fixed_leg_convention")),
-            FrequencyToQL(requireEnum(point->fixed_leg_frequency(),
-                                      "OISHelper.fixed_leg_frequency")),
+            ConventionToQL(
+                requireEnum(point->fixed_leg_convention(), "OISHelper.fixed_leg_convention")),
+            FrequencyToQL(
+                requireEnum(point->fixed_leg_frequency(), "OISHelper.fixed_leg_frequency")),
             CalendarToQL(requireEnum(point->calendar(), "OISHelper.calendar")),
             0 * Days, // forwardStart: spot-starting (tenor helper)
             0.0,      // overnightSpread
             QuantLib::Pillar::LastRelevantDate,
-            Date(),   // customPillarDate: unused with LastRelevantDate
-            RateAveragingToQL(requireEnum(point->averaging_method(),
-                                          "OISHelper.averaging_method")),
+            Date(), // customPillarDate: unused with LastRelevantDate
+            RateAveragingToQL(requireEnum(point->averaging_method(), "OISHelper.averaging_method")),
             ext::nullopt, // endOfMonth: QuantLib default
             ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
             Calendar(),   // fixedCalendar: QuantLib default (index calendar)
             lookbackDays,
-            static_cast<Natural>(requireNonNegativeInt(
-                point->lockout_days(), "OISHelper.lockout_days")),
-            requireBool(point->apply_observation_shift(),
-                        "OISHelper.apply_observation_shift")
-        );
+            static_cast<Natural>(
+                requireNonNegativeInt(point->lockout_days(), "OISHelper.lockout_days")),
+            requireBool(point->apply_observation_shift(), "OISHelper.apply_observation_shift"));
     }
 
     // ------------------------------------------------------------------
@@ -477,7 +447,7 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         auto on = indices->getOvernight(indexId);
 
         Date start = DateToQL(point->start_date()->str());
-        Date end   = DateToQL(point->end_date()->str());
+        Date end = DateToQL(point->end_date()->str());
 
         // Resolve exogenous discount curve
         Handle<YieldTermStructure> discount;
@@ -492,11 +462,10 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // Wire 0 = "no lookback"; QuantLib's off-state is Null<Natural>, not a
         // zero-day lookback (see the OISHelper branch above for why the two
         // differ when the index has a non-zero intrinsic fixing delay).
-        const int lookbackWire = requireNonNegativeInt(
-            point->lookback_days(), "DatedOISHelper.lookback_days");
-        const Natural lookbackDays = lookbackWire == 0
-            ? Null<Natural>()
-            : static_cast<Natural>(lookbackWire);
+        const int lookbackWire =
+            requireNonNegativeInt(point->lookback_days(), "DatedOISHelper.lookback_days");
+        const Natural lookbackDays =
+            lookbackWire == 0 ? Null<Natural>() : static_cast<Natural>(lookbackWire);
 
         // fixed_leg_frequency / fixed_leg_convention / calendar feed QuantLib's
         // PAYMENT frequency / convention / calendar slots (see the schema
@@ -504,32 +473,26 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
         // OISRateHelper overload takes a day counter.
         return std::make_shared<OISRateHelper>(
             requireNonNegativeInt(point->settlement_days(), "DatedOISHelper.settlement_days"),
-            tenor,
-            q,
-            on,
-            discount,
+            tenor, q, on, discount,
             false, // telescopicValueDates: helper-internal performance toggle
             requireNonNegativeInt(point->payment_lag(), "DatedOISHelper.payment_lag"),
-            ConventionToQL(requireEnum(point->fixed_leg_convention(),
-                                       "DatedOISHelper.fixed_leg_convention")),
-            FrequencyToQL(requireEnum(point->fixed_leg_frequency(),
-                                      "DatedOISHelper.fixed_leg_frequency")),
-            CalendarToQL(requireEnum(point->calendar(), "DatedOISHelper.calendar")),
-            forwardStart,
-            0.0,      // overnightSpread
-            QuantLib::Pillar::LastRelevantDate,
-            end,
-            RateAveragingToQL(requireEnum(point->averaging_method(),
-                                          "DatedOISHelper.averaging_method")),
+            ConventionToQL(
+                requireEnum(point->fixed_leg_convention(), "DatedOISHelper.fixed_leg_convention")),
+            FrequencyToQL(
+                requireEnum(point->fixed_leg_frequency(), "DatedOISHelper.fixed_leg_frequency")),
+            CalendarToQL(requireEnum(point->calendar(), "DatedOISHelper.calendar")), forwardStart,
+            0.0, // overnightSpread
+            QuantLib::Pillar::LastRelevantDate, end,
+            RateAveragingToQL(
+                requireEnum(point->averaging_method(), "DatedOISHelper.averaging_method")),
             ext::nullopt, // endOfMonth: QuantLib default
             ext::nullopt, // fixedPaymentFrequency: paymentFrequency drives both legs
             Calendar(),   // fixedCalendar: QuantLib default (index calendar)
             lookbackDays,
-            static_cast<Natural>(requireNonNegativeInt(
-                point->lockout_days(), "DatedOISHelper.lockout_days")),
-            requireBool(point->apply_observation_shift(),
-                        "DatedOISHelper.apply_observation_shift")
-        );
+            static_cast<Natural>(
+                requireNonNegativeInt(point->lockout_days(), "DatedOISHelper.lockout_days")),
+            requireBool(
+                point->apply_observation_shift(), "DatedOISHelper.apply_observation_shift"));
     }
 
     // ------------------------------------------------------------------
@@ -537,11 +500,9 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_TenorBasisSwapHelper) {
         QUANTRA_NOT_IMPLEMENTED("TenorBasisSwapHelper: schema-ready but not implemented.");
-    }
-    else if (point_type == quantra::Point_FxSwapHelper) {
+    } else if (point_type == quantra::Point_FxSwapHelper) {
         QUANTRA_NOT_IMPLEMENTED("FxSwapHelper: schema-ready but not implemented.");
-    }
-    else if (point_type == quantra::Point_CrossCcyBasisHelper) {
+    } else if (point_type == quantra::Point_CrossCcyBasisHelper) {
         QUANTRA_NOT_IMPLEMENTED("CrossCcyBasisHelper: schema-ready but not implemented.");
     }
 

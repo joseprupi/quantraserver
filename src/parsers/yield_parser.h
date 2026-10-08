@@ -7,27 +7,25 @@
  * Parses a FlatBuffers Yield specification into a YieldStruct for bond analytics.
  */
 
-#include <memory>
-
-#include <ql/time/daycounter.hpp>
-#include <ql/compounding.hpp>
-#include <ql/time/frequency.hpp>
-
-#include "common_generated.h"
 #include "enum_convert.h"
 
+#include "common_generated.h"
 
-struct YieldStruct
-{
+#include <ql/compounding.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/frequency.hpp>
+
+#include <memory>
+
+struct YieldStruct {
     QuantLib::DayCounter day_counter;
     QuantLib::Compounding compounding;
     QuantLib::Frequency frequency;
 };
 
-class YieldParser
-{
+class YieldParser {
 public:
-    std::shared_ptr<YieldStruct> parse(const quantra::Yield *yield);
+    std::shared_ptr<YieldStruct> parse(const quantra::Yield* yield);
 };
 
 #endif // QUANTRASERVER_YIELD_PARSER_H

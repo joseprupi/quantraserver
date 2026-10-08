@@ -12,17 +12,17 @@
  * QL-typed registry fields (reg.rates.curves, reg.rates.indices).
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -97,9 +97,8 @@ struct BasisSwapResult {
 
 class BasisSwapEvaluator {
 public:
-    BasisSwapResult evaluate(const BasisSwapInputs& inputs,
-                          const PricingRegistry& reg,
-                          const PricingContext& ctx) const;
+    BasisSwapResult evaluate(
+        const BasisSwapInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const;
 };
 
 } // namespace quantra

@@ -1,15 +1,16 @@
 #include "swaption_vol_diagnostics.h"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <sstream>
+#include "enum_convert.h"
+
+#include "common_generated.h"
 
 #include <ql/math/optimization/endcriteria.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
 
-#include "common_generated.h"
-#include "enum_convert.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <sstream>
 
 namespace quantra {
 
@@ -17,8 +18,8 @@ namespace {
 
 // Thresholds for diagnostic warnings. Conservatively set: these flag genuinely
 // bad fits, not just noisy market data.
-constexpr double kRmseWarnThreshold = 0.005;     // 50 bps in vol units
-constexpr double kMaxErrorWarnThreshold = 0.01;  // 100 bps in vol units
+constexpr double kRmseWarnThreshold = 0.005;    // 50 bps in vol units
+constexpr double kMaxErrorWarnThreshold = 0.01; // 100 bps in vol units
 
 bool endCriteriaConverged(int endCriteria) {
     auto t = static_cast<QuantLib::EndCriteria::Type>(endCriteria);
@@ -27,13 +28,11 @@ bool endCriteriaConverged(int endCriteria) {
         case QuantLib::EndCriteria::StationaryFunctionValue:
         case QuantLib::EndCriteria::StationaryFunctionAccuracy:
         case QuantLib::EndCriteria::ZeroGradientNorm:
-        case QuantLib::EndCriteria::FunctionEpsilonTooSmall:
-            return true;
+        case QuantLib::EndCriteria::FunctionEpsilonTooSmall: return true;
         case QuantLib::EndCriteria::None:
         case QuantLib::EndCriteria::MaxIterations:
         case QuantLib::EndCriteria::Unknown:
-        default:
-            return false;
+        default: return false;
     }
 }
 
@@ -110,8 +109,7 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
     std::vector<std::string> warnings;
     bool converged = true;
 
-    if (isSabr && nNodes > 0 &&
-        static_cast<int>(entry.atmForwardsFlat.size()) == nNodes &&
+    if (isSabr && nNodes > 0 && static_cast<int>(entry.atmForwardsFlat.size()) == nNodes &&
         static_cast<int>(entry.sabrAlpha.size()) == nNodes &&
         static_cast<int>(entry.sabrBeta.size()) == nNodes &&
         static_cast<int>(entry.sabrNu.size()) == nNodes &&
@@ -125,14 +123,14 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
                     std::vector<QuantLib::Real> params = {
                         entry.sabrAlpha[k], entry.sabrBeta[k], entry.sabrNu[k], entry.sabrRho[k]};
                     QuantLib::SabrSmileSection section(
-                        tte[k], entry.atmForwardsFlat[k], params, entry.displacement, entry.qlVolType);
+                        tte[k], entry.atmForwardsFlat[k], params, entry.displacement,
+                        entry.qlVolType);
                     atmVol[k] = section.volatility(entry.atmForwardsFlat[k]);
                 }
             }
         }
 
-        if (isCalibrate &&
-            static_cast<int>(entry.sabrStrikeSpreads.size()) == entry.nStrikes &&
+        if (isCalibrate && static_cast<int>(entry.sabrStrikeSpreads.size()) == entry.nStrikes &&
             static_cast<int>(entry.sabrMarketVolsFlat.size()) == nNodes * entry.nStrikes) {
             perStrikeError.assign(nNodes * entry.nStrikes, 0.0);
             for (int i = 0; i < nExp; ++i) {
@@ -142,11 +140,13 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
                     std::vector<QuantLib::Real> params = {
                         entry.sabrAlpha[k], entry.sabrBeta[k], entry.sabrNu[k], entry.sabrRho[k]};
                     QuantLib::SabrSmileSection section(
-                        tte[k], entry.atmForwardsFlat[k], params, entry.displacement, entry.qlVolType);
+                        tte[k], entry.atmForwardsFlat[k], params, entry.displacement,
+                        entry.qlVolType);
                     for (int s = 0; s < entry.nStrikes; ++s) {
                         const double abs = entry.atmForwardsFlat[k] + entry.sabrStrikeSpreads[s];
                         const double model = section.volatility(abs);
-                        const double mkt = entry.sabrMarketVolsFlat[(i * nTen + j) * entry.nStrikes + s];
+                        const double mkt =
+                            entry.sabrMarketVolsFlat[(i * nTen + j) * entry.nStrikes + s];
                         perStrikeError[k * entry.nStrikes + s] = model - mkt;
                     }
                 }
@@ -156,8 +156,7 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
 
     // Warnings for SabrCalibrate: large fit errors, non-convergent nodes.
     flatbuffers::Offset<quantra::SabrCalibrationDiagnostics> calibOff = 0;
-    if (isCalibrate &&
-        static_cast<int>(entry.sabrPerNodeRmse.size()) == nNodes &&
+    if (isCalibrate && static_cast<int>(entry.sabrPerNodeRmse.size()) == nNodes &&
         static_cast<int>(entry.sabrPerNodeMaxError.size()) == nNodes &&
         static_cast<int>(entry.sabrPerNodeEndCriteria.size()) == nNodes) {
         double sumSq = 0.0;
@@ -180,21 +179,23 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
                 if (mxe > kMaxErrorWarnThreshold) {
                     std::ostringstream w;
                     w << "vol_id='" << volId << "' node(expiryIdx=" << i << ",tenorIdx=" << j
-                      << ") max_abs_error=" << mxe << " exceeds threshold " << kMaxErrorWarnThreshold;
+                      << ") max_abs_error=" << mxe << " exceeds threshold "
+                      << kMaxErrorWarnThreshold;
                     warnings.push_back(w.str());
                 }
                 if (!endCriteriaConverged(entry.sabrPerNodeEndCriteria[k])) {
                     converged = false;
                     std::ostringstream w;
                     w << "vol_id='" << volId << "' node(expiryIdx=" << i << ",tenorIdx=" << j
-                      << ") did not converge: end_criteria=" << endCriteriaName(entry.sabrPerNodeEndCriteria[k]);
+                      << ") did not converge: end_criteria="
+                      << endCriteriaName(entry.sabrPerNodeEndCriteria[k]);
                     warnings.push_back(w.str());
                 }
             }
         }
         const double overallRmse = countedRmse > 0
-            ? std::sqrt(sumSq / static_cast<double>(countedRmse))
-            : std::numeric_limits<double>::quiet_NaN();
+                                       ? std::sqrt(sumSq / static_cast<double>(countedRmse))
+                                       : std::numeric_limits<double>::quiet_NaN();
 
         // QuantLib 1.41's SABRInterpolation does not expose iteration count
         // publicly; emit -1 as the documented sentinel.
@@ -205,8 +206,8 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
         auto itersOff = fbb.CreateVector(iters);
         auto strikesOff = fbb.CreateVector(entry.sabrStrikeSpreads);
         auto perStrikeOff = perStrikeError.empty()
-            ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-            : fbb.CreateVector(perStrikeError);
+                                ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                : fbb.CreateVector(perStrikeError);
 
         quantra::SabrCalibrationDiagnosticsBuilder cb(fbb);
         cb.add_per_node_rmse(rmseOff);
@@ -226,34 +227,29 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildSwaptionVolDiagnostics
     }
 
     auto fwdOff = entry.atmForwardsFlat.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(entry.atmForwardsFlat);
-    auto atmVolOff = atmVol.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(atmVol);
-    auto tteOff = tte.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(tte);
-    auto alphaOff = entry.sabrAlpha.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(entry.sabrAlpha);
-    auto betaOff = entry.sabrBeta.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(entry.sabrBeta);
-    auto rhoOff = entry.sabrRho.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(entry.sabrRho);
-    auto nuOff = entry.sabrNu.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
-        : fbb.CreateVector(entry.sabrNu);
+                      ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                      : fbb.CreateVector(entry.atmForwardsFlat);
+    auto atmVolOff = atmVol.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                    : fbb.CreateVector(atmVol);
+    auto tteOff =
+        tte.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0) : fbb.CreateVector(tte);
+    auto alphaOff = entry.sabrAlpha.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                            : fbb.CreateVector(entry.sabrAlpha);
+    auto betaOff = entry.sabrBeta.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                          : fbb.CreateVector(entry.sabrBeta);
+    auto rhoOff = entry.sabrRho.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                        : fbb.CreateVector(entry.sabrRho);
+    auto nuOff = entry.sabrNu.empty() ? flatbuffers::Offset<flatbuffers::Vector<double>>(0)
+                                      : fbb.CreateVector(entry.sabrNu);
     std::vector<flatbuffers::Offset<flatbuffers::String>> warnOffs;
     warnOffs.reserve(warnings.size());
     for (const auto& w : warnings) {
         warnOffs.push_back(fbb.CreateString(w));
     }
-    auto warningsOff = warnOffs.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>(0)
-        : fbb.CreateVector(warnOffs);
+    auto warningsOff =
+        warnOffs.empty()
+            ? flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>(0)
+            : fbb.CreateVector(warnOffs);
 
     quantra::SwaptionVolDiagnosticsBuilder b(fbb);
     b.add_vol_id(volIdOff);
@@ -285,9 +281,10 @@ flatbuffers::Offset<quantra::SwaptionVolDiagnostics> buildPartialSwaptionVolDiag
     for (const auto& w : warnings) {
         warnOffs.push_back(fbb.CreateString(w));
     }
-    auto warningsOff = warnOffs.empty()
-        ? flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>(0)
-        : fbb.CreateVector(warnOffs);
+    auto warningsOff =
+        warnOffs.empty()
+            ? flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>(0)
+            : fbb.CreateVector(warnOffs);
     quantra::SwaptionVolDiagnosticsBuilder b(fbb);
     b.add_vol_id(volIdOff);
     b.add_kind(kind);

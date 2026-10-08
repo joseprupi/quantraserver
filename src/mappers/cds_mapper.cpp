@@ -1,12 +1,12 @@
 #include "cds_mapper.h"
 
-#include <cmath>
-
 #include "date_convert.h"
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -60,11 +60,10 @@ CdsTrade extractTrade(const quantra::PriceCDS* pricing) {
     trade.dayCounter = DayCounterToQL(cds->day_counter().value());
     trade.businessDayConvention = ConventionToQL(cds->business_day_convention().value());
     trade.settlesAccrual = requireBool(cds->settles_accrual(), "CDS.settles_accrual");
-    trade.paysAtDefaultTime =
-        requireBool(cds->pays_at_default_time(), "CDS.pays_at_default_time");
+    trade.paysAtDefaultTime = requireBool(cds->pays_at_default_time(), "CDS.pays_at_default_time");
     trade.rebatesAccrual = requireBool(cds->rebates_accrual(), "CDS.rebates_accrual");
-    trade.lastPeriodDayCounter = DayCounterToQL(
-        requireEnum(cds->last_period_day_counter(), "CDS.last_period_day_counter"));
+    trade.lastPeriodDayCounter =
+        DayCounterToQL(requireEnum(cds->last_period_day_counter(), "CDS.last_period_day_counter"));
     if (cds->protection_start() && cds->protection_start()->size() > 0) {
         trade.protectionStart = DateToQL(cds->protection_start()->str());
     }
@@ -92,8 +91,7 @@ CdsInputs CdsMapper::toInputs(const quantra::PriceCDSRequest* req) const {
     }
     const auto* list = req->cds_list();
     if (list == nullptr || list->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceCDSRequest.cds_list is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT("PriceCDSRequest.cds_list is required and must be non-empty");
     }
 
     CdsInputs inputs;
@@ -105,8 +103,7 @@ CdsInputs CdsMapper::toInputs(const quantra::PriceCDSRequest* req) const {
 }
 
 flatbuffers::Offset<quantra::PriceCDSResponse> CdsMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CdsResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const CdsResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::CDSValues>> valueOffsets;
     valueOffsets.reserve(result.values.size());

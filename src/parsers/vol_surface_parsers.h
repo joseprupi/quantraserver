@@ -12,25 +12,27 @@
  *   - BlackVolSpec      -> BlackConstantVol (equity/FX options)
  */
 
-#include <ql/handle.hpp>
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
-#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
-#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-#include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
-#include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
-#include <vector>
-#include <string>
-#include <map>
-#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
-#include <ql/time/date.hpp>
-#include <ql/time/calendar.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/indexes/swapindex.hpp>
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "quote_registry.h"
 
 #include "volatility_generated.h"
-#include "enum_convert.h"
-#include "date_convert.h"
-#include "quote_registry.h"
+
+#include <ql/handle.hpp>
+#include <ql/indexes/swapindex.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
+#include <ql/time/daycounter.hpp>
+
+#include <map>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -140,12 +142,14 @@ QuantLib::VolatilityType toQlVolType(quantra::enums::VolatilityType t);
 /**
  * Parse OptionletVolSpec from FlatBuffers into QuantLib structure.
  */
-OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
+OptionletVolEntry parseOptionletVol(
+    const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
 
 /**
  * Parse SwaptionVolSpec from FlatBuffers into QuantLib structure.
  */
-SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
+SwaptionVolEntry parseSwaptionVol(
+    const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes = nullptr);
 
 /**
  * Build a bumped swaption vol entry (parallel bump).
@@ -153,15 +157,14 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
 /// Rebuilds a swaption vol entry with its quoted vols shifted by `volBump` and
 /// (for the theta roll) its reference date moved by `rollDays`. Returns the
 /// input unchanged when both are zero.
-SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump,
-                                      int rollDays = 0);
+SwaptionVolEntry bumpSwaptionVolEntry(
+    const SwaptionVolEntry& base, double volBump, int rollDays = 0);
 
 /**
  * Rebuild smile cube entry with server-computed ATM forwards.
  */
 SwaptionVolEntry withSwaptionSmileCubeAtm(
-    const SwaptionVolEntry& base,
-    const std::vector<double>& atmForwardsFlat);
+    const SwaptionVolEntry& base, const std::vector<double>& atmForwardsFlat);
 
 /**
  * Build a SABR params swaption vol structure from per-node ATM forwards.
@@ -173,8 +176,7 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
  * `atmForwardsFlat` populated; other fields are passed through unchanged.
  */
 SwaptionVolEntry withSwaptionSabrParamsAtm(
-    const SwaptionVolEntry& base,
-    const std::vector<double>& atmForwardsFlat);
+    const SwaptionVolEntry& base, const std::vector<double>& atmForwardsFlat);
 
 /**
  * Build a SABR-calibrated swaption vol structure from per-node ATM forwards.
@@ -206,8 +208,9 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
 BlackVolEntry parseBlackVol(
     const quantra::VolSurfaceSpec* spec,
     const QuoteRegistry* quotes = nullptr,
-    const std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves =
-        nullptr);
+    const std::
+        map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>*
+            curves = nullptr);
 
 /**
  * Parse YoYOptionletVolSpec from FlatBuffers into a plain YoYOptionletVolEntry.

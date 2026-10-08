@@ -13,17 +13,17 @@
  * reg.volatility.blackVols, reg.volatility.modelDomains).
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/swaption.hpp>
 #include <ql/option.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -48,7 +48,7 @@ struct EquityOptionTrade {
     QuantLib::Option::Type optionType = QuantLib::Option::Call;
     double strike = 0.0;
     EquityPayoffKind payoffKind = EquityPayoffKind::PlainVanilla;
-    double cash = 0.0;  // cash amount for a cash-or-nothing digital payoff
+    double cash = 0.0; // cash amount for a cash-or-nothing digital payoff
     std::shared_ptr<QuantLib::Exercise> exercise;
 
     bool hasBarrier = false;
@@ -89,9 +89,10 @@ struct EquityOptionResult {
 
 class EquityOptionEvaluator {
 public:
-    EquityOptionResult evaluate(const EquityOptionInputs& inputs,
-                             const PricingRegistry& reg,
-                             const PricingContext& ctx) const;
+    EquityOptionResult evaluate(
+        const EquityOptionInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

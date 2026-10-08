@@ -12,14 +12,14 @@
  * QL-typed registry fields (reg.rates.curves, reg.rates.indices).
  */
 
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/position.hpp>
 #include <ql/time/date.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -54,9 +54,8 @@ struct FraResult {
 
 class FraEvaluator {
 public:
-    FraResult evaluate(const FraInputs& inputs,
-                    const PricingRegistry& reg,
-                    const PricingContext& ctx) const;
+    FraResult evaluate(
+        const FraInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const;
 };
 
 } // namespace quantra

@@ -3,6 +3,7 @@
 
 #include "model_domain.h"
 #include "pricing_registry.h"
+
 #include "model_generated.h"
 
 namespace quantra {

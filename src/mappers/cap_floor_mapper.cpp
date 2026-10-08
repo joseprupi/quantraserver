@@ -1,10 +1,10 @@
 #include "cap_floor_mapper.h"
 
 #include "date_convert.h"
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
 
 namespace quantra {
 
@@ -87,8 +87,7 @@ CapFloorInputs CapFloorMapper::toInputs(const quantra::PriceCapFloorRequest* req
 }
 
 flatbuffers::Offset<quantra::PriceCapFloorResponse> CapFloorMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CapFloorResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const CapFloorResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::CapFloorResponse>> capFloors;
     capFloors.reserve(result.trades.size());

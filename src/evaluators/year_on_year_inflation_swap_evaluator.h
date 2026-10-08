@@ -10,9 +10,8 @@
  * year_on_year_inflation_swap_mapper.{h,cpp}.
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/cpicoupon.hpp>
@@ -23,8 +22,9 @@
 #include <ql/time/period.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -32,8 +32,7 @@ namespace quantra {
 /// already converted enums to QL types and parsed both schedules; the evaluator
 /// never touches FlatBuffers.
 struct YearOnYearInflationSwapTrade {
-    QuantLib::YearOnYearInflationSwap::Type swapType =
-        QuantLib::YearOnYearInflationSwap::Payer;
+    QuantLib::YearOnYearInflationSwap::Type swapType = QuantLib::YearOnYearInflationSwap::Payer;
     double notional = 0.0;
     QuantLib::Schedule fixedSchedule;
     double fixedRate = 0.0;
@@ -104,9 +103,10 @@ struct YearOnYearInflationSwapResult {
 
 class YearOnYearInflationSwapEvaluator {
 public:
-    YearOnYearInflationSwapResult evaluate(const YearOnYearInflationSwapInputs& inputs,
-                                        const PricingRegistry& reg,
-                                        const PricingContext& ctx) const;
+    YearOnYearInflationSwapResult evaluate(
+        const YearOnYearInflationSwapInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

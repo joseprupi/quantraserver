@@ -10,11 +10,12 @@
  * are enforced by applyCalendarOverrides.
  */
 
-#include <string>
-#include <vector>
+#include "calendar_overrides.h"
 
 #include "calendar_override_generated.h"
-#include "calendar_overrides.h"
+
+#include <string>
+#include <vector>
 
 namespace quantra {
 

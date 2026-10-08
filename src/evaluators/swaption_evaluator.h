@@ -24,21 +24,6 @@
  * IndexRegistry directly.
  */
 
-#include <limits>
-#include <map>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
-
-#include <ql/handle.hpp>
-#include <ql/instruments/swaption.hpp>
-#include <ql/pricingengine.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/time/date.hpp>
-
-#include <ql/instruments/swaption.hpp>
-
 #include "curve_bootstrapper.h"
 #include "enum_convert.h"
 #include "index_registry.h"
@@ -48,6 +33,19 @@
 #include "swaption_rebump.h"
 #include "vanilla_swap_evaluator.h"
 #include "vol_surface_parsers.h"
+
+#include <ql/handle.hpp>
+#include <ql/instruments/swaption.hpp>
+#include <ql/pricingengine.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/date.hpp>
+
+#include <limits>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -59,8 +57,7 @@ namespace quantra {
 /// date validation) are evaluated at construction time, so the same instrument
 /// rebuilds correctly under the rolled evaluation date of the theta leg.
 struct SwaptionInstrument {
-    quantra::enums::ExerciseType exerciseType =
-        quantra::enums::ExerciseType_European;
+    quantra::enums::ExerciseType exerciseType = quantra::enums::ExerciseType_European;
     /// True when the FB swaption carried a single exercise_date. Mirrors the
     /// legacy `exercise_date() != NULL` requiredness check for European/American.
     bool hasExerciseDate = false;
@@ -68,8 +65,7 @@ struct SwaptionInstrument {
     QuantLib::Date exerciseDate;
     /// Bermudan exercise date set. Empty when the FB field was absent.
     std::vector<QuantLib::Date> bermudanExerciseDates;
-    quantra::enums::SettlementType settlementType =
-        quantra::enums::SettlementType_Physical;
+    quantra::enums::SettlementType settlementType = quantra::enums::SettlementType_Physical;
     QuantLib::Settlement::Method settlementMethod = QuantLib::Settlement::PhysicalOTC;
 
     /// Underlying swap. Exactly one branch is populated, selected by
@@ -158,27 +154,24 @@ struct SwaptionPerTrade {
     // only when it holds a value, so a greek that was not requested (or an
     // ATM level the vol surface does not carry) is absent from the response
     // instead of showing up as 0.0 / a sentinel.
-    std::optional<double> impliedVolatility;            // engine-provided, when finite
-    std::optional<double> atmForward;                   // swaption_pricing_details
-    std::optional<double> annuity;                      // swaption_pricing_details
-    std::optional<double> delta;                        // swaption_pricing_details
-    std::optional<double> vega;                         // either flag
-    std::optional<double> gamma;                        // either flag
-    std::optional<double> theta;                        // either flag
-    std::optional<double> dv01;                         // either flag
+    std::optional<double> impliedVolatility; // engine-provided, when finite
+    std::optional<double> atmForward;        // swaption_pricing_details
+    std::optional<double> annuity;           // swaption_pricing_details
+    std::optional<double> delta;             // swaption_pricing_details
+    std::optional<double> vega;              // either flag
+    std::optional<double> gamma;             // either flag
+    std::optional<double> theta;             // either flag
+    std::optional<double> dv01;              // either flag
     double usedVolatility = 0.0;
     std::string usedOptionExpiry;
     std::string usedSwapTenor;
     double usedStrike = 0.0;
-    std::optional<double> usedAtmForward;               // surface carries ATM levels
-    quantra::enums::SwaptionStrikeKind usedStrikeKind =
-        quantra::enums::SwaptionStrikeKind_Absolute;
-    std::optional<double> usedSpreadFromAtm;            // spread-from-ATM surfaces only
-    std::optional<double> usedCubeNodeAtm;              // surface carries ATM levels
-    quantra::enums::SwaptionVolKind volKind =
-        quantra::enums::SwaptionVolKind_Constant;
-    quantra::enums::ModelParamMode usedModelParamMode =
-        quantra::enums::ModelParamMode_Explicit;
+    std::optional<double> usedAtmForward; // surface carries ATM levels
+    quantra::enums::SwaptionStrikeKind usedStrikeKind = quantra::enums::SwaptionStrikeKind_Absolute;
+    std::optional<double> usedSpreadFromAtm; // spread-from-ATM surfaces only
+    std::optional<double> usedCubeNodeAtm;   // surface carries ATM levels
+    quantra::enums::SwaptionVolKind volKind = quantra::enums::SwaptionVolKind_Constant;
+    quantra::enums::ModelParamMode usedModelParamMode = quantra::enums::ModelParamMode_Explicit;
     // Present only when the swaption engine used a Hull-White model. The a/sigma
     // pair is set for both explicit and inline-calibrated Hull-White; the RMSE,
     // helper count and grid dimensions are set only for inline calibration.
@@ -207,9 +200,8 @@ struct SwaptionResult {
 
 class SwaptionEvaluator {
 public:
-    SwaptionResult evaluate(const SwaptionInputs& inputs,
-                         const PricingRegistry& reg,
-                         const PricingContext& ctx) const;
+    SwaptionResult evaluate(
+        const SwaptionInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const;
 };
 
 } // namespace quantra

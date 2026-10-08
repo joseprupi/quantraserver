@@ -7,11 +7,12 @@
  * EquityOptionResult back into a PriceEquityOptionResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "equity_option_evaluator.h"
+
 #include "equity_option_response_generated.h"
 #include "price_equity_option_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     EquityOptionInputs toInputs(const quantra::PriceEquityOptionRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceEquityOptionResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const EquityOptionResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const EquityOptionResult& result) const;
 };
 
 } // namespace quantra

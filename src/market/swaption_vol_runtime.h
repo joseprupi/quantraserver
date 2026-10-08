@@ -1,14 +1,15 @@
 #ifndef QUANTRA_SWAPTION_VOL_RUNTIME_H
 #define QUANTRA_SWAPTION_VOL_RUNTIME_H
 
-#include <vector>
+#include "pricing_registry.h"
+#include "vol_surface_parsers.h"
+
+#include "price_swaption_request_generated.h"
 
 #include <ql/handle.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "price_swaption_request_generated.h"
-#include "pricing_registry.h"
-#include "vol_surface_parsers.h"
+#include <vector>
 
 namespace quantra {
 

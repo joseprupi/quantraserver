@@ -1,9 +1,7 @@
 #include "equity_option_evaluator.h"
 
-#include <cmath>
-#include <limits>
-#include <memory>
-#include <variant>
+#include "error.h"
+#include "model_domain.h"
 
 #include <ql/cashflows/dividend.hpp>
 #include <ql/exercise.hpp>
@@ -23,8 +21,10 @@
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "error.h"
-#include "model_domain.h"
+#include <cmath>
+#include <limits>
+#include <memory>
+#include <variant>
 
 namespace quantra {
 
@@ -34,8 +34,7 @@ namespace {
 /// on engines/payoffs that don't implement them, and report NaN. Preserves
 /// byte-for-byte equivalence with the inline implementation in
 /// equity_option_pricing_request.cpp.
-template <typename Fn>
-double safeGreek(Fn&& fn) {
+template <typename Fn> double safeGreek(Fn&& fn) {
     try {
         return fn();
     } catch (...) {
@@ -43,9 +42,8 @@ double safeGreek(Fn&& fn) {
     }
 }
 
-EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
-                                const PricingRegistry& reg,
-                                const PricingContext& ctx) {
+EquityOptionPerTrade priceTrade(
+    const EquityOptionTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -62,8 +60,7 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
     if (modelIt == reg.volatility.modelDomains.end()) {
         QUANTRA_NOT_FOUND("Model not found: " + trade.modelId);
     }
-    const auto* equityModel =
-        std::get_if<EquityVanillaModelDomain>(&modelIt->second.payload);
+    const auto* equityModel = std::get_if<EquityVanillaModelDomain>(&modelIt->second.payload);
     if (equityModel == nullptr) {
         QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId + "' is not an equity model");
     }
@@ -75,16 +72,15 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
     std::shared_ptr<QuantLib::StrikedTypePayoff> payoff;
     switch (trade.payoffKind) {
         case EquityPayoffKind::PlainVanilla:
-            payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(
-                trade.optionType, trade.strike);
+            payoff = std::make_shared<QuantLib::PlainVanillaPayoff>(trade.optionType, trade.strike);
             break;
         case EquityPayoffKind::CashOrNothing:
             payoff = std::make_shared<QuantLib::CashOrNothingPayoff>(
                 trade.optionType, trade.strike, trade.cash);
             break;
         case EquityPayoffKind::AssetOrNothing:
-            payoff = std::make_shared<QuantLib::AssetOrNothingPayoff>(
-                trade.optionType, trade.strike);
+            payoff =
+                std::make_shared<QuantLib::AssetOrNothingPayoff>(trade.optionType, trade.strike);
             break;
     }
     const bool isPlainVanilla = trade.payoffKind == EquityPayoffKind::PlainVanilla;
@@ -111,8 +107,8 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
     QuantLib::Handle<QuantLib::YieldTermStructure> riskFree(discountIt->second->currentLink());
     QuantLib::Handle<QuantLib::YieldTermStructure> dividend(underlying.dividend);
     QuantLib::Handle<QuantLib::BlackVolTermStructure> blackVol(volIt->second.handle);
-    auto process = std::make_shared<QuantLib::BlackScholesMertonProcess>(
-        spot, dividend, riskFree, blackVol);
+    auto process =
+        std::make_shared<QuantLib::BlackScholesMertonProcess>(spot, dividend, riskFree, blackVol);
 
     // Discrete cash dividends declared on the underlying spec, if any. These
     // are escrowed cash events layered on top of the continuous dividend-yield
@@ -137,19 +133,16 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
             QUANTRA_INVALID_ARGUMENT("Equity barrier options require a European exercise");
         }
         if (equityModel->model_type != EquityModelTypeKind::BlackScholesAnalytic) {
-            QUANTRA_INVALID_ARGUMENT("Equity barrier option currently requires model_type=BlackScholesAnalytic");
+            QUANTRA_INVALID_ARGUMENT(
+                "Equity barrier option currently requires model_type=BlackScholesAnalytic");
         }
         if (hasDiscreteDividends) {
-            QUANTRA_INVALID_ARGUMENT("Discrete cash dividends are not supported for equity barrier options");
+            QUANTRA_INVALID_ARGUMENT(
+                "Discrete cash dividends are not supported for equity barrier options");
         }
         auto barrierOption = std::make_shared<QuantLib::BarrierOption>(
-            trade.barrierType,
-            trade.barrierLevel,
-            trade.rebate,
-            payoff,
-            trade.exercise);
-        barrierOption->setPricingEngine(
-            std::make_shared<QuantLib::AnalyticBarrierEngine>(process));
+            trade.barrierType, trade.barrierLevel, trade.rebate, payoff, trade.exercise);
+        barrierOption->setPricingEngine(std::make_shared<QuantLib::AnalyticBarrierEngine>(process));
         instrument = barrierOption;
         oneAssetOption = barrierOption;
     } else {
@@ -170,11 +163,13 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
                             break;
                         case EquityModelTypeKind::BinomialCRR: {
                             if (hasDiscreteDividends) {
-                                QUANTRA_INVALID_ARGUMENT("Discrete cash dividends currently require model_type=BlackScholesAnalytic");
+                                QUANTRA_INVALID_ARGUMENT(
+                                    "Discrete cash dividends currently require model_type=BlackScholesAnalytic");
                             }
                             int steps = equityModel->binomial_steps;
                             if (steps <= 0) {
-                                QUANTRA_INVALID_ARGUMENT("EquityVanillaModelSpec.binomial_steps must be > 0");
+                                QUANTRA_INVALID_ARGUMENT(
+                                    "EquityVanillaModelSpec.binomial_steps must be > 0");
                             }
                             vanilla->setPricingEngine(
                                 std::make_shared<
@@ -209,8 +204,7 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
                     vanilla->setPricingEngine(
                         std::make_shared<QuantLib::FdBlackScholesVanillaEngine>(process));
                     break;
-                default:
-                    QUANTRA_INVALID_ARGUMENT("Unsupported equity exercise style");
+                default: QUANTRA_INVALID_ARGUMENT("Unsupported equity exercise style");
             }
         } else {
             // Digital payoffs (cash-or-nothing / asset-or-nothing).
@@ -273,9 +267,8 @@ EquityOptionPerTrade priceTrade(const EquityOptionTrade& trade,
 
 } // namespace
 
-EquityOptionResult EquityOptionEvaluator::evaluate(const EquityOptionInputs& inputs,
-                                             const PricingRegistry& reg,
-                                             const PricingContext& ctx) const {
+EquityOptionResult EquityOptionEvaluator::evaluate(
+    const EquityOptionInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     EquityOptionResult result;
     result.trades.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {

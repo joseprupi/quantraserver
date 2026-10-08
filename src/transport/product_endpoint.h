@@ -1,20 +1,20 @@
 #ifndef QUANTRA_PRODUCT_ENDPOINT_H
 #define QUANTRA_PRODUCT_ENDPOINT_H
 
+#include "calendar_override_parser.h"
+#include "calendar_overrides.h"
+#include "eval_date_guard.h"
+#include "fixings_guard.h"
+#include "pricing_context.h"
+#include "pricing_registry.h"
+#include "quantra_request.h"
+
+#include "flatbuffers/grpc.h"
+
 #include <exception>
 #include <memory>
 #include <string>
 #include <type_traits>
-
-#include "flatbuffers/grpc.h"
-
-#include "quantra_request.h"
-#include "pricing_registry.h"
-#include "pricing_context.h"
-#include "eval_date_guard.h"
-#include "fixings_guard.h"
-#include "calendar_overrides.h"
-#include "calendar_override_parser.h"
 
 namespace quantra {
 
@@ -24,22 +24,20 @@ namespace detail {
 /// accessor (i.e. carries a Pricing block of market data). Utility
 /// endpoints such as the calendar lookups have no pricing block; this
 /// trait lets ProductEndpoint skip registry/context construction for them.
-template <class T, class = void>
-struct has_pricing : std::false_type {};
+template <class T, class = void> struct has_pricing : std::false_type {};
 
 template <class T>
-struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>>
-    : std::true_type {};
+struct has_pricing<T, std::void_t<decltype(std::declval<const T&>().pricing())>> : std::true_type {
+};
 
 /// Detects whether a FlatBuffers request table carries `calendar_overrides()`
 /// directly (the calendar utility requests, which have no Pricing block).
-template <class T, class = void>
-struct has_calendar_overrides : std::false_type {};
+template <class T, class = void> struct has_calendar_overrides : std::false_type {};
 
 template <class T>
 struct has_calendar_overrides<
-    T, std::void_t<decltype(std::declval<const T&>().calendar_overrides())>>
-    : std::true_type {};
+    T,
+    std::void_t<decltype(std::declval<const T&>().calendar_overrides())>> : std::true_type {};
 
 /// Detects whether a Mapper exposes an
 /// `onRegistryBuildError(Inputs&, const std::string&) const` hook. This is the
@@ -59,10 +57,10 @@ struct has_build_error_hook : std::false_type {};
 
 template <class Mapper, class Inputs>
 struct has_build_error_hook<
-    Mapper, Inputs,
+    Mapper,
+    Inputs,
     std::void_t<decltype(std::declval<const Mapper&>().onRegistryBuildError(
-        std::declval<Inputs&>(), std::declval<const std::string&>()))>>
-    : std::true_type {};
+        std::declval<Inputs&>(), std::declval<const std::string&>()))>> : std::true_type {};
 
 } // namespace detail
 
@@ -102,8 +100,7 @@ public:
     flatbuffers::Offset<Resp> request(
         std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
         const Req* req,
-        const RequestBudget& budget = RequestBudget::unlimited()) const override
-    {
+        const RequestBudget& budget = RequestBudget::unlimited()) const override {
         EvalDateGuard guard;
         // Index fixings are process-global QuantLib state too: start every
         // request from an empty fixing store so the only fixings visible are
@@ -117,12 +114,10 @@ public:
         if constexpr (detail::has_pricing<Req>::value) {
             if (req->pricing() != nullptr) {
                 applyRequestCalendarOverrides(
-                    req->pricing()->calendar_overrides(),
-                    "pricing.calendar_overrides");
+                    req->pricing()->calendar_overrides(), "pricing.calendar_overrides");
             }
         } else if constexpr (detail::has_calendar_overrides<Req>::value) {
-            applyRequestCalendarOverrides(req->calendar_overrides(),
-                                          "calendar_overrides");
+            applyRequestCalendarOverrides(req->calendar_overrides(), "calendar_overrides");
         }
         auto inputs = mapper_.toInputs(req);
         // Bail out before touching market data if the caller has already timed

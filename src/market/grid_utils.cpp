@@ -1,12 +1,12 @@
 #include "grid_utils.h"
 
-#include <algorithm>
-#include <sstream>
 #include "date_convert.h"
 #include "request_validation.h"
 
-namespace quantra {
-namespace grid_utils {
+#include <algorithm>
+#include <sstream>
+
+namespace quantra { namespace grid_utils {
 
 std::string ToIsoDate(const QuantLib::Date& d) {
     std::ostringstream os;
@@ -89,9 +89,8 @@ std::vector<QuantLib::Date> BuildTenorGrid(
         if (p.length() == 0 && p.units() != QuantLib::Days) {
             QUANTRA_INVALID_ARGUMENT("TenorGrid only allows zero period as 0 Days");
         }
-        QuantLib::Date d = useCalendar
-            ? calendar.advance(referenceDate, p, bdc)
-            : referenceDate + p;
+        QuantLib::Date d =
+            useCalendar ? calendar.advance(referenceDate, p, bdc) : referenceDate + p;
         dates.push_back(d);
     }
 
@@ -99,9 +98,7 @@ std::vector<QuantLib::Date> BuildTenorGrid(
 }
 
 std::vector<QuantLib::Date> BuildRangeGrid(
-    const RangeGrid* grid,
-    const QuantLib::Date& asOfDate,
-    int maxPoints) {
+    const RangeGrid* grid, const QuantLib::Date& asOfDate, int maxPoints) {
     if (!grid || !grid->end_date()) {
         QUANTRA_INVALID_ARGUMENT("RangeGrid.end_date is required");
     }
@@ -139,5 +136,4 @@ std::vector<QuantLib::Date> BuildRangeGrid(
     return dates;
 }
 
-} // namespace grid_utils
-} // namespace quantra
+}} // namespace quantra::grid_utils

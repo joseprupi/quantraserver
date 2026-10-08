@@ -13,13 +13,13 @@
  * ProductEndpoint for utility endpoints.
  */
 
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/time/calendar.hpp>
 #include <ql/time/date.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <vector>
 
 namespace quantra {
 
@@ -49,9 +49,10 @@ struct CalendarBusinessDaysResult {
 
 class CalendarBusinessDaysEvaluator {
 public:
-    CalendarBusinessDaysResult evaluate(const CalendarBusinessDaysInputs& inputs,
-                                     const PricingRegistry& reg,
-                                     const PricingContext& ctx) const;
+    CalendarBusinessDaysResult evaluate(
+        const CalendarBusinessDaysInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

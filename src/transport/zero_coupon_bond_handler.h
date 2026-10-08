@@ -4,8 +4,9 @@
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "zero_coupon_bond_mapper.h"
 #include "zero_coupon_bond_evaluator.h"
+#include "zero_coupon_bond_mapper.h"
+
 #include "price_zero_coupon_bond_request_generated.h"
 #include "zero_coupon_bond_response_generated.h"
 
@@ -26,26 +27,20 @@ using ZeroCouponBondEndpoint = quantra::ProductEndpoint<
  * PriceZeroCouponBondData - Async handler for zero-coupon bond pricing.
  */
 class PriceZeroCouponBondData : public CallDataGeneric<
-    PriceZeroCouponBondRequest,
-    ZeroCouponBondEndpoint,
-    PriceZeroCouponBondResponse,
-    PriceZeroCouponBondResponseBuilder>
-{
+                                    PriceZeroCouponBondRequest,
+                                    ZeroCouponBondEndpoint,
+                                    PriceZeroCouponBondResponse,
+                                    PriceZeroCouponBondResponseBuilder> {
 public:
-    PriceZeroCouponBondData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    PriceZeroCouponBondData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestPriceZeroCouponBond(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestPriceZeroCouponBond(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceZeroCouponBondData(service, cq);
         handler->start();
     }

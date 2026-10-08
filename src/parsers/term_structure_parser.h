@@ -1,20 +1,21 @@
 #ifndef QUANTRASERVER_TERMSTRUCTUREPARSER_H
 #define QUANTRASERVER_TERMSTRUCTUREPARSER_H
 
-#include <memory>
+#include "curve_registry.h"
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "index_registry.h"
+#include "quote_registry.h"
+#include "term_structure_point_parser.h"
+
+#include "term_structure_generated.h"
 
 #include <ql/qldefines.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "term_structure_generated.h"
-#include "term_structure_point_parser.h"
-#include "quote_registry.h"
-#include "curve_registry.h"
-#include "index_registry.h"
-#include "enum_convert.h"
-#include "date_convert.h"
+#include <memory>
 
 namespace quantra {
 
@@ -26,8 +27,7 @@ namespace quantra {
 class TermStructureParser {
 public:
     /// Legacy: parse with inline values only (no index resolution - deposits/bonds only)
-    std::shared_ptr<QuantLib::YieldTermStructure> parse(
-        const quantra::TermStructure* ts);
+    std::shared_ptr<QuantLib::YieldTermStructure> parse(const quantra::TermStructure* ts);
 
     /// Full: parse with registries for quotes, curves, and indices
     std::shared_ptr<QuantLib::YieldTermStructure> parse(

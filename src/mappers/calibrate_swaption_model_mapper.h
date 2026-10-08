@@ -9,18 +9,18 @@
  * CalibrateSwaptionModelResult back into a CalibrateSwaptionModelResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "calibrate_swaption_model_evaluator.h"
+
 #include "calibrate_swaption_model_request_generated.h"
 #include "calibrate_swaption_model_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class CalibrateSwaptionModelMapper {
 public:
-    CalibrateSwaptionModelInputs toInputs(
-        const quantra::CalibrateSwaptionModelRequest* req) const;
+    CalibrateSwaptionModelInputs toInputs(const quantra::CalibrateSwaptionModelRequest* req) const;
 
     flatbuffers::Offset<quantra::CalibrateSwaptionModelResponse> toResponse(
         flatbuffers::grpc::MessageBuilder& builder,

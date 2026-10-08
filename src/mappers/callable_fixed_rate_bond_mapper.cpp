@@ -56,10 +56,10 @@ CallableFixedRateBondInputs CallableFixedRateBondMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse>
-CallableFixedRateBondMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CallableFixedRateBondResult& result) const {
+flatbuffers::Offset<quantra::PriceCallableFixedRateBondResponse> CallableFixedRateBondMapper::
+    toResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const CallableFixedRateBondResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::CallableFixedRateBondResponse>> bondsVector;
     bondsVector.reserve(result.bonds.size());

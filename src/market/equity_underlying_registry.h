@@ -1,9 +1,7 @@
 #ifndef QUANTRA_EQUITY_UNDERLYING_REGISTRY_H
 #define QUANTRA_EQUITY_UNDERLYING_REGISTRY_H
 
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "pricing_generated.h"
 
 #include <ql/handle.hpp>
 #include <ql/quote.hpp>
@@ -11,7 +9,9 @@
 #include <ql/time/date.hpp>
 #include <ql/types.hpp>
 
-#include "pricing_generated.h"
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace quantra {
 
@@ -31,8 +31,7 @@ struct EquityUnderlyingRuntime {
 class EquityUnderlyingRegistryBuilder {
 public:
     std::unordered_map<std::string, EquityUnderlyingRuntime> build(
-        const quantra::EquityMarketData* equity,
-        const PricingRegistry& reg) const;
+        const quantra::EquityMarketData* equity, const PricingRegistry& reg) const;
 };
 
 } // namespace quantra

@@ -17,8 +17,7 @@ std::shared_ptr<QuantLib::OvernightIndex> makeSofr(
     const QuantLib::Handle<QuantLib::YieldTermStructure>& fwd) {
     return std::make_shared<QuantLib::OvernightIndex>(
         "SOFR", 0, QuantLib::USDCurrency(),
-        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond),
-        QuantLib::Actual360(), fwd);
+        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), QuantLib::Actual360(), fwd);
 }
 
 } // namespace
@@ -29,26 +28,20 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     const double notional = 1000000.0, fixedRate = 0.03;
 
     QuantLib::Schedule fixedSch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2030),
-        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     QuantLib::Schedule onSch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
         QuantLib::Period(QuantLib::Annual),
-        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto sofr = makeSofr(forwardHandle_);
     auto qlSwap = std::make_shared<QuantLib::OvernightIndexedSwap>(
-        QuantLib::OvernightIndexedSwap::Payer, notional, fixedSch, fixedRate,
-        QuantLib::Actual360(), onSch, sofr, 0.0, 0,
-        QuantLib::ModifiedFollowing,
+        QuantLib::OvernightIndexedSwap::Payer, notional, fixedSch, fixedRate, QuantLib::Actual360(),
+        onSch, sofr, 0.0, 0, QuantLib::ModifiedFollowing,
         QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), false,
-        QuantLib::RateAveraging::Compound,
-        QuantLib::Null<QuantLib::Natural>(), 0, false);
+        QuantLib::RateAveraging::Compound, QuantLib::Null<QuantLib::Natural>(), 0, false);
     qlSwap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountHandle_));
     const double qlNPV = qlSwap->NPV();
     const double qlFair = qlSwap->fairRate();
@@ -121,7 +114,8 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     psb.add_ois_swap(swap);
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve(dc);
-    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
+    auto swaps =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
 
     quantra::PriceOisSwapRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -130,11 +124,15 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
 
     OisSwapPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB->GetBufferPointer())->swaps()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB->GetBufferPointer())
+                        ->swaps()
+                        ->Get(0);
 
-    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << r->npv() << " | Diff: " << std::abs(qlNPV-r->npv()) << std::endl;
+    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << r->npv()
+              << " | Diff: " << std::abs(qlNPV - r->npv()) << std::endl;
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlFair, r->fair_rate(), 1e-6);
     EXPECT_NEAR(qlSwap->fixedLegNPV(), r->fixed_leg_npv(), 0.01);
@@ -148,26 +146,20 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     const int paymentLag = 2;
 
     QuantLib::Schedule fixedSch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     QuantLib::Schedule onSch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2028),
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2028),
         QuantLib::Period(QuantLib::Semiannual),
-        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto sofr = makeSofr(forwardHandle_);
     auto qlSwap = std::make_shared<QuantLib::OvernightIndexedSwap>(
         QuantLib::OvernightIndexedSwap::Receiver, notional, fixedSch, fixedRate,
-        QuantLib::Actual360(), onSch, sofr, spread, paymentLag,
-        QuantLib::ModifiedFollowing,
+        QuantLib::Actual360(), onSch, sofr, spread, paymentLag, QuantLib::ModifiedFollowing,
         QuantLib::UnitedStates(QuantLib::UnitedStates::GovernmentBond), false,
-        QuantLib::RateAveraging::Compound,
-        QuantLib::Null<QuantLib::Natural>(), 0, false);
+        QuantLib::RateAveraging::Compound, QuantLib::Null<QuantLib::Natural>(), 0, false);
     qlSwap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountHandle_));
     const double qlNPV = qlSwap->NPV();
     const double qlFairSpread = qlSwap->fairSpread();
@@ -240,7 +232,8 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     psb.add_ois_swap(swap);
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve(dc);
-    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
+    auto swaps =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
 
     quantra::PriceOisSwapRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -249,9 +242,12 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
 
     OisSwapPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB->GetBufferPointer())->swaps()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(respB->GetBufferPointer())
+                        ->swaps()
+                        ->Get(0);
 
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlFairSpread, r->fair_spread(), 1e-6);

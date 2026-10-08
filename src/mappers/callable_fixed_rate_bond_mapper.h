@@ -8,11 +8,12 @@
  * into a PriceCallableFixedRateBondResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "callable_fixed_rate_bond_evaluator.h"
-#include "price_callable_fixed_rate_bond_request_generated.h"
+
 #include "callable_fixed_rate_bond_response_generated.h"
+#include "price_callable_fixed_rate_bond_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 

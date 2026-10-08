@@ -1,11 +1,12 @@
 #ifndef QUANTRASERVER_CALENDAR_ADVANCE_HANDLER_H
 #define QUANTRASERVER_CALENDAR_ADVANCE_HANDLER_H
 
+#include "calendar_advance_evaluator.h"
+#include "calendar_advance_mapper.h"
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "calendar_advance_mapper.h"
-#include "calendar_advance_evaluator.h"
+
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
 
@@ -23,22 +24,20 @@ using CalendarAdvanceEndpoint = quantra::ProductEndpoint<
     quantra::CalendarAdvanceEvaluator>;
 
 class CalendarAdvanceData : public CallDataGeneric<
-    CalendarAdvanceRequest,
-    CalendarAdvanceEndpoint,
-    CalendarAdvanceResponse,
-    CalendarAdvanceResponseBuilder>
-{
+                                CalendarAdvanceRequest,
+                                CalendarAdvanceEndpoint,
+                                CalendarAdvanceResponse,
+                                CalendarAdvanceResponseBuilder> {
 public:
     CalendarAdvanceData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
-        : CallDataGeneric(service, cq) {
-    }
+        : CallDataGeneric(service, cq) {}
 
     void RequestCall() override {
-        service_->RequestCalendarAdvance(
-            &ctx_, &request_msg, &responder_, cq_, cq_, this);
+        service_->RequestCalendarAdvance(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new CalendarAdvanceData(service, cq);
         handler->start();
     }

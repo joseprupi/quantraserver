@@ -1,7 +1,7 @@
 #include "basis_swap_evaluator.h"
 
-#include <cmath>
-#include <limits>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/coupon.hpp>
@@ -12,8 +12,8 @@
 #include <ql/instruments/swap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <cmath>
+#include <limits>
 
 namespace quantra {
 
@@ -61,8 +61,8 @@ void extractFlows(
 
 /// Build a QuantLib IborLeg from a plain BasisSwapFloatingLegData and an
 /// already-cloned IborIndex (with the desired forwarding curve attached).
-QuantLib::Leg buildIborLeg(const BasisSwapFloatingLegData& leg,
-                           const std::shared_ptr<QuantLib::IborIndex>& index) {
+QuantLib::Leg buildIborLeg(
+    const BasisSwapFloatingLegData& leg, const std::shared_ptr<QuantLib::IborIndex>& index) {
     return QuantLib::IborLeg(leg.schedule, index)
         .withNotionals(leg.notional)
         .withPaymentDayCounter(leg.dayCounter)
@@ -72,10 +72,11 @@ QuantLib::Leg buildIborLeg(const BasisSwapFloatingLegData& leg,
         .inArrears(leg.inArrears);
 }
 
-BasisSwapPerSwap priceTrade(const BasisSwapTrade& trade,
-                            const PricingRegistry& reg,
-                            const PricingContext& ctx,
-                            bool includeFlows) {
+BasisSwapPerSwap priceTrade(
+    const BasisSwapTrade& trade,
+    const PricingRegistry& reg,
+    const PricingContext& ctx,
+    bool includeFlows) {
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -117,8 +118,7 @@ BasisSwapPerSwap priceTrade(const BasisSwapTrade& trade,
     std::vector<bool> payer{payerLeg1, !payerLeg1};
 
     auto swap = std::make_shared<QuantLib::Swap>(legs, payer);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     BasisSwapPerSwap out;
     out.npv = swap->NPV();
@@ -130,11 +130,11 @@ BasisSwapPerSwap priceTrade(const BasisSwapTrade& trade,
     const double currentSpread1 = trade.leg1.spread;
     const double currentSpread2 = trade.leg2.spread;
     out.fairSpreadLeg1 = std::fabs(out.leg1Bps) > 1e-16
-        ? (currentSpread1 - out.npv * 1e-4 / out.leg1Bps)
-        : std::numeric_limits<double>::quiet_NaN();
+                             ? (currentSpread1 - out.npv * 1e-4 / out.leg1Bps)
+                             : std::numeric_limits<double>::quiet_NaN();
     out.fairSpreadLeg2 = std::fabs(out.leg2Bps) > 1e-16
-        ? (currentSpread2 - out.npv * 1e-4 / out.leg2Bps)
-        : std::numeric_limits<double>::quiet_NaN();
+                             ? (currentSpread2 - out.npv * 1e-4 / out.leg2Bps)
+                             : std::numeric_limits<double>::quiet_NaN();
     out.includeFlows = includeFlows;
 
     if (includeFlows) {
@@ -147,9 +147,8 @@ BasisSwapPerSwap priceTrade(const BasisSwapTrade& trade,
 
 } // namespace
 
-BasisSwapResult BasisSwapEvaluator::evaluate(const BasisSwapInputs& inputs,
-                                       const PricingRegistry& reg,
-                                       const PricingContext& ctx) const {
+BasisSwapResult BasisSwapEvaluator::evaluate(
+    const BasisSwapInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     BasisSwapResult result;
     result.swaps.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {

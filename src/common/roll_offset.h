@@ -27,4 +27,4 @@ struct RollOffsetGuard {
     RollOffsetGuard& operator=(const RollOffsetGuard&) = delete;
 };
 
-}  // namespace quantra
+} // namespace quantra

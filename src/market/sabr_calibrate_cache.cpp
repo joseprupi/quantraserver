@@ -30,9 +30,7 @@ void logCacheEvent(const std::string& event, const std::string& key, size_t size
     // Truncate the (160-hex-char SHA-256) key for log readability; full key
     // isn't useful in logs and bloats the line.
     const std::string keyShort = key.size() > 16 ? (key.substr(0, 16) + "...") : key;
-    std::cerr << "[SabrCalibrateCache] event=" << event
-              << " key=" << keyShort
-              << " size=" << size
+    std::cerr << "[SabrCalibrateCache] event=" << event << " key=" << keyShort << " size=" << size
               << std::endl;
 }
 
@@ -104,7 +102,8 @@ std::shared_ptr<const SabrCalibratedCube> SabrCalibrateCache::tryGet(const std::
     return it->second.first;
 }
 
-void SabrCalibrateCache::put(const std::string& key, std::shared_ptr<const SabrCalibratedCube> value) {
+void SabrCalibrateCache::put(
+    const std::string& key, std::shared_ptr<const SabrCalibratedCube> value) {
     if (!value) {
         return;
     }

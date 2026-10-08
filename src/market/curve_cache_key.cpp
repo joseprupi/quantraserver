@@ -1,13 +1,13 @@
 #include "curve_cache_key.h"
 
-#include <sstream>
-#include <iomanip>
-
 #include "calendar_overrides.h"
-#include "roll_offset.h"
 #include "error.h"
+#include "roll_offset.h"
 
 #include <openssl/sha.h>
+
+#include <iomanip>
+#include <sstream>
 
 namespace quantra {
 
@@ -32,10 +32,7 @@ std::string CurveKeyBuilder::sha256hex(const std::vector<uint8_t>& data) {
 // =============================================================================
 
 double CurveKeyBuilder::resolveQuoteValue(
-    double inlineValue,
-    const flatbuffers::String* quoteId,
-    const KeyContext& ctx)
-{
+    double inlineValue, const flatbuffers::String* quoteId, const KeyContext& ctx) {
     if (quoteId) {
         std::string id = quoteId->str();
         if (!id.empty()) {
@@ -64,10 +61,7 @@ double CurveKeyBuilder::resolveQuoteValue(
 // Sub-structure writers
 // =============================================================================
 
-void CurveKeyBuilder::writeDeps(
-    CanonicalBuffer& buf,
-    const quantra::HelperDependencies* deps)
-{
+void CurveKeyBuilder::writeDeps(CanonicalBuffer& buf, const quantra::HelperDependencies* deps) {
     if (!deps) {
         buf.writeU8(0);
         return;
@@ -98,10 +92,7 @@ void CurveKeyBuilder::writeDeps(
     buf.writeFbString(deps->fx_spot_quote_id());
 }
 
-void CurveKeyBuilder::writeIndexRef(
-    CanonicalBuffer& buf,
-    const quantra::IndexRef* ref)
-{
+void CurveKeyBuilder::writeIndexRef(CanonicalBuffer& buf, const quantra::IndexRef* ref) {
     if (ref && ref->id()) {
         buf.writeU8(1);
         buf.writeFbString(ref->id());
@@ -110,10 +101,7 @@ void CurveKeyBuilder::writeIndexRef(
     }
 }
 
-void CurveKeyBuilder::writeSchedule(
-    CanonicalBuffer& buf,
-    const quantra::Schedule* sched)
-{
+void CurveKeyBuilder::writeSchedule(CanonicalBuffer& buf, const quantra::Schedule* sched) {
     if (!sched) {
         buf.writeU8(0);
         return;
@@ -159,9 +147,7 @@ void CurveKeyBuilder::writeSchedule(
 // =============================================================================
 
 std::vector<uint8_t> CurveKeyBuilder::serializePoint(
-    const quantra::PointsWrapper* pw,
-    const KeyContext& ctx)
-{
+    const quantra::PointsWrapper* pw, const KeyContext& ctx) {
     CanonicalBuffer buf;
 
     auto ptype = pw->point_type();
@@ -172,8 +158,7 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
     // buffer that passed verification; the point_as_*() casts below would return
     // null and crash, so reject it as a bad request.
     if (ptype != quantra::Point_NONE && pw->point() == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(
-            "Curve point union type is set but its value is missing");
+        QUANTRA_INVALID_ARGUMENT("Curve point union type is set but its value is missing");
     }
 
     // The convention enums are presence-required (an omitted convention is a
@@ -206,7 +191,10 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         }
     };
     auto writeTenor = [&buf, &writeOptInt, &writeOptEnum](const quantra::Period* t) {
-        if (!t) { buf.writeU8(0); return; }
+        if (!t) {
+            buf.writeU8(0);
+            return;
+        }
         buf.writeU8(1);
         writeOptInt(t->n());
         writeOptEnum(t->unit());
@@ -214,235 +202,234 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
 
     switch (ptype) {
 
-    case quantra::Point_DepositHelper: {
-        auto p = pw->point_as_DepositHelper();
-        buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        buf.writeI32(p->fixing_days());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        writeOptEnum(p->day_counter());
-        break;
-    }
-
-    case quantra::Point_FRAHelper: {
-        auto p = pw->point_as_FRAHelper();
-        buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        buf.writeI32(p->months_to_start());
-        buf.writeI32(p->months_to_end());
-        buf.writeI32(p->fixing_days());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        writeOptEnum(p->day_counter());
-        break;
-    }
-
-    case quantra::Point_FutureHelper: {
-        auto p = pw->point_as_FutureHelper();
-        // Same selection as the parser: the futures PRICE is the quote, with
-        // futures_price winning over rate (price = 100*(1-rate) identity).
-        double priceValue = 0.0;
-        if (p->futures_price().has_value()) {
-            priceValue = p->futures_price().value();
-        } else if (p->rate().has_value()) {
-            priceValue = 100.0 * (1.0 - p->rate().value());
+        case quantra::Point_DepositHelper: {
+            auto p = pw->point_as_DepositHelper();
+            buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            buf.writeI32(p->fixing_days());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            writeOptEnum(p->day_counter());
+            break;
         }
-        buf.writeDouble(resolveQuoteValue(priceValue, p->quote_id(), ctx));
-        buf.writeFbString(p->future_start_date());
-        buf.writeI32(p->future_months());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        writeOptEnum(p->day_counter());
-        buf.writeU8(p->futures_price().has_value() ? 1 : 0);
-        buf.writeDouble(p->futures_price().value_or(0.0));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        buf.writeDouble(p->rate().value_or(0.0));
-        buf.writeDouble(p->convexity_adjustment());
-        break;
-    }
 
-    case quantra::Point_SwapHelper: {
-        auto p = pw->point_as_SwapHelper();
-        buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->sw_fixed_leg_frequency());
-        writeOptEnum(p->sw_fixed_leg_convention());
-        writeOptEnum(p->sw_fixed_leg_day_counter());
-        writeIndexRef(buf, p->float_index());
-        buf.writeDouble(p->spread());
-        buf.writeI32(p->fwd_start_days());
-        writeDeps(buf, p->deps());
-        break;
-    }
-
-    case quantra::Point_BondHelper: {
-        auto p = pw->point_as_BondHelper();
-        // Same selection as the parser: price presence wins over rate.
-        double px = 0.0;
-        if (p->price().has_value()) {
-            px = p->price().value();
-        } else if (p->rate().has_value()) {
-            px = p->rate().value();
+        case quantra::Point_FRAHelper: {
+            auto p = pw->point_as_FRAHelper();
+            buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            buf.writeI32(p->months_to_start());
+            buf.writeI32(p->months_to_end());
+            buf.writeI32(p->fixing_days());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            writeOptEnum(p->day_counter());
+            break;
         }
-        buf.writeDouble(resolveQuoteValue(px, p->quote_id(), ctx));
-        buf.writeU8(p->price().has_value() ? 1 : 0);
-        buf.writeDouble(p->price().value_or(0.0));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        buf.writeDouble(p->rate().value_or(0.0));
-        buf.writeI32(p->settlement_days());
-        buf.writeDouble(p->face_amount().value_or(0.0));
-        writeSchedule(buf, p->schedule());
-        buf.writeDouble(p->coupon_rate().value_or(0.0));
-        writeOptEnum(p->day_counter());
-        writeOptEnum(p->business_day_convention());
-        buf.writeDouble(p->redemption().value_or(0.0));
-        buf.writeFbString(p->issue_date());
-        break;
-    }
 
-    case quantra::Point_OISHelper: {
-        auto p = pw->point_as_OISHelper();
-        buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeIndexRef(buf, p->overnight_index());
-        writeOptInt(p->settlement_days());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->fixed_leg_frequency());
-        writeOptEnum(p->fixed_leg_convention());
-        writeOptEnum(p->fixed_leg_day_counter());
-        // Payment-lag / overnight-coupon conventions: each changes the
-        // bootstrapped curve, so an unkeyed one would serve a wrong cached
-        // curve across requests.
-        writeOptInt(p->payment_lag());
-        writeOptEnum(p->averaging_method());
-        writeOptInt(p->lookback_days());
-        writeOptInt(p->lockout_days());
-        writeOptBool(p->apply_observation_shift());
-        writeDeps(buf, p->deps());
-        break;
-    }
+        case quantra::Point_FutureHelper: {
+            auto p = pw->point_as_FutureHelper();
+            // Same selection as the parser: the futures PRICE is the quote, with
+            // futures_price winning over rate (price = 100*(1-rate) identity).
+            double priceValue = 0.0;
+            if (p->futures_price().has_value()) {
+                priceValue = p->futures_price().value();
+            } else if (p->rate().has_value()) {
+                priceValue = 100.0 * (1.0 - p->rate().value());
+            }
+            buf.writeDouble(resolveQuoteValue(priceValue, p->quote_id(), ctx));
+            buf.writeFbString(p->future_start_date());
+            buf.writeI32(p->future_months());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            writeOptEnum(p->day_counter());
+            buf.writeU8(p->futures_price().has_value() ? 1 : 0);
+            buf.writeDouble(p->futures_price().value_or(0.0));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            buf.writeDouble(p->rate().value_or(0.0));
+            buf.writeDouble(p->convexity_adjustment());
+            break;
+        }
 
-    case quantra::Point_DatedOISHelper: {
-        auto p = pw->point_as_DatedOISHelper();
-        buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->rate().has_value() ? 1 : 0);
-        buf.writeFbString(p->start_date());
-        buf.writeFbString(p->end_date());
-        writeIndexRef(buf, p->overnight_index());
-        writeOptInt(p->settlement_days());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->fixed_leg_frequency());
-        writeOptEnum(p->fixed_leg_convention());
-        writeOptEnum(p->fixed_leg_day_counter());
-        // Payment-lag / overnight-coupon conventions: each changes the
-        // bootstrapped curve, so an unkeyed one would serve a wrong cached
-        // curve across requests.
-        writeOptInt(p->payment_lag());
-        writeOptEnum(p->averaging_method());
-        writeOptInt(p->lookback_days());
-        writeOptInt(p->lockout_days());
-        writeOptBool(p->apply_observation_shift());
-        writeDeps(buf, p->deps());
-        break;
-    }
+        case quantra::Point_SwapHelper: {
+            auto p = pw->point_as_SwapHelper();
+            buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->sw_fixed_leg_frequency());
+            writeOptEnum(p->sw_fixed_leg_convention());
+            writeOptEnum(p->sw_fixed_leg_day_counter());
+            writeIndexRef(buf, p->float_index());
+            buf.writeDouble(p->spread());
+            buf.writeI32(p->fwd_start_days());
+            writeDeps(buf, p->deps());
+            break;
+        }
 
-    case quantra::Point_ZeroRatePoint: {
-        auto p = pw->point_as_ZeroRatePoint();
-        buf.writeFbString(p->date());
-        buf.writeDouble(p->zero_rate().value_or(0.0));
-        buf.writeU8(p->zero_rate().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        writeOptEnum(p->compounding());
-        writeOptEnum(p->frequency());
-        break;
-    }
+        case quantra::Point_BondHelper: {
+            auto p = pw->point_as_BondHelper();
+            // Same selection as the parser: price presence wins over rate.
+            double px = 0.0;
+            if (p->price().has_value()) {
+                px = p->price().value();
+            } else if (p->rate().has_value()) {
+                px = p->rate().value();
+            }
+            buf.writeDouble(resolveQuoteValue(px, p->quote_id(), ctx));
+            buf.writeU8(p->price().has_value() ? 1 : 0);
+            buf.writeDouble(p->price().value_or(0.0));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            buf.writeDouble(p->rate().value_or(0.0));
+            buf.writeI32(p->settlement_days());
+            buf.writeDouble(p->face_amount().value_or(0.0));
+            writeSchedule(buf, p->schedule());
+            buf.writeDouble(p->coupon_rate().value_or(0.0));
+            writeOptEnum(p->day_counter());
+            writeOptEnum(p->business_day_convention());
+            buf.writeDouble(p->redemption().value_or(0.0));
+            buf.writeFbString(p->issue_date());
+            break;
+        }
 
-    case quantra::Point_DiscountFactorPoint: {
-        auto p = pw->point_as_DiscountFactorPoint();
-        // Presence-disciplined like the ZeroRatePoint arm: the discount factor
-        // is the priced quantity, so serialize its value AND a presence byte;
-        // a curve keyed without its DFs would serve a wrong cached curve.
-        buf.writeFbString(p->date());
-        buf.writeDouble(p->discount_factor().value_or(0.0));
-        buf.writeU8(p->discount_factor().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        break;
-    }
+        case quantra::Point_OISHelper: {
+            auto p = pw->point_as_OISHelper();
+            buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeIndexRef(buf, p->overnight_index());
+            writeOptInt(p->settlement_days());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->fixed_leg_frequency());
+            writeOptEnum(p->fixed_leg_convention());
+            writeOptEnum(p->fixed_leg_day_counter());
+            // Payment-lag / overnight-coupon conventions: each changes the
+            // bootstrapped curve, so an unkeyed one would serve a wrong cached
+            // curve across requests.
+            writeOptInt(p->payment_lag());
+            writeOptEnum(p->averaging_method());
+            writeOptInt(p->lookback_days());
+            writeOptInt(p->lockout_days());
+            writeOptBool(p->apply_observation_shift());
+            writeDeps(buf, p->deps());
+            break;
+        }
 
-    case quantra::Point_ForwardRatePoint: {
-        auto p = pw->point_as_ForwardRatePoint();
-        // Presence-disciplined like the DiscountFactorPoint arm: the forward
-        // rate is the priced quantity, so serialize its value AND a presence
-        // byte; a curve keyed without its forwards would serve a wrong cached
-        // curve.
-        buf.writeFbString(p->date());
-        buf.writeDouble(p->forward_rate().value_or(0.0));
-        buf.writeU8(p->forward_rate().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeOptEnum(p->calendar());
-        writeOptEnum(p->business_day_convention());
-        break;
-    }
+        case quantra::Point_DatedOISHelper: {
+            auto p = pw->point_as_DatedOISHelper();
+            buf.writeDouble(resolveQuoteValue(p->rate().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->rate().has_value() ? 1 : 0);
+            buf.writeFbString(p->start_date());
+            buf.writeFbString(p->end_date());
+            writeIndexRef(buf, p->overnight_index());
+            writeOptInt(p->settlement_days());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->fixed_leg_frequency());
+            writeOptEnum(p->fixed_leg_convention());
+            writeOptEnum(p->fixed_leg_day_counter());
+            // Payment-lag / overnight-coupon conventions: each changes the
+            // bootstrapped curve, so an unkeyed one would serve a wrong cached
+            // curve across requests.
+            writeOptInt(p->payment_lag());
+            writeOptEnum(p->averaging_method());
+            writeOptInt(p->lookback_days());
+            writeOptInt(p->lockout_days());
+            writeOptBool(p->apply_observation_shift());
+            writeDeps(buf, p->deps());
+            break;
+        }
 
-    case quantra::Point_TenorBasisSwapHelper: {
-        auto p = pw->point_as_TenorBasisSwapHelper();
-        buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->spread().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeIndexRef(buf, p->index_short());
-        writeIndexRef(buf, p->index_long());
-        writeOptEnum(p->calendar());
-        writeDeps(buf, p->deps());
-        break;
-    }
+        case quantra::Point_ZeroRatePoint: {
+            auto p = pw->point_as_ZeroRatePoint();
+            buf.writeFbString(p->date());
+            buf.writeDouble(p->zero_rate().value_or(0.0));
+            buf.writeU8(p->zero_rate().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            writeOptEnum(p->compounding());
+            writeOptEnum(p->frequency());
+            break;
+        }
 
-    case quantra::Point_FxSwapHelper: {
-        auto p = pw->point_as_FxSwapHelper();
-        buf.writeDouble(resolveQuoteValue(p->fx_points().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->fx_points().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeOptInt(p->spot_days());
-        writeOptEnum(p->calendar_domestic());
-        writeOptEnum(p->calendar_foreign());
-        writeDeps(buf, p->deps());
-        break;
-    }
+        case quantra::Point_DiscountFactorPoint: {
+            auto p = pw->point_as_DiscountFactorPoint();
+            // Presence-disciplined like the ZeroRatePoint arm: the discount factor
+            // is the priced quantity, so serialize its value AND a presence byte;
+            // a curve keyed without its DFs would serve a wrong cached curve.
+            buf.writeFbString(p->date());
+            buf.writeDouble(p->discount_factor().value_or(0.0));
+            buf.writeU8(p->discount_factor().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            break;
+        }
 
-    case quantra::Point_CrossCcyBasisHelper: {
-        auto p = pw->point_as_CrossCcyBasisHelper();
-        buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
-        buf.writeU8(p->spread().has_value() ? 1 : 0);
-        writeTenor(p->tenor());
-        writeIndexRef(buf, p->index_domestic());
-        writeIndexRef(buf, p->index_foreign());
-        writeDeps(buf, p->deps());
-        break;
-    }
+        case quantra::Point_ForwardRatePoint: {
+            auto p = pw->point_as_ForwardRatePoint();
+            // Presence-disciplined like the DiscountFactorPoint arm: the forward
+            // rate is the priced quantity, so serialize its value AND a presence
+            // byte; a curve keyed without its forwards would serve a wrong cached
+            // curve.
+            buf.writeFbString(p->date());
+            buf.writeDouble(p->forward_rate().value_or(0.0));
+            buf.writeU8(p->forward_rate().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            break;
+        }
 
-    case quantra::Point_NONE:
-        // No payload table — the type byte already written above IS the full
-        // content, so this cannot under-key.
-        break;
+        case quantra::Point_TenorBasisSwapHelper: {
+            auto p = pw->point_as_TenorBasisSwapHelper();
+            buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->spread().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeIndexRef(buf, p->index_short());
+            writeIndexRef(buf, p->index_long());
+            writeOptEnum(p->calendar());
+            writeDeps(buf, p->deps());
+            break;
+        }
 
-    default:
-        // A Point type this switch does not cover (a schema addition that
-        // forgot the key builder). Writing only the type byte would under-key:
-        // two different curves would hash to the same key and the cache would
-        // serve wrong prices. Fail closed — the bootstrapper catches this and
-        // skips caching for the curve (bootstrap live, request still succeeds).
-        QUANTRA_ERROR(
-            "curve cache key: unhandled point type " +
-            std::to_string(static_cast<int>(ptype)) +
-            " — point not serializable, curve must not be cached");
+        case quantra::Point_FxSwapHelper: {
+            auto p = pw->point_as_FxSwapHelper();
+            buf.writeDouble(resolveQuoteValue(p->fx_points().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->fx_points().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeOptInt(p->spot_days());
+            writeOptEnum(p->calendar_domestic());
+            writeOptEnum(p->calendar_foreign());
+            writeDeps(buf, p->deps());
+            break;
+        }
+
+        case quantra::Point_CrossCcyBasisHelper: {
+            auto p = pw->point_as_CrossCcyBasisHelper();
+            buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
+            buf.writeU8(p->spread().has_value() ? 1 : 0);
+            writeTenor(p->tenor());
+            writeIndexRef(buf, p->index_domestic());
+            writeIndexRef(buf, p->index_foreign());
+            writeDeps(buf, p->deps());
+            break;
+        }
+
+        case quantra::Point_NONE:
+            // No payload table — the type byte already written above IS the full
+            // content, so this cannot under-key.
+            break;
+
+        default:
+            // A Point type this switch does not cover (a schema addition that
+            // forgot the key builder). Writing only the type byte would under-key:
+            // two different curves would hash to the same key and the cache would
+            // serve wrong prices. Fail closed — the bootstrapper catches this and
+            // skips caching for the curve (bootstrap live, request still succeeds).
+            QUANTRA_ERROR(
+                "curve cache key: unhandled point type " + std::to_string(static_cast<int>(ptype)) +
+                " — point not serializable, curve must not be cached");
     }
 
     return buf.data();
@@ -453,10 +440,7 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
 // =============================================================================
 
 void CurveKeyBuilder::writeReferencedIndices(
-    CanonicalBuffer& buf,
-    const quantra::TermStructure* ts,
-    const KeyContext& ctx)
-{
+    CanonicalBuffer& buf, const quantra::TermStructure* ts, const KeyContext& ctx) {
     if (!ts->points()) return;
 
     // Collect all index IDs referenced by helpers in this curve
@@ -469,25 +453,21 @@ void CurveKeyBuilder::writeReferencedIndices(
             auto p = pw->point_as_SwapHelper();
             if (p->float_index() && p->float_index()->id())
                 referencedIds.insert(p->float_index()->id()->str());
-        }
-        else if (ptype == quantra::Point_OISHelper) {
+        } else if (ptype == quantra::Point_OISHelper) {
             auto p = pw->point_as_OISHelper();
             if (p->overnight_index() && p->overnight_index()->id())
                 referencedIds.insert(p->overnight_index()->id()->str());
-        }
-        else if (ptype == quantra::Point_DatedOISHelper) {
+        } else if (ptype == quantra::Point_DatedOISHelper) {
             auto p = pw->point_as_DatedOISHelper();
             if (p->overnight_index() && p->overnight_index()->id())
                 referencedIds.insert(p->overnight_index()->id()->str());
-        }
-        else if (ptype == quantra::Point_TenorBasisSwapHelper) {
+        } else if (ptype == quantra::Point_TenorBasisSwapHelper) {
             auto p = pw->point_as_TenorBasisSwapHelper();
             if (p->index_short() && p->index_short()->id())
                 referencedIds.insert(p->index_short()->id()->str());
             if (p->index_long() && p->index_long()->id())
                 referencedIds.insert(p->index_long()->id()->str());
-        }
-        else if (ptype == quantra::Point_CrossCcyBasisHelper) {
+        } else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto p = pw->point_as_CrossCcyBasisHelper();
             if (p->index_domestic() && p->index_domestic()->id())
                 referencedIds.insert(p->index_domestic()->id()->str());
@@ -519,16 +499,28 @@ void CurveKeyBuilder::writeReferencedIndices(
         // byte plus the value for each optional field so an absent convention
         // never collides with a present one in the cache key.
         auto idxOptEnum = [&buf](auto opt) {
-            if (opt.has_value()) { buf.writeU8(1); buf.writeU8(static_cast<uint8_t>(opt.value())); }
-            else { buf.writeU8(0); }
+            if (opt.has_value()) {
+                buf.writeU8(1);
+                buf.writeU8(static_cast<uint8_t>(opt.value()));
+            } else {
+                buf.writeU8(0);
+            }
         };
         auto idxOptInt = [&buf](flatbuffers::Optional<int32_t> opt) {
-            if (opt.has_value()) { buf.writeU8(1); buf.writeI32(opt.value()); }
-            else { buf.writeU8(0); }
+            if (opt.has_value()) {
+                buf.writeU8(1);
+                buf.writeI32(opt.value());
+            } else {
+                buf.writeU8(0);
+            }
         };
         auto idxOptBool = [&buf](flatbuffers::Optional<bool> opt) {
-            if (opt.has_value()) { buf.writeU8(1); buf.writeBool(opt.value()); }
-            else { buf.writeU8(0); }
+            if (opt.has_value()) {
+                buf.writeU8(1);
+                buf.writeBool(opt.value());
+            } else {
+                buf.writeU8(0);
+            }
         };
 
         const auto* def = it->second;
@@ -557,10 +549,7 @@ void CurveKeyBuilder::writeReferencedIndices(
             fixings.reserve(def->fixings()->size());
             for (flatbuffers::uoffset_t f = 0; f < def->fixings()->size(); f++) {
                 auto fix = def->fixings()->Get(f);
-                fixings.emplace_back(
-                    fix->date() ? fix->date()->str() : "",
-                    fix->value()
-                );
+                fixings.emplace_back(fix->date() ? fix->date()->str() : "", fix->value());
             }
             std::sort(fixings.begin(), fixings.end());
             for (const auto& [date, value] : fixings) {
@@ -578,10 +567,7 @@ void CurveKeyBuilder::writeReferencedIndices(
 // =============================================================================
 
 void CurveKeyBuilder::writeCurveHeader(
-    CanonicalBuffer& buf,
-    const std::string& asOfDate,
-    const quantra::TermStructure* ts)
-{
+    CanonicalBuffer& buf, const std::string& asOfDate, const quantra::TermStructure* ts) {
     buf.writeTag("yc-key-v3");
     buf.writeString(asOfDate);
     // day_counter and interpolator are presence-required (an omitted convention
@@ -614,8 +600,7 @@ std::string CurveKeyBuilder::compute(
     const std::string& asOfDate,
     const quantra::TermStructure* ts,
     const KeyContext& ctx,
-    const std::map<std::string, std::string>& depKeys)
-{
+    const std::map<std::string, std::string>& depKeys) {
     CanonicalBuffer buf;
 
     // 1. Curve header

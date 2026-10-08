@@ -1,6 +1,8 @@
 #include "floating_rate_bond_evaluator.h"
 
-#include <variant>
+#include "coupon_pricer_domain.h"
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/couponpricer.hpp>
@@ -16,9 +18,7 @@
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/types.hpp>
 
-#include "date_convert.h"
-#include "coupon_pricer_domain.h"
-#include "error.h"
+#include <variant>
 
 namespace quantra {
 
@@ -32,10 +32,7 @@ namespace {
 std::shared_ptr<QuantLib::IborCouponPricer> buildBlackIborCouponPricer(
     const BlackIborCouponPricerDomain& spec) {
     auto vol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
-        spec.settlement_days,
-        spec.calendar,
-        spec.business_day_convention,
-        spec.volatility,
+        spec.settlement_days, spec.calendar, spec.business_day_convention, spec.volatility,
         spec.day_counter);
     QuantLib::Handle<QuantLib::OptionletVolatilityStructure> volHandle(vol);
     auto pricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
@@ -96,7 +93,7 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
     result.bonds.reserve(inputs.trades.size());
 
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         auto discIt = reg.rates.curves.find(trade.discountingCurveId);
         if (discIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -112,37 +109,25 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
         if (pricerIt == reg.rates.couponPricerDomains.end()) {
             QUANTRA_NOT_FOUND("Coupon pricer not found: " + trade.couponPricerId);
         }
-        const auto* blackSpec =
-            std::get_if<BlackIborCouponPricerDomain>(&pricerIt->second.payload);
+        const auto* blackSpec = std::get_if<BlackIborCouponPricerDomain>(&pricerIt->second.payload);
         if (blackSpec == nullptr) {
             QUANTRA_INVALID_ARGUMENT(
-                "Coupon pricer '" + trade.couponPricerId +
-                "' is not a BlackIborCouponPricer");
+                "Coupon pricer '" + trade.couponPricerId + "' is not a BlackIborCouponPricer");
         }
 
         const auto& discountHandle = *discIt->second;
         auto discountCurve = discountHandle.currentLink();
         const auto& forwardingHandle = *fwdIt->second;
-        auto iborIndex =
-            reg.rates.indices.getIborWithCurve(trade.indexId, forwardingHandle);
+        auto iborIndex = reg.rates.indices.getIborWithCurve(trade.indexId, forwardingHandle);
 
         std::shared_ptr<QuantLib::Bond> bond;
         if (trade.notionals.empty()) {
             bond = std::make_shared<QuantLib::FloatingRateBond>(
-                trade.settlement_days,
-                trade.face_amount,
-                trade.schedule,
-                iborIndex,
-                trade.accrual_day_counter,
-                trade.payment_convention,
-                trade.fixing_days,
-                std::vector<QuantLib::Real>(1, 1.0),
-                std::vector<QuantLib::Spread>(1, trade.spread),
-                std::vector<QuantLib::Rate>(),
-                std::vector<QuantLib::Rate>(),
-                trade.in_arrears,
-                trade.redemption,
-                trade.issue_date);
+                trade.settlement_days, trade.face_amount, trade.schedule, iborIndex,
+                trade.accrual_day_counter, trade.payment_convention, trade.fixing_days,
+                std::vector<QuantLib::Real>(1, 1.0), std::vector<QuantLib::Spread>(1, trade.spread),
+                std::vector<QuantLib::Rate>(), std::vector<QuantLib::Rate>(), trade.in_arrears,
+                trade.redemption, trade.issue_date);
         } else {
             // AmortizingFloatingRateBond carries the outstanding notional per
             // period; redemptions are derived from the notional decrements at
@@ -150,21 +135,11 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
             bond = std::make_shared<QuantLib::AmortizingFloatingRateBond>(
                 trade.settlement_days,
                 std::vector<QuantLib::Real>(trade.notionals.begin(), trade.notionals.end()),
-                trade.schedule,
-                iborIndex,
-                trade.accrual_day_counter,
-                trade.payment_convention,
-                trade.fixing_days,
-                std::vector<QuantLib::Real>(1, 1.0),
-                std::vector<QuantLib::Spread>(1, trade.spread),
-                std::vector<QuantLib::Rate>(),
-                std::vector<QuantLib::Rate>(),
-                trade.in_arrears,
-                trade.issue_date,
-                QuantLib::Period(),
-                QuantLib::Calendar(),
-                QuantLib::Unadjusted,
-                false,
+                trade.schedule, iborIndex, trade.accrual_day_counter, trade.payment_convention,
+                trade.fixing_days, std::vector<QuantLib::Real>(1, 1.0),
+                std::vector<QuantLib::Spread>(1, trade.spread), std::vector<QuantLib::Rate>(),
+                std::vector<QuantLib::Rate>(), trade.in_arrears, trade.issue_date,
+                QuantLib::Period(), QuantLib::Calendar(), QuantLib::Unadjusted, false,
                 std::vector<QuantLib::Real>(1, trade.redemption));
         }
 
@@ -182,8 +157,7 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
             out.cleanPrice = bond->cleanPrice();
             out.dirtyPrice = bond->dirtyPrice();
             out.accruedAmount = bond->accruedAmount();
-            out.accruedDays =
-                static_cast<double>(QuantLib::BondFunctions::accruedDays(*bond));
+            out.accruedDays = static_cast<double>(QuantLib::BondFunctions::accruedDays(*bond));
 
             QuantLib::InterestRate interestRate(
                 out.yield, trade.yieldDc, trade.yieldComp, trade.yieldFreq);
@@ -192,10 +166,8 @@ FloatingRateBondResult FloatingRateBondEvaluator::evaluate(
                 *bond, interestRate, QuantLib::Duration::Modified, ctx.settlement);
             out.macaulayDuration = QuantLib::BondFunctions::duration(
                 *bond, interestRate, QuantLib::Duration::Macaulay, ctx.settlement);
-            out.convexity = QuantLib::BondFunctions::convexity(
-                *bond, interestRate, ctx.settlement);
-            out.bps = QuantLib::BondFunctions::bps(
-                *bond, *discountCurve, ctx.settlement);
+            out.convexity = QuantLib::BondFunctions::convexity(*bond, interestRate, ctx.settlement);
+            out.bps = QuantLib::BondFunctions::bps(*bond, *discountCurve, ctx.settlement);
         }
 
         if (reg.options.bondPricingFlows) {

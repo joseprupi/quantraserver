@@ -8,11 +8,12 @@
  * ZeroCouponInflationSwapResult back into a PriceZeroCouponInflationSwapResponse.
  */
 
-#include "flatbuffers/grpc.h"
+#include "zero_coupon_inflation_swap_evaluator.h"
 
 #include "price_zero_coupon_inflation_swap_request_generated.h"
-#include "zero_coupon_inflation_swap_evaluator.h"
 #include "zero_coupon_inflation_swap_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 

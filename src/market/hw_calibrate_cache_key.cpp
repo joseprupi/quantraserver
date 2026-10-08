@@ -1,11 +1,11 @@
 #include "hw_calibrate_cache_key.h"
 
+#include "curve_cache_key.h"
+
 #include <openssl/sha.h>
 
 #include <iomanip>
 #include <sstream>
-
-#include "curve_cache_key.h"
 
 namespace quantra {
 

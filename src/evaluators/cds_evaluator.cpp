@@ -1,7 +1,9 @@
 #include "cds_evaluator.h"
 
-#include <string>
-#include <variant>
+#include "credit_curve_domain.h"
+#include "error.h"
+#include "model_domain.h"
+#include "quote_registry.h"
 
 #include <ql/handle.hpp>
 #include <ql/pricingengines/credit/isdacdsengine.hpp>
@@ -13,10 +15,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-#include "credit_curve_domain.h"
-#include "error.h"
-#include "model_domain.h"
-#include "quote_registry.h"
+#include <string>
+#include <variant>
 
 namespace quantra {
 
@@ -62,9 +62,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
 
     if (curve.flat_hazard_rate.has_value()) {
         return std::make_shared<QuantLib::FlatHazardRate>(
-            curve.reference_date,
-            curve.flat_hazard_rate.value(),
-            curve.day_counter);
+            curve.reference_date, curve.flat_hazard_rate.value(), curve.day_counter);
     }
     if (curve.quotes.empty()) {
         QUANTRA_INVALID_ARGUMENT(
@@ -74,8 +72,7 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
 
     const auto& hc = curve.helper_conventions;
     QuantLib::Frequency freq = hc ? hc->frequency : QuantLib::Quarterly;
-    QuantLib::BusinessDayConvention bdc =
-        hc ? hc->business_day_convention : QuantLib::Following;
+    QuantLib::BusinessDayConvention bdc = hc ? hc->business_day_convention : QuantLib::Following;
     QuantLib::DateGeneration::Rule rule =
         hc ? hc->date_generation_rule : QuantLib::DateGeneration::TwentiethIMM;
     QuantLib::DayCounter lastPeriodDc =
@@ -84,12 +81,10 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
     bool paysAtDefaultTime = hc ? hc->pays_at_default_time : true;
     bool rebatesAccrual = hc ? hc->rebates_accrual : true;
     int settlementDays = hc ? hc->settlement_days : 0;
-    CdsHelperModelKind helperModelKind =
-        hc ? hc->helper_model : CdsHelperModelKind::MidPoint;
+    CdsHelperModelKind helperModelKind = hc ? hc->helper_model : CdsHelperModelKind::MidPoint;
     QuantLib::CreditDefaultSwap::PricingModel helperModel =
-        helperModelKind == CdsHelperModelKind::ISDA
-            ? QuantLib::CreditDefaultSwap::ISDA
-            : QuantLib::CreditDefaultSwap::Midpoint;
+        helperModelKind == CdsHelperModelKind::ISDA ? QuantLib::CreditDefaultSwap::ISDA
+                                                    : QuantLib::CreditDefaultSwap::Midpoint;
 
     std::vector<std::shared_ptr<QuantLib::DefaultProbabilityHelper>> helpers;
     helpers.reserve(curve.quotes.size());
@@ -102,32 +97,20 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
         switch (quote.quote_type) {
             case CdsQuoteTypeKind::Upfront: {
                 if (!quote.running_coupon.has_value()) {
-                    QUANTRA_INVALID_ARGUMENT("CdsQuote.running_coupon is required for upfront quotes");
+                    QUANTRA_INVALID_ARGUMENT(
+                        "CdsQuote.running_coupon is required for upfront quotes");
                 }
                 auto upfrontQuote = quoteHandle;
                 if (upfrontQuote.empty()) {
                     upfrontQuote = QuantLib::Handle<QuantLib::Quote>(
                         std::make_shared<QuantLib::SimpleQuote>(quote.quoted_upfront));
                 }
-                helpers.push_back(std::make_shared<QuantLib::UpfrontCdsHelper>(
-                    upfrontQuote,
-                    quote.running_coupon.value(),
-                    quote.tenor,
-                    settlementDays,
-                    curve.calendar,
-                    freq,
-                    bdc,
-                    rule,
-                    curve.day_counter,
-                    curve.recovery_rate,
-                    discountCurve,
-                    settlementDays,
-                    settlesAccrual,
-                    paysAtDefaultTime,
-                    QuantLib::Date(),
-                    lastPeriodDc,
-                    rebatesAccrual,
-                    helperModel));
+                helpers.push_back(
+                    std::make_shared<QuantLib::UpfrontCdsHelper>(
+                        upfrontQuote, quote.running_coupon.value(), quote.tenor, settlementDays,
+                        curve.calendar, freq, bdc, rule, curve.day_counter, curve.recovery_rate,
+                        discountCurve, settlementDays, settlesAccrual, paysAtDefaultTime,
+                        QuantLib::Date(), lastPeriodDc, rebatesAccrual, helperModel));
                 break;
             }
             case CdsQuoteTypeKind::ParSpread:
@@ -137,23 +120,12 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
                     spreadQuote = QuantLib::Handle<QuantLib::Quote>(
                         std::make_shared<QuantLib::SimpleQuote>(quote.quoted_par_spread));
                 }
-                helpers.push_back(std::make_shared<QuantLib::SpreadCdsHelper>(
-                    spreadQuote,
-                    quote.tenor,
-                    settlementDays,
-                    curve.calendar,
-                    freq,
-                    bdc,
-                    rule,
-                    curve.day_counter,
-                    curve.recovery_rate,
-                    discountCurve,
-                    settlesAccrual,
-                    paysAtDefaultTime,
-                    QuantLib::Date(),
-                    lastPeriodDc,
-                    rebatesAccrual,
-                    helperModel));
+                helpers.push_back(
+                    std::make_shared<QuantLib::SpreadCdsHelper>(
+                        spreadQuote, quote.tenor, settlementDays, curve.calendar, freq, bdc, rule,
+                        curve.day_counter, curve.recovery_rate, discountCurve, settlesAccrual,
+                        paysAtDefaultTime, QuantLib::Date(), lastPeriodDc, rebatesAccrual,
+                        helperModel));
                 break;
             }
         }
@@ -167,15 +139,13 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
     // dying inside the bootstrap with an opaque QuantLib error.
     switch (curve.curve_interpolator) {
         case CreditCurveInterpolatorKind::LogLinear:
-            return std::make_shared<
-                QuantLib::PiecewiseDefaultCurve<QuantLib::SurvivalProbability,
-                                                QuantLib::LogLinear>>(
+            return std::make_shared<QuantLib::PiecewiseDefaultCurve<
+                QuantLib::SurvivalProbability, QuantLib::LogLinear>>(
                 curve.reference_date, helpers, curve.day_counter);
         case CreditCurveInterpolatorKind::BackwardFlat:
         case CreditCurveInterpolatorKind::ForwardFlat:
         case CreditCurveInterpolatorKind::Linear:
-        case CreditCurveInterpolatorKind::LogCubic:
-            break;
+        case CreditCurveInterpolatorKind::LogCubic: break;
     }
     throw QuantraInvalidArgument(
         "Unsupported credit curve interpolator: " +
@@ -191,38 +161,17 @@ std::shared_ptr<QuantLib::DefaultProbabilityTermStructure> buildCreditCurve(
 std::shared_ptr<QuantLib::CreditDefaultSwap> buildCds(const CdsTrade& trade) {
     if (trade.upfront.has_value() || trade.hasUpfrontDate) {
         return std::make_shared<QuantLib::CreditDefaultSwap>(
-            trade.side,
-            trade.notional,
-            trade.upfront.value_or(0.0),
-            trade.runningCoupon,
-            trade.schedule,
-            trade.businessDayConvention,
-            trade.dayCounter,
-            trade.settlesAccrual,
-            trade.paysAtDefaultTime,
-            trade.protectionStart,
-            trade.upfrontDate,
-            nullptr,
-            trade.lastPeriodDayCounter,
-            trade.rebatesAccrual,
-            trade.tradeDate,
+            trade.side, trade.notional, trade.upfront.value_or(0.0), trade.runningCoupon,
+            trade.schedule, trade.businessDayConvention, trade.dayCounter, trade.settlesAccrual,
+            trade.paysAtDefaultTime, trade.protectionStart, trade.upfrontDate, nullptr,
+            trade.lastPeriodDayCounter, trade.rebatesAccrual, trade.tradeDate,
             trade.cashSettlementDays);
     }
     return std::make_shared<QuantLib::CreditDefaultSwap>(
-        trade.side,
-        trade.notional,
-        trade.runningCoupon,
-        trade.schedule,
-        trade.businessDayConvention,
-        trade.dayCounter,
-        trade.settlesAccrual,
-        trade.paysAtDefaultTime,
-        trade.protectionStart,
-        nullptr,
-        trade.lastPeriodDayCounter,
-        trade.rebatesAccrual,
-        trade.tradeDate,
-        trade.cashSettlementDays);
+        trade.side, trade.notional, trade.runningCoupon, trade.schedule,
+        trade.businessDayConvention, trade.dayCounter, trade.settlesAccrual,
+        trade.paysAtDefaultTime, trade.protectionStart, nullptr, trade.lastPeriodDayCounter,
+        trade.rebatesAccrual, trade.tradeDate, trade.cashSettlementDays);
 }
 
 std::shared_ptr<QuantLib::PricingEngine> buildEngine(
@@ -246,19 +195,12 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
                     ? QuantLib::IsdaCdsEngine::Flat
                     : QuantLib::IsdaCdsEngine::Piecewise;
             return std::make_shared<QuantLib::IsdaCdsEngine>(
-                creditHandle,
-                recoveryRate,
-                discountHandle,
-                model.include_settlement_date_flows,
-                fix,
-                bias,
-                fwd);
+                creditHandle, recoveryRate, discountHandle, model.include_settlement_date_flows,
+                fix, bias, fwd);
         }
         case CdsEngineTypeKind::MidPoint:
             return std::make_shared<QuantLib::MidPointCdsEngine>(
-                creditHandle,
-                recoveryRate,
-                discountHandle);
+                creditHandle, recoveryRate, discountHandle);
     }
     // Fail closed: an out-of-range engine enum from the raw wire
     // cast must not silently price with the MidPoint engine.
@@ -267,9 +209,8 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
         std::to_string(static_cast<int>(model.engine_type)));
 }
 
-CdsPerTrade priceTrade(const CdsTrade& trade,
-                       const PricingRegistry& reg,
-                       const PricingContext& /*ctx*/) {
+CdsPerTrade priceTrade(
+    const CdsTrade& trade, const PricingRegistry& reg, const PricingContext& /*ctx*/) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -303,7 +244,8 @@ CdsPerTrade priceTrade(const CdsTrade& trade,
     QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure> creditHandle(creditCurve);
 
     auto cds = buildCds(trade);
-    cds->setPricingEngine(buildEngine(*cdsModel, creditHandle, curve.recovery_rate, discountHandle));
+    cds->setPricingEngine(
+        buildEngine(*cdsModel, creditHandle, curve.recovery_rate, discountHandle));
 
     CdsPerTrade out;
     out.npv = cds->NPV();
@@ -323,13 +265,12 @@ CdsPerTrade priceTrade(const CdsTrade& trade,
 
 } // namespace
 
-CdsResult CdsEvaluator::evaluate(const CdsInputs& inputs,
-                           const PricingRegistry& reg,
-                           const PricingContext& ctx) const {
+CdsResult CdsEvaluator::evaluate(
+    const CdsInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     CdsResult result;
     result.values.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         result.values.push_back(priceTrade(trade, reg, ctx));
     }
     return result;

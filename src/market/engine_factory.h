@@ -16,15 +16,16 @@
  * producing silently wrong prices.
  */
 
-#include <memory>
-
-#include <ql/pricingengine.hpp>
-#include <ql/handle.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
+#include "date_convert.h"
+#include "vol_surface_parsers.h"
 
 #include "model_generated.h"
-#include "vol_surface_parsers.h"
-#include "date_convert.h"
+
+#include <ql/handle.hpp>
+#include <ql/pricingengine.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
+
+#include <memory>
 
 namespace quantra {
 

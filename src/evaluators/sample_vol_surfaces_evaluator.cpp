@@ -1,18 +1,18 @@
 #include "sample_vol_surfaces_evaluator.h"
 
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "error.h"
+#include "swaption_vol_runtime.h"
+
+#include <ql/quantlib.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
-
-#include <ql/quantlib.hpp>
-
-#include "date_convert.h"
-#include "enum_convert.h"
-#include "error.h"
-#include "swaption_vol_runtime.h"
 
 using namespace QuantLib;
 
@@ -39,10 +39,12 @@ GridConventions resolveGridConventions(
     gc.fbCalendar = fallbackFbCalendar;
     gc.qlBdc = fallbackBdc;
     gc.fbBdc = fallbackFbBdc;
-    auto shouldUseOverrideBdc = [](quantra::enums::BusinessDayConvention bdc, quantra::enums::Calendar cal) {
+    auto shouldUseOverrideBdc = [](quantra::enums::BusinessDayConvention bdc,
+                                   quantra::enums::Calendar cal) {
         // QueryOptions/TenorGrid/RangeGrid default to Following even when omitted.
         // Treat Following as "no explicit override" unless calendar is explicitly set.
-        return cal != quantra::enums::Calendar_NullCalendar || bdc != quantra::enums::BusinessDayConvention_Following;
+        return cal != quantra::enums::Calendar_NullCalendar ||
+               bdc != quantra::enums::BusinessDayConvention_Following;
     };
 
     if (options.present && options.calendar != quantra::enums::Calendar_NullCalendar) {
@@ -135,14 +137,16 @@ std::vector<Date> buildDateGrid(
             bool accepted = (!businessDaysOnly || calendar.isBusinessDay(current));
             if (accepted) {
                 if (hasLastAccepted && current == lastAcceptedDate) {
-                    QUANTRA_INVALID_ARGUMENT("RangeGrid produced duplicate points; check step and conventions");
+                    QUANTRA_INVALID_ARGUMENT(
+                        "RangeGrid produced duplicate points; check step and conventions");
                 }
                 dates.push_back(current);
                 lastAcceptedDate = current;
                 hasLastAccepted = true;
             }
             if (static_cast<int>(dates.size()) > maxPoints) {
-                QUANTRA_INVALID_ARGUMENT("Grid too large (>" + std::to_string(maxPoints) + " points)");
+                QUANTRA_INVALID_ARGUMENT(
+                    "Grid too large (>" + std::to_string(maxPoints) + " points)");
             }
             if (stepUnit == Days) {
                 current = current + stepNumber;
@@ -151,7 +155,8 @@ std::vector<Date> buildDateGrid(
             } else {
                 Date next = calendar.advance(current, step, bdc);
                 if (next <= current) {
-                    QUANTRA_INVALID_ARGUMENT("RangeGrid step does not advance dates; check step and conventions");
+                    QUANTRA_INVALID_ARGUMENT(
+                        "RangeGrid step does not advance dates; check step and conventions");
                 }
                 current = next;
             }
@@ -208,8 +213,9 @@ int resolveSelectorIndex(int idx, int size, const std::string& name, bool requir
         return 0;
     }
     if (idx >= size) {
-        QUANTRA_INVALID_ARGUMENT(name + " out of range: " + std::to_string(idx) +
-                     " (size=" + std::to_string(size) + ")");
+        QUANTRA_INVALID_ARGUMENT(
+            name + " out of range: " + std::to_string(idx) + " (size=" + std::to_string(size) +
+            ")");
     }
     return idx;
 }
@@ -217,15 +223,14 @@ int resolveSelectorIndex(int idx, int size, const std::string& name, bool requir
 void checkPointBudget(int64_t points, const SampleQueryOptions& options) {
     int maxPoints = (options.present && options.maxPoints > 0) ? options.maxPoints : 50000;
     if (points > maxPoints) {
-        QUANTRA_INVALID_ARGUMENT("Query exceeds max_points: " + std::to_string(points) +
-                      " > " + std::to_string(maxPoints));
+        QUANTRA_INVALID_ARGUMENT(
+            "Query exceeds max_points: " + std::to_string(points) + " > " +
+            std::to_string(maxPoints));
     }
 }
 
 VolSurfaceSampleResult priceOneQuery(
-    const SampleVolSurfacesQuery& q,
-    const PricingRegistry& reg,
-    const Date& asOf) {
+    const SampleVolSurfacesQuery& q, const PricingRegistry& reg, const Date& asOf) {
     VolSurfaceSampleResult sample;
     sample.volId = q.volId;
 
@@ -247,7 +252,8 @@ VolSurfaceSampleResult priceOneQuery(
     std::vector<double> atmLevelsOut;
     SampleExpiryKind expiryKindOut = SampleExpiryKind::GridDate;
     quantra::enums::VolatilityType volTypeOut = quantra::enums::VolatilityType_Lognormal;
-    quantra::enums::SwaptionStrikeKind canonicalStrikeKind = quantra::enums::SwaptionStrikeKind_Absolute;
+    quantra::enums::SwaptionStrikeKind canonicalStrikeKind =
+        quantra::enums::SwaptionStrikeKind_Absolute;
     SampleStrikeAxis requestedStrikeAxis = q.strikeAxis;
     Date sampleReferenceDate = asOf;
     quantra::enums::Calendar usedCalendar = quantra::enums::Calendar_NullCalendar;
@@ -269,8 +275,8 @@ VolSurfaceSampleResult priceOneQuery(
         if (strictMode && volEntry.referenceDate != asOf) {
             std::ostringstream err;
             err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
-                << ") must equal swaption vol referenceDate ("
-                << DateToIso(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                << ") must equal swaption vol referenceDate (" << DateToIso(volEntry.referenceDate)
+                << ") for vol '" << volId << "'";
             QUANTRA_INVALID_ARGUMENT(err.str());
         }
         if (!q.tenorGrid.present) {
@@ -292,7 +298,8 @@ VolSurfaceSampleResult priceOneQuery(
             swapIndexId = q.swapIndexId;
         }
         if (volEntry.swapIndexId != swapIndexId) {
-            QUANTRA_INVALID_ARGUMENT("VolQuerySpec.swap_index_id does not match surface swap_index_id");
+            QUANTRA_INVALID_ARGUMENT(
+                "VolQuerySpec.swap_index_id does not match surface swap_index_id");
         }
         if (!reg.rates.swapIndices.has(swapIndexId)) {
             QUANTRA_NOT_FOUND("Missing swap index definition for id: " + swapIndexId);
@@ -308,14 +315,15 @@ VolSurfaceSampleResult priceOneQuery(
             rawExpiryGrid.reserve(expPeriods.size());
             expiries.reserve(expPeriods.size());
             for (const auto& p : expPeriods) {
-                Date gridDate = sidx.fixedCalendar.advance(volEntry.referenceDate, p, sidx.fixedBdc);
+                Date gridDate =
+                    sidx.fixedCalendar.advance(volEntry.referenceDate, p, sidx.fixedBdc);
                 rawExpiryGrid.push_back(gridDate);
                 expiries.push_back(gridDate);
             }
         } else {
             rawExpiryGrid = buildDateGrid(
-                q.expiryGrid, volEntry.referenceDate, asOf, options,
-                sidx.fixedCalendar, sidx.fixedCalendarFb, sidx.fixedBdc, sidx.fixedBdcFb);
+                q.expiryGrid, volEntry.referenceDate, asOf, options, sidx.fixedCalendar,
+                sidx.fixedCalendarFb, sidx.fixedBdc, sidx.fixedBdcFb);
             expiries.reserve(rawExpiryGrid.size());
             for (const auto& d : rawExpiryGrid) {
                 expiries.push_back(sidx.fixedCalendar.adjust(d, sidx.fixedBdc));
@@ -336,7 +344,8 @@ VolSurfaceSampleResult priceOneQuery(
         SampleStrikeAxis axis = requestedStrikeAxis;
         if (volEntry.strikeKind == quantra::enums::SwaptionStrikeKind_Absolute &&
             axis == SampleStrikeAxis::SpreadFromATM) {
-            QUANTRA_INVALID_ARGUMENT("SpreadFromATM strike axis requested for Absolute-strike swaption vol");
+            QUANTRA_INVALID_ARGUMENT(
+                "SpreadFromATM strike axis requested for Absolute-strike swaption vol");
         }
 
         // SpreadFromATM smile cubes and SABR-params surfaces both need
@@ -361,30 +370,31 @@ VolSurfaceSampleResult priceOneQuery(
                 QUANTRA_NOT_FOUND("Sampling curve ids not found for ATM computation");
             }
             volEntry = finalizeSwaptionVolEntryForPricing(
-                volEntry,
-                nullptr,
-                reg,
-                Handle<YieldTermStructure>(dIt->second->currentLink()),
-                Handle<YieldTermStructure>(fIt->second->currentLink()),
-                false,
-                q.discountingCurveId,
+                volEntry, nullptr, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
+                Handle<YieldTermStructure>(fIt->second->currentLink()), false, q.discountingCurveId,
                 q.forwardingCurveId);
         }
 
         if (volEntry.handle.empty()) {
             QUANTRA_ERROR("Swaption vol handle is empty");
         }
-        if (allowExtrapolation) volEntry.handle->enableExtrapolation();
-        else volEntry.handle->disableExtrapolation();
+        if (allowExtrapolation)
+            volEntry.handle->enableExtrapolation();
+        else
+            volEntry.handle->disableExtrapolation();
 
         int64_t nExp = static_cast<int64_t>(expiries.size());
         int64_t nTen = static_cast<int64_t>(tenors.size());
         int64_t nStr = static_cast<int64_t>(strikes.size());
         SampleOutputMode mode = q.outputMode;
-        if (mode == SampleOutputMode::Cube) checkPointBudget(nExp * nTen * nStr, options);
-        else if (mode == SampleOutputMode::SmileSlice) checkPointBudget(nStr, options);
-        else if (mode == SampleOutputMode::TermSlice) checkPointBudget(nTen, options);
-        else if (mode == SampleOutputMode::ExpirySlice) checkPointBudget(nExp, options);
+        if (mode == SampleOutputMode::Cube)
+            checkPointBudget(nExp * nTen * nStr, options);
+        else if (mode == SampleOutputMode::SmileSlice)
+            checkPointBudget(nStr, options);
+        else if (mode == SampleOutputMode::TermSlice)
+            checkPointBudget(nTen, options);
+        else if (mode == SampleOutputMode::ExpirySlice)
+            checkPointBudget(nExp, options);
 
         const Date evalDate = Settings::instance().evaluationDate();
         int expIdx = 0;
@@ -399,10 +409,15 @@ VolSurfaceSampleResult priceOneQuery(
 
         auto requireSelectors = [&](SampleOutputMode m) {
             if (m == SampleOutputMode::SmileSlice) {
-                expIdx = resolveSelectorIndex(q.sliceExpiryIndex, static_cast<int>(expiries.size()), "slice_expiry_index", true);
-                tenIdx = resolveSelectorIndex(q.sliceTenorIndex, static_cast<int>(tenors.size()), "slice_tenor_index", true);
+                expIdx = resolveSelectorIndex(
+                    q.sliceExpiryIndex, static_cast<int>(expiries.size()), "slice_expiry_index",
+                    true);
+                tenIdx = resolveSelectorIndex(
+                    q.sliceTenorIndex, static_cast<int>(tenors.size()), "slice_tenor_index", true);
             } else if (m == SampleOutputMode::TermSlice) {
-                expIdx = resolveSelectorIndex(q.sliceExpiryIndex, static_cast<int>(expiries.size()), "slice_expiry_index", true);
+                expIdx = resolveSelectorIndex(
+                    q.sliceExpiryIndex, static_cast<int>(expiries.size()), "slice_expiry_index",
+                    true);
                 if (!q.sliceStrikeIsSet) {
                     QUANTRA_INVALID_ARGUMENT("TermSlice requires slice_strike_is_set=true");
                 }
@@ -410,7 +425,8 @@ VolSurfaceSampleResult priceOneQuery(
                     QUANTRA_INVALID_ARGUMENT("TermSlice requires finite slice_strike");
                 }
             } else if (m == SampleOutputMode::ExpirySlice) {
-                tenIdx = resolveSelectorIndex(q.sliceTenorIndex, static_cast<int>(tenors.size()), "slice_tenor_index", true);
+                tenIdx = resolveSelectorIndex(
+                    q.sliceTenorIndex, static_cast<int>(tenors.size()), "slice_tenor_index", true);
                 if (!q.sliceStrikeIsSet) {
                     QUANTRA_INVALID_ARGUMENT("ExpirySlice requires slice_strike_is_set=true");
                 }
@@ -424,7 +440,8 @@ VolSurfaceSampleResult priceOneQuery(
         auto atmLookup = [&](int iExp, int iTen) -> double {
             if (precomputedAtm.empty()) return std::numeric_limits<double>::quiet_NaN();
             if (mode == SampleOutputMode::Cube) {
-                return precomputedAtm[static_cast<size_t>(iExp) * tenors.size() + static_cast<size_t>(iTen)];
+                return precomputedAtm
+                    [static_cast<size_t>(iExp) * tenors.size() + static_cast<size_t>(iTen)];
             }
             if (mode == SampleOutputMode::SmileSlice) {
                 return precomputedAtm[0];
@@ -439,7 +456,8 @@ VolSurfaceSampleResult priceOneQuery(
         if (volEntry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
             if (!q.hasDiscountingCurveId || q.discountingCurveId.empty() ||
                 !q.hasForwardingCurveId || q.forwardingCurveId.empty()) {
-                QUANTRA_INVALID_ARGUMENT("SpreadFromATM requires discounting_curve_id/forwarding_curve_id");
+                QUANTRA_INVALID_ARGUMENT(
+                    "SpreadFromATM requires discounting_curve_id/forwarding_curve_id");
             }
             auto dIt = reg.rates.curves.find(q.discountingCurveId);
             auto fIt = reg.rates.curves.find(q.forwardingCurveId);
@@ -462,10 +480,7 @@ VolSurfaceSampleResult priceOneQuery(
                 atmTenors = {tenors[static_cast<size_t>(tenIdx)]};
             }
             precomputedAtm = computeServerAtmForwardsForExerciseDates(
-                atmExpiries,
-                atmTenors,
-                sidx,
-                reg.rates.indices,
+                atmExpiries, atmTenors, sidx, reg.rates.indices,
                 Handle<YieldTermStructure>(dIt->second->currentLink()),
                 Handle<YieldTermStructure>(fIt->second->currentLink()));
             const size_t expectedAtm = atmExpiries.size() * atmTenors.size();
@@ -504,13 +519,16 @@ VolSurfaceSampleResult priceOneQuery(
             };
             validateTenorMonotonicAtExpiry(0, " (first expiry)");
             if (expiries.size() > 1) {
-                validateTenorMonotonicAtExpiry(static_cast<int>(expiries.size() - 1), " (last expiry)");
+                validateTenorMonotonicAtExpiry(
+                    static_cast<int>(expiries.size() - 1), " (last expiry)");
             }
         }
 
-        auto sampleVol = [&](int iExp, int iTen, double strikeInput, const SwaptionNodeDates& dates) -> double {
+        auto sampleVol = [&](int iExp, int iTen, double strikeInput,
+                             const SwaptionNodeDates& dates) -> double {
             double optionTime = safeOptionTime(volEntry.dayCounter, evalDate, dates.exercise);
-            double swapLength = std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
+            double swapLength =
+                std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
             double atm = std::numeric_limits<double>::quiet_NaN();
             if (volEntry.strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
                 atm = atmLookup(iExp, iTen);
@@ -528,7 +546,8 @@ VolSurfaceSampleResult priceOneQuery(
                 }
                 if (!allowExtrapolation && !volEntry.strikes.empty()) {
                     if (spread < volEntry.strikes.front() || spread > volEntry.strikes.back()) {
-                        QUANTRA_INVALID_ARGUMENT("Strike/spread is outside smile cube strike support");
+                        QUANTRA_INVALID_ARGUMENT(
+                            "Strike/spread is outside smile cube strike support");
                     }
                 }
             } else if (!allowExtrapolation && !volEntry.strikes.empty()) {
@@ -537,7 +556,8 @@ VolSurfaceSampleResult priceOneQuery(
                 }
             }
 
-            if (!allowExtrapolation && volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
+            if (!allowExtrapolation &&
+                volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
                 if (!volEntry.expiries.empty()) {
                     Date minExp = sidx.fixedCalendar.advance(
                         volEntry.referenceDate, volEntry.expiries.front(), sidx.fixedBdc);
@@ -551,22 +571,24 @@ VolSurfaceSampleResult priceOneQuery(
             return volEntry.handle->volatility(optionTime, swapLength, absStrike);
         };
 
-        auto computeSwapLengthSupportBounds = [&](const SwaptionNodeDates& dates) -> std::pair<double, double> {
+        auto computeSwapLengthSupportBounds =
+            [&](const SwaptionNodeDates& dates) -> std::pair<double, double> {
             if (volEntry.tenors.empty()) {
                 return {0.0, std::numeric_limits<double>::infinity()};
             }
             auto computeSwapLengthForSurfaceTenor = [&](const QuantLib::Period& surfaceTenor) {
-                Date boundEnd = sidx.fixedCalendar.advance(dates.start, surfaceTenor, sidx.fixedTermBdc);
+                Date boundEnd =
+                    sidx.fixedCalendar.advance(dates.start, surfaceTenor, sidx.fixedTermBdc);
                 QuantLib::Schedule fixedSchedule(
-                    dates.start, boundEnd, QuantLib::Period(sidx.fixedFrequency), sidx.fixedCalendar,
-                    sidx.fixedBdc, sidx.fixedTermBdc, sidx.fixedDateRule, sidx.fixedEom);
+                    dates.start, boundEnd, QuantLib::Period(sidx.fixedFrequency),
+                    sidx.fixedCalendar, sidx.fixedBdc, sidx.fixedTermBdc, sidx.fixedDateRule,
+                    sidx.fixedEom);
                 Date end = fixedSchedule.endDate();
                 return std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, end));
             };
             return {
                 computeSwapLengthForSurfaceTenor(volEntry.tenors.front()),
-                computeSwapLengthForSurfaceTenor(volEntry.tenors.back())
-            };
+                computeSwapLengthForSurfaceTenor(volEntry.tenors.back())};
         };
 
         auto checkTenorSupport = [&](double swapLength, const std::pair<double, double>& bounds) {
@@ -576,13 +598,13 @@ VolSurfaceSampleResult priceOneQuery(
             }
         };
 
-        auto addExpiryLabel = [&](const Date& d) {
-            expiriesOut.push_back(d);
-        };
+        auto addExpiryLabel = [&](const Date& d) { expiriesOut.push_back(d); };
 
         if (mode == SampleOutputMode::Cube) {
-            for (size_t i = 0; i < expiries.size(); ++i) addExpiryLabel(expiries[i]);
-            for (size_t j = 0; j < tenors.size(); ++j) tenorsOut.push_back(tenors[j]);
+            for (size_t i = 0; i < expiries.size(); ++i)
+                addExpiryLabel(expiries[i]);
+            for (size_t j = 0; j < tenors.size(); ++j)
+                tenorsOut.push_back(tenors[j]);
             strikesOut = strikes;
             expiryKindOut = SampleExpiryKind::ExerciseDate;
 
@@ -590,10 +612,13 @@ VolSurfaceSampleResult priceOneQuery(
                 for (size_t j = 0; j < tenors.size(); ++j) {
                     auto dates = computeSwaptionDates(static_cast<int>(i), static_cast<int>(j));
                     std::pair<double, double> tenorBounds;
-                    bool enforceTenorBounds = (!allowExtrapolation && volEntry.volKind != quantra::enums::SwaptionVolKind_Constant);
+                    bool enforceTenorBounds =
+                        (!allowExtrapolation &&
+                         volEntry.volKind != quantra::enums::SwaptionVolKind_Constant);
                     if (enforceTenorBounds) {
                         tenorBounds = computeSwapLengthSupportBounds(dates);
-                        double swapLength = std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
+                        double swapLength = std::max(
+                            1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
                         checkTenorSupport(swapLength, tenorBounds);
                     }
                     effectiveSwapStartsOut.push_back(dates.start);
@@ -603,7 +628,8 @@ VolSurfaceSampleResult priceOneQuery(
                         atmLevelsOut.push_back(atmLookup(static_cast<int>(i), static_cast<int>(j)));
                     }
                     for (double strike : strikes) {
-                        volsOut.push_back(sampleVol(static_cast<int>(i), static_cast<int>(j), strike, dates));
+                        volsOut.push_back(
+                            sampleVol(static_cast<int>(i), static_cast<int>(j), strike, dates));
                     }
                 }
             }
@@ -619,9 +645,11 @@ VolSurfaceSampleResult priceOneQuery(
             expiryKindOut = SampleExpiryKind::ExerciseDate;
             auto dates = computeSwaptionDates(i, j);
             std::pair<double, double> tenorBounds;
-            if (!allowExtrapolation && volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
+            if (!allowExtrapolation &&
+                volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
                 tenorBounds = computeSwapLengthSupportBounds(dates);
-                double swapLength = std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
+                double swapLength =
+                    std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
                 checkTenorSupport(swapLength, tenorBounds);
             }
             effectiveSwapStartsOut.push_back(dates.start);
@@ -633,7 +661,9 @@ VolSurfaceSampleResult priceOneQuery(
             for (double strike : strikes) {
                 volsOut.push_back(sampleVol(i, j, strike, dates));
             }
-            nExpOut = 1; nTenOut = 1; nStrOut = static_cast<int>(strikes.size());
+            nExpOut = 1;
+            nTenOut = 1;
+            nStrOut = static_cast<int>(strikes.size());
         } else if (mode == SampleOutputMode::TermSlice) {
             int i = expIdx;
             addExpiryLabel(expiries[static_cast<size_t>(i)]);
@@ -642,9 +672,11 @@ VolSurfaceSampleResult priceOneQuery(
             for (size_t j = 0; j < tenors.size(); ++j) {
                 auto dates = computeSwaptionDates(i, static_cast<int>(j));
                 std::pair<double, double> tenorBounds;
-                if (!allowExtrapolation && volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
+                if (!allowExtrapolation &&
+                    volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
                     tenorBounds = computeSwapLengthSupportBounds(dates);
-                    double swapLength = std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
+                    double swapLength =
+                        std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
                     checkTenorSupport(swapLength, tenorBounds);
                 }
                 volsOut.push_back(sampleVol(i, static_cast<int>(j), q.sliceStrike, dates));
@@ -656,7 +688,9 @@ VolSurfaceSampleResult priceOneQuery(
                     if (std::isfinite(atm)) atmLevelsOut.push_back(atm);
                 }
             }
-            nExpOut = 1; nTenOut = static_cast<int>(tenors.size()); nStrOut = 1;
+            nExpOut = 1;
+            nTenOut = static_cast<int>(tenors.size());
+            nStrOut = 1;
         } else if (mode == SampleOutputMode::ExpirySlice) {
             int j = tenIdx;
             strikesOut.push_back(q.sliceStrike);
@@ -666,9 +700,11 @@ VolSurfaceSampleResult priceOneQuery(
                 addExpiryLabel(expiries[i]);
                 auto dates = computeSwaptionDates(static_cast<int>(i), j);
                 std::pair<double, double> tenorBounds;
-                if (!allowExtrapolation && volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
+                if (!allowExtrapolation &&
+                    volEntry.volKind != quantra::enums::SwaptionVolKind_Constant) {
                     tenorBounds = computeSwapLengthSupportBounds(dates);
-                    double swapLength = std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
+                    double swapLength =
+                        std::max(1.0e-8, volEntry.dayCounter.yearFraction(dates.start, dates.end));
                     checkTenorSupport(swapLength, tenorBounds);
                 }
                 volsOut.push_back(sampleVol(static_cast<int>(i), j, q.sliceStrike, dates));
@@ -679,7 +715,9 @@ VolSurfaceSampleResult priceOneQuery(
                     if (std::isfinite(atm)) atmLevelsOut.push_back(atm);
                 }
             }
-            nExpOut = static_cast<int>(expiries.size()); nTenOut = 1; nStrOut = 1;
+            nExpOut = static_cast<int>(expiries.size());
+            nTenOut = 1;
+            nStrOut = 1;
         } else {
             QUANTRA_INVALID_ARGUMENT("Unsupported VolOutputMode");
         }
@@ -693,7 +731,8 @@ VolSurfaceSampleResult priceOneQuery(
         const BlackVolEntry& volEntry = vIt->second;
 
         if (!q.expiryGrid.present) {
-            QUANTRA_INVALID_ARGUMENT("VolQuerySpec.expiry_grid is required for equity black sampling");
+            QUANTRA_INVALID_ARGUMENT(
+                "VolQuerySpec.expiry_grid is required for equity black sampling");
         }
         if (q.outputMode != SampleOutputMode::Cube) {
             QUANTRA_INVALID_ARGUMENT("EquityBlack sampling supports Cube output_mode only");
@@ -737,12 +776,13 @@ VolSurfaceSampleResult priceOneQuery(
         usedCalendar = gc.fbCalendar;
         usedBdc = gc.fbBdc;
 
-        if (allowExtrapolation) volEntry.handle->enableExtrapolation();
-        else volEntry.handle->disableExtrapolation();
+        if (allowExtrapolation)
+            volEntry.handle->enableExtrapolation();
+        else
+            volEntry.handle->disableExtrapolation();
 
         std::vector<Date> expiries = buildDateGrid(
-            q.expiryGrid, sampleReferenceDate, asOf, options,
-            volEntry.calendar, gc.fbCalendar,
+            q.expiryGrid, sampleReferenceDate, asOf, options, volEntry.calendar, gc.fbCalendar,
             volEntry.businessDayConvention, volEntry.businessDayConventionFb);
         validateStrictlyIncreasingDates(expiries, "expiry_grid");
         for (const auto& d : expiries) {
@@ -764,7 +804,8 @@ VolSurfaceSampleResult priceOneQuery(
                 }
                 if (!allowExtrapolation) {
                     // Strike support bounds are term-structure dependent in QuantLib implementations.
-                    if (strike < volEntry.handle->minStrike() || strike > volEntry.handle->maxStrike()) {
+                    if (strike < volEntry.handle->minStrike() ||
+                        strike > volEntry.handle->maxStrike()) {
                         QUANTRA_INVALID_ARGUMENT("Strike is outside equity black vol support");
                     }
                 }
@@ -785,8 +826,8 @@ VolSurfaceSampleResult priceOneQuery(
         if (strictMode && volEntry.referenceDate != asOf) {
             std::ostringstream err;
             err << "Strict mode: pricing.as_of_date (" << DateToIso(asOf)
-                << ") must equal optionlet vol referenceDate ("
-                << DateToIso(volEntry.referenceDate) << ") for vol '" << volId << "'";
+                << ") must equal optionlet vol referenceDate (" << DateToIso(volEntry.referenceDate)
+                << ") for vol '" << volId << "'";
             QUANTRA_INVALID_ARGUMENT(err.str());
         }
         if (q.strikeAxis == SampleStrikeAxis::SpreadFromATM) {
@@ -811,11 +852,12 @@ VolSurfaceSampleResult priceOneQuery(
         usedBdc = gc.fbBdc;
         allowExtrapolationUsed = allowExtrapolation;
         expiryKindOut = SampleExpiryKind::GridDate;
-        if (allowExtrapolation) volEntry.handle->enableExtrapolation();
-        else volEntry.handle->disableExtrapolation();
+        if (allowExtrapolation)
+            volEntry.handle->enableExtrapolation();
+        else
+            volEntry.handle->disableExtrapolation();
         std::vector<Date> expiries = buildDateGrid(
-            q.expiryGrid, volEntry.referenceDate, asOf, options,
-            volEntry.calendar, gc.fbCalendar,
+            q.expiryGrid, volEntry.referenceDate, asOf, options, volEntry.calendar, gc.fbCalendar,
             volEntry.businessDayConvention, volEntry.businessDayConventionFb);
         validateStrictlyIncreasingDates(expiries, "expiry_grid");
         for (size_t i = 0; i < expiries.size(); ++i) {
@@ -834,7 +876,8 @@ VolSurfaceSampleResult priceOneQuery(
                     QUANTRA_INVALID_ARGUMENT("Expiry is outside optionlet vol support");
                 }
                 if (!allowExtrapolation) {
-                    if (strike < volEntry.handle->minStrike() || strike > volEntry.handle->maxStrike()) {
+                    if (strike < volEntry.handle->minStrike() ||
+                        strike > volEntry.handle->maxStrike()) {
                         QUANTRA_INVALID_ARGUMENT("Strike is outside optionlet vol support");
                     }
                 }
@@ -949,17 +992,14 @@ SampleVolSurfacesResult SampleVolSurfacesEvaluator::evaluate(
                     ok = false;
                 } else {
                     entry = finalizeSwaptionVolEntryForPricing(
-                        entry, nullptr, reg,
-                        Handle<YieldTermStructure>(dIt->second->currentLink()),
-                        Handle<YieldTermStructure>(fIt->second->currentLink()),
-                        false,
-                        job.discountCurveId,
-                        job.forwardingCurveId);
+                        entry, nullptr, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
+                        Handle<YieldTermStructure>(fIt->second->currentLink()), false,
+                        job.discountCurveId, job.forwardingCurveId);
                 }
             } catch (const std::exception& e) {
                 warnings.push_back(
-                    std::string("diagnostics: finalize failed for vol_id '") +
-                    job.volId + "': " + e.what());
+                    std::string("diagnostics: finalize failed for vol_id '") + job.volId +
+                    "': " + e.what());
                 ok = false;
             }
             SampleVolDiagnostic diag;

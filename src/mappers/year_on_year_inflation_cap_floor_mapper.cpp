@@ -2,9 +2,9 @@
 
 #include "date_convert.h"
 #include "enum_convert.h"
-#include "schedule_parser.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
 
 namespace quantra {
 
@@ -58,7 +58,8 @@ YoYInflationCapFloorTrade extractTrade(const quantra::PriceYoYInflationCapFloor*
                 QUANTRA_INVALID_ARGUMENT("YoYInflationCapFloor of type Cap requires cap_rate");
             }
             if (hasFloor) {
-                QUANTRA_INVALID_ARGUMENT("YoYInflationCapFloor of type Cap must not carry floor_rate");
+                QUANTRA_INVALID_ARGUMENT(
+                    "YoYInflationCapFloor of type Cap must not carry floor_rate");
             }
             break;
         case QuantLib::CapFloor::Floor:
@@ -66,7 +67,8 @@ YoYInflationCapFloorTrade extractTrade(const quantra::PriceYoYInflationCapFloor*
                 QUANTRA_INVALID_ARGUMENT("YoYInflationCapFloor of type Floor requires floor_rate");
             }
             if (hasCap) {
-                QUANTRA_INVALID_ARGUMENT("YoYInflationCapFloor of type Floor must not carry cap_rate");
+                QUANTRA_INVALID_ARGUMENT(
+                    "YoYInflationCapFloor of type Floor must not carry cap_rate");
             }
             break;
         case QuantLib::CapFloor::Collar:
@@ -89,8 +91,8 @@ YoYInflationCapFloorTrade extractTrade(const quantra::PriceYoYInflationCapFloor*
     trade.notional = requirePositive(cf->notional(), "YoYInflationCapFloor.notional");
     trade.schedule = *schedule;
     trade.inflationIndexId = cf->inflation_index_id()->str();
-    trade.observationLag = requirePeriod(
-        cf->observation_lag(), "YoYInflationCapFloor.observation_lag");
+    trade.observationLag =
+        requirePeriod(cf->observation_lag(), "YoYInflationCapFloor.observation_lag");
     trade.dayCounter = DayCounterToQL(cf->day_counter().value());
     trade.paymentConvention = ConventionToQL(cf->payment_convention().value());
 
@@ -140,8 +142,7 @@ YoYInflationCapFloorInputs YearOnYearInflationCapFloorMapper::toInputs(
 
 flatbuffers::Offset<quantra::PriceYearOnYearInflationCapFloorResponse>
 YearOnYearInflationCapFloorMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const YoYInflationCapFloorResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const YoYInflationCapFloorResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::YoYInflationCapFloorResponse>> capFloorsVector;
     capFloorsVector.reserve(result.capFloors.size());

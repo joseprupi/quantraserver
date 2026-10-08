@@ -2,10 +2,8 @@
 
 #include "request_validation.h"
 
-std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedRateBond *bond)
-{
-    if (bond == NULL)
-        QUANTRA_INVALID_ARGUMENT("Fixed Rate Bond not found");
+std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedRateBond* bond) {
+    if (bond == NULL) QUANTRA_INVALID_ARGUMENT("Fixed Rate Bond not found");
 
     ScheduleParser schedule_parser = ScheduleParser();
 
@@ -30,26 +28,15 @@ std::shared_ptr<QuantLib::Bond> FixedRateBondParser::parse(const quantra::FixedR
         // `redemption` percent (matching the constant bond's redemption field).
         return std::make_shared<QuantLib::AmortizingFixedRateBond>(
             quantra::requireNonNegative(bond->settlement_days(), "FixedRateBond.settlement_days"),
-            std::vector<QuantLib::Real>(notionals.begin(), notionals.end()),
-            *schedule,
-            std::vector<QuantLib::Rate>(1, bond->rate()),
-            dayCounter,
-            paymentConvention,
-            issueDate,
-            QuantLib::Period(),
-            QuantLib::Calendar(),
-            QuantLib::Unadjusted,
-            false,
+            std::vector<QuantLib::Real>(notionals.begin(), notionals.end()), *schedule,
+            std::vector<QuantLib::Rate>(1, bond->rate()), dayCounter, paymentConvention, issueDate,
+            QuantLib::Period(), QuantLib::Calendar(), QuantLib::Unadjusted, false,
             std::vector<QuantLib::Real>(1, bond->redemption()));
     }
 
     return std::make_shared<QuantLib::FixedRateBond>(
         quantra::requireNonNegative(bond->settlement_days(), "FixedRateBond.settlement_days"),
-        quantra::requirePositive(bond->face_amount(), "FixedRateBond.face_amount"),
-        *schedule,
-        std::vector<QuantLib::Rate>(1, bond->rate()),
-        dayCounter,
-        paymentConvention,
-        bond->redemption(),
-        issueDate);
+        quantra::requirePositive(bond->face_amount(), "FixedRateBond.face_amount"), *schedule,
+        std::vector<QuantLib::Rate>(1, bond->rate()), dayCounter, paymentConvention,
+        bond->redemption(), issueDate);
 }

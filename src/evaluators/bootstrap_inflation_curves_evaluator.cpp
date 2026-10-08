@@ -1,20 +1,19 @@
 #include "bootstrap_inflation_curves_evaluator.h"
 
-#include <memory>
-#include <sstream>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/termstructures/inflationtermstructure.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <memory>
+#include <sstream>
 
 namespace quantra {
 
 namespace {
 
 BootstrapInflationCurvesPerCurve sampleQuery(
-    const BootstrapInflationCurvesQuery& query,
-    const PricingRegistry& reg) {
+    const BootstrapInflationCurvesQuery& query, const PricingRegistry& reg) {
     BootstrapInflationCurvesPerCurve out;
     out.id = query.curveId;
     out.gridDates = query.gridDates;
@@ -34,12 +33,14 @@ BootstrapInflationCurvesPerCurve sampleQuery(
     std::shared_ptr<QuantLib::YoYInflationTermStructure> yy;
     if (hasZ) {
         if (!zIt->second || zIt->second->empty()) {
-            QUANTRA_ERROR("Zero inflation curve handle has no linked curve for id: " + query.curveId);
+            QUANTRA_ERROR(
+                "Zero inflation curve handle has no linked curve for id: " + query.curveId);
         }
         zc = zIt->second->currentLink();
     } else {
         if (!yIt->second || yIt->second->empty()) {
-            QUANTRA_ERROR("YoY inflation curve handle has no linked curve for id: " + query.curveId);
+            QUANTRA_ERROR(
+                "YoY inflation curve handle has no linked curve for id: " + query.curveId);
         }
         yy = yIt->second->currentLink();
     }
@@ -54,15 +55,21 @@ BootstrapInflationCurvesPerCurve sampleQuery(
     if (query.strict && referenceDate != query.asOfDate) {
         std::ostringstream err;
         err << "Strict mode: pricing.as_of_date (" << DateToIso(query.asOfDate)
-            << ") must equal inflation curve referenceDate ("
-            << DateToIso(referenceDate) << ") for curve '" << query.curveId << "'";
+            << ") must equal inflation curve referenceDate (" << DateToIso(referenceDate)
+            << ") for curve '" << query.curveId << "'";
         QUANTRA_INVALID_ARGUMENT(err.str());
     }
 
     if (query.allowExtrapolation) {
-        if (hasZ) zc->enableExtrapolation(); else yy->enableExtrapolation();
+        if (hasZ)
+            zc->enableExtrapolation();
+        else
+            yy->enableExtrapolation();
     } else {
-        if (hasZ) zc->disableExtrapolation(); else yy->disableExtrapolation();
+        if (hasZ)
+            zc->disableExtrapolation();
+        else
+            yy->disableExtrapolation();
     }
 
     out.referenceDate = referenceDate;
@@ -82,13 +89,16 @@ BootstrapInflationCurvesPerCurve sampleQuery(
                 }
             }
             if (measure == InflationCurveSampleMeasure::ZeroRate) {
-                if (!hasZ) QUANTRA_INVALID_ARGUMENT("ZeroRate measure requires a zero inflation curve");
+                if (!hasZ)
+                    QUANTRA_INVALID_ARGUMENT("ZeroRate measure requires a zero inflation curve");
                 series.values.push_back(zc->zeroRate(d));
             } else if (measure == InflationCurveSampleMeasure::YoYRate) {
-                if (!hasY) QUANTRA_INVALID_ARGUMENT("YoYRate measure requires a YoY inflation curve");
+                if (!hasY)
+                    QUANTRA_INVALID_ARGUMENT("YoYRate measure requires a YoY inflation curve");
                 series.values.push_back(yy->yoyRate(d));
             } else {
-                QUANTRA_INVALID_ARGUMENT("Unsupported InflationCurveMeasure for curve_id: " + query.curveId);
+                QUANTRA_INVALID_ARGUMENT(
+                    "Unsupported InflationCurveMeasure for curve_id: " + query.curveId);
             }
         }
         out.series.push_back(std::move(series));

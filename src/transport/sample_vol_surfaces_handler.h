@@ -1,15 +1,16 @@
 #ifndef QUANTRASERVER_SAMPLE_VOL_SURFACES_HANDLER_H
 #define QUANTRASERVER_SAMPLE_VOL_SURFACES_HANDLER_H
 
-#include <memory>
-
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "sample_vol_surfaces_mapper.h"
 #include "sample_vol_surfaces_evaluator.h"
+#include "sample_vol_surfaces_mapper.h"
+
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
+
+#include <memory>
 
 using quantra::SampleVolSurfacesRequest;
 using quantra::SampleVolSurfacesResponse;
@@ -37,26 +38,21 @@ using SampleVolSurfacesEndpoint = ProductEndpoint<
 using SampleVolSurfacesRequestHandler = quantra::SampleVolSurfacesEndpoint;
 
 class SampleVolSurfacesData : public CallDataGeneric<
-    SampleVolSurfacesRequest,
-    quantra::SampleVolSurfacesEndpoint,
-    SampleVolSurfacesResponse,
-    SampleVolSurfacesResponseBuilder>
-{
+                                  SampleVolSurfacesRequest,
+                                  quantra::SampleVolSurfacesEndpoint,
+                                  SampleVolSurfacesResponse,
+                                  SampleVolSurfacesResponseBuilder> {
 public:
-    SampleVolSurfacesData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
-    }
+    SampleVolSurfacesData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
 
 protected:
-    void RequestCall() override
-    {
-        service_->RequestSampleVolSurfaces(
-            &ctx_, &request_msg, &responder_, cq_, cq_, this);
+    void RequestCall() override {
+        service_->RequestSampleVolSurfaces(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new SampleVolSurfacesData(service, cq);
         handler->start();
     }

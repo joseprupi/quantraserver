@@ -1,7 +1,7 @@
 #include "ois_swap_evaluator.h"
 
-#include <iostream>
-#include <limits>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/coupon.hpp>
@@ -12,8 +12,8 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/utilities/null.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <iostream>
+#include <limits>
 
 namespace quantra {
 
@@ -59,10 +59,11 @@ void extractFlows(
     }
 }
 
-OisSwapPerSwap priceTrade(const OisSwapTrade& trade,
-                          const PricingRegistry& reg,
-                          const PricingContext& ctx,
-                          bool includeFlows) {
+OisSwapPerSwap priceTrade(
+    const OisSwapTrade& trade,
+    const PricingRegistry& reg,
+    const PricingContext& ctx,
+    bool includeFlows) {
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -93,31 +94,20 @@ OisSwapPerSwap priceTrade(const OisSwapTrade& trade,
     // 0 = no lookback: QuantLib's off-state is Null<Natural>, not a zero-day
     // lookback (a literal 0 would force the fixing delay to 0 even when the
     // index carries a non-zero intrinsic fixing delay).
-    QuantLib::Natural lookbackDays = trade.overnight.lookbackDays <= 0
-        ? QuantLib::Null<QuantLib::Natural>()
-        : static_cast<QuantLib::Natural>(trade.overnight.lookbackDays);
-    QuantLib::Natural lockoutDays =
-        static_cast<QuantLib::Natural>(trade.overnight.lockoutDays);
+    QuantLib::Natural lookbackDays =
+        trade.overnight.lookbackDays <= 0
+            ? QuantLib::Null<QuantLib::Natural>()
+            : static_cast<QuantLib::Natural>(trade.overnight.lookbackDays);
+    QuantLib::Natural lockoutDays = static_cast<QuantLib::Natural>(trade.overnight.lockoutDays);
 
     auto swap = std::make_shared<QuantLib::OvernightIndexedSwap>(
-        trade.swapType,
-        trade.fixed.notional,
-        trade.fixed.schedule,
-        trade.fixed.rate,
-        trade.fixed.dayCounter,
-        trade.overnight.schedule,
-        overnightIndex,
-        trade.overnight.spread,
-        trade.overnight.paymentLag,
-        trade.overnight.paymentConvention,
-        trade.overnight.paymentCalendar,
-        trade.overnight.telescopicValueDates,
-        trade.overnight.averagingMethod,
-        lookbackDays,
-        lockoutDays,
+        trade.swapType, trade.fixed.notional, trade.fixed.schedule, trade.fixed.rate,
+        trade.fixed.dayCounter, trade.overnight.schedule, overnightIndex, trade.overnight.spread,
+        trade.overnight.paymentLag, trade.overnight.paymentConvention,
+        trade.overnight.paymentCalendar, trade.overnight.telescopicValueDates,
+        trade.overnight.averagingMethod, lookbackDays, lockoutDays,
         trade.overnight.applyObservationShift);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     OisSwapPerSwap out;
     out.npv = swap->NPV();
@@ -139,9 +129,8 @@ OisSwapPerSwap priceTrade(const OisSwapTrade& trade,
 
 } // namespace
 
-OisSwapResult OisSwapEvaluator::evaluate(const OisSwapInputs& inputs,
-                                   const PricingRegistry& reg,
-                                   const PricingContext& ctx) const {
+OisSwapResult OisSwapEvaluator::evaluate(
+    const OisSwapInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     OisSwapResult result;
     result.swaps.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {

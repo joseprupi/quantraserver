@@ -1,17 +1,17 @@
 #include "curve_bootstrapper.h"
 
-#include <queue>
+#include "curve_cache.h"
+#include "curve_cache_key.h"
+#include "curve_serializer.h"
+#include "date_convert.h"
+#include "request_validation.h"
+#include "term_structure_parser.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <iostream>
-
-#include "date_convert.h"
-#include "term_structure_parser.h"
-#include "curve_cache.h"
-#include "curve_cache_key.h"
-#include "curve_serializer.h"
-#include "request_validation.h"
+#include <queue>
 
 namespace quantra {
 
@@ -22,8 +22,7 @@ namespace quantra {
 static void addDep(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& from,
-    const std::string& to)
-{
+    const std::string& to) {
     if (to.empty() || from == to) return;
     deps[from].push_back(to);
 }
@@ -31,8 +30,7 @@ static void addDep(
 static void addDepFromRef(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& curveId,
-    const quantra::CurveRef* ref)
-{
+    const quantra::CurveRef* ref) {
     if (ref && ref->id()) {
         addDep(deps, curveId, ref->id()->str());
     }
@@ -47,8 +45,7 @@ static void addDepFromRef(
 static void addDiscountOnlyDep(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& curveId,
-    const quantra::HelperDependencies* hd)
-{
+    const quantra::HelperDependencies* hd) {
     if (!hd) return;
     addDepFromRef(deps, curveId, hd->discount_curve());
 }
@@ -59,8 +56,7 @@ static void addDiscountOnlyDep(
 static void addAllDeps(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& curveId,
-    const quantra::HelperDependencies* hd)
-{
+    const quantra::HelperDependencies* hd) {
     if (!hd) return;
     addDepFromRef(deps, curveId, hd->discount_curve());
     addDepFromRef(deps, curveId, hd->projection_curve());
@@ -73,8 +69,7 @@ static void addAllDeps(
 
 void CurveBootstrapper::collectDeps(
     const quantra::TermStructure* ts,
-    std::unordered_map<std::string, std::vector<std::string>>& deps)
-{
+    std::unordered_map<std::string, std::vector<std::string>>& deps) {
     if (!ts->id()) return;
     std::string curveId = ts->id()->str();
 
@@ -90,8 +85,7 @@ void CurveBootstrapper::collectDeps(
         // passes FlatBuffers verification, then the static_casts below would
         // dereference a null table. Reject it as a bad request instead.
         if (ptype != quantra::Point_NONE && wrapper->point() == nullptr) {
-            QUANTRA_INVALID_ARGUMENT(
-                "Curve point union type is set but its value is missing");
+            QUANTRA_INVALID_ARGUMENT("Curve point union type is set but its value is missing");
         }
 
         // Swap/OIS helpers: discount-curve only.
@@ -101,12 +95,10 @@ void CurveBootstrapper::collectDeps(
         if (ptype == quantra::Point_SwapHelper) {
             auto h = static_cast<const quantra::SwapHelper*>(wrapper->point());
             addDiscountOnlyDep(deps, curveId, h->deps());
-        }
-        else if (ptype == quantra::Point_OISHelper) {
+        } else if (ptype == quantra::Point_OISHelper) {
             auto h = static_cast<const quantra::OISHelper*>(wrapper->point());
             addDiscountOnlyDep(deps, curveId, h->deps());
-        }
-        else if (ptype == quantra::Point_DatedOISHelper) {
+        } else if (ptype == quantra::Point_DatedOISHelper) {
             auto h = static_cast<const quantra::DatedOISHelper*>(wrapper->point());
             addDiscountOnlyDep(deps, curveId, h->deps());
         }
@@ -115,12 +107,10 @@ void CurveBootstrapper::collectDeps(
         else if (ptype == quantra::Point_TenorBasisSwapHelper) {
             auto h = static_cast<const quantra::TenorBasisSwapHelper*>(wrapper->point());
             addAllDeps(deps, curveId, h->deps());
-        }
-        else if (ptype == quantra::Point_FxSwapHelper) {
+        } else if (ptype == quantra::Point_FxSwapHelper) {
             auto h = static_cast<const quantra::FxSwapHelper*>(wrapper->point());
             addAllDeps(deps, curveId, h->deps());
-        }
-        else if (ptype == quantra::Point_CrossCcyBasisHelper) {
+        } else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto h = static_cast<const quantra::CrossCcyBasisHelper*>(wrapper->point());
             addAllDeps(deps, curveId, h->deps());
         }
@@ -132,8 +122,7 @@ void CurveBootstrapper::collectDeps(
 // =============================================================================
 
 std::vector<std::string> CurveBootstrapper::topoSort(
-    const std::unordered_map<std::string, std::vector<std::string>>& deps)
-{
+    const std::unordered_map<std::string, std::vector<std::string>>& deps) {
     std::unordered_map<std::string, int> indeg;
     std::unordered_map<std::string, std::vector<std::string>> adj;
 
@@ -188,8 +177,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
     const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices,
     double curveBump,
-    const RequestBudget& budget
-) const {
+    const RequestBudget& budget) const {
     if (!curves || curves->size() == 0) {
         QUANTRA_INVALID_ARGUMENT("curves is required (at least one curve)");
     }
@@ -216,7 +204,8 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     std::unordered_map<std::string, const quantra::TermStructure*> curveIndex;
     for (flatbuffers::uoffset_t i = 0; i < curves->size(); i++) {
         auto ts = curves->Get(i);
-        if (!ts->id()) QUANTRA_INVALID_ARGUMENT("TermStructure.id is required for multi-curve bootstrapping");
+        if (!ts->id())
+            QUANTRA_INVALID_ARGUMENT("TermStructure.id is required for multi-curve bootstrapping");
         std::string curveId = ts->id()->str();
         if (curveIndex.count(curveId) != 0) {
             QUANTRA_INVALID_ARGUMENT("duplicate curve id: " + curveId);
@@ -297,8 +286,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             std::string key;
             if (keyable) {
                 try {
-                    key = CurveKeyBuilder::compute(
-                        asOfDate, ts, keyCtx, relevantDepKeys);
+                    key = CurveKeyBuilder::compute(asOfDate, ts, keyCtx, relevantDepKeys);
                 } catch (const std::exception& e) {
                     keyable = false;
                     // Key-build failure must never fail pricing — it only
@@ -365,7 +353,8 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             auto tBootStart = std::chrono::steady_clock::now();
             auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
             auto tBootEnd = std::chrono::steady_clock::now();
-            double bootMs = std::chrono::duration<double, std::milli>(tBootEnd - tBootStart).count();
+            double bootMs =
+                std::chrono::duration<double, std::milli>(tBootEnd - tBootStart).count();
 
             cache.stats().bootstraps++;
 
@@ -397,8 +386,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 // traits fall back to caching the live curve (today's
                 // behavior).
                 if (ts->bootstrap_trait().has_value() &&
-                    ts->bootstrap_trait().value() ==
-                        quantra::enums::BootstrapTrait_Discount) {
+                    ts->bootstrap_trait().value() == quantra::enums::BootstrapTrait_Discount) {
                     try {
                         toCacheL1 = CurveSerializer::reconstruct(serialized);
                     } catch (const std::exception&) {

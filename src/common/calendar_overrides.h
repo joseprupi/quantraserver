@@ -15,11 +15,11 @@
  * in src/parsers/calendar_override_parser.
  */
 
-#include <string>
-#include <vector>
-
 #include <ql/time/calendar.hpp>
 #include <ql/time/date.hpp>
+
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -27,8 +27,8 @@ namespace quantra {
 /// sets: a date that is already a holiday / business day stays listed here).
 struct HolidayOverride {
     QuantLib::Calendar calendar;
-    std::vector<QuantLib::Date> added;    // must be holidays
-    std::vector<QuantLib::Date> removed;  // must be business days
+    std::vector<QuantLib::Date> added;   // must be holidays
+    std::vector<QuantLib::Date> removed; // must be business days
 };
 
 /// False for calendars whose QuantLib instances each carry private state
@@ -41,14 +41,14 @@ bool calendarSupportsOverrides(const QuantLib::Calendar& calendar);
 /// unsupported calendar, the same calendar (by QuantLib name, so enum aliases
 /// collapse) in two entries, a duplicate date inside one list, a date in both
 /// lists of one entry, or a weekend date in `removed`.
-void validateCalendarOverrides(const std::vector<HolidayOverride>& overrides,
-                               const std::string& path = "calendar_overrides");
+void validateCalendarOverrides(
+    const std::vector<HolidayOverride>& overrides, const std::string& path = "calendar_overrides");
 
 /// Validate everything first, then apply to QuantLib's global calendar state
 /// and record the touched calendars and the canonical fingerprint. Any
 /// previously applied overrides are reset first.
-void applyCalendarOverrides(const std::vector<HolidayOverride>& overrides,
-                            const std::string& path = "calendar_overrides");
+void applyCalendarOverrides(
+    const std::vector<HolidayOverride>& overrides, const std::string& path = "calendar_overrides");
 
 /// Undo every override applied through applyCalendarOverrides and clear the
 /// fingerprint. Safe to call when nothing is applied.

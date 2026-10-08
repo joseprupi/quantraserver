@@ -1,14 +1,8 @@
 #ifndef QUANTRASERVER_BOOTSTRAP_INFLATION_CURVES_HANDLER_H
 #define QUANTRASERVER_BOOTSTRAP_INFLATION_CURVES_HANDLER_H
 
-#include <exception>
-#include <memory>
-#include <string>
-
-#include "bootstrap_inflation_curves_mapper.h"
 #include "bootstrap_inflation_curves_evaluator.h"
-#include "bootstrap_inflation_curves_request_generated.h"
-#include "bootstrap_inflation_curves_response_generated.h"
+#include "bootstrap_inflation_curves_mapper.h"
 #include "call_data_base.h"
 #include "eval_date_guard.h"
 #include "pricing_context.h"
@@ -16,6 +10,13 @@
 #include "product_endpoint.h"
 #include "product_registry.h"
 #include "quantra_request.h"
+
+#include "bootstrap_inflation_curves_request_generated.h"
+#include "bootstrap_inflation_curves_response_generated.h"
+
+#include <exception>
+#include <memory>
+#include <string>
 
 using quantra::BootstrapInflationCurvesRequest;
 using quantra::BootstrapInflationCurvesResponse;
@@ -43,26 +44,21 @@ using BootstrapInflationCurvesRequestHandler = quantra::BootstrapInflationCurves
  * BootstrapInflationCurvesData - Async handler for inflation curve bootstrapping.
  */
 class BootstrapInflationCurvesData : public CallDataGeneric<
-    BootstrapInflationCurvesRequest,
-    quantra::BootstrapInflationCurvesEndpoint,
-    BootstrapInflationCurvesResponse,
-    BootstrapInflationCurvesResponseBuilder>
-{
+                                         BootstrapInflationCurvesRequest,
+                                         quantra::BootstrapInflationCurvesEndpoint,
+                                         BootstrapInflationCurvesResponse,
+                                         BootstrapInflationCurvesResponseBuilder> {
 public:
-    BootstrapInflationCurvesData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    BootstrapInflationCurvesData(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestBootstrapInflationCurves(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestBootstrapInflationCurves(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new BootstrapInflationCurvesData(service, cq);
         handler->start();
     }

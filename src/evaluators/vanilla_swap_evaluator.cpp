@@ -1,9 +1,7 @@
 #include "vanilla_swap_evaluator.h"
 
-#include <cmath>
-#include <iostream>
-#include <limits>
-#include <sstream>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
@@ -26,8 +24,10 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
-#include "error.h"
-#include "date_convert.h"
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <sstream>
 
 namespace quantra {
 
@@ -101,25 +101,26 @@ CmsPricerBuildResult buildCmsPricer(
 
             if (!std::isfinite(lowerLimit) || !std::isfinite(upperLimit) ||
                 !(upperLimit > lowerLimit)) {
-                QUANTRA_INVALID_ARGUMENT("CMS leg Hagan numeric requires upper_limit > lower_limit");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CMS leg Hagan numeric requires upper_limit > lower_limit");
             }
             if (!std::isfinite(precision) || !(precision > 0.0)) {
                 QUANTRA_INVALID_ARGUMENT("CMS leg hagan_precision must be positive");
             }
 
-            const double hardUpperLimit = hardUpperLimitRaw > 0.0
-                ? hardUpperLimitRaw
-                : std::numeric_limits<double>::max();
+            const double hardUpperLimit =
+                hardUpperLimitRaw > 0.0 ? hardUpperLimitRaw : std::numeric_limits<double>::max();
             if (!std::isfinite(hardUpperLimit) || hardUpperLimit <= upperLimit) {
-                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
             }
             result.used.haganLowerLimit = lowerLimit;
             result.used.haganUpperLimit = upperLimit;
             result.used.haganPrecision = precision;
             result.used.haganHardUpperLimit = hardUpperLimit;
             result.pricer = std::make_shared<QuantLib::NumericHaganPricer>(
-                volEntry.handle, qlYcModel, meanReversion,
-                lowerLimit, upperLimit, precision, hardUpperLimit);
+                volEntry.handle, qlYcModel, meanReversion, lowerLimit, upperLimit, precision,
+                hardUpperLimit);
             return result;
         }
     }
@@ -222,17 +223,10 @@ VanillaSwapPerSwap priceIborConstant(
     }
 
     auto swap = std::make_shared<QuantLib::VanillaSwap>(
-        trade.swapType,
-        trade.fixed.notional,
-        trade.fixed.schedule,
-        trade.fixed.rate,
-        trade.fixed.dayCounter,
-        trade.ibor.schedule,
-        iborIndex,
-        trade.ibor.spread,
+        trade.swapType, trade.fixed.notional, trade.fixed.schedule, trade.fixed.rate,
+        trade.fixed.dayCounter, trade.ibor.schedule, iborIndex, trade.ibor.spread,
         trade.ibor.dayCounter);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     VanillaSwapPerSwap out;
     out.npv = swap->NPV();
@@ -274,14 +268,12 @@ VanillaSwapPerSwap priceIborManualLeg(
     bool includeFlows) {
     // A leg with an explicit per-period notionals vector uses it; a leg without
     // one falls back to a single-element vector = its constant scalar notional.
-    const std::vector<double> fixedNotionals =
-        trade.fixed.notionals.empty()
-            ? std::vector<double>{trade.fixed.notional}
-            : trade.fixed.notionals;
-    const std::vector<double> iborNotionals =
-        trade.ibor.notionals.empty()
-            ? std::vector<double>{trade.ibor.notional}
-            : trade.ibor.notionals;
+    const std::vector<double> fixedNotionals = trade.fixed.notionals.empty()
+                                                   ? std::vector<double>{trade.fixed.notional}
+                                                   : trade.fixed.notionals;
+    const std::vector<double> iborNotionals = trade.ibor.notionals.empty()
+                                                  ? std::vector<double>{trade.ibor.notional}
+                                                  : trade.ibor.notionals;
 
     // VanillaSwap adjusts BOTH legs with the floating schedule's convention when
     // no explicit payment convention is passed (as the constant path does).
@@ -289,17 +281,18 @@ VanillaSwapPerSwap priceIborManualLeg(
         trade.ibor.schedule.businessDayConvention();
 
     QuantLib::Leg fixedLeg = QuantLib::FixedRateLeg(trade.fixed.schedule)
-        .withNotionals(fixedNotionals)
-        .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
-        .withPaymentAdjustment(paymentConvention);
+                                 .withNotionals(fixedNotionals)
+                                 .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
+                                 .withPaymentAdjustment(paymentConvention);
 
-    QuantLib::Leg iborLeg = QuantLib::IborLeg(trade.ibor.schedule, iborIndex)
-        .withNotionals(iborNotionals)
-        .withPaymentDayCounter(trade.ibor.dayCounter)
-        .withPaymentAdjustment(paymentConvention)
-        .withSpreads(trade.ibor.spread)
-        .withFixingDays(static_cast<QuantLib::Natural>(trade.ibor.fixingDays))
-        .inArrears(trade.ibor.inArrears);
+    QuantLib::Leg iborLeg =
+        QuantLib::IborLeg(trade.ibor.schedule, iborIndex)
+            .withNotionals(iborNotionals)
+            .withPaymentDayCounter(trade.ibor.dayCounter)
+            .withPaymentAdjustment(paymentConvention)
+            .withSpreads(trade.ibor.spread)
+            .withFixingDays(static_cast<QuantLib::Natural>(trade.ibor.fixingDays))
+            .inArrears(trade.ibor.inArrears);
 
     // IBOR coupons need a pricer to compute their forward rate; a zero-vol Black
     // pricer reproduces VanillaSwap's own internal pricing for an in-advance leg
@@ -317,8 +310,7 @@ VanillaSwapPerSwap priceIborManualLeg(
     std::vector<QuantLib::Leg> legs{fixedLeg, iborLeg};
     std::vector<bool> payer{payerFixed, !payerFixed};
     auto swap = std::make_shared<QuantLib::Swap>(legs, payer);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     VanillaSwapPerSwap out;
     out.npv = swap->NPV();
@@ -334,11 +326,11 @@ VanillaSwapPerSwap priceIborManualLeg(
     // VanillaSwap exactly for an all-equal notionals vector.
     constexpr double basisPoint = 1.0e-4;
     out.fairRate = (out.fixedLegBps != 0.0)
-        ? trade.fixed.rate - out.npv / (out.fixedLegBps / basisPoint)
-        : 0.0;
+                       ? trade.fixed.rate - out.npv / (out.fixedLegBps / basisPoint)
+                       : 0.0;
     out.fairSpread = (out.floatingLegBps != 0.0)
-        ? trade.ibor.spread - out.npv / (out.floatingLegBps / basisPoint)
-        : 0.0;
+                         ? trade.ibor.spread - out.npv / (out.floatingLegBps / basisPoint)
+                         : 0.0;
 
     out.hasCmsLeg = false;
     out.includeFlows = includeFlows;
@@ -366,8 +358,7 @@ VanillaSwapPerSwap priceIborBranch(
         trade.ibor.indexId,
         QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
 
-    const bool amortizing =
-        !trade.fixed.notionals.empty() || !trade.ibor.notionals.empty();
+    const bool amortizing = !trade.fixed.notionals.empty() || !trade.ibor.notionals.empty();
     // In-arrears legs cannot be expressed by QuantLib::VanillaSwap, so they take
     // the manual-leg path too. A plain, in-advance, constant-notional leg keeps
     // the QuantLib::VanillaSwap path (byte-identical to prior behaviour).
@@ -398,16 +389,15 @@ VanillaSwapPerSwap priceCmsBranch(
     }
 
     QuantLib::Leg fixedLeg = QuantLib::FixedRateLeg(trade.fixed.schedule)
-        .withNotionals(trade.fixed.notional)
-        .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
-        .withPaymentAdjustment(trade.fixed.paymentConvention);
+                                 .withNotionals(trade.fixed.notional)
+                                 .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
+                                 .withPaymentAdjustment(trade.fixed.paymentConvention);
 
     QuantLib::Handle<QuantLib::YieldTermStructure> fwdH(fwdHandle.currentLink());
     QuantLib::Handle<QuantLib::YieldTermStructure> discH(discHandle.currentLink());
 
     auto swapIndex = reg.rates.swapIndices.getIborSwapIndexWithCurves(
-        trade.cms.swapIndexId, trade.cms.swapTenor,
-        reg.rates.indices, fwdH, discH);
+        trade.cms.swapIndexId, trade.cms.swapTenor, reg.rates.indices, fwdH, discH);
 
     QuantLib::CmsLeg cmsBuilder(trade.cms.schedule, swapIndex);
     cmsBuilder.withNotionals(trade.cms.notional);
@@ -438,8 +428,7 @@ VanillaSwapPerSwap priceCmsBranch(
     std::vector<QuantLib::Leg> legs{fixedLeg, cmsLeg};
     std::vector<bool> payer{payerFixed, !payerFixed};
     auto swap = std::make_shared<QuantLib::Swap>(legs, payer);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     VanillaSwapPerSwap out;
     out.npv = swap->NPV();
@@ -468,14 +457,12 @@ VanillaSwapPerSwap priceCmsBranch(
 } // namespace
 
 VanillaSwapResult VanillaSwapEvaluator::evaluate(
-    const VanillaSwapInputs& inputs,
-    const PricingRegistry& reg,
-    const PricingContext& ctx) const {
+    const VanillaSwapInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
 
     VanillaSwapResult result;
     result.swaps.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         if (trade.branch == VanillaSwapTrade::Branch::Ibor) {
             result.swaps.push_back(priceIborBranch(trade, reg, ctx, inputs.includeFlows));
         } else {

@@ -1,13 +1,14 @@
 #ifndef QUANTRA_PRICING_CONTEXT_H
 #define QUANTRA_PRICING_CONTEXT_H
 
-#include <ql/settings.hpp>
-#include <ql/time/date.hpp>
-
 #include "date_convert.h"
 #include "pricing_registry.h"
-#include "pricing_generated.h"
 #include "request_budget.h"
+
+#include "pricing_generated.h"
+
+#include <ql/settings.hpp>
+#include <ql/time/date.hpp>
 
 namespace quantra {
 
@@ -40,8 +41,7 @@ struct PricingContext {
  *                Date() when absent).
  *   options    = reg.options (pass-through).
  */
-inline PricingContext makeContext(const quantra::Pricing* pricing,
-                                  const PricingRegistry& reg) {
+inline PricingContext makeContext(const quantra::Pricing* pricing, const PricingRegistry& reg) {
     PricingContext ctx;
     ctx.asOf = QuantLib::Settings::instance().evaluationDate();
     if (pricing && pricing->settlement_date()) {

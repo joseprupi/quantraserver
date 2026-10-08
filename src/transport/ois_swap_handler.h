@@ -2,12 +2,13 @@
 #define QUANTRASERVER_OIS_SWAP_HANDLER_H
 
 #include "call_data_base.h"
+#include "ois_swap_evaluator.h"
+#include "ois_swap_mapper.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "ois_swap_mapper.h"
-#include "ois_swap_evaluator.h"
-#include "price_ois_swap_request_generated.h"
+
 #include "ois_swap_response_generated.h"
+#include "price_ois_swap_request_generated.h"
 
 using quantra::PriceOisSwapRequest;
 using quantra::PriceOisSwapResponse;
@@ -29,26 +30,20 @@ using OisSwapPricingRequest = OisSwapEndpoint;
  * PriceOisSwapData - Async gRPC handler for OIS swap pricing.
  */
 class PriceOisSwapData : public CallDataGeneric<
-    PriceOisSwapRequest,
-    OisSwapEndpoint,
-    PriceOisSwapResponse,
-    PriceOisSwapResponseBuilder>
-{
+                             PriceOisSwapRequest,
+                             OisSwapEndpoint,
+                             PriceOisSwapResponse,
+                             PriceOisSwapResponseBuilder> {
 public:
-    PriceOisSwapData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    PriceOisSwapData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestPriceOisSwap(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestPriceOisSwap(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceOisSwapData(service, cq);
         handler->start();
     }

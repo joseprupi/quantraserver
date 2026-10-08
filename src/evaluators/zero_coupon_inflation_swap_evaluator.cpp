@@ -1,12 +1,12 @@
 #include "zero_coupon_inflation_swap_evaluator.h"
 
+#include "date_convert.h" // DateToIso
+#include "error.h"
+
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/handle.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
-
-#include "date_convert.h"   // DateToIso
-#include "error.h"
 
 namespace quantra {
 
@@ -19,10 +19,11 @@ namespace {
  * FloatingRateCoupon respectively, and that occurred cashflows are skipped.
  * Returns false when the cashflow has occurred and the mapper must drop it.
  */
-bool extractFlow(const std::shared_ptr<QuantLib::CashFlow>& cf,
-                 const QuantLib::YieldTermStructure& discountCurve,
-                 const QuantLib::Date& asOf,
-                 ZeroCouponInflationSwapFlowPlain& out) {
+bool extractFlow(
+    const std::shared_ptr<QuantLib::CashFlow>& cf,
+    const QuantLib::YieldTermStructure& discountCurve,
+    const QuantLib::Date& asOf,
+    ZeroCouponInflationSwapFlowPlain& out) {
     if (!cf || cf->hasOccurred(asOf)) {
         return false;
     }
@@ -50,18 +51,19 @@ bool extractFlow(const std::shared_ptr<QuantLib::CashFlow>& cf,
     return true;
 }
 
-ZeroCouponInflationSwapPerSwap priceTrade(const ZeroCouponInflationSwapTrade& trade,
-                                          const PricingRegistry& reg,
-                                          const PricingContext& ctx,
-                                          bool includeFlows) {
+ZeroCouponInflationSwapPerSwap priceTrade(
+    const ZeroCouponInflationSwapTrade& trade,
+    const PricingRegistry& reg,
+    const PricingContext& ctx,
+    bool includeFlows) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
     }
 
     auto curveIt = reg.inflation.zeroInflationCurves.find(trade.inflationCurveId);
-    if (curveIt == reg.inflation.zeroInflationCurves.end() ||
-        !curveIt->second || curveIt->second->empty()) {
+    if (curveIt == reg.inflation.zeroInflationCurves.end() || !curveIt->second ||
+        curveIt->second->empty()) {
         QUANTRA_NOT_FOUND("Zero inflation curve not found: " + trade.inflationCurveId);
     }
 
@@ -70,7 +72,8 @@ ZeroCouponInflationSwapPerSwap priceTrade(const ZeroCouponInflationSwapTrade& tr
         QUANTRA_ERROR("Inflation curve metadata not found: " + trade.inflationCurveId);
     }
     if (metaIt->second.kind != enums::InflationCurveKind_ZeroInflation) {
-        QUANTRA_INVALID_ARGUMENT("Inflation curve is not zero inflation: " + trade.inflationCurveId);
+        QUANTRA_INVALID_ARGUMENT(
+            "Inflation curve is not zero inflation: " + trade.inflationCurveId);
     }
     if (metaIt->second.indexId != trade.inflationIndexId) {
         QUANTRA_INVALID_ARGUMENT(
@@ -82,29 +85,18 @@ ZeroCouponInflationSwapPerSwap priceTrade(const ZeroCouponInflationSwapTrade& tr
     if (indexIt == reg.inflation.inflationIndices.end()) {
         QUANTRA_NOT_FOUND("Inflation index not found: " + trade.inflationIndexId);
     }
-    auto inflationIndex =
-        std::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(indexIt->second);
+    auto inflationIndex = std::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(indexIt->second);
     if (!inflationIndex) {
-        QUANTRA_INVALID_ARGUMENT("Inflation index is not zero inflation: " + trade.inflationIndexId);
+        QUANTRA_INVALID_ARGUMENT(
+            "Inflation index is not zero inflation: " + trade.inflationIndexId);
     }
 
     auto swap = std::make_shared<QuantLib::ZeroCouponInflationSwap>(
-        trade.swapType,
-        trade.notional,
-        trade.startDate,
-        trade.maturityDate,
-        trade.fixedCalendar,
-        trade.fixedConvention,
-        trade.dayCounter,
-        trade.fixedRate,
-        inflationIndex,
-        trade.observationLag,
-        trade.observationInterpolation,
-        trade.adjustObservationDates,
-        trade.inflationCalendar,
-        trade.inflationConvention);
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+        trade.swapType, trade.notional, trade.startDate, trade.maturityDate, trade.fixedCalendar,
+        trade.fixedConvention, trade.dayCounter, trade.fixedRate, inflationIndex,
+        trade.observationLag, trade.observationInterpolation, trade.adjustObservationDates,
+        trade.inflationCalendar, trade.inflationConvention);
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     ZeroCouponInflationSwapPerSwap out;
     out.npv = swap->NPV();

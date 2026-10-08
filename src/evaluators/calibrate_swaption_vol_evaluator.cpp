@@ -1,9 +1,9 @@
 #include "calibrate_swaption_vol_evaluator.h"
 
-#include <ql/quantlib.hpp>
-
 #include "error.h"
 #include "swaption_vol_runtime.h"
+
+#include <ql/quantlib.hpp>
 
 namespace quantra {
 
@@ -23,21 +23,19 @@ CalibrateSwaptionVolResult CalibrateSwaptionVolEvaluator::evaluate(
         // /sample-vol-surfaces with include_diagnostics=true.
         QUANTRA_INVALID_ARGUMENT(
             "Endpoint /calibrate-swaption-vol only operates on SabrCalibrate "
-            "surfaces; vol_id '" + inputs.volId +
-            "' is not a SwaptionSabrCalibrateSpec surface");
+            "surfaces; vol_id '" +
+            inputs.volId + "' is not a SwaptionSabrCalibrateSpec surface");
     }
 
     auto dIt = reg.rates.curves.find(inputs.discountingCurveId);
     if (dIt == reg.rates.curves.end()) {
         QUANTRA_INVALID_ARGUMENT(
-            "Discounting curve not found in pricing.rates.curves: " +
-            inputs.discountingCurveId);
+            "Discounting curve not found in pricing.rates.curves: " + inputs.discountingCurveId);
     }
     auto fIt = reg.rates.curves.find(inputs.forwardingCurveId);
     if (fIt == reg.rates.curves.end()) {
         QUANTRA_INVALID_ARGUMENT(
-            "Forwarding curve not found in pricing.rates.curves: " +
-            inputs.forwardingCurveId);
+            "Forwarding curve not found in pricing.rates.curves: " + inputs.forwardingCurveId);
     }
 
     // Run the existing finalize path. This computes server ATM forwards,
@@ -50,21 +48,17 @@ CalibrateSwaptionVolResult CalibrateSwaptionVolEvaluator::evaluate(
     try {
         finalized = quantra::finalizeSwaptionVolEntryForPricing(
             rawEntry,
-            /*trade=*/nullptr,
-            reg,
+            /*trade=*/nullptr, reg,
             QuantLib::Handle<QuantLib::YieldTermStructure>(dIt->second->currentLink()),
             QuantLib::Handle<QuantLib::YieldTermStructure>(fIt->second->currentLink()),
-            /*forceRecomputeAtm=*/false,
-            inputs.discountingCurveId,
-            inputs.forwardingCurveId);
+            /*forceRecomputeAtm=*/false, inputs.discountingCurveId, inputs.forwardingCurveId);
     } catch (const QuantraError& e) {
         // Validation/configuration failures (bad inputs, OIS swap index slipped
         // past registry, etc.) are still client errors; calibration runtime
         // failures from QL throw QuantLib::Error and propagate to the
         // CallDataGeneric base catch, surfacing as 500.
         QUANTRA_INVALID_ARGUMENT(
-            std::string("SABR finalize failed for vol_id '") + inputs.volId +
-            "': " + e.what());
+            std::string("SABR finalize failed for vol_id '") + inputs.volId + "': " + e.what());
     }
 
     CalibrateSwaptionVolResult out;

@@ -1,23 +1,24 @@
 #ifndef QUANTRA_SWAP_INDEX_REGISTRY_H
 #define QUANTRA_SWAP_INDEX_REGISTRY_H
 
-#include <string>
-#include <unordered_map>
-
-#include <ql/time/calendar.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/period.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/dategenerationrule.hpp>
-#include <ql/time/frequency.hpp>
-#include <ql/indexes/swapindex.hpp>
-#include <ql/handle.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-
-#include "swap_index_generated.h"
-#include "index_registry.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "index_registry.h"
+
+#include "swap_index_generated.h"
+
+#include <ql/handle.hpp>
+#include <ql/indexes/swapindex.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/dategenerationrule.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/frequency.hpp>
+#include <ql/time/period.hpp>
+
+#include <string>
+#include <unordered_map>
 
 namespace quantra {
 
@@ -33,7 +34,8 @@ struct SwapIndexRuntime {
     QuantLib::Calendar fixedCalendar = QuantLib::TARGET();
     quantra::enums::Calendar fixedCalendarFb = quantra::enums::Calendar_TARGET;
     QuantLib::BusinessDayConvention fixedBdc = QuantLib::ModifiedFollowing;
-    quantra::enums::BusinessDayConvention fixedBdcFb = quantra::enums::BusinessDayConvention_ModifiedFollowing;
+    quantra::enums::BusinessDayConvention fixedBdcFb =
+        quantra::enums::BusinessDayConvention_ModifiedFollowing;
     QuantLib::BusinessDayConvention fixedTermBdc = QuantLib::ModifiedFollowing;
     QuantLib::DateGeneration::Rule fixedDateRule = QuantLib::DateGeneration::Forward;
     bool fixedEom = false;
@@ -66,6 +68,7 @@ public:
         const IndexRegistry& indices,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const;
+
 private:
     std::unordered_map<std::string, SwapIndexRuntime> data_;
 };

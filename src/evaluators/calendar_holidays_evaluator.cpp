@@ -13,8 +13,7 @@ CalendarHolidaysResult CalendarHolidaysEvaluator::evaluate(
 
     const auto& trade = inputs.trade;
     if (trade.startDate > trade.endDate) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarHolidaysRequest.start_date must be <= end_date");
+        QUANTRA_INVALID_ARGUMENT("CalendarHolidaysRequest.start_date must be <= end_date");
     }
 
     CalendarHolidaysResult result;

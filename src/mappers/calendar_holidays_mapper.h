@@ -7,22 +7,21 @@
  * pricer result back into a CalendarHolidaysResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "calendar_holidays_evaluator.h"
+
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class CalendarHolidaysMapper {
 public:
-    CalendarHolidaysInputs toInputs(
-        const quantra::CalendarHolidaysRequest* req) const;
+    CalendarHolidaysInputs toInputs(const quantra::CalendarHolidaysRequest* req) const;
 
     flatbuffers::Offset<quantra::CalendarHolidaysResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const CalendarHolidaysResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const CalendarHolidaysResult& result) const;
 };
 
 } // namespace quantra

@@ -9,26 +9,27 @@
  *   ./json_server localhost:50051 8080
  */
 
-#include <iostream>
-#include <string>
-#include <cstdlib>
-#include <exception>
-#include <vector>
+#include <boost/asio/ip/tcp.hpp>
+
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <iostream>
 #include <optional>
-#include <utility>
-#include <algorithm>
 #include <sstream>
-#include <cctype>
-#include <boost/asio/ip/tcp.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 // Tell Crow to use Boost.Asio instead of standalone Asio
 #define CROW_USE_BOOST 1
 
 #include "crow_all.h"
-#include "quantra_client.h"
 #include "product_catalog.h"
+#include "quantra_client.h"
 
 #ifndef QUANTRA_GIT_SHA
 #define QUANTRA_GIT_SHA "unknown"
@@ -60,12 +61,11 @@ using namespace quantra;
 namespace {
 
 std::string TrimWhitespace(const std::string& value) {
-    const auto begin = std::find_if_not(value.begin(), value.end(), [](unsigned char c) {
-        return std::isspace(c) != 0;
-    });
+    const auto begin = std::find_if_not(
+        value.begin(), value.end(), [](unsigned char c) { return std::isspace(c) != 0; });
     const auto end = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
-        return std::isspace(c) != 0;
-    }).base();
+                         return std::isspace(c) != 0;
+                     }).base();
     if (begin >= end) {
         return "";
     }
@@ -73,9 +73,8 @@ std::string TrimWhitespace(const std::string& value) {
 }
 
 bool HasWhitespace(const std::string& value) {
-    return std::any_of(value.begin(), value.end(), [](unsigned char c) {
-        return std::isspace(c) != 0;
-    });
+    return std::any_of(
+        value.begin(), value.end(), [](unsigned char c) { return std::isspace(c) != 0; });
 }
 
 std::optional<int> ParsePortNumber(const std::string& text, std::string& error_out) {
@@ -125,7 +124,8 @@ std::optional<std::pair<std::string, std::string>> ParseHostPort(const std::stri
 
     if (trimmed.front() == '[') {
         const auto close = trimmed.find(']');
-        if (close == std::string::npos || close + 1 >= trimmed.size() || trimmed[close + 1] != ':') {
+        if (close == std::string::npos || close + 1 >= trimmed.size() ||
+            trimmed[close + 1] != ':') {
             return std::nullopt;
         }
 
@@ -195,8 +195,9 @@ bool ValidateGrpcAddress(const std::string& grpc_address, std::string& error_out
 
 bool IsJsonContentType(const crow::request& req) {
     std::string ct = req.get_header_value("Content-Type");
-    std::transform(ct.begin(), ct.end(), ct.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return ct.find("application/json") != std::string::npos;
 }
 
@@ -260,8 +261,8 @@ std::optional<std::string> HttpGetWithTimeout(
            << "Connection: close\r\n\r\n";
     stream.flush();
 
-    std::string response((std::istreambuf_iterator<char>(stream)),
-                         std::istreambuf_iterator<char>());
+    std::string response(
+        (std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
     auto hdr_end = response.find("\r\n\r\n");
     if (hdr_end == std::string::npos) {
         error_out = "invalid HTTP response";
@@ -271,8 +272,9 @@ std::optional<std::string> HttpGetWithTimeout(
     std::string body = response.substr(hdr_end + 4);
 
     std::string headers_lc = headers;
-    std::transform(headers_lc.begin(), headers_lc.end(), headers_lc.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(headers_lc.begin(), headers_lc.end(), headers_lc.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
 
     if (headers_lc.find("transfer-encoding: chunked") != std::string::npos) {
         std::string decoded;
@@ -313,9 +315,7 @@ std::optional<std::string> HttpGetWithTimeout(
     return body;
 }
 
-void FillEnvoyClusterHealth(
-    crow::json::wvalue& status_out,
-    const std::string& envoy_admin_target) {
+void FillEnvoyClusterHealth(crow::json::wvalue& status_out, const std::string& envoy_admin_target) {
     crow::json::wvalue envoy;
     envoy["configured"] = true;
     envoy["admin_target"] = envoy_admin_target;
@@ -323,18 +323,16 @@ void FillEnvoyClusterHealth(
     auto hp = ParseEnvoyAdminTarget(envoy_admin_target);
     if (!hp) {
         envoy["reachable"] = false;
-        envoy["error"] = "invalid QUANTRA_ENVOY_ADMIN target, expected host:port or http://host:port";
+        envoy["error"] =
+            "invalid QUANTRA_ENVOY_ADMIN target, expected host:port or http://host:port";
         status_out["envoy"] = std::move(envoy);
         return;
     }
 
     std::string fetch_err;
     auto body = HttpGetWithTimeout(
-        hp->first,
-        hp->second,
-        "/stats?filter=cluster.quantra_workers.membership_",
-        std::chrono::milliseconds(250),
-        fetch_err);
+        hp->first, hp->second, "/stats?filter=cluster.quantra_workers.membership_",
+        std::chrono::milliseconds(250), fetch_err);
     if (!body) {
         envoy["reachable"] = false;
         envoy["error"] = fetch_err;
@@ -346,7 +344,8 @@ void FillEnvoyClusterHealth(
     std::string json_text = *body;
     auto first_brace = json_text.find('{');
     auto last_brace = json_text.rfind('}');
-    if (first_brace != std::string::npos && last_brace != std::string::npos && last_brace >= first_brace) {
+    if (first_brace != std::string::npos && last_brace != std::string::npos &&
+        last_brace >= first_brace) {
         json_text = json_text.substr(first_brace, last_brace - first_brace + 1);
     }
 
@@ -364,8 +363,8 @@ void FillEnvoyClusterHealth(
             try {
                 out = std::stoi(line.substr(c + 1));
             } catch (...) {
-                std::cerr << "[jsonserver] failed to parse envoy metric "
-                          << key << " from line: " << line << std::endl;
+                std::cerr << "[jsonserver] failed to parse envoy metric " << key
+                          << " from line: " << line << std::endl;
             }
         };
         parse_metric("cluster.quantra_workers.membership_total", total);
@@ -403,7 +402,7 @@ int main(int argc, char** argv) {
         PrintUsage(argv[0]);
         return 1;
     }
-    
+
     std::string grpc_address = argv[1];
     std::string http_port_error;
     auto http_port = ParsePortNumber(argv[2], http_port_error);
@@ -414,8 +413,8 @@ int main(int argc, char** argv) {
 
     std::string grpc_address_error;
     if (!ValidateGrpcAddress(grpc_address, grpc_address_error)) {
-        std::cerr << "Invalid gRPC server address '" << grpc_address << "': "
-                  << grpc_address_error << "\n";
+        std::cerr << "Invalid gRPC server address '" << grpc_address << "': " << grpc_address_error
+                  << "\n";
         return 1;
     }
 
@@ -442,7 +441,7 @@ int main(int argc, char** argv) {
     endpoint_list.push_back("GET /status");
     endpoint_list.push_back("GET /meta");
     endpoint_list.push_back("GET /health");
-    
+
     std::cout << "===========================================\n"
               << "  Quantra JSON API Server\n"
               << "===========================================\n"
@@ -450,19 +449,18 @@ int main(int argc, char** argv) {
               << "  HTTP port:    " << *http_port << "\n"
               << "  Log JSON:     " << (log_json_bodies ? "enabled" : "disabled") << "\n"
               << "===========================================\n\n";
-    
+
     try {
         // Initialize client
         QuantraClient client(grpc_address);
-        
+
         // HTTP server
         crow::SimpleApp app;
         auto log_json_request = [&](const char* route, const crow::request& req) {
             if (!log_json_bodies) {
                 return;
             }
-            std::cout << "[jsonserver] POST " << route
-                      << " body_bytes=" << req.body.size() << "\n"
+            std::cout << "[jsonserver] POST " << route << " body_bytes=" << req.body.size() << "\n"
                       << "[jsonserver] JSON BEGIN " << route << "\n"
                       << req.body << "\n"
                       << "[jsonserver] JSON END " << route << std::endl;
@@ -473,8 +471,7 @@ int main(int argc, char** argv) {
         // header and forwarded to the gRPC backend by fn so engine logs
         // correlate with the HTTP caller.
         auto respond = [&](const char* route, const crow::request& req, auto&& fn) {
-            const std::string request_id =
-                SanitizeRequestId(req.get_header_value("X-Request-Id"));
+            const std::string request_id = SanitizeRequestId(req.get_header_value("X-Request-Id"));
             auto with_common_headers = [&](crow::response resp) {
                 resp.set_header("X-Quantra-Api-Version", QUANTRA_API_VERSION);
                 if (!request_id.empty()) {
@@ -490,17 +487,16 @@ int main(int argc, char** argv) {
             if (r.status_code >= 400) {
                 std::cerr << "[jsonserver] backend_error " << route
                           << " http_status=" << r.status_code
-                          << (request_id.empty() ? std::string()
-                                                 : " request_id=" + request_id)
+                          << (request_id.empty() ? std::string() : " request_id=" + request_id)
                           << " response=" << r.body << std::endl;
             }
             return with_common_headers(crow::response(r.status_code, r.body));
         };
-        
+
         // Health checks
         CROW_ROUTE(app, "/")
         ([]() { return R"({"status":"ok","service":"quantra-json-api"})"; });
-        
+
         CROW_ROUTE(app, "/health")
         ([]() { return R"({"status":"healthy"})"; });
 
@@ -514,9 +510,10 @@ int main(int argc, char** argv) {
             auto state = client.GetChannelState(false);
             out["grpc_channel_state"] = GrpcChannelStateToString(state);
             out["grpc_ready"] = grpc_ready;
-            out["uptime_seconds"] = static_cast<uint64_t>(
-                std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::steady_clock::now() - start_time).count());
+            out["uptime_seconds"] =
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::seconds>(
+                                          std::chrono::steady_clock::now() - start_time)
+                                          .count());
 
             if (!envoy_admin_target.empty()) {
                 FillEnvoyClusterHealth(out, envoy_admin_target);
@@ -560,197 +557,231 @@ int main(int argc, char** argv) {
 
             return crow::response(200, out.dump());
         });
-        
+
         // Pricing endpoints
-        CROW_ROUTE(app, "/price-fixed-rate-bond").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-fixed-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceFixedRateBondJSON(body, request_id);
+        CROW_ROUTE(app, "/price-fixed-rate-bond")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-fixed-rate-bond", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceFixedRateBondJSON(body, request_id);
+                    });
             });
-        });
-        
-        CROW_ROUTE(app, "/price-floating-rate-bond").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-floating-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceFloatingRateBondJSON(body, request_id);
+
+        CROW_ROUTE(app, "/price-floating-rate-bond")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-floating-rate-bond", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceFloatingRateBondJSON(body, request_id);
+                    });
             });
-        });
-        
-        CROW_ROUTE(app, "/price-vanilla-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-vanilla-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceVanillaSwapJSON(body, request_id);
+
+        CROW_ROUTE(app, "/price-vanilla-swap")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-vanilla-swap", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceVanillaSwapJSON(body, request_id);
+                    });
             });
+
+        CROW_ROUTE(app, "/price-zero-coupon-inflation-swap")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-zero-coupon-inflation-swap", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceZeroCouponInflationSwapJSON(body, request_id);
+                    });
+            });
+
+        CROW_ROUTE(app, "/price-year-on-year-inflation-swap")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-year-on-year-inflation-swap", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceYearOnYearInflationSwapJSON(body, request_id);
+                    });
+            });
+
+        CROW_ROUTE(app, "/price-ois-swap").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-ois-swap", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceOisSwapJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/price-zero-coupon-inflation-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-zero-coupon-inflation-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceZeroCouponInflationSwapJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/price-basis-swap").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-basis-swap", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceBasisSwapJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/price-year-on-year-inflation-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-year-on-year-inflation-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceYearOnYearInflationSwapJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/price-fra").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-fra", req, [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceFRAJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/price-ois-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-ois-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceOisSwapJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/price-cap-floor").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-cap-floor", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceCapFloorJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/price-basis-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-basis-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceBasisSwapJSON(body, request_id);
-            });
-        });
-        
-        CROW_ROUTE(app, "/price-fra").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-fra", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceFRAJSON(body, request_id);
-            });
-        });
-        
-        CROW_ROUTE(app, "/price-cap-floor").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-cap-floor", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceCapFloorJSON(body, request_id);
-            });
-        });
-        
-        CROW_ROUTE(app, "/price-swaption").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-swaption", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceSwaptionJSON(body, request_id);
-            });
-        });
-        
-        CROW_ROUTE(app, "/price-cds").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-cds", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceCDSJSON(body, request_id);
-            });
-        });
-        
-        CROW_ROUTE(app, "/bootstrap-curves").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/bootstrap-curves", req, [&](const std::string& body, const std::string& request_id) {
-                return client.BootstrapCurvesJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/price-swaption").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-swaption", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceSwaptionJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/bootstrap-inflation-curves").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/bootstrap-inflation-curves", req, [&](const std::string& body, const std::string& request_id) {
-                return client.BootstrapInflationCurvesJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/price-cds").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-cds", req, [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceCDSJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/sample-vol-surfaces").methods("POST"_method)
-        ([&](const crow::request& req) {
-            const std::string request_id =
-                SanitizeRequestId(req.get_header_value("X-Request-Id"));
-            auto with_common_headers = [&](crow::response resp) {
-                resp.set_header("X-Quantra-Api-Version", QUANTRA_API_VERSION);
-                if (!request_id.empty()) {
-                    resp.set_header("X-Request-Id", request_id);
+        CROW_ROUTE(app, "/bootstrap-curves").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/bootstrap-curves", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.BootstrapCurvesJSON(body, request_id);
+                });
+        });
+
+        CROW_ROUTE(app, "/bootstrap-inflation-curves")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/bootstrap-inflation-curves", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.BootstrapInflationCurvesJSON(body, request_id);
+                    });
+            });
+
+        CROW_ROUTE(app, "/sample-vol-surfaces")
+            .methods("POST"_method)([&](const crow::request& req) {
+                const std::string request_id =
+                    SanitizeRequestId(req.get_header_value("X-Request-Id"));
+                auto with_common_headers = [&](crow::response resp) {
+                    resp.set_header("X-Quantra-Api-Version", QUANTRA_API_VERSION);
+                    if (!request_id.empty()) {
+                        resp.set_header("X-Request-Id", request_id);
+                    }
+                    return resp;
+                };
+                if (auto rejected = RejectInvalidJsonRequest(req)) {
+                    return with_common_headers(std::move(*rejected));
                 }
-                return resp;
-            };
-            if (auto rejected = RejectInvalidJsonRequest(req)) {
-                return with_common_headers(std::move(*rejected));
-            }
-            log_json_request("/sample-vol-surfaces", req);
-            auto r = client.SampleVolSurfacesJSON(req.body, request_id);
-            if (r.status_code >= 400) {
-                std::cerr << "[jsonserver] backend_error /sample-vol-surfaces"
-                          << " http_status=" << r.status_code
-                          << (request_id.empty() ? std::string()
-                                                 : " request_id=" + request_id)
-                          << " response=" << r.body << std::endl;
-            } else {
-                std::cout << "[jsonserver] /sample-vol-surfaces success"
-                          << " http_status=" << r.status_code << std::endl;
-            }
-            return with_common_headers(crow::response(r.status_code, r.body));
+                log_json_request("/sample-vol-surfaces", req);
+                auto r = client.SampleVolSurfacesJSON(req.body, request_id);
+                if (r.status_code >= 400) {
+                    std::cerr << "[jsonserver] backend_error /sample-vol-surfaces"
+                              << " http_status=" << r.status_code
+                              << (request_id.empty() ? std::string() : " request_id=" + request_id)
+                              << " response=" << r.body << std::endl;
+                } else {
+                    std::cout << "[jsonserver] /sample-vol-surfaces success"
+                              << " http_status=" << r.status_code << std::endl;
+                }
+                return with_common_headers(crow::response(r.status_code, r.body));
+            });
+
+        CROW_ROUTE(app, "/calendar-business-days")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calendar-business-days", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalendarBusinessDaysJSON(body, request_id);
+                    });
+            });
+
+        CROW_ROUTE(app, "/calendar-holidays").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/calendar-holidays", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.CalendarHolidaysJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/calendar-business-days").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/calendar-business-days", req, [&](const std::string& body, const std::string& request_id) {
-                return client.CalendarBusinessDaysJSON(body, request_id);
-            });
+        CROW_ROUTE(app, "/calendar-advance").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/calendar-advance", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.CalendarAdvanceJSON(body, request_id);
+                });
         });
 
-        CROW_ROUTE(app, "/calendar-holidays").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/calendar-holidays", req, [&](const std::string& body, const std::string& request_id) {
-                return client.CalendarHolidaysJSON(body, request_id);
+        CROW_ROUTE(app, "/calibrate-swaption-model")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calibrate-swaption-model", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalibrateSwaptionModelJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/calendar-advance").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/calendar-advance", req, [&](const std::string& body, const std::string& request_id) {
-                return client.CalendarAdvanceJSON(body, request_id);
+        CROW_ROUTE(app, "/calibrate-swaption-vol")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/calibrate-swaption-vol", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.CalibrateSwaptionVolJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/calibrate-swaption-model").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/calibrate-swaption-model", req, [&](const std::string& body, const std::string& request_id) {
-                return client.CalibrateSwaptionModelJSON(body, request_id);
+        CROW_ROUTE(app, "/price-equity-option")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-equity-option", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceEquityOptionJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/calibrate-swaption-vol").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/calibrate-swaption-vol", req, [&](const std::string& body, const std::string& request_id) {
-                return client.CalibrateSwaptionVolJSON(body, request_id);
+        CROW_ROUTE(app, "/price-zero-coupon-bond")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-zero-coupon-bond", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceZeroCouponBondJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/price-equity-option").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-equity-option", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceEquityOptionJSON(body, request_id);
+        CROW_ROUTE(app, "/price-zero-coupon-swap")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-zero-coupon-swap", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceZeroCouponSwapJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/price-zero-coupon-bond").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-zero-coupon-bond", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceZeroCouponBondJSON(body, request_id);
+        CROW_ROUTE(app, "/price-year-on-year-inflation-cap-floor")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-year-on-year-inflation-cap-floor", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceYearOnYearInflationCapFloorJSON(body, request_id);
+                    });
             });
-        });
 
-        CROW_ROUTE(app, "/price-zero-coupon-swap").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-zero-coupon-swap", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceZeroCouponSwapJSON(body, request_id);
+        CROW_ROUTE(app, "/price-callable-fixed-rate-bond")
+            .methods("POST"_method)([&](const crow::request& req) {
+                return respond(
+                    "/price-callable-fixed-rate-bond", req,
+                    [&](const std::string& body, const std::string& request_id) {
+                        return client.PriceCallableFixedRateBondJSON(body, request_id);
+                    });
             });
-        });
-
-        CROW_ROUTE(app, "/price-year-on-year-inflation-cap-floor").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-year-on-year-inflation-cap-floor", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceYearOnYearInflationCapFloorJSON(body, request_id);
-            });
-        });
-
-        CROW_ROUTE(app, "/price-callable-fixed-rate-bond").methods("POST"_method)
-        ([&](const crow::request& req) {
-            return respond("/price-callable-fixed-rate-bond", req, [&](const std::string& body, const std::string& request_id) {
-                return client.PriceCallableFixedRateBondJSON(body, request_id);
-            });
-        });
 
         // Print endpoints
         std::cout << "Endpoints:\n"
@@ -782,13 +813,13 @@ int main(int argc, char** argv) {
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"
                   << "Starting server...\n";
-        
+
         app.port(*http_port).multithreaded().run();
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";
         return 1;
     }
-    
+
     return 0;
 }

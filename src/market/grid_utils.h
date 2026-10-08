@@ -1,20 +1,20 @@
 #ifndef QUANTRASERVER_GRID_UTILS_H
 #define QUANTRASERVER_GRID_UTILS_H
 
-#include <vector>
-#include <string>
-
-#include <ql/time/date.hpp>
-#include <ql/time/calendar.hpp>
-#include <ql/time/businessdayconvention.hpp>
-
-#include "curve_query_generated.h"
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 
-namespace quantra {
-namespace grid_utils {
+#include "curve_query_generated.h"
+
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
+
+#include <string>
+#include <vector>
+
+namespace quantra { namespace grid_utils {
 
 std::string ToIsoDate(const QuantLib::Date& d);
 
@@ -35,11 +35,8 @@ std::vector<QuantLib::Date> BuildTenorGrid(
     bool forceCalendarAdvance);
 
 std::vector<QuantLib::Date> BuildRangeGrid(
-    const RangeGrid* grid,
-    const QuantLib::Date& asOfDate,
-    int maxPoints);
+    const RangeGrid* grid, const QuantLib::Date& asOfDate, int maxPoints);
 
-} // namespace grid_utils
-} // namespace quantra
+}} // namespace quantra::grid_utils
 
 #endif // QUANTRASERVER_GRID_UTILS_H

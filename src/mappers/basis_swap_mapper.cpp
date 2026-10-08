@@ -1,19 +1,18 @@
 #include "basis_swap_mapper.h"
 
-#include <cmath>
-
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+
+#include <cmath>
 
 namespace quantra {
 
 namespace {
 
-BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
-                                    const char* legName,
-                                    ScheduleParser& scheduleParser) {
+BasisSwapFloatingLegData extractLeg(
+    const quantra::SwapFloatingLeg* fb, const char* legName, ScheduleParser& scheduleParser) {
     BasisSwapFloatingLegData leg;
     if (!fb->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
@@ -22,8 +21,7 @@ BasisSwapFloatingLegData extractLeg(const quantra::SwapFloatingLeg* fb,
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.payment_convention is required");
     }
     // The basis swap path does not support per-period notionals yet.
-    rejectUnsupportedNotionals(fb->notionals(),
-                               std::string("BasisSwap ") + legName);
+    rejectUnsupportedNotionals(fb->notionals(), std::string("BasisSwap ") + legName);
     auto schedule = scheduleParser.parse(fb->schedule());
     leg.schedule = *schedule;
     leg.notional = requirePositive(fb->notional(), "SwapFloatingLeg.notional");
@@ -93,8 +91,7 @@ BasisSwapTrade extractTrade(const quantra::PriceBasisSwap* pricing) {
 }
 
 flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const BasisSwapFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const BasisSwapFlowPlain& f) {
     auto paymentDate = builder.CreateString(f.paymentDate);
     auto accrualStart = builder.CreateString(f.accrualStartDate);
     auto accrualEnd = builder.CreateString(f.accrualEndDate);
@@ -128,8 +125,7 @@ BasisSwapInputs BasisSwapMapper::toInputs(const quantra::PriceBasisSwapRequest* 
     }
     const auto* swaps = req->swaps();
     if (swaps == nullptr || swaps->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceBasisSwapRequest.swaps is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT("PriceBasisSwapRequest.swaps is required and must be non-empty");
     }
 
     BasisSwapInputs inputs;
@@ -142,8 +138,7 @@ BasisSwapInputs BasisSwapMapper::toInputs(const quantra::PriceBasisSwapRequest* 
 }
 
 flatbuffers::Offset<quantra::PriceBasisSwapResponse> BasisSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const BasisSwapResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const BasisSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::BasisSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

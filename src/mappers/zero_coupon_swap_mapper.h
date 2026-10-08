@@ -7,11 +7,12 @@
  * serializes the ZeroCouponSwapResult back into a PriceZeroCouponSwapResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "zero_coupon_swap_evaluator.h"
-#include "zero_coupon_swap_response_generated.h"
+
 #include "price_zero_coupon_swap_request_generated.h"
+#include "zero_coupon_swap_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     ZeroCouponSwapInputs toInputs(const quantra::PriceZeroCouponSwapRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceZeroCouponSwapResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const ZeroCouponSwapResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponSwapResult& result) const;
 };
 
 } // namespace quantra

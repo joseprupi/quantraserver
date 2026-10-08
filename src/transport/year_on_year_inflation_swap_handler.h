@@ -4,8 +4,9 @@
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "year_on_year_inflation_swap_mapper.h"
 #include "year_on_year_inflation_swap_evaluator.h"
+#include "year_on_year_inflation_swap_mapper.h"
+
 #include "price_year_on_year_inflation_swap_request_generated.h"
 #include "year_on_year_inflation_swap_response_generated.h"
 
@@ -28,12 +29,13 @@ using YearOnYearInflationSwapEndpoint = quantra::ProductEndpoint<
 using YearOnYearInflationSwapPricingRequest = YearOnYearInflationSwapEndpoint;
 
 class PriceYearOnYearInflationSwapData : public CallDataGeneric<
-    PriceYearOnYearInflationSwapRequest,
-    YearOnYearInflationSwapEndpoint,
-    PriceYearOnYearInflationSwapResponse,
-    PriceYearOnYearInflationSwapResponseBuilder> {
+                                             PriceYearOnYearInflationSwapRequest,
+                                             YearOnYearInflationSwapEndpoint,
+                                             PriceYearOnYearInflationSwapResponse,
+                                             PriceYearOnYearInflationSwapResponseBuilder> {
 public:
-    PriceYearOnYearInflationSwapData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+    PriceYearOnYearInflationSwapData(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
         : CallDataGeneric(service, cq) {}
 
     void RequestCall() override {
@@ -41,7 +43,8 @@ public:
             &ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceYearOnYearInflationSwapData(service, cq);
         handler->start();
     }

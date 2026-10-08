@@ -3,9 +3,8 @@
 // Relocated verbatim from tests/test_quantra_vs_quantlib.cpp (refactor 6a).
 // Shares QuantraComparisonTest from parity_fixture.h; built into the single
 // test_quantra_vs_quantlib gtest binary.
-#include "parity_fixture.h"
-
 #include "error.h"
+#include "parity_fixture.h"
 
 namespace quantra { namespace testing {
 
@@ -13,9 +12,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP");
@@ -39,9 +37,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     fixDecBuilder.add_date(fixingDec);
     fixDecBuilder.add_value(100.4);
     auto fixDec = fixDecBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{
-        fixOct, fixNov, fixDec
-    });
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -57,8 +54,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_ZC");
     auto curveRef = b.CreateString("2025-01-15");
@@ -109,9 +106,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     pw5Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
     pw5Builder.add_point(h5.Union());
     auto pwh5 = pw5Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
-        pwh1, pwh2, pwh5
-    });
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2, pwh5});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -127,10 +123,11 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     icb.add_allow_extrapolation(true);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto startDate = b.CreateString("2025-01-15");
     auto maturityDate = b.CreateString("2030-01-15");
@@ -156,7 +153,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     pzb.add_discounting_curve(discCurveId);
     pzb.add_inflation_curve(curveId);
     auto trade = pzb.Finish();
-    auto trades = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{trade});
+    auto trades = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{trade});
 
     quantra::PriceZeroCouponInflationSwapRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -164,14 +162,15 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     reqb.add_include_flows(true);
     b.Finish(reqb.Finish());
 
-    auto req = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
+    auto req =
+        flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
     ZeroCouponInflationSwapPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_NE(resp->swaps(), nullptr);
     ASSERT_EQ(resp->swaps()->size(), 1u);
     const auto* priced = resp->swaps()->Get(0);
@@ -191,21 +190,13 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_MatchesQuantLib) {
     ASSERT_TRUE(static_cast<bool>(zeroIndex));
 
     auto expected = std::make_shared<QuantLib::ZeroCouponInflationSwap>(
-        QuantLib::ZeroCouponInflationSwap::Payer,
-        1000000.0,
-        QuantLib::Date(15, QuantLib::January, 2025),
-        QuantLib::Date(15, QuantLib::January, 2030),
-        QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing,
-        QuantLib::Actual365Fixed(),
-        0.0217,
-        zeroIndex,
-        QuantLib::Period(3, QuantLib::Months),
-        QuantLib::CPI::Linear,
-        false,
-        QuantLib::NullCalendar(),
-        QuantLib::Following);
-    expected->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+        QuantLib::ZeroCouponInflationSwap::Payer, 1000000.0,
+        QuantLib::Date(15, QuantLib::January, 2025), QuantLib::Date(15, QuantLib::January, 2030),
+        QuantLib::TARGET(), QuantLib::ModifiedFollowing, QuantLib::Actual365Fixed(), 0.0217,
+        zeroIndex, QuantLib::Period(3, QuantLib::Months), QuantLib::CPI::Linear, false,
+        QuantLib::NullCalendar(), QuantLib::Following);
+    expected->setPricingEngine(
+        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     EXPECT_NEAR(priced->npv(), expected->NPV(), 1e-8);
     EXPECT_NEAR(priced->fair_rate(), expected->fairRate(), 1e-10);
@@ -221,9 +212,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP");
@@ -247,9 +237,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     fixDecBuilder.add_date(fixingDec);
     fixDecBuilder.add_value(100.4);
     auto fixDec = fixDecBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{
-        fixOct, fixNov, fixDec
-    });
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -265,8 +254,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_ZC");
     auto curveRef = b.CreateString("2025-01-15");
@@ -290,9 +279,9 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
         pw.add_point(h.Union());
         return pw.Finish();
     };
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
-        makeHelper(0.0200, p1y), makeHelper(0.0210, p2y), makeHelper(0.0220, p5y)
-    });
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
+            makeHelper(0.0200, p1y), makeHelper(0.0210, p2y), makeHelper(0.0220, p5y)});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -308,10 +297,11 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     icb.add_allow_extrapolation(true);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto startDate = b.CreateString("2025-01-15");
     auto maturityDate = b.CreateString("2028-01-15");
@@ -336,7 +326,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     pzb.add_zero_coupon_inflation_swap(zciis);
     pzb.add_discounting_curve(discCurveId);
     pzb.add_inflation_curve(curveId);
-    auto trades = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{pzb.Finish()});
+    auto trades = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceZeroCouponInflationSwap>>{pzb.Finish()});
 
     quantra::PriceZeroCouponInflationSwapRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -344,13 +335,16 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     reqb.add_include_flows(false);
     b.Finish(reqb.Finish());
 
-    auto req = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
+    auto req =
+        flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
     ZeroCouponInflationSwapPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
-    const auto* priced =
-        flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapResponse>(outBuilder->GetBufferPointer())->swaps()->Get(0);
+    const auto* priced = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapResponse>(
+                             outBuilder->GetBufferPointer())
+                             ->swaps()
+                             ->Get(0);
 
     PricingRegistryBuilder regBuilder;
     PricingRegistry reg = regBuilder.build(req->pricing());
@@ -362,21 +356,13 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_Receiver_Flat) {
     ASSERT_TRUE(static_cast<bool>(zeroIndex));
 
     auto expected = std::make_shared<QuantLib::ZeroCouponInflationSwap>(
-        QuantLib::ZeroCouponInflationSwap::Receiver,
-        1000000.0,
-        QuantLib::Date(15, QuantLib::January, 2025),
-        QuantLib::Date(15, QuantLib::January, 2028),
-        QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing,
-        QuantLib::Actual365Fixed(),
-        0.0210,
-        zeroIndex,
-        QuantLib::Period(3, QuantLib::Months),
-        QuantLib::CPI::Flat,
-        false,
-        QuantLib::NullCalendar(),
-        QuantLib::Following);
-    expected->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+        QuantLib::ZeroCouponInflationSwap::Receiver, 1000000.0,
+        QuantLib::Date(15, QuantLib::January, 2025), QuantLib::Date(15, QuantLib::January, 2028),
+        QuantLib::TARGET(), QuantLib::ModifiedFollowing, QuantLib::Actual365Fixed(), 0.0210,
+        zeroIndex, QuantLib::Period(3, QuantLib::Months), QuantLib::CPI::Flat, false,
+        QuantLib::NullCalendar(), QuantLib::Following);
+    expected->setPricingEngine(
+        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     EXPECT_NEAR(priced->npv(), expected->NPV(), 1e-8);
     EXPECT_NEAR(priced->fair_rate(), expected->fairRate(), 1e-10);
@@ -406,7 +392,7 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_RejectsAdjustObservat
     zcib.add_fixed_rate(0.02);
     zcib.add_inflation_index_id(idxId);
     zcib.add_observation_lag(observationLag);
-    zcib.add_adjust_observation_dates(true);  // unsupported -> must be rejected
+    zcib.add_adjust_observation_dates(true); // unsupported -> must be rejected
     auto zciis = zcib.Finish();
 
     quantra::PriceZeroCouponInflationSwapBuilder pzb(b);
@@ -421,7 +407,8 @@ TEST_F(QuantraComparisonTest, PriceZeroCouponInflationSwap_RejectsAdjustObservat
     reqb.add_include_flows(false);
     b.Finish(reqb.Finish());
 
-    auto req = flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
+    auto req =
+        flatbuffers::GetRoot<quantra::PriceZeroCouponInflationSwapRequest>(b.GetBufferPointer());
     ZeroCouponInflationSwapPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     EXPECT_THROW(handler.request(outBuilder, req), QuantraInvalidArgument);

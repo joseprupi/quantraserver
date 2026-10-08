@@ -1,18 +1,18 @@
 #include "callable_fixed_rate_bond_evaluator.h"
 
-#include <unordered_map>
-#include <variant>
+#include "date_convert.h"
+#include "enums_domain.h"
+#include "error.h"
+#include "model_domain.h"
+#include "swaption_model_calibration.h"
 
 #include <ql/experimental/callablebonds/treecallablebondengine.hpp>
 #include <ql/handle.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "date_convert.h"
-#include "enums_domain.h"
-#include "error.h"
-#include "model_domain.h"
-#include "swaption_model_calibration.h"
+#include <unordered_map>
+#include <variant>
 
 namespace quantra {
 
@@ -31,7 +31,7 @@ CallableFixedRateBondResult CallableFixedRateBondEvaluator::evaluate(
     std::unordered_map<std::string, HwCalibResult> hwCalibrationCache;
 
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
 
         if (trade.bond == nullptr) {
             QUANTRA_INVALID_ARGUMENT("Callable bond instrument is null");
@@ -41,7 +41,7 @@ CallableFixedRateBondResult CallableFixedRateBondEvaluator::evaluate(
         if (curveIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
         }
-        const auto& curveHandle = *curveIt->second;               // RelinkableHandle
+        const auto& curveHandle = *curveIt->second; // RelinkableHandle
         QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle(curveHandle.currentLink());
 
         auto mIt = reg.volatility.modelDomains.find(trade.modelId);
@@ -68,10 +68,11 @@ CallableFixedRateBondResult CallableFixedRateBondEvaluator::evaluate(
             }
             auto cacheIt = hwCalibrationCache.find(trade.modelId);
             if (cacheIt == hwCalibrationCache.end()) {
-                cacheIt = hwCalibrationCache.emplace(
-                    trade.modelId,
-                    calibrateHullWhiteFromSwaptionVol(reg, *modelDomain->hw_calibration, ctx.asOf))
-                    .first;
+                cacheIt = hwCalibrationCache
+                              .emplace(
+                                  trade.modelId, calibrateHullWhiteFromSwaptionVol(
+                                                     reg, *modelDomain->hw_calibration, ctx.asOf))
+                              .first;
             }
             a = cacheIt->second.a;
             sigma = cacheIt->second.sigma;

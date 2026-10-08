@@ -7,31 +7,25 @@
 // SIGSEGVs the worker. These are hand-crafted buffers the JSON gateway cannot
 // produce, so they are exercised here directly at the C++ boundary: the code
 // must throw a QuantraError (mapped to a clean 400), never crash.
-#include <gtest/gtest.h>
-
 #include "curve_bootstrapper.h"
 #include "curve_cache_key.h"
 #include "error.h"
 
-namespace quantra {
-namespace testing {
-namespace {
+#include <gtest/gtest.h>
+
+namespace quantra { namespace testing { namespace {
 
 // Build a TermStructure whose single point carries a real helper TYPE byte
 // (DepositHelper) but a value offset of 0 (absent). Structurally this is what
 // the FlatBuffers verifier lets through.
-const quantra::TermStructure* buildTypeSetValueAbsentCurve(
-    flatbuffers::FlatBufferBuilder& fbb)
-{
-    auto pw = quantra::CreatePointsWrapper(
-        fbb, quantra::Point_DepositHelper, /*value offset absent*/ 0);
+const quantra::TermStructure* buildTypeSetValueAbsentCurve(flatbuffers::FlatBufferBuilder& fbb) {
+    auto pw =
+        quantra::CreatePointsWrapper(fbb, quantra::Point_DepositHelper, /*value offset absent*/ 0);
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-absent-union",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-absent-union", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     fbb.Finish(ts);
     return flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
 }
@@ -43,8 +37,7 @@ TEST(UnionAbsentValue, CurveCacheKeyRejectsAbsentUnionValue) {
     const auto* ts = buildTypeSetValueAbsentCurve(fbb);
 
     KeyContext ctx;
-    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}),
-                 QuantraError);
+    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}), QuantraError);
 }
 
 // The dependency collector (hit before the cache key on the bootstrap path)
@@ -53,26 +46,22 @@ TEST(UnionAbsentValue, CurveCacheKeyRejectsAbsentUnionValue) {
 TEST(UnionAbsentValue, CurveBootstrapperRejectsAbsentUnionValue) {
     flatbuffers::FlatBufferBuilder fbb;
     // Use SwapHelper: collectDeps dereferences its ->deps() unconditionally.
-    auto pw = quantra::CreatePointsWrapper(
-        fbb, quantra::Point_SwapHelper, /*value offset absent*/ 0);
+    auto pw =
+        quantra::CreatePointsWrapper(fbb, quantra::Point_SwapHelper, /*value offset absent*/ 0);
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-absent-swap",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-absent-swap", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     std::vector<flatbuffers::Offset<quantra::TermStructure>> curves{ts};
     auto curvesVec = fbb.CreateVector(curves);
     fbb.Finish(curvesVec);
     const auto* curvesPtr =
-        flatbuffers::GetRoot<flatbuffers::Vector<
-            flatbuffers::Offset<quantra::TermStructure>>>(fbb.GetBufferPointer());
+        flatbuffers::GetRoot<flatbuffers::Vector<flatbuffers::Offset<quantra::TermStructure>>>(
+            fbb.GetBufferPointer());
 
     CurveBootstrapper bootstrapper;
     EXPECT_THROW(bootstrapper.bootstrapAll(curvesPtr), QuantraError);
 }
 
-} // namespace
-} // namespace testing
-} // namespace quantra
+}}} // namespace quantra::testing

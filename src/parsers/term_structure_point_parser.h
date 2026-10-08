@@ -1,19 +1,20 @@
 #ifndef QUANTRASERVER_TERM_STRUCTURE_POINT_PARSER_H
 #define QUANTRASERVER_TERM_STRUCTURE_POINT_PARSER_H
 
-#include <memory>
-
-#include <ql/termstructures/yield/ratehelpers.hpp>
-#include <ql/handle.hpp>
+#include "curve_registry.h"
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "error.h"
+#include "index_registry.h"
+#include "quote_registry.h"
+#include "schedule_parser.h"
 
 #include "term_structure_generated.h"
-#include "enum_convert.h"
-#include "date_convert.h"
-#include "error.h"
-#include "schedule_parser.h"
-#include "quote_registry.h"
-#include "curve_registry.h"
-#include "index_registry.h"
+
+#include <ql/handle.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
+
+#include <memory>
 
 namespace quantra {
 
@@ -46,8 +47,7 @@ public:
         const QuoteRegistry* quotes = nullptr,
         const CurveRegistry* curves = nullptr,
         const IndexRegistry* indices = nullptr,
-        double bump = 0.0
-    ) const;
+        double bump = 0.0) const;
 
 private:
     QuantLib::Handle<QuantLib::Quote> resolveQuote(
@@ -55,13 +55,10 @@ private:
         const flatbuffers::String* quoteId,
         const QuoteRegistry* quotes,
         quantra::QuoteType expectedType,
-        double bump
-    ) const;
+        double bump) const;
 
     QuantLib::Handle<QuantLib::YieldTermStructure> resolveCurve(
-        const quantra::CurveRef* ref,
-        const CurveRegistry* curves
-    ) const;
+        const quantra::CurveRef* ref, const CurveRegistry* curves) const;
 };
 
 } // namespace quantra

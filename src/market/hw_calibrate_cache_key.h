@@ -1,16 +1,16 @@
 #ifndef QUANTRA_HW_CALIBRATE_CACHE_KEY_H
 #define QUANTRA_HW_CALIBRATE_CACHE_KEY_H
 
-#include <string>
-#include <vector>
-
-#include <ql/time/date.hpp>
-#include <ql/time/period.hpp>
+#include <ql/termstructures/volatility/volatilitytype.hpp>
+#include <ql/time/businessdayconvention.hpp>
 #include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/frequency.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/termstructures/volatility/volatilitytype.hpp>
+#include <ql/time/period.hpp>
+
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -62,8 +62,8 @@ struct HwCalibrateKeyInputs {
     bool calibrateSigma = true;
     double aInit = 0.0;
     double sigmaInit = 0.0;
-    int maxIterations = 0;         // clamped
-    int functionEvaluations = 0;   // clamped
+    int maxIterations = 0;       // clamped
+    int functionEvaluations = 0; // clamped
     double endCriteriaEps = 0.0;
 
     QuantLib::Date asOf;

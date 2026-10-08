@@ -35,18 +35,18 @@
  * reg.rates.{curves,swapIndices,indices}.
  */
 
-#include <cstdint>
-#include <string>
-#include <vector>
-
-#include <ql/time/date.hpp>
-#include <ql/time/period.hpp>
-
 #include "enum_convert.h"
 #include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
 #include "vol_surface_parsers.h"
+
+#include <ql/time/date.hpp>
+#include <ql/time/period.hpp>
+
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -192,9 +192,10 @@ struct SampleVolSurfacesResult {
 
 class SampleVolSurfacesEvaluator {
 public:
-    SampleVolSurfacesResult evaluate(const SampleVolSurfacesInputs& inputs,
-                                  const PricingRegistry& reg,
-                                  const PricingContext& ctx) const;
+    SampleVolSurfacesResult evaluate(
+        const SampleVolSurfacesInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

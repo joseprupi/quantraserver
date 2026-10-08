@@ -14,8 +14,8 @@ CalendarAdvanceResult CalendarAdvanceEvaluator::evaluate(
     CalendarAdvanceResult result;
     result.calendar = inputs.calendar;
     result.inputDate = trade.inputDate;
-    result.advancedDate = trade.calendar.advance(
-        trade.inputDate, trade.period, trade.convention, trade.endOfMonth);
+    result.advancedDate =
+        trade.calendar.advance(trade.inputDate, trade.period, trade.convention, trade.endOfMonth);
     return result;
 }
 

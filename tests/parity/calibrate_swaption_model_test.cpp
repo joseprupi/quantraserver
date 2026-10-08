@@ -12,15 +12,19 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_ReturnsReasonableParams) {
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+    std::vector<QuantLib::Period> expiries = {
+        QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {
+        QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years)};
     auto volSurface = buildSwaptionVolAtmMatrixSurface(
         b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     auto model = buildSwaptionModel(
         b, "hw_cal_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
-        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M",
+        "discount");
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
     auto swapIndices = buildSwapIndicesVector(b);
@@ -36,9 +40,11 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_ReturnsReasonableParams) {
 
     CalibrateSwaptionModelPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+    auto out =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
 
     EXPECT_GT(out->hw_a(), 0.0);
     EXPECT_GT(out->hw_sigma(), 0.0);
@@ -52,20 +58,19 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
     std::vector<QuantLib::Period> expiries = {
-        QuantLib::Period(1, QuantLib::Years),
-        QuantLib::Period(2, QuantLib::Years)
-    };
+        QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
     std::vector<QuantLib::Period> tenors = {
-        QuantLib::Period(5, QuantLib::Years),
-        QuantLib::Period(7, QuantLib::Years)
-    };
+        QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years)};
     std::vector<double> volsFlat = {0.20, 0.21, 0.22, 0.23};
-    auto volSurface = buildSwaptionVolAtmMatrixSurface(b, "swaption_atm", expiries, tenors, volsFlat);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto volSurface =
+        buildSwaptionVolAtmMatrixSurface(b, "swaption_atm", expiries, tenors, volsFlat);
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     auto model = buildSwaptionModel(
         b, "hw_cal_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
-        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M",
+        "discount");
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
     auto swapIndices = buildSwapIndicesVector(b);
@@ -81,11 +86,14 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
 
     CalibrateSwaptionModelPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+    auto out =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
 
-    auto reqRoot = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer());
+    auto reqRoot =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer());
     quantra::PricingRegistryBuilder regBuilder;
     quantra::PricingRegistry reg = regBuilder.build(reqRoot->pricing());
     auto dIt = reg.rates.curves.find("discount");
@@ -104,10 +112,9 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
     const QuantLib::Period fixedLegTenor(sidx.fixedFrequency);
     const QuantLib::DayCounter fixedDc = sidx.fixedDayCounter;
     const QuantLib::DayCounter floatDc = ibor->dayCounter();
-    const auto errorType =
-        (volEntry.qlVolType == QuantLib::Normal)
-            ? QuantLib::BlackCalibrationHelper::PriceError
-            : QuantLib::BlackCalibrationHelper::ImpliedVolError;
+    const auto errorType = (volEntry.qlVolType == QuantLib::Normal)
+                               ? QuantLib::BlackCalibrationHelper::PriceError
+                               : QuantLib::BlackCalibrationHelper::ImpliedVolError;
     const QuantLib::Natural settlementDays = static_cast<QuantLib::Natural>(sidx.spotDays);
 
     std::vector<QuantLib::ext::shared_ptr<QuantLib::CalibrationHelper>> helpers;
@@ -118,19 +125,8 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
             auto volQuote = QuantLib::Handle<QuantLib::Quote>(
                 QuantLib::ext::make_shared<QuantLib::SimpleQuote>(marketVol));
             auto helper = QuantLib::ext::make_shared<QuantLib::SwaptionHelper>(
-                exp,
-                ten,
-                volQuote,
-                ibor,
-                fixedLegTenor,
-                fixedDc,
-                floatDc,
-                discountCurve,
-                errorType,
-                QuantLib::Null<QuantLib::Real>(),
-                1.0,
-                volEntry.qlVolType,
-                volEntry.displacement,
+                exp, ten, volQuote, ibor, fixedLegTenor, fixedDc, floatDc, discountCurve, errorType,
+                QuantLib::Null<QuantLib::Real>(), 1.0, volEntry.qlVolType, volEntry.displacement,
                 settlementDays);
             helpers.push_back(helper);
         }
@@ -147,7 +143,8 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionModel_MatchesDirectQuantLibCalibr
     QuantLib::LevenbergMarquardt lm;
     QuantLib::EndCriteria endCriteria(1000, 200, 1.0e-8, 1.0e-8, 1.0e-8);
     std::vector<bool> fixParams = {false, false};
-    hwModel->calibrate(helpers, lm, endCriteria, QuantLib::NoConstraint(), std::vector<double>(), fixParams);
+    hwModel->calibrate(
+        helpers, lm, endCriteria, QuantLib::NoConstraint(), std::vector<double>(), fixParams);
     const auto params = hwModel->params();
     ASSERT_GE(params.size(), 2u);
 

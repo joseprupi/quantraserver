@@ -1,9 +1,8 @@
 #include "cap_floor_evaluator.h"
 
-#include <iostream>
-#include <memory>
-#include <variant>
-#include <vector>
+#include "date_convert.h"
+#include "error.h"
+#include "model_domain.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
@@ -14,9 +13,10 @@
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "date_convert.h"
-#include "error.h"
-#include "model_domain.h"
+#include <iostream>
+#include <memory>
+#include <variant>
+#include <vector>
 
 namespace quantra {
 
@@ -33,35 +33,42 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
     switch (model.model_type) {
         case IrModelTypeKind::Bachelier:
             if (volEntry.qlVolType != QuantLib::Normal) {
-                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Bachelier requires Normal vols, "
-                              "but vol has type ShiftedLognormal");
+                QUANTRA_INVALID_ARGUMENT(
+                    "Model '" + modelId +
+                    "': Bachelier requires Normal vols, "
+                    "but vol has type ShiftedLognormal");
             }
             return std::make_shared<QuantLib::BachelierCapFloorEngine>(
                 discountCurve, volEntry.handle);
 
         case IrModelTypeKind::Black:
             if (volEntry.displacement != 0.0) {
-                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Black requires displacement=0, "
-                              "but vol has displacement=" + std::to_string(volEntry.displacement));
+                QUANTRA_INVALID_ARGUMENT(
+                    "Model '" + modelId +
+                    "': Black requires displacement=0, "
+                    "but vol has displacement=" +
+                    std::to_string(volEntry.displacement));
             }
-            return std::make_shared<QuantLib::BlackCapFloorEngine>(
-                discountCurve, volEntry.handle);
+            return std::make_shared<QuantLib::BlackCapFloorEngine>(discountCurve, volEntry.handle);
 
         case IrModelTypeKind::ShiftedBlack:
             if (volEntry.displacement <= 0.0) {
-                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
-                              "but vol has displacement=" + std::to_string(volEntry.displacement));
+                QUANTRA_INVALID_ARGUMENT(
+                    "Model '" + modelId +
+                    "': ShiftedBlack requires displacement>0, "
+                    "but vol has displacement=" +
+                    std::to_string(volEntry.displacement));
             }
             // BlackCapFloorEngine reads displacement from the vol structure.
-            return std::make_shared<QuantLib::BlackCapFloorEngine>(
-                discountCurve, volEntry.handle);
+            return std::make_shared<QuantLib::BlackCapFloorEngine>(discountCurve, volEntry.handle);
 
         case IrModelTypeKind::HullWhiteLattice:
-            QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': HullWhiteLattice is not supported for cap/floor");
+            QUANTRA_INVALID_ARGUMENT(
+                "Model '" + modelId + "': HullWhiteLattice is not supported for cap/floor");
     }
-    QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
-                  "': CapFloorModelSpec.model_type is not a known model type: " +
-                  std::to_string(static_cast<int>(model.model_type)));
+    QUANTRA_INVALID_ARGUMENT(
+        "Model '" + modelId + "': CapFloorModelSpec.model_type is not a known model type: " +
+        std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }
 
@@ -69,20 +76,17 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
 /// CapFloorParser::parse: a single-strike vector is used for Cap/Floor; the
 /// Collar branch is rejected (legacy throws the same message).
 std::shared_ptr<QuantLib::CapFloor> buildCapFloor(
-    const CapFloorTrade& trade,
-    const std::shared_ptr<QuantLib::IborIndex>& iborIndex) {
+    const CapFloorTrade& trade, const std::shared_ptr<QuantLib::IborIndex>& iborIndex) {
     QuantLib::Leg leg = QuantLib::IborLeg(trade.schedule, iborIndex)
-        .withNotionals(trade.notional)
-        .withPaymentDayCounter(trade.dayCounter)
-        .withPaymentAdjustment(trade.businessDayConvention);
+                            .withNotionals(trade.notional)
+                            .withPaymentDayCounter(trade.dayCounter)
+                            .withPaymentAdjustment(trade.businessDayConvention);
 
     std::vector<QuantLib::Rate> strikes(1, trade.strike);
 
     switch (trade.capFloorType) {
-        case QuantLib::CapFloor::Cap:
-            return std::make_shared<QuantLib::Cap>(leg, strikes);
-        case QuantLib::CapFloor::Floor:
-            return std::make_shared<QuantLib::Floor>(leg, strikes);
+        case QuantLib::CapFloor::Cap: return std::make_shared<QuantLib::Cap>(leg, strikes);
+        case QuantLib::CapFloor::Floor: return std::make_shared<QuantLib::Floor>(leg, strikes);
         case QuantLib::CapFloor::Collar:
             QUANTRA_INVALID_ARGUMENT("Collar not yet supported - use separate Cap and Floor");
     }
@@ -112,9 +116,8 @@ std::vector<CapFloorLetDetail> buildDetails(
     return out;
 }
 
-CapFloorPerTrade priceTrade(const CapFloorTrade& trade,
-                            const PricingRegistry& reg,
-                            const PricingContext& ctx) {
+CapFloorPerTrade priceTrade(
+    const CapFloorTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -152,24 +155,24 @@ CapFloorPerTrade priceTrade(const CapFloorTrade& trade,
     out.npv = capFloor->NPV();
     out.atmRate = capFloor->atmRate(*discIt->second->currentLink());
 
-    std::cout << "CapFloor NPV: " << out.npv
-              << ", ATM Rate: " << out.atmRate * 100 << "%" << std::endl;
+    std::cout << "CapFloor NPV: " << out.npv << ", ATM Rate: " << out.atmRate * 100 << "%"
+              << std::endl;
 
     if (trade.includeDetails) {
-        out.details = buildDetails(capFloor->floatingLeg(), discIt->second->currentLink(), ctx.asOf);
+        out.details =
+            buildDetails(capFloor->floatingLeg(), discIt->second->currentLink(), ctx.asOf);
     }
     return out;
 }
 
 } // namespace
 
-CapFloorResult CapFloorEvaluator::evaluate(const CapFloorInputs& inputs,
-                                     const PricingRegistry& reg,
-                                     const PricingContext& ctx) const {
+CapFloorResult CapFloorEvaluator::evaluate(
+    const CapFloorInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     CapFloorResult result;
     result.trades.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         result.trades.push_back(priceTrade(trade, reg, ctx));
     }
     return result;

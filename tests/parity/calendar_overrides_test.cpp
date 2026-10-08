@@ -4,17 +4,17 @@
 //
 // Overrides are process-global QuantLib state, so every test runs inside a
 // fixture that resets them before and after.
+#include "calendar_overrides.h"
+
+#include "calendar_override_parser.h"
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "error.h"
 #include "parity_fixture.h"
 
 #include <algorithm>
 #include <functional>
 #include <memory>
-
-#include "calendar_override_parser.h"
-#include "calendar_overrides.h"
-#include "date_convert.h"
-#include "enum_convert.h"
-#include "error.h"
 
 namespace quantra { namespace testing {
 
@@ -32,13 +32,16 @@ const char* kPlainFriday = "2024-06-14";
 const char* kLabourDay = "2024-05-01";
 const char* kSaturday = "2024-06-15";
 
-HolidayOverride make(const QuantLib::Calendar& cal,
-                     std::vector<std::string> added,
-                     std::vector<std::string> removed) {
+HolidayOverride make(
+    const QuantLib::Calendar& cal,
+    std::vector<std::string> added,
+    std::vector<std::string> removed) {
     HolidayOverride o;
     o.calendar = cal;
-    for (const auto& d : added) o.added.push_back(DateToQL(d));
-    for (const auto& d : removed) o.removed.push_back(DateToQL(d));
+    for (const auto& d : added)
+        o.added.push_back(DateToQL(d));
+    for (const auto& d : removed)
+        o.removed.push_back(DateToQL(d));
     return o;
 }
 
@@ -67,9 +70,10 @@ struct Entry {
 };
 
 // Builds a CalendarHolidaysRequest carrying the given override entries.
-flatbuffers::DetachedBuffer holidaysRequest(const std::vector<Entry>& entries,
-                                            const std::string& start = "2024-04-29",
-                                            const std::string& end = "2024-06-14") {
+flatbuffers::DetachedBuffer holidaysRequest(
+    const std::vector<Entry>& entries,
+    const std::string& start = "2024-04-29",
+    const std::string& end = "2024-06-14") {
     quantra::CalendarHolidaysRequestT t;
     t.calendar = quantra::enums::Calendar_TARGET;
     t.start_date = start;
@@ -95,13 +99,14 @@ std::vector<HolidayOverride> parse(const std::vector<Entry>& entries) {
 std::vector<std::string> runHolidays(const flatbuffers::DetachedBuffer& buf) {
     CalendarHolidaysEndpoint endpoint;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = endpoint.request(
-        respB, flatbuffers::GetRoot<quantra::CalendarHolidaysRequest>(buf.data()));
+    auto resp =
+        endpoint.request(respB, flatbuffers::GetRoot<quantra::CalendarHolidaysRequest>(buf.data()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::CalendarHolidaysResponse>(
-        respB->GetBufferPointer());
+    const auto* r =
+        flatbuffers::GetRoot<quantra::CalendarHolidaysResponse>(respB->GetBufferPointer());
     std::vector<std::string> out;
-    for (const auto* d : *r->dates()) out.push_back(d->str());
+    for (const auto* d : *r->dates())
+        out.push_back(d->str());
     return out;
 }
 
@@ -219,43 +224,61 @@ TEST_F(CalendarOverridesTest, AliasesShareOverrides) {
 TEST_F(CalendarOverridesTest, RejectionsNameTheField) {
     const std::string p = "pricing.calendar_overrides";
     // Same date in both lists of one entry.
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {kPlainFriday}, {kPlainFriday})}, p); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides({make(QuantLib::TARGET(), {kPlainFriday}, {kPlainFriday})}, p);
+        },
         "pricing.calendar_overrides[0].removed_holidays[0]");
     // Duplicate date inside one list.
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {"2024-06-13", kPlainFriday, kPlainFriday}, {})}, p); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides(
+                {make(QuantLib::TARGET(), {"2024-06-13", kPlainFriday, kPlainFriday}, {})}, p);
+        },
         "pricing.calendar_overrides[0].added_holidays[2]");
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {}, {kLabourDay, kLabourDay})}, p); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides({make(QuantLib::TARGET(), {}, {kLabourDay, kLabourDay})}, p);
+        },
         "pricing.calendar_overrides[0].removed_holidays[1]");
     // Same calendar in two entries, directly and through an enum alias.
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {kPlainFriday}, {}),
-         make(QuantLib::TARGET(), {"2024-06-13"}, {})}, p); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides(
+                {make(QuantLib::TARGET(), {kPlainFriday}, {}),
+                 make(QuantLib::TARGET(), {"2024-06-13"}, {})},
+                p);
+        },
         "pricing.calendar_overrides[1].calendar");
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(CalendarToQL(quantra::enums::Calendar_UnitedStates), {kPlainFriday}, {}),
-         make(CalendarToQL(quantra::enums::Calendar_UnitedStatesSettlement), {}, {})}, p); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides(
+                {make(CalendarToQL(quantra::enums::Calendar_UnitedStates), {kPlainFriday}, {}),
+                 make(CalendarToQL(quantra::enums::Calendar_UnitedStatesSettlement), {}, {})},
+                p);
+        },
         "pricing.calendar_overrides[1].calendar");
     // Calendars with per-instance state.
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::NullCalendar(), {kPlainFriday}, {})}, p); },
+    expectInvalid(
+        [&] { applyCalendarOverrides({make(QuantLib::NullCalendar(), {kPlainFriday}, {})}, p); },
         "pricing.calendar_overrides[0].calendar");
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::BespokeCalendar(), {kPlainFriday}, {})}, p); },
+    expectInvalid(
+        [&] { applyCalendarOverrides({make(QuantLib::BespokeCalendar(), {kPlainFriday}, {})}, p); },
         "pricing.calendar_overrides[0].calendar");
     // Weekend date in removed_holidays.
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {}, {kLabourDay, kSaturday})}, p); },
+    expectInvalid(
+        [&] { applyCalendarOverrides({make(QuantLib::TARGET(), {}, {kLabourDay, kSaturday})}, p); },
         "pricing.calendar_overrides[0].removed_holidays[1]");
     expectTargetClean();
 }
 
 TEST_F(CalendarOverridesTest, NothingAppliedWhenAnyEntryIsInvalid) {
-    expectInvalid([&] { applyCalendarOverrides(
-        {make(QuantLib::TARGET(), {kPlainFriday}, {kLabourDay}),
-         make(QuantLib::Japan(), {}, {kSaturday})}); },
+    expectInvalid(
+        [&] {
+            applyCalendarOverrides(
+                {make(QuantLib::TARGET(), {kPlainFriday}, {kLabourDay}),
+                 make(QuantLib::Japan(), {}, {kSaturday})});
+        },
         "calendar_overrides[1].removed_holidays[0]");
     expectTargetClean();
 }
@@ -270,12 +293,12 @@ TEST_F(CalendarOverridesTest, EveryEnumCalendarIsSharedOrRejected) {
         QuantLib::Calendar a = CalendarToQL(e);
         const QuantLib::Calendar b = CalendarToQL(e);
         QuantLib::Date d = DateToQL(kPlainFriday);
-        while (!a.isBusinessDay(d)) ++d;
+        while (!a.isBusinessDay(d))
+            ++d;
         a.addHoliday(d);
         const bool shared = b.isHoliday(d);
         a.resetAddedAndRemovedHolidays();
-        EXPECT_EQ(calendarSupportsOverrides(b), shared)
-            << quantra::enums::EnumNameCalendar(e);
+        EXPECT_EQ(calendarSupportsOverrides(b), shared) << quantra::enums::EnumNameCalendar(e);
         if (!shared) inert.push_back(quantra::enums::EnumNameCalendar(e));
     }
     EXPECT_EQ(inert, (std::vector<std::string>{"BespokeCalendar", "NullCalendar"}));
@@ -299,23 +322,29 @@ TEST_F(CalendarOverridesTest, ParserBuildsDomainOverrides) {
 
 TEST_F(CalendarOverridesTest, ParserRejectionsNameTheField) {
     // Entry without calendar.
-    expectInvalid([&] { parse({{quantra::enums::Calendar_TARGET, {}, {}},
-                               {flatbuffers::nullopt, {kPlainFriday}, {}}}); },
+    expectInvalid(
+        [&] {
+            parse(
+                {{quantra::enums::Calendar_TARGET, {}, {}},
+                 {flatbuffers::nullopt, {kPlainFriday}, {}}});
+        },
         "pricing.calendar_overrides[1].calendar is required");
     // Unparseable and out-of-range dates.
-    expectInvalid([&] { parse({{quantra::enums::Calendar_TARGET,
-                                {kPlainFriday, "14/06/2024"}, {}}}); },
+    expectInvalid(
+        [&] { parse({{quantra::enums::Calendar_TARGET, {kPlainFriday, "14/06/2024"}, {}}}); },
         "pricing.calendar_overrides[0].added_holidays[1]");
-    expectInvalid([&] { parse({{quantra::enums::Calendar_TARGET, {}, {"2024-02-30"}}}); },
+    expectInvalid(
+        [&] { parse({{quantra::enums::Calendar_TARGET, {}, {"2024-02-30"}}}); },
         "pricing.calendar_overrides[0].removed_holidays[0]");
-    expectInvalid([&] { parse({{quantra::enums::Calendar_TARGET, {"1800-01-01"}, {}}}); },
+    expectInvalid(
+        [&] { parse({{quantra::enums::Calendar_TARGET, {"1800-01-01"}, {}}}); },
         "pricing.calendar_overrides[0].added_holidays[0]");
 }
 
 TEST_F(CalendarOverridesTest, EndpointAppliesAndResets) {
     const auto plain = runHolidays(holidaysRequest({}));
-    const auto with = runHolidays(holidaysRequest(
-        {{quantra::enums::Calendar_TARGET, {kPlainFriday}, {kLabourDay}}}));
+    const auto with = runHolidays(
+        holidaysRequest({{quantra::enums::Calendar_TARGET, {kPlainFriday}, {kLabourDay}}}));
     auto has = [](const std::vector<std::string>& v, const std::string& d) {
         return std::find(v.begin(), v.end(), d) != v.end();
     };
@@ -330,17 +359,19 @@ TEST_F(CalendarOverridesTest, EndpointAppliesAndResets) {
 TEST_F(CalendarOverridesTest, EndpointResetsWhenRequestFailsLater) {
     // Valid overrides, then the request fails on an unrelated field.
     const auto bad = holidaysRequest(
-        {{quantra::enums::Calendar_TARGET, {kPlainFriday}, {kLabourDay}}},
-        "not-a-date");
+        {{quantra::enums::Calendar_TARGET, {kPlainFriday}, {kLabourDay}}}, "not-a-date");
     EXPECT_ANY_THROW(runHolidays(bad));
     expectTargetClean();
 }
 
 TEST_F(CalendarOverridesTest, EndpointRejectsMalformedOverrides) {
-    expectInvalid([&] { runHolidays(holidaysRequest(
-        {{quantra::enums::Calendar_NullCalendar, {kPlainFriday}, {}}})); },
+    expectInvalid(
+        [&] {
+            runHolidays(
+                holidaysRequest({{quantra::enums::Calendar_NullCalendar, {kPlainFriday}, {}}}));
+        },
         "calendar_overrides[0].calendar");
     expectTargetClean();
 }
 
-} } // namespace quantra::testing
+}} // namespace quantra::testing

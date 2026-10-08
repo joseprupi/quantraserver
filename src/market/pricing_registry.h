@@ -1,34 +1,35 @@
 #ifndef QUANTRA_PRICING_REGISTRY_H
 #define QUANTRA_PRICING_REGISTRY_H
 
-#include <map>
-#include <string>
-#include <memory>
-#include <unordered_map>
-#include <vector>
+#include "coupon_pricer_domain.h"
+#include "credit_curve_domain.h"
+#include "equity_underlying_registry.h"
+#include "index_registry.h"
+#include "model_domain.h"
+#include "quote_registry.h"
+#include "request_budget.h"
+#include "swap_index_registry.h"
+#include "vol_surface_parsers.h"
+
+#include "common_generated.h"
+#include "pricing_generated.h"
 
 #include <ql/handle.hpp>
-#include <ql/quote.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/inflationtermstructure.hpp>
 #include <ql/indexes/inflationindex.hpp>
-#include <ql/time/date.hpp>
-#include <ql/time/calendar.hpp>
+#include <ql/quote.hpp>
+#include <ql/termstructures/inflationtermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/businessdayconvention.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/period.hpp>
 
-#include "vol_surface_parsers.h"
-#include "common_generated.h"
-#include "pricing_generated.h"
-#include "credit_curve_domain.h"
-#include "equity_underlying_registry.h"
-#include "model_domain.h"
-#include "coupon_pricer_domain.h"
-#include "index_registry.h"
-#include "swap_index_registry.h"
-#include "quote_registry.h"
-#include "request_budget.h"
+#include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace QuantLib {
 class DefaultProbabilityTermStructure;
@@ -52,7 +53,8 @@ struct InflationCurveEntry {
 };
 
 struct RatesRegistry {
-    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> curves;
+    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>
+        curves;
     /// Per-curve canonical cache keys ("yc:v3:<hex>"), populated when the curve
     /// cache is enabled. Used by downstream consumers (e.g. SABR calibrate
     /// cube cache) to derive their own content-keyed identities. Missing
@@ -88,8 +90,14 @@ struct EquityRegistry {
 
 struct InflationRegistry {
     std::map<std::string, std::shared_ptr<QuantLib::InflationIndex>> inflationIndices;
-    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>> zeroInflationCurves;
-    std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YoYInflationTermStructure>>> yoyInflationCurves;
+    std::map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>>
+        zeroInflationCurves;
+    std::map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YoYInflationTermStructure>>>
+        yoyInflationCurves;
     std::map<std::string, InflationCurveEntry> curveMetadata;
 };
 
@@ -123,8 +131,9 @@ public:
     // The optional budget bounds curve bootstrapping (the heaviest build step)
     // against the per-request deadline; defaulted so existing callers are
     // unaffected and stay byte-identical.
-    PricingRegistry build(const quantra::Pricing* pricing,
-                          const RequestBudget& budget = RequestBudget::unlimited()) const;
+    PricingRegistry build(
+        const quantra::Pricing* pricing,
+        const RequestBudget& budget = RequestBudget::unlimited()) const;
 };
 
 } // namespace quantra

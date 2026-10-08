@@ -14,7 +14,8 @@ FixedRateBondInputs FixedRateBondMapper::toInputs(
     }
     const auto* bondPricings = req->bonds();
     if (bondPricings == nullptr || bondPricings->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT("PriceFixedRateBondRequest.bonds is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT(
+            "PriceFixedRateBondRequest.bonds is required and must be non-empty");
     }
 
     FixedRateBondParser bondParser;
@@ -63,8 +64,7 @@ namespace {
  * serialization here means the boundary stays clean: the pricer is FB-free.
  */
 flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const FixedRateBondFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const FixedRateBondFlowPlain& f) {
     using Kind = FixedRateBondFlowPlain::Kind;
     switch (f.kind) {
         case Kind::Interest: {
@@ -121,8 +121,7 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
 } // namespace
 
 flatbuffers::Offset<quantra::PriceFixedRateBondResponse> FixedRateBondMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const FixedRateBondResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const FixedRateBondResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::FixedRateBondResponse>> bondsVector;
     bondsVector.reserve(result.bonds.size());

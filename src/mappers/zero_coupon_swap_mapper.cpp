@@ -59,8 +59,7 @@ ZeroCouponSwapTrade extractTrade(const quantra::PriceZeroCouponSwap* pricing) {
     trade.startDate = DateToQL(swap->start_date()->str());
     trade.maturityDate = DateToQL(swap->maturity_date()->str());
     if (trade.maturityDate <= trade.startDate) {
-        QUANTRA_INVALID_ARGUMENT(
-            "ZeroCouponSwap.maturity_date must be after start_date");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponSwap.maturity_date must be after start_date");
     }
     trade.paymentCalendar = CalendarToQL(swap->payment_calendar().value());
     trade.paymentConvention = ConventionToQL(swap->payment_convention().value());
@@ -107,8 +106,7 @@ ZeroCouponSwapInputs ZeroCouponSwapMapper::toInputs(
 }
 
 flatbuffers::Offset<quantra::PriceZeroCouponSwapResponse> ZeroCouponSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const ZeroCouponSwapResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::ZeroCouponSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

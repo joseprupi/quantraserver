@@ -7,8 +7,8 @@ namespace quantra {
 
 CalibrateSwaptionVolInputs CalibrateSwaptionVolMapper::toInputs(
     const quantra::CalibrateSwaptionVolRequest* req) const {
-    if (!req || !req->pricing() || !req->vol_id() ||
-        !req->discounting_curve_id() || !req->forwarding_curve_id()) {
+    if (!req || !req->pricing() || !req->vol_id() || !req->discounting_curve_id() ||
+        !req->forwarding_curve_id()) {
         QUANTRA_INVALID_ARGUMENT(
             "CalibrateSwaptionVolRequest requires pricing, vol_id, "
             "discounting_curve_id, and forwarding_curve_id");
@@ -27,10 +27,8 @@ CalibrateSwaptionVolInputs CalibrateSwaptionVolMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::CalibrateSwaptionVolResponse>
-CalibrateSwaptionVolMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CalibrateSwaptionVolResult& result) const {
+flatbuffers::Offset<quantra::CalibrateSwaptionVolResponse> CalibrateSwaptionVolMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CalibrateSwaptionVolResult& result) const {
     auto diagnosticsOff = quantra::buildSwaptionVolDiagnostics(
         builder, result.volId, result.finalized, /*extraWarnings=*/{});
 

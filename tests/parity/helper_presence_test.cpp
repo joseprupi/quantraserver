@@ -10,21 +10,18 @@
 //     rate-only helper quoting the equivalent level via price = 100*(1-rate);
 //   - a helper with neither field nor quote_id must fail with a clear
 //     INVALID_ARGUMENT, not silently bootstrap from zero.
-#include <gtest/gtest.h>
+#include "error.h"
+#include "term_structure_point_parser.h"
+
+#include "term_structure_generated.h"
 
 #include <ql/termstructures/yield/ratehelpers.hpp>
 
-#include "term_structure_generated.h"
-#include "term_structure_point_parser.h"
-#include "error.h"
+#include <gtest/gtest.h>
 
-namespace quantra {
-namespace testing {
-namespace {
+namespace quantra { namespace testing { namespace {
 
-flatbuffers::Offset<quantra::Schedule> makeBondSchedule(
-    flatbuffers::FlatBufferBuilder& fbb)
-{
+flatbuffers::Offset<quantra::Schedule> makeBondSchedule(flatbuffers::FlatBufferBuilder& fbb) {
     auto eff = fbb.CreateString("2005-03-15");
     auto term = fbb.CreateString("2010-08-31");
     quantra::ScheduleBuilder sb(fbb);
@@ -42,8 +39,7 @@ flatbuffers::Offset<quantra::Schedule> makeBondSchedule(
 enum class BondQuoteSlot { Price, Rate, None };
 
 const quantra::BondHelper* makeBondHelper(
-    flatbuffers::FlatBufferBuilder& fbb, BondQuoteSlot slot, double value)
-{
+    flatbuffers::FlatBufferBuilder& fbb, BondQuoteSlot slot, double value) {
     auto schedule = makeBondSchedule(fbb);
     auto issue = fbb.CreateString("2005-03-15");
     quantra::BondHelperBuilder bb(fbb);
@@ -64,8 +60,7 @@ const quantra::BondHelper* makeBondHelper(
 enum class RateQuoteSlot { Rate, QuoteId, None };
 
 const quantra::DepositHelper* makeDepositHelper(
-    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate)
-{
+    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate) {
     flatbuffers::Offset<flatbuffers::String> quoteId;
     if (slot == RateQuoteSlot::QuoteId) quoteId = fbb.CreateString("dep-quote");
     auto tenorN = 3;
@@ -86,8 +81,7 @@ const quantra::DepositHelper* makeDepositHelper(
 }
 
 const quantra::SwapHelper* makeSwapHelper(
-    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate)
-{
+    flatbuffers::FlatBufferBuilder& fbb, RateQuoteSlot slot, double rate) {
     auto idxId = fbb.CreateString("EUR_6M");
     auto idxRef = quantra::CreateIndexRef(fbb, idxId);
     flatbuffers::Offset<flatbuffers::String> quoteId;
@@ -112,15 +106,12 @@ const quantra::SwapHelper* makeSwapHelper(
 enum class FutureQuoteSlot { FuturesPrice, Rate, Both, None };
 
 const quantra::FutureHelper* makeFutureHelper(
-    flatbuffers::FlatBufferBuilder& fbb, FutureQuoteSlot slot,
-    double price, double rate)
-{
+    flatbuffers::FlatBufferBuilder& fbb, FutureQuoteSlot slot, double price, double rate) {
     auto start = fbb.CreateString("2026-09-16");
     quantra::FutureHelperBuilder fb(fbb);
     if (slot == FutureQuoteSlot::FuturesPrice || slot == FutureQuoteSlot::Both)
         fb.add_futures_price(price);
-    if (slot == FutureQuoteSlot::Rate || slot == FutureQuoteSlot::Both)
-        fb.add_rate(rate);
+    if (slot == FutureQuoteSlot::Rate || slot == FutureQuoteSlot::Both) fb.add_rate(rate);
     fb.add_future_start_date(start);
     fb.add_future_months(3);
     fb.add_calendar(quantra::enums::Calendar_TARGET);
@@ -137,10 +128,10 @@ TEST(BondHelperPresence, PriceAndRateSlotsPriceIdentically) {
     TermStructurePointParser parser;
 
     flatbuffers::FlatBufferBuilder f1, f2;
-    auto viaPrice = parser.parse(
-        quantra::Point_BondHelper, makeBondHelper(f1, BondQuoteSlot::Price, quote));
-    auto viaRate = parser.parse(
-        quantra::Point_BondHelper, makeBondHelper(f2, BondQuoteSlot::Rate, quote));
+    auto viaPrice =
+        parser.parse(quantra::Point_BondHelper, makeBondHelper(f1, BondQuoteSlot::Price, quote));
+    auto viaRate =
+        parser.parse(quantra::Point_BondHelper, makeBondHelper(f2, BondQuoteSlot::Rate, quote));
 
     ASSERT_NE(viaPrice, nullptr);
     ASSERT_NE(viaRate, nullptr);
@@ -159,8 +150,7 @@ TEST(BondHelperPresence, AbsentBothIsClearError) {
         parser.parse(quantra::Point_BondHelper, helper);
         FAIL() << "expected QuantraError for BondHelper without price/rate/quote_id";
     } catch (const QuantraError& e) {
-        EXPECT_NE(std::string(e.what()).find("price, rate or quote_id"),
-                  std::string::npos)
+        EXPECT_NE(std::string(e.what()).find("price, rate or quote_id"), std::string::npos)
             << "actual message: " << e.what();
     }
 }
@@ -176,8 +166,7 @@ TEST(FutureHelperPresence, FuturesPricePresenceWinsOverRate) {
     flatbuffers::FlatBufferBuilder f1, f2;
     // rate also present but at a decoy level — presence of futures_price wins
     auto viaPrice = parser.parse(
-        quantra::Point_FutureHelper,
-        makeFutureHelper(f1, FutureQuoteSlot::Both, price, 0.99));
+        quantra::Point_FutureHelper, makeFutureHelper(f1, FutureQuoteSlot::Both, price, 0.99));
     auto viaRate = parser.parse(
         quantra::Point_FutureHelper,
         makeFutureHelper(f2, FutureQuoteSlot::Rate, 0.0, equivalentRate));
@@ -210,8 +199,7 @@ TEST(FutureHelperPresence, AbsentBothIsClearError) {
         parser.parse(quantra::Point_FutureHelper, helper);
         FAIL() << "expected QuantraError for FutureHelper without futures_price/rate/quote_id";
     } catch (const QuantraError& e) {
-        EXPECT_NE(std::string(e.what()).find("futures_price, rate or quote_id"),
-                  std::string::npos)
+        EXPECT_NE(std::string(e.what()).find("futures_price, rate or quote_id"), std::string::npos)
             << "actual message: " << e.what();
     }
 }
@@ -238,8 +226,7 @@ TEST(DepositHelperPresence, AbsentBothIsClearError) {
         parser.parse(quantra::Point_DepositHelper, helper);
         FAIL() << "expected QuantraError for DepositHelper without rate/quote_id";
     } catch (const QuantraError& e) {
-        EXPECT_NE(std::string(e.what()).find("rate or quote_id"),
-                  std::string::npos)
+        EXPECT_NE(std::string(e.what()).find("rate or quote_id"), std::string::npos)
             << "actual message: " << e.what();
     }
 }
@@ -255,12 +242,9 @@ TEST(SwapHelperPresence, AbsentBothIsClearError) {
         parser.parse(quantra::Point_SwapHelper, helper);
         FAIL() << "expected QuantraError for SwapHelper without rate/quote_id";
     } catch (const QuantraError& e) {
-        EXPECT_NE(std::string(e.what()).find("rate or quote_id"),
-                  std::string::npos)
+        EXPECT_NE(std::string(e.what()).find("rate or quote_id"), std::string::npos)
             << "actual message: " << e.what();
     }
 }
 
-} // namespace
-} // namespace testing
-} // namespace quantra
+}}} // namespace quantra::testing

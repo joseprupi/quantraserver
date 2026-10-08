@@ -11,9 +11,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP_YY");
@@ -32,7 +31,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     fixNovBuilder.add_date(fixingNov);
     fixNovBuilder.add_value(0.0190);
     auto fixNov = fixNovBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -48,8 +48,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     iisb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_YY");
     auto curveRef = b.CreateString("2025-01-15");
@@ -87,9 +87,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     pw2Builder.add_point_type(quantra::InflationPoint_YearOnYearInflationSwapHelper);
     pw2Builder.add_point(h2.Union());
     auto pwh2 = pw2Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
-        pwh1, pwh2
-    });
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -104,10 +103,11 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     icb.add_discount_curve_id(discCurveId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto effective = b.CreateString("2025-01-15");
     auto termination = b.CreateString("2027-01-15");
@@ -117,7 +117,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     fixedSb.add_calendar(quantra::enums::Calendar_TARGET);
     fixedSb.add_frequency(quantra::enums::Frequency_Annual);
     fixedSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    fixedSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fixedSb.add_termination_date_convention(
+        quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fixedSb.add_end_of_month(false);
     auto fixedSchedule = fixedSb.Finish();
@@ -154,7 +155,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     pyb.add_discounting_curve(discCurveId);
     pyb.add_inflation_curve(curveId);
     auto trade = pyb.Finish();
-    auto trades = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceYearOnYearInflationSwap>>{trade});
+    auto trades = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceYearOnYearInflationSwap>>{trade});
 
     quantra::PriceYearOnYearInflationSwapRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -162,14 +164,15 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     reqb.add_include_flows(true);
     b.Finish(reqb.Finish());
 
-    auto req = flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapRequest>(b.GetBufferPointer());
+    auto req =
+        flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapRequest>(b.GetBufferPointer());
     YearOnYearInflationSwapPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_NE(resp->swaps(), nullptr);
     ASSERT_EQ(resp->swaps()->size(), 1u);
     const auto* priced = resp->swaps()->Get(0);
@@ -189,35 +192,22 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_MatchesQuantLib) {
     ASSERT_TRUE(static_cast<bool>(yoyIndex));
 
     auto fixedQlSchedule = QuantLib::Schedule(
-        QuantLib::Date(15, QuantLib::January, 2025),
-        QuantLib::Date(15, QuantLib::January, 2027),
-        QuantLib::Period(QuantLib::Annual),
-        QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing,
-        QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward,
-        false);
+        QuantLib::Date(15, QuantLib::January, 2025), QuantLib::Date(15, QuantLib::January, 2027),
+        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto yoyQlSchedule = fixedQlSchedule;
 
     auto expected = std::make_shared<QuantLib::YearOnYearInflationSwap>(
-        QuantLib::YearOnYearInflationSwap::Receiver,
-        1000000.0,
-        fixedQlSchedule,
-        0.0204,
-        QuantLib::Actual365Fixed(),
-        yoyQlSchedule,
-        yoyIndex,
-        QuantLib::Period(3, QuantLib::Months),
-        QuantLib::CPI::Linear,
-        0.0002,
-        QuantLib::Actual365Fixed(),
-        QuantLib::TARGET(),
+        QuantLib::YearOnYearInflationSwap::Receiver, 1000000.0, fixedQlSchedule, 0.0204,
+        QuantLib::Actual365Fixed(), yoyQlSchedule, yoyIndex, QuantLib::Period(3, QuantLib::Months),
+        QuantLib::CPI::Linear, 0.0002, QuantLib::Actual365Fixed(), QuantLib::TARGET(),
         QuantLib::ModifiedFollowing);
     QuantLib::setCouponPricer(
         expected->yoyLeg(),
         QuantLib::ext::make_shared<QuantLib::BlackYoYInflationCouponPricer>(
             QuantLib::Handle<QuantLib::YieldTermStructure>(discountIt->second->currentLink())));
-    expected->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+    expected->setPricingEngine(
+        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     EXPECT_NEAR(priced->npv(), expected->NPV(), 1e-8);
     EXPECT_NEAR(priced->fair_rate(), expected->fairRate(), 1e-10);
@@ -234,9 +224,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP_YY");
@@ -255,7 +244,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     fixNovBuilder.add_date(fixingNov);
     fixNovBuilder.add_value(0.0190);
     auto fixNov = fixNovBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -271,8 +261,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     iisb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_YY");
     auto curveRef = b.CreateString("2025-01-15");
@@ -296,9 +286,9 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
         pw.add_point(h.Union());
         return pw.Finish();
     };
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
-        makeHelper(0.0200, p1y), makeHelper(0.0210, p2y)
-    });
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
+            makeHelper(0.0200, p1y), makeHelper(0.0210, p2y)});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -313,10 +303,11 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     icb.add_discount_curve_id(discCurveId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto effective = b.CreateString("2025-01-15");
     auto termination = b.CreateString("2028-01-15");
@@ -326,7 +317,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     fixedSb.add_calendar(quantra::enums::Calendar_TARGET);
     fixedSb.add_frequency(quantra::enums::Frequency_Annual);
     fixedSb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    fixedSb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    fixedSb.add_termination_date_convention(
+        quantra::enums::BusinessDayConvention_ModifiedFollowing);
     fixedSb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fixedSb.add_end_of_month(false);
     auto fixedSchedule = fixedSb.Finish();
@@ -362,7 +354,8 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     pyb.add_year_on_year_inflation_swap(yyiis);
     pyb.add_discounting_curve(discCurveId);
     pyb.add_inflation_curve(curveId);
-    auto trades = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceYearOnYearInflationSwap>>{pyb.Finish()});
+    auto trades = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceYearOnYearInflationSwap>>{pyb.Finish()});
 
     quantra::PriceYearOnYearInflationSwapRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -370,13 +363,16 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     reqb.add_include_flows(false);
     b.Finish(reqb.Finish());
 
-    auto req = flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapRequest>(b.GetBufferPointer());
+    auto req =
+        flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapRequest>(b.GetBufferPointer());
     YearOnYearInflationSwapPricingRequest handler;
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
-    const auto* priced =
-        flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapResponse>(outBuilder->GetBufferPointer())->swaps()->Get(0);
+    const auto* priced = flatbuffers::GetRoot<quantra::PriceYearOnYearInflationSwapResponse>(
+                             outBuilder->GetBufferPointer())
+                             ->swaps()
+                             ->Get(0);
 
     PricingRegistryBuilder regBuilder;
     PricingRegistry reg = regBuilder.build(req->pricing());
@@ -388,34 +384,21 @@ TEST_F(QuantraComparisonTest, PriceYearOnYearInflationSwap_Payer_3Y) {
     ASSERT_TRUE(static_cast<bool>(yoyIndex));
 
     auto qlSchedule = QuantLib::Schedule(
-        QuantLib::Date(15, QuantLib::January, 2025),
-        QuantLib::Date(15, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Annual),
-        QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing,
-        QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward,
-        false);
+        QuantLib::Date(15, QuantLib::January, 2025), QuantLib::Date(15, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
 
     auto expected = std::make_shared<QuantLib::YearOnYearInflationSwap>(
-        QuantLib::YearOnYearInflationSwap::Payer,
-        1000000.0,
-        qlSchedule,
-        0.0210,
-        QuantLib::Actual365Fixed(),
-        qlSchedule,
-        yoyIndex,
-        QuantLib::Period(3, QuantLib::Months),
-        QuantLib::CPI::Linear,
-        0.0,
-        QuantLib::Actual365Fixed(),
-        QuantLib::TARGET(),
+        QuantLib::YearOnYearInflationSwap::Payer, 1000000.0, qlSchedule, 0.0210,
+        QuantLib::Actual365Fixed(), qlSchedule, yoyIndex, QuantLib::Period(3, QuantLib::Months),
+        QuantLib::CPI::Linear, 0.0, QuantLib::Actual365Fixed(), QuantLib::TARGET(),
         QuantLib::ModifiedFollowing);
     QuantLib::setCouponPricer(
         expected->yoyLeg(),
         QuantLib::ext::make_shared<QuantLib::BlackYoYInflationCouponPricer>(
             QuantLib::Handle<QuantLib::YieldTermStructure>(discountIt->second->currentLink())));
-    expected->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+    expected->setPricingEngine(
+        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     EXPECT_NEAR(priced->npv(), expected->NPV(), 1e-8);
     EXPECT_NEAR(priced->fair_rate(), expected->fairRate(), 1e-10);

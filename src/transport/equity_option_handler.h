@@ -2,12 +2,13 @@
 #define QUANTRASERVER_EQUITY_OPTION_HANDLER_H
 
 #include "call_data_base.h"
-#include "equity_option_mapper.h"
 #include "equity_option_evaluator.h"
-#include "equity_option_response_generated.h"
-#include "price_equity_option_request_generated.h"
+#include "equity_option_mapper.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
+
+#include "equity_option_response_generated.h"
+#include "price_equity_option_request_generated.h"
 
 using quantra::PriceEquityOptionRequest;
 using quantra::PriceEquityOptionResponse;
@@ -27,10 +28,10 @@ using EquityOptionPricingRequest = EquityOptionEndpoint;
  * PriceEquityOptionData - Async handler for EquityOption pricing.
  */
 class PriceEquityOptionData : public CallDataGeneric<
-    PriceEquityOptionRequest,
-    EquityOptionEndpoint,
-    PriceEquityOptionResponse,
-    PriceEquityOptionResponseBuilder> {
+                                  PriceEquityOptionRequest,
+                                  EquityOptionEndpoint,
+                                  PriceEquityOptionResponse,
+                                  PriceEquityOptionResponseBuilder> {
 public:
     PriceEquityOptionData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
         : CallDataGeneric(service, cq) {}
@@ -39,7 +40,8 @@ public:
         service_->RequestPriceEquityOption(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceEquityOptionData(service, cq);
         handler->start();
     }

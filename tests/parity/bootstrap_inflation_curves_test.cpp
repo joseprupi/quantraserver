@@ -12,9 +12,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
 
     // Pricing (needs at least one discount curve)
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     // Inflation index spec
@@ -39,9 +38,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     fixDecBuilder.add_date(fixingDec);
     fixDecBuilder.add_value(100.4);
     auto fixDec = fixDecBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{
-        fixOct, fixNov, fixDec
-    });
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -57,8 +55,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     // Inflation curve spec built from QuantLib ZCIIS helpers.
     auto curveId = b.CreateString("HICP_ZC");
@@ -111,9 +109,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     pw5Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
     pw5Builder.add_point(h5.Union());
     auto pwh5 = pw5Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{
-        pwh1, pwh2, pwh5
-    });
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2, pwh5});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -129,10 +126,11 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     icb.add_allow_extrapolation(true);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     // Query: tenor grid that matches curve conventions so sampling hits pillar nodes.
     auto t1 = buildPeriod(b, 1, quantra::enums::TimeUnit_Years);
@@ -151,16 +149,16 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     dgsb.add_grid(tg.Union());
     auto grid = dgsb.Finish();
 
-    auto measures = b.CreateVector(std::vector<int8_t>{
-        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)
-    });
+    auto measures = b.CreateVector(
+        std::vector<int8_t>{static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)});
 
     quantra::InflationCurveQuerySpecBuilder qsb(b);
     qsb.add_curve_id(curveId);
     qsb.add_measures(measures);
     qsb.add_grid(grid);
     auto query = qsb.Finish();
-    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+    auto queries =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
 
     quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -173,8 +171,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroRate_TenorGridMatches
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(
+        outBuilder->GetBufferPointer());
 
     ASSERT_NE(resp->results(), nullptr);
     ASSERT_EQ(resp->results()->size(), 1u);
@@ -204,9 +202,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP");
@@ -230,7 +227,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     fixDecBuilder.add_date(fixingDec);
     fixDecBuilder.add_value(100.4);
     auto fixDec = fixDecBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov, fixDec});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -246,8 +244,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto q1Id = b.CreateString("HICP_ZC_1Y");
     quantra::QuoteSpecBuilder q1Builder(b);
@@ -296,7 +294,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     pw2Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
     pw2Builder.add_point(h2.Union());
     auto pwh2 = pw2Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -311,10 +310,11 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     icb.add_discount_curve_id(discCurveId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, quotes, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, quotes, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y, p2y});
     quantra::TenorGridBuilder tgb(b);
@@ -327,15 +327,15 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     dgsb.add_grid(tg.Union());
     auto grid = dgsb.Finish();
 
-    auto measures = b.CreateVector(std::vector<int8_t>{
-        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)
-    });
+    auto measures = b.CreateVector(
+        std::vector<int8_t>{static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)});
     quantra::InflationCurveQuerySpecBuilder qsb(b);
     qsb.add_curve_id(curveId);
     qsb.add_measures(measures);
     qsb.add_grid(grid);
     auto query = qsb.Finish();
-    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+    auto queries =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
 
     quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -348,8 +348,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_ZeroHelpersCanResolveQuot
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     const auto* r = resp->results()->Get(0);
     ASSERT_TRUE(r->error() == nullptr);
@@ -363,9 +363,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
 
     auto idxId = b.CreateString("EUHICP_YY");
@@ -384,7 +383,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     fixNovBuilder.add_date(fixingNov);
     fixNovBuilder.add_value(0.0190);
     auto fixNov = fixNovBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -400,8 +400,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     iisb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_YY");
     auto curveRef = b.CreateString("2025-01-15");
@@ -436,7 +436,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     pw2Builder.add_point_type(quantra::InflationPoint_YearOnYearInflationSwapHelper);
     pw2Builder.add_point(h2.Union());
     auto pwh2 = pw2Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
+    auto points = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1, pwh2});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -451,10 +452,11 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     icb.add_discount_curve_id(discCurveId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y, p2y});
     quantra::TenorGridBuilder tgb(b);
@@ -467,15 +469,15 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     dgsb.add_grid(tg.Union());
     auto grid = dgsb.Finish();
 
-    auto measures = b.CreateVector(std::vector<int8_t>{
-        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_YoYRate)
-    });
+    auto measures = b.CreateVector(
+        std::vector<int8_t>{static_cast<int8_t>(quantra::enums::InflationCurveMeasure_YoYRate)});
     quantra::InflationCurveQuerySpecBuilder qsb(b);
     qsb.add_curve_id(curveId);
     qsb.add_measures(measures);
     qsb.add_grid(grid);
     auto query = qsb.Finish();
-    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+    auto queries =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
 
     quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -488,8 +490,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_YoYRate_TenorGridMatchesH
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     const auto* r = resp->results()->Get(0);
     ASSERT_TRUE(r->error() == nullptr);
@@ -503,9 +505,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
     auto idxId = b.CreateString("EUHICP");
     auto idxFamily = b.CreateString("EU HICP");
@@ -526,8 +527,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     iisb.add_revised(false);
     iisb.add_kind(quantra::enums::InflationCurveKind_ZeroInflation);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_ZC_ERR");
     auto curveRef = b.CreateString("2025-01-15");
@@ -546,7 +547,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     pw1Builder.add_point_type(quantra::InflationPoint_ZeroCouponInflationSwapHelper);
     pw1Builder.add_point(h1.Union());
     auto pwh1 = pw1Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1});
+    auto points =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -561,10 +563,11 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     icb.add_discount_curve_id(discCurveId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y});
     quantra::TenorGridBuilder tgb(b);
@@ -574,15 +577,15 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     dgsb.add_grid_type(quantra::DateGrid_TenorGrid);
     dgsb.add_grid(tg.Union());
     auto grid = dgsb.Finish();
-    auto measures = b.CreateVector(std::vector<int8_t>{
-        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)
-    });
+    auto measures = b.CreateVector(
+        std::vector<int8_t>{static_cast<int8_t>(quantra::enums::InflationCurveMeasure_ZeroRate)});
     quantra::InflationCurveQuerySpecBuilder qsb(b);
     qsb.add_curve_id(curveId);
     qsb.add_measures(measures);
     qsb.add_grid(grid);
     auto query = qsb.Finish();
-    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+    auto queries =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
 
     quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -595,21 +598,22 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingFixingsReturnsItem
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     const auto* r = resp->results()->Get(0);
     ASSERT_NE(r->error(), nullptr);
-    EXPECT_NE(std::string(r->error()->error_message()->c_str()).find("base fixing unavailable"), std::string::npos);
+    EXPECT_NE(
+        std::string(r->error()->error_message()->c_str()).find("base fixing unavailable"),
+        std::string::npos);
 }
 
 TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturnsItemError) {
     flatbuffers::grpc::MessageBuilder b;
 
     auto asof = b.CreateString("2025-01-15");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        buildCurve(b, "DISC")
-    });
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{buildCurve(b, "DISC")});
     auto indices = buildIndicesVector(b);
     auto idxId = b.CreateString("EUHICP_YY");
     auto idxFamily = b.CreateString("EU HICP YoY");
@@ -627,7 +631,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     fixNovBuilder.add_date(fixingNov);
     fixNovBuilder.add_value(0.0190);
     auto fixNov = fixNovBuilder.Finish();
-    auto fixings = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
+    auto fixings =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::Fixing>>{fixOct, fixNov});
 
     quantra::InflationIndexSpecBuilder iisb(b);
     iisb.add_id(idxId);
@@ -643,8 +648,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     iisb.add_kind(quantra::enums::InflationCurveKind_YoYInflation);
     iisb.add_fixings(fixings);
     auto inflationIndex = iisb.Finish();
-    auto inflationIndices =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
+    auto inflationIndices = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationIndexSpec>>{inflationIndex});
 
     auto curveId = b.CreateString("HICP_YY_ERR");
     auto curveRef = b.CreateString("2025-01-15");
@@ -664,7 +669,8 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     pw1Builder.add_point_type(quantra::InflationPoint_YearOnYearInflationSwapHelper);
     pw1Builder.add_point(h1.Union());
     auto pwh1 = pw1Builder.Finish();
-    auto points = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1});
+    auto points =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationPointWrapper>>{pwh1});
 
     quantra::InflationCurveSpecBuilder icb(b);
     icb.add_id(curveId);
@@ -678,10 +684,11 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     icb.add_index_id(idxId);
     icb.add_points(points);
     auto inflationCurve = icb.Finish();
-    auto inflationCurves =
-        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
+    auto inflationCurves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::InflationCurveSpec>>{inflationCurve});
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, 0, curves, 0, 0, 0, 0, 0, inflationIndices, inflationCurves);
 
     auto tenors = b.CreateVector(std::vector<flatbuffers::Offset<quantra::Period>>{p1y});
     quantra::TenorGridBuilder tgb(b);
@@ -691,15 +698,15 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     dgsb.add_grid_type(quantra::DateGrid_TenorGrid);
     dgsb.add_grid(tg.Union());
     auto grid = dgsb.Finish();
-    auto measures = b.CreateVector(std::vector<int8_t>{
-        static_cast<int8_t>(quantra::enums::InflationCurveMeasure_YoYRate)
-    });
+    auto measures = b.CreateVector(
+        std::vector<int8_t>{static_cast<int8_t>(quantra::enums::InflationCurveMeasure_YoYRate)});
     quantra::InflationCurveQuerySpecBuilder qsb(b);
     qsb.add_curve_id(curveId);
     qsb.add_measures(measures);
     qsb.add_grid(grid);
     auto query = qsb.Finish();
-    auto queries = b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
+    auto queries =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::InflationCurveQuerySpec>>{query});
 
     quantra::BootstrapInflationCurvesRequestBuilder reqb(b);
     reqb.add_pricing(pricing);
@@ -712,12 +719,14 @@ TEST_F(QuantraComparisonTest, BootstrapInflationCurves_MissingNominalCurveReturn
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
 
-    auto resp =
-        flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(outBuilder->GetBufferPointer());
+    auto resp = flatbuffers::GetRoot<quantra::BootstrapInflationCurvesResponse>(
+        outBuilder->GetBufferPointer());
     ASSERT_EQ(resp->results()->size(), 1u);
     const auto* r = resp->results()->Get(0);
     ASSERT_NE(r->error(), nullptr);
-    EXPECT_NE(std::string(r->error()->error_message()->c_str()).find("nominal_curve_id"), std::string::npos);
+    EXPECT_NE(
+        std::string(r->error()->error_message()->c_str()).find("nominal_curve_id"),
+        std::string::npos);
 }
 
 }} // namespace quantra::testing

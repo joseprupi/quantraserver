@@ -12,18 +12,18 @@
  * reg.volatility.modelDomains).
  */
 
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -65,7 +65,8 @@ struct CdsInputs {
 /// Per-trade pricing result, one entry per CDS in the request.
 struct CdsPerTrade {
     double npv = 0.0;
-    std::optional<double> fairSpread; // absent when QuantLib cannot express it (e.g. a zero-running-coupon CDS)
+    std::optional<double>
+        fairSpread; // absent when QuantLib cannot express it (e.g. a zero-running-coupon CDS)
     double fairUpfront = 0.0;
     double defaultLegNpv = 0.0;
     double premiumLegNpv = 0.0;
@@ -77,9 +78,8 @@ struct CdsResult {
 
 class CdsEvaluator {
 public:
-    CdsResult evaluate(const CdsInputs& inputs,
-                    const PricingRegistry& reg,
-                    const PricingContext& ctx) const;
+    CdsResult evaluate(
+        const CdsInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const;
 };
 
 } // namespace quantra

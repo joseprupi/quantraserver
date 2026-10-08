@@ -1,22 +1,23 @@
 #ifndef QUANTRASERVER_CURVE_BOOTSTRAPPER_H
 #define QUANTRASERVER_CURVE_BOOTSTRAPPER_H
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include <memory>
+#include "curve_registry.h"
+#include "index_registry.h"
+#include "index_registry_builder.h"
+#include "quote_registry.h"
+#include "request_budget.h"
+
+#include "index_generated.h"
+#include "quotes_generated.h"
+#include "term_structure_generated.h"
 
 #include <ql/handle.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "term_structure_generated.h"
-#include "quotes_generated.h"
-#include "index_generated.h"
-#include "quote_registry.h"
-#include "curve_registry.h"
-#include "index_registry.h"
-#include "index_registry_builder.h"
-#include "request_budget.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace quantra {
 
@@ -24,8 +25,10 @@ namespace quantra {
  * Result of bootstrapping: a map of curve id -> RelinkableHandle.
  */
 struct BootstrappedCurves {
-    std::unordered_map<std::string,
-        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>> handles;
+    std::unordered_map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>
+        handles;
     /// Canonical cache keys per curve id. Populated only when the curve cache
     /// is enabled (i.e. CurveCache::enabled() && curveBump == 0). Missing
     /// entries are valid and signal "no cache key available — downstream
@@ -46,8 +49,7 @@ public:
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes = nullptr,
         const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices = nullptr,
         double curveBump = 0.0,
-        const RequestBudget& budget = RequestBudget::unlimited()
-    ) const;
+        const RequestBudget& budget = RequestBudget::unlimited()) const;
 
     static std::vector<std::string> topoSort(
         const std::unordered_map<std::string, std::vector<std::string>>& deps);

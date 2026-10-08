@@ -7,22 +7,21 @@
  * pricer result back into a CalendarBusinessDaysResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "calendar_business_days_evaluator.h"
+
 #include "calendar_business_days_request_generated.h"
 #include "calendar_business_days_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class CalendarBusinessDaysMapper {
 public:
-    CalendarBusinessDaysInputs toInputs(
-        const quantra::CalendarBusinessDaysRequest* req) const;
+    CalendarBusinessDaysInputs toInputs(const quantra::CalendarBusinessDaysRequest* req) const;
 
     flatbuffers::Offset<quantra::CalendarBusinessDaysResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const CalendarBusinessDaysResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const CalendarBusinessDaysResult& result) const;
 };
 
 } // namespace quantra

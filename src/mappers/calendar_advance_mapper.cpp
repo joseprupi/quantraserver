@@ -19,17 +19,14 @@ CalendarAdvanceInputs CalendarAdvanceMapper::toInputs(
     inputs.calendar = req->calendar();
     inputs.trade.calendar = CalendarToQL(req->calendar());
     inputs.trade.inputDate = DateToQL(req->date()->str());
-    inputs.trade.period =
-        QuantLib::Period(req->tenor_number(), TimeUnitToQL(req->tenor_unit()));
+    inputs.trade.period = QuantLib::Period(req->tenor_number(), TimeUnitToQL(req->tenor_unit()));
     inputs.trade.convention = ConventionToQL(req->convention());
     inputs.trade.endOfMonth = req->end_of_month();
     return inputs;
 }
 
-flatbuffers::Offset<quantra::CalendarAdvanceResponse>
-CalendarAdvanceMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CalendarAdvanceResult& result) const {
+flatbuffers::Offset<quantra::CalendarAdvanceResponse> CalendarAdvanceMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CalendarAdvanceResult& result) const {
 
     auto inputDateStr = builder.CreateString(DateToIso(result.inputDate));
     auto advancedDateStr = builder.CreateString(DateToIso(result.advancedDate));

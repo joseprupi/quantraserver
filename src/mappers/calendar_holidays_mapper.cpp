@@ -12,12 +12,10 @@ CalendarHolidaysInputs CalendarHolidaysMapper::toInputs(
         QUANTRA_INVALID_ARGUMENT("CalendarHolidaysRequest is null");
     }
     if (!req->start_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarHolidaysRequest.start_date is required");
+        QUANTRA_INVALID_ARGUMENT("CalendarHolidaysRequest.start_date is required");
     }
     if (!req->end_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarHolidaysRequest.end_date is required");
+        QUANTRA_INVALID_ARGUMENT("CalendarHolidaysRequest.end_date is required");
     }
 
     CalendarHolidaysInputs inputs;
@@ -29,10 +27,8 @@ CalendarHolidaysInputs CalendarHolidaysMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::CalendarHolidaysResponse>
-CalendarHolidaysMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CalendarHolidaysResult& result) const {
+flatbuffers::Offset<quantra::CalendarHolidaysResponse> CalendarHolidaysMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CalendarHolidaysResult& result) const {
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> dates;
     dates.reserve(result.dates.size());

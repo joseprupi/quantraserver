@@ -6,30 +6,29 @@
 
 #include "pricing_registry.h"
 
-#include "credit_curve_generated.h"
+#include "curve_bootstrapper.h"
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "equity_underlying_registry.h"
+#include "index_registry_builder.h"
+#include "inflation_curve_parsers.h"
+#include "quote_registry.h"
+#include "request_validation.h"
+#include "swap_index_registry.h"
+
 #include "coupon_pricer_generated.h"
+#include "credit_curve_generated.h"
 #include "model_generated.h"
 
 #include <ql/settings.hpp>
 
-#include "curve_bootstrapper.h"
-#include "equity_underlying_registry.h"
-#include "index_registry_builder.h"
-#include "swap_index_registry.h"
-#include "enum_convert.h"
-#include "date_convert.h"
 #include <cmath>
-
-#include "quote_registry.h"
-#include "inflation_curve_parsers.h"
-#include "request_validation.h"
-
 #include <unordered_set>
 
 namespace quantra {
 
-PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
-                                              const RequestBudget& budget) const {
+PricingRegistry PricingRegistryBuilder::build(
+    const quantra::Pricing* pricing, const RequestBudget& budget) const {
     // ==========================================================================
     // Validation
     // ==========================================================================
@@ -74,9 +73,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     IndexRegistryBuilder indexBuilder;
     reg.rates.indices = indexBuilder.build(rates ? rates->indices() : nullptr);
     SwapIndexRegistryBuilder swapIndexBuilder;
-    reg.rates.swapIndices = swapIndexBuilder.build(
-        rates ? rates->swap_indices() : nullptr,
-        reg.rates.indices);
+    reg.rates.swapIndices =
+        swapIndexBuilder.build(rates ? rates->swap_indices() : nullptr, reg.rates.indices);
 
     // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
@@ -87,12 +85,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
 
     CurveBootstrapper bootstrapper;
     auto booted = bootstrapper.bootstrapAll(
-        rates->curves(),
-        pricing->quotes(),
-        rates ? rates->indices() : nullptr,
-        0.0,
-        budget
-    );
+        rates->curves(), pricing->quotes(), rates ? rates->indices() : nullptr, 0.0, budget);
 
     reg.rates.curveKeys = booted.keys;
     for (auto& kv : booted.handles) {
@@ -116,10 +109,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     // ==========================================================================
     if (inflation && inflation->inflation_curves()) {
         reg.inflation.curveMetadata = buildInflationCurves(
-            inflation->inflation_curves(),
-            inflation->inflation_indices(),
-            &quoteRegistry,
-            reg);
+            inflation->inflation_curves(), inflation->inflation_indices(), &quoteRegistry, reg);
         buildInflationIndices(inflation->inflation_indices(), reg.inflation.curveMetadata, reg);
     } else if (inflation && inflation->inflation_indices()) {
         buildInflationIndices(inflation->inflation_indices(), reg.inflation.curveMetadata, reg);
@@ -131,7 +121,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     // ==========================================================================
     if (volatility && volatility->vol_surfaces()) {
         std::unordered_set<std::string> seenVolIds;
-        for (auto it = volatility->vol_surfaces()->begin(); it != volatility->vol_surfaces()->end(); ++it) {
+        for (auto it = volatility->vol_surfaces()->begin(); it != volatility->vol_surfaces()->end();
+             ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.id is required");
@@ -143,7 +134,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
 
             switch (spec->payload_type()) {
                 case quantra::VolPayload_OptionletVolSpec:
-                    reg.volatility.optionletVols.emplace(id, parseOptionletVol(spec, &quoteRegistry));
+                    reg.volatility.optionletVols.emplace(
+                        id, parseOptionletVol(spec, &quoteRegistry));
                     break;
 
                 case quantra::VolPayload_SwaptionVolSpec:
@@ -151,7 +143,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     break;
 
                 case quantra::VolPayload_BlackVolSpec:
-                    reg.volatility.blackVols.emplace(id, parseBlackVol(spec, &quoteRegistry, &reg.rates.curves));
+                    reg.volatility.blackVols.emplace(
+                        id, parseBlackVol(spec, &quoteRegistry, &reg.rates.curves));
                     break;
 
                 case quantra::VolPayload_YoYOptionletVolSpec:
@@ -159,10 +152,10 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     break;
 
                 case quantra::VolPayload_NONE:
-                    QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec.payload is required for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "VolSurfaceSpec.payload is required for vol id: " + id);
 
-                default:
-                    QUANTRA_INVALID_ARGUMENT("Unknown VolPayload type for vol id: " + id);
+                default: QUANTRA_INVALID_ARGUMENT("Unknown VolPayload type for vol id: " + id);
             }
         }
     }
@@ -180,8 +173,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             }
             if (!reg.rates.swapIndices.has(entry.swapIndexId)) {
                 QUANTRA_NOT_FOUND(
-                    "Swaption vol '" + kv.first + "' references unknown swap_index_id: " +
-                    entry.swapIndexId);
+                    "Swaption vol '" + kv.first +
+                    "' references unknown swap_index_id: " + entry.swapIndexId);
             }
         }
         // SABR calibrate path requires an Ibor swap index because QuantLib's
@@ -194,8 +187,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             const auto& sidx = reg.rates.swapIndices.get(entry.swapIndexId);
             if (sidx.kind != quantra::SwapIndexKind_IborSwapIndex) {
                 QUANTRA_NOT_IMPLEMENTED(
-                    "Swaption vol '" + kv.first +
-                    "' uses SabrCalibrate with swap_index_id '" + entry.swapIndexId +
+                    "Swaption vol '" + kv.first + "' uses SabrCalibrate with swap_index_id '" +
+                    entry.swapIndexId +
                     "' which is not an Ibor swap index; OIS swap index support for the "
                     "SABR calibrate path is not implemented yet (TODO).");
             }
@@ -262,19 +255,23 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     if (const auto* c = p->hw_calibration()) {
                         SwaptionHwCalibrationDomain hw;
                         if (c->swaption_vol_id()) hw.swaption_vol_id = c->swaption_vol_id()->str();
-                        if (c->discount_curve_id()) hw.discount_curve_id = c->discount_curve_id()->str();
-                        if (c->forwarding_curve_id()) hw.forwarding_curve_id = c->forwarding_curve_id()->str();
+                        if (c->discount_curve_id())
+                            hw.discount_curve_id = c->discount_curve_id()->str();
+                        if (c->forwarding_curve_id())
+                            hw.forwarding_curve_id = c->forwarding_curve_id()->str();
                         if (c->swap_index_id()) hw.swap_index_id = c->swap_index_id()->str();
                         if (c->expiries()) {
-                            for (auto pit = c->expiries()->begin(); pit != c->expiries()->end(); ++pit) {
-                                hw.expiries.push_back(requirePeriod(
-                                    *pit, "SwaptionHwCalibrationSpec.expiries"));
+                            for (auto pit = c->expiries()->begin(); pit != c->expiries()->end();
+                                 ++pit) {
+                                hw.expiries.push_back(
+                                    requirePeriod(*pit, "SwaptionHwCalibrationSpec.expiries"));
                             }
                         }
                         if (c->tenors()) {
-                            for (auto pit = c->tenors()->begin(); pit != c->tenors()->end(); ++pit) {
-                                hw.tenors.push_back(requirePeriod(
-                                    *pit, "SwaptionHwCalibrationSpec.tenors"));
+                            for (auto pit = c->tenors()->begin(); pit != c->tenors()->end();
+                                 ++pit) {
+                                hw.tenors.push_back(
+                                    requirePeriod(*pit, "SwaptionHwCalibrationSpec.tenors"));
                             }
                         }
                         hw.calibrate_a = c->calibrate_a();
@@ -294,10 +291,13 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     CdsModelDomain d;
                     d.engine_type = static_cast<CdsEngineTypeKind>(p->engine_type());
                     d.include_settlement_date_flows = p->include_settlement_date_flows();
-                    d.isda_numerical_fix = static_cast<CdsIsdaNumericalFixKind>(p->isda_numerical_fix());
-                    d.isda_accrual_bias = static_cast<CdsIsdaAccrualBiasKind>(p->isda_accrual_bias());
+                    d.isda_numerical_fix =
+                        static_cast<CdsIsdaNumericalFixKind>(p->isda_numerical_fix());
+                    d.isda_accrual_bias =
+                        static_cast<CdsIsdaAccrualBiasKind>(p->isda_accrual_bias());
                     d.isda_forwards_in_coupon_period =
-                        static_cast<CdsIsdaForwardsInCouponPeriodKind>(p->isda_forwards_in_coupon_period());
+                        static_cast<CdsIsdaForwardsInCouponPeriodKind>(
+                            p->isda_forwards_in_coupon_period());
                     domain.payload = d;
                     break;
                 }
@@ -313,8 +313,7 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
                     domain.payload = d;
                     break;
                 }
-                default:
-                    QUANTRA_INVALID_ARGUMENT("Unknown ModelPayload type for model id: " + id);
+                default: QUANTRA_INVALID_ARGUMENT("Unknown ModelPayload type for model id: " + id);
             }
             reg.volatility.modelDomains.emplace(id, std::move(domain));
         }
@@ -327,7 +326,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     // populated below.
     // ==========================================================================
     if (credit && credit->credit_curves()) {
-        for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end(); ++it) {
+        for (auto it = credit->credit_curves()->begin(); it != credit->credit_curves()->end();
+             ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_INVALID_ARGUMENT("CreditCurveSpec.id is required");
@@ -348,37 +348,30 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             CreditCurveDomain d;
             d.id = id;
             d.reference_date = DateToQL(spec->reference_date()->str());
-            d.calendar = CalendarToQL(
-                requireEnum(spec->calendar(), "CreditCurveSpec.calendar"));
-            d.day_counter = DayCounterToQL(
-                requireEnum(spec->day_counter(), "CreditCurveSpec.day_counter"));
-            d.recovery_rate =
-                requireFinite(spec->recovery_rate(), "CreditCurveSpec.recovery_rate");
+            d.calendar = CalendarToQL(requireEnum(spec->calendar(), "CreditCurveSpec.calendar"));
+            d.day_counter =
+                DayCounterToQL(requireEnum(spec->day_counter(), "CreditCurveSpec.day_counter"));
+            d.recovery_rate = requireFinite(spec->recovery_rate(), "CreditCurveSpec.recovery_rate");
             d.curve_interpolator = static_cast<CreditCurveInterpolatorKind>(
-                requireEnum(spec->curve_interpolator(),
-                            "CreditCurveSpec.curve_interpolator"));
+                requireEnum(spec->curve_interpolator(), "CreditCurveSpec.curve_interpolator"));
             if (const auto* h = spec->helper_conventions()) {
                 CdsHelperConventionsDomain hc;
                 hc.settlement_days = requireNonNegativeInt(
                     h->settlement_days(), "CdsHelperConventions.settlement_days");
-                hc.frequency = FrequencyToQL(
-                    requireEnum(h->frequency(), "CdsHelperConventions.frequency"));
+                hc.frequency =
+                    FrequencyToQL(requireEnum(h->frequency(), "CdsHelperConventions.frequency"));
                 hc.business_day_convention = ConventionToQL(requireEnum(
-                    h->business_day_convention(),
-                    "CdsHelperConventions.business_day_convention"));
+                    h->business_day_convention(), "CdsHelperConventions.business_day_convention"));
                 hc.date_generation_rule = DateGenerationToQL(requireEnum(
-                    h->date_generation_rule(),
-                    "CdsHelperConventions.date_generation_rule"));
+                    h->date_generation_rule(), "CdsHelperConventions.date_generation_rule"));
                 hc.last_period_day_counter = DayCounterToQL(requireEnum(
-                    h->last_period_day_counter(),
-                    "CdsHelperConventions.last_period_day_counter"));
-                hc.settles_accrual = requireBool(
-                    h->settles_accrual(), "CdsHelperConventions.settles_accrual");
+                    h->last_period_day_counter(), "CdsHelperConventions.last_period_day_counter"));
+                hc.settles_accrual =
+                    requireBool(h->settles_accrual(), "CdsHelperConventions.settles_accrual");
                 hc.pays_at_default_time = requireBool(
-                    h->pays_at_default_time(),
-                    "CdsHelperConventions.pays_at_default_time");
-                hc.rebates_accrual = requireBool(
-                    h->rebates_accrual(), "CdsHelperConventions.rebates_accrual");
+                    h->pays_at_default_time(), "CdsHelperConventions.pays_at_default_time");
+                hc.rebates_accrual =
+                    requireBool(h->rebates_accrual(), "CdsHelperConventions.rebates_accrual");
                 hc.helper_model = static_cast<CdsHelperModelKind>(
                     requireEnum(h->helper_model(), "CdsHelperConventions.helper_model"));
                 d.helper_conventions = hc;
@@ -417,7 +410,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
     // below. Enum conversion routes through common/enums.* exclusively.
     // ==========================================================================
     if (rates && rates->coupon_pricers()) {
-        for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end(); ++it) {
+        for (auto it = rates->coupon_pricers()->begin(); it != rates->coupon_pricers()->end();
+             ++it) {
             const auto* spec = *it;
             if (!spec->id()) {
                 QUANTRA_INVALID_ARGUMENT("CouponPricer.id is required");
@@ -426,20 +420,21 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
 
             const auto* black = spec->black_ibor_coupon_pricer();
             if (!black) {
-                QUANTRA_INVALID_ARGUMENT("CouponPricer '" + id +
-                              "' is missing black_ibor_coupon_pricer payload");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CouponPricer '" + id + "' is missing black_ibor_coupon_pricer payload");
             }
             const auto* ov = black->optionlet_volatility();
             if (!ov) {
-                QUANTRA_INVALID_ARGUMENT("CouponPricer '" + id +
-                              "' is missing optionlet_volatility block");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CouponPricer '" + id + "' is missing optionlet_volatility block");
             }
 
             if (!ov->calendar().has_value()) {
                 QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.calendar is required");
             }
             if (!ov->business_day_convention().has_value()) {
-                QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.business_day_convention is required");
+                QUANTRA_INVALID_ARGUMENT(
+                    "ConstantOptionletVolatility.business_day_convention is required");
             }
             if (!ov->day_counter().has_value()) {
                 QUANTRA_INVALID_ARGUMENT("ConstantOptionletVolatility.day_counter is required");
@@ -448,7 +443,8 @@ PricingRegistry PricingRegistryBuilder::build(const quantra::Pricing* pricing,
             CouponPricerDomain domain;
             domain.id = id;
             BlackIborCouponPricerDomain d;
-            d.settlement_days = requireNonNegative(ov->settlement_days(), "ConstantOptionletVolatility.settlement_days");
+            d.settlement_days = requireNonNegative(
+                ov->settlement_days(), "ConstantOptionletVolatility.settlement_days");
             d.calendar = CalendarToQL(ov->calendar().value());
             d.business_day_convention = ConventionToQL(ov->business_day_convention().value());
             // Presence-required and finite; a genuine 0 is valid (a leg without

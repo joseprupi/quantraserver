@@ -7,11 +7,12 @@
  * the BasisSwapResult back into a PriceBasisSwapResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "basis_swap_evaluator.h"
+
 #include "basis_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     BasisSwapInputs toInputs(const quantra::PriceBasisSwapRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceBasisSwapResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const BasisSwapResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const BasisSwapResult& result) const;
 };
 
 } // namespace quantra
