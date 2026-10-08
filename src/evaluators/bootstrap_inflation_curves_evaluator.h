@@ -19,15 +19,15 @@
  * exclusively from reg.inflation.{zero,yoy}InflationCurves and curveMetadata.
  */
 
-#include <cstdint>
-#include <string>
-#include <vector>
-
-#include <ql/time/date.hpp>
-
 #include "enums_domain.h"
 #include "pricing_context.h"
 #include "pricing_registry.h"
+
+#include <ql/time/date.hpp>
+
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace quantra {
 

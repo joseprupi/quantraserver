@@ -9,6 +9,14 @@
 //   (c) different overrides -> different keys;
 //   (d) the same overrides listed in a different order -> the same key.
 
+#include "calendar_overrides.h"
+#include "curve_cache_key.h"
+#include "hw_calibrate_cache_key.h"
+#include "sabr_calibrate_cache_key.h"
+
+#include <ql/time/calendars/japan.hpp>
+#include <ql/time/calendars/target.hpp>
+
 #include <gtest/gtest.h>
 
 #include <functional>
@@ -16,17 +24,7 @@
 #include <string>
 #include <vector>
 
-#include <ql/time/calendars/japan.hpp>
-#include <ql/time/calendars/target.hpp>
-
-#include "calendar_overrides.h"
-#include "curve_cache_key.h"
-#include "hw_calibrate_cache_key.h"
-#include "sabr_calibrate_cache_key.h"
-
-namespace quantra {
-namespace testing {
-namespace {
+namespace quantra { namespace testing { namespace {
 
 using QuantLib::Date;
 
@@ -45,14 +43,11 @@ std::string curveKey() {
     auto pw = quantra::CreatePointsWrapper(fbb, quantra::Point_NONE, 0);
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-calendar-overrides",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2024-01-15");
+        fbb, "curve-calendar-overrides", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2024-01-15");
     fbb.Finish(ts);
-    const auto* root =
-        flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
+    const auto* root = flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
     KeyContext ctx;
     return CurveKeyBuilder::compute("2024-01-15", root, ctx, {});
 }
@@ -79,10 +74,8 @@ std::string sabrKey() {
 std::string hwKey() {
     HwCalibrateKeyInputs in;
     in.consumedVols = {0.20, 0.21};
-    in.expiries = {QuantLib::Period(1, QuantLib::Years),
-                   QuantLib::Period(2, QuantLib::Years)};
-    in.tenors = {QuantLib::Period(5, QuantLib::Years),
-                 QuantLib::Period(5, QuantLib::Years)};
+    in.expiries = {QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+    in.tenors = {QuantLib::Period(5, QuantLib::Years), QuantLib::Period(5, QuantLib::Years)};
     in.volReferenceDate = Date(15, QuantLib::January, 2024);
     in.discountCurveKey = "disc-key";
     in.forwardingCurveKey = "fwd-key";
@@ -102,9 +95,8 @@ std::string hwKey() {
     return buildHwCalibrateCacheKey(in);
 }
 
-HolidayOverride make(const QuantLib::Calendar& calendar,
-                     std::vector<Date> added,
-                     std::vector<Date> removed) {
+HolidayOverride make(
+    const QuantLib::Calendar& calendar, std::vector<Date> added, std::vector<Date> removed) {
     HolidayOverride o;
     o.calendar = calendar;
     o.added = std::move(added);
@@ -126,7 +118,9 @@ struct KeyCase {
 };
 
 // Readable gtest parameter output (the default dumps the struct's raw bytes).
-void PrintTo(const KeyCase& c, std::ostream* os) { *os << c.name; }
+void PrintTo(const KeyCase& c, std::ostream* os) {
+    *os << c.name;
+}
 
 class CacheKeyCalendarOverridesTest : public ::testing::TestWithParam<KeyCase> {
 protected:
@@ -186,8 +180,8 @@ TEST_P(CacheKeyCalendarOverridesTest, DifferentOverridesGiveDifferentKeys) {
     keys.push_back(c.build());
     applyCalendarOverrides({make(QuantLib::TARGET(), {kJun14, kJun13}, {})});
     keys.push_back(c.build());
-    applyCalendarOverrides({make(QuantLib::TARGET(), {kJun14}, {}),
-                            make(QuantLib::Japan(), {kJun14}, {})});
+    applyCalendarOverrides(
+        {make(QuantLib::TARGET(), {kJun14}, {}), make(QuantLib::Japan(), {kJun14}, {})});
     keys.push_back(c.build());
 
     for (size_t i = 0; i < keys.size(); ++i) {
@@ -221,10 +215,6 @@ INSTANTIATE_TEST_SUITE_P(
         KeyCase{"Curve", "yc:v3:", kCurveKeyNoOverrides, curveKey},
         KeyCase{"SabrCube", "sabr-cube:v1:", kSabrKeyNoOverrides, sabrKey},
         KeyCase{"HullWhiteCalibration", "hw-calib:v1:", kHwKeyNoOverrides, hwKey}),
-    [](const ::testing::TestParamInfo<KeyCase>& info) {
-        return std::string(info.param.name);
-    });
+    [](const ::testing::TestParamInfo<KeyCase>& info) { return std::string(info.param.name); });
 
-} // namespace
-} // namespace testing
-} // namespace quantra
+}}} // namespace quantra::testing

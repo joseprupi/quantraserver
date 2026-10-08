@@ -1,11 +1,11 @@
 #include "equity_option_mapper.h"
 
-#include <cmath>
-
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "equity_option_parser.h"
 #include "error.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -77,8 +77,7 @@ EquityOptionInputs EquityOptionMapper::toInputs(
 }
 
 flatbuffers::Offset<quantra::PriceEquityOptionResponse> EquityOptionMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const EquityOptionResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const EquityOptionResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::EquityOptionResponse>> offsets;
     offsets.reserve(result.trades.size());

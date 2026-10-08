@@ -1,11 +1,11 @@
 #include "vanilla_swap_mapper.h"
 
-#include <cmath>
-
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -62,8 +62,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
     const bool hasIbor = (swap->floating_leg() != nullptr);
     const bool hasCms = (swap->cms_leg() != nullptr);
     if (hasIbor == hasCms) {
-        QUANTRA_INVALID_ARGUMENT(
-            "VanillaSwap must contain exactly one of floating_leg or cms_leg");
+        QUANTRA_INVALID_ARGUMENT("VanillaSwap must contain exactly one of floating_leg or cms_leg");
     }
 
     ScheduleParser scheduleParser;
@@ -102,23 +101,23 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
         // and floating-bond paths already do). in_arrears=true moves the fixing
         // to the end of the accrual period, which QuantLib::VanillaSwap cannot
         // express — the evaluator routes such trades to the manual-leg path.
-        trade.ibor.fixingDays = requireNonNegative(floatFb->fixing_days(), "SwapFloatingLeg.fixing_days");
+        trade.ibor.fixingDays =
+            requireNonNegative(floatFb->fixing_days(), "SwapFloatingLeg.fixing_days");
         trade.ibor.inArrears = floatFb->in_arrears();
         // Optional amortizing/step-up notionals: one entry per coupon period on
         // each leg. Absent => the constant scalar notionals above stand.
-        parseOptionalNotionals(fixedFb->notionals(),
-                               trade.fixed.schedule.size() - 1,
-                               "SwapFixedLeg", trade.fixed.notionals);
-        parseOptionalNotionals(floatFb->notionals(),
-                               trade.ibor.schedule.size() - 1,
-                               "SwapFloatingLeg", trade.ibor.notionals);
+        parseOptionalNotionals(
+            fixedFb->notionals(), trade.fixed.schedule.size() - 1, "SwapFixedLeg",
+            trade.fixed.notionals);
+        parseOptionalNotionals(
+            floatFb->notionals(), trade.ibor.schedule.size() - 1, "SwapFloatingLeg",
+            trade.ibor.notionals);
         return trade;
     }
 
     // CMS branch does not support amortizing notionals yet: reject a present
     // notionals vector on the fixed leg rather than silently ignoring it.
-    rejectUnsupportedNotionals(fixedFb->notionals(),
-                               "VanillaSwap CMS leg fixed leg");
+    rejectUnsupportedNotionals(fixedFb->notionals(), "VanillaSwap CMS leg fixed leg");
 
     // CMS branch.
     const auto* cmsFb = swap->cms_leg();
@@ -178,8 +177,7 @@ VanillaSwapTrade extractTrade(const quantra::PriceVanillaSwap* pricing) {
 }
 
 flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const VanillaSwapFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const VanillaSwapFlowPlain& f) {
     auto paymentDate = builder.CreateString(f.paymentDate);
     auto accrualStart = builder.CreateString(f.accrualStartDate);
     auto accrualEnd = builder.CreateString(f.accrualEndDate);
@@ -212,15 +210,13 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
 
 } // namespace
 
-VanillaSwapInputs VanillaSwapMapper::toInputs(
-    const quantra::PriceVanillaSwapRequest* req) const {
+VanillaSwapInputs VanillaSwapMapper::toInputs(const quantra::PriceVanillaSwapRequest* req) const {
     if (req == nullptr) {
         QUANTRA_INVALID_ARGUMENT("PriceVanillaSwapRequest is null");
     }
     const auto* swaps = req->swaps();
     if (swaps == nullptr || swaps->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceVanillaSwapRequest.swaps is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT("PriceVanillaSwapRequest.swaps is required and must be non-empty");
     }
 
     VanillaSwapInputs inputs;
@@ -233,8 +229,7 @@ VanillaSwapInputs VanillaSwapMapper::toInputs(
 }
 
 flatbuffers::Offset<quantra::PriceVanillaSwapResponse> VanillaSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const VanillaSwapResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const VanillaSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::VanillaSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

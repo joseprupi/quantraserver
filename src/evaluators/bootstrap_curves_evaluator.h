@@ -17,9 +17,9 @@
  * from reg.rates.curves.
  */
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include "enums_domain.h"
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/compounding.hpp>
 #include <ql/time/businessdayconvention.hpp>
@@ -30,9 +30,9 @@
 #include <ql/time/period.hpp>
 #include <ql/time/timeunit.hpp>
 
-#include "enums_domain.h"
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -103,9 +103,10 @@ struct BootstrapCurvesResult {
 
 class BootstrapCurvesEvaluator {
 public:
-    BootstrapCurvesResult evaluate(const BootstrapCurvesInputs& inputs,
-                                const PricingRegistry& reg,
-                                const PricingContext& ctx) const;
+    BootstrapCurvesResult evaluate(
+        const BootstrapCurvesInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

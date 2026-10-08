@@ -1,15 +1,15 @@
 #include "floating_rate_bond_mapper.h"
 
-#include <cstdint>
-
-#include <ql/types.hpp>
-
 #include "date_convert.h"
-#include "schedule_parser.h"
-#include "yield_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+#include "yield_parser.h"
+
+#include <ql/types.hpp>
+
+#include <cstdint>
 
 namespace quantra {
 
@@ -49,12 +49,13 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
     YieldParser yieldParser;
 
     FloatingRateBondTrade trade;
-    trade.settlement_days = requireNonNegative(fbBond->settlement_days(), "FloatingRateBond.settlement_days");
+    trade.settlement_days =
+        requireNonNegative(fbBond->settlement_days(), "FloatingRateBond.settlement_days");
     trade.face_amount = requirePositive(fbBond->face_amount(), "FloatingRateBond.face_amount");
     trade.schedule = *scheduleParser.parse(fbBond->schedule());
     // Optional per-period notionals: present => amortizing/step-up bond.
-    parseOptionalNotionals(fbBond->notionals(), trade.schedule.size() - 1,
-                           "FloatingRateBond", trade.notionals);
+    parseOptionalNotionals(
+        fbBond->notionals(), trade.schedule.size() - 1, "FloatingRateBond", trade.notionals);
     if (!fbBond->accrual_day_counter().has_value())
         QUANTRA_INVALID_ARGUMENT("FloatingRateBond.accrual_day_counter is required");
     if (!fbBond->payment_convention().has_value())
@@ -90,8 +91,7 @@ FloatingRateBondTrade extractTrade(const quantra::PriceFloatingRateBond* pricing
  * means the pricer stays FB-free.
  */
 flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const FloatingRateBondFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const FloatingRateBondFlowPlain& f) {
     using Kind = FloatingRateBondFlowPlain::Kind;
     switch (f.kind) {
         case Kind::Interest: {
@@ -99,8 +99,9 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
             auto accrualEnd = builder.CreateString(f.accrualEndDate);
             quantra::FlowInterestBuilder fib(builder);
             fib.add_amount(f.amount);
-            fib.add_fixing_date(flatbuffers::Offset<flatbuffers::String>(
-                static_cast<std::uint32_t>(f.indexFixing)));
+            fib.add_fixing_date(
+                flatbuffers::Offset<flatbuffers::String>(
+                    static_cast<std::uint32_t>(f.indexFixing)));
             fib.add_accrual_start_date(accrualStart);
             fib.add_accrual_end_date(accrualEnd);
             fib.add_rate(f.rate);
@@ -120,8 +121,9 @@ flatbuffers::Offset<quantra::FlowsWrapper> serializeFlow(
             // a separate quirk preserved in fixed_rate_bond_mapper).
             quantra::FlowPastInterestBuilder fib(builder);
             fib.add_amount(f.amount);
-            fib.add_fixing_date(flatbuffers::Offset<flatbuffers::String>(
-                static_cast<std::uint32_t>(f.indexFixing)));
+            fib.add_fixing_date(
+                flatbuffers::Offset<flatbuffers::String>(
+                    static_cast<std::uint32_t>(f.indexFixing)));
             fib.add_accrual_start_date(accrualStart);
             fib.add_accrual_end_date(accrualEnd);
             fib.add_rate(f.rate);
@@ -172,8 +174,7 @@ FloatingRateBondInputs FloatingRateBondMapper::toInputs(
 }
 
 flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> FloatingRateBondMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const FloatingRateBondResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const FloatingRateBondResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::FloatingRateBondResponse>> bondsVector;
     bondsVector.reserve(result.bonds.size());

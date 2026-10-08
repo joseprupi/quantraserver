@@ -3,10 +3,8 @@
 #include "error.h"
 #include "request_validation.h"
 
-std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroCouponBond *bond)
-{
-    if (bond == NULL)
-        QUANTRA_INVALID_ARGUMENT("Zero Coupon Bond not found");
+std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroCouponBond* bond) {
+    if (bond == NULL) QUANTRA_INVALID_ARGUMENT("Zero Coupon Bond not found");
 
     if (!bond->calendar().has_value())
         QUANTRA_INVALID_ARGUMENT("ZeroCouponBond.calendar is required");
@@ -22,20 +20,15 @@ std::shared_ptr<QuantLib::Bond> ZeroCouponBondParser::parse(const quantra::ZeroC
     // Redemption is optional: presence decides. Absent => QuantLib's 100.0 (par)
     // default, matching the ZeroCouponBond constructor default.
     const QuantLib::Real redemption = bond->redemption().has_value()
-                                ? static_cast<QuantLib::Real>(bond->redemption().value())
-                                : 100.0;
+                                          ? static_cast<QuantLib::Real>(bond->redemption().value())
+                                          : 100.0;
 
     // issue_date is optional: absent => QuantLib's null Date default.
-    const QuantLib::Date issueDate = bond->issue_date()
-                               ? DateToQL(bond->issue_date()->str())
-                               : QuantLib::Date();
+    const QuantLib::Date issueDate =
+        bond->issue_date() ? DateToQL(bond->issue_date()->str()) : QuantLib::Date();
 
     return std::make_shared<QuantLib::ZeroCouponBond>(
         quantra::requireNonNegative(bond->settlement_days(), "ZeroCouponBond.settlement_days"),
-        calendar,
-        quantra::requirePositive(bond->face_amount(), "ZeroCouponBond.face_amount"),
-        maturityDate,
-        paymentConvention,
-        redemption,
-        issueDate);
+        calendar, quantra::requirePositive(bond->face_amount(), "ZeroCouponBond.face_amount"),
+        maturityDate, paymentConvention, redemption, issueDate);
 }

@@ -12,9 +12,8 @@
  * data exclusively from the QL-typed registry.
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/instruments/inflationcapfloor.hpp>
 #include <ql/time/businessdayconvention.hpp>
@@ -22,8 +21,9 @@
 #include <ql/time/period.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -31,8 +31,7 @@ namespace quantra {
 /// mapper. The mapper has validated type-vs-strike coherence and converted
 /// enums to QL types; the evaluator never touches FlatBuffers.
 struct YoYInflationCapFloorTrade {
-    QuantLib::YoYInflationCapFloor::Type capFloorType =
-        QuantLib::YoYInflationCapFloor::Cap;
+    QuantLib::YoYInflationCapFloor::Type capFloorType = QuantLib::YoYInflationCapFloor::Cap;
     double notional = 0.0;
     QuantLib::Schedule schedule;
     std::string inflationIndexId;
@@ -74,9 +73,10 @@ struct YoYInflationCapFloorResult {
 
 class YearOnYearInflationCapFloorEvaluator {
 public:
-    YoYInflationCapFloorResult evaluate(const YoYInflationCapFloorInputs& inputs,
-                                        const PricingRegistry& reg,
-                                        const PricingContext& ctx) const;
+    YoYInflationCapFloorResult evaluate(
+        const YoYInflationCapFloorInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

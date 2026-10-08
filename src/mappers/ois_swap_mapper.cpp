@@ -1,11 +1,11 @@
 #include "ois_swap_mapper.h"
 
-#include <cmath>
-
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -75,28 +75,26 @@ OisSwapTrade extractTrade(const quantra::PriceOisSwap* pricing) {
     // OisFloatingLeg.day_counter is accepted-but-unused: QuantLib's
     // OvernightIndexedSwap takes the overnight leg's day counter from the
     // overnight index itself, so the field is deliberately not read here.
-    trade.overnight.paymentConvention = ConventionToQL(requireEnum(
-        overnightFb->payment_convention(), "OisFloatingLeg.payment_convention"));
-    trade.overnight.paymentCalendar = CalendarToQL(requireEnum(
-        overnightFb->payment_calendar(), "OisFloatingLeg.payment_calendar"));
-    trade.overnight.paymentLag = requireNonNegativeInt(
-        overnightFb->payment_lag(), "OisFloatingLeg.payment_lag");
-    trade.overnight.averagingMethod = RateAveragingToQL(requireEnum(
-        overnightFb->averaging_method(), "OisFloatingLeg.averaging_method"));
-    trade.overnight.lookbackDays = requireNonNegativeInt(
-        overnightFb->lookback_days(), "OisFloatingLeg.lookback_days");
-    trade.overnight.lockoutDays = requireNonNegativeInt(
-        overnightFb->lockout_days(), "OisFloatingLeg.lockout_days");
+    trade.overnight.paymentConvention = ConventionToQL(
+        requireEnum(overnightFb->payment_convention(), "OisFloatingLeg.payment_convention"));
+    trade.overnight.paymentCalendar = CalendarToQL(
+        requireEnum(overnightFb->payment_calendar(), "OisFloatingLeg.payment_calendar"));
+    trade.overnight.paymentLag =
+        requireNonNegativeInt(overnightFb->payment_lag(), "OisFloatingLeg.payment_lag");
+    trade.overnight.averagingMethod = RateAveragingToQL(
+        requireEnum(overnightFb->averaging_method(), "OisFloatingLeg.averaging_method"));
+    trade.overnight.lookbackDays =
+        requireNonNegativeInt(overnightFb->lookback_days(), "OisFloatingLeg.lookback_days");
+    trade.overnight.lockoutDays =
+        requireNonNegativeInt(overnightFb->lockout_days(), "OisFloatingLeg.lockout_days");
     trade.overnight.applyObservationShift = requireBool(
-        overnightFb->apply_observation_shift(),
-        "OisFloatingLeg.apply_observation_shift");
+        overnightFb->apply_observation_shift(), "OisFloatingLeg.apply_observation_shift");
     trade.overnight.telescopicValueDates = overnightFb->telescopic_value_dates();
     return trade;
 }
 
 flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const OisSwapFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const OisSwapFlowPlain& f) {
     auto paymentDate = builder.CreateString(f.paymentDate);
     auto accrualStart = builder.CreateString(f.accrualStartDate);
     auto accrualEnd = builder.CreateString(f.accrualEndDate);
@@ -130,8 +128,7 @@ OisSwapInputs OisSwapMapper::toInputs(const quantra::PriceOisSwapRequest* req) c
     }
     const auto* swaps = req->swaps();
     if (swaps == nullptr || swaps->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceOisSwapRequest.swaps is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT("PriceOisSwapRequest.swaps is required and must be non-empty");
     }
 
     OisSwapInputs inputs;
@@ -144,8 +141,7 @@ OisSwapInputs OisSwapMapper::toInputs(const quantra::PriceOisSwapRequest* req) c
 }
 
 flatbuffers::Offset<quantra::PriceOisSwapResponse> OisSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const OisSwapResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const OisSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::OisSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

@@ -12,10 +12,8 @@
  * reg.rates.couponPricerDomains).
  */
 
-#include <cstdint>
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/compounding.hpp>
 #include <ql/instruments/bonds/floatingratebond.hpp>
@@ -24,8 +22,10 @@
 #include <ql/time/frequency.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -112,9 +112,10 @@ struct FloatingRateBondResult {
 
 class FloatingRateBondEvaluator {
 public:
-    FloatingRateBondResult evaluate(const FloatingRateBondInputs& inputs,
-                                 const PricingRegistry& reg,
-                                 const PricingContext& ctx) const;
+    FloatingRateBondResult evaluate(
+        const FloatingRateBondInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

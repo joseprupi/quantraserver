@@ -1,5 +1,7 @@
 #include "hw_calibrate_cache.h"
 
+#include "swaption_model_calibration.h"
+
 #include <cstdlib>
 #include <iostream>
 #include <list>
@@ -7,8 +9,6 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-
-#include "swaption_model_calibration.h"
 
 namespace quantra {
 
@@ -32,9 +32,7 @@ void logCacheEvent(const std::string& event, const std::string& key, size_t size
     // Truncate the (SHA-256) key for log readability; the full key isn't useful
     // in logs and bloats the line.
     const std::string keyShort = key.size() > 16 ? (key.substr(0, 16) + "...") : key;
-    std::cerr << "[HwCalibCache] event=" << event
-              << " key=" << keyShort
-              << " size=" << size
+    std::cerr << "[HwCalibCache] event=" << event << " key=" << keyShort << " size=" << size
               << std::endl;
 }
 

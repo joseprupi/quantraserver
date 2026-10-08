@@ -1,15 +1,16 @@
 #ifndef QUANTRASERVER_QUOTE_REGISTRY_H
 #define QUANTRASERVER_QUOTE_REGISTRY_H
 
+#include "error.h"
+
+#include "quotes_generated.h"
+
+#include <ql/handle.hpp>
+#include <ql/quotes/simplequote.hpp>
+
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include <ql/quotes/simplequote.hpp>
-#include <ql/handle.hpp>
-
-#include "error.h"
-#include "quotes_generated.h"
 
 namespace quantra {
 
@@ -22,7 +23,8 @@ namespace quantra {
  */
 class QuoteRegistry {
 public:
-    void upsert(const std::string& id, double value, quantra::QuoteType type = quantra::QuoteType_Curve) {
+    void upsert(
+        const std::string& id, double value, quantra::QuoteType type = quantra::QuoteType_Curve) {
         auto it = quotes_.find(id);
         if (it == quotes_.end()) {
             quotes_[id] = std::make_shared<QuantLib::SimpleQuote>(value);
@@ -37,9 +39,7 @@ public:
         }
     }
 
-    bool has(const std::string& id) const {
-        return quotes_.find(id) != quotes_.end();
-    }
+    bool has(const std::string& id) const { return quotes_.find(id) != quotes_.end(); }
 
     QuantLib::Handle<QuantLib::Quote> getHandle(const std::string& id) const {
         auto it = quotes_.find(id);
@@ -49,7 +49,8 @@ public:
         return QuantLib::Handle<QuantLib::Quote>(it->second);
     }
 
-    QuantLib::Handle<QuantLib::Quote> getHandle(const std::string& id, quantra::QuoteType expected) const {
+    QuantLib::Handle<QuantLib::Quote> getHandle(
+        const std::string& id, quantra::QuoteType expected) const {
         auto it = quotes_.find(id);
         if (it == quotes_.end()) {
             QUANTRA_NOT_FOUND("Unknown quote id: " + id);

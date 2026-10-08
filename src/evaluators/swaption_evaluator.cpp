@@ -1,11 +1,13 @@
 #include "swaption_evaluator.h"
 
-#include <cmath>
-#include <iostream>
-#include <limits>
-#include <sstream>
-#include <unordered_map>
-#include <variant>
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "error.h"
+#include "eval_date_guard.h"
+#include "model_domain.h"
+#include "sabr_calibrate_cache_key.h"
+#include "swaption_model_calibration.h"
+#include "swaption_vol_runtime.h"
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/fixedvsfloatingswap.hpp>
@@ -22,20 +24,18 @@
 #include <ql/utilities/null.hpp>
 #include <ql/version.hpp>
 
-#include "date_convert.h"
-#include "enum_convert.h"
-#include "error.h"
-#include "eval_date_guard.h"
-#include "model_domain.h"
-#include "sabr_calibrate_cache_key.h"
-#include "swaption_model_calibration.h"
-#include "swaption_vol_runtime.h"
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <sstream>
+#include <unordered_map>
+#include <variant>
 
 // BachelierSwaptionEngine ships in blackswaptionengine.hpp from QuantLib 1.20 on.
 #if QL_HEX_VERSION >= 0x012000f0
-    #define QL_HAS_BACHELIER_SWAPTION_ENGINE 1
+#define QL_HAS_BACHELIER_SWAPTION_ENGINE 1
 #else
-    #define QL_HAS_BACHELIER_SWAPTION_ENGINE 0
+#define QL_HAS_BACHELIER_SWAPTION_ENGINE 0
 #endif
 
 namespace quantra {
@@ -58,15 +58,8 @@ std::shared_ptr<QuantLib::FixedVsFloatingSwap> buildUnderlyingSwap(
                       << std::endl;
         }
         return std::make_shared<QuantLib::VanillaSwap>(
-            v.swapType,
-            v.fixed.notional,
-            v.fixed.schedule,
-            v.fixed.rate,
-            v.fixed.dayCounter,
-            v.ibor.schedule,
-            iborIndex,
-            v.ibor.spread,
-            v.ibor.dayCounter);
+            v.swapType, v.fixed.notional, v.fixed.schedule, v.fixed.rate, v.fixed.dayCounter,
+            v.ibor.schedule, iborIndex, v.ibor.spread, v.ibor.dayCounter);
     }
 
     const auto& o = inst.oisUnderlying;
@@ -75,30 +68,18 @@ std::shared_ptr<QuantLib::FixedVsFloatingSwap> buildUnderlyingSwap(
     // lookback (a literal 0 would force the fixing delay to 0 even when the
     // index carries a non-zero intrinsic fixing delay).
     QuantLib::Natural lookbackDays = o.overnight.lookbackDays <= 0
-        ? QuantLib::Null<QuantLib::Natural>()
-        : static_cast<QuantLib::Natural>(o.overnight.lookbackDays);
-    QuantLib::Natural lockoutDays =
-        static_cast<QuantLib::Natural>(o.overnight.lockoutDays);
+                                         ? QuantLib::Null<QuantLib::Natural>()
+                                         : static_cast<QuantLib::Natural>(o.overnight.lookbackDays);
+    QuantLib::Natural lockoutDays = static_cast<QuantLib::Natural>(o.overnight.lockoutDays);
     if (o.fixed.notional != o.overnight.notional) {
         std::cout << "Warning: Fixed and overnight notionals differ. Using fixed notional."
                   << std::endl;
     }
     return std::make_shared<QuantLib::OvernightIndexedSwap>(
-        o.swapType,
-        o.fixed.notional,
-        o.fixed.schedule,
-        o.fixed.rate,
-        o.fixed.dayCounter,
-        o.overnight.schedule,
-        overnightIndex,
-        o.overnight.spread,
-        o.overnight.paymentLag,
-        o.overnight.paymentConvention,
-        o.overnight.paymentCalendar,
-        o.overnight.telescopicValueDates,
-        o.overnight.averagingMethod,
-        lookbackDays,
-        lockoutDays,
+        o.swapType, o.fixed.notional, o.fixed.schedule, o.fixed.rate, o.fixed.dayCounter,
+        o.overnight.schedule, overnightIndex, o.overnight.spread, o.overnight.paymentLag,
+        o.overnight.paymentConvention, o.overnight.paymentCalendar,
+        o.overnight.telescopicValueDates, o.overnight.averagingMethod, lookbackDays, lockoutDays,
         o.overnight.applyObservationShift);
 }
 
@@ -117,25 +98,27 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
     const bool needsSingleExerciseDate =
         (exerciseType == quantra::enums::ExerciseType_European ||
          exerciseType == quantra::enums::ExerciseType_American);
-    const bool needsExerciseDateSet =
-        (exerciseType == quantra::enums::ExerciseType_Bermudan);
+    const bool needsExerciseDateSet = (exerciseType == quantra::enums::ExerciseType_Bermudan);
 
     if (needsSingleExerciseDate && !inst.hasExerciseDate)
         QUANTRA_INVALID_ARGUMENT("Swaption exercise_date not found");
 
     if (needsExerciseDateSet) {
         if (inst.bermudanExerciseDates.size() < 2) {
-            QUANTRA_INVALID_ARGUMENT("Swaption Bermudan requires exercise_dates with at least 2 dates");
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption Bermudan requires exercise_dates with at least 2 dates");
         }
         const QuantLib::Date evalDate = QuantLib::Settings::instance().evaluationDate();
         for (size_t i = 1; i < inst.bermudanExerciseDates.size(); ++i) {
             if (inst.bermudanExerciseDates[i] <= inst.bermudanExerciseDates[i - 1]) {
-                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be strictly increasing");
+                QUANTRA_INVALID_ARGUMENT(
+                    "Swaption Bermudan exercise_dates must be strictly increasing");
             }
         }
         for (const auto& d : inst.bermudanExerciseDates) {
             if (d < evalDate) {
-                QUANTRA_INVALID_ARGUMENT("Swaption Bermudan exercise_dates must be on/after evaluation date");
+                QUANTRA_INVALID_ARGUMENT(
+                    "Swaption Bermudan exercise_dates must be on/after evaluation date");
             }
         }
     }
@@ -152,8 +135,7 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
             break;
         case quantra::enums::ExerciseType_American:
             exercise = std::make_shared<QuantLib::AmericanExercise>(
-                QuantLib::Settings::instance().evaluationDate(),
-                inst.exerciseDate);
+                QuantLib::Settings::instance().evaluationDate(), inst.exerciseDate);
             break;
         default:
             QUANTRA_INVALID_ARGUMENT(
@@ -178,10 +160,7 @@ std::shared_ptr<QuantLib::Swaption> buildSwaptionInstrument(
     }
 
     return std::make_shared<QuantLib::Swaption>(
-        underlyingSwap,
-        exercise,
-        settlementType,
-        inst.settlementMethod);
+        underlyingSwap, exercise, settlementType, inst.settlementMethod);
 }
 
 /**
@@ -211,7 +190,8 @@ SwaptionVolEntry finalizeVolEntry(
         QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires a valid referenceDate");
     }
     if (raw.swapIndexId.empty()) {
-        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires swap_index_id for forward resolution");
+        QUANTRA_INVALID_ARGUMENT(
+            "Swaption vol surface requires swap_index_id for forward resolution");
     }
 
     if (isSmileCubeSpread) {
@@ -249,18 +229,17 @@ SwaptionVolEntry finalizeVolEntry(
             std::ostringstream err;
             err << "Swap index '" << raw.swapIndexId
                 << "' spot_days mismatch against trade start convention: expected start "
-                << DateToIso(expectedStart) << " from exercise "
-                << DateToIso(trade.exerciseDate)
+                << DateToIso(expectedStart) << " from exercise " << DateToIso(trade.exerciseDate)
                 << " (adjusted: " << DateToIso(tradeExerciseAdjusted) << ")"
-                << " with spot_days=" << sidx.spotDays
-                << ", but trade start is " << DateToIso(trade.underlyingStartDate)
+                << " with spot_days=" << sidx.spotDays << ", but trade start is "
+                << DateToIso(trade.underlyingStartDate)
                 << " (adjusted: " << DateToIso(tradeStartAdjusted) << ")";
             QUANTRA_INVALID_ARGUMENT(err.str());
         }
     }
 
-    auto atms = computeServerAtmForwards(
-        raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
+    auto atms =
+        computeServerAtmForwards(raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
 
     if (isSabrParams) {
         return withSwaptionSabrParamsAtm(raw, atms);
@@ -305,7 +284,8 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
         (volEntry.volKind == quantra::enums::SwaptionVolKind_SabrParams ||
          volEntry.volKind == quantra::enums::SwaptionVolKind_SabrCalibrate)) {
         QUANTRA_INVALID_ARGUMENT(
-            "Model '" + modelId + "': Bachelier engine cannot be paired with SABR vol surface "
+            "Model '" + modelId +
+            "': Bachelier engine cannot be paired with SABR vol surface "
             "(SABR via Hagan returns lognormal Black vol). Use Black or ShiftedBlack instead.");
     }
 
@@ -318,25 +298,31 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
             return std::make_shared<QuantLib::BachelierSwaptionEngine>(
                 discountCurve, volEntry.handle);
 #else
-            QUANTRA_NOT_IMPLEMENTED("Model '" + modelId + "': BachelierSwaptionEngine not available "
-                          "in this QuantLib version (requires QuantLib 1.20+)");
+            QUANTRA_NOT_IMPLEMENTED(
+                "Model '" + modelId +
+                "': BachelierSwaptionEngine not available "
+                "in this QuantLib version (requires QuantLib 1.20+)");
 #endif
 
         case IrModelTypeKind::Black:
             if (volEntry.displacement != 0.0) {
-                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': Black requires displacement=0, "
-                              "but vol has displacement=" + std::to_string(volEntry.displacement));
+                QUANTRA_INVALID_ARGUMENT(
+                    "Model '" + modelId +
+                    "': Black requires displacement=0, "
+                    "but vol has displacement=" +
+                    std::to_string(volEntry.displacement));
             }
-            return std::make_shared<QuantLib::BlackSwaptionEngine>(
-                discountCurve, volEntry.handle);
+            return std::make_shared<QuantLib::BlackSwaptionEngine>(discountCurve, volEntry.handle);
 
         case IrModelTypeKind::ShiftedBlack:
             if (volEntry.displacement <= 0.0) {
-                QUANTRA_INVALID_ARGUMENT("Model '" + modelId + "': ShiftedBlack requires displacement>0, "
-                              "but vol has displacement=" + std::to_string(volEntry.displacement));
+                QUANTRA_INVALID_ARGUMENT(
+                    "Model '" + modelId +
+                    "': ShiftedBlack requires displacement>0, "
+                    "but vol has displacement=" +
+                    std::to_string(volEntry.displacement));
             }
-            return std::make_shared<QuantLib::BlackSwaptionEngine>(
-                discountCurve, volEntry.handle);
+            return std::make_shared<QuantLib::BlackSwaptionEngine>(discountCurve, volEntry.handle);
 
         case IrModelTypeKind::HullWhiteLattice: {
             double a = model.hw_a;
@@ -355,25 +341,24 @@ std::shared_ptr<QuantLib::PricingEngine> buildEngine(
             return std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, model.lattice_steps);
         }
     }
-    QUANTRA_INVALID_ARGUMENT("Model '" + modelId +
-                  "': SwaptionModelSpec.model_type is not a known model type: " +
-                  std::to_string(static_cast<int>(model.model_type)));
+    QUANTRA_INVALID_ARGUMENT(
+        "Model '" + modelId + "': SwaptionModelSpec.model_type is not a known model type: " +
+        std::to_string(static_cast<int>(model.model_type)));
     return nullptr;
 }
 
 /// Up-front consistency checks lifted verbatim from the legacy request body.
 /// Run before bootstrap of the QL Swaption so error messages match exactly.
 void validateTradeAgainstModel(
-    const SwaptionTrade& trade,
-    const SwaptionModelDomain& model,
-    const PricingRegistry& reg) {
+    const SwaptionTrade& trade, const SwaptionModelDomain& model, const PricingRegistry& reg) {
     // Exercise type vs model: Bermudan/American is HullWhiteLattice only.
     // The evaluator carries the raw FB enum (see swaption.fbs) plumbed through
     // the plain SwaptionInstrument; the validation only needs the model side.
     if (model.model_type != IrModelTypeKind::HullWhiteLattice &&
         model.param_mode == ModelParamModeKind::Calibrate) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' param_mode=Calibrate is only supported for HullWhiteLattice");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' param_mode=Calibrate is only supported for HullWhiteLattice");
     }
     if (model.model_type != IrModelTypeKind::HullWhiteLattice) {
         return;
@@ -382,50 +367,58 @@ void validateTradeAgainstModel(
         return;
     }
     if (!model.hw_calibration) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' param_mode=Calibrate requires hw_calibration");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId + "' param_mode=Calibrate requires hw_calibration");
     }
     const auto& calib = *model.hw_calibration;
     if (calib.discount_curve_id.empty() || calib.forwarding_curve_id.empty() ||
         calib.swaption_vol_id.empty() || calib.swap_index_id.empty()) {
         QUANTRA_INVALID_ARGUMENT(
-            "Model '" + trade.modelId + "' hw_calibration must include discount_curve_id, "
+            "Model '" + trade.modelId +
+            "' hw_calibration must include discount_curve_id, "
             "forwarding_curve_id, swaption_vol_id, and swap_index_id");
     }
     if (calib.discount_curve_id != trade.discountingCurveId) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' hw_calibration.discount_curve_id must match trade discounting_curve");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' hw_calibration.discount_curve_id must match trade discounting_curve");
     }
     if (calib.forwarding_curve_id != trade.forwardingCurveId) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' hw_calibration.forwarding_curve_id must match trade forwarding_curve");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' hw_calibration.forwarding_curve_id must match trade forwarding_curve");
     }
     if (calib.swaption_vol_id != trade.volatilityId) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' hw_calibration.swaption_vol_id must match trade volatility");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' hw_calibration.swaption_vol_id must match trade volatility");
     }
     if (!reg.rates.swapIndices.has(calib.swap_index_id)) {
-        QUANTRA_NOT_FOUND("Model '" + trade.modelId +
-                      "' hw_calibration.swap_index_id not found in pricing.swap_indices");
+        QUANTRA_NOT_FOUND(
+            "Model '" + trade.modelId +
+            "' hw_calibration.swap_index_id not found in pricing.swap_indices");
     }
     if (!trade.underlyingIsVanillaSwap) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' param_mode=Calibrate currently supports VanillaSwap underlyings only");
     }
     if (trade.tradeFloatIndexId.empty()) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' param_mode=Calibrate requires trade floating index id for compatibility checks");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' param_mode=Calibrate requires trade floating index id for compatibility checks");
     }
     const auto& sidx = reg.rates.swapIndices.get(calib.swap_index_id);
     if (sidx.floatIndexId != trade.tradeFloatIndexId) {
-        QUANTRA_INVALID_ARGUMENT("Model '" + trade.modelId +
-                      "' hw_calibration.swap_index_id float_index_id does not match "
-                      "trade floating index");
+        QUANTRA_INVALID_ARGUMENT(
+            "Model '" + trade.modelId +
+            "' hw_calibration.swap_index_id float_index_id does not match "
+            "trade floating index");
     }
 }
 
-double resultOrDefault(const std::shared_ptr<QuantLib::Swaption>& swap,
-                       const std::string& key, double fallback) {
+double resultOrDefault(
+    const std::shared_ptr<QuantLib::Swaption>& swap, const std::string& key, double fallback) {
     try {
         return swap->result<double>(key);
     } catch (...) {
@@ -435,9 +428,8 @@ double resultOrDefault(const std::shared_ptr<QuantLib::Swaption>& swap,
 
 } // namespace
 
-SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
-                                     const PricingRegistry& reg,
-                                     const PricingContext& ctx) const {
+SwaptionResult SwaptionEvaluator::evaluate(
+    const SwaptionInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     SwaptionResult result;
     result.values.reserve(inputs.trades.size());
     result.includeDiagnostics = inputs.includeDiagnostics;
@@ -448,7 +440,7 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
     std::unordered_map<std::string, HwCalibResult> hwCalibrationCache;
 
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         auto dIt = reg.rates.curves.find(trade.discountingCurveId);
         if (dIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
@@ -462,14 +454,15 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
             QUANTRA_NOT_FOUND("Swaption vol not found: " + trade.volatilityId);
         }
         if (vIt->second.referenceDate == QuantLib::Date()) {
-            QUANTRA_INVALID_ARGUMENT("Swaption vol has invalid referenceDate: " + trade.volatilityId);
+            QUANTRA_INVALID_ARGUMENT(
+                "Swaption vol has invalid referenceDate: " + trade.volatilityId);
         }
         if (vIt->second.referenceDate != ctx.asOf) {
             std::ostringstream err;
             err << "Strict mode: pricing.as_of_date (" << DateToIso(ctx.asOf)
                 << ") must equal swaption vol referenceDate ("
-                << DateToIso(vIt->second.referenceDate)
-                << ") for vol '" << trade.volatilityId << "'";
+                << DateToIso(vIt->second.referenceDate) << ") for vol '" << trade.volatilityId
+                << "'";
             QUANTRA_INVALID_ARGUMENT(err.str());
         }
         auto mIt = reg.volatility.modelDomains.find(trade.modelId);
@@ -486,7 +479,8 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
         // Build the base QL Swaption against the (un-bumped) forwarding curve.
         QuantLib::Handle<QuantLib::YieldTermStructure> forwardingHandle(fIt->second->currentLink());
         QuantLib::Handle<QuantLib::YieldTermStructure> discountHandle(dIt->second->currentLink());
-        auto swaption = buildSwaptionInstrument(trade.instrument, reg.rates.indices, forwardingHandle);
+        auto swaption =
+            buildSwaptionInstrument(trade.instrument, reg.rates.indices, forwardingHandle);
 
         // Resolve the vol entry (finalize SABR/spread-from-ATM surfaces with
         // server-computed ATM forwards). Run once per trade for the base path.
@@ -510,15 +504,17 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
             modelDomain->param_mode == ModelParamModeKind::Calibrate) {
             auto cacheIt = hwCalibrationCache.find(trade.modelId);
             if (cacheIt == hwCalibrationCache.end()) {
-                cacheIt = hwCalibrationCache.emplace(
-                    trade.modelId,
-                    calibrateHullWhiteFromSwaptionVol(reg, *modelDomain->hw_calibration, ctx.asOf))
-                    .first;
+                cacheIt = hwCalibrationCache
+                              .emplace(
+                                  trade.modelId, calibrateHullWhiteFromSwaptionVol(
+                                                     reg, *modelDomain->hw_calibration, ctx.asOf))
+                              .first;
             }
             calibratedHw = &cacheIt->second;
         }
 
-        auto engine = buildEngine(trade.modelId, *modelDomain, discountHandle, volEntry, calibratedHw);
+        auto engine =
+            buildEngine(trade.modelId, *modelDomain, discountHandle, volEntry, calibratedHw);
         swaption->setPricingEngine(engine);
 
         const double npv = swaption->NPV();
@@ -531,10 +527,9 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
         }
         row.volKind = volEntry.volKind;
         row.usedStrikeKind = volEntry.strikeKind;
-        row.usedModelParamMode =
-            modelDomain->param_mode == ModelParamModeKind::Calibrate
-                ? quantra::enums::ModelParamMode_Calibrate
-                : quantra::enums::ModelParamMode_Explicit;
+        row.usedModelParamMode = modelDomain->param_mode == ModelParamModeKind::Calibrate
+                                     ? quantra::enums::ModelParamMode_Calibrate
+                                     : quantra::enums::ModelParamMode_Explicit;
 
         if (modelDomain->model_type == IrModelTypeKind::HullWhiteLattice) {
             if (calibratedHw != nullptr) {
@@ -579,28 +574,36 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
                                         : inputs.rebumpMarkets.roll;
                 auto dItB = market.curves.handles.find(trade.discountingCurveId);
                 if (dItB == market.curves.handles.end()) {
-                    QUANTRA_ERROR("Discounting curve not found (rebump): " + trade.discountingCurveId);
+                    QUANTRA_ERROR(
+                        "Discounting curve not found (rebump): " + trade.discountingCurveId);
                 }
                 auto fItB = market.curves.handles.find(trade.forwardingCurveId);
                 if (fItB == market.curves.handles.end()) {
-                    QUANTRA_ERROR("Forwarding curve not found (rebump): " + trade.forwardingCurveId);
+                    QUANTRA_ERROR(
+                        "Forwarding curve not found (rebump): " + trade.forwardingCurveId);
                 }
-                bDiscount = QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
-                bForwarding = QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
+                bDiscount =
+                    QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
+                bForwarding =
+                    QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
                 bumpIndices = &market.indices;
             } else {
                 // Vol-bump legs: base registry curves at asOf — bootstrapped
                 // identically to a fresh bump-0 @ asOf snapshot.
                 auto dItB = reg.rates.curves.find(trade.discountingCurveId);
                 if (dItB == reg.rates.curves.end()) {
-                    QUANTRA_ERROR("Discounting curve not found (rebump): " + trade.discountingCurveId);
+                    QUANTRA_ERROR(
+                        "Discounting curve not found (rebump): " + trade.discountingCurveId);
                 }
                 auto fItB = reg.rates.curves.find(trade.forwardingCurveId);
                 if (fItB == reg.rates.curves.end()) {
-                    QUANTRA_ERROR("Forwarding curve not found (rebump): " + trade.forwardingCurveId);
+                    QUANTRA_ERROR(
+                        "Forwarding curve not found (rebump): " + trade.forwardingCurveId);
                 }
-                bDiscount = QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
-                bForwarding = QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
+                bDiscount =
+                    QuantLib::Handle<QuantLib::YieldTermStructure>(dItB->second->currentLink());
+                bForwarding =
+                    QuantLib::Handle<QuantLib::YieldTermStructure>(fItB->second->currentLink());
                 bumpIndices = &reg.rates.indices;
             }
 
@@ -614,8 +617,8 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
             volEntryBumped = finalizeVolEntry(
                 volEntryBumped, reg, bDiscount, bForwarding, forceAtmRecompute, trade);
 
-            auto bumpEngine = buildEngine(
-                trade.modelId, *modelDomain, bDiscount, volEntryBumped, calibratedHw);
+            auto bumpEngine =
+                buildEngine(trade.modelId, *modelDomain, bDiscount, volEntryBumped, calibratedHw);
             bumpSwap->setPricingEngine(bumpEngine);
             return bumpSwap->NPV();
         };
@@ -713,8 +716,9 @@ SwaptionResult SwaptionEvaluator::evaluate(const SwaptionInputs& inputs,
                 if (auto vanilla = QuantLib::ext::dynamic_pointer_cast<QuantLib::VanillaSwap>(
                         swaption->underlying())) {
                     row.usedStrike = vanilla->fixedRate();
-                } else if (auto ois = QuantLib::ext::dynamic_pointer_cast<QuantLib::OvernightIndexedSwap>(
-                               swaption->underlying())) {
+                } else if (
+                    auto ois = QuantLib::ext::dynamic_pointer_cast<QuantLib::OvernightIndexedSwap>(
+                        swaption->underlying())) {
                     row.usedStrike = ois->fixedRate();
                 }
             }

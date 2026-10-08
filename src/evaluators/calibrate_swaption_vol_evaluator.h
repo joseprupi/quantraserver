@@ -21,11 +21,11 @@
  * reg.volatility.swaptionVols.
  */
 
-#include <string>
-
 #include "pricing_context.h"
 #include "pricing_registry.h"
 #include "vol_surface_parsers.h"
+
+#include <string>
 
 namespace quantra {
 
@@ -48,9 +48,10 @@ struct CalibrateSwaptionVolResult {
 
 class CalibrateSwaptionVolEvaluator {
 public:
-    CalibrateSwaptionVolResult evaluate(const CalibrateSwaptionVolInputs& inputs,
-                                     const PricingRegistry& reg,
-                                     const PricingContext& ctx) const;
+    CalibrateSwaptionVolResult evaluate(
+        const CalibrateSwaptionVolInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

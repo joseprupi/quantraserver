@@ -1,11 +1,11 @@
 #include "zero_coupon_inflation_swap_mapper.h"
 
-#include <cmath>
-
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -20,12 +20,10 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
             "PriceZeroCouponInflationSwap entry requires zero_coupon_inflation_swap");
     }
     if (!pricing->discounting_curve()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceZeroCouponInflationSwap entry requires discounting_curve");
+        QUANTRA_INVALID_ARGUMENT("PriceZeroCouponInflationSwap entry requires discounting_curve");
     }
     if (!pricing->inflation_curve()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceZeroCouponInflationSwap entry requires inflation_curve");
+        QUANTRA_INVALID_ARGUMENT("PriceZeroCouponInflationSwap entry requires inflation_curve");
     }
 
     const auto* swap = pricing->zero_coupon_inflation_swap();
@@ -42,8 +40,7 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
         QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap observation_lag not found");
     }
     if (!swap->inflation_index_id() || swap->inflation_index_id()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "ZeroCouponInflationSwap inflation_index_id is required");
+        QUANTRA_INVALID_ARGUMENT("ZeroCouponInflationSwap inflation_index_id is required");
     }
 
     ZeroCouponInflationSwapTrade trade;
@@ -56,8 +53,8 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
     trade.dayCounter = DayCounterToQL(swap->day_counter());
     trade.fixedRate = swap->fixed_rate();
     trade.inflationIndexId = swap->inflation_index_id()->str();
-    trade.observationLag = requirePeriod(
-        swap->observation_lag(), "ZeroCouponInflationSwap.observation_lag");
+    trade.observationLag =
+        requirePeriod(swap->observation_lag(), "ZeroCouponInflationSwap.observation_lag");
     trade.observationInterpolation = CPIInterpolationToQL(swap->observation_interpolation());
     if (swap->adjust_observation_dates()) {
         QUANTRA_INVALID_ARGUMENT(
@@ -83,8 +80,7 @@ ZeroCouponInflationSwapTrade extractTrade(const quantra::PriceZeroCouponInflatio
  * default value the FB schema bakes in).
  */
 flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const ZeroCouponInflationSwapFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const ZeroCouponInflationSwapFlowPlain& f) {
     auto paymentDate = builder.CreateString(f.paymentDate);
     flatbuffers::Offset<flatbuffers::String> accrualStart = 0;
     flatbuffers::Offset<flatbuffers::String> accrualEnd = 0;
@@ -138,10 +134,10 @@ ZeroCouponInflationSwapInputs ZeroCouponInflationSwapMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse>
-ZeroCouponInflationSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const ZeroCouponInflationSwapResult& result) const {
+flatbuffers::Offset<quantra::PriceZeroCouponInflationSwapResponse> ZeroCouponInflationSwapMapper::
+    toResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const ZeroCouponInflationSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::ZeroCouponInflationSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

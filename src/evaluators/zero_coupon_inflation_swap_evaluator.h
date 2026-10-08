@@ -10,9 +10,8 @@
  * zero_coupon_inflation_swap_mapper.{h,cpp}.
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/cashflows/cpicoupon.hpp>
 #include <ql/instruments/zerocouponinflationswap.hpp>
@@ -21,16 +20,16 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/period.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
 /// One ZCIIS trade lifted out of the FB request by the mapper. The mapper has
 /// already converted enums to QL types; the evaluator never touches FlatBuffers.
 struct ZeroCouponInflationSwapTrade {
-    QuantLib::ZeroCouponInflationSwap::Type swapType =
-        QuantLib::ZeroCouponInflationSwap::Payer;
+    QuantLib::ZeroCouponInflationSwap::Type swapType = QuantLib::ZeroCouponInflationSwap::Payer;
     double notional = 0.0;
     QuantLib::Date startDate;
     QuantLib::Date maturityDate;
@@ -100,9 +99,10 @@ struct ZeroCouponInflationSwapResult {
 
 class ZeroCouponInflationSwapEvaluator {
 public:
-    ZeroCouponInflationSwapResult evaluate(const ZeroCouponInflationSwapInputs& inputs,
-                                        const PricingRegistry& reg,
-                                        const PricingContext& ctx) const;
+    ZeroCouponInflationSwapResult evaluate(
+        const ZeroCouponInflationSwapInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

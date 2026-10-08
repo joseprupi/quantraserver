@@ -78,6 +78,10 @@ The script stores runtime state under `QUANTRA_HOME/.quantra`, with `QUANTRA_HOM
 
 Generates the Envoy configuration used by the `quantra` script for worker load balancing and health checks.
 
+### `scripts/format.sh`
+
+Runs clang-format (repo `.clang-format`, clang-format 23.x) over the hand-written C++ sources; `--check` is a dry run that fails on any diff. Generated and vendored code is excluded.
+
 ## Typical Development Cycle
 
 ```bash

@@ -1,19 +1,20 @@
 #ifndef QUANTRASERVER_INDEX_REGISTRY_BUILDER_H
 #define QUANTRASERVER_INDEX_REGISTRY_BUILDER_H
 
-#include "index_registry.h"
-#include "index_generated.h"
-#include "enum_convert.h"
 #include "date_convert.h"
+#include "enum_convert.h"
 #include "error.h"
+#include "index_registry.h"
 #include "request_validation.h"
 
-#include <ql/indexes/iborindex.hpp>
-#include <ql/indexes/ibor/all.hpp>
-#include <ql/currencies/europe.hpp>
+#include "index_generated.h"
+
+#include <ql/currencies/all.hpp>
 #include <ql/currencies/america.hpp>
 #include <ql/currencies/asia.hpp>
-#include <ql/currencies/all.hpp>
+#include <ql/currencies/europe.hpp>
+#include <ql/indexes/ibor/all.hpp>
+#include <ql/indexes/iborindex.hpp>
 
 namespace quantra {
 
@@ -61,8 +62,7 @@ inline QuantLib::Currency CurrencyFromString(const std::string& ccy) {
 class IndexRegistryBuilder {
 public:
     IndexRegistry build(
-        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices
-    ) const {
+        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices) const {
         IndexRegistry registry;
 
         if (!indices) return registry;
@@ -83,50 +83,34 @@ public:
             std::string name = def->name()->str();
 
             // Parse currency (required field, default to EUR if somehow empty)
-            std::string ccyStr = (def->currency() && def->currency()->size() > 0)
-                ? def->currency()->str() : "EUR";
+            std::string ccyStr =
+                (def->currency() && def->currency()->size() > 0) ? def->currency()->str() : "EUR";
             QuantLib::Currency currency = CurrencyFromString(ccyStr);
 
             // Parse conventions (every convention is presence-required)
-            QuantLib::Period tenor =
-                requirePeriod(def->tenor(), "IndexDef.tenor for id: " + id);
-            int fixingDays = requireNonNegativeInt(def->fixing_days(),
-                                                   "IndexDef.fixing_days for id: " + id);
-            QuantLib::Calendar calendar = CalendarToQL(
-                requireEnum(def->calendar(), "IndexDef.calendar for id: " + id));
+            QuantLib::Period tenor = requirePeriod(def->tenor(), "IndexDef.tenor for id: " + id);
+            int fixingDays =
+                requireNonNegativeInt(def->fixing_days(), "IndexDef.fixing_days for id: " + id);
+            QuantLib::Calendar calendar =
+                CalendarToQL(requireEnum(def->calendar(), "IndexDef.calendar for id: " + id));
             QuantLib::BusinessDayConvention bdc = ConventionToQL(requireEnum(
-                def->business_day_convention(),
-                "IndexDef.business_day_convention for id: " + id));
-            QuantLib::DayCounter dayCounter = DayCounterToQL(requireEnum(
-                def->day_counter(), "IndexDef.day_counter for id: " + id));
-            bool eom = requireBool(def->end_of_month(),
-                                   "IndexDef.end_of_month for id: " + id);
-            quantra::IndexType indexType = requireEnum(
-                def->index_type(), "IndexDef.index_type for id: " + id);
+                def->business_day_convention(), "IndexDef.business_day_convention for id: " + id));
+            QuantLib::DayCounter dayCounter = DayCounterToQL(
+                requireEnum(def->day_counter(), "IndexDef.day_counter for id: " + id));
+            bool eom = requireBool(def->end_of_month(), "IndexDef.end_of_month for id: " + id);
+            quantra::IndexType indexType =
+                requireEnum(def->index_type(), "IndexDef.index_type for id: " + id);
 
             std::shared_ptr<QuantLib::InterestRateIndex> index;
 
             if (indexType == quantra::IndexType_Overnight) {
                 // Build OvernightIndex
                 index = std::make_shared<QuantLib::OvernightIndex>(
-                    name,
-                    fixingDays,
-                    currency,
-                    calendar,
-                    dayCounter
-                );
+                    name, fixingDays, currency, calendar, dayCounter);
             } else {
                 // Build IborIndex
                 index = std::make_shared<QuantLib::IborIndex>(
-                    name,
-                    tenor,
-                    fixingDays,
-                    currency,
-                    calendar,
-                    bdc,
-                    eom,
-                    dayCounter
-                );
+                    name, tenor, fixingDays, currency, calendar, bdc, eom, dayCounter);
             }
 
             // Apply historical fixings

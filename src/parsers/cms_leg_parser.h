@@ -1,18 +1,18 @@
 #ifndef QUANTRASERVER_CMS_LEG_PARSER_H
 #define QUANTRASERVER_CMS_LEG_PARSER_H
 
-#include <memory>
+#include "date_convert.h"
+#include "error.h"
+#include "index_registry.h"
+#include "schedule_parser.h"
+#include "swap_index_registry.h"
+#include "vol_surface_parsers.h"
 
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/handle.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "date_convert.h"
-#include "schedule_parser.h"
-#include "error.h"
-#include "index_registry.h"
-#include "swap_index_registry.h"
-#include "vol_surface_parsers.h"
+#include <memory>
 
 namespace quantra {
 

@@ -1,14 +1,14 @@
 #include "bootstrap_inflation_curves_mapper.h"
 
-#include <utility>
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "error.h"
+#include "grid_utils.h"
+#include "request_validation.h"
 
 #include <ql/time/calendars/target.hpp>
 
-#include "date_convert.h"
-#include "enum_convert.h"
-#include "request_validation.h"
-#include "error.h"
-#include "grid_utils.h"
+#include <utility>
 
 namespace quantra {
 
@@ -27,21 +27,21 @@ const quantra::InflationCurveSpec* findInflationCurveSpecById(
 
 quantra::enums::InflationCurveMeasure toFbMeasure(InflationCurveSampleMeasure m) {
     switch (m) {
-    case InflationCurveSampleMeasure::ZeroRate:
-        return quantra::enums::InflationCurveMeasure_ZeroRate;
-    case InflationCurveSampleMeasure::YoYRate:
-        return quantra::enums::InflationCurveMeasure_YoYRate;
+        case InflationCurveSampleMeasure::ZeroRate:
+            return quantra::enums::InflationCurveMeasure_ZeroRate;
+        case InflationCurveSampleMeasure::YoYRate:
+            return quantra::enums::InflationCurveMeasure_YoYRate;
     }
     return quantra::enums::InflationCurveMeasure_ZeroRate;
 }
 
-InflationCurveSampleMeasure fromFbMeasure(quantra::enums::InflationCurveMeasure m,
-                                          const std::string& curveId) {
+InflationCurveSampleMeasure fromFbMeasure(
+    quantra::enums::InflationCurveMeasure m, const std::string& curveId) {
     switch (m) {
-    case quantra::enums::InflationCurveMeasure_ZeroRate:
-        return InflationCurveSampleMeasure::ZeroRate;
-    case quantra::enums::InflationCurveMeasure_YoYRate:
-        return InflationCurveSampleMeasure::YoYRate;
+        case quantra::enums::InflationCurveMeasure_ZeroRate:
+            return InflationCurveSampleMeasure::ZeroRate;
+        case quantra::enums::InflationCurveMeasure_YoYRate:
+            return InflationCurveSampleMeasure::YoYRate;
     }
     QUANTRA_INVALID_ARGUMENT("Unsupported InflationCurveMeasure for curve_id: " + curveId);
     return InflationCurveSampleMeasure::ZeroRate; // unreachable
@@ -67,8 +67,7 @@ BootstrapInflationCurvesQuery extractQuery(
             "InflationCurveQuerySpec.measures is required for curve_id: " + curveId);
     }
     if (curveSpec == nullptr) {
-        QUANTRA_NOT_FOUND(
-            "Inflation curve id not found in PricingRegistry: " + curveId);
+        QUANTRA_NOT_FOUND("Inflation curve id not found in PricingRegistry: " + curveId);
     }
     if (!curveSpec->reference_date()) {
         QUANTRA_INVALID_ARGUMENT(
@@ -83,8 +82,8 @@ BootstrapInflationCurvesQuery extractQuery(
     out.allowExtrapolation = !options || options->allow_extrapolation();
     out.strict = !options || options->strict();
 
-    const QuantLib::Calendar fallbackCal = CalendarToQL(
-        requireEnum(curveSpec->calendar(), "InflationCurveSpec.calendar"));
+    const QuantLib::Calendar fallbackCal =
+        CalendarToQL(requireEnum(curveSpec->calendar(), "InflationCurveSpec.calendar"));
     const QuantLib::BusinessDayConvention fallbackBdc = ConventionToQL(requireEnum(
         curveSpec->business_day_convention(), "InflationCurveSpec.business_day_convention"));
     const QuantLib::Date referenceDate = DateToQL(curveSpec->reference_date()->str());
@@ -111,17 +110,16 @@ BootstrapInflationCurvesQuery extractQuery(
     } else if (query->grid()->grid_type() == quantra::DateGrid_RangeGrid) {
         const int maxPoints =
             (options && options->max_points() > 0) ? options->max_points() : 50000;
-        out.gridDates = grid_utils::BuildRangeGrid(
-            query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
+        out.gridDates =
+            grid_utils::BuildRangeGrid(query->grid()->grid_as_RangeGrid(), asOfDate, maxPoints);
     } else {
-        QUANTRA_INVALID_ARGUMENT(
-            "DateGridSpec.grid is required for curve_id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required for curve_id: " + curveId);
     }
 
     out.measures.reserve(query->measures()->size());
     for (flatbuffers::uoffset_t m = 0; m < query->measures()->size(); ++m) {
-        auto fbMeasure = static_cast<quantra::enums::InflationCurveMeasure>(
-            query->measures()->Get(m));
+        auto fbMeasure =
+            static_cast<quantra::enums::InflationCurveMeasure>(query->measures()->Get(m));
         out.measures.push_back(fromFbMeasure(fbMeasure, curveId));
     }
     return out;
@@ -164,10 +162,10 @@ BootstrapInflationCurvesInputs BootstrapInflationCurvesMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::BootstrapInflationCurvesResponse>
-BootstrapInflationCurvesMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const BootstrapInflationCurvesResult& result) const {
+flatbuffers::Offset<quantra::BootstrapInflationCurvesResponse> BootstrapInflationCurvesMapper::
+    toResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const BootstrapInflationCurvesResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::BootstrapInflationCurveResult>> results;
     results.reserve(result.curves.size());

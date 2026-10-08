@@ -7,11 +7,12 @@
  * OisSwapResult back into a PriceOisSwapResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "ois_swap_evaluator.h"
+
 #include "ois_swap_response_generated.h"
 #include "price_ois_swap_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     OisSwapInputs toInputs(const quantra::PriceOisSwapRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceOisSwapResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const OisSwapResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const OisSwapResult& result) const;
 };
 
 } // namespace quantra

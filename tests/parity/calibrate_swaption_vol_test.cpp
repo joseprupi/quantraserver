@@ -42,8 +42,8 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionVolEndpoint_HappyPath) {
         outBuilder,
         flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
     outBuilder->Finish(respOff);
-    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
-        outBuilder->GetBufferPointer());
+    auto resp =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(outBuilder->GetBufferPointer());
     ASSERT_NE(resp, nullptr);
     ASSERT_NE(resp->vol_id(), nullptr);
     EXPECT_EQ(resp->vol_id()->str(), "sabr_calibrate_endpoint");
@@ -66,34 +66,34 @@ TEST_F(QuantraComparisonTest, CalibrateSwaptionVolEndpoint_RejectsBadInputs) {
     std::vector<QuantLib::Real> tte(4, 1.0);
     auto syntheticVols = sabrSyntheticMarketVols(g, forwards, tte, spreads);
 
-    auto buildBaseContext = [&](
-            std::function<void(flatbuffers::grpc::MessageBuilder&,
-                               std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>&)> volSurfaceFn,
-            const std::string& volId,
-            const std::string& discId,
-            const std::string& fwdId) {
-        auto b = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-        auto curve = buildLongCurve(*b, "discount");
-        auto curves = b->CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
-        std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>> volSurfaces;
-        volSurfaceFn(*b, volSurfaces);
-        auto vols = b->CreateVector(volSurfaces);
-        auto indices = buildIndicesVector(*b);
-        auto swapIndices = buildSwapIndicesVector(*b);
-        auto asof = b->CreateString("2025-01-15");
-        auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
+    auto buildBaseContext =
+        [&](std::function<void(
+                flatbuffers::grpc::MessageBuilder&,
+                std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>&)> volSurfaceFn,
+            const std::string& volId, const std::string& discId, const std::string& fwdId) {
+            auto b = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+            auto curve = buildLongCurve(*b, "discount");
+            auto curves =
+                b->CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+            std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>> volSurfaces;
+            volSurfaceFn(*b, volSurfaces);
+            auto vols = b->CreateVector(volSurfaces);
+            auto indices = buildIndicesVector(*b);
+            auto swapIndices = buildSwapIndicesVector(*b);
+            auto asof = b->CreateString("2025-01-15");
+            auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
 
-        auto volIdOff = b->CreateString(volId);
-        auto discIdOff = b->CreateString(discId);
-        auto fwdIdOff = b->CreateString(fwdId);
-        quantra::CalibrateSwaptionVolRequestBuilder rb(*b);
-        rb.add_pricing(pricing);
-        rb.add_vol_id(volIdOff);
-        rb.add_discounting_curve_id(discIdOff);
-        rb.add_forwarding_curve_id(fwdIdOff);
-        b->Finish(rb.Finish());
-        return b;
-    };
+            auto volIdOff = b->CreateString(volId);
+            auto discIdOff = b->CreateString(discId);
+            auto fwdIdOff = b->CreateString(fwdId);
+            quantra::CalibrateSwaptionVolRequestBuilder rb(*b);
+            rb.add_pricing(pricing);
+            rb.add_vol_id(volIdOff);
+            rb.add_discounting_curve_id(discIdOff);
+            rb.add_forwarding_curve_id(fwdIdOff);
+            b->Finish(rb.Finish());
+            return b;
+        };
 
     auto callHandler = [](flatbuffers::grpc::MessageBuilder& msgB) {
         CalibrateSwaptionVolPricingRequest handler;

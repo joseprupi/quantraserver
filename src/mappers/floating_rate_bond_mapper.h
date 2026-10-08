@@ -7,11 +7,12 @@
  * serializes the FloatingRateBondResult back into a PriceFloatingRateBondResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "floating_rate_bond_evaluator.h"
+
 #include "floating_rate_bond_response_generated.h"
 #include "price_floating_rate_bond_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     FloatingRateBondInputs toInputs(const quantra::PriceFloatingRateBondRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceFloatingRateBondResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const FloatingRateBondResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const FloatingRateBondResult& result) const;
 };
 
 } // namespace quantra

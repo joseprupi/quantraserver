@@ -26,6 +26,7 @@ struct ProductCatalogEntry {
     const char* response_file;
 };
 
+// clang-format off
 #define QUANTRA_PRODUCT_LIST(X) \
     X(FixedRateBond, "fixed_rate_bond", "price-fixed-rate-bond", "price_fixed_rate_bond_request.fbs", "fixed_rate_bond_response.fbs") \
     X(FloatingRateBond, "floating_rate_bond", "price-floating-rate-bond", "price_floating_rate_bond_request.fbs", "floating_rate_bond_response.fbs") \
@@ -51,6 +52,7 @@ struct ProductCatalogEntry {
     X(ZeroCouponSwap, "zero_coupon_swap", "price-zero-coupon-swap", "price_zero_coupon_swap_request.fbs", "zero_coupon_swap_response.fbs") \
     X(YearOnYearInflationCapFloor, "year_on_year_inflation_cap_floor", "price-year-on-year-inflation-cap-floor", "price_year_on_year_inflation_cap_floor_request.fbs", "year_on_year_inflation_cap_floor_response.fbs") \
     X(CallableFixedRateBond, "callable_fixed_rate_bond", "price-callable-fixed-rate-bond", "price_callable_fixed_rate_bond_request.fbs", "callable_fixed_rate_bond_response.fbs")
+// clang-format on
 
 enum class ProductType {
 #define QUANTRA_ENUM_ENTRY(name, key, route, req, resp) name,
@@ -60,7 +62,8 @@ enum class ProductType {
 
 inline const std::map<ProductType, ProductCatalogEntry>& GetProductCatalog() {
     static const std::map<ProductType, ProductCatalogEntry> catalog = {
-#define QUANTRA_SCHEMA_ENTRY(name, key, route, req, resp) {ProductType::name, {key, route, req, resp}},
+#define QUANTRA_SCHEMA_ENTRY(name, key, route, req, resp)                                          \
+    {ProductType::name, {key, route, req, resp}},
         QUANTRA_PRODUCT_LIST(QUANTRA_SCHEMA_ENTRY)
 #undef QUANTRA_SCHEMA_ENTRY
     };
@@ -73,10 +76,11 @@ inline const std::map<ProductType, ProductCatalogEntry>& GetProductSchemas() {
 
 inline const char* ProductTypeToString(ProductType type) {
     switch (type) {
-#define QUANTRA_NAME_CASE(name, key, route, req, resp) case ProductType::name: return #name;
+#define QUANTRA_NAME_CASE(name, key, route, req, resp)                                             \
+    case ProductType::name: return #name;
         QUANTRA_PRODUCT_LIST(QUANTRA_NAME_CASE)
 #undef QUANTRA_NAME_CASE
-        default:                            return "Unknown";
+        default: return "Unknown";
     }
 }
 

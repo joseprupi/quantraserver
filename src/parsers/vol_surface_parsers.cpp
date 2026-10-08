@@ -5,38 +5,37 @@
  */
 
 #include "vol_surface_parsers.h"
-#include "roll_offset.h"
 
+#include "date_convert.h"
 #include "request_validation.h"
+#include "roll_offset.h"
+#include "sabr_calibrate_cache.h"
 
-#include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
-#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
-#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/instruments/vanillaoption.hpp>
 #include <ql/exercise.hpp>
+#include <ql/instruments/vanillaoption.hpp>
+#include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
+#include <ql/math/interpolations/bilinearinterpolation.hpp>
+#include <ql/math/interpolations/linearinterpolation.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/math/optimization/endcriteria.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
 #include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
-#include <ql/math/interpolations/linearinterpolation.hpp>
-#include <ql/math/interpolations/bilinearinterpolation.hpp>
-#include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
-#include <ql/math/matrix.hpp>
-#include <ql/quotes/simplequote.hpp>
-#include <ql/math/optimization/endcriteria.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 
-#include "sabr_calibrate_cache.h"
 #include <algorithm>
-#include <cstdlib>
-#include <cmath>
-#include <limits>
-#include <iostream>
-#include <sstream>
 #include <cctype>
-#include "date_convert.h"
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <limits>
+#include <sstream>
 
 namespace quantra {
 
@@ -46,15 +45,13 @@ namespace quantra {
 
 QuantLib::VolatilityType toQlVolType(quantra::enums::VolatilityType t) {
     switch (t) {
-        case quantra::enums::VolatilityType_Normal:
-            return QuantLib::Normal;
-            
+        case quantra::enums::VolatilityType_Normal: return QuantLib::Normal;
+
         // QuantLib encodes Black lognormal vols under ShiftedLognormal;
         // pure lognormal is represented by displacement == 0.
         case quantra::enums::VolatilityType_Lognormal:
-        case quantra::enums::VolatilityType_ShiftedLognormal:
-            return QuantLib::ShiftedLognormal;
-            
+        case quantra::enums::VolatilityType_ShiftedLognormal: return QuantLib::ShiftedLognormal;
+
         default:
             QUANTRA_INVALID_ARGUMENT(
                 "IrVolBaseSpec.volatility_type is not a known volatility type: " +
@@ -76,7 +73,8 @@ bool isBlankString(const std::string& s) {
 /// Read the presence-required quotation convention off an IrVolBaseSpec. An
 /// omitted value must not fall through to the alphabetical-0 enum (Normal),
 /// which would price a lognormal-quoted surface as normal vols.
-quantra::enums::VolatilityType requiredVolType(const quantra::IrVolBaseSpec* b, const std::string& id) {
+quantra::enums::VolatilityType requiredVolType(
+    const quantra::IrVolBaseSpec* b, const std::string& id) {
     if (!b || !b->volatility_type().has_value()) {
         QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.volatility_type is required for vol id: " + id);
     }
@@ -94,7 +92,8 @@ void validateIrVolBaseCommon(const quantra::IrVolBaseSpec* b, const std::string&
         QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.calendar is required for vol id: " + id);
     }
     if (!b->business_day_convention().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.business_day_convention is required for vol id: " + id);
+        QUANTRA_INVALID_ARGUMENT(
+            "IrVolBaseSpec.business_day_convention is required for vol id: " + id);
     }
     if (!b->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("IrVolBaseSpec.day_counter is required for vol id: " + id);
@@ -102,7 +101,7 @@ void validateIrVolBaseCommon(const quantra::IrVolBaseSpec* b, const std::string&
 
     auto volType = requiredVolType(b, id);
     double disp = b->displacement();
-    
+
     if (volType == quantra::enums::VolatilityType_ShiftedLognormal && disp <= 0.0) {
         QUANTRA_INVALID_ARGUMENT("ShiftedLognormal requires displacement > 0 for vol id: " + id);
     }
@@ -115,11 +114,13 @@ void validateIrVolBaseConstant(const quantra::IrVolBaseSpec* b, const std::strin
     validateIrVolBaseCommon(b, id);
     bool hasQuote = b->quote_id() && !b->quote_id()->str().empty();
     if (!hasQuote && b->constant_vol() <= 0.0) {
-        QUANTRA_INVALID_ARGUMENT("constant_vol must be > 0 (or quote_id provided) for vol id: " + id);
+        QUANTRA_INVALID_ARGUMENT(
+            "constant_vol must be > 0 (or quote_id provided) for vol id: " + id);
     }
 }
 
-void validateSupportedInterpolator(quantra::enums::Interpolator interp, const std::string& label, const std::string& id) {
+void validateSupportedInterpolator(
+    quantra::enums::Interpolator interp, const std::string& label, const std::string& id) {
     if (interp != quantra::enums::Interpolator_Linear) {
         QUANTRA_INVALID_ARGUMENT(label + " only supports Linear interpolator for vol id: " + id);
     }
@@ -136,7 +137,8 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
         QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.calendar is required for vol id: " + id);
     }
     if (!b->business_day_convention().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.business_day_convention is required for vol id: " + id);
+        QUANTRA_INVALID_ARGUMENT(
+            "BlackVolBaseSpec.business_day_convention is required for vol id: " + id);
     }
     if (!b->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("BlackVolBaseSpec.day_counter is required for vol id: " + id);
@@ -145,11 +147,11 @@ void validateBlackVolBase(const quantra::BlackVolBaseSpec* b, const std::string&
         case quantra::enums::VolSurfaceShape_Constant:
         case quantra::enums::VolSurfaceShape_AtmMatrix2D:
         case quantra::enums::VolSurfaceShape_SmileCube3D:
-        case quantra::enums::VolSurfaceShape_SurfaceFromPrices:
-            break;
+        case quantra::enums::VolSurfaceShape_SurfaceFromPrices: break;
         default:
             QUANTRA_INVALID_ARGUMENT(
-                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices for vol id: " + id);
+                "BlackVolSpec supports shape=Constant, AtmMatrix2D, SmileCube3D, SurfaceFromPrices for vol id: " +
+                id);
     }
 }
 
@@ -158,16 +160,15 @@ QuantLib::Period toQlPeriod(const quantra::Period* p) {
 }
 
 double resolveMatrixValue(
-    const quantra::QuoteMatrix2D* m,
-    int idx,
-    const QuoteRegistry* quotes,
-    const std::string& id) {
+    const quantra::QuoteMatrix2D* m, int idx, const QuoteRegistry* quotes, const std::string& id) {
     double inlineValue = m->values()->Get(idx);
     if (m->quote_ids()) {
         auto* s = m->quote_ids()->Get(idx);
         if (s && s->size() > 0) {
             if (!quotes) {
-                QUANTRA_ERROR("QuoteMatrix2D has quote_ids but QuoteRegistry is unavailable for vol id: " + id);
+                QUANTRA_ERROR(
+                    "QuoteMatrix2D has quote_ids but QuoteRegistry is unavailable for vol id: " +
+                    id);
             }
             return quotes->getValue(s->str(), quantra::QuoteType_Volatility);
         }
@@ -176,16 +177,15 @@ double resolveMatrixValue(
 }
 
 double resolveTensorValue(
-    const quantra::QuoteTensor3D* t,
-    int idx,
-    const QuoteRegistry* quotes,
-    const std::string& id) {
+    const quantra::QuoteTensor3D* t, int idx, const QuoteRegistry* quotes, const std::string& id) {
     double inlineValue = t->values()->Get(idx);
     if (t->quote_ids()) {
         auto* s = t->quote_ids()->Get(idx);
         if (s && s->size() > 0) {
             if (!quotes) {
-                QUANTRA_ERROR("QuoteTensor3D has quote_ids but QuoteRegistry is unavailable for vol id: " + id);
+                QUANTRA_ERROR(
+                    "QuoteTensor3D has quote_ids but QuoteRegistry is unavailable for vol id: " +
+                    id);
             }
             return quotes->getValue(s->str(), quantra::QuoteType_Volatility);
         }
@@ -193,7 +193,8 @@ double resolveTensorValue(
     return inlineValue;
 }
 
-void validateMatrix2D(const quantra::QuoteMatrix2D* m, int nRows, int nCols, const std::string& id) {
+void validateMatrix2D(
+    const quantra::QuoteMatrix2D* m, int nRows, int nCols, const std::string& id) {
     if (!m) {
         QUANTRA_INVALID_ARGUMENT("QuoteMatrix2D missing for vol id: " + id);
     }
@@ -209,7 +210,8 @@ void validateMatrix2D(const quantra::QuoteMatrix2D* m, int nRows, int nCols, con
     }
 }
 
-void validateTensor3D(const quantra::QuoteTensor3D* t, int n1, int n2, int n3, const std::string& id) {
+void validateTensor3D(
+    const quantra::QuoteTensor3D* t, int n1, int n2, int n3, const std::string& id) {
     if (!t) {
         QUANTRA_INVALID_ARGUMENT("QuoteTensor3D missing for vol id: " + id);
     }
@@ -250,40 +252,36 @@ public:
         quantra::enums::SwaptionStrikeKind strikeKind,
         std::vector<double> atm_forwards_flat,
         std::vector<double> vols_flat)
-        : QuantLib::SwaptionVolatilityStructure(ref, cal, bdc, dc),
-          volType_(volType),
-          displacement_(displacement),
-          expiries_(std::move(expiries)),
-          tenors_(std::move(tenors)),
-          strikes_(std::move(strikes)),
-          strikeKind_(strikeKind),
-          atmForwards_(std::move(atm_forwards_flat)),
-          vols_(std::move(vols_flat)) {
+        : QuantLib::SwaptionVolatilityStructure(ref, cal, bdc, dc), volType_(volType),
+          displacement_(displacement), expiries_(std::move(expiries)), tenors_(std::move(tenors)),
+          strikes_(std::move(strikes)), strikeKind_(strikeKind),
+          atmForwards_(std::move(atm_forwards_flat)), vols_(std::move(vols_flat)) {
         enableExtrapolation();
         if (!std::is_sorted(strikes_.begin(), strikes_.end())) {
             QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec strikes must be sorted ascending");
         }
-        auto dup = std::adjacent_find(strikes_.begin(), strikes_.end(), [](double a, double b) { return a >= b; });
+        auto dup = std::adjacent_find(
+            strikes_.begin(), strikes_.end(), [](double a, double b) { return a >= b; });
         if (dup != strikes_.end()) {
-            QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec strikes must be strictly increasing");
+            QUANTRA_INVALID_ARGUMENT(
+                "SwaptionVolSmileCubeSpec strikes must be strictly increasing");
         }
         if (!std::is_sorted(expiries_.begin(), expiries_.end())) {
             QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec expiries must be sorted ascending");
         }
-        auto expDup =
-            std::adjacent_find(expiries_.begin(), expiries_.end(), [](const QuantLib::Period& a, const QuantLib::Period& b) {
-                return !(a < b);
-            });
+        auto expDup = std::adjacent_find(
+            expiries_.begin(), expiries_.end(),
+            [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
         if (expDup != expiries_.end()) {
-            QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec expiries must be strictly increasing");
+            QUANTRA_INVALID_ARGUMENT(
+                "SwaptionVolSmileCubeSpec expiries must be strictly increasing");
         }
         if (!std::is_sorted(tenors_.begin(), tenors_.end())) {
             QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec tenors must be sorted ascending");
         }
-        auto tenDup =
-            std::adjacent_find(tenors_.begin(), tenors_.end(), [](const QuantLib::Period& a, const QuantLib::Period& b) {
-                return !(a < b);
-            });
+        auto tenDup = std::adjacent_find(
+            tenors_.begin(), tenors_.end(),
+            [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
         if (tenDup != tenors_.end()) {
             QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec tenors must be strictly increasing");
         }
@@ -305,8 +303,10 @@ public:
         }
         tExp_.reserve(expiries_.size());
         tTen_.reserve(tenors_.size());
-        for (const auto& p : expiries_) tExp_.push_back(periodToTime(ref, cal, bdc, dc, p));
-        for (const auto& p : tenors_) tTen_.push_back(periodToTime(ref, cal, bdc, dc, p));
+        for (const auto& p : expiries_)
+            tExp_.push_back(periodToTime(ref, cal, bdc, dc, p));
+        for (const auto& p : tenors_)
+            tTen_.push_back(periodToTime(ref, cal, bdc, dc, p));
         maxSwapTenor_ = tenors_.empty() ? QuantLib::Period(0, QuantLib::Days) : tenors_.back();
         maxDate_ = ref;
         QuantLib::Date maxExerciseDate = ref;
@@ -321,7 +321,8 @@ public:
         }
         minStrike_ = strikes_.empty() ? 0.0 : *std::min_element(strikes_.begin(), strikes_.end());
         maxStrike_ = strikes_.empty() ? 0.0 : *std::max_element(strikes_.begin(), strikes_.end());
-        if (strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM && !atmForwards_.empty() && !strikes_.empty()) {
+        if (strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM &&
+            !atmForwards_.empty() && !strikes_.empty()) {
             double minAtm = *std::min_element(atmForwards_.begin(), atmForwards_.end());
             double maxAtm = *std::max_element(atmForwards_.begin(), atmForwards_.end());
             minStrike_ = minAtm + strikes_.front();
@@ -335,10 +336,15 @@ public:
     QuantLib::Rate minStrike() const override { return minStrike_; }
     QuantLib::Rate maxStrike() const override { return maxStrike_; }
     const QuantLib::Period& maxSwapTenor() const override { return maxSwapTenor_; }
-    double atmForward(QuantLib::Time optionTime, QuantLib::Time swapLength) const { return bilinearAtm(optionTime, swapLength); }
+    double atmForward(QuantLib::Time optionTime, QuantLib::Time swapLength) const {
+        return bilinearAtm(optionTime, swapLength);
+    }
 
 protected:
-    QuantLib::Volatility volatilityImpl(QuantLib::Time optionTime, QuantLib::Time swapLength, QuantLib::Rate strike) const override {
+    QuantLib::Volatility volatilityImpl(
+        QuantLib::Time optionTime,
+        QuantLib::Time swapLength,
+        QuantLib::Rate strike) const override {
         return triLinear(optionTime, swapLength, strike);
     }
 
@@ -354,7 +360,8 @@ protected:
         std::vector<double> absStrikes;
         absStrikes.reserve(strikes_.size());
         for (double s : strikes_) {
-            absStrikes.push_back(strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM ? atm + s : s);
+            absStrikes.push_back(
+                strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM ? atm + s : s);
         }
         for (double k : absStrikes) {
             double v = triLinear(optionTime, swapLength, k);
@@ -363,8 +370,8 @@ protected:
         double atmLevel = atm;
         return QuantLib::ext::shared_ptr<QuantLib::SmileSection>(
             new QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
-                optionTime, absStrikes, stdDevs, atmLevel, QuantLib::Linear(),
-                dayCounter(), volatilityType(), displacement_));
+                optionTime, absStrikes, stdDevs, atmLevel, QuantLib::Linear(), dayCounter(),
+                volatilityType(), displacement_));
     }
 
 private:
@@ -380,10 +387,9 @@ private:
                 for (int i = 1; i < nExp_; ++i) {
                     double w = std::pow(vols_[idx(i, j, k)], 2.0) * std::max(tExp_[i], eps);
                     if (w + 1.0e-12 < prevW) {
-                        std::cout
-                            << "Warning: total variance decreases with expiry at tenorIdx=" << j
-                            << ", strikeIdx=" << k << " (calendar sanity warning)"
-                            << std::endl;
+                        std::cout << "Warning: total variance decreases with expiry at tenorIdx="
+                                  << j << ", strikeIdx=" << k << " (calendar sanity warning)"
+                                  << std::endl;
                         break;
                     }
                     prevW = w;
@@ -395,11 +401,10 @@ private:
     size_t idx(size_t i, size_t j, size_t k) const {
         return (i * tenors_.size() + j) * strikes_.size() + k;
     }
-    size_t idx2d(size_t i, size_t j) const {
-        return i * tenors_.size() + j;
-    }
+    size_t idx2d(size_t i, size_t j) const { return i * tenors_.size() + j; }
 
-    static void bracket(const std::vector<double>& grid, double x, size_t& i0, size_t& i1, double& w) {
+    static void bracket(
+        const std::vector<double>& grid, double x, size_t& i0, size_t& i1, double& w) {
         // v1 behavior: outside-grid values are flat-extended at nearest boundary node.
         if (grid.empty()) {
             i0 = i1 = 0;
@@ -442,7 +447,8 @@ private:
     double nodeAtm(size_t i, size_t j) const {
         if (atmForwards_.empty()) {
             if (strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
-                QUANTRA_INVALID_ARGUMENT("SpreadFromATM smile cube requires ATM forwards (server-computed or provided)");
+                QUANTRA_INVALID_ARGUMENT(
+                    "SpreadFromATM smile cube requires ATM forwards (server-computed or provided)");
             }
             return strikes_.empty() ? 0.0 : strikes_[strikes_.size() / 2];
         }
@@ -452,7 +458,8 @@ private:
     double bilinearAtm(double tExp, double tTen) const {
         if (atmForwards_.empty()) {
             if (strikeKind_ == quantra::enums::SwaptionStrikeKind_SpreadFromATM) {
-                QUANTRA_INVALID_ARGUMENT("SpreadFromATM smile cube requires ATM forwards (server-computed or provided)");
+                QUANTRA_INVALID_ARGUMENT(
+                    "SpreadFromATM smile cube requires ATM forwards (server-computed or provided)");
             }
             // Absolute-strike cube: this is an interpolation anchor, not a market ATM.
             return strikes_.empty() ? 0.0 : strikes_[strikes_.size() / 2];
@@ -532,16 +539,10 @@ public:
         std::vector<double> rho,
         std::vector<double> nu,
         std::vector<double> atmForwardsFlat)
-        : QuantLib::SwaptionVolatilityStructure(ref, cal, bdc, dc),
-          volType_(volType),
-          displacement_(displacement),
-          expiries_(std::move(expiries)),
-          tenors_(std::move(tenors)),
-          alpha_(std::move(alpha)),
-          beta_(std::move(beta)),
-          rho_(std::move(rho)),
-          nu_(std::move(nu)),
-          atmForwards_(std::move(atmForwardsFlat)) {
+        : QuantLib::SwaptionVolatilityStructure(ref, cal, bdc, dc), volType_(volType),
+          displacement_(displacement), expiries_(std::move(expiries)), tenors_(std::move(tenors)),
+          alpha_(std::move(alpha)), beta_(std::move(beta)), rho_(std::move(rho)),
+          nu_(std::move(nu)), atmForwards_(std::move(atmForwardsFlat)) {
         enableExtrapolation();
         if (expiries_.empty() || tenors_.empty()) {
             QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec expiries/tenors must be non-empty");
@@ -569,18 +570,21 @@ public:
         const int expected = nExp_ * nTen_;
         if (static_cast<int>(alpha_.size()) != expected ||
             static_cast<int>(beta_.size()) != expected ||
-            static_cast<int>(rho_.size()) != expected ||
-            static_cast<int>(nu_.size()) != expected) {
-            QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec parameter grid sizes must equal nExp * nTen");
+            static_cast<int>(rho_.size()) != expected || static_cast<int>(nu_.size()) != expected) {
+            QUANTRA_INVALID_ARGUMENT(
+                "SwaptionSabrParamsSpec parameter grid sizes must equal nExp * nTen");
         }
         if (static_cast<int>(atmForwards_.size()) != expected) {
-            QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec ATM forwards grid size must equal nExp * nTen");
+            QUANTRA_INVALID_ARGUMENT(
+                "SwaptionSabrParamsSpec ATM forwards grid size must equal nExp * nTen");
         }
 
         tExp_.reserve(expiries_.size());
         tTen_.reserve(tenors_.size());
-        for (const auto& p : expiries_) tExp_.push_back(periodToTime(ref, cal, bdc, dc, p));
-        for (const auto& p : tenors_) tTen_.push_back(periodToTime(ref, cal, bdc, dc, p));
+        for (const auto& p : expiries_)
+            tExp_.push_back(periodToTime(ref, cal, bdc, dc, p));
+        for (const auto& p : tenors_)
+            tTen_.push_back(periodToTime(ref, cal, bdc, dc, p));
 
         smiles_.resize(static_cast<size_t>(expected));
         for (int i = 0; i < nExp_; ++i) {
@@ -598,8 +602,7 @@ public:
                 sabrParams[2] = nu_[k];
                 sabrParams[3] = rho_[k];
                 smiles_[k] = QuantLib::ext::shared_ptr<QuantLib::SabrSmileSection>(
-                    new QuantLib::SabrSmileSection(
-                        t, f, sabrParams, displacement_, volType_));
+                    new QuantLib::SabrSmileSection(t, f, sabrParams, displacement_, volType_));
             }
         }
 
@@ -628,7 +631,9 @@ public:
 
 protected:
     QuantLib::Volatility volatilityImpl(
-        QuantLib::Time optionTime, QuantLib::Time swapLength, QuantLib::Rate strike) const override {
+        QuantLib::Time optionTime,
+        QuantLib::Time swapLength,
+        QuantLib::Rate strike) const override {
         return blendedVol(optionTime, swapLength, strike);
     }
 
@@ -656,7 +661,8 @@ protected:
         // Strike grid: ATM and a moderate spread around it. Consumers wanting
         // off-grid strikes can call volatility(...) directly; this section is
         // primarily an interface helper.
-        std::vector<double> spreads = {-0.02, -0.01, -0.005, -0.0025, 0.0, 0.0025, 0.005, 0.01, 0.02};
+        std::vector<double> spreads = {-0.02,  -0.01, -0.005, -0.0025, 0.0,
+                                       0.0025, 0.005, 0.01,   0.02};
         std::vector<double> absStrikes;
         absStrikes.reserve(spreads.size());
         std::vector<QuantLib::Real> stdDevs;
@@ -674,8 +680,8 @@ protected:
         }
         return QuantLib::ext::shared_ptr<QuantLib::SmileSection>(
             new QuantLib::InterpolatedSmileSection<QuantLib::Linear>(
-                t, absStrikes, stdDevs, atm, QuantLib::Linear(),
-                dayCounter(), volatilityType(), displacement_));
+                t, absStrikes, stdDevs, atm, QuantLib::Linear(), dayCounter(), volatilityType(),
+                displacement_));
     }
 
 private:
@@ -683,14 +689,28 @@ private:
         return static_cast<size_t>(i) * tenors_.size() + static_cast<size_t>(j);
     }
 
-    static void bracket(const std::vector<double>& grid, double x, size_t& i0, size_t& i1, double& w) {
-        if (grid.empty()) { i0 = i1 = 0; w = 0.0; return; }
-        if (x <= grid.front()) { i0 = i1 = 0; w = 0.0; return; }
-        if (x >= grid.back()) { i0 = i1 = grid.size() - 1; w = 0.0; return; }
+    static void bracket(
+        const std::vector<double>& grid, double x, size_t& i0, size_t& i1, double& w) {
+        if (grid.empty()) {
+            i0 = i1 = 0;
+            w = 0.0;
+            return;
+        }
+        if (x <= grid.front()) {
+            i0 = i1 = 0;
+            w = 0.0;
+            return;
+        }
+        if (x >= grid.back()) {
+            i0 = i1 = grid.size() - 1;
+            w = 0.0;
+            return;
+        }
         auto it = std::lower_bound(grid.begin(), grid.end(), x);
         size_t hi = static_cast<size_t>(it - grid.begin());
         size_t lo = hi - 1;
-        i0 = lo; i1 = hi;
+        i0 = lo;
+        i1 = hi;
         w = (x - grid[lo]) / (grid[hi] - grid[lo]);
     }
 
@@ -754,7 +774,8 @@ double resolveVolValue(
         const std::string qid = quoteId->str();
         if (!qid.empty()) {
             if (!quotes) {
-                QUANTRA_ERROR("quote_id provided but QuoteRegistry is unavailable for vol id: " + id);
+                QUANTRA_ERROR(
+                    "quote_id provided but QuoteRegistry is unavailable for vol id: " + id);
             }
             return quotes->getValue(qid, quantra::QuoteType_Volatility);
         }
@@ -806,25 +827,20 @@ bool hasNonEmptyString(const flatbuffers::String* s) {
     return s && !s->str().empty();
 }
 
-enum class SurfaceInterpolationMode {
-    Bilinear,
-    Bicubic
-};
+enum class SurfaceInterpolationMode { Bilinear, Bicubic };
 
 SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
-    const quantra::BlackVolSpec* payload,
-    const std::string& id) {
+    const quantra::BlackVolSpec* payload, const std::string& id) {
     const auto expiryInterp = payload->expiry_interpolator();
     const auto strikeInterp = payload->strike_interpolator();
-    const bool legacyExpiryKnown =
-        expiryInterp == quantra::enums::Interpolator_Linear ||
-        expiryInterp == quantra::enums::Interpolator_LogCubic;
-    const bool legacyStrikeKnown =
-        strikeInterp == quantra::enums::Interpolator_Linear ||
-        strikeInterp == quantra::enums::Interpolator_LogCubic;
+    const bool legacyExpiryKnown = expiryInterp == quantra::enums::Interpolator_Linear ||
+                                   expiryInterp == quantra::enums::Interpolator_LogCubic;
+    const bool legacyStrikeKnown = strikeInterp == quantra::enums::Interpolator_Linear ||
+                                   strikeInterp == quantra::enums::Interpolator_LogCubic;
     if (!legacyExpiryKnown || !legacyStrikeKnown) {
         QUANTRA_INVALID_ARGUMENT(
-            "BlackVolSpec legacy expiry/strike interpolators only support Linear or LogCubic for vol id: " + id);
+            "BlackVolSpec legacy expiry/strike interpolators only support Linear or LogCubic for vol id: " +
+            id);
     }
     if (expiryInterp != strikeInterp) {
         QUANTRA_INVALID_ARGUMENT(
@@ -840,20 +856,17 @@ SurfaceInterpolationMode resolveBlackSurfaceInterpolation(
             return SurfaceInterpolationMode::Bilinear;
         case quantra::enums::SurfaceInterpolator2D_Bicubic:
             return SurfaceInterpolationMode::Bicubic;
-        default:
-            QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
+        default: QUANTRA_INVALID_ARGUMENT("Unsupported surface_interpolator for vol id: " + id);
     }
     return SurfaceInterpolationMode::Bilinear;
 }
 
-QuantLib::Option::Type toQlEquityOptionType(quantra::enums::EquityOptionType t, const std::string& id) {
+QuantLib::Option::Type toQlEquityOptionType(
+    quantra::enums::EquityOptionType t, const std::string& id) {
     switch (t) {
-        case quantra::enums::EquityOptionType_Call:
-            return QuantLib::Option::Call;
-        case quantra::enums::EquityOptionType_Put:
-            return QuantLib::Option::Put;
-        default:
-            QUANTRA_INVALID_ARGUMENT("Unsupported equity option_type for vol id: " + id);
+        case quantra::enums::EquityOptionType_Call: return QuantLib::Option::Call;
+        case quantra::enums::EquityOptionType_Put: return QuantLib::Option::Put;
+        default: QUANTRA_INVALID_ARGUMENT("Unsupported equity option_type for vol id: " + id);
     }
     return QuantLib::Option::Call;
 }
@@ -864,12 +877,13 @@ QuantLib::Option::Type toQlEquityOptionType(quantra::enums::EquityOptionType t, 
 // Optionlet Vol Parser (for Caps/Floors)
 // =============================================================================
 
-OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
+OptionletVolEntry parseOptionletVol(
+    const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
     if (!spec || !spec->id()) {
         QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec or id is null");
     }
     std::string id = spec->id()->str();
-    
+
     auto* payload = spec->payload_as_OptionletVolSpec();
     if (!payload) {
         QUANTRA_INVALID_ARGUMENT("OptionletVolSpec payload missing for vol id: " + id);
@@ -887,8 +901,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
     auto qlVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
-        ref, cal, bdc, vol, dc, qlType, disp
-    );
+        ref, cal, bdc, vol, dc, qlType, disp);
 
     OptionletVolEntry entry;
     entry.handle = QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(qlVol);
@@ -901,7 +914,7 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
     entry.businessDayConvention = bdc;
     entry.businessDayConventionFb = b->business_day_convention().value();
     entry.dayCounter = dc;
-    
+
     return entry;
 }
 
@@ -909,7 +922,8 @@ OptionletVolEntry parseOptionletVol(const quantra::VolSurfaceSpec* spec, const Q
 // Swaption Vol Parser
 // =============================================================================
 
-SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
+SwaptionVolEntry parseSwaptionVol(
+    const quantra::VolSurfaceSpec* spec, const QuoteRegistry* quotes) {
     if (!spec || !spec->id()) {
         QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec or id is null");
     }
@@ -919,7 +933,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
     if (!wrapper) {
         QUANTRA_INVALID_ARGUMENT("SwaptionVolSpec payload missing for vol id: " + id);
     }
-    std::string wrapperSwapIndexId = wrapper->swap_index_id() ? wrapper->swap_index_id()->str() : "";
+    std::string wrapperSwapIndexId =
+        wrapper->swap_index_id() ? wrapper->swap_index_id()->str() : "";
     if (isBlankString(wrapperSwapIndexId)) {
         QUANTRA_INVALID_ARGUMENT("SwaptionVolSpec.swap_index_id is required for vol id: " + id);
     }
@@ -935,15 +950,15 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
 
             QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::BusinessDayConvention bdc =
+                ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double vol = resolveVolValue(b->constant_vol(), b->quote_id(), quotes, id);
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             auto qlVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-                ref, cal, bdc, vol, dc, qlType, disp
-            );
+                ref, cal, bdc, vol, dc, qlType, disp);
 
             SwaptionVolEntry entry;
             entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
@@ -966,23 +981,27 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
             const auto* b = payload->base();
             validateIrVolBaseCommon(b, id);
-            validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
+            validateSupportedInterpolator(
+                payload->expiry_interpolator(), "expiry_interpolator", id);
             validateSupportedInterpolator(payload->tenor_interpolator(), "tenor_interpolator", id);
 
             QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::BusinessDayConvention bdc =
+                ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors()) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionVolAtmMatrixSpec expiries/tenors missing for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionVolAtmMatrixSpec expiries/tenors missing for vol id: " + id);
             }
             int nExp = static_cast<int>(payload->expiries()->size());
             int nTen = static_cast<int>(payload->tenors()->size());
             if (nExp <= 0 || nTen <= 0) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionVolAtmMatrixSpec expiries/tenors empty for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionVolAtmMatrixSpec expiries/tenors empty for vol id: " + id);
             }
 
             std::vector<QuantLib::Period> expiries;
@@ -1007,7 +1026,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     int idx = i * nTen + j;
                     double v = resolveMatrixValue(m, idx, quotes, id);
                     if (v <= 0.0) {
-                        QUANTRA_INVALID_ARGUMENT("SwaptionVolAtmMatrixSpec vol must be > 0 for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "SwaptionVolAtmMatrixSpec vol must be > 0 for vol id: " + id);
                     }
                     vols[i][j] = v;
                     flat.push_back(v);
@@ -1019,8 +1039,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 shifts = QuantLib::Matrix(nExp, nTen, disp);
             }
             auto qlVol = std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
-                ref, cal, bdc, expiries, tenors, vols, dc, false, qlType, shifts
-            );
+                ref, cal, bdc, expiries, tenors, vols, dc, false, qlType, shifts);
 
             SwaptionVolEntry entry;
             entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
@@ -1048,19 +1067,23 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
             const auto* b = payload->base();
             validateIrVolBaseCommon(b, id);
-            validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
+            validateSupportedInterpolator(
+                payload->expiry_interpolator(), "expiry_interpolator", id);
             validateSupportedInterpolator(payload->tenor_interpolator(), "tenor_interpolator", id);
-            validateSupportedInterpolator(payload->strike_interpolator(), "strike_interpolator", id);
+            validateSupportedInterpolator(
+                payload->strike_interpolator(), "strike_interpolator", id);
 
             QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::BusinessDayConvention bdc =
+                ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors() || !payload->strikes()) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec grids missing for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionVolSmileCubeSpec grids missing for vol id: " + id);
             }
             int nExp = static_cast<int>(payload->expiries()->size());
             int nTen = static_cast<int>(payload->tenors()->size());
@@ -1090,7 +1113,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             if (payload->atm_forwards()) {
                 if (!allowExternalAtm) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SwaptionVolSmileCubeSpec atm_forwards requires allow_external_atm=true for vol id: " + id);
+                        "SwaptionVolSmileCubeSpec atm_forwards requires allow_external_atm=true for vol id: " +
+                        id);
                 }
                 const auto* atm = payload->atm_forwards();
                 validateMatrix2D(atm, nExp, nTen, id);
@@ -1101,7 +1125,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             }
             if (strikeKind == quantra::enums::SwaptionStrikeKind_Absolute && !atmForwards.empty()) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "SwaptionVolSmileCubeSpec atm_forwards is not allowed when strike_kind=Absolute for vol id: " + id);
+                    "SwaptionVolSmileCubeSpec atm_forwards is not allowed when strike_kind=Absolute for vol id: " +
+                    id);
             }
             const auto* t = payload->vols();
             validateTensor3D(t, nExp, nTen, nStr, id);
@@ -1111,7 +1136,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             for (int idx = 0; idx < expected; idx++) {
                 double v = resolveTensorValue(t, idx, quotes, id);
                 if (v <= 0.0) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionVolSmileCubeSpec vol must be > 0 for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionVolSmileCubeSpec vol must be > 0 for vol id: " + id);
                 }
                 vols.push_back(v);
             }
@@ -1119,9 +1145,11 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             SwaptionVolEntry entry;
             // For SpreadFromATM without external ATM, defer handle construction until
             // finalizeSwaptionVolEntryForPricing injects server-computed ATM forwards.
-            if (!(strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM && atmForwards.empty())) {
+            if (!(strikeKind == quantra::enums::SwaptionStrikeKind_SpreadFromATM &&
+                  atmForwards.empty())) {
                 auto qlVol = std::make_shared<SwaptionSmileCubeCustom>(
-                    ref, cal, bdc, dc, qlType, disp, expiries, tenors, strikes, strikeKind, atmForwards, vols);
+                    ref, cal, bdc, dc, qlType, disp, expiries, tenors, strikes, strikeKind,
+                    atmForwards, vols);
                 entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
             }
             entry.qlVolType = qlType;
@@ -1161,23 +1189,27 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             if (requiredVolType(b, id) == quantra::enums::VolatilityType_Normal) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrParamsSpec only supports Lognormal/ShiftedLognormal vol type "
-                    "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
+                    "(Normal SABR is intentionally not supported for v1) for vol id: " +
+                    id);
             }
 
             QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::BusinessDayConvention bdc =
+                ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors()) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec expiries/tenors missing for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrParamsSpec expiries/tenors missing for vol id: " + id);
             }
             int nExp = static_cast<int>(payload->expiries()->size());
             int nTen = static_cast<int>(payload->tenors()->size());
             if (nExp <= 0 || nTen <= 0) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec expiries/tenors empty for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrParamsSpec expiries/tenors empty for vol id: " + id);
             }
 
             std::vector<QuantLib::Period> expiries;
@@ -1214,20 +1246,27 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 double bv = resolveMatrixValue(mBeta, k, quotes, id);
                 double r = resolveMatrixValue(mRho, k, quotes, id);
                 double n = resolveMatrixValue(mNu, k, quotes, id);
-                if (!std::isfinite(a) || !std::isfinite(bv) || !std::isfinite(r) || !std::isfinite(n)) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec alpha/beta/rho/nu must be finite for vol id: " + id);
+                if (!std::isfinite(a) || !std::isfinite(bv) || !std::isfinite(r) ||
+                    !std::isfinite(n)) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionSabrParamsSpec alpha/beta/rho/nu must be finite for vol id: " +
+                        id);
                 }
                 if (!(a > 0.0)) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec alpha must be > 0 for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionSabrParamsSpec alpha must be > 0 for vol id: " + id);
                 }
                 if (bv < 0.0 || bv > 1.0) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec beta must be in [0, 1] for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionSabrParamsSpec beta must be in [0, 1] for vol id: " + id);
                 }
                 if (!(r > -1.0 && r < 1.0)) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec rho must be in (-1, 1) for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionSabrParamsSpec rho must be in (-1, 1) for vol id: " + id);
                 }
                 if (!(n > 0.0)) {
-                    QUANTRA_INVALID_ARGUMENT("SwaptionSabrParamsSpec nu must be > 0 for vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "SwaptionSabrParamsSpec nu must be > 0 for vol id: " + id);
                 }
                 alpha.push_back(a);
                 beta.push_back(bv);
@@ -1266,7 +1305,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
         case quantra::SwaptionVolPayload_SwaptionSabrCalibrateSpec: {
             auto* payload = wrapper->payload_as_SwaptionSabrCalibrateSpec();
             if (!payload || !payload->base()) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec base missing for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrCalibrateSpec base missing for vol id: " + id);
             }
             const auto* b = payload->base();
             validateIrVolBaseCommon(b, id);
@@ -1276,7 +1316,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             if (requiredVolType(b, id) == quantra::enums::VolatilityType_Normal) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrCalibrateSpec only supports Lognormal/ShiftedLognormal vol type "
-                    "(Normal SABR is intentionally not supported for v1) for vol id: " + id);
+                    "(Normal SABR is intentionally not supported for v1) for vol id: " +
+                    id);
             }
 
             // v1 rejects user-supplied per-strike weights. QuantLib 1.41
@@ -1287,24 +1328,28 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 payload->weights()->values()->size() > 0) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrCalibrateSpec.weights: per-strike weights not supported in v1; "
-                    "use vega_weighted_smile_fit instead, for vol id: " + id);
+                    "use vega_weighted_smile_fit instead, for vol id: " +
+                    id);
             }
 
             QuantLib::Date ref = applyRollOffset(DateToQL(b->reference_date()->str()));
             QuantLib::Calendar cal = CalendarToQL(b->calendar().value());
-            QuantLib::BusinessDayConvention bdc = ConventionToQL(b->business_day_convention().value());
+            QuantLib::BusinessDayConvention bdc =
+                ConventionToQL(b->business_day_convention().value());
             QuantLib::DayCounter dc = DayCounterToQL(b->day_counter().value());
             double disp = b->displacement();
             QuantLib::VolatilityType qlType = toQlVolType(requiredVolType(b, id));
 
             if (!payload->expiries() || !payload->tenors() || !payload->strikes()) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec expiries/tenors/strikes missing for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrCalibrateSpec expiries/tenors/strikes missing for vol id: " + id);
             }
             int nExp = static_cast<int>(payload->expiries()->size());
             int nTen = static_cast<int>(payload->tenors()->size());
             int nStr = static_cast<int>(payload->strikes()->size());
             if (nExp <= 0 || nTen <= 0 || nStr <= 0) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec expiries/tenors/strikes empty for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrCalibrateSpec expiries/tenors/strikes empty for vol id: " + id);
             }
             // QuantLib's XabrSwaptionVolatilityCube QL_REQUIREs at least 2
             // option times and 2 swap lengths to construct its internal
@@ -1313,7 +1358,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             if (nExp < 2 || nTen < 2) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrCalibrateSpec requires at least 2 expiries and 2 tenors "
-                    "for QuantLib cube interpolation, for vol id: " + id);
+                    "for QuantLib cube interpolation, for vol id: " +
+                    id);
             }
             // SABR-cube needs at least 3 spread points per smile to fit 3 free
             // parameters (alpha, nu, rho) when beta is fixed, plus a 4th when
@@ -1321,9 +1367,10 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             const int minStrikes = (payload->beta_fixed() ? 3 : 4);
             if (nStr < minStrikes) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "SwaptionSabrCalibrateSpec requires at least " +
-                    std::to_string(minStrikes) + " strike spreads for the chosen beta_fixed setting "
-                    "for vol id: " + id);
+                    "SwaptionSabrCalibrateSpec requires at least " + std::to_string(minStrikes) +
+                    " strike spreads for the chosen beta_fixed setting "
+                    "for vol id: " +
+                    id);
             }
 
             std::vector<QuantLib::Period> expiries;
@@ -1337,7 +1384,9 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 tenors.push_back(toQlPeriod(*it));
             }
             if (!std::is_sorted(expiries.begin(), expiries.end())) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec expiries must be sorted ascending for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrCalibrateSpec expiries must be sorted ascending for vol id: " +
+                    id);
             }
             {
                 auto dup = std::adjacent_find(
@@ -1345,11 +1394,13 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
                 if (dup != expiries.end()) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SwaptionSabrCalibrateSpec expiries must be strictly increasing for vol id: " + id);
+                        "SwaptionSabrCalibrateSpec expiries must be strictly increasing for vol id: " +
+                        id);
                 }
             }
             if (!std::is_sorted(tenors.begin(), tenors.end())) {
-                QUANTRA_INVALID_ARGUMENT("SwaptionSabrCalibrateSpec tenors must be sorted ascending for vol id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "SwaptionSabrCalibrateSpec tenors must be sorted ascending for vol id: " + id);
             }
             {
                 auto dup = std::adjacent_find(
@@ -1357,7 +1408,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     [](const QuantLib::Period& a, const QuantLib::Period& b) { return !(a < b); });
                 if (dup != tenors.end()) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SwaptionSabrCalibrateSpec tenors must be strictly increasing for vol id: " + id);
+                        "SwaptionSabrCalibrateSpec tenors must be strictly increasing for vol id: " +
+                        id);
                 }
             }
 
@@ -1369,7 +1421,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             if (!std::is_sorted(strikeSpreads.begin(), strikeSpreads.end())) {
                 QUANTRA_INVALID_ARGUMENT(
                     "SwaptionSabrCalibrateSpec strikes (spreads from ATM) must be sorted ascending "
-                    "for vol id: " + id);
+                    "for vol id: " +
+                    id);
             }
             {
                 auto dup = std::adjacent_find(
@@ -1377,7 +1430,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                     [](double a, double b) { return !(a < b); });
                 if (dup != strikeSpreads.end()) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SwaptionSabrCalibrateSpec strikes must be strictly increasing for vol id: " + id);
+                        "SwaptionSabrCalibrateSpec strikes must be strictly increasing for vol id: " +
+                        id);
                 }
             }
             for (double s : strikeSpreads) {
@@ -1406,7 +1460,8 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
                 if (!(betaValue >= 0.0 && betaValue <= 1.0)) {
                     QUANTRA_INVALID_ARGUMENT(
                         "SwaptionSabrCalibrateSpec beta_value must be in [0, 1] when beta_fixed=true "
-                        "for vol id: " + id);
+                        "for vol id: " +
+                        id);
                 }
             }
 
@@ -1444,8 +1499,7 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
             return entry;
         }
 
-        default:
-            QUANTRA_INVALID_ARGUMENT("Unknown SwaptionVolPayload type for vol id: " + id);
+        default: QUANTRA_INVALID_ARGUMENT("Unknown SwaptionVolPayload type for vol id: " + id);
     }
 
     return SwaptionVolEntry();
@@ -1458,12 +1512,14 @@ SwaptionVolEntry parseSwaptionVol(const quantra::VolSurfaceSpec* spec, const Quo
 BlackVolEntry parseBlackVol(
     const quantra::VolSurfaceSpec* spec,
     const QuoteRegistry* quotes,
-    const std::map<std::string, std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves) {
+    const std::map<
+        std::string,
+        std::shared_ptr<QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>>>* curves) {
     if (!spec || !spec->id()) {
         QUANTRA_INVALID_ARGUMENT("VolSurfaceSpec or id is null");
     }
     std::string id = spec->id()->str();
-    
+
     auto* payload = spec->payload_as_BlackVolSpec();
     if (!payload) {
         QUANTRA_INVALID_ARGUMENT("BlackVolSpec payload missing for vol id: " + id);
@@ -1496,46 +1552,52 @@ BlackVolEntry parseBlackVol(
             if (hasExpiries || hasStrikes || hasTermVols || hasSurfaceVols || hasPriceExpiries ||
                 hasPriceStrikes || hasSurfacePrices || hasSpot || hasDiscount || hasDividend) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=Constant forbids grid/matrix/price-surface fields for vol id: " + id);
+                    "BlackVolSpec shape=Constant forbids grid/matrix/price-surface fields for vol id: " +
+                    id);
             }
             break;
         case quantra::enums::VolSurfaceShape_AtmMatrix2D:
             if (!hasExpiries || !hasTermVols) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=AtmMatrix2D requires expiries and term_vols for vol id: " + id);
+                    "BlackVolSpec shape=AtmMatrix2D requires expiries and term_vols for vol id: " +
+                    id);
             }
-            if (hasStrikes || hasSurfaceVols || hasPriceExpiries || hasPriceStrikes || hasSurfacePrices || hasSpot ||
-                hasDiscount || hasDividend) {
+            if (hasStrikes || hasSurfaceVols || hasPriceExpiries || hasPriceStrikes ||
+                hasSurfacePrices || hasSpot || hasDiscount || hasDividend) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=AtmMatrix2D forbids smile and price-surface fields for vol id: " + id);
+                    "BlackVolSpec shape=AtmMatrix2D forbids smile and price-surface fields for vol id: " +
+                    id);
             }
             break;
         case quantra::enums::VolSurfaceShape_SmileCube3D:
             if (!hasExpiries || !hasStrikes || !hasSurfaceVols) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=SmileCube3D requires expiries, strikes, and surface_vols for vol id: " + id);
+                    "BlackVolSpec shape=SmileCube3D requires expiries, strikes, and surface_vols for vol id: " +
+                    id);
             }
-            if (hasTermVols || hasPriceExpiries || hasPriceStrikes || hasSurfacePrices || hasSpot || hasDiscount ||
-                hasDividend) {
+            if (hasTermVols || hasPriceExpiries || hasPriceStrikes || hasSurfacePrices || hasSpot ||
+                hasDiscount || hasDividend) {
                 QUANTRA_INVALID_ARGUMENT(
-                    "BlackVolSpec shape=SmileCube3D forbids term and price-surface fields for vol id: " + id);
+                    "BlackVolSpec shape=SmileCube3D forbids term and price-surface fields for vol id: " +
+                    id);
             }
             break;
         case quantra::enums::VolSurfaceShape_SurfaceFromPrices:
-            if (!hasPriceExpiries || !hasPriceStrikes || !hasSurfacePrices || !hasSpot || !hasDiscount ||
-                !hasDividend) {
+            if (!hasPriceExpiries || !hasPriceStrikes || !hasSurfacePrices || !hasSpot ||
+                !hasDiscount || !hasDividend) {
                 QUANTRA_INVALID_ARGUMENT(
                     "BlackVolSpec shape=SurfaceFromPrices requires price_expiries, price_strikes, surface_prices, "
-                    "spot(spot or spot_quote_id), and discount/dividend inputs for vol id: " + id);
+                    "spot(spot or spot_quote_id), and discount/dividend inputs for vol id: " +
+                    id);
             }
             if (hasTermVols || hasSurfaceVols || hasExpiries || hasStrikes) {
                 QUANTRA_INVALID_ARGUMENT(
                     "BlackVolSpec shape=SurfaceFromPrices forbids term_vols/surface_vols/expiries/strikes "
-                    "for vol id: " + id);
+                    "for vol id: " +
+                    id);
             }
             break;
-        default:
-            QUANTRA_INVALID_ARGUMENT("Unsupported BlackVolSpec shape for vol id: " + id);
+        default: QUANTRA_INVALID_ARGUMENT("Unsupported BlackVolSpec shape for vol id: " + id);
     }
 
     auto build_equity_black_vol_surface =
@@ -1548,9 +1610,11 @@ BlackVolEntry parseBlackVol(
             }
 
             case quantra::enums::VolSurfaceShape_AtmMatrix2D: {
-                validateSupportedInterpolator(payload->expiry_interpolator(), "expiry_interpolator", id);
+                validateSupportedInterpolator(
+                    payload->expiry_interpolator(), "expiry_interpolator", id);
                 if (!payload->expiries() || payload->expiries()->size() == 0) {
-                    QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries is required for shape=AtmMatrix2D, vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.expiries is required for shape=AtmMatrix2D, vol id: " + id);
                 }
                 const int nExp = static_cast<int>(payload->expiries()->size());
                 const auto* termVols = payload->term_vols();
@@ -1565,20 +1629,24 @@ BlackVolEntry parseBlackVol(
                     QuantLib::Period p = toQlPeriod(payload->expiries()->Get(i));
                     QuantLib::Date d = cal.advance(ref, p, bdc);
                     if (d <= ref) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries must be after reference_date for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.expiries must be after reference_date for vol id: " + id);
                     }
                     if (!dates.empty() && d <= dates.back()) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
                     }
                     double v = resolveMatrixValue(termVols, i, quotes, id);
                     if (v <= 0.0) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec term vol must be > 0 for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec term vol must be > 0 for vol id: " + id);
                     }
                     dates.push_back(d);
                     vols.push_back(v);
                 }
 
-                auto qlVol = std::make_shared<QuantLib::BlackVarianceCurve>(ref, dates, vols, dc, true);
+                auto qlVol =
+                    std::make_shared<QuantLib::BlackVarianceCurve>(ref, dates, vols, dc, true);
                 return {
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(qlVol),
                     std::numeric_limits<double>::quiet_NaN()};
@@ -1587,10 +1655,12 @@ BlackVolEntry parseBlackVol(
             case quantra::enums::VolSurfaceShape_SmileCube3D: {
                 const auto surfaceInterp = resolveBlackSurfaceInterpolation(payload, id);
                 if (!payload->expiries() || payload->expiries()->size() == 0) {
-                    QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries is required for shape=SmileCube3D, vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.expiries is required for shape=SmileCube3D, vol id: " + id);
                 }
                 if (!payload->strikes() || payload->strikes()->size() == 0) {
-                    QUANTRA_INVALID_ARGUMENT("BlackVolSpec.strikes is required for shape=SmileCube3D, vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.strikes is required for shape=SmileCube3D, vol id: " + id);
                 }
                 const int nExp = static_cast<int>(payload->expiries()->size());
                 const int nStr = static_cast<int>(payload->strikes()->size());
@@ -1603,10 +1673,12 @@ BlackVolEntry parseBlackVol(
                     QuantLib::Period p = toQlPeriod(payload->expiries()->Get(i));
                     QuantLib::Date d = cal.advance(ref, p, bdc);
                     if (d <= ref) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries must be after reference_date for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.expiries must be after reference_date for vol id: " + id);
                     }
                     if (!dates.empty() && d <= dates.back()) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.expiries must be strictly increasing for vol id: " + id);
                     }
                     dates.push_back(d);
                 }
@@ -1616,7 +1688,8 @@ BlackVolEntry parseBlackVol(
                 for (int j = 0; j < nStr; ++j) {
                     strikes.push_back(payload->strikes()->Get(j));
                     if (j > 0 && !(strikes[j] > strikes[j - 1])) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.strikes must be strictly increasing for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.strikes must be strictly increasing for vol id: " + id);
                     }
                 }
 
@@ -1626,14 +1699,15 @@ BlackVolEntry parseBlackVol(
                         const int idx = i * nStr + j;
                         const double v = resolveMatrixValue(surfaceVols, idx, quotes, id);
                         if (v <= 0.0) {
-                            QUANTRA_INVALID_ARGUMENT("BlackVolSpec surface vol must be > 0 for vol id: " + id);
+                            QUANTRA_INVALID_ARGUMENT(
+                                "BlackVolSpec surface vol must be > 0 for vol id: " + id);
                         }
                         blackVolMatrix[j][i] = v;
                     }
                 }
 
-                auto qlVol =
-                    std::make_shared<QuantLib::BlackVarianceSurface>(ref, cal, dates, strikes, blackVolMatrix, dc);
+                auto qlVol = std::make_shared<QuantLib::BlackVarianceSurface>(
+                    ref, cal, dates, strikes, blackVolMatrix, dc);
                 if (surfaceInterp == SurfaceInterpolationMode::Bicubic) {
                     qlVol->setInterpolation<QuantLib::Bicubic>();
                 } else {
@@ -1648,10 +1722,14 @@ BlackVolEntry parseBlackVol(
                 const auto surfaceInterp = resolveBlackSurfaceInterpolation(payload, id);
 
                 if (!payload->price_expiries() || payload->price_expiries()->size() == 0) {
-                    QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_expiries is required for shape=SurfaceFromPrices, vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.price_expiries is required for shape=SurfaceFromPrices, vol id: " +
+                        id);
                 }
                 if (!payload->price_strikes() || payload->price_strikes()->size() == 0) {
-                    QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_strikes is required for shape=SurfaceFromPrices, vol id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "BlackVolSpec.price_strikes is required for shape=SurfaceFromPrices, vol id: " +
+                        id);
                 }
                 const int nExp = static_cast<int>(payload->price_expiries()->size());
                 const int nStr = static_cast<int>(payload->price_strikes()->size());
@@ -1663,14 +1741,20 @@ BlackVolEntry parseBlackVol(
                 for (int i = 0; i < nExp; ++i) {
                     auto* expiry = payload->price_expiries()->Get(i);
                     if (!expiry || expiry->size() == 0) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_expiries entries must be non-empty for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.price_expiries entries must be non-empty for vol id: " +
+                            id);
                     }
                     QuantLib::Date d = DateToQL(expiry->str());
                     if (d <= ref) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_expiries must be after reference_date for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.price_expiries must be after reference_date for vol id: " +
+                            id);
                     }
                     if (!dates.empty() && d <= dates.back()) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_expiries must be strictly increasing for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.price_expiries must be strictly increasing for vol id: " +
+                            id);
                     }
                     dates.push_back(d);
                 }
@@ -1680,7 +1764,9 @@ BlackVolEntry parseBlackVol(
                 for (int j = 0; j < nStr; ++j) {
                     strikes.push_back(payload->price_strikes()->Get(j));
                     if (j > 0 && !(strikes[j] > strikes[j - 1])) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.price_strikes must be strictly increasing for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.price_strikes must be strictly increasing for vol id: " +
+                            id);
                     }
                 }
 
@@ -1693,7 +1779,9 @@ BlackVolEntry parseBlackVol(
                 } else {
                     const double spotLevel = payload->spot();
                     if (!(spotLevel > 0.0)) {
-                        QUANTRA_INVALID_ARGUMENT("BlackVolSpec.spot must be > 0 when spot_quote_id is not provided for vol id: " + id);
+                        QUANTRA_INVALID_ARGUMENT(
+                            "BlackVolSpec.spot must be > 0 when spot_quote_id is not provided for vol id: " +
+                            id);
                     }
                     spot = QuantLib::Handle<QuantLib::Quote>(
                         std::make_shared<QuantLib::SimpleQuote>(spotLevel));
@@ -1713,13 +1801,16 @@ BlackVolEntry parseBlackVol(
                     if (it == curves->end()) {
                         QUANTRA_NOT_FOUND("Discount curve not found for vol id: " + id);
                     }
-                    discount = QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+                    discount =
+                        QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
                 } else if (payload->use_flat_discount_rate()) {
-                    flatDiscount = std::make_shared<QuantLib::FlatForward>(ref, payload->flat_discount_rate(), dc);
+                    flatDiscount = std::make_shared<QuantLib::FlatForward>(
+                        ref, payload->flat_discount_rate(), dc);
                     discount = QuantLib::Handle<QuantLib::YieldTermStructure>(flatDiscount);
                 } else {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SurfaceFromPrices requires discount_curve_id or use_flat_discount_rate=true for vol id: " + id);
+                        "SurfaceFromPrices requires discount_curve_id or use_flat_discount_rate=true for vol id: " +
+                        id);
                 }
 
                 if (payload->dividend_curve_id() && !payload->dividend_curve_id()->str().empty()) {
@@ -1731,21 +1822,23 @@ BlackVolEntry parseBlackVol(
                     if (it == curves->end()) {
                         QUANTRA_NOT_FOUND("Dividend curve not found for vol id: " + id);
                     }
-                    dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
+                    dividend =
+                        QuantLib::Handle<QuantLib::YieldTermStructure>(it->second->currentLink());
                 } else if (payload->use_flat_dividend_rate()) {
-                    flatDividend = std::make_shared<QuantLib::FlatForward>(ref, payload->flat_dividend_rate(), dc);
+                    flatDividend = std::make_shared<QuantLib::FlatForward>(
+                        ref, payload->flat_dividend_rate(), dc);
                     dividend = QuantLib::Handle<QuantLib::YieldTermStructure>(flatDividend);
                 } else {
                     QUANTRA_INVALID_ARGUMENT(
-                        "SurfaceFromPrices requires dividend_curve_id or use_flat_dividend_rate=true for vol id: " + id);
+                        "SurfaceFromPrices requires dividend_curve_id or use_flat_dividend_rate=true for vol id: " +
+                        id);
                 }
 
-                auto volQuote = QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(0.20));
+                auto volQuote = QuantLib::Handle<QuantLib::Quote>(
+                    std::make_shared<QuantLib::SimpleQuote>(0.20));
                 auto volTs = std::make_shared<QuantLib::BlackConstantVol>(ref, cal, volQuote, dc);
                 auto process = std::make_shared<QuantLib::BlackScholesMertonProcess>(
-                    spot,
-                    dividend,
-                    discount,
+                    spot, dividend, discount,
                     QuantLib::Handle<QuantLib::BlackVolTermStructure>(volTs));
                 const auto optionType = toQlEquityOptionType(payload->price_option_type(), id);
 
@@ -1754,16 +1847,19 @@ BlackVolEntry parseBlackVol(
                     const QuantLib::Date expiry = dates[i];
                     const double t = dc.yearFraction(ref, expiry);
                     if (t <= 0.0) {
-                        QUANTRA_ERROR("Computed non-positive option time for SurfaceFromPrices, vol id: " + id);
+                        QUANTRA_ERROR(
+                            "Computed non-positive option time for SurfaceFromPrices, vol id: " +
+                            id);
                     }
                     auto exercise = std::make_shared<QuantLib::EuropeanExercise>(expiry);
                     for (int j = 0; j < nStr; ++j) {
                         const int idx = i * nStr + j;
                         const double strike = strikes[j];
-                        const double price =
-                            resolveMatrixValueAnyType(surfacePrices, idx, quotes, id, "surface_prices");
+                        const double price = resolveMatrixValueAnyType(
+                            surfacePrices, idx, quotes, id, "surface_prices");
                         if (!(price > 0.0)) {
-                            QUANTRA_INVALID_ARGUMENT("BlackVolSpec surface price must be > 0 for vol id: " + id);
+                            QUANTRA_INVALID_ARGUMENT(
+                                "BlackVolSpec surface price must be > 0 for vol id: " + id);
                         }
                         const double dfRiskFree = discount->discount(expiry);
                         const double dfDividend = dividend->discount(expiry);
@@ -1782,42 +1878,34 @@ BlackVolEntry parseBlackVol(
                         if (price < lowerBound - tolerance || price > upperBound + tolerance) {
                             std::ostringstream msg;
                             msg << "SurfaceFromPrices price violates Black-Scholes bounds at expiry="
-                                << DateToIso(expiry)
-                                << ", strike=" << strike
-                                << ", price=" << price
-                                << ", lower=" << lowerBound
-                                << ", upper=" << upperBound
+                                << DateToIso(expiry) << ", strike=" << strike << ", price=" << price
+                                << ", lower=" << lowerBound << ", upper=" << upperBound
                                 << " for vol id: " << id;
-                            QUANTRA_INVALID_ARGUMENT(
-                                msg.str());
+                            QUANTRA_INVALID_ARGUMENT(msg.str());
                         }
 
                         auto payoff =
                             std::make_shared<QuantLib::PlainVanillaPayoff>(optionType, strike);
                         QuantLib::VanillaOption opt(payoff, exercise);
                         try {
-                            const double implied = opt.impliedVolatility(
-                                price,
-                                process,
-                                1.0e-8,
-                                500,
-                                1.0e-8,
-                                10.0);
+                            const double implied =
+                                opt.impliedVolatility(price, process, 1.0e-8, 500, 1.0e-8, 10.0);
                             if (!(implied > 0.0) || !std::isfinite(implied)) {
-                                QUANTRA_INVALID_ARGUMENT("Non-positive implied vol recovered from price grid");
+                                QUANTRA_INVALID_ARGUMENT(
+                                    "Non-positive implied vol recovered from price grid");
                             }
                             blackVolMatrix[j][i] = implied;
                         } catch (const std::exception& e) {
                             QUANTRA_INVALID_ARGUMENT(
-                                "Failed implied-vol inversion at expiry index " + std::to_string(i) +
-                                ", strike index " + std::to_string(j) +
+                                "Failed implied-vol inversion at expiry index " +
+                                std::to_string(i) + ", strike index " + std::to_string(j) +
                                 " for vol id: " + id + ": " + e.what());
                         }
                     }
                 }
 
-                auto qlVol =
-                    std::make_shared<QuantLib::BlackVarianceSurface>(ref, cal, dates, strikes, blackVolMatrix, dc);
+                auto qlVol = std::make_shared<QuantLib::BlackVarianceSurface>(
+                    ref, cal, dates, strikes, blackVolMatrix, dc);
                 if (surfaceInterp == SurfaceInterpolationMode::Bicubic) {
                     qlVol->setInterpolation<QuantLib::Bicubic>();
                 } else {
@@ -1828,8 +1916,7 @@ BlackVolEntry parseBlackVol(
                     std::numeric_limits<double>::quiet_NaN()};
             }
 
-            default:
-                QUANTRA_INVALID_ARGUMENT("Unsupported BlackVolSpec shape for vol id: " + id);
+            default: QUANTRA_INVALID_ARGUMENT("Unsupported BlackVolSpec shape for vol id: " + id);
         }
         return {};
     };
@@ -1852,8 +1939,7 @@ BlackVolEntry parseBlackVol(
     return entry;
 }
 
-SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump,
-                                      int rollDays) {
+SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBump, int rollDays) {
     if (volBump == 0.0 && rollDays == 0) {
         return base;
     }
@@ -1870,13 +1956,8 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
             double bumpedVol = base.constantVol + volBump;
             if (bumpedVol <= 0.0) bumpedVol = 1.0e-8;
             auto qlVol = std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-                ref,
-                base.calendar,
-                base.businessDayConvention,
-                bumpedVol,
-                base.dayCounter,
-                base.qlVolType,
-                base.displacement);
+                ref, base.calendar, base.businessDayConvention, bumpedVol, base.dayCounter,
+                base.qlVolType, base.displacement);
             entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
             entry.constantVol = bumpedVol;
             return entry;
@@ -1905,16 +1986,8 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
                 shifts = QuantLib::Matrix(nExp, nTen, base.displacement);
             }
             auto qlVol = std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
-                ref,
-                base.calendar,
-                base.businessDayConvention,
-                base.expiries,
-                base.tenors,
-                vols,
-                base.dayCounter,
-                false,
-                base.qlVolType,
-                shifts);
+                ref, base.calendar, base.businessDayConvention, base.expiries, base.tenors, vols,
+                base.dayCounter, false, base.qlVolType, shifts);
             entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
             entry.volsFlat = flat;
             return entry;
@@ -1939,18 +2012,9 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
             const bool hasAtm = !base.atmForwardsFlat.empty();
             if (!(needsAtm && !hasAtm)) {
                 auto qlVol = std::make_shared<SwaptionSmileCubeCustom>(
-                    ref,
-                    base.calendar,
-                    base.businessDayConvention,
-                    base.dayCounter,
-                    base.qlVolType,
-                    base.displacement,
-                    base.expiries,
-                    base.tenors,
-                    base.strikes,
-                    base.strikeKind,
-                    base.atmForwardsFlat,
-                    vols);
+                    ref, base.calendar, base.businessDayConvention, base.dayCounter, base.qlVolType,
+                    base.displacement, base.expiries, base.tenors, base.strikes, base.strikeKind,
+                    base.atmForwardsFlat, vols);
                 entry.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
             } else {
                 // Keep handle deferred; finalizeSwaptionVolEntryForPricing injects ATM and builds it.
@@ -1965,22 +2029,21 @@ SwaptionVolEntry bumpSwaptionVolEntry(const SwaptionVolEntry& base, double volBu
             if (volBump == 0.0) return base;
             // Placeholder semantics: for now we treat SABR risk as unsupported until
             // forward-aware SABR cube wiring is implemented.
-            QUANTRA_NOT_IMPLEMENTED("SABR bump semantics are placeholder-only; runtime bumping is not supported yet");
+            QUANTRA_NOT_IMPLEMENTED(
+                "SABR bump semantics are placeholder-only; runtime bumping is not supported yet");
         }
 
         case quantra::enums::SwaptionVolKind_SabrCalibrate:
             if (volBump == 0.0) return base;
             [[fallthrough]];
-        default:
-            QUANTRA_NOT_IMPLEMENTED("Vol bump not supported for this swaption vol kind");
+        default: QUANTRA_NOT_IMPLEMENTED("Vol bump not supported for this swaption vol kind");
     }
 
     return SwaptionVolEntry();
 }
 
 SwaptionVolEntry withSwaptionSmileCubeAtm(
-    const SwaptionVolEntry& base,
-    const std::vector<double>& atmForwardsFlat) {
+    const SwaptionVolEntry& base, const std::vector<double>& atmForwardsFlat) {
     if (base.volKind != quantra::enums::SwaptionVolKind_SmileCube3D) {
         return base;
     }
@@ -1997,18 +2060,9 @@ SwaptionVolEntry withSwaptionSmileCubeAtm(
 
     SwaptionVolEntry out = base;
     auto qlVol = std::make_shared<SwaptionSmileCubeCustom>(
-        base.referenceDate,
-        base.calendar,
-        base.businessDayConvention,
-        base.dayCounter,
-        base.qlVolType,
-        base.displacement,
-        base.expiries,
-        base.tenors,
-        base.strikes,
-        base.strikeKind,
-        atmForwardsFlat,
-        base.volsFlat);
+        base.referenceDate, base.calendar, base.businessDayConvention, base.dayCounter,
+        base.qlVolType, base.displacement, base.expiries, base.tenors, base.strikes,
+        base.strikeKind, atmForwardsFlat, base.volsFlat);
 
     out.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
     out.atmForwardsFlat = atmForwardsFlat;
@@ -2022,9 +2076,7 @@ namespace {
 // interpolate the two adjacent vols. Flat-extends if all spreads are positive
 // or all negative.
 double interpolateAtmVolAtSpreadZero(
-    const std::vector<double>& strikeSpreads,
-    const double* nodeVols,
-    int nStrikes) {
+    const std::vector<double>& strikeSpreads, const double* nodeVols, int nStrikes) {
     if (nStrikes <= 0) {
         QUANTRA_ERROR("SwaptionSabrCalibrateSpec internal error: empty strike grid");
     }
@@ -2138,8 +2190,8 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
         shifts = QuantLib::Matrix(nExp, nTen, base.displacement);
     }
     auto atmMatrix = std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
-        base.referenceDate, base.calendar, base.businessDayConvention,
-        base.expiries, base.tenors, atmVolMatrix, base.dayCounter, false, base.qlVolType, shifts);
+        base.referenceDate, base.calendar, base.businessDayConvention, base.expiries, base.tenors,
+        atmVolMatrix, base.dayCounter, false, base.qlVolType, shifts);
     QuantLib::Handle<QuantLib::SwaptionVolatilityStructure> atmVolHandle(atmMatrix);
 
     // Vol spreads as Handle<Quote>. Outer dim is options*tenors row-major
@@ -2155,8 +2207,9 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
             const double atm = atmVols2d[i][j];
             for (int k = 0; k < nStr; ++k) {
                 const double v = base.sabrMarketVolsFlat[(i * nTen + j) * nStr + k];
-                row.push_back(QuantLib::Handle<QuantLib::Quote>(
-                    std::make_shared<QuantLib::SimpleQuote>(v - atm)));
+                row.push_back(
+                    QuantLib::Handle<QuantLib::Quote>(
+                        std::make_shared<QuantLib::SimpleQuote>(v - atm)));
             }
             volSpreads.push_back(std::move(row));
         }
@@ -2173,17 +2226,18 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
             std::vector<QuantLib::Handle<QuantLib::Quote>> row;
             row.reserve(4);
             // alpha
-            row.push_back(QuantLib::Handle<QuantLib::Quote>(
-                std::make_shared<QuantLib::SimpleQuote>(0.04)));
+            row.push_back(
+                QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(0.04)));
             // beta
-            row.push_back(QuantLib::Handle<QuantLib::Quote>(
-                std::make_shared<QuantLib::SimpleQuote>(base.sabrBetaValue)));
+            row.push_back(
+                QuantLib::Handle<QuantLib::Quote>(
+                    std::make_shared<QuantLib::SimpleQuote>(base.sabrBetaValue)));
             // nu
-            row.push_back(QuantLib::Handle<QuantLib::Quote>(
-                std::make_shared<QuantLib::SimpleQuote>(0.4)));
+            row.push_back(
+                QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(0.4)));
             // rho
-            row.push_back(QuantLib::Handle<QuantLib::Quote>(
-                std::make_shared<QuantLib::SimpleQuote>(0.0)));
+            row.push_back(
+                QuantLib::Handle<QuantLib::Quote>(std::make_shared<QuantLib::SimpleQuote>(0.0)));
             parametersGuess.push_back(std::move(row));
         }
     }
@@ -2191,19 +2245,11 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
     std::vector<bool> isParameterFixed = {false, base.sabrBetaFixed, false, false};
 
     // Build and force calibration so sparseSabrParameters() is populated.
-    auto qlCube =
-        std::make_shared<QuantLib::SabrSwaptionVolatilityCube>(
-            atmVolHandle,
-            base.expiries,
-            base.tenors,
-            strikeSpreadsQl,
-            volSpreads,
-            swapIndexBase,
-            swapIndexBase,        // shortSwapIndexBase = swapIndexBase for v1 (single SwapIndex)
-            base.sabrVegaWeightedSmileFit,
-            parametersGuess,
-            isParameterFixed,
-            /*isAtmCalibrated=*/false);
+    auto qlCube = std::make_shared<QuantLib::SabrSwaptionVolatilityCube>(
+        atmVolHandle, base.expiries, base.tenors, strikeSpreadsQl, volSpreads, swapIndexBase,
+        swapIndexBase, // shortSwapIndexBase = swapIndexBase for v1 (single SwapIndex)
+        base.sabrVegaWeightedSmileFit, parametersGuess, isParameterFixed,
+        /*isAtmCalibrated=*/false);
     qlCube->enableExtrapolation();
 
     // Triggers per-node calibration. Throws on convergence/tolerance failure.
@@ -2230,19 +2276,18 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
         for (int j = 0; j < nTen; ++j) {
             // browse() row layout is (swapLengthIdx * optionTimes.size() + optionIdx),
             // per Cube::browse() in QL source: result[i*optionTimes_.size()+j][...].
-            const std::size_t row =
-                static_cast<std::size_t>(j) * static_cast<std::size_t>(nExp) +
-                static_cast<std::size_t>(i);
+            const std::size_t row = static_cast<std::size_t>(j) * static_cast<std::size_t>(nExp) +
+                                    static_cast<std::size_t>(i);
             const int k = i * nTen + j;
             out->alpha[k] = browsed[row][2];
-            out->beta[k]  = browsed[row][3];
+            out->beta[k] = browsed[row][3];
             // QL browse layer order (per XabrSwaptionVolatilityCube::Cube
             // setLayer calls): 0=alpha, 1=beta, 2=nu, 3=rho, 4=forward,
             // 5=rmsError, 6=maxError, 7=endCriteria. browse() emits these as
             // columns 2..9. We translate QL's internal {alpha,beta,nu,rho} to
             // our schema field order {alpha,beta,rho,nu} here.
-            out->nu[k]    = browsed[row][4];
-            out->rho[k]   = browsed[row][5];
+            out->nu[k] = browsed[row][4];
+            out->rho[k] = browsed[row][5];
             out->calibratedForwards[k] = browsed[row][6];
             out->perNodeRmse[k] = browsed[row][7];
             out->perNodeMaxError[k] = browsed[row][8];
@@ -2259,19 +2304,9 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
     // observes nothing and reproduces the calibrated smiles at each node. This is
     // built identically to the params-provided path in withSwaptionSabrParamsAtm.
     auto frozenCube = std::make_shared<SwaptionSabrParamsCube>(
-        base.referenceDate,
-        base.calendar,
-        base.businessDayConvention,
-        base.dayCounter,
-        base.qlVolType,
-        base.displacement,
-        base.expiries,
-        base.tenors,
-        out->alpha,
-        out->beta,
-        out->rho,
-        out->nu,
-        out->calibratedForwards);
+        base.referenceDate, base.calendar, base.businessDayConvention, base.dayCounter,
+        base.qlVolType, base.displacement, base.expiries, base.tenors, out->alpha, out->beta,
+        out->rho, out->nu, out->calibratedForwards);
     out->handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(frozenCube);
 
     if (cacheEnabled) {
@@ -2281,8 +2316,7 @@ SwaptionVolEntry withSwaptionSabrCalibrateAtm(
 }
 
 SwaptionVolEntry withSwaptionSabrParamsAtm(
-    const SwaptionVolEntry& base,
-    const std::vector<double>& atmForwardsFlat) {
+    const SwaptionVolEntry& base, const std::vector<double>& atmForwardsFlat) {
     if (base.volKind != quantra::enums::SwaptionVolKind_SabrParams) {
         return base;
     }
@@ -2291,7 +2325,8 @@ SwaptionVolEntry withSwaptionSabrParamsAtm(
     }
     const int expected = base.nExp * base.nTen;
     if (static_cast<int>(atmForwardsFlat.size()) != expected) {
-        QUANTRA_ERROR("ATM forward matrix size mismatch while injecting ATM forwards into SABR cube");
+        QUANTRA_ERROR(
+            "ATM forward matrix size mismatch while injecting ATM forwards into SABR cube");
     }
     if (static_cast<int>(base.sabrAlpha.size()) != expected ||
         static_cast<int>(base.sabrBeta.size()) != expected ||
@@ -2305,19 +2340,9 @@ SwaptionVolEntry withSwaptionSabrParamsAtm(
 
     SwaptionVolEntry out = base;
     auto qlVol = std::make_shared<SwaptionSabrParamsCube>(
-        base.referenceDate,
-        base.calendar,
-        base.businessDayConvention,
-        base.dayCounter,
-        base.qlVolType,
-        base.displacement,
-        base.expiries,
-        base.tenors,
-        base.sabrAlpha,
-        base.sabrBeta,
-        base.sabrRho,
-        base.sabrNu,
-        atmForwardsFlat);
+        base.referenceDate, base.calendar, base.businessDayConvention, base.dayCounter,
+        base.qlVolType, base.displacement, base.expiries, base.tenors, base.sabrAlpha,
+        base.sabrBeta, base.sabrRho, base.sabrNu, atmForwardsFlat);
 
     out.handle = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(qlVol);
     out.atmForwardsFlat = atmForwardsFlat;
@@ -2355,7 +2380,8 @@ YoYOptionletVolEntry parseYoYOptionletVol(const quantra::VolSurfaceSpec* spec) {
             "YoYOptionletVolSpec.business_day_convention is required for vol id: " + id);
     }
     if (!p->observation_lag()) {
-        QUANTRA_INVALID_ARGUMENT("YoYOptionletVolSpec.observation_lag is required for vol id: " + id);
+        QUANTRA_INVALID_ARGUMENT(
+            "YoYOptionletVolSpec.observation_lag is required for vol id: " + id);
     }
 
     YoYOptionletVolEntry entry;
@@ -2371,14 +2397,13 @@ YoYOptionletVolEntry parseYoYOptionletVol(const quantra::VolSurfaceSpec* spec) {
             entry.engineKind = YoYInflationEngineKind::Bachelier;
             break;
         default:
-            QUANTRA_INVALID_ARGUMENT(
-                "Unknown YoYInflationCapFloorEngineType for vol id: " + id);
+            QUANTRA_INVALID_ARGUMENT("Unknown YoYInflationCapFloorEngineType for vol id: " + id);
     }
     entry.dayCounter = DayCounterToQL(p->day_counter().value());
     entry.calendar = CalendarToQL(p->calendar().value());
     entry.businessDayConvention = ConventionToQL(p->business_day_convention().value());
-    entry.observationLag = requirePeriod(
-        p->observation_lag(), "ConstantYoYOptionletVolSpec.observation_lag");
+    entry.observationLag =
+        requirePeriod(p->observation_lag(), "ConstantYoYOptionletVolSpec.observation_lag");
     return entry;
 }
 

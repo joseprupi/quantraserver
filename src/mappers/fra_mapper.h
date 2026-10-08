@@ -7,11 +7,12 @@
  * FraResult back into a PriceFRAResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "fra_evaluator.h"
+
 #include "fra_response_generated.h"
 #include "price_fra_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     FraInputs toInputs(const quantra::PriceFRARequest* req) const;
 
     flatbuffers::Offset<quantra::PriceFRAResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const FraResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const FraResult& result) const;
 };
 
 } // namespace quantra

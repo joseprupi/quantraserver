@@ -17,20 +17,20 @@
  * common/enums.*.
  */
 
+#include "enums_domain.h"
+
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/date.hpp>
+#include <ql/time/dategenerationrule.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/frequency.hpp>
+#include <ql/time/period.hpp>
+
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/calendar.hpp>
-#include <ql/time/dategenerationrule.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/date.hpp>
-#include <ql/time/frequency.hpp>
-#include <ql/time/period.hpp>
-
-#include "enums_domain.h"
 
 namespace quantra {
 

@@ -11,9 +11,11 @@ namespace quantra { namespace testing {
 
 namespace {
 
-QuantLib::Leg makeIborLeg(const QuantLib::Schedule& sch,
-                          const std::shared_ptr<QuantLib::IborIndex>& idx,
-                          double notional, double spread) {
+QuantLib::Leg makeIborLeg(
+    const QuantLib::Schedule& sch,
+    const std::shared_ptr<QuantLib::IborIndex>& idx,
+    double notional,
+    double spread) {
     return QuantLib::IborLeg(sch, idx)
         .withNotionals(notional)
         .withPaymentDayCounter(QuantLib::Actual360())
@@ -24,7 +26,9 @@ QuantLib::Leg makeIborLeg(const QuantLib::Schedule& sch,
 }
 
 flatbuffers::Offset<quantra::Schedule> buildSchedule(
-    flatbuffers::grpc::MessageBuilder& b, const char* eff, const char* term,
+    flatbuffers::grpc::MessageBuilder& b,
+    const char* eff,
+    const char* term,
     quantra::enums::Frequency freq) {
     auto e = b.CreateString(eff);
     auto t = b.CreateString(term);
@@ -48,23 +52,18 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
     const double notional = 1000000.0;
 
     QuantLib::Schedule sch3m(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2030),
-        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     QuantLib::Schedule sch6m(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2030),
-        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto idx3m = std::make_shared<QuantLib::Euribor3M>(forwardHandle_);
     auto idx6m = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
     std::vector<QuantLib::Leg> legs{
-        makeIborLeg(sch3m, idx3m, notional, 0.0),
-        makeIborLeg(sch6m, idx6m, notional, 0.0)};
-    std::vector<bool> payer{true, false};  // Payer = pay leg1, receive leg2.
+        makeIborLeg(sch3m, idx3m, notional, 0.0), makeIborLeg(sch6m, idx6m, notional, 0.0)};
+    std::vector<bool> payer{true, false}; // Payer = pay leg1, receive leg2.
     auto qlSwap = std::make_shared<QuantLib::Swap>(legs, payer);
     qlSwap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountHandle_));
     const double qlNPV = qlSwap->NPV();
@@ -72,7 +71,7 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
     flatbuffers::grpc::MessageBuilder b;
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-    auto indices = buildIndicesVector(b, true);  // EUR_3M + EUR_6M
+    auto indices = buildIndicesVector(b, true); // EUR_3M + EUR_6M
     auto asof = b.CreateString("2025-01-15");
     auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves);
 
@@ -110,7 +109,8 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve_leg1(dc);
     psb.add_forwarding_curve_leg2(dc);
-    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceBasisSwap>>{psb.Finish()});
+    auto swaps =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceBasisSwap>>{psb.Finish()});
 
     quantra::PriceBasisSwapRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -119,11 +119,15 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
 
     BasisSwapPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB->GetBufferPointer())->swaps()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB->GetBufferPointer())
+                        ->swaps()
+                        ->Get(0);
 
-    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << r->npv() << " | Diff: " << std::abs(qlNPV-r->npv()) << std::endl;
+    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << r->npv()
+              << " | Diff: " << std::abs(qlNPV - r->npv()) << std::endl;
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlSwap->legNPV(0), r->leg1_npv(), 0.01);
     EXPECT_NEAR(qlSwap->legNPV(1), r->leg2_npv(), 0.01);
@@ -135,23 +139,18 @@ TEST_F(QuantraComparisonTest, BasisSwap_Receiver_SpreadLeg1) {
     const double notional = 2000000.0, spread1 = 0.0015;
 
     QuantLib::Schedule sch6m(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     QuantLib::Schedule sch3m(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto idx6m = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
     auto idx3m = std::make_shared<QuantLib::Euribor3M>(forwardHandle_);
     std::vector<QuantLib::Leg> legs{
-        makeIborLeg(sch6m, idx6m, notional, spread1),
-        makeIborLeg(sch3m, idx3m, notional, 0.0)};
-    std::vector<bool> payer{false, true};  // Receiver = receive leg1, pay leg2.
+        makeIborLeg(sch6m, idx6m, notional, spread1), makeIborLeg(sch3m, idx3m, notional, 0.0)};
+    std::vector<bool> payer{false, true}; // Receiver = receive leg1, pay leg2.
     auto qlSwap = std::make_shared<QuantLib::Swap>(legs, payer);
     qlSwap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountHandle_));
     const double qlNPV = qlSwap->NPV();
@@ -197,7 +196,8 @@ TEST_F(QuantraComparisonTest, BasisSwap_Receiver_SpreadLeg1) {
     psb.add_discounting_curve(dc);
     psb.add_forwarding_curve_leg1(dc);
     psb.add_forwarding_curve_leg2(dc);
-    auto swaps = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceBasisSwap>>{psb.Finish()});
+    auto swaps =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceBasisSwap>>{psb.Finish()});
 
     quantra::PriceBasisSwapRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -206,9 +206,12 @@ TEST_F(QuantraComparisonTest, BasisSwap_Receiver_SpreadLeg1) {
 
     BasisSwapPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceBasisSwapRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB->GetBufferPointer())->swaps()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceBasisSwapResponse>(respB->GetBufferPointer())
+                        ->swaps()
+                        ->Get(0);
 
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlSwap->legNPV(0), r->leg1_npv(), 0.01);

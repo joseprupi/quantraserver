@@ -11,26 +11,31 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     std::cout << "\n=== CDS ===" << std::endl;
     double notional = 10000000.0, spread = 0.01, recovery = 0.40, hazard = 0.02;
     QuantLib::Date start = evaluationDate_, end = start + QuantLib::Period(5, QuantLib::Years);
-    
-    QuantLib::Schedule sch(start, end, QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(),
-        QuantLib::Following, QuantLib::Unadjusted, QuantLib::DateGeneration::TwentiethIMM, false);
-    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(QuantLib::Protection::Buyer,
-        notional, spread, sch, QuantLib::Following, QuantLib::Actual360());
-    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(evaluationDate_, hazard, QuantLib::Actual365Fixed());
-    qlCDS->setPricingEngine(std::make_shared<QuantLib::MidPointCdsEngine>(
-        QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), recovery, discountHandle_));
+
+    QuantLib::Schedule sch(
+        start, end, QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(), QuantLib::Following,
+        QuantLib::Unadjusted, QuantLib::DateGeneration::TwentiethIMM, false);
+    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(
+        QuantLib::Protection::Buyer, notional, spread, sch, QuantLib::Following,
+        QuantLib::Actual360());
+    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(
+        evaluationDate_, hazard, QuantLib::Actual365Fixed());
+    qlCDS->setPricingEngine(
+        std::make_shared<QuantLib::MidPointCdsEngine>(
+            QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), recovery,
+            discountHandle_));
     double qlNPV = qlCDS->NPV();
     double qlFair = qlCDS->fairSpread();
 
     flatbuffers::grpc::MessageBuilder b;
-    
+
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-    auto indices = buildIndicesVector(b);  // needed by SwapHelpers in the curve
+    auto indices = buildIndicesVector(b); // needed by SwapHelpers in the curve
     auto asof = b.CreateString("2025-01-15");
     auto credit_id = b.CreateString("credit");
     auto discount_id = b.CreateString("discount");
-    
+
     quantra::CdsHelperConventionsBuilder hcb(b);
     hcb.add_settlement_days(0);
     hcb.add_frequency(quantra::enums::Frequency_Quarterly);
@@ -55,7 +60,8 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     ccb.add_quotes(empty_quotes);
     ccb.add_flat_hazard_rate(hazard);
     auto cc = ccb.Finish();
-    auto credit_curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
+    auto credit_curves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
 
     quantra::CdsModelSpecBuilder cmsb(b);
     cmsb.add_engine_type(quantra::enums::CdsEngineType_MidPoint);
@@ -65,10 +71,11 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     msb.add_id(model_id);
     msb.add_payload_type(quantra::ModelPayload_CdsModelSpec);
     msb.add_payload(cds_payload.Union());
-    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
+    auto models =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
 
     auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, credit_curves, 0, models);
-    
+
     auto eff = b.CreateString("2025-01-15");
     auto term = b.CreateString("2030-01-15");
     quantra::ScheduleBuilder sb(b);
@@ -81,7 +88,7 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_TwentiethIMM);
     sb.add_end_of_month(false);
     auto schedule = sb.Finish();
-    
+
     quantra::CDSBuilder cdsb(b);
     cdsb.add_side(quantra::enums::ProtectionSide_Buyer);
     cdsb.add_notional(notional);
@@ -103,24 +110,29 @@ TEST_F(QuantraComparisonTest, CDS_NPVMatches) {
     pcdsb.add_credit_curve_id(credit_id);
     pcdsb.add_model(model_id);
     auto pcdsbOff = pcdsb.Finish();
-    
+
     auto cdss = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceCDS>>{pcdsbOff});
-    
+
     quantra::PriceCDSRequestBuilder rb(b);
     rb.add_pricing(pricing);
     rb.add_cds_list(cdss);
     b.Finish(rb.Finish());
-    
+
     CDSPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
+    auto resp =
+        req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
+    auto r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())
+                 ->cds_list()
+                 ->Get(0);
     double qNPV = r->npv();
     double qFair = r->fair_spread().value();
 
-    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
-    std::cout << "QuantLib Fair: " << qlFair*10000 << "bps | Quantra: " << qFair*10000 << "bps" << std::endl;
+    std::cout << "QuantLib NPV: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
+    std::cout << "QuantLib Fair: " << qlFair * 10000 << "bps | Quantra: " << qFair * 10000 << "bps"
+              << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_NEAR(qlFair, qFair, 1e-6);
 }
@@ -148,18 +160,27 @@ struct CdsCase {
 // Seller side (sign flip vs the Buyer base case), wider running coupon and a
 // higher hazard rate.
 TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
-    const CdsCase c{quantra::enums::ProtectionSide_Seller, QuantLib::Protection::Seller,
-                    10000000.0, 0.015, 0.40, 0.03,
-                    quantra::enums::Frequency_Quarterly, QuantLib::Quarterly};
+    const CdsCase c{quantra::enums::ProtectionSide_Seller,
+                    QuantLib::Protection::Seller,
+                    10000000.0,
+                    0.015,
+                    0.40,
+                    0.03,
+                    quantra::enums::Frequency_Quarterly,
+                    QuantLib::Quarterly};
 
-    QuantLib::Schedule sch(evaluationDate_, evaluationDate_ + QuantLib::Period(5, QuantLib::Years),
-        QuantLib::Period(c.qlFreq), QuantLib::TARGET(),
-        QuantLib::Following, QuantLib::Unadjusted, QuantLib::DateGeneration::TwentiethIMM, false);
-    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(c.qlSide,
-        c.notional, c.runningCoupon, sch, QuantLib::Following, QuantLib::Actual360());
-    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(evaluationDate_, c.hazard, QuantLib::Actual365Fixed());
-    qlCDS->setPricingEngine(std::make_shared<QuantLib::MidPointCdsEngine>(
-        QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), c.recovery, discountHandle_));
+    QuantLib::Schedule sch(
+        evaluationDate_, evaluationDate_ + QuantLib::Period(5, QuantLib::Years),
+        QuantLib::Period(c.qlFreq), QuantLib::TARGET(), QuantLib::Following, QuantLib::Unadjusted,
+        QuantLib::DateGeneration::TwentiethIMM, false);
+    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(
+        c.qlSide, c.notional, c.runningCoupon, sch, QuantLib::Following, QuantLib::Actual360());
+    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(
+        evaluationDate_, c.hazard, QuantLib::Actual365Fixed());
+    qlCDS->setPricingEngine(
+        std::make_shared<QuantLib::MidPointCdsEngine>(
+            QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), c.recovery,
+            discountHandle_));
     const double qlNPV = qlCDS->NPV();
     const double qlFair = qlCDS->fairSpread();
 
@@ -194,7 +215,8 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
     ccb.add_quotes(empty_quotes);
     ccb.add_flat_hazard_rate(c.hazard);
     auto cc = ccb.Finish();
-    auto credit_curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
+    auto credit_curves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
 
     quantra::CdsModelSpecBuilder cmsb(b);
     cmsb.add_engine_type(quantra::enums::CdsEngineType_MidPoint);
@@ -204,7 +226,8 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
     msb.add_id(model_id);
     msb.add_payload_type(quantra::ModelPayload_CdsModelSpec);
     msb.add_payload(cds_payload.Union());
-    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
+    auto models =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
 
     auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, credit_curves, 0, models);
 
@@ -250,9 +273,12 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
 
     CDSPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
+    auto resp =
+        req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())
+                        ->cds_list()
+                        ->Get(0);
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlFair, r->fair_spread().value(), 1e-6);
 }
@@ -260,18 +286,27 @@ TEST_F(QuantraComparisonTest, CDS_Seller_NPVMatches) {
 // Buyer, semiannual premium schedule and a low recovery (0.25) — different
 // premium frequency and recovery from the base/seller cases.
 TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
-    const CdsCase c{quantra::enums::ProtectionSide_Buyer, QuantLib::Protection::Buyer,
-                    5000000.0, 0.012, 0.25, 0.025,
-                    quantra::enums::Frequency_Semiannual, QuantLib::Semiannual};
+    const CdsCase c{quantra::enums::ProtectionSide_Buyer,
+                    QuantLib::Protection::Buyer,
+                    5000000.0,
+                    0.012,
+                    0.25,
+                    0.025,
+                    quantra::enums::Frequency_Semiannual,
+                    QuantLib::Semiannual};
 
-    QuantLib::Schedule sch(evaluationDate_, evaluationDate_ + QuantLib::Period(5, QuantLib::Years),
-        QuantLib::Period(c.qlFreq), QuantLib::TARGET(),
-        QuantLib::Following, QuantLib::Unadjusted, QuantLib::DateGeneration::TwentiethIMM, false);
-    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(c.qlSide,
-        c.notional, c.runningCoupon, sch, QuantLib::Following, QuantLib::Actual360());
-    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(evaluationDate_, c.hazard, QuantLib::Actual365Fixed());
-    qlCDS->setPricingEngine(std::make_shared<QuantLib::MidPointCdsEngine>(
-        QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), c.recovery, discountHandle_));
+    QuantLib::Schedule sch(
+        evaluationDate_, evaluationDate_ + QuantLib::Period(5, QuantLib::Years),
+        QuantLib::Period(c.qlFreq), QuantLib::TARGET(), QuantLib::Following, QuantLib::Unadjusted,
+        QuantLib::DateGeneration::TwentiethIMM, false);
+    auto qlCDS = std::make_shared<QuantLib::CreditDefaultSwap>(
+        c.qlSide, c.notional, c.runningCoupon, sch, QuantLib::Following, QuantLib::Actual360());
+    auto defCurve = std::make_shared<QuantLib::FlatHazardRate>(
+        evaluationDate_, c.hazard, QuantLib::Actual365Fixed());
+    qlCDS->setPricingEngine(
+        std::make_shared<QuantLib::MidPointCdsEngine>(
+            QuantLib::Handle<QuantLib::DefaultProbabilityTermStructure>(defCurve), c.recovery,
+            discountHandle_));
     const double qlNPV = qlCDS->NPV();
     const double qlFair = qlCDS->fairSpread();
 
@@ -306,7 +341,8 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
     ccb.add_quotes(empty_quotes);
     ccb.add_flat_hazard_rate(c.hazard);
     auto cc = ccb.Finish();
-    auto credit_curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
+    auto credit_curves =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::CreditCurveSpec>>{cc});
 
     quantra::CdsModelSpecBuilder cmsb(b);
     cmsb.add_engine_type(quantra::enums::CdsEngineType_MidPoint);
@@ -316,7 +352,8 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
     msb.add_id(model_id);
     msb.add_payload_type(quantra::ModelPayload_CdsModelSpec);
     msb.add_payload(cds_payload.Union());
-    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
+    auto models =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{msb.Finish()});
 
     auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, credit_curves, 0, models);
 
@@ -362,9 +399,12 @@ TEST_F(QuantraComparisonTest, CDS_Semiannual_LowRecovery) {
 
     CDSPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
+    auto resp =
+        req.request(respB, flatbuffers::GetRoot<quantra::PriceCDSRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())->cds_list()->Get(0);
+    const auto* r = flatbuffers::GetRoot<quantra::PriceCDSResponse>(respB->GetBufferPointer())
+                        ->cds_list()
+                        ->Get(0);
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlFair, r->fair_spread().value(), 1e-6);
 }

@@ -22,6 +22,11 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace quantraserver:test \
 It passes only when it exits 0 and the summary reports no failed suites. See
 `docs/testing.md` for what each suite covers.
 
+## Formatting
+C++ style is pinned in `.clang-format` (clang-format 23.x, e.g.
+`pip install clang-format==23.1.3`). Run `scripts/format.sh` before committing
+(`scripts/format.sh --check` to verify); generated and vendored code is excluded.
+
 ## Pull Requests
 - Keep PRs focused and small.
 - Ensure the gate above and CI pass before merge.

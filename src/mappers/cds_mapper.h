@@ -6,11 +6,12 @@
  * into plain CdsInputs and serializes a CdsResult back into a PriceCDSResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "cds_evaluator.h"
+
 #include "cds_response_generated.h"
 #include "price_cds_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -19,8 +20,7 @@ public:
     CdsInputs toInputs(const quantra::PriceCDSRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceCDSResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const CdsResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const CdsResult& result) const;
 };
 
 } // namespace quantra

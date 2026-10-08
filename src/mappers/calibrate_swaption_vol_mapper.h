@@ -10,22 +10,21 @@
  * from the finalized entry via the shared diagnostics builder.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "calibrate_swaption_vol_evaluator.h"
+
 #include "calibrate_swaption_vol_request_generated.h"
 #include "calibrate_swaption_vol_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class CalibrateSwaptionVolMapper {
 public:
-    CalibrateSwaptionVolInputs toInputs(
-        const quantra::CalibrateSwaptionVolRequest* req) const;
+    CalibrateSwaptionVolInputs toInputs(const quantra::CalibrateSwaptionVolRequest* req) const;
 
     flatbuffers::Offset<quantra::CalibrateSwaptionVolResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const CalibrateSwaptionVolResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const CalibrateSwaptionVolResult& result) const;
 };
 
 } // namespace quantra

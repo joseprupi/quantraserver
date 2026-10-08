@@ -19,17 +19,19 @@
  * `price | rate | quote_id` "exactly one of" rule. Those keep their own guards.
  */
 
+#include "enum_convert.h"
+#include "error.h"
+
+#include "common_generated.h"
+
+#include <ql/time/period.hpp>
+
+#include "flatbuffers/flatbuffers.h"
+
 #include <cmath>
 #include <cstddef>
 #include <string>
 #include <vector>
-
-#include "flatbuffers/flatbuffers.h"
-#include <ql/time/period.hpp>
-
-#include "common_generated.h"
-#include "enum_convert.h"
-#include "error.h"
 
 namespace quantra {
 
@@ -77,8 +79,7 @@ inline double requirePositive(flatbuffers::Optional<double> v, const std::string
  * `field:enums.Foo = null` so an omission is a named 400 rather than the silent
  * alphabetical-0 value. One template serves every enum type.
  */
-template <typename T>
-inline T requireEnum(flatbuffers::Optional<T> v, const std::string& name) {
+template <typename T> inline T requireEnum(flatbuffers::Optional<T> v, const std::string& name) {
     if (!v.has_value()) {
         QUANTRA_INVALID_ARGUMENT(name + " is required");
     }
@@ -103,8 +104,7 @@ inline int requireInt(flatbuffers::Optional<int> v, const std::string& name) {
  * `Natural` parameters, where a negative value would silently wrap into a huge
  * unsigned day count.
  */
-inline int requireNonNegativeInt(flatbuffers::Optional<int> v,
-                                 const std::string& name) {
+inline int requireNonNegativeInt(flatbuffers::Optional<int> v, const std::string& name) {
     if (!v.has_value()) {
         QUANTRA_INVALID_ARGUMENT(name + " is required");
     }
@@ -148,8 +148,7 @@ inline bool requireBool(flatbuffers::Optional<bool> v, const std::string& name) 
  * Period. A bare `n` would default to 0 and an omitted `unit` to Months, so a
  * forgotten value becomes a named 400 instead of a bogus (0 Months) tenor.
  */
-inline QuantLib::Period requirePeriod(const quantra::Period* p,
-                                      const std::string& name) {
+inline QuantLib::Period requirePeriod(const quantra::Period* p, const std::string& name) {
     if (p == nullptr) {
         QUANTRA_INVALID_ARGUMENT(name + " is required");
     }
@@ -176,10 +175,11 @@ inline QuantLib::Period requirePeriod(const quantra::Period* p,
  * throws QuantraInvalidArgument (HTTP 400) naming the owning table via
  * `context` (e.g. "SwapFixedLeg", "FixedRateBond").
  */
-inline bool parseOptionalNotionals(const flatbuffers::Vector<double>* fb,
-                                   std::size_t periods,
-                                   const std::string& context,
-                                   std::vector<double>& out) {
+inline bool parseOptionalNotionals(
+    const flatbuffers::Vector<double>* fb,
+    std::size_t periods,
+    const std::string& context,
+    std::vector<double>& out) {
     out.clear();
     if (fb == nullptr) {
         return false;
@@ -208,8 +208,8 @@ inline bool parseOptionalNotionals(const flatbuffers::Vector<double>* fb,
  * amortizing/step-up notionals. `context` describes that path for the 400
  * (e.g. "OisSwap fixed leg"). A null pointer (absent field) is a no-op.
  */
-inline void rejectUnsupportedNotionals(const flatbuffers::Vector<double>* fb,
-                                       const std::string& context) {
+inline void rejectUnsupportedNotionals(
+    const flatbuffers::Vector<double>* fb, const std::string& context) {
     if (fb != nullptr) {
         QUANTRA_INVALID_ARGUMENT(context + " does not support amortizing notionals yet");
     }

@@ -13,16 +13,16 @@
  * reg.volatility.optionletVols, reg.volatility.modelDomains).
  */
 
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/instruments/capfloor.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -79,9 +79,8 @@ struct CapFloorResult {
 
 class CapFloorEvaluator {
 public:
-    CapFloorResult evaluate(const CapFloorInputs& inputs,
-                         const PricingRegistry& reg,
-                         const PricingContext& ctx) const;
+    CapFloorResult evaluate(
+        const CapFloorInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const;
 };
 
 } // namespace quantra

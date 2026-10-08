@@ -1,13 +1,14 @@
 #ifndef QUANTRA_SWAPTION_VOL_DIAGNOSTICS_H
 #define QUANTRA_SWAPTION_VOL_DIAGNOSTICS_H
 
-#include <string>
-#include <vector>
+#include "vol_surface_parsers.h"
+
+#include "diagnostics_generated.h"
 
 #include <flatbuffers/flatbuffers.h>
 
-#include "diagnostics_generated.h"
-#include "vol_surface_parsers.h"
+#include <string>
+#include <vector>
 
 namespace quantra {
 

@@ -1,22 +1,21 @@
 #include "zero_coupon_swap_evaluator.h"
 
-#include <memory>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <memory>
 
 namespace quantra {
 
 namespace {
 
-ZeroCouponSwapPerSwap priceTrade(const ZeroCouponSwapTrade& trade,
-                                 const PricingRegistry& reg,
-                                 const PricingContext& ctx) {
+ZeroCouponSwapPerSwap priceTrade(
+    const ZeroCouponSwapTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     (void)ctx;
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
@@ -36,32 +35,18 @@ ZeroCouponSwapPerSwap priceTrade(const ZeroCouponSwapTrade& trade,
     // IndexRegistry::getIborWithCurve downcasts the registry entry to IborIndex
     // and raises if the requested index is not an IborIndex.
     auto iborIndex = reg.rates.indices.getIborWithCurve(
-        trade.indexId,
-        QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
+        trade.indexId, QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
 
     std::shared_ptr<QuantLib::ZeroCouponSwap> swap;
     if (trade.hasFixedRate) {
         swap = std::make_shared<QuantLib::ZeroCouponSwap>(
-            trade.swapType,
-            trade.baseNominal,
-            trade.startDate,
-            trade.maturityDate,
-            trade.fixedRate,
-            trade.fixedRateDc,
-            iborIndex,
-            trade.paymentCalendar,
-            trade.paymentConvention,
+            trade.swapType, trade.baseNominal, trade.startDate, trade.maturityDate, trade.fixedRate,
+            trade.fixedRateDc, iborIndex, trade.paymentCalendar, trade.paymentConvention,
             static_cast<QuantLib::Natural>(trade.paymentDelay));
     } else {
         swap = std::make_shared<QuantLib::ZeroCouponSwap>(
-            trade.swapType,
-            trade.baseNominal,
-            trade.startDate,
-            trade.maturityDate,
-            trade.fixedPayment,
-            iborIndex,
-            trade.paymentCalendar,
-            trade.paymentConvention,
+            trade.swapType, trade.baseNominal, trade.startDate, trade.maturityDate,
+            trade.fixedPayment, iborIndex, trade.paymentCalendar, trade.paymentConvention,
             static_cast<QuantLib::Natural>(trade.paymentDelay));
     }
 
@@ -92,7 +77,7 @@ ZeroCouponSwapResult ZeroCouponSwapEvaluator::evaluate(
     ZeroCouponSwapResult result;
     result.swaps.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         result.swaps.push_back(priceTrade(trade, reg, ctx));
     }
     return result;

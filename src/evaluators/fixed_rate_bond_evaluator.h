@@ -10,19 +10,19 @@
  * fixed_rate_bond_mapper.{h,cpp}.
  */
 
+#include "pricing_context.h"
+#include "pricing_registry.h"
+
+#include <ql/compounding.hpp>
+#include <ql/instruments/bond.hpp>
+#include <ql/instruments/bonds/fixedratebond.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/frequency.hpp>
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <ql/instruments/bond.hpp>
-#include <ql/instruments/bonds/fixedratebond.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/compounding.hpp>
-#include <ql/time/frequency.hpp>
-
-#include "pricing_registry.h"
-#include "pricing_context.h"
 
 namespace quantra {
 
@@ -52,9 +52,9 @@ struct FixedRateBondFlowPlain {
     enum class Kind { Interest, PastInterest, Notional };
     Kind kind = Kind::Interest;
     double amount = 0.0;
-    double rate = 0.0;          // interest / past-interest only
-    double discount = 0.0;      // interest / notional only (zero for past)
-    double price = 0.0;         // amount * discount; zero for past
+    double rate = 0.0;            // interest / past-interest only
+    double discount = 0.0;        // interest / notional only (zero for past)
+    double price = 0.0;           // amount * discount; zero for past
     std::string accrualStartDate; // ISO yyyy-mm-dd, interest / past
     std::string accrualEndDate;   // ISO yyyy-mm-dd, interest / past
     std::string paymentDate;      // ISO yyyy-mm-dd, notional
@@ -82,9 +82,10 @@ struct FixedRateBondResult {
 
 class FixedRateBondEvaluator {
 public:
-    FixedRateBondResult evaluate(const FixedRateBondInputs& inputs,
-                              const PricingRegistry& reg,
-                              const PricingContext& ctx) const;
+    FixedRateBondResult evaluate(
+        const FixedRateBondInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

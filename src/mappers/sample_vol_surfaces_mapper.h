@@ -12,11 +12,12 @@
  * per-query VolSurfaceSample list (HTTP 200) rather than a whole-batch error.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "sample_vol_surfaces_evaluator.h"
+
 #include "sample_vol_surfaces_request_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -25,16 +26,14 @@ public:
     SampleVolSurfacesInputs toInputs(const quantra::SampleVolSurfacesRequest* req) const;
 
     flatbuffers::Offset<quantra::SampleVolSurfacesResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const SampleVolSurfacesResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const SampleVolSurfacesResult& result) const;
 
     /// Registry-build-failure hook used by the generic ProductEndpoint glue.
     /// Folds the build-error message into each query's per-item error field so
     /// the pricer reports it as a per-query VolSurfaceSample Error entry (HTTP
     /// 200 list) rather than letting the failure surface as a transport-level
     /// error.
-    void onRegistryBuildError(SampleVolSurfacesInputs& inputs,
-                              const std::string& message) const;
+    void onRegistryBuildError(SampleVolSurfacesInputs& inputs, const std::string& message) const;
 };
 
 } // namespace quantra

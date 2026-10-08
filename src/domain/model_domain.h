@@ -16,15 +16,15 @@
  * used directly.
  */
 
+#include "enums_domain.h"
+
+#include <ql/time/period.hpp>
+
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
-
-#include <ql/time/period.hpp>
-
-#include "enums_domain.h"
 
 namespace quantra {
 
@@ -72,11 +72,8 @@ struct EquityVanillaModelDomain {
     int binomial_steps = 500;
 };
 
-using ModelPayloadDomain = std::variant<
-    CapFloorModelDomain,
-    SwaptionModelDomain,
-    CdsModelDomain,
-    EquityVanillaModelDomain>;
+using ModelPayloadDomain = std::
+    variant<CapFloorModelDomain, SwaptionModelDomain, CdsModelDomain, EquityVanillaModelDomain>;
 
 struct ModelDomain {
     std::string id;

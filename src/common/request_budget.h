@@ -1,10 +1,10 @@
 #ifndef QUANTRA_REQUEST_BUDGET_H
 #define QUANTRA_REQUEST_BUDGET_H
 
+#include "error.h"
+
 #include <algorithm>
 #include <chrono>
-
-#include "error.h"
 
 namespace quantra {
 
@@ -27,16 +27,14 @@ namespace quantra {
  * so every code path that does not thread a real budget stays byte-identical.
  */
 struct RequestBudget {
-    std::chrono::system_clock::time_point deadline{
-        std::chrono::system_clock::time_point::max()};
+    std::chrono::system_clock::time_point deadline{std::chrono::system_clock::time_point::max()};
 
     /// Throws QuantraDeadlineExceeded when the deadline has elapsed. Uses the
     /// same deadline-elapsed primitive as the transport front gate — NEVER
     /// ctx_.IsCancelled(), which is undefined on the raw async-CQ server.
     void check() const {
         if (std::chrono::system_clock::now() >= deadline) {
-            QUANTRA_DEADLINE_EXCEEDED(
-                "request deadline exceeded during computation");
+            QUANTRA_DEADLINE_EXCEEDED("request deadline exceeded during computation");
         }
     }
 

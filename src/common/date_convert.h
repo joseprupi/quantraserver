@@ -1,5 +1,6 @@
-#include <ql/quantlib.hpp>
 #include "error.h"
+
+#include <ql/quantlib.hpp>
 
 #ifndef DATE_CONVERT_H
 #define DATE_CONVERT_H

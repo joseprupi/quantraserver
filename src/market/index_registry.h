@@ -1,16 +1,16 @@
 #ifndef QUANTRASERVER_INDEX_REGISTRY_H
 #define QUANTRASERVER_INDEX_REGISTRY_H
 
-#include <string>
-#include <unordered_map>
-#include <memory>
+#include "error.h"
 
-#include <ql/indexes/iborindex.hpp>
-#include <ql/indexes/ibor/all.hpp>
 #include <ql/handle.hpp>
+#include <ql/indexes/ibor/all.hpp>
+#include <ql/indexes/iborindex.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "error.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 namespace quantra {
 
@@ -33,9 +33,7 @@ public:
         indices_[id] = idx;
     }
 
-    bool has(const std::string& id) const {
-        return indices_.find(id) != indices_.end();
-    }
+    bool has(const std::string& id) const { return indices_.find(id) != indices_.end(); }
 
     /// Get as base InterestRateIndex
     std::shared_ptr<QuantLib::InterestRateIndex> get(const std::string& id) const {
@@ -69,8 +67,7 @@ public:
     /// Get IborIndex cloned with a specific forwarding curve
     std::shared_ptr<QuantLib::IborIndex> getIborWithCurve(
         const std::string& id,
-        const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding
-    ) const {
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) const {
         auto ibor = getIbor(id);
         if (forwarding.empty()) return ibor;
         return ibor->clone(forwarding);
@@ -79,8 +76,7 @@ public:
     /// Get OvernightIndex cloned with a specific forwarding curve
     std::shared_ptr<QuantLib::OvernightIndex> getOvernightWithCurve(
         const std::string& id,
-        const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding
-    ) const {
+        const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) const {
         auto on = getOvernight(id);
         if (forwarding.empty()) return on;
         // OvernightIndex::clone returns IborIndex, need to cast
@@ -89,13 +85,8 @@ public:
         if (!result) {
             // Fallback: reconstruct manually
             result = std::make_shared<QuantLib::OvernightIndex>(
-                on->familyName(),
-                on->fixingDays(),
-                on->currency(),
-                on->fixingCalendar(),
-                on->dayCounter(),
-                forwarding
-            );
+                on->familyName(), on->fixingDays(), on->currency(), on->fixingCalendar(),
+                on->dayCounter(), forwarding);
         }
         return result;
     }

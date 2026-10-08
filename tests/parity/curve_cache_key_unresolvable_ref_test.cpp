@@ -19,34 +19,27 @@
 // degrades by skipping the cache for that curve (no L1/L2 get or put,
 // bootstrap live, request still proceeds) — the parser then reports the real
 // error to the client.
-#include <gtest/gtest.h>
-
 #include "curve_cache_key.h"
 #include "error.h"
 
-namespace quantra {
-namespace testing {
-namespace {
+#include <gtest/gtest.h>
+
+namespace quantra { namespace testing { namespace {
 
 // Curve with a single DepositHelper carrying the given inline rate and an
 // optional quote_id reference.
 const quantra::TermStructure* buildDepositCurve(
-    flatbuffers::FlatBufferBuilder& fbb, double rate, const char* quoteId)
-{
+    flatbuffers::FlatBufferBuilder& fbb, double rate, const char* quoteId) {
     auto helper = quantra::CreateDepositHelperDirect(
-        fbb, rate, /*tenor=*/0, /*fixing_days=*/2,
-        quantra::enums::Calendar_TARGET,
+        fbb, rate, /*tenor=*/0, /*fixing_days=*/2, quantra::enums::Calendar_TARGET,
         quantra::enums::BusinessDayConvention_ModifiedFollowing,
         quantra::enums::DayCounter_Actual360, quoteId);
-    auto pw = quantra::CreatePointsWrapper(
-        fbb, quantra::Point_DepositHelper, helper.Union());
+    auto pw = quantra::CreatePointsWrapper(fbb, quantra::Point_DepositHelper, helper.Union());
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-quote-ref",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-quote-ref", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     fbb.Finish(ts);
     return flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
 }
@@ -54,25 +47,18 @@ const quantra::TermStructure* buildDepositCurve(
 // Curve with a single SwapHelper whose float leg references the given index
 // id.
 const quantra::TermStructure* buildSwapCurve(
-    flatbuffers::FlatBufferBuilder& fbb, const char* indexId)
-{
+    flatbuffers::FlatBufferBuilder& fbb, const char* indexId) {
     auto idx = quantra::CreateIndexRefDirect(fbb, indexId);
     auto helper = quantra::CreateSwapHelperDirect(
-        fbb, /*rate=*/0.02, /*tenor=*/0,
-        quantra::enums::Calendar_TARGET,
-        quantra::enums::Frequency_Annual,
-        quantra::enums::BusinessDayConvention_ModifiedFollowing,
-        quantra::enums::DayCounter_Actual360,
-        idx);
-    auto pw = quantra::CreatePointsWrapper(
-        fbb, quantra::Point_SwapHelper, helper.Union());
+        fbb, /*rate=*/0.02, /*tenor=*/0, quantra::enums::Calendar_TARGET,
+        quantra::enums::Frequency_Annual, quantra::enums::BusinessDayConvention_ModifiedFollowing,
+        quantra::enums::DayCounter_Actual360, idx);
+    auto pw = quantra::CreatePointsWrapper(fbb, quantra::Point_SwapHelper, helper.Union());
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-index-ref",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-index-ref", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     fbb.Finish(ts);
     return flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
 }
@@ -85,9 +71,8 @@ TEST(CurveCacheKeyUnresolvableRef, UnknownQuoteIdFailsClosed) {
     flatbuffers::FlatBufferBuilder fbb;
     const auto* ts = buildDepositCurve(fbb, 0.0096, "no-such-quote");
 
-    KeyContext ctx;  // empty: the id resolves to nothing
-    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}),
-                 QuantraError);
+    KeyContext ctx; // empty: the id resolves to nothing
+    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}), QuantraError);
 }
 
 // Same shape, but the quote resolves — key building must succeed, and the
@@ -125,9 +110,8 @@ TEST(CurveCacheKeyUnresolvableRef, MissingIndexDefinitionFailsClosed) {
     flatbuffers::FlatBufferBuilder fbb;
     const auto* ts = buildSwapCurve(fbb, "no-such-index");
 
-    KeyContext ctx;  // empty: the index id resolves to nothing
-    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}),
-                 QuantraError);
+    KeyContext ctx; // empty: the index id resolves to nothing
+    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts, ctx, {}), QuantraError);
 }
 
 // Same shape, but the index definition exists — key building must succeed.
@@ -137,8 +121,7 @@ TEST(CurveCacheKeyUnresolvableRef, DefinedIndexStillKeyable) {
 
     auto def = quantra::CreateIndexDefDirect(idxFbb, "euribor-6m", "Euribor6M");
     idxFbb.Finish(def);
-    const auto* defRoot =
-        flatbuffers::GetRoot<quantra::IndexDef>(idxFbb.GetBufferPointer());
+    const auto* defRoot = flatbuffers::GetRoot<quantra::IndexDef>(idxFbb.GetBufferPointer());
 
     KeyContext ctx;
     ctx.indexDefs["euribor-6m"] = defRoot;
@@ -147,6 +130,4 @@ TEST(CurveCacheKeyUnresolvableRef, DefinedIndexStillKeyable) {
     EXPECT_EQ(key.rfind("yc:v3:", 0), 0u);
 }
 
-} // namespace
-} // namespace testing
-} // namespace quantra
+}}} // namespace quantra::testing

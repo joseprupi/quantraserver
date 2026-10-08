@@ -21,14 +21,14 @@
  * clamped tree_steps.
  */
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/experimental/callablebonds/callablebond.hpp>
 
-#include "pricing_registry.h"
-#include "pricing_context.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -68,9 +68,10 @@ struct CallableFixedRateBondResult {
 
 class CallableFixedRateBondEvaluator {
 public:
-    CallableFixedRateBondResult evaluate(const CallableFixedRateBondInputs& inputs,
-                                         const PricingRegistry& reg,
-                                         const PricingContext& ctx) const;
+    CallableFixedRateBondResult evaluate(
+        const CallableFixedRateBondInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

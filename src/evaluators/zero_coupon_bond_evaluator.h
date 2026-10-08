@@ -10,18 +10,18 @@
  * zero_coupon_bond_mapper.{h,cpp}.
  */
 
+#include "pricing_context.h"
+#include "pricing_registry.h"
+
+#include <ql/compounding.hpp>
+#include <ql/instruments/bond.hpp>
+#include <ql/time/daycounter.hpp>
+#include <ql/time/frequency.hpp>
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <ql/instruments/bond.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/compounding.hpp>
-#include <ql/time/frequency.hpp>
-
-#include "pricing_registry.h"
-#include "pricing_context.h"
 
 namespace quantra {
 
@@ -53,7 +53,7 @@ struct ZeroCouponBondPerBond {
     double convexity = 0.0;
     double bps = 0.0;
     std::uint32_t accruedDays = 0;
-    std::string settlementDate;  // ISO yyyy-mm-dd
+    std::string settlementDate; // ISO yyyy-mm-dd
 };
 
 struct ZeroCouponBondResult {
@@ -62,9 +62,10 @@ struct ZeroCouponBondResult {
 
 class ZeroCouponBondEvaluator {
 public:
-    ZeroCouponBondResult evaluate(const ZeroCouponBondInputs& inputs,
-                                  const PricingRegistry& reg,
-                                  const PricingContext& ctx) const;
+    ZeroCouponBondResult evaluate(
+        const ZeroCouponBondInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

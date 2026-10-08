@@ -1,14 +1,14 @@
 #ifndef QUANTRASERVER_CURVE_REGISTRY_H
 #define QUANTRASERVER_CURVE_REGISTRY_H
 
+#include "error.h"
+
+#include <ql/handle.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
+
+#include <memory>
 #include <string>
 #include <unordered_map>
-#include <memory>
-
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/handle.hpp>
-
-#include "error.h"
 
 namespace quantra {
 
@@ -26,9 +26,7 @@ public:
         curves_[id] = h;
     }
 
-    bool has(const std::string& id) const {
-        return curves_.find(id) != curves_.end();
-    }
+    bool has(const std::string& id) const { return curves_.find(id) != curves_.end(); }
 
     QuantLib::Handle<QuantLib::YieldTermStructure> get(const std::string& id) const {
         auto it = curves_.find(id);

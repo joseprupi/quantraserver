@@ -2,12 +2,13 @@
 #define QUANTRASERVER_FIXED_RATE_BOND_HANDLER_H
 
 #include "call_data_base.h"
+#include "fixed_rate_bond_evaluator.h"
+#include "fixed_rate_bond_mapper.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "fixed_rate_bond_mapper.h"
-#include "fixed_rate_bond_evaluator.h"
-#include "price_fixed_rate_bond_request_generated.h"
+
 #include "fixed_rate_bond_response_generated.h"
+#include "price_fixed_rate_bond_request_generated.h"
 
 using quantra::PriceFixedRateBondRequest;
 using quantra::PriceFixedRateBondResponse;
@@ -29,26 +30,20 @@ using FixedRateBondPricingRequest = FixedRateBondEndpoint;
  * PriceFixedRateBondData - Async gRPC handler for fixed-rate bond pricing.
  */
 class PriceFixedRateBondData : public CallDataGeneric<
-    PriceFixedRateBondRequest,
-    FixedRateBondEndpoint,
-    PriceFixedRateBondResponse,
-    PriceFixedRateBondResponseBuilder>
-{
+                                   PriceFixedRateBondRequest,
+                                   FixedRateBondEndpoint,
+                                   PriceFixedRateBondResponse,
+                                   PriceFixedRateBondResponseBuilder> {
 public:
-    PriceFixedRateBondData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    PriceFixedRateBondData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestPriceFixedRateBond(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestPriceFixedRateBond(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceFixedRateBondData(service, cq);
         handler->start();
     }

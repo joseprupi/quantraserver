@@ -19,8 +19,7 @@ std::vector<QuantLib::Date> parseDates(
         try {
             out.push_back(DateToQL(dates->Get(j)->str()));
         } catch (const std::exception& e) {
-            QUANTRA_INVALID_ARGUMENT(
-                field + "[" + std::to_string(j) + "]: " + e.what());
+            QUANTRA_INVALID_ARGUMENT(field + "[" + std::to_string(j) + "]: " + e.what());
         }
     }
     return out;
@@ -38,8 +37,7 @@ std::vector<HolidayOverride> parseCalendarOverrides(
         const auto* entry = overrides->Get(i);
         const std::string entryPath = path + "[" + std::to_string(i) + "]";
         HolidayOverride o;
-        o.calendar = CalendarToQL(
-            quantra::requireEnum(entry->calendar(), entryPath + ".calendar"));
+        o.calendar = CalendarToQL(quantra::requireEnum(entry->calendar(), entryPath + ".calendar"));
         o.added = parseDates(entry->added_holidays(), entryPath + ".added_holidays");
         o.removed = parseDates(entry->removed_holidays(), entryPath + ".removed_holidays");
         out.push_back(std::move(o));

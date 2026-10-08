@@ -12,17 +12,17 @@
  * from the QL-typed registry (reg.rates.curves, reg.rates.indices).
  */
 
-#include <string>
-#include <vector>
+#include "pricing_context.h"
+#include "pricing_registry.h"
 
 #include <ql/instruments/zerocouponswap.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/calendar.hpp>
-#include <ql/time/daycounter.hpp>
 #include <ql/time/date.hpp>
+#include <ql/time/daycounter.hpp>
 
-#include "pricing_context.h"
-#include "pricing_registry.h"
+#include <string>
+#include <vector>
 
 namespace quantra {
 
@@ -60,7 +60,7 @@ struct ZeroCouponSwapPerSwap {
     bool hasFairFixedRate = false;
     double fairFixedRate = 0.0;
     double fixedPayment = 0.0;
-    std::string startDate;  // ISO yyyy-mm-dd
+    std::string startDate; // ISO yyyy-mm-dd
 };
 
 struct ZeroCouponSwapResult {
@@ -69,9 +69,10 @@ struct ZeroCouponSwapResult {
 
 class ZeroCouponSwapEvaluator {
 public:
-    ZeroCouponSwapResult evaluate(const ZeroCouponSwapInputs& inputs,
-                                  const PricingRegistry& reg,
-                                  const PricingContext& ctx) const;
+    ZeroCouponSwapResult evaluate(
+        const ZeroCouponSwapInputs& inputs,
+        const PricingRegistry& reg,
+        const PricingContext& ctx) const;
 };
 
 } // namespace quantra

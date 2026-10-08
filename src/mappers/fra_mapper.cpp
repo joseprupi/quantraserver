@@ -63,8 +63,7 @@ FraInputs FraMapper::toInputs(const quantra::PriceFRARequest* req) const {
     }
     const auto* fras = req->fras();
     if (fras == nullptr || fras->size() == 0) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceFRARequest.fras is required and must be non-empty");
+        QUANTRA_INVALID_ARGUMENT("PriceFRARequest.fras is required and must be non-empty");
     }
 
     FraInputs inputs;
@@ -76,8 +75,7 @@ FraInputs FraMapper::toInputs(const quantra::PriceFRARequest* req) const {
 }
 
 flatbuffers::Offset<quantra::PriceFRAResponse> FraMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const FraResult& result) const {
+    flatbuffers::grpc::MessageBuilder& builder, const FraResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::FRAResponse>> frasVector;
     frasVector.reserve(result.trades.size());

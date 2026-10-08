@@ -1,8 +1,8 @@
 #ifndef QUANTRASERVER_CALIBRATE_SWAPTION_VOL_HANDLER_H
 #define QUANTRASERVER_CALIBRATE_SWAPTION_VOL_HANDLER_H
 
-#include "calibrate_swaption_vol_mapper.h"
 #include "calibrate_swaption_vol_evaluator.h"
+#include "calibrate_swaption_vol_mapper.h"
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
@@ -28,10 +28,10 @@ using CalibrateSwaptionVolEndpoint = quantra::ProductEndpoint<
 using CalibrateSwaptionVolPricingRequest = CalibrateSwaptionVolEndpoint;
 
 class CalibrateSwaptionVolData : public CallDataGeneric<
-    CalibrateSwaptionVolRequest,
-    CalibrateSwaptionVolEndpoint,
-    CalibrateSwaptionVolResponse,
-    CalibrateSwaptionVolResponseBuilder> {
+                                     CalibrateSwaptionVolRequest,
+                                     CalibrateSwaptionVolEndpoint,
+                                     CalibrateSwaptionVolResponse,
+                                     CalibrateSwaptionVolResponseBuilder> {
 public:
     CalibrateSwaptionVolData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
         : CallDataGeneric(service, cq) {}
@@ -40,7 +40,8 @@ public:
         service_->RequestCalibrateSwaptionVol(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new CalibrateSwaptionVolData(service, cq);
         handler->start();
     }

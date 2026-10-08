@@ -1,29 +1,29 @@
 #include "inflation_curve_parsers.h"
 
-#include <algorithm>
-#include <cmath>
-#include <sstream>
-#include <set>
-#include <unordered_map>
-
-#include <ql/indexes/inflationindex.hpp>
-#include <ql/quotes/simplequote.hpp>
-#include <ql/termstructures/inflation/inflationhelpers.hpp>
-#include <ql/termstructures/inflation/piecewisezeroinflationcurve.hpp>
-#include <ql/termstructures/inflation/piecewiseyoyinflationcurve.hpp>
-#include <ql/currencies/all.hpp>
-#include <ql/currencies/europe.hpp>
-#include <ql/currencies/america.hpp>
-#include <ql/currencies/asia.hpp>
-#include <ql/currencies/oceania.hpp>
-#include <ql/time/period.hpp>
-#include <ql/time/schedule.hpp>
-
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
-#include "request_validation.h"
 #include "index_registry_builder.h" // CurrencyFromString
+#include "request_validation.h"
+
+#include <ql/currencies/all.hpp>
+#include <ql/currencies/america.hpp>
+#include <ql/currencies/asia.hpp>
+#include <ql/currencies/europe.hpp>
+#include <ql/currencies/oceania.hpp>
+#include <ql/indexes/inflationindex.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/inflation/inflationhelpers.hpp>
+#include <ql/termstructures/inflation/piecewiseyoyinflationcurve.hpp>
+#include <ql/termstructures/inflation/piecewisezeroinflationcurve.hpp>
+#include <ql/time/period.hpp>
+#include <ql/time/schedule.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <set>
+#include <sstream>
+#include <unordered_map>
 
 namespace quantra {
 
@@ -59,14 +59,12 @@ QuantLib::Period toQlPeriodReq(const quantra::Period* p, const std::string& labe
     return requirePeriod(p, label);
 }
 
-QuantLib::CPI::InterpolationType cpiInterpolationToQL(quantra::enums::CPIInterpolationType interpolation) {
+QuantLib::CPI::InterpolationType cpiInterpolationToQL(
+    quantra::enums::CPIInterpolationType interpolation) {
     switch (interpolation) {
-        case quantra::enums::CPIInterpolationType_AsIndex:
-            return QuantLib::CPI::AsIndex;
-        case quantra::enums::CPIInterpolationType_Flat:
-            return QuantLib::CPI::Flat;
-        case quantra::enums::CPIInterpolationType_Linear:
-            return QuantLib::CPI::Linear;
+        case quantra::enums::CPIInterpolationType_AsIndex: return QuantLib::CPI::AsIndex;
+        case quantra::enums::CPIInterpolationType_Flat: return QuantLib::CPI::Flat;
+        case quantra::enums::CPIInterpolationType_Linear: return QuantLib::CPI::Linear;
     }
     QUANTRA_INVALID_ARGUMENT("Unsupported CPIInterpolationType");
     return QuantLib::CPI::AsIndex;
@@ -74,7 +72,8 @@ QuantLib::CPI::InterpolationType cpiInterpolationToQL(quantra::enums::CPIInterpo
 
 void validateInterpolator(enums::Interpolator interpolator, const std::string& curveId) {
     if (interpolator != enums::Interpolator_Linear) {
-        QUANTRA_INVALID_ARGUMENT("Inflation curves only support Linear interpolator for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            "Inflation curves only support Linear interpolator for curve id: " + curveId);
     }
 }
 
@@ -90,7 +89,8 @@ double resolveQuoteOrInline(
     const bool hasQuoteId = helper->quote_id() && !helper->quote_id()->str().empty();
     if (hasQuoteId) {
         if (!quotes) {
-            QUANTRA_INVALID_ARGUMENT(helperLabel + ".quote_id requires QuoteRegistry for curve id: " + curveId);
+            QUANTRA_INVALID_ARGUMENT(
+                helperLabel + ".quote_id requires QuoteRegistry for curve id: " + curveId);
         }
         return quotes->getValue(helper->quote_id()->str(), quantra::QuoteType_Curve);
     }
@@ -168,10 +168,13 @@ HelperDates resolveHelperDates(
     const bool hasStart = hasText(helper->start_date());
     const bool hasEnd = hasText(helper->end_date());
     if (hasStart && !hasEnd) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + " requires end_date when start_date is provided for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel +
+            " requires end_date when start_date is provided for curve id: " + curveId);
     }
     if (hasTenor && (hasStart || hasEnd)) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + " cannot specify both tenor and explicit dates for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel + " cannot specify both tenor and explicit dates for curve id: " + curveId);
     }
 
     HelperDates out;
@@ -180,13 +183,15 @@ HelperDates resolveHelperDates(
         out.startDate = DateToQL(helper->start_date()->str());
         out.endDate = DateToQL(helper->end_date()->str());
         if (out.endDate <= out.startDate) {
-            QUANTRA_INVALID_ARGUMENT(helperLabel + ".end_date must be after start_date for curve id: " + curveId);
+            QUANTRA_INVALID_ARGUMENT(
+                helperLabel + ".end_date must be after start_date for curve id: " + curveId);
         }
         return out;
     }
 
     if (!hasTenor && !hasEnd) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + " requires tenor or end_date for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel + " requires tenor or end_date for curve id: " + curveId);
     }
     if (hasEnd) {
         out.endDate = DateToQL(helper->end_date()->str());
@@ -195,7 +200,8 @@ HelperDates resolveHelperDates(
         out.endDate = calendar.advance(referenceDate, tenor, businessDayConvention);
     }
     if (out.endDate <= referenceDate) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + " maturity must be after reference_date for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel + " maturity must be after reference_date for curve id: " + curveId);
     }
     return out;
 }
@@ -208,17 +214,21 @@ QuantLib::Schedule buildSchedule(
         QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule is required for curve id: " + curveId);
     }
     if (!scheduleSpec->effective_date() || !scheduleSpec->termination_date()) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires effective_date and termination_date for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel +
+            ".schedule requires effective_date and termination_date for curve id: " + curveId);
     }
     // The convention enums are presence-required: an omitted convention is an
     // error, never an alphabetical-0 default (calendar Argentina, etc.).
-    if (!scheduleSpec->calendar().has_value() ||
-        !scheduleSpec->frequency().has_value() ||
+    if (!scheduleSpec->calendar().has_value() || !scheduleSpec->frequency().has_value() ||
         !scheduleSpec->convention().has_value() ||
         !scheduleSpec->termination_date_convention().has_value() ||
         !scheduleSpec->date_generation_rule().has_value() ||
         !scheduleSpec->end_of_month().has_value()) {
-        QUANTRA_INVALID_ARGUMENT(helperLabel + ".schedule requires calendar, frequency, convention, termination_date_convention, date_generation_rule and end_of_month for curve id: " + curveId);
+        QUANTRA_INVALID_ARGUMENT(
+            helperLabel +
+            ".schedule requires calendar, frequency, convention, termination_date_convention, date_generation_rule and end_of_month for curve id: " +
+            curveId);
     }
     return QuantLib::Schedule(
         DateToQL(scheduleSpec->effective_date()->str()),
@@ -239,7 +249,9 @@ QuantLib::Handle<TTermStructure> lookupNominalCurveHandle(
     const std::string& helperLabel) {
     auto it = reg.rates.curves.find(nominalCurveId);
     if (it == reg.rates.curves.end() || !it->second || it->second->empty()) {
-        QUANTRA_NOT_FOUND(helperLabel + " nominal_curve_id not found for curve id '" + curveId + "': " + nominalCurveId);
+        QUANTRA_NOT_FOUND(
+            helperLabel + " nominal_curve_id not found for curve id '" + curveId +
+            "': " + nominalCurveId);
     }
     return QuantLib::Handle<TTermStructure>(it->second->currentLink());
 }
@@ -250,8 +262,10 @@ InflationIndexPtr buildInflationIndex(
     const quantra::InflationIndexSpec* spec,
     const std::unordered_map<std::string, const quantra::InflationIndexSpec*>& specMap,
     std::unordered_map<std::string, InflationIndexPtr>& cache,
-    const std::unordered_map<std::string, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>>& zeroCurveHandles,
-    const std::unordered_map<std::string, QuantLib::Handle<QuantLib::YoYInflationTermStructure>>& yoyCurveHandles) {
+    const std::unordered_map<std::string, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>>&
+        zeroCurveHandles,
+    const std::unordered_map<std::string, QuantLib::Handle<QuantLib::YoYInflationTermStructure>>&
+        yoyCurveHandles) {
     if (!spec || !spec->id()) {
         QUANTRA_INVALID_ARGUMENT("InflationIndexSpec.id is required");
     }
@@ -265,24 +279,21 @@ InflationIndexPtr buildInflationIndex(
     const std::string ccyStr = hasText(spec->currency()) ? spec->currency()->str() : "EUR";
     QuantLib::Currency ccy = CurrencyFromString(ccyStr);
     QuantLib::Region region = regionFromCurrency(ccyStr);
-    QuantLib::Frequency freq = FrequencyToQL(
-        requireEnum(spec->frequency(), "InflationIndexSpec.frequency"));
+    QuantLib::Frequency freq =
+        FrequencyToQL(requireEnum(spec->frequency(), "InflationIndexSpec.frequency"));
     const bool revised = requireBool(spec->revised(), "InflationIndexSpec.revised");
-    QuantLib::Period availLag = toQlPeriodReq(spec->availability_lag(), "InflationIndexSpec.availability_lag");
+    QuantLib::Period availLag =
+        toQlPeriodReq(spec->availability_lag(), "InflationIndexSpec.availability_lag");
 
     if (requireEnum(spec->kind(), "InflationIndexSpec.kind") ==
         enums::InflationCurveKind_ZeroInflation) {
         auto curveIt = zeroCurveHandles.find(id);
         QuantLib::Handle<QuantLib::ZeroInflationTermStructure> handle =
-            curveIt != zeroCurveHandles.end() ? curveIt->second : QuantLib::Handle<QuantLib::ZeroInflationTermStructure>();
+            curveIt != zeroCurveHandles.end()
+                ? curveIt->second
+                : QuantLib::Handle<QuantLib::ZeroInflationTermStructure>();
         auto index = QuantLib::ext::make_shared<QuantLib::ZeroInflationIndex>(
-            family,
-            region,
-            revised,
-            freq,
-            availLag,
-            ccy,
-            handle);
+            family, region, revised, freq, availLag, ccy, handle);
         applyFixings(index, spec->fixings(), "InflationIndexSpec");
         cache.emplace(id, index);
         return index;
@@ -290,33 +301,38 @@ InflationIndexPtr buildInflationIndex(
 
     auto yoyCurveIt = yoyCurveHandles.find(id);
     QuantLib::Handle<QuantLib::YoYInflationTermStructure> yoyHandle =
-        yoyCurveIt != yoyCurveHandles.end() ? yoyCurveIt->second : QuantLib::Handle<QuantLib::YoYInflationTermStructure>();
+        yoyCurveIt != yoyCurveHandles.end()
+            ? yoyCurveIt->second
+            : QuantLib::Handle<QuantLib::YoYInflationTermStructure>();
 
     QuantLib::ext::shared_ptr<QuantLib::YoYInflationIndex> yoyIndex;
     if (hasText(spec->underlying_zero_index_id())) {
         const std::string underlyingId = spec->underlying_zero_index_id()->str();
         auto underlyingIt = specMap.find(underlyingId);
         if (underlyingIt == specMap.end()) {
-            QUANTRA_NOT_FOUND("InflationIndexSpec.underlying_zero_index_id not found for index id '" + id + "': " + underlyingId);
+            QUANTRA_NOT_FOUND(
+                "InflationIndexSpec.underlying_zero_index_id not found for index id '" + id +
+                "': " + underlyingId);
         }
-        auto underlying = buildInflationIndex(underlyingIt->second, specMap, cache, zeroCurveHandles, yoyCurveHandles);
-        auto zeroUnderlying = QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(underlying);
+        auto underlying = buildInflationIndex(
+            underlyingIt->second, specMap, cache, zeroCurveHandles, yoyCurveHandles);
+        auto zeroUnderlying =
+            QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(underlying);
         if (!zeroUnderlying) {
-            QUANTRA_INVALID_ARGUMENT("InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id: " + id);
+            QUANTRA_INVALID_ARGUMENT(
+                "InflationIndexSpec.underlying_zero_index_id must reference a zero inflation index for index id: " +
+                id);
         }
         if (spec->fixings() && spec->fixings()->size() > 0) {
-            QUANTRA_INVALID_ARGUMENT("Ratio-based YoY inflation indices cannot define direct fixings for index id: " + id);
+            QUANTRA_INVALID_ARGUMENT(
+                "Ratio-based YoY inflation indices cannot define direct fixings for index id: " +
+                id);
         }
-        yoyIndex = QuantLib::ext::make_shared<QuantLib::YoYInflationIndex>(zeroUnderlying, yoyHandle);
+        yoyIndex =
+            QuantLib::ext::make_shared<QuantLib::YoYInflationIndex>(zeroUnderlying, yoyHandle);
     } else {
         yoyIndex = QuantLib::ext::make_shared<QuantLib::YoYInflationIndex>(
-            family,
-            region,
-            revised,
-            freq,
-            availLag,
-            ccy,
-            yoyHandle);
+            family, region, revised, freq, availLag, ccy, yoyHandle);
         applyFixings(yoyIndex, spec->fixings(), "InflationIndexSpec");
     }
 
@@ -352,7 +368,8 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
         }
         const std::string id = spec->id()->str();
         if (!spec->reference_date()) {
-            QUANTRA_INVALID_ARGUMENT("InflationCurveSpec.reference_date is required for curve id: " + id);
+            QUANTRA_INVALID_ARGUMENT(
+                "InflationCurveSpec.reference_date is required for curve id: " + id);
         }
         if (!spec->index_id() || spec->index_id()->str().empty()) {
             QUANTRA_INVALID_ARGUMENT("InflationCurveSpec.index_id is required for curve id: " + id);
@@ -368,75 +385,86 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
         if (spec->discount_curve_id() && !spec->discount_curve_id()->str().empty()) {
             discountCurveId = spec->discount_curve_id()->str();
         }
-        if (!discountCurveId.empty() && reg.rates.curves.find(discountCurveId) == reg.rates.curves.end()) {
-            QUANTRA_NOT_FOUND("discount_curve_id not found for curve id: " + id + ": " + discountCurveId);
+        if (!discountCurveId.empty() &&
+            reg.rates.curves.find(discountCurveId) == reg.rates.curves.end()) {
+            QUANTRA_NOT_FOUND(
+                "discount_curve_id not found for curve id: " + id + ": " + discountCurveId);
         }
 
         const auto* idxSpec = findInflationIndexSpec(indices, indexId);
         if (!idxSpec) {
-            QUANTRA_NOT_FOUND("Inflation index spec not found for id: " + indexId + " (curve id: " + id + ")");
+            QUANTRA_NOT_FOUND(
+                "Inflation index spec not found for id: " + indexId + " (curve id: " + id + ")");
         }
 
         QuantLib::Date ref = DateToQL(spec->reference_date()->str());
-        QuantLib::Calendar cal = CalendarToQL(
-            requireEnum(spec->calendar(), "InflationCurveSpec.calendar"));
+        QuantLib::Calendar cal =
+            CalendarToQL(requireEnum(spec->calendar(), "InflationCurveSpec.calendar"));
         QuantLib::BusinessDayConvention bdc = ConventionToQL(requireEnum(
             spec->business_day_convention(), "InflationCurveSpec.business_day_convention"));
-        QuantLib::DayCounter dc = DayCounterToQL(
-            requireEnum(spec->day_counter(), "InflationCurveSpec.day_counter"));
+        QuantLib::DayCounter dc =
+            DayCounterToQL(requireEnum(spec->day_counter(), "InflationCurveSpec.day_counter"));
         const auto kind = requireEnum(spec->kind(), "InflationCurveSpec.kind");
         if (requireEnum(idxSpec->kind(), "InflationIndexSpec.kind") != kind) {
-            QUANTRA_INVALID_ARGUMENT("Inflation kind mismatch for curve id '" + id +
-                          "': curve.kind and index.kind must match");
+            QUANTRA_INVALID_ARGUMENT(
+                "Inflation kind mismatch for curve id '" + id +
+                "': curve.kind and index.kind must match");
         }
         const bool allowExtrap = spec->allow_extrapolation();
 
-        QuantLib::Period obsLag = toQlPeriodReq(idxSpec->observation_lag(), "InflationIndexSpec.observation_lag");
-        QuantLib::Period availLag = toQlPeriodReq(idxSpec->availability_lag(), "InflationIndexSpec.availability_lag");
-        QuantLib::Frequency freq = FrequencyToQL(
-            requireEnum(idxSpec->frequency(), "InflationIndexSpec.frequency"));
+        QuantLib::Period obsLag =
+            toQlPeriodReq(idxSpec->observation_lag(), "InflationIndexSpec.observation_lag");
+        QuantLib::Period availLag =
+            toQlPeriodReq(idxSpec->availability_lag(), "InflationIndexSpec.availability_lag");
+        QuantLib::Frequency freq =
+            FrequencyToQL(requireEnum(idxSpec->frequency(), "InflationIndexSpec.frequency"));
         const bool idxInterpolated =
             requireBool(idxSpec->interpolated(), "InflationIndexSpec.interpolated");
         std::vector<QuantLib::Date> pillarDates;
 
         std::unordered_map<std::string, InflationIndexPtr> localIndexCache;
-        InflationIndexPtr localIndex = buildInflationIndex(
-            idxSpec,
-            specMap,
-            localIndexCache,
-            {},
-            {});
+        InflationIndexPtr localIndex =
+            buildInflationIndex(idxSpec, specMap, localIndexCache, {}, {});
 
         if (kind == enums::InflationCurveKind_ZeroInflation) {
-            auto zeroIndex = QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(localIndex);
+            auto zeroIndex =
+                QuantLib::ext::dynamic_pointer_cast<QuantLib::ZeroInflationIndex>(localIndex);
             if (!zeroIndex) {
-                QUANTRA_INVALID_ARGUMENT("Inflation index must be ZeroInflation for curve id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "Inflation index must be ZeroInflation for curve id: " + id);
             }
 
-            std::vector<QuantLib::ext::shared_ptr<QuantLib::BootstrapHelper<QuantLib::ZeroInflationTermStructure>>> helpers;
+            std::vector<QuantLib::ext::shared_ptr<
+                QuantLib::BootstrapHelper<QuantLib::ZeroInflationTermStructure>>>
+                helpers;
             helpers.reserve(spec->points()->size());
             for (flatbuffers::uoffset_t i = 0; i < spec->points()->size(); ++i) {
                 const auto* point = spec->points()->Get(i);
                 if (!point || point->point_type() != InflationPoint_ZeroCouponInflationSwapHelper) {
-                    QUANTRA_INVALID_ARGUMENT("Zero inflation curves require only ZeroCouponInflationSwapHelper points for curve id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "Zero inflation curves require only ZeroCouponInflationSwapHelper points for curve id: " +
+                        id);
                 }
                 const auto* helper = point->point_as_ZeroCouponInflationSwapHelper();
                 if (!helper) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "Inflation point union type is set but its value is missing for curve id: " + id);
+                        "Inflation point union type is set but its value is missing for curve id: " +
+                        id);
                 }
                 const std::string label = "ZeroCouponInflationSwapHelper";
                 const double quoteValue = resolveQuoteOrInline(helper, quotes, id, label);
                 if (!std::isfinite(quoteValue)) {
-                    QUANTRA_INVALID_ARGUMENT(label + ".quote_value must be finite for curve id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        label + ".quote_value must be finite for curve id: " + id);
                 }
-                auto helperCalendar = CalendarToQL(
-                    requireEnum(helper->calendar(), label + ".calendar"));
+                auto helperCalendar =
+                    CalendarToQL(requireEnum(helper->calendar(), label + ".calendar"));
                 auto helperBdc = ConventionToQL(
                     requireEnum(helper->payment_convention(), label + ".payment_convention"));
-                auto helperDc = DayCounterToQL(
-                    requireEnum(helper->day_counter(), label + ".day_counter"));
-                auto helperObsLag = toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
+                auto helperDc =
+                    DayCounterToQL(requireEnum(helper->day_counter(), label + ".day_counter"));
+                auto helperObsLag =
+                    toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
                 auto helperInterpolation = cpiInterpolationToQL(requireEnum(
                     helper->observation_interpolation(), label + ".observation_interpolation"));
                 auto dates = resolveHelperDates(helper, ref, helperCalendar, helperBdc, id, label);
@@ -444,26 +472,15 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                     QuantLib::ext::make_shared<QuantLib::SimpleQuote>(quoteValue));
 
                 if (dates.useExplicitStartEnd) {
-                    helpers.push_back(QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
-                        quote,
-                        helperObsLag,
-                        dates.startDate,
-                        dates.endDate,
-                        helperCalendar,
-                        helperBdc,
-                        helperDc,
-                        zeroIndex,
-                        helperInterpolation));
+                    helpers.push_back(
+                        QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
+                            quote, helperObsLag, dates.startDate, dates.endDate, helperCalendar,
+                            helperBdc, helperDc, zeroIndex, helperInterpolation));
                 } else {
-                    helpers.push_back(QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
-                        quote,
-                        helperObsLag,
-                        dates.endDate,
-                        helperCalendar,
-                        helperBdc,
-                        helperDc,
-                        zeroIndex,
-                        helperInterpolation));
+                    helpers.push_back(
+                        QuantLib::ext::make_shared<QuantLib::ZeroCouponInflationSwapHelper>(
+                            quote, helperObsLag, dates.endDate, helperCalendar, helperBdc, helperDc,
+                            zeroIndex, helperInterpolation));
                 }
             }
 
@@ -471,24 +488,23 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
             if (!hasFixingForDate(idxSpec->fixings(), baseDate)) {
                 std::ostringstream baseDateMsg;
                 baseDateMsg << DateToIso(baseDate);
-                QUANTRA_INVALID_ARGUMENT("Zero inflation base fixing unavailable for curve id '" + id +
-                              "': provide InflationIndexSpec.fixings for " + baseDateMsg.str());
+                QUANTRA_INVALID_ARGUMENT(
+                    "Zero inflation base fixing unavailable for curve id '" + id +
+                    "': provide InflationIndexSpec.fixings for " + baseDateMsg.str());
             }
             try {
                 static_cast<void>(zeroIndex->fixing(baseDate));
             } catch (const std::exception& e) {
-                QUANTRA_INVALID_ARGUMENT("Zero inflation base fixing unavailable for curve id '" + id + "': " + e.what());
+                QUANTRA_INVALID_ARGUMENT(
+                    "Zero inflation base fixing unavailable for curve id '" + id +
+                    "': " + e.what());
             }
 
-            auto ts = QuantLib::ext::make_shared<QuantLib::PiecewiseZeroInflationCurve<QuantLib::Linear>>(
-                ref,
-                baseDate,
-                freq,
-                dc,
-                helpers,
-                QuantLib::ext::shared_ptr<QuantLib::Seasonality>(),
-                spec->bootstrap_accuracy(),
-                QuantLib::Linear());
+            auto ts =
+                QuantLib::ext::make_shared<QuantLib::PiecewiseZeroInflationCurve<QuantLib::Linear>>(
+                    ref, baseDate, freq, dc, helpers,
+                    QuantLib::ext::shared_ptr<QuantLib::Seasonality>(), spec->bootstrap_accuracy(),
+                    QuantLib::Linear());
             ts->recalculate();
             if (allowExtrap) {
                 ts->enableExtrapolation();
@@ -496,40 +512,50 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                 ts->disableExtrapolation();
             }
 
-            auto relink = std::make_shared<QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>();
+            auto relink = std::make_shared<
+                QuantLib::RelinkableHandle<QuantLib::ZeroInflationTermStructure>>();
             relink->linkTo(ts);
             reg.inflation.zeroInflationCurves[id] = relink;
             pillarDates = collectPillarDates(helpers);
         } else if (kind == enums::InflationCurveKind_YoYInflation) {
-            auto yoyIndex = QuantLib::ext::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(localIndex);
+            auto yoyIndex =
+                QuantLib::ext::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(localIndex);
             if (!yoyIndex) {
-                QUANTRA_INVALID_ARGUMENT("Inflation index must be YoYInflation for curve id: " + id);
+                QUANTRA_INVALID_ARGUMENT(
+                    "Inflation index must be YoYInflation for curve id: " + id);
             }
 
-            std::vector<QuantLib::ext::shared_ptr<QuantLib::BootstrapHelper<QuantLib::YoYInflationTermStructure>>> helpers;
+            std::vector<QuantLib::ext::shared_ptr<
+                QuantLib::BootstrapHelper<QuantLib::YoYInflationTermStructure>>>
+                helpers;
             helpers.reserve(spec->points()->size());
             for (flatbuffers::uoffset_t i = 0; i < spec->points()->size(); ++i) {
                 const auto* point = spec->points()->Get(i);
                 if (!point || point->point_type() != InflationPoint_YearOnYearInflationSwapHelper) {
-                    QUANTRA_INVALID_ARGUMENT("YoY inflation curves require only YearOnYearInflationSwapHelper points for curve id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        "YoY inflation curves require only YearOnYearInflationSwapHelper points for curve id: " +
+                        id);
                 }
                 const auto* helper = point->point_as_YearOnYearInflationSwapHelper();
                 if (!helper) {
                     QUANTRA_INVALID_ARGUMENT(
-                        "Inflation point union type is set but its value is missing for curve id: " + id);
+                        "Inflation point union type is set but its value is missing for curve id: " +
+                        id);
                 }
                 const std::string label = "YearOnYearInflationSwapHelper";
                 const double quoteValue = resolveQuoteOrInline(helper, quotes, id, label);
                 if (!std::isfinite(quoteValue)) {
-                    QUANTRA_INVALID_ARGUMENT(label + ".quote_value must be finite for curve id: " + id);
+                    QUANTRA_INVALID_ARGUMENT(
+                        label + ".quote_value must be finite for curve id: " + id);
                 }
-                auto helperCalendar = CalendarToQL(
-                    requireEnum(helper->calendar(), label + ".calendar"));
+                auto helperCalendar =
+                    CalendarToQL(requireEnum(helper->calendar(), label + ".calendar"));
                 auto helperBdc = ConventionToQL(
                     requireEnum(helper->payment_convention(), label + ".payment_convention"));
-                auto helperDc = DayCounterToQL(
-                    requireEnum(helper->day_counter(), label + ".day_counter"));
-                auto helperObsLag = toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
+                auto helperDc =
+                    DayCounterToQL(requireEnum(helper->day_counter(), label + ".day_counter"));
+                auto helperObsLag =
+                    toQlPeriodReq(helper->swap_observation_lag(), label + ".swap_observation_lag");
                 auto helperInterpolation = cpiInterpolationToQL(requireEnum(
                     helper->observation_interpolation(), label + ".observation_interpolation"));
                 auto dates = resolveHelperDates(helper, ref, helperCalendar, helperBdc, id, label);
@@ -539,43 +565,25 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                     id, helper->nominal_curve_id()->str(), reg, label);
 
                 if (dates.useExplicitStartEnd) {
-                    helpers.push_back(QuantLib::ext::make_shared<QuantLib::YearOnYearInflationSwapHelper>(
-                        quote,
-                        helperObsLag,
-                        dates.startDate,
-                        dates.endDate,
-                        helperCalendar,
-                        helperBdc,
-                        helperDc,
-                        yoyIndex,
-                        helperInterpolation,
-                        nominalCurve));
+                    helpers.push_back(
+                        QuantLib::ext::make_shared<QuantLib::YearOnYearInflationSwapHelper>(
+                            quote, helperObsLag, dates.startDate, dates.endDate, helperCalendar,
+                            helperBdc, helperDc, yoyIndex, helperInterpolation, nominalCurve));
                 } else {
-                    helpers.push_back(QuantLib::ext::make_shared<QuantLib::YearOnYearInflationSwapHelper>(
-                        quote,
-                        helperObsLag,
-                        dates.endDate,
-                        helperCalendar,
-                        helperBdc,
-                        helperDc,
-                        yoyIndex,
-                        helperInterpolation,
-                        nominalCurve));
+                    helpers.push_back(
+                        QuantLib::ext::make_shared<QuantLib::YearOnYearInflationSwapHelper>(
+                            quote, helperObsLag, dates.endDate, helperCalendar, helperBdc, helperDc,
+                            yoyIndex, helperInterpolation, nominalCurve));
                 }
             }
 
             const QuantLib::Date baseDate = QuantLib::inflationPeriod(ref - availLag, freq).first;
             const QuantLib::Rate baseYoYRate = yoyIndex->fixing(baseDate);
-            auto ts = QuantLib::ext::make_shared<QuantLib::PiecewiseYoYInflationCurve<QuantLib::Linear>>(
-                ref,
-                baseDate,
-                baseYoYRate,
-                freq,
-                dc,
-                helpers,
-                QuantLib::ext::shared_ptr<QuantLib::Seasonality>(),
-                spec->bootstrap_accuracy(),
-                QuantLib::Linear());
+            auto ts =
+                QuantLib::ext::make_shared<QuantLib::PiecewiseYoYInflationCurve<QuantLib::Linear>>(
+                    ref, baseDate, baseYoYRate, freq, dc, helpers,
+                    QuantLib::ext::shared_ptr<QuantLib::Seasonality>(), spec->bootstrap_accuracy(),
+                    QuantLib::Linear());
             ts->recalculate();
             if (allowExtrap) {
                 ts->enableExtrapolation();
@@ -583,7 +591,8 @@ std::map<std::string, InflationCurveEntry> buildInflationCurves(
                 ts->disableExtrapolation();
             }
 
-            auto relink = std::make_shared<QuantLib::RelinkableHandle<QuantLib::YoYInflationTermStructure>>();
+            auto relink =
+                std::make_shared<QuantLib::RelinkableHandle<QuantLib::YoYInflationTermStructure>>();
             relink->linkTo(ts);
             reg.inflation.yoyInflationCurves[id] = relink;
             pillarDates = collectPillarDates(helpers);
@@ -617,18 +626,26 @@ void buildInflationIndices(
     if (!indices) return;
 
     const auto specMap = buildInflationIndexSpecMap(indices);
-    std::unordered_map<std::string, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>> zeroCurveHandles;
-    std::unordered_map<std::string, QuantLib::Handle<QuantLib::YoYInflationTermStructure>> yoyCurveHandles;
+    std::unordered_map<std::string, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>>
+        zeroCurveHandles;
+    std::unordered_map<std::string, QuantLib::Handle<QuantLib::YoYInflationTermStructure>>
+        yoyCurveHandles;
     for (const auto& [curveId, meta] : builtCurves) {
         if (meta.kind == enums::InflationCurveKind_ZeroInflation) {
             auto it = reg.inflation.zeroInflationCurves.find(curveId);
-            if (it != reg.inflation.zeroInflationCurves.end() && it->second && !it->second->empty()) {
-                zeroCurveHandles.emplace(meta.indexId, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>(it->second->currentLink()));
+            if (it != reg.inflation.zeroInflationCurves.end() && it->second &&
+                !it->second->empty()) {
+                zeroCurveHandles.emplace(
+                    meta.indexId, QuantLib::Handle<QuantLib::ZeroInflationTermStructure>(
+                                      it->second->currentLink()));
             }
         } else {
             auto it = reg.inflation.yoyInflationCurves.find(curveId);
-            if (it != reg.inflation.yoyInflationCurves.end() && it->second && !it->second->empty()) {
-                yoyCurveHandles.emplace(meta.indexId, QuantLib::Handle<QuantLib::YoYInflationTermStructure>(it->second->currentLink()));
+            if (it != reg.inflation.yoyInflationCurves.end() && it->second &&
+                !it->second->empty()) {
+                yoyCurveHandles.emplace(
+                    meta.indexId, QuantLib::Handle<QuantLib::YoYInflationTermStructure>(
+                                      it->second->currentLink()));
             }
         }
     }
@@ -642,4 +659,3 @@ void buildInflationIndices(
 }
 
 } // namespace quantra
-

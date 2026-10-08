@@ -8,11 +8,12 @@
  * back into a PriceYearOnYearInflationCapFloorResponse.
  */
 
-#include "flatbuffers/grpc.h"
+#include "year_on_year_inflation_cap_floor_evaluator.h"
 
 #include "price_year_on_year_inflation_cap_floor_request_generated.h"
-#include "year_on_year_inflation_cap_floor_evaluator.h"
 #include "year_on_year_inflation_cap_floor_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -22,8 +23,7 @@ public:
         const quantra::PriceYearOnYearInflationCapFloorRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceYearOnYearInflationCapFloorResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const YoYInflationCapFloorResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const YoYInflationCapFloorResult& result) const;
 };
 
 } // namespace quantra

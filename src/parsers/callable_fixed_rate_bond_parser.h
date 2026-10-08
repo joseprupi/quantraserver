@@ -1,18 +1,17 @@
 #ifndef QUANTRASERVER_CALLABLEFIXEDRATEBONDPARSER_H
 #define QUANTRASERVER_CALLABLEFIXEDRATEBONDPARSER_H
 
-#include <memory>
+#include "date_convert.h"
+#include "enum_convert.h"
+#include "schedule_parser.h"
+
+#include "callable_fixed_rate_bond_generated.h"
 
 #include <ql/experimental/callablebonds/callablebond.hpp>
 
-#include "callable_fixed_rate_bond_generated.h"
-#include "enum_convert.h"
-#include "date_convert.h"
-#include "schedule_parser.h"
+#include <memory>
 
-
-class CallableFixedRateBondParser
-{
+class CallableFixedRateBondParser {
 public:
     // Builds a QuantLib::CallableFixedRateBond from the wire table, including
     // the validated CallabilitySchedule. All validation (presence of the
@@ -21,7 +20,7 @@ public:
     // types) happens here so the FB-free evaluator only ever sees a fully
     // constructed QuantLib instrument.
     std::shared_ptr<QuantLib::CallableFixedRateBond> parse(
-        const quantra::CallableFixedRateBond *bond);
+        const quantra::CallableFixedRateBond* bond);
 };
 
 #endif // QUANTRASERVER_CALLABLEFIXEDRATEBONDPARSER_H

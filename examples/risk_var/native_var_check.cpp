@@ -97,14 +97,12 @@ std::vector<std::string> splitCsv(const std::string& line) {
 
 std::vector<SwapSpec> readSwaps(const std::string& path) {
     std::ifstream in(path);
-    if (!in)
-        throw std::runtime_error("cannot open " + path);
+    if (!in) throw std::runtime_error("cannot open " + path);
     std::vector<SwapSpec> book;
     std::string line;
     bool header = true;
     while (std::getline(in, line)) {
-        if (line.empty())
-            continue;
+        if (line.empty()) continue;
         if (header) { // "tenor_years,is_payer,notional,fixed_rate"
             header = false;
             continue;
@@ -119,37 +117,30 @@ std::vector<SwapSpec> readSwaps(const std::string& path) {
         s.fixedRate = std::stod(cells[3]);
         book.push_back(s);
     }
-    if (book.empty())
-        throw std::runtime_error(path + ": no swap rows");
+    if (book.empty()) throw std::runtime_error(path + ": no swap rows");
     return book;
 }
 
 // Parse a pillar label like "1M" / "30Y" into a QuantLib Period.
 Period parseTenorLabel(const std::string& label) {
-    if (label.size() < 2)
-        throw std::runtime_error("bad pillar tenor label: '" + label + "'");
+    if (label.size() < 2) throw std::runtime_error("bad pillar tenor label: '" + label + "'");
     const char unit = label.back();
     const int n = std::stoi(label.substr(0, label.size() - 1));
-    if (unit == 'M')
-        return Period(n, Months);
-    if (unit == 'Y')
-        return Period(n, Years);
+    if (unit == 'M') return Period(n, Months);
+    if (unit == 'Y') return Period(n, Years);
     throw std::runtime_error("bad pillar tenor label: '" + label + "'");
 }
 
 // quotes.csv: header row = pillar tenor labels; first data row = base par
 // quotes; then one row per scenario with the shocked quotes.
-void readQuotes(const std::string& path,
-                std::vector<Period>& tenors,
-                std::vector<std::vector<double>>& rows) {
+void readQuotes(
+    const std::string& path, std::vector<Period>& tenors, std::vector<std::vector<double>>& rows) {
     std::ifstream in(path);
-    if (!in)
-        throw std::runtime_error("cannot open " + path);
+    if (!in) throw std::runtime_error("cannot open " + path);
     std::string line;
     bool header = true;
     while (std::getline(in, line)) {
-        if (line.empty())
-            continue;
+        if (line.empty()) continue;
         auto cells = splitCsv(line);
         if (header) {
             for (const auto& c : cells)
@@ -165,21 +156,21 @@ void readQuotes(const std::string& path,
             row.push_back(std::stod(c));
         rows.push_back(std::move(row));
     }
-    if (rows.size() < 2)
-        throw std::runtime_error(path + ": need a base row plus >=1 scenario row");
+    if (rows.size() < 2) throw std::runtime_error(path + ": need a base row plus >=1 scenario row");
 }
 
 // Bootstrap one curve from the par quote vector and price the whole book on
 // it. Returns the book value (sum of swap NPVs).
-double priceBook(const std::vector<SwapSpec>& book,
-                 const std::vector<Period>& pillarTenors,
-                 const std::vector<double>& quotes) {
+double priceBook(
+    const std::vector<SwapSpec>& book,
+    const std::vector<Period>& pillarTenors,
+    const std::vector<double>& quotes) {
     const Calendar cal = UnitedStates(UnitedStates::GovernmentBond);
 
     // The index as the engine's IndexRegistry builds it (no forwarding curve;
     // OISRateHelper internally ties forwarding to the curve being built).
-    auto bootstrapIndex = ext::make_shared<OvernightIndex>(
-        "SOFR", 0, USDCurrency(), cal, Actual360());
+    auto bootstrapIndex =
+        ext::make_shared<OvernightIndex>("SOFR", 0, USDCurrency(), cal, Actual360());
 
     std::vector<ext::shared_ptr<RateHelper>> helpers;
     helpers.reserve(pillarTenors.size());
@@ -187,28 +178,29 @@ double priceBook(const std::vector<SwapSpec>& book,
         Handle<Quote> q(ext::make_shared<SimpleQuote>(quotes[i]));
         // Argument-for-argument the OISRateHelper call in
         // src/parsers/term_structure_point_parser.cpp for the script's JSON.
-        helpers.push_back(ext::make_shared<OISRateHelper>(
-            2,                          // settlement_days
-            pillarTenors[i],            // tenor
-            q,                          // par quote
-            bootstrapIndex,             // overnight index
-            Handle<YieldTermStructure>(), // no exogenous discount curve
-            false,                      // telescopicValueDates
-            2,                          // payment_lag
-            ModifiedFollowing,          // fixed_leg_convention -> paymentConvention
-            Annual,                     // fixed_leg_frequency -> paymentFrequency
-            cal,                        // calendar -> paymentCalendar
-            0 * Days,                   // forwardStart (spot-starting)
-            0.0,                        // overnightSpread
-            Pillar::LastRelevantDate,
-            Date(),                     // customPillarDate (unused)
-            RateAveraging::Compound,    // averaging_method
-            ext::nullopt,               // endOfMonth: QuantLib default
-            ext::nullopt,               // fixedPaymentFrequency
-            Calendar(),                 // fixedCalendar: QuantLib default
-            Null<Natural>(),            // lookback_days 0 -> off
-            0,                          // lockout_days
-            false));                    // apply_observation_shift
+        helpers.push_back(
+            ext::make_shared<OISRateHelper>(
+                2,                            // settlement_days
+                pillarTenors[i],              // tenor
+                q,                            // par quote
+                bootstrapIndex,               // overnight index
+                Handle<YieldTermStructure>(), // no exogenous discount curve
+                false,                        // telescopicValueDates
+                2,                            // payment_lag
+                ModifiedFollowing,            // fixed_leg_convention -> paymentConvention
+                Annual,                       // fixed_leg_frequency -> paymentFrequency
+                cal,                          // calendar -> paymentCalendar
+                0 * Days,                     // forwardStart (spot-starting)
+                0.0,                          // overnightSpread
+                Pillar::LastRelevantDate,
+                Date(),                  // customPillarDate (unused)
+                RateAveraging::Compound, // averaging_method
+                ext::nullopt,            // endOfMonth: QuantLib default
+                ext::nullopt,            // fixedPaymentFrequency
+                Calendar(),              // fixedCalendar: QuantLib default
+                Null<Natural>(),         // lookback_days 0 -> off
+                0,                       // lockout_days
+                false));                 // apply_observation_shift
     }
 
     auto curve = ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(
@@ -218,8 +210,8 @@ double priceBook(const std::vector<SwapSpec>& book,
 
     // Pricing index: same definition, forwarding off the bootstrapped curve
     // (the engine clones the registry index with this handle).
-    auto pricingIndex = ext::make_shared<OvernightIndex>(
-        "SOFR", 0, USDCurrency(), cal, Actual360(), curveHandle);
+    auto pricingIndex =
+        ext::make_shared<OvernightIndex>("SOFR", 0, USDCurrency(), cal, Actual360(), curveHandle);
     auto engine = ext::make_shared<DiscountingSwapEngine>(curveHandle);
 
     double bookValue = 0.0;
@@ -227,29 +219,27 @@ double priceBook(const std::vector<SwapSpec>& book,
         const Date termination(17, January, 2025 + s.tenorYears);
         // The script's schedule JSON, as src/parsers/schedule_parser.cpp
         // builds it (both legs share the same schedule definition).
-        Schedule schedule(kSpotDate, termination, Period(Annual), cal,
-                          ModifiedFollowing, ModifiedFollowing,
-                          DateGeneration::Forward, false);
+        Schedule schedule(
+            kSpotDate, termination, Period(Annual), cal, ModifiedFollowing, ModifiedFollowing,
+            DateGeneration::Forward, false);
         // Argument-for-argument the OvernightIndexedSwap construction in
         // src/evaluators/ois_swap_evaluator.cpp for the script's JSON.
         OvernightIndexedSwap swap(
-            s.isPayer ? OvernightIndexedSwap::Payer
-                      : OvernightIndexedSwap::Receiver,
-            s.notional,
-            schedule,                   // fixed leg schedule
+            s.isPayer ? OvernightIndexedSwap::Payer : OvernightIndexedSwap::Receiver, s.notional,
+            schedule, // fixed leg schedule
             s.fixedRate,
-            Actual360(),                // fixed leg day counter
-            schedule,                   // overnight leg schedule
+            Actual360(), // fixed leg day counter
+            schedule,    // overnight leg schedule
             pricingIndex,
-            0.0,                        // spread
-            2,                          // payment_lag
-            ModifiedFollowing,          // payment_convention
-            cal,                        // payment_calendar
-            false,                      // telescopic_value_dates
-            RateAveraging::Compound,    // averaging_method
-            Null<Natural>(),            // lookback_days 0 -> off
-            0,                          // lockout_days
-            false);                     // apply_observation_shift
+            0.0,                     // spread
+            2,                       // payment_lag
+            ModifiedFollowing,       // payment_convention
+            cal,                     // payment_calendar
+            false,                   // telescopic_value_dates
+            RateAveraging::Compound, // averaging_method
+            Null<Natural>(),         // lookback_days 0 -> off
+            0,                       // lockout_days
+            false);                  // apply_observation_shift
         swap.setPricingEngine(engine);
         bookValue += swap.NPV();
     }
@@ -273,8 +263,7 @@ int main(int argc, char** argv) {
         readQuotes(argv[2], pillarTenors, quoteRows);
 
         std::ofstream out(argv[3]);
-        if (!out)
-            throw std::runtime_error(std::string("cannot open ") + argv[3]);
+        if (!out) throw std::runtime_error(std::string("cannot open ") + argv[3]);
         out << std::setprecision(std::numeric_limits<double>::max_digits10);
 
         const double baseValue = priceBook(book, pillarTenors, quoteRows[0]);
@@ -284,10 +273,10 @@ int main(int argc, char** argv) {
             out << (scenarioValue - baseValue) << "\n";
         }
 
-        std::cout << "native_var_check: " << book.size() << " swaps, "
-                  << (quoteRows.size() - 1) << " scenarios, base book value "
-                  << std::setprecision(std::numeric_limits<double>::max_digits10)
-                  << baseValue << " -> " << argv[3] << std::endl;
+        std::cout << "native_var_check: " << book.size() << " swaps, " << (quoteRows.size() - 1)
+                  << " scenarios, base book value "
+                  << std::setprecision(std::numeric_limits<double>::max_digits10) << baseValue
+                  << " -> " << argv[3] << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "native_var_check ERROR: " << e.what() << std::endl;

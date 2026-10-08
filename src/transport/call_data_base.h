@@ -1,7 +1,17 @@
 #ifndef QUANTRASERVER_CALL_DATA_BASE_H
 #define QUANTRASERVER_CALL_DATA_BASE_H
 
+#include "error.h"
+#include "request_budget.h"
+
+#include "quantraserver.grpc.fb.h"
+#include "quantraserver_generated.h"
+
+#include <ql/quantlib.hpp>
+
+#include "flatbuffers/grpc.h"
 #include <grpcpp/grpcpp.h>
+
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
@@ -11,14 +21,6 @@
 #include <memory>
 #include <string>
 #include <typeinfo>
-
-#include <ql/quantlib.hpp>
-
-#include "flatbuffers/grpc.h"
-#include "quantraserver.grpc.fb.h"
-#include "quantraserver_generated.h"
-#include "error.h"
-#include "request_budget.h"
 
 // Use quantra namespace for QuantraServer
 using quantra::QuantraServer;
@@ -31,11 +33,9 @@ constexpr std::size_t kMaxStatusMessageLen = 4096;
 
 // Build the gRPC status message from an exception's text: carry the REAL cause to
 // the caller, capping over-long text so the underlying reason still survives.
-inline std::string ErrorStatusMessage(const char *what)
-{
+inline std::string ErrorStatusMessage(const char* what) {
     std::string msg = (what != nullptr) ? what : "";
-    if (msg.size() > kMaxStatusMessageLen)
-    {
+    if (msg.size() > kMaxStatusMessageLen) {
         msg.resize(kMaxStatusMessageLen);
         msg += " ...[truncated]";
     }
@@ -46,26 +46,20 @@ inline std::string ErrorStatusMessage(const char *what)
 // QUANTRA_REQUEST_BUDGET_MS. Returns 0 ("no ceiling") when the variable is
 // unset, empty, or not a positive integer. Combined with the client-propagated
 // deadline (whichever is earlier) to form the request's RequestBudget.
-inline long RequestBudgetCeilingMs()
-{
-    const char *env = std::getenv("QUANTRA_REQUEST_BUDGET_MS");
-    if (env == nullptr || *env == '\0')
-        return 0;
-    char *end = nullptr;
+inline long RequestBudgetCeilingMs() {
+    const char* env = std::getenv("QUANTRA_REQUEST_BUDGET_MS");
+    if (env == nullptr || *env == '\0') return 0;
+    char* end = nullptr;
     long ms = std::strtol(env, &end, 10);
-    if (end == env || ms <= 0)
-        return 0;
+    if (end == env || ms <= 0) return 0;
     return ms;
 }
 
 // Extract the caller's request id from inbound gRPC metadata for log tagging.
 // Returns "-" when `x-request-id` is absent so logs grep uniformly.
-inline std::string RequestId(
-    const std::multimap<grpc::string_ref, grpc::string_ref> &metadata)
-{
+inline std::string RequestId(const std::multimap<grpc::string_ref, grpc::string_ref>& metadata) {
     auto it = metadata.find(grpc::string_ref("x-request-id"));
-    if (it != metadata.end())
-        return std::string(it->second.data(), it->second.size());
+    if (it != metadata.end()) return std::string(it->second.data(), it->second.size());
     return "-";
 }
 
@@ -74,8 +68,7 @@ inline std::string RequestId(
 /**
  * CallData - Base class for all async handlers.
  */
-class CallData
-{
+class CallData {
 public:
     virtual ~CallData() = default;
     virtual void Proceed(bool ok) = 0;
@@ -85,36 +78,24 @@ public:
  * CallDataGeneric - Template base class that handles the gRPC async machinery.
  */
 template <class Message, class Request, class Response, class ResponseBuilder>
-class CallDataGeneric : public CallData
-{
+class CallDataGeneric : public CallData {
 public:
-    explicit CallDataGeneric(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE)
-    {
-    }
+    explicit CallDataGeneric(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {}
 
-    void start()
-    {
-        Proceed(true);
-    }
+    void start() { Proceed(true); }
 
-    void Proceed(bool ok) override
-    {
-        if (status_ == CREATE)
-        {
+    void Proceed(bool ok) override {
+        if (status_ == CREATE) {
             status_ = PROCESS;
             this->RequestCall();
-        }
-        else if (status_ == PROCESS)
-        {
-            if (!ok)
-            {
+        } else if (status_ == PROCESS) {
+            if (!ok) {
                 delete this;
                 return;
             }
 
-            const std::string request_id =
-                quantra::transport::RequestId(ctx_.client_metadata());
+            const std::string request_id = quantra::transport::RequestId(ctx_.client_metadata());
 
             std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder =
                 std::make_shared<flatbuffers::grpc::MessageBuilder>();
@@ -125,8 +106,7 @@ public:
             // `= null` optionals are a separate mechanism and stay absent
             // until explicitly set.
             builder->ForceDefaults(true);
-            try
-            {
+            try {
                 // Spawn the handler for the NEXT request first, so the deadline
                 // short-circuit below still leaves the service accepting calls.
                 this->CreateService(service_, cq_);
@@ -144,28 +124,23 @@ public:
                 // the exact signal the gateway's per-RPC deadline produces. A
                 // caller with no deadline yields time_point::max(), so this is a
                 // no-op for them.
-                if (std::chrono::system_clock::now() >= ctx_.deadline())
-                {
-                    std::cerr << "[grpc] request deadline already elapsed before processing, skipping"
-                              << " type=" << typeid(Message).name()
-                              << " peer=" << ctx_.peer()
-                              << " request_id=" << request_id
-                              << std::endl;
+                if (std::chrono::system_clock::now() >= ctx_.deadline()) {
+                    std::cerr
+                        << "[grpc] request deadline already elapsed before processing, skipping"
+                        << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                        << " request_id=" << request_id << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
-                        grpc::Status(grpc::StatusCode::CANCELLED,
-                                     "client cancelled or deadline expired"),
+                        grpc::Status(
+                            grpc::StatusCode::CANCELLED, "client cancelled or deadline expired"),
                         this);
                     return;
                 }
 
-                if (!request_msg.Verify())
-                {
+                if (!request_msg.Verify()) {
                     std::cerr << "[grpc] malformed FlatBuffer request"
-                              << " type=" << typeid(Message).name()
-                              << " peer=" << ctx_.peer()
-                              << " bytes=" << request_msg.size()
-                              << " request_id=" << request_id
+                              << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                              << " bytes=" << request_msg.size() << " request_id=" << request_id
                               << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
@@ -181,8 +156,7 @@ public:
                 // yields an unlimited budget, so it is a no-op by default.
                 const quantra::RequestBudget budget =
                     quantra::RequestBudget::fromDeadlineAndCeiling(
-                        ctx_.deadline(),
-                        std::chrono::system_clock::now(),
+                        ctx_.deadline(), std::chrono::system_clock::now(),
                         quantra::transport::RequestBudgetCeilingMs());
 
                 Request request;
@@ -192,154 +166,111 @@ public:
                 // The computation may have taken longer than the caller was
                 // willing to wait: re-check the propagated deadline before
                 // serializing/sending a reply nobody will read.
-                if (std::chrono::system_clock::now() >= ctx_.deadline())
-                {
+                if (std::chrono::system_clock::now() >= ctx_.deadline()) {
                     std::cerr << "[grpc] request deadline elapsed during processing, dropping reply"
-                              << " type=" << typeid(Message).name()
-                              << " peer=" << ctx_.peer()
-                              << " request_id=" << request_id
-                              << std::endl;
+                              << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                              << " request_id=" << request_id << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
-                        grpc::Status(grpc::StatusCode::CANCELLED,
-                                     "client cancelled or deadline expired"),
+                        grpc::Status(
+                            grpc::StatusCode::CANCELLED, "client cancelled or deadline expired"),
                         this);
                     return;
                 }
 
                 reply_ = builder->ReleaseMessage<Response>();
-                if (!reply_.Verify())
-                {
+                if (!reply_.Verify()) {
                     std::cerr << "[grpc] refusing to send invalid FlatBuffer reply"
                               << " request_type=" << typeid(Message).name()
                               << " response_type=" << typeid(Response).name()
-                              << " peer=" << ctx_.peer()
-                              << " bytes=" << reply_.size()
-                              << " request_id=" << request_id
-                              << std::endl;
+                              << " peer=" << ctx_.peer() << " bytes=" << reply_.size()
+                              << " request_id=" << request_id << std::endl;
                     status_ = FINISH;
                     responder_.FinishWithError(
-                        grpc::Status(grpc::StatusCode::INTERNAL, "Invalid server response"),
-                        this);
+                        grpc::Status(grpc::StatusCode::INTERNAL, "Invalid server response"), this);
                     return;
                 }
 
                 status_ = FINISH;
                 responder_.Finish(reply_, grpc::Status::OK, this);
-            }
-            catch (QuantLib::Error &e)
-            {
+            } catch (QuantLib::Error& e) {
                 std::cerr << "[grpc] QuantLib exception"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
+                auto status = grpc::Status(
+                    grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
-            }
-            catch (QuantraNotFound &e)
-            {
+            } catch (QuantraNotFound& e) {
                 std::cerr << "[grpc] Quantra not-found"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::NOT_FOUND, e.what());
                 responder_.FinishWithError(status, this);
-            }
-            catch (QuantraInvalidArgument &e)
-            {
+            } catch (QuantraInvalidArgument& e) {
                 std::cerr << "[grpc] Quantra invalid-argument"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
                 responder_.FinishWithError(status, this);
-            }
-            catch (QuantraNotImplemented &e)
-            {
+            } catch (QuantraNotImplemented& e) {
                 std::cerr << "[grpc] Quantra not-implemented"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, e.what());
                 responder_.FinishWithError(status, this);
-            }
-            catch (QuantraDeadlineExceeded &e)
-            {
+            } catch (QuantraDeadlineExceeded& e) {
                 // A mid-computation checkpoint tripped: the caller ran out of
                 // time (client deadline or server ceiling). Slow is not
                 // malformed — surface DEADLINE_EXCEEDED (HTTP 504), NOT ABORTED.
                 std::cerr << "[grpc] request budget exceeded during processing"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED,
-                                           quantra::transport::ErrorStatusMessage(e.what()));
+                auto status = grpc::Status(
+                    grpc::StatusCode::DEADLINE_EXCEEDED,
+                    quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
-            }
-            catch (QuantraError &e)
-            {
+            } catch (QuantraError& e) {
                 std::cerr << "[grpc] Quantra exception"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
+                auto status = grpc::Status(
+                    grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
-            }
-            catch (std::exception &e)
-            {
+            } catch (std::exception& e) {
                 std::cerr << "[grpc] std::exception while handling request"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " error=" << e.what()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " error=" << e.what() << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
-                auto status = grpc::Status(grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
+                auto status = grpc::Status(
+                    grpc::StatusCode::ABORTED, quantra::transport::ErrorStatusMessage(e.what()));
                 responder_.FinishWithError(status, this);
-            }
-            catch (...)
-            {
+            } catch (...) {
                 std::cerr << "[grpc] non-std exception while handling request"
-                          << " type=" << typeid(Message).name()
-                          << " peer=" << ctx_.peer()
-                          << " request_id=" << request_id
-                          << std::endl;
+                          << " type=" << typeid(Message).name() << " peer=" << ctx_.peer()
+                          << " request_id=" << request_id << std::endl;
                 status_ = FINISH;
                 auto status = grpc::Status(grpc::StatusCode::ABORTED, "Unknown error");
                 responder_.FinishWithError(status, this);
             }
-        }
-        else
-        {
+        } else {
             GPR_ASSERT(status_ == FINISH);
             delete this;
         }
     }
 
     virtual void RequestCall() = 0;
-    virtual void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) = 0;
+    virtual void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) = 0;
 
 protected:
-    QuantraServer::AsyncService *service_;
-    grpc::ServerCompletionQueue *cq_;
+    QuantraServer::AsyncService* service_;
+    grpc::ServerCompletionQueue* cq_;
     grpc::ServerContext ctx_;
 
     flatbuffers::grpc::Message<Message> request_msg;
@@ -347,12 +278,7 @@ protected:
 
     grpc::ServerAsyncResponseWriter<flatbuffers::grpc::Message<Response>> responder_;
 
-    enum CallStatus
-    {
-        CREATE,
-        PROCESS,
-        FINISH
-    };
+    enum CallStatus { CREATE, PROCESS, FINISH };
     CallStatus status_;
 };
 

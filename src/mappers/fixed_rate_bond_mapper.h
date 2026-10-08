@@ -7,11 +7,12 @@
  * FixedRateBondResult back into a PriceFixedRateBondResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "fixed_rate_bond_evaluator.h"
-#include "price_fixed_rate_bond_request_generated.h"
+
 #include "fixed_rate_bond_response_generated.h"
+#include "price_fixed_rate_bond_request_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     FixedRateBondInputs toInputs(const quantra::PriceFixedRateBondRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceFixedRateBondResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const FixedRateBondResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const FixedRateBondResult& result) const;
 };
 
 } // namespace quantra

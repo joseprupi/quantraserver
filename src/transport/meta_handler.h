@@ -1,17 +1,18 @@
 #ifndef QUANTRASERVER_META_HANDLER_H
 #define QUANTRASERVER_META_HANDLER_H
 
-#include <memory>
-#include <string>
-#include <vector>
+#include "call_data_base.h"
+#include "product_catalog.h"
+#include "product_registry.h"
+
+#include "meta_request_generated.h"
+#include "meta_response_generated.h"
 
 #include "flatbuffers/grpc.h"
 
-#include "call_data_base.h"
-#include "product_registry.h"
-#include "product_catalog.h"
-#include "meta_request_generated.h"
-#include "meta_response_generated.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 // Build/version metadata comes from compile definitions single-sourced in
 // cmake/quantra_build_info.cmake (the SAME values the JSON gateway's /meta uses).
@@ -60,8 +61,7 @@ public:
     flatbuffers::Offset<MetaResponse> request(
         std::shared_ptr<flatbuffers::grpc::MessageBuilder> builder,
         const MetaRequest* /*req*/,
-        const quantra::RequestBudget& /*budget*/ = quantra::RequestBudget::unlimited()) const
-    {
+        const quantra::RequestBudget& /*budget*/ = quantra::RequestBudget::unlimited()) const {
         auto& b = *builder;
 
         auto service = b.CreateString("quantra-grpc-engine");
@@ -116,21 +116,20 @@ public:
 /// only the four types and the two service hooks — same shape as every product
 /// handler.
 class MetaCallData : public CallDataGeneric<
-    MetaRequest,
-    quantra::MetaEndpoint,
-    MetaResponse,
-    MetaResponseBuilder>
-{
+                         MetaRequest,
+                         quantra::MetaEndpoint,
+                         MetaResponse,
+                         MetaResponseBuilder> {
 public:
     MetaCallData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
-        : CallDataGeneric(service, cq) {
-    }
+        : CallDataGeneric(service, cq) {}
 
     void RequestCall() override {
         service_->RequestMeta(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new MetaCallData(service, cq);
         handler->start();
     }

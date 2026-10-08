@@ -74,17 +74,16 @@
 // =============================================================================
 
 #include <exception>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <memory>
 
-class QuantraError : public std::exception
-{
+class QuantraError : public std::exception {
 public:
     // Add more detail to the exception
-    QuantraError(const std::string &message = "");
+    QuantraError(const std::string& message = "");
     ~QuantraError() throw() {}
-    const char *what() const throw() { return message_->c_str(); }
+    const char* what() const throw() { return message_->c_str(); }
 
 private:
     std::shared_ptr<std::string> message_;
@@ -95,28 +94,22 @@ private:
 // CallDataGeneric translates them to gRPC INVALID_ARGUMENT (HTTP 400) and
 // NOT_FOUND (HTTP 404) respectively. Existing handlers that throw the base
 // QuantraError continue to surface as ABORTED (HTTP 500), unchanged.
-class QuantraInvalidArgument : public QuantraError
-{
+class QuantraInvalidArgument : public QuantraError {
 public:
-    explicit QuantraInvalidArgument(const std::string &message = "")
-        : QuantraError(message) {}
+    explicit QuantraInvalidArgument(const std::string& message = "") : QuantraError(message) {}
 };
 
-class QuantraNotFound : public QuantraError
-{
+class QuantraNotFound : public QuantraError {
 public:
-    explicit QuantraNotFound(const std::string &message = "")
-        : QuantraError(message) {}
+    explicit QuantraNotFound(const std::string& message = "") : QuantraError(message) {}
 };
 
 // Thrown when a valid request asks for an unsupported/unimplemented feature
 // (a genuine feature gap, not a malformed or bad-variant request).
 // CallDataGeneric translates it to gRPC UNIMPLEMENTED (HTTP 501).
-class QuantraNotImplemented : public QuantraError
-{
+class QuantraNotImplemented : public QuantraError {
 public:
-    explicit QuantraNotImplemented(const std::string &message = "")
-        : QuantraError(message) {}
+    explicit QuantraNotImplemented(const std::string& message = "") : QuantraError(message) {}
 };
 
 // Thrown at a mid-computation checkpoint when the per-request budget (the
@@ -124,43 +117,36 @@ public:
 // exhausted. It is NOT a client-input error: the request was well-formed but
 // the caller ran out of time. CallDataGeneric translates it to gRPC
 // DEADLINE_EXCEEDED (HTTP 504) — slow is not malformed.
-class QuantraDeadlineExceeded : public QuantraError
-{
+class QuantraDeadlineExceeded : public QuantraError {
 public:
-    explicit QuantraDeadlineExceeded(const std::string &message = "")
-        : QuantraError(message) {}
+    explicit QuantraDeadlineExceeded(const std::string& message = "") : QuantraError(message) {}
 };
 
-inline void QUANTRA_ERROR(std::string message)
-{
+inline void QUANTRA_ERROR(std::string message) {
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraError(msg_stream.str());
 };
 
-inline void QUANTRA_INVALID_ARGUMENT(std::string message)
-{
+inline void QUANTRA_INVALID_ARGUMENT(std::string message) {
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraInvalidArgument(msg_stream.str());
 };
 
-inline void QUANTRA_NOT_FOUND(std::string message)
-{
+inline void QUANTRA_NOT_FOUND(std::string message) {
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraNotFound(msg_stream.str());
 };
 
-inline void QUANTRA_NOT_IMPLEMENTED(std::string message)
-{
+inline void QUANTRA_NOT_IMPLEMENTED(std::string message) {
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraNotImplemented(msg_stream.str());
 };
 
-inline void QUANTRA_DEADLINE_EXCEEDED(std::string message)
-{
+inline void QUANTRA_DEADLINE_EXCEEDED(std::string message) {
     std::ostringstream msg_stream;
     msg_stream << message;
     throw QuantraDeadlineExceeded(msg_stream.str());

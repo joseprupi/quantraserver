@@ -13,14 +13,12 @@ namespace {
 
 // Attach a BlackIborCouponPricer with a ConstantOptionletVolatility, mirroring
 // FloatingRateBondEvaluator::buildBlackIborCouponPricer exactly.
-void attachIborPricer(const QuantLib::Leg& cashflows, double vol,
-                      int settlementDays = 2) {
+void attachIborPricer(const QuantLib::Leg& cashflows, double vol, int settlementDays = 2) {
     auto qlVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
         settlementDays, QuantLib::TARGET(), QuantLib::ModifiedFollowing, vol,
         QuantLib::Actual365Fixed());
     auto pricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
-    pricer->setCapletVolatility(
-        QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(qlVol));
+    pricer->setCapletVolatility(QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(qlVol));
     QuantLib::setCouponPricer(cashflows, pricer);
 }
 
@@ -33,11 +31,9 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_NPVMatches) {
     const double face = 100.0, spread = 0.001;
 
     QuantLib::Schedule sch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2030),
-        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
     auto qlBond = std::make_shared<QuantLib::FloatingRateBond>(
         2, face, sch, idx, QuantLib::Actual360(), QuantLib::ModifiedFollowing, 2,
@@ -93,7 +89,8 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_NPVMatches) {
     pfb.add_forwarding_curve(dc);
     pfb.add_coupon_pricer(cpId);
     auto pfbOff = pfb.Finish();
-    auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFloatingRateBond>>{pfbOff});
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFloatingRateBond>>{pfbOff});
 
     quantra::PriceFloatingRateBondRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -102,11 +99,17 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_NPVMatches) {
 
     FloatingRateBondPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceFloatingRateBondRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceFloatingRateBondRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const double qNPV = flatbuffers::GetRoot<quantra::PriceFloatingRateBondResponse>(respB->GetBufferPointer())->bonds()->Get(0)->npv();
+    const double qNPV =
+        flatbuffers::GetRoot<quantra::PriceFloatingRateBondResponse>(respB->GetBufferPointer())
+            ->bonds()
+            ->Get(0)
+            ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
 }
 
@@ -117,16 +120,13 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_Annual_Thirty360_Details) {
     const double face = 1000.0, spread = 0.0, redemption = 101.0;
 
     QuantLib::Schedule sch(
-        QuantLib::Date(17, QuantLib::January, 2025),
-        QuantLib::Date(17, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::Following, QuantLib::Following,
-        QuantLib::DateGeneration::Backward, false);
+        QuantLib::Date(17, QuantLib::January, 2025), QuantLib::Date(17, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(), QuantLib::Following,
+        QuantLib::Following, QuantLib::DateGeneration::Backward, false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
     auto qlBond = std::make_shared<QuantLib::FloatingRateBond>(
-        3, face, sch, idx, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis),
-        QuantLib::Following, 2,
-        std::vector<QuantLib::Real>(1, 1.0), std::vector<QuantLib::Spread>(1, spread),
+        3, face, sch, idx, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), QuantLib::Following,
+        2, std::vector<QuantLib::Real>(1, 1.0), std::vector<QuantLib::Spread>(1, spread),
         std::vector<QuantLib::Rate>(), std::vector<QuantLib::Rate>(), false, redemption,
         QuantLib::Date(17, QuantLib::January, 2025));
     qlBond->setPricingEngine(std::make_shared<QuantLib::DiscountingBondEngine>(discountHandle_));
@@ -141,7 +141,8 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_Annual_Thirty360_Details) {
     auto indices = buildIndicesVector(b);
     auto pricers = buildCouponPricerVector(b, "iborpricer");
     auto asof = b.CreateString("2025-01-15");
-    auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, pricers, 0, 0, 0, 0, 0, 0, true);
+    auto pricing =
+        buildPricing(b, asof, asof, 0, indices, 0, curves, pricers, 0, 0, 0, 0, 0, 0, true);
 
     auto eff = b.CreateString("2025-01-17");
     auto term = b.CreateString("2028-01-17");
@@ -182,7 +183,8 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_Annual_Thirty360_Details) {
     pfb.add_coupon_pricer(cpId);
     pfb.add_yield(yield);
     auto pfbOff = pfb.Finish();
-    auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFloatingRateBond>>{pfbOff});
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFloatingRateBond>>{pfbOff});
 
     quantra::PriceFloatingRateBondRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -191,9 +193,13 @@ TEST_F(QuantraComparisonTest, FloatingRateBond_Annual_Thirty360_Details) {
 
     FloatingRateBondPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceFloatingRateBondRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceFloatingRateBondRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceFloatingRateBondResponse>(respB->GetBufferPointer())->bonds()->Get(0);
+    const auto* r =
+        flatbuffers::GetRoot<quantra::PriceFloatingRateBondResponse>(respB->GetBufferPointer())
+            ->bonds()
+            ->Get(0);
 
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlClean, r->clean_price(), 1e-4);

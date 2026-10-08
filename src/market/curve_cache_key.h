@@ -1,19 +1,20 @@
 #ifndef QUANTRASERVER_CURVE_CACHE_KEY_H
 #define QUANTRASERVER_CURVE_CACHE_KEY_H
 
-#include <string>
-#include <vector>
-#include <map>
-#include <set>
-#include <algorithm>
-#include <cstring>
-#include <cstdint>
-#include <unordered_map>
+#include "quote_registry.h"
 
-#include "term_structure_generated.h"
 #include "index_generated.h"
 #include "quotes_generated.h"
-#include "quote_registry.h"
+#include "term_structure_generated.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace quantra {
 
@@ -26,7 +27,7 @@ namespace quantra {
 class CanonicalBuffer {
 public:
     void writeU8(uint8_t v) { buf_.push_back(v); }
-    
+
     void writeI32(int32_t v) {
         uint32_t u;
         std::memcpy(&u, &v, 4);
@@ -50,9 +51,7 @@ public:
         buf_.insert(buf_.end(), s, s + len);
     }
 
-    void writeString(const std::string& s) {
-        writeString(s.data(), s.size());
-    }
+    void writeString(const std::string& s) { writeString(s.data(), s.size()); }
 
     void writeFbString(const flatbuffers::String* s) {
         if (s) {
@@ -104,8 +103,7 @@ struct KeyContext {
     /// Build from raw FlatBuffer arrays (call once per bootstrapAll)
     static KeyContext build(
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
-        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices)
-    {
+        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices) {
         KeyContext ctx;
         if (quotes) {
             for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
@@ -130,7 +128,6 @@ struct KeyContext {
         return ctx;
     }
 };
-
 
 /**
  * CurveKeyBuilder - Builds deterministic cache keys for yield curve specs.
@@ -169,36 +166,23 @@ public:
 
 private:
     static void writeCurveHeader(
-        CanonicalBuffer& buf,
-        const std::string& asOfDate,
-        const quantra::TermStructure* ts);
+        CanonicalBuffer& buf, const std::string& asOfDate, const quantra::TermStructure* ts);
 
     static std::vector<uint8_t> serializePoint(
-        const quantra::PointsWrapper* pw,
-        const KeyContext& ctx);
+        const quantra::PointsWrapper* pw, const KeyContext& ctx);
 
     static void writeReferencedIndices(
-        CanonicalBuffer& buf,
-        const quantra::TermStructure* ts,
-        const KeyContext& ctx);
+        CanonicalBuffer& buf, const quantra::TermStructure* ts, const KeyContext& ctx);
 
     /// Resolve a quote_id to its numeric value via O(1) map lookup
     static double resolveQuoteValue(
-        double inlineValue,
-        const flatbuffers::String* quoteId,
-        const KeyContext& ctx);
+        double inlineValue, const flatbuffers::String* quoteId, const KeyContext& ctx);
 
-    static void writeDeps(
-        CanonicalBuffer& buf,
-        const quantra::HelperDependencies* deps);
+    static void writeDeps(CanonicalBuffer& buf, const quantra::HelperDependencies* deps);
 
-    static void writeIndexRef(
-        CanonicalBuffer& buf,
-        const quantra::IndexRef* ref);
+    static void writeIndexRef(CanonicalBuffer& buf, const quantra::IndexRef* ref);
 
-    static void writeSchedule(
-        CanonicalBuffer& buf,
-        const quantra::Schedule* sched);
+    static void writeSchedule(CanonicalBuffer& buf, const quantra::Schedule* sched);
 
     static std::string sha256hex(const std::vector<uint8_t>& data);
 };

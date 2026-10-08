@@ -4,8 +4,9 @@
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "vanilla_swap_mapper.h"
 #include "vanilla_swap_evaluator.h"
+#include "vanilla_swap_mapper.h"
+
 #include "price_vanilla_swap_request_generated.h"
 #include "vanilla_swap_response_generated.h"
 
@@ -30,26 +31,20 @@ using VanillaSwapPricingRequest = VanillaSwapEndpoint;
  * PriceVanillaSwapData - Async gRPC handler for vanilla swap pricing.
  */
 class PriceVanillaSwapData : public CallDataGeneric<
-    PriceVanillaSwapRequest,
-    VanillaSwapEndpoint,
-    PriceVanillaSwapResponse,
-    PriceVanillaSwapResponseBuilder>
-{
+                                 PriceVanillaSwapRequest,
+                                 VanillaSwapEndpoint,
+                                 PriceVanillaSwapResponse,
+                                 PriceVanillaSwapResponseBuilder> {
 public:
-    PriceVanillaSwapData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    PriceVanillaSwapData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestPriceVanillaSwap(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestPriceVanillaSwap(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceVanillaSwapData(service, cq);
         handler->start();
     }

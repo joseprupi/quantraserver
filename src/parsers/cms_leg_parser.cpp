@@ -1,8 +1,5 @@
 #include "cms_leg_parser.h"
 
-#include <cmath>
-#include <limits>
-
 #include "request_validation.h"
 
 #include "vanilla_swap_generated.h"
@@ -11,6 +8,9 @@
 #include <ql/cashflows/conundrumpricer.hpp>
 #include <ql/cashflows/lineartsrpricer.hpp>
 #include <ql/quotes/simplequote.hpp>
+
+#include <cmath>
+#include <limits>
 
 namespace quantra {
 namespace {
@@ -113,15 +113,14 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
     }
     const auto* ps = leg->pricer();
     const auto pricerType = ps ? ps->pricer_type() : quantra::enums::CmsPricerType_LinearTsr;
-    const auto ycModel =
-        ps ? ps->yield_curve_model() : quantra::enums::CmsYieldCurveModel_Standard;
+    const auto ycModel = ps ? ps->yield_curve_model() : quantra::enums::CmsYieldCurveModel_Standard;
     const auto qlYcModel = toYieldCurveModel(ycModel);
     const double mr = ps ? ps->mean_reversion() : 0.03;
     if (!(mr >= 0.0) || !std::isfinite(mr)) {
         QUANTRA_INVALID_ARGUMENT("CMS leg mean_reversion must be non-negative");
     }
-    auto meanReversion = QuantLib::Handle<QuantLib::Quote>(
-        QuantLib::ext::make_shared<QuantLib::SimpleQuote>(mr));
+    auto meanReversion =
+        QuantLib::Handle<QuantLib::Quote>(QuantLib::ext::make_shared<QuantLib::SimpleQuote>(mr));
 
     CmsPricerBuildResult result;
     result.used.pricerType = pricerType;
@@ -131,15 +130,11 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
     switch (pricerType) {
         case quantra::enums::CmsPricerType_LinearTsr:
             result.pricer = std::make_shared<QuantLib::LinearTsrPricer>(
-                volEntry.handle,
-                meanReversion,
-                discountCurve);
+                volEntry.handle, meanReversion, discountCurve);
             return result;
         case quantra::enums::CmsPricerType_HaganAnalytic:
             result.pricer = std::make_shared<QuantLib::AnalyticHaganPricer>(
-                volEntry.handle,
-                qlYcModel,
-                meanReversion);
+                volEntry.handle, qlYcModel, meanReversion);
             return result;
         case quantra::enums::CmsPricerType_HaganNumeric: {
             const double lowerLimit = ps ? ps->hagan_lower_limit() : 0.0;
@@ -149,7 +144,8 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
 
             if (!std::isfinite(lowerLimit) || !std::isfinite(upperLimit) ||
                 !(upperLimit > lowerLimit)) {
-                QUANTRA_INVALID_ARGUMENT("CMS leg Hagan numeric requires upper_limit > lower_limit");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CMS leg Hagan numeric requires upper_limit > lower_limit");
             }
             if (!std::isfinite(precision) || !(precision > 0.0)) {
                 QUANTRA_INVALID_ARGUMENT("CMS leg hagan_precision must be positive");
@@ -158,19 +154,15 @@ CmsPricerBuildResult CmsLegParser::makeCouponPricer(
             const double hardUpperLimit =
                 hardUpperLimitRaw > 0.0 ? hardUpperLimitRaw : std::numeric_limits<double>::max();
             if (!std::isfinite(hardUpperLimit) || hardUpperLimit <= upperLimit) {
-                QUANTRA_INVALID_ARGUMENT("CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
+                QUANTRA_INVALID_ARGUMENT(
+                    "CMS leg hagan_hard_upper_limit must be > hagan_upper_limit");
             }
             result.used.haganLowerLimit = lowerLimit;
             result.used.haganUpperLimit = upperLimit;
             result.used.haganPrecision = precision;
             result.used.haganHardUpperLimit = hardUpperLimit;
             result.pricer = std::make_shared<QuantLib::NumericHaganPricer>(
-                volEntry.handle,
-                qlYcModel,
-                meanReversion,
-                lowerLimit,
-                upperLimit,
-                precision,
+                volEntry.handle, qlYcModel, meanReversion, lowerLimit, upperLimit, precision,
                 hardUpperLimit);
             return result;
         }

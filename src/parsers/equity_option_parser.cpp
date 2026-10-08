@@ -1,12 +1,12 @@
 #include "equity_option_parser.h"
 
-#include <algorithm>
-#include <vector>
-
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+
+#include <algorithm>
+#include <vector>
 
 namespace quantra {
 
@@ -109,8 +109,7 @@ ParsedEquityOption EquityOptionParser::parse(const quantra::EquityOption* option
             parsed.strike = requirePositive(po->strike(), "EquityAssetOrNothingPayoff.strike");
             break;
         }
-        default:
-            QUANTRA_INVALID_ARGUMENT("EquityOption.payoff is required (payoff is unset)");
+        default: QUANTRA_INVALID_ARGUMENT("EquityOption.payoff is required (payoff is unset)");
     }
 
     if (option->barrier()) {

@@ -1,12 +1,12 @@
 #include "swaption_vol_runtime.h"
 
+#include "date_convert.h"
+#include "sabr_calibrate_cache_key.h"
+
 #include <ql/instruments/overnightindexedswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/utilities/dataformatters.hpp>
-
-#include "sabr_calibrate_cache_key.h"
-#include "date_convert.h"
 
 namespace quantra {
 
@@ -24,13 +24,16 @@ std::vector<double> computeServerAtmForwards(
 
     const QuantLib::Date anchorDate = volEntry.referenceDate;
     for (int i = 0; i < volEntry.nExp; ++i) {
-        QuantLib::Date exercise = sidx.fixedCalendar.advance(anchorDate, volEntry.expiries[i], sidx.fixedBdc);
+        QuantLib::Date exercise =
+            sidx.fixedCalendar.advance(anchorDate, volEntry.expiries[i], sidx.fixedBdc);
         QuantLib::Date start = exercise;
         if (sidx.spotDays > 0) {
-            start = sidx.fixedCalendar.advance(exercise, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
+            start =
+                sidx.fixedCalendar.advance(exercise, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
         }
         for (int j = 0; j < volEntry.nTen; ++j) {
-            QuantLib::Date tentativeEnd = sidx.fixedCalendar.advance(start, volEntry.tenors[j], sidx.fixedTermBdc);
+            QuantLib::Date tentativeEnd =
+                sidx.fixedCalendar.advance(start, volEntry.tenors[j], sidx.fixedTermBdc);
             QuantLib::Schedule fixedSchedule(
                 start, tentativeEnd, QuantLib::Period(sidx.fixedFrequency), sidx.fixedCalendar,
                 sidx.fixedBdc, sidx.fixedTermBdc, sidx.fixedDateRule, sidx.fixedEom);
@@ -41,18 +44,21 @@ std::vector<double> computeServerAtmForwards(
                 auto on = indices.getOvernightWithCurve(sidx.floatIndexId, forwardingCurve);
                 auto ois = std::make_shared<QuantLib::OvernightIndexedSwap>(
                     QuantLib::Swap::Payer, 1.0, fixedSchedule, 0.0, sidx.fixedDayCounter, on);
-                ois->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
+                ois->setPricingEngine(
+                    std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
                 atm = ois->fairRate();
             } else {
                 auto ibor = indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
-                QuantLib::Period floatTenor = sidx.floatTenor.length() > 0 ? sidx.floatTenor : ibor->tenor();
+                QuantLib::Period floatTenor =
+                    sidx.floatTenor.length() > 0 ? sidx.floatTenor : ibor->tenor();
                 QuantLib::Schedule floatSchedule(
-                    start, maturity, floatTenor, sidx.floatCalendar,
-                    sidx.floatBdc, sidx.floatTermBdc, sidx.floatDateRule, sidx.floatEom);
+                    start, maturity, floatTenor, sidx.floatCalendar, sidx.floatBdc,
+                    sidx.floatTermBdc, sidx.floatDateRule, sidx.floatEom);
                 auto swap = std::make_shared<QuantLib::VanillaSwap>(
                     QuantLib::VanillaSwap::Payer, 1.0, fixedSchedule, 0.0, sidx.fixedDayCounter,
                     floatSchedule, ibor, 0.0, ibor->dayCounter());
-                swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
+                swap->setPricingEngine(
+                    std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
                 atm = swap->fairRate();
             }
             atms.push_back(atm);
@@ -81,10 +87,12 @@ std::vector<double> computeServerAtmForwardsForExerciseDates(
         QuantLib::Date exercise = sidx.fixedCalendar.adjust(exerciseRaw, sidx.fixedBdc);
         QuantLib::Date start = exercise;
         if (sidx.spotDays > 0) {
-            start = sidx.fixedCalendar.advance(exercise, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
+            start =
+                sidx.fixedCalendar.advance(exercise, sidx.spotDays, QuantLib::Days, sidx.fixedBdc);
         }
         for (const auto& tenor : tenors) {
-            QuantLib::Date tentativeEnd = sidx.fixedCalendar.advance(start, tenor, sidx.fixedTermBdc);
+            QuantLib::Date tentativeEnd =
+                sidx.fixedCalendar.advance(start, tenor, sidx.fixedTermBdc);
             QuantLib::Schedule fixedSchedule(
                 start, tentativeEnd, QuantLib::Period(sidx.fixedFrequency), sidx.fixedCalendar,
                 sidx.fixedBdc, sidx.fixedTermBdc, sidx.fixedDateRule, sidx.fixedEom);
@@ -95,18 +103,21 @@ std::vector<double> computeServerAtmForwardsForExerciseDates(
                 auto on = indices.getOvernightWithCurve(sidx.floatIndexId, forwardingCurve);
                 auto ois = std::make_shared<QuantLib::OvernightIndexedSwap>(
                     QuantLib::Swap::Payer, 1.0, fixedSchedule, 0.0, sidx.fixedDayCounter, on);
-                ois->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
+                ois->setPricingEngine(
+                    std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
                 atm = ois->fairRate();
             } else {
                 auto ibor = indices.getIborWithCurve(sidx.floatIndexId, forwardingCurve);
-                QuantLib::Period floatTenor = sidx.floatTenor.length() > 0 ? sidx.floatTenor : ibor->tenor();
+                QuantLib::Period floatTenor =
+                    sidx.floatTenor.length() > 0 ? sidx.floatTenor : ibor->tenor();
                 QuantLib::Schedule floatSchedule(
-                    start, maturity, floatTenor, sidx.floatCalendar,
-                    sidx.floatBdc, sidx.floatTermBdc, sidx.floatDateRule, sidx.floatEom);
+                    start, maturity, floatTenor, sidx.floatCalendar, sidx.floatBdc,
+                    sidx.floatTermBdc, sidx.floatDateRule, sidx.floatEom);
                 auto swap = std::make_shared<QuantLib::VanillaSwap>(
                     QuantLib::VanillaSwap::Payer, 1.0, fixedSchedule, 0.0, sidx.fixedDayCounter,
                     floatSchedule, ibor, 0.0, ibor->dayCounter());
-                swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
+                swap->setPricingEngine(
+                    std::make_shared<QuantLib::DiscountingSwapEngine>(discountCurve));
                 atm = swap->fairRate();
             }
             atms.push_back(atm);
@@ -159,7 +170,8 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires a valid referenceDate");
     }
     if (raw.swapIndexId.empty()) {
-        QUANTRA_INVALID_ARGUMENT("Swaption vol surface requires swap_index_id for forward resolution");
+        QUANTRA_INVALID_ARGUMENT(
+            "Swaption vol surface requires swap_index_id for forward resolution");
     }
 
     if (isSmileCubeSpread) {
@@ -184,8 +196,8 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     }
     const auto& sidx = reg.rates.swapIndices.get(raw.swapIndexId);
 
-    auto atms = computeServerAtmForwards(
-        raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
+    auto atms =
+        computeServerAtmForwards(raw, sidx, reg.rates.indices, discountCurve, forwardingCurve);
 
     if (isSabrParams) {
         return withSwaptionSabrParamsAtm(raw, atms);
@@ -210,9 +222,11 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
         // ids and have no trade) disable caching for this run — safe; we
         // always rebuild rather than risk serving a stale cube.
         const std::string discId = !discountCurveId.empty()
-            ? discountCurveId : getCurveIdFromTrade(trade, /*discounting=*/true);
+                                       ? discountCurveId
+                                       : getCurveIdFromTrade(trade, /*discounting=*/true);
         const std::string fwdId = !forwardingCurveId.empty()
-            ? forwardingCurveId : getCurveIdFromTrade(trade, /*discounting=*/false);
+                                      ? forwardingCurveId
+                                      : getCurveIdFromTrade(trade, /*discounting=*/false);
         const std::string discCurveKey = getCurveCacheKey(reg, discId);
         const std::string fwdCurveKey = getCurveCacheKey(reg, fwdId);
         std::string cubeKey;

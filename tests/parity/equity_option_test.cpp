@@ -30,8 +30,8 @@ TEST_F(QuantraComparisonTest, EquityOption_EuropeanVanilla_NPVMatches) {
 
     auto curveDiscount = buildCurve(b, "discount");
     auto curveDividend = buildCurve(b, "div");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        curveDiscount, curveDividend});
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{curveDiscount, curveDividend});
 
     auto quoteId = b.CreateString("EQ_SPOT");
     quantra::QuoteSpecBuilder qb(b);
@@ -60,7 +60,8 @@ TEST_F(QuantraComparisonTest, EquityOption_EuropeanVanilla_NPVMatches) {
     vssb.add_payload_type(quantra::VolPayload_BlackVolSpec);
     vssb.add_payload(blackSpec.Union());
     auto volSurface = vssb.Finish();
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     quantra::EquityVanillaModelSpecBuilder emsb(b);
     emsb.add_model_type(quantra::enums::EquityModelType_BlackScholesAnalytic);
@@ -86,7 +87,8 @@ TEST_F(QuantraComparisonTest, EquityOption_EuropeanVanilla_NPVMatches) {
         b.CreateVector(std::vector<flatbuffers::Offset<quantra::EquityUnderlyingSpec>>{und});
     auto indices = buildIndicesVector(b);
 
-    auto pricing = buildPricing(b, asof, 0, quotes, indices, 0, curves, 0, 0, vols, models, underlyings);
+    auto pricing =
+        buildPricing(b, asof, 0, quotes, indices, 0, curves, 0, 0, vols, models, underlyings);
 
     quantra::EquityPlainVanillaPayoffBuilder pvb(b);
     pvb.add_option_type(quantra::enums::EquityOptionType_Call);
@@ -129,7 +131,8 @@ TEST_F(QuantraComparisonTest, EquityOption_EuropeanVanilla_NPVMatches) {
     auto outBuilder = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     auto out = handler.request(outBuilder, req);
     outBuilder->Finish(out);
-    auto resp = flatbuffers::GetRoot<quantra::PriceEquityOptionResponse>(outBuilder->GetBufferPointer());
+    auto resp =
+        flatbuffers::GetRoot<quantra::PriceEquityOptionResponse>(outBuilder->GetBufferPointer());
 
     ASSERT_NE(resp->options(), nullptr);
     ASSERT_EQ(resp->options()->size(), 1u);
@@ -144,8 +147,8 @@ TEST_F(QuantraComparisonTest, EquityOption_BlackTermShapeMissingGridRejected) {
 
     auto curveDiscount = buildCurve(b, "discount");
     auto curveDividend = buildCurve(b, "div");
-    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{
-        curveDiscount, curveDividend});
+    auto curves = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::TermStructure>>{curveDiscount, curveDividend});
 
     auto quoteId = b.CreateString("EQ_SPOT");
     quantra::QuoteSpecBuilder qb(b);
@@ -174,7 +177,8 @@ TEST_F(QuantraComparisonTest, EquityOption_BlackTermShapeMissingGridRejected) {
     vssb.add_payload_type(quantra::VolPayload_BlackVolSpec);
     vssb.add_payload(blackSpec.Union());
     auto volSurface = vssb.Finish();
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     quantra::EquityVanillaModelSpecBuilder emsb(b);
     emsb.add_model_type(quantra::enums::EquityModelType_BlackScholesAnalytic);
@@ -200,7 +204,8 @@ TEST_F(QuantraComparisonTest, EquityOption_BlackTermShapeMissingGridRejected) {
         b.CreateVector(std::vector<flatbuffers::Offset<quantra::EquityUnderlyingSpec>>{und});
     auto indices = buildIndicesVector(b);
 
-    auto pricing = buildPricing(b, asof, 0, quotes, indices, 0, curves, 0, 0, vols, models, underlyings);
+    auto pricing =
+        buildPricing(b, asof, 0, quotes, indices, 0, curves, 0, 0, vols, models, underlyings);
 
     quantra::EquityPlainVanillaPayoffBuilder pvb(b);
     pvb.add_option_type(quantra::enums::EquityOptionType_Call);

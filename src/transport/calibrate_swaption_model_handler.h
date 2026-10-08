@@ -1,8 +1,8 @@
 #ifndef QUANTRASERVER_CALIBRATE_SWAPTION_MODEL_HANDLER_H
 #define QUANTRASERVER_CALIBRATE_SWAPTION_MODEL_HANDLER_H
 
-#include "calibrate_swaption_model_mapper.h"
 #include "calibrate_swaption_model_evaluator.h"
+#include "calibrate_swaption_model_mapper.h"
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
@@ -28,19 +28,21 @@ using CalibrateSwaptionModelEndpoint = quantra::ProductEndpoint<
 using CalibrateSwaptionModelPricingRequest = CalibrateSwaptionModelEndpoint;
 
 class CalibrateSwaptionModelData : public CallDataGeneric<
-    CalibrateSwaptionModelRequest,
-    CalibrateSwaptionModelEndpoint,
-    CalibrateSwaptionModelResponse,
-    CalibrateSwaptionModelResponseBuilder> {
+                                       CalibrateSwaptionModelRequest,
+                                       CalibrateSwaptionModelEndpoint,
+                                       CalibrateSwaptionModelResponse,
+                                       CalibrateSwaptionModelResponseBuilder> {
 public:
-    CalibrateSwaptionModelData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+    CalibrateSwaptionModelData(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
         : CallDataGeneric(service, cq) {}
 
     void RequestCall() override {
         service_->RequestCalibrateSwaptionModel(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void CreateService(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new CalibrateSwaptionModelData(service, cq);
         handler->start();
     }

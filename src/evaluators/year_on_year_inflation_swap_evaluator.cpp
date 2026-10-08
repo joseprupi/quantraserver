@@ -1,13 +1,13 @@
 #include "year_on_year_inflation_swap_evaluator.h"
 
+#include "date_convert.h" // DateToIso
+#include "error.h"
+
 #include <ql/cashflows/coupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/cashflows/inflationcouponpricer.hpp>
 #include <ql/handle.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
-
-#include "date_convert.h"   // DateToIso
-#include "error.h"
 
 namespace quantra {
 
@@ -20,10 +20,11 @@ namespace {
  * FloatingRateCoupon respectively, and that occurred cashflows are skipped.
  * Returns false when the cashflow has occurred and the mapper must drop it.
  */
-bool extractFlow(const std::shared_ptr<QuantLib::CashFlow>& cf,
-                 const QuantLib::YieldTermStructure& discountCurve,
-                 const QuantLib::Date& asOf,
-                 YearOnYearInflationSwapFlowPlain& out) {
+bool extractFlow(
+    const std::shared_ptr<QuantLib::CashFlow>& cf,
+    const QuantLib::YieldTermStructure& discountCurve,
+    const QuantLib::Date& asOf,
+    YearOnYearInflationSwapFlowPlain& out) {
     if (!cf || cf->hasOccurred(asOf)) {
         return false;
     }
@@ -51,18 +52,19 @@ bool extractFlow(const std::shared_ptr<QuantLib::CashFlow>& cf,
     return true;
 }
 
-YearOnYearInflationSwapPerSwap priceTrade(const YearOnYearInflationSwapTrade& trade,
-                                          const PricingRegistry& reg,
-                                          const PricingContext& ctx,
-                                          bool includeFlows) {
+YearOnYearInflationSwapPerSwap priceTrade(
+    const YearOnYearInflationSwapTrade& trade,
+    const PricingRegistry& reg,
+    const PricingContext& ctx,
+    bool includeFlows) {
     auto discountIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discountIt == reg.rates.curves.end()) {
         QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
     }
 
     auto curveIt = reg.inflation.yoyInflationCurves.find(trade.inflationCurveId);
-    if (curveIt == reg.inflation.yoyInflationCurves.end() ||
-        !curveIt->second || curveIt->second->empty()) {
+    if (curveIt == reg.inflation.yoyInflationCurves.end() || !curveIt->second ||
+        curveIt->second->empty()) {
         QUANTRA_NOT_FOUND("YoY inflation curve not found: " + trade.inflationCurveId);
     }
 
@@ -83,33 +85,21 @@ YearOnYearInflationSwapPerSwap priceTrade(const YearOnYearInflationSwapTrade& tr
     if (indexIt == reg.inflation.inflationIndices.end()) {
         QUANTRA_NOT_FOUND("Inflation index not found: " + trade.inflationIndexId);
     }
-    auto inflationIndex =
-        std::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(indexIt->second);
+    auto inflationIndex = std::dynamic_pointer_cast<QuantLib::YoYInflationIndex>(indexIt->second);
     if (!inflationIndex) {
         QUANTRA_INVALID_ARGUMENT("Inflation index is not YoY inflation: " + trade.inflationIndexId);
     }
 
     auto swap = std::make_shared<QuantLib::YearOnYearInflationSwap>(
-        trade.swapType,
-        trade.notional,
-        trade.fixedSchedule,
-        trade.fixedRate,
-        trade.fixedDayCounter,
-        trade.yoySchedule,
-        inflationIndex,
-        trade.observationLag,
-        trade.observationInterpolation,
-        trade.spread,
-        trade.yoyDayCounter,
-        trade.paymentCalendar,
-        trade.paymentConvention);
+        trade.swapType, trade.notional, trade.fixedSchedule, trade.fixedRate, trade.fixedDayCounter,
+        trade.yoySchedule, inflationIndex, trade.observationLag, trade.observationInterpolation,
+        trade.spread, trade.yoyDayCounter, trade.paymentCalendar, trade.paymentConvention);
 
     QuantLib::setCouponPricer(
         swap->yoyLeg(),
         QuantLib::ext::make_shared<QuantLib::BlackYoYInflationCouponPricer>(
             QuantLib::Handle<QuantLib::YieldTermStructure>(discountIt->second->currentLink())));
-    swap->setPricingEngine(
-        std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
+    swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(*discountIt->second));
 
     YearOnYearInflationSwapPerSwap out;
     out.npv = swap->NPV();

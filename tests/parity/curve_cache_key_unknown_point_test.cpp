@@ -21,14 +21,12 @@
 // exercised here: TermStructurePointParser rejects unknown point types
 // before bootstrapping, so the live scenario (parser taught a new type, key
 // builder forgotten) cannot be simulated without also extending the parser.
-#include <gtest/gtest.h>
-
 #include "curve_cache_key.h"
 #include "error.h"
 
-namespace quantra {
-namespace testing {
-namespace {
+#include <gtest/gtest.h>
+
+namespace quantra { namespace testing { namespace {
 
 // Out-of-range union type byte simulating an unhandled schema addition.
 constexpr uint8_t kUnknownPointType = 0xAA;
@@ -37,18 +35,15 @@ constexpr uint8_t kUnknownPointType = 0xAA;
 // type byte. The payload is a real DepositHelper table so the wrapper is
 // structurally valid; `rate` differentiates the point content.
 const quantra::TermStructure* buildUnknownPointCurve(
-    flatbuffers::FlatBufferBuilder& fbb, double rate)
-{
+    flatbuffers::FlatBufferBuilder& fbb, double rate) {
     auto helper = quantra::CreateDepositHelper(fbb, rate);
     auto pw = quantra::CreatePointsWrapper(
         fbb, static_cast<quantra::Point>(kUnknownPointType), helper.Union());
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-unknown-point",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-unknown-point", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     fbb.Finish(ts);
     return flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
 }
@@ -59,10 +54,8 @@ TEST(CurveCacheKeyUnknownPoint, UnknownPointTypeFailsClosed) {
     const auto* ts2 = buildUnknownPointCurve(f2, 0.05);
 
     KeyContext ctx;
-    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts1, ctx, {}),
-                 QuantraError);
-    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts2, ctx, {}),
-                 QuantraError);
+    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts1, ctx, {}), QuantraError);
+    EXPECT_THROW(CurveKeyBuilder::compute("2026-06-11", ts2, ctx, {}), QuantraError);
 }
 
 // Point_NONE carries no payload table, so the type byte alone IS the full
@@ -72,20 +65,15 @@ TEST(CurveCacheKeyUnknownPoint, NonePointTypeStillKeyable) {
     auto pw = quantra::CreatePointsWrapper(fbb, quantra::Point_NONE, 0);
     std::vector<flatbuffers::Offset<quantra::PointsWrapper>> pts{pw};
     auto ts = quantra::CreateTermStructureDirect(
-        fbb, "curve-none-point",
-        quantra::enums::DayCounter_Actual360,
-        quantra::enums::Interpolator_LogLinear,
-        quantra::enums::BootstrapTrait_Discount,
-        &pts, "2026-06-11");
+        fbb, "curve-none-point", quantra::enums::DayCounter_Actual360,
+        quantra::enums::Interpolator_LogLinear, quantra::enums::BootstrapTrait_Discount, &pts,
+        "2026-06-11");
     fbb.Finish(ts);
-    const auto* root =
-        flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
+    const auto* root = flatbuffers::GetRoot<quantra::TermStructure>(fbb.GetBufferPointer());
 
     KeyContext ctx;
     std::string key = CurveKeyBuilder::compute("2026-06-11", root, ctx, {});
     EXPECT_EQ(key.rfind("yc:v3:", 0), 0u);
 }
 
-} // namespace
-} // namespace testing
-} // namespace quantra
+}}} // namespace quantra::testing

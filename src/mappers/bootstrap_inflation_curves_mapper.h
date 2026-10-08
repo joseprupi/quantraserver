@@ -9,11 +9,12 @@
  * into a BootstrapInflationCurvesResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "bootstrap_inflation_curves_evaluator.h"
+
 #include "bootstrap_inflation_curves_request_generated.h"
 #include "bootstrap_inflation_curves_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -30,8 +31,8 @@ public:
     /// Folds the build-error message into each query's per-item error field so
     /// the pricer reports it as a per-curve Error entry (HTTP 200 list) rather
     /// than letting the failure surface as a transport-level error.
-    void onRegistryBuildError(BootstrapInflationCurvesInputs& inputs,
-                              const std::string& message) const;
+    void onRegistryBuildError(
+        BootstrapInflationCurvesInputs& inputs, const std::string& message) const;
 };
 
 } // namespace quantra

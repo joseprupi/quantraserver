@@ -8,22 +8,21 @@
  * serializes the BootstrapCurvesResult back into a BootstrapCurvesResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "bootstrap_curves_evaluator.h"
+
 #include "bootstrap_curves_request_generated.h"
 #include "bootstrap_curves_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class BootstrapCurvesMapper {
 public:
-    BootstrapCurvesInputs toInputs(
-        const quantra::BootstrapCurvesRequest* req) const;
+    BootstrapCurvesInputs toInputs(const quantra::BootstrapCurvesRequest* req) const;
 
     flatbuffers::Offset<quantra::BootstrapCurvesResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const BootstrapCurvesResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const BootstrapCurvesResult& result) const;
 };
 
 } // namespace quantra

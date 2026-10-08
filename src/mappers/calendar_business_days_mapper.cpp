@@ -12,12 +12,10 @@ CalendarBusinessDaysInputs CalendarBusinessDaysMapper::toInputs(
         QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest is null");
     }
     if (!req->start_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarBusinessDaysRequest.start_date is required");
+        QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest.start_date is required");
     }
     if (!req->end_date()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalendarBusinessDaysRequest.end_date is required");
+        QUANTRA_INVALID_ARGUMENT("CalendarBusinessDaysRequest.end_date is required");
     }
 
     CalendarBusinessDaysInputs inputs;
@@ -30,10 +28,8 @@ CalendarBusinessDaysInputs CalendarBusinessDaysMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::CalendarBusinessDaysResponse>
-CalendarBusinessDaysMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CalendarBusinessDaysResult& result) const {
+flatbuffers::Offset<quantra::CalendarBusinessDaysResponse> CalendarBusinessDaysMapper::toResponse(
+    flatbuffers::grpc::MessageBuilder& builder, const CalendarBusinessDaysResult& result) const {
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> dates;
     dates.reserve(result.dates.size());

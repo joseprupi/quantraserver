@@ -5,11 +5,11 @@
 
 #include "quantra_client.h"
 
-#include <map>
-#include <stdexcept>
-#include <iostream>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
+#include <map>
+#include <stdexcept>
 
 namespace quantra {
 
@@ -51,9 +51,7 @@ public:
     }
 
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> ParseRequest(
-        ProductType type,
-        const std::string& json
-    ) {
+        ProductType type, const std::string& json) {
         // The body is handed to the flatc parser as a C string below, so an
         // embedded NUL would silently truncate the request. Reject
         // it explicitly instead.
@@ -69,13 +67,12 @@ public:
         // "input file is empty" for wrong-shape bodies). The wording comes from
         // the vendored FlatBuffers parser internals — out of scope to fix here.
         if (!parser->Parse(json.c_str(), include_dirs_)) {
-            throw JsonParseException("JSON parse error for " +
-                std::string(ProductTypeToString(type)) + ": " + parser->error_);
+            throw JsonParseException(
+                "JSON parse error for " + std::string(ProductTypeToString(type)) + ": " +
+                parser->error_);
         }
 
-        return std::make_shared<flatbuffers::grpc::MessageBuilder>(
-            std::move(parser->builder_)
-        );
+        return std::make_shared<flatbuffers::grpc::MessageBuilder>(std::move(parser->builder_));
     }
 
     std::string GenerateResponse(ProductType type, const uint8_t* buffer) {
@@ -86,8 +83,9 @@ public:
         const char* error = flatbuffers::GenText(*parser, buffer, &json);
 
         if (error != nullptr) {
-            throw JsonRuntimeException("Failed to generate JSON for " +
-                std::string(ProductTypeToString(type)) + ": " + error);
+            throw JsonRuntimeException(
+                "Failed to generate JSON for " + std::string(ProductTypeToString(type)) + ": " +
+                error);
         }
 
         return json;
@@ -122,21 +120,21 @@ private:
         auto parser = std::make_shared<flatbuffers::Parser>();
         parser->opts.strict_json = true;
         parser->opts.force_defaults = true;
-        
+
         std::filesystem::path filepath = std::filesystem::path(fbs_dir_) / filename;
         std::string content;
-        
+
         if (!flatbuffers::LoadFile(filepath.string().c_str(), false, &content)) {
             throw JsonRuntimeException(
                 "Failed to load schema: " + filepath.string() +
                 " (set QUANTRA_FBS_DIR/QUANTRA_FBS_INCLUDE_DIR if needed)");
         }
-        
+
         if (!parser->Parse(content.c_str(), include_dirs_)) {
-            throw JsonRuntimeException("Failed to parse schema " +
-                std::string(filename) + ": " + parser->error_);
+            throw JsonRuntimeException(
+                "Failed to parse schema " + std::string(filename) + ": " + parser->error_);
         }
-        
+
         return parser;
     }
 };
@@ -150,9 +148,7 @@ JsonParser::JsonParser() : impl_(std::make_unique<Impl>()) {}
 JsonParser::~JsonParser() = default;
 
 std::shared_ptr<flatbuffers::grpc::MessageBuilder> JsonParser::ParseRequest(
-    ProductType type, 
-    const std::string& json
-) {
+    ProductType type, const std::string& json) {
     return impl_->ParseRequest(type, json);
 }
 

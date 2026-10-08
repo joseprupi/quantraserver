@@ -4,8 +4,9 @@
 #include "call_data_base.h"
 #include "product_endpoint.h"
 #include "product_registry.h"
-#include "zero_coupon_swap_mapper.h"
 #include "zero_coupon_swap_evaluator.h"
+#include "zero_coupon_swap_mapper.h"
+
 #include "price_zero_coupon_swap_request_generated.h"
 #include "zero_coupon_swap_response_generated.h"
 
@@ -26,26 +27,20 @@ using ZeroCouponSwapEndpoint = quantra::ProductEndpoint<
  * PriceZeroCouponSwapData - Async handler for zero-coupon swap pricing.
  */
 class PriceZeroCouponSwapData : public CallDataGeneric<
-    PriceZeroCouponSwapRequest,
-    ZeroCouponSwapEndpoint,
-    PriceZeroCouponSwapResponse,
-    PriceZeroCouponSwapResponseBuilder>
-{
+                                    PriceZeroCouponSwapRequest,
+                                    ZeroCouponSwapEndpoint,
+                                    PriceZeroCouponSwapResponse,
+                                    PriceZeroCouponSwapResponseBuilder> {
 public:
-    PriceZeroCouponSwapData(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq)
-        : CallDataGeneric(service, cq)
-    {
+    PriceZeroCouponSwapData(QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq)
+        : CallDataGeneric(service, cq) {}
+
+    void RequestCall() override {
+        service_->RequestPriceZeroCouponSwap(&ctx_, &request_msg, &responder_, cq_, cq_, this);
     }
 
-    void RequestCall() override
-    {
-        service_->RequestPriceZeroCouponSwap(
-            &ctx_, &request_msg, &responder_,
-            cq_, cq_, this);
-    }
-
-    void CreateService(QuantraServer::AsyncService *service, grpc::ServerCompletionQueue *cq) override
-    {
+    void CreateService(
+        QuantraServer::AsyncService* service, grpc::ServerCompletionQueue* cq) override {
         auto handler = new PriceZeroCouponSwapData(service, cq);
         handler->start();
     }

@@ -1,13 +1,13 @@
 #include "calendar_overrides.h"
 
-#include <algorithm>
-#include <map>
-#include <set>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/time/calendars/nullcalendar.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <algorithm>
+#include <map>
+#include <set>
 
 namespace quantra {
 
@@ -28,14 +28,15 @@ std::string buildFingerprint(const std::vector<HolidayOverride>& overrides) {
     for (const auto& o : overrides) {
         if (o.added.empty() && o.removed.empty()) continue;
         std::vector<std::string> dates;
-        for (const auto& d : o.added) dates.push_back("+" + DateToIso(d));
-        for (const auto& d : o.removed) dates.push_back("-" + DateToIso(d));
+        for (const auto& d : o.added)
+            dates.push_back("+" + DateToIso(d));
+        for (const auto& d : o.removed)
+            dates.push_back("-" + DateToIso(d));
         // Order by date, then sign; a date is in at most one list.
-        std::sort(dates.begin(), dates.end(),
-                  [](const std::string& a, const std::string& b) {
-                      const int c = a.compare(1, std::string::npos, b, 1, std::string::npos);
-                      return c != 0 ? c < 0 : a[0] < b[0];
-                  });
+        std::sort(dates.begin(), dates.end(), [](const std::string& a, const std::string& b) {
+            const int c = a.compare(1, std::string::npos, b, 1, std::string::npos);
+            return c != 0 ? c < 0 : a[0] < b[0];
+        });
         std::string body;
         for (const auto& d : dates) {
             if (!body.empty()) body += ",";
@@ -61,8 +62,8 @@ bool calendarSupportsOverrides(const QuantLib::Calendar& calendar) {
     return !name.empty() && name != QuantLib::NullCalendar().name();
 }
 
-void validateCalendarOverrides(const std::vector<HolidayOverride>& overrides,
-                               const std::string& path) {
+void validateCalendarOverrides(
+    const std::vector<HolidayOverride>& overrides, const std::string& path) {
     std::map<std::string, std::size_t> seenCalendars;
     for (std::size_t i = 0; i < overrides.size(); ++i) {
         const auto& o = overrides[i];
@@ -70,21 +71,19 @@ void validateCalendarOverrides(const std::vector<HolidayOverride>& overrides,
         if (!calendarSupportsOverrides(o.calendar)) {
             QUANTRA_INVALID_ARGUMENT(
                 entry + ".calendar: holiday overrides are not supported for this "
-                "calendar (BespokeCalendar and NullCalendar cannot be overridden)");
+                        "calendar (BespokeCalendar and NullCalendar cannot be overridden)");
         }
         const auto dup = seenCalendars.emplace(o.calendar.name(), i);
         if (!dup.second) {
             QUANTRA_INVALID_ARGUMENT(
-                entry + ".calendar resolves to the same calendar ('" +
-                o.calendar.name() + "') as " + at(path, dup.first->second) +
-                "; list each calendar once");
+                entry + ".calendar resolves to the same calendar ('" + o.calendar.name() +
+                "') as " + at(path, dup.first->second) + "; list each calendar once");
         }
         std::set<QuantLib::Date> added;
         for (std::size_t j = 0; j < o.added.size(); ++j) {
             if (!added.insert(o.added[j]).second) {
                 QUANTRA_INVALID_ARGUMENT(
-                    at(entry + ".added_holidays", j) + ": duplicate date " +
-                    DateToIso(o.added[j]));
+                    at(entry + ".added_holidays", j) + ": duplicate date " + DateToIso(o.added[j]));
             }
         }
         std::set<QuantLib::Date> removed;
@@ -108,22 +107,25 @@ void validateCalendarOverrides(const std::vector<HolidayOverride>& overrides,
     }
 }
 
-void applyCalendarOverrides(const std::vector<HolidayOverride>& overrides,
-                            const std::string& path) {
+void applyCalendarOverrides(
+    const std::vector<HolidayOverride>& overrides, const std::string& path) {
     validateCalendarOverrides(overrides, path);
     resetCalendarOverrides();
     for (const auto& o : overrides) {
         // Record before mutating so a reset always covers a partial apply.
         g_touched.push_back(o.calendar);
         QuantLib::Calendar calendar = o.calendar;
-        for (const auto& d : o.added) calendar.addHoliday(d);
-        for (const auto& d : o.removed) calendar.removeHoliday(d);
+        for (const auto& d : o.added)
+            calendar.addHoliday(d);
+        for (const auto& d : o.removed)
+            calendar.removeHoliday(d);
     }
     g_fingerprint = buildFingerprint(overrides);
 }
 
 void resetCalendarOverrides() {
-    for (auto& calendar : g_touched) calendar.resetAddedAndRemovedHolidays();
+    for (auto& calendar : g_touched)
+        calendar.resetAddedAndRemovedHolidays();
     g_touched.clear();
     g_fingerprint.clear();
 }

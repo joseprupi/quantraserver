@@ -2,8 +2,9 @@
 
 #include "enum_convert.h"
 #include "error.h"
-#include "model_generated.h"
 #include "request_validation.h"
+
+#include "model_generated.h"
 
 namespace quantra {
 
@@ -12,8 +13,7 @@ namespace {
 /// Mirror of the FB SwaptionHwCalibrationSpec table into its plain-domain
 /// counterpart. Matches the conversion PricingRegistryBuilder performs for
 /// the model's embedded hw_calibration block (periods via TimeUnitToQL).
-SwaptionHwCalibrationDomain toCalibrationDomain(
-    const quantra::SwaptionHwCalibrationSpec* c) {
+SwaptionHwCalibrationDomain toCalibrationDomain(const quantra::SwaptionHwCalibrationSpec* c) {
     SwaptionHwCalibrationDomain hw;
     if (c->swaption_vol_id()) hw.swaption_vol_id = c->swaption_vol_id()->str();
     if (c->discount_curve_id()) hw.discount_curve_id = c->discount_curve_id()->str();
@@ -21,14 +21,12 @@ SwaptionHwCalibrationDomain toCalibrationDomain(
     if (c->swap_index_id()) hw.swap_index_id = c->swap_index_id()->str();
     if (c->expiries()) {
         for (auto pit = c->expiries()->begin(); pit != c->expiries()->end(); ++pit) {
-            hw.expiries.push_back(
-                requirePeriod(*pit, "SwaptionHwCalibrationSpec.expiries"));
+            hw.expiries.push_back(requirePeriod(*pit, "SwaptionHwCalibrationSpec.expiries"));
         }
     }
     if (c->tenors()) {
         for (auto pit = c->tenors()->begin(); pit != c->tenors()->end(); ++pit) {
-            hw.tenors.push_back(
-                requirePeriod(*pit, "SwaptionHwCalibrationSpec.tenors"));
+            hw.tenors.push_back(requirePeriod(*pit, "SwaptionHwCalibrationSpec.tenors"));
         }
     }
     hw.calibrate_a = c->calibrate_a();
@@ -46,8 +44,7 @@ SwaptionHwCalibrationDomain toCalibrationDomain(
 CalibrateSwaptionModelInputs CalibrateSwaptionModelMapper::toInputs(
     const quantra::CalibrateSwaptionModelRequest* req) const {
     if (req == nullptr || req->pricing() == nullptr || req->model_id() == nullptr) {
-        QUANTRA_INVALID_ARGUMENT(
-            "CalibrateSwaptionModelRequest requires pricing and model_id");
+        QUANTRA_INVALID_ARGUMENT("CalibrateSwaptionModelRequest requires pricing and model_id");
     }
 
     CalibrateSwaptionModelInputs inputs;
@@ -98,10 +95,10 @@ CalibrateSwaptionModelInputs CalibrateSwaptionModelMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::CalibrateSwaptionModelResponse>
-CalibrateSwaptionModelMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const CalibrateSwaptionModelResult& result) const {
+flatbuffers::Offset<quantra::CalibrateSwaptionModelResponse> CalibrateSwaptionModelMapper::
+    toResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const CalibrateSwaptionModelResult& result) const {
     auto modelIdStr = builder.CreateString(result.modelId);
     quantra::CalibrateSwaptionModelResponseBuilder rb(builder);
     rb.add_model_id(modelIdStr);

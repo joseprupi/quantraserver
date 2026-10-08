@@ -1,12 +1,12 @@
 #include "year_on_year_inflation_swap_mapper.h"
 
-#include <cmath>
-
 #include "date_convert.h"
-#include "schedule_parser.h"
 #include "enum_convert.h"
 #include "error.h"
 #include "request_validation.h"
+#include "schedule_parser.h"
+
+#include <cmath>
 
 namespace quantra {
 
@@ -21,12 +21,10 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
             "PriceYearOnYearInflationSwap entry requires year_on_year_inflation_swap");
     }
     if (!pricing->discounting_curve()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceYearOnYearInflationSwap entry requires discounting_curve");
+        QUANTRA_INVALID_ARGUMENT("PriceYearOnYearInflationSwap entry requires discounting_curve");
     }
     if (!pricing->inflation_curve()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "PriceYearOnYearInflationSwap entry requires inflation_curve");
+        QUANTRA_INVALID_ARGUMENT("PriceYearOnYearInflationSwap entry requires inflation_curve");
     }
 
     const auto* swap = pricing->year_on_year_inflation_swap();
@@ -43,8 +41,7 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
         QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap observation_lag not found");
     }
     if (!swap->inflation_index_id() || swap->inflation_index_id()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(
-            "YearOnYearInflationSwap inflation_index_id is required");
+        QUANTRA_INVALID_ARGUMENT("YearOnYearInflationSwap inflation_index_id is required");
     }
 
     ScheduleParser scheduleParser;
@@ -59,8 +56,8 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
     trade.fixedDayCounter = DayCounterToQL(swap->fixed_day_counter());
     trade.yoySchedule = *yoySchedule;
     trade.inflationIndexId = swap->inflation_index_id()->str();
-    trade.observationLag = requirePeriod(
-        swap->observation_lag(), "YearOnYearInflationSwap.observation_lag");
+    trade.observationLag =
+        requirePeriod(swap->observation_lag(), "YearOnYearInflationSwap.observation_lag");
     trade.observationInterpolation = CPIInterpolationToQL(swap->observation_interpolation());
     trade.spread = swap->spread();
     trade.yoyDayCounter = DayCounterToQL(swap->yoy_day_counter());
@@ -80,8 +77,7 @@ YearOnYearInflationSwapTrade extractTrade(const quantra::PriceYearOnYearInflatio
  * default value the FB schema bakes in).
  */
 flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const YearOnYearInflationSwapFlowPlain& f) {
+    flatbuffers::grpc::MessageBuilder& builder, const YearOnYearInflationSwapFlowPlain& f) {
     auto paymentDate = builder.CreateString(f.paymentDate);
     flatbuffers::Offset<flatbuffers::String> accrualStart = 0;
     flatbuffers::Offset<flatbuffers::String> accrualEnd = 0;
@@ -135,10 +131,10 @@ YearOnYearInflationSwapInputs YearOnYearInflationSwapMapper::toInputs(
     return inputs;
 }
 
-flatbuffers::Offset<quantra::PriceYearOnYearInflationSwapResponse>
-YearOnYearInflationSwapMapper::toResponse(
-    flatbuffers::grpc::MessageBuilder& builder,
-    const YearOnYearInflationSwapResult& result) const {
+flatbuffers::Offset<quantra::PriceYearOnYearInflationSwapResponse> YearOnYearInflationSwapMapper::
+    toResponse(
+        flatbuffers::grpc::MessageBuilder& builder,
+        const YearOnYearInflationSwapResult& result) const {
 
     std::vector<flatbuffers::Offset<quantra::YearOnYearInflationSwapResponse>> swapsVector;
     swapsVector.reserve(result.swaps.size());

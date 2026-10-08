@@ -1,18 +1,18 @@
 #include "fixed_rate_bond_evaluator.h"
 
-#include <sstream>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
-#include <ql/interestrate.hpp>
-#include <ql/pricingengines/bond/discountingbondengine.hpp>
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/bond.hpp>
+#include <ql/interestrate.hpp>
+#include <ql/pricingengine.hpp>
 #include <ql/pricingengines/bond/bondfunctions.hpp>
+#include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
-#include "error.h"
-#include "date_convert.h"
+#include <sstream>
 
 namespace quantra {
 
@@ -70,13 +70,13 @@ FixedRateBondResult FixedRateBondEvaluator::evaluate(
     result.bonds.reserve(inputs.trades.size());
 
     for (const auto& trade : inputs.trades) {
-        ctx.budget.check();  // honor the per-request deadline before each trade
+        ctx.budget.check(); // honor the per-request deadline before each trade
         auto curveIt = reg.rates.curves.find(trade.discountingCurveId);
         if (curveIt == reg.rates.curves.end()) {
             QUANTRA_NOT_FOUND("Discounting curve not found: " + trade.discountingCurveId);
         }
-        const auto& curveHandle = *curveIt->second;            // RelinkableHandle
-        auto discountCurve = curveHandle.currentLink();        // shared_ptr<YieldTermStructure>
+        const auto& curveHandle = *curveIt->second;     // RelinkableHandle
+        auto discountCurve = curveHandle.currentLink(); // shared_ptr<YieldTermStructure>
 
         auto engine = std::make_shared<QuantLib::DiscountingBondEngine>(curveHandle);
         trade.bond->setPricingEngine(engine);
@@ -99,10 +99,9 @@ FixedRateBondResult FixedRateBondEvaluator::evaluate(
                 *trade.bond, interestRate, QuantLib::Duration::Modified, ctx.settlement);
             out.macaulayDuration = QuantLib::BondFunctions::duration(
                 *trade.bond, interestRate, QuantLib::Duration::Macaulay, ctx.settlement);
-            out.convexity = QuantLib::BondFunctions::convexity(
-                *trade.bond, interestRate, ctx.settlement);
-            out.bps = QuantLib::BondFunctions::bps(
-                *trade.bond, *discountCurve, ctx.settlement);
+            out.convexity =
+                QuantLib::BondFunctions::convexity(*trade.bond, interestRate, ctx.settlement);
+            out.bps = QuantLib::BondFunctions::bps(*trade.bond, *discountCurve, ctx.settlement);
         }
 
         if (reg.options.bondPricingFlows) {

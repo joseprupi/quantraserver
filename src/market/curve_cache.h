@@ -1,21 +1,21 @@
 #ifndef QUANTRASERVER_CURVE_CACHE_H
 #define QUANTRASERVER_CURVE_CACHE_H
 
-#include <string>
+#include <ql/termstructures/yieldtermstructure.hpp>
+
 #include <algorithm>
+#include <cctype>
+#include <chrono>
+#include <cstdlib>
 #include <exception>
+#include <iostream>
+#include <limits>
+#include <list>
 #include <memory>
 #include <optional>
-#include <vector>
+#include <string>
 #include <unordered_map>
-#include <chrono>
-#include <list>
-#include <iostream>
-#include <cstdlib>
-#include <cctype>
-#include <limits>
-
-#include <ql/termstructures/yieldtermstructure.hpp>
+#include <vector>
 
 namespace quantra {
 
@@ -27,12 +27,11 @@ inline std::optional<size_t> ParsePositiveSizeT(const char* text) {
     }
 
     std::string value(text);
-    auto begin = std::find_if_not(value.begin(), value.end(), [](unsigned char c) {
-        return std::isspace(c) != 0;
-    });
+    auto begin = std::find_if_not(
+        value.begin(), value.end(), [](unsigned char c) { return std::isspace(c) != 0; });
     auto end = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
-        return std::isspace(c) != 0;
-    }).base();
+                   return std::isspace(c) != 0;
+               }).base();
     if (begin >= end) {
         return std::nullopt;
     }
@@ -67,10 +66,10 @@ inline std::optional<size_t> ParsePositiveSizeT(const char* text) {
  * an equivalent InterpolatedDiscountCurve.
  */
 struct CachedCurveData {
-    std::string reference_date;     // YYYY-MM-DD
-    uint8_t     day_counter;        // enums::DayCounter
-    uint8_t     interpolator;       // enums::Interpolator
-    std::vector<std::string> dates; // pillar dates YYYY-MM-DD
+    std::string reference_date;           // YYYY-MM-DD
+    uint8_t day_counter;                  // enums::DayCounter
+    uint8_t interpolator;                 // enums::Interpolator
+    std::vector<std::string> dates;       // pillar dates YYYY-MM-DD
     std::vector<double> discount_factors; // aligned with dates
 };
 
@@ -92,28 +91,22 @@ public:
 
     // --- L1: Live QuantLib object cache ---
     // Returns nullptr on cache miss; callers must handle misses explicitly.
-    virtual std::shared_ptr<QuantLib::YieldTermStructure>
-        getL1(const std::string& key) = 0;
+    virtual std::shared_ptr<QuantLib::YieldTermStructure> getL1(const std::string& key) = 0;
 
     virtual void putL1(
-        const std::string& key,
-        std::shared_ptr<QuantLib::YieldTermStructure> curve) = 0;
+        const std::string& key, std::shared_ptr<QuantLib::YieldTermStructure> curve) = 0;
 
     // --- L2: Serialized cache (for cross-process sharing) ---
     // Returns nullopt if not implemented or not found
-    virtual std::optional<CachedCurveData>
-        getL2(const std::string& key) = 0;
+    virtual std::optional<CachedCurveData> getL2(const std::string& key) = 0;
 
-    virtual void putL2(
-        const std::string& key,
-        const CachedCurveData& data) = 0;
+    virtual void putL2(const std::string& key, const CachedCurveData& data) = 0;
 
     // --- Management ---
     virtual void clear() = 0;
     virtual size_t sizeL1() const = 0;
     virtual size_t sizeL2() const = 0;
 };
-
 
 // =============================================================================
 // L1-only in-process LRU cache
@@ -127,12 +120,10 @@ public:
  */
 class InProcessCurveCache : public CurveCacheBackend {
 public:
-    explicit InProcessCurveCache(size_t maxEntries = 100)
-        : maxEntries_(maxEntries) {}
+    explicit InProcessCurveCache(size_t maxEntries = 100) : maxEntries_(maxEntries) {}
 
     // Returns nullptr on miss and updates LRU state on hit.
-    std::shared_ptr<QuantLib::YieldTermStructure>
-    getL1(const std::string& key) override {
+    std::shared_ptr<QuantLib::YieldTermStructure> getL1(const std::string& key) override {
         auto it = cacheMap_.find(key);
         if (it == cacheMap_.end()) return nullptr;
 
@@ -142,9 +133,7 @@ public:
     }
 
     void putL1(
-        const std::string& key,
-        std::shared_ptr<QuantLib::YieldTermStructure> curve) override
-    {
+        const std::string& key, std::shared_ptr<QuantLib::YieldTermStructure> curve) override {
         auto it = cacheMap_.find(key);
         if (it != cacheMap_.end()) {
             // Update existing
@@ -162,7 +151,7 @@ public:
 
         // Insert
         lruList_.push_front(key);
-        cacheMap_[key] = { curve, lruList_.begin() };
+        cacheMap_[key] = {curve, lruList_.begin()};
     }
 
     // L2 not implemented — return nullopt / no-op
@@ -192,7 +181,6 @@ private:
     std::unordered_map<std::string, Entry> cacheMap_;
     std::list<std::string> lruList_; // front = most recent
 };
-
 
 // =============================================================================
 // Global cache singleton + config
@@ -237,11 +225,13 @@ public:
 
     void resetStats() { stats_ = Stats{}; }
 
-    void logEvent(const std::string& curveId, const std::string& key,
-                  const std::string& event, double timeMs = 0.0) const {
+    void logEvent(
+        const std::string& curveId,
+        const std::string& key,
+        const std::string& event,
+        double timeMs = 0.0) const {
         if (!logging_) return;
-        std::cout << "[CurveCache] curve=" << curveId
-                  << " key=" << key.substr(0, 20) << "..."
+        std::cout << "[CurveCache] curve=" << curveId << " key=" << key.substr(0, 20) << "..."
                   << " event=" << event;
         if (timeMs > 0.0) std::cout << " time=" << timeMs << "ms";
         std::cout << std::endl;
@@ -262,8 +252,8 @@ private:
             if (auto parsed = detail::ParsePositiveSizeT(envMax)) {
                 maxEntries = *parsed;
             } else {
-                std::cerr << "[CurveCache] Invalid QUANTRA_CURVE_CACHE_MAX_ENTRIES='"
-                          << envMax << "'; using default " << maxEntries << std::endl;
+                std::cerr << "[CurveCache] Invalid QUANTRA_CURVE_CACHE_MAX_ENTRIES='" << envMax
+                          << "'; using default " << maxEntries << std::endl;
             }
         }
 

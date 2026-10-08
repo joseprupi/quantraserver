@@ -7,22 +7,21 @@
  * pricer result back into a CalendarAdvanceResponse.
  */
 
-#include "flatbuffers/grpc.h"
-
 #include "calendar_advance_evaluator.h"
+
 #include "calendar_advance_request_generated.h"
 #include "calendar_advance_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
 class CalendarAdvanceMapper {
 public:
-    CalendarAdvanceInputs toInputs(
-        const quantra::CalendarAdvanceRequest* req) const;
+    CalendarAdvanceInputs toInputs(const quantra::CalendarAdvanceRequest* req) const;
 
     flatbuffers::Offset<quantra::CalendarAdvanceResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const CalendarAdvanceResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const CalendarAdvanceResult& result) const;
 };
 
 } // namespace quantra

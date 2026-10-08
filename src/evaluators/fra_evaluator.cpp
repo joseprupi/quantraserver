@@ -1,23 +1,22 @@
 #include "fra_evaluator.h"
 
-#include <iostream>
-#include <memory>
+#include "date_convert.h"
+#include "error.h"
 
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/forwardrateagreement.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-#include "date_convert.h"
-#include "error.h"
+#include <iostream>
+#include <memory>
 
 namespace quantra {
 
 namespace {
 
-FraPerTrade priceTrade(const FraTrade& trade,
-                       const PricingRegistry& reg,
-                       const PricingContext& ctx) {
+FraPerTrade priceTrade(
+    const FraTrade& trade, const PricingRegistry& reg, const PricingContext& ctx) {
     (void)ctx;
     auto discIt = reg.rates.curves.find(trade.discountingCurveId);
     if (discIt == reg.rates.curves.end()) {
@@ -37,17 +36,11 @@ FraPerTrade priceTrade(const FraTrade& trade,
     // IndexRegistry::getIborWithCurve downcasts the registry entry to
     // IborIndex and raises if the requested index is not an IborIndex.
     auto iborIndex = reg.rates.indices.getIborWithCurve(
-        trade.indexId,
-        QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
+        trade.indexId, QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
 
     auto fra = std::make_shared<QuantLib::ForwardRateAgreement>(
-        iborIndex,
-        trade.startDate,
-        trade.maturityDate,
-        trade.position,
-        trade.strike,
-        trade.notional,
-        QuantLib::Handle<QuantLib::YieldTermStructure>(discHandle.currentLink()));
+        iborIndex, trade.startDate, trade.maturityDate, trade.position, trade.strike,
+        trade.notional, QuantLib::Handle<QuantLib::YieldTermStructure>(discHandle.currentLink()));
 
     FraPerTrade out;
     out.npv = fra->NPV();
@@ -55,16 +48,15 @@ FraPerTrade priceTrade(const FraTrade& trade,
     out.spotValue = out.npv;
     out.settlementDate = DateToIso(trade.startDate);
 
-    std::cout << "FRA NPV: " << out.npv
-              << ", Forward Rate: " << out.forwardRate * 100 << "%" << std::endl;
+    std::cout << "FRA NPV: " << out.npv << ", Forward Rate: " << out.forwardRate * 100 << "%"
+              << std::endl;
     return out;
 }
 
 } // namespace
 
-FraResult FraEvaluator::evaluate(const FraInputs& inputs,
-                           const PricingRegistry& reg,
-                           const PricingContext& ctx) const {
+FraResult FraEvaluator::evaluate(
+    const FraInputs& inputs, const PricingRegistry& reg, const PricingContext& ctx) const {
     FraResult result;
     result.trades.reserve(inputs.trades.size());
     for (const auto& trade : inputs.trades) {

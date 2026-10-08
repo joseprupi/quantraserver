@@ -10,25 +10,27 @@ namespace quantra { namespace testing {
 TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
     std::cout << "\n=== Fixed Rate Bond ===" << std::endl;
     double face = 100.0, coupon = 0.05;
-    QuantLib::Date issue(15,QuantLib::January,2024), mat(15,QuantLib::January,2029);
-    
-    QuantLib::Schedule sch(issue, mat, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::Unadjusted, QuantLib::Unadjusted, QuantLib::DateGeneration::Backward, false);
-    auto qlBond = std::make_shared<QuantLib::FixedRateBond>(2, face, sch,
-        std::vector<QuantLib::Rate>(1, coupon), QuantLib::ActualActual(QuantLib::ActualActual::ISDA));
+    QuantLib::Date issue(15, QuantLib::January, 2024), mat(15, QuantLib::January, 2029);
+
+    QuantLib::Schedule sch(
+        issue, mat, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(), QuantLib::Unadjusted,
+        QuantLib::Unadjusted, QuantLib::DateGeneration::Backward, false);
+    auto qlBond = std::make_shared<QuantLib::FixedRateBond>(
+        2, face, sch, std::vector<QuantLib::Rate>(1, coupon),
+        QuantLib::ActualActual(QuantLib::ActualActual::ISDA));
     qlBond->setPricingEngine(std::make_shared<QuantLib::DiscountingBondEngine>(discountHandle_));
     double qlNPV = qlBond->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
-    
+
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     // IndexDefs needed by SwapHelpers in the curve
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
-    
+
     auto pricing = buildPricing(b, asof, asof, 0, indices, 0, curves, 0, 0, 0, 0, 0, 0, 0, true);
-    
+
     auto eff = b.CreateString("2024-01-15");
     auto term = b.CreateString("2029-01-15");
     quantra::ScheduleBuilder sb(b);
@@ -41,7 +43,7 @@ TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
     sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Backward);
     sb.add_end_of_month(false);
     auto schedule = sb.Finish();
-    
+
     auto idate = b.CreateString("2024-01-15");
     quantra::FixedRateBondBuilder bb(b);
     bb.add_settlement_days(2);
@@ -53,30 +55,37 @@ TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
     bb.add_redemption(100.0);
     bb.add_payment_convention(quantra::enums::BusinessDayConvention_Unadjusted);
     auto bond = bb.Finish();
-    
+
     auto yield = buildYield(b);
     auto dc = b.CreateString("discount");
-    
+
     quantra::PriceFixedRateBondBuilder pfb(b);
     pfb.add_fixed_rate_bond(bond);
     pfb.add_discounting_curve(dc);
     pfb.add_yield(yield);
     auto pfbOff = pfb.Finish();
-    
-    auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfbOff});
-    
+
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfbOff});
+
     quantra::PriceFixedRateBondRequestBuilder rb(b);
     rb.add_pricing(pricing);
     rb.add_bonds(bonds);
     b.Finish(rb.Finish());
-    
+
     FixedRateBondPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    double qNPV = flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())->bonds()->Get(0)->npv();
+    double qNPV =
+        flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())
+            ->bonds()
+            ->Get(0)
+            ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
 }
 
@@ -87,15 +96,12 @@ TEST_F(QuantraComparisonTest, FixedRateBond_NPVMatches) {
 TEST_F(QuantraComparisonTest, FixedRateBond_Semiannual_Thirty360_Details) {
     const double face = 100.0, coupon = 0.04;
     QuantLib::Schedule sch(
-        QuantLib::Date(15, QuantLib::July, 2024),
-        QuantLib::Date(15, QuantLib::July, 2029),
-        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Backward, false);
+        QuantLib::Date(15, QuantLib::July, 2024), QuantLib::Date(15, QuantLib::July, 2029),
+        QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(), QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Backward, false);
     auto qlBond = std::make_shared<QuantLib::FixedRateBond>(
         3, face, sch, std::vector<QuantLib::Rate>(1, coupon),
-        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis),
-        QuantLib::ModifiedFollowing, 100.0,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), QuantLib::ModifiedFollowing, 100.0,
         QuantLib::Date(15, QuantLib::July, 2024));
     qlBond->setPricingEngine(std::make_shared<QuantLib::DiscountingBondEngine>(discountHandle_));
     const double qlNPV = qlBond->NPV();
@@ -140,7 +146,8 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Semiannual_Thirty360_Details) {
     pfb.add_fixed_rate_bond(bond);
     pfb.add_discounting_curve(dc);
     pfb.add_yield(yield);
-    auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
 
     quantra::PriceFixedRateBondRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -149,9 +156,13 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Semiannual_Thirty360_Details) {
 
     FixedRateBondPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const auto* r = flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())->bonds()->Get(0);
+    const auto* r =
+        flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())
+            ->bonds()
+            ->Get(0);
 
     EXPECT_NEAR(qlNPV, r->npv(), 0.01);
     EXPECT_NEAR(qlClean, r->clean_price(), 1e-4);
@@ -163,15 +174,12 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Semiannual_Thirty360_Details) {
 TEST_F(QuantraComparisonTest, FixedRateBond_Quarterly_NonParRedemption) {
     const double face = 100.0, coupon = 0.045, redemption = 102.0;
     QuantLib::Schedule sch(
-        QuantLib::Date(15, QuantLib::January, 2025),
-        QuantLib::Date(15, QuantLib::January, 2028),
-        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(),
-        QuantLib::Following, QuantLib::Following,
-        QuantLib::DateGeneration::Forward, false);
+        QuantLib::Date(15, QuantLib::January, 2025), QuantLib::Date(15, QuantLib::January, 2028),
+        QuantLib::Period(QuantLib::Quarterly), QuantLib::TARGET(), QuantLib::Following,
+        QuantLib::Following, QuantLib::DateGeneration::Forward, false);
     auto qlBond = std::make_shared<QuantLib::FixedRateBond>(
         2, face, sch, std::vector<QuantLib::Rate>(1, coupon),
-        QuantLib::ActualActual(QuantLib::ActualActual::ISDA),
-        QuantLib::Following, redemption,
+        QuantLib::ActualActual(QuantLib::ActualActual::ISDA), QuantLib::Following, redemption,
         QuantLib::Date(15, QuantLib::January, 2025));
     qlBond->setPricingEngine(std::make_shared<QuantLib::DiscountingBondEngine>(discountHandle_));
     const double qlNPV = qlBond->NPV();
@@ -214,7 +222,8 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Quarterly_NonParRedemption) {
     pfb.add_fixed_rate_bond(bond);
     pfb.add_discounting_curve(dc);
     pfb.add_yield(yield);
-    auto bonds = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
+    auto bonds =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceFixedRateBond>>{pfb.Finish()});
 
     quantra::PriceFixedRateBondRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -223,9 +232,14 @@ TEST_F(QuantraComparisonTest, FixedRateBond_Quarterly_NonParRedemption) {
 
     FixedRateBondPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceFixedRateBondRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    const double qNPV = flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())->bonds()->Get(0)->npv();
+    const double qNPV =
+        flatbuffers::GetRoot<quantra::PriceFixedRateBondResponse>(respB->GetBufferPointer())
+            ->bonds()
+            ->Get(0)
+            ->npv();
 
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
 }

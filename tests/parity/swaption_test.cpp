@@ -11,39 +11,49 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     std::cout << "\n=== Swaption ===" << std::endl;
     double notional = 1000000.0, strike = 0.035, vol = 0.20;
     QuantLib::Date exDate = evaluationDate_ + QuantLib::Period(1, QuantLib::Years);
-    QuantLib::Date swapStart = exDate + 2, swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
-    
-    QuantLib::Schedule fixSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
-    QuantLib::Schedule fltSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    QuantLib::Date swapStart = exDate + 2,
+                   swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
+
+    QuantLib::Schedule fixSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
+    QuantLib::Schedule fltSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
-    auto swap = std::make_shared<QuantLib::VanillaSwap>(QuantLib::VanillaSwap::Payer, notional,
-        fixSch, strike, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0, QuantLib::Actual360());
+    auto swap = std::make_shared<QuantLib::VanillaSwap>(
+        QuantLib::VanillaSwap::Payer, notional, fixSch, strike,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0,
+        QuantLib::Actual360());
     auto ex = std::make_shared<QuantLib::EuropeanExercise>(exDate);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(swap, ex);
     auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
-        std::make_shared<QuantLib::ConstantSwaptionVolatility>(evaluationDate_, QuantLib::TARGET(),
-            QuantLib::ModifiedFollowing, vol, QuantLib::Actual365Fixed()));
-    qlSwaption->setPricingEngine(std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
+        std::make_shared<QuantLib::ConstantSwaptionVolatility>(
+            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing, vol,
+            QuantLib::Actual365Fixed()));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
     double qlNPV = qlSwaption->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
-    
+
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-    
+
     auto volSurface = buildSwaptionVolSurface(b, "swaption_vol", vol);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
-    
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+
     auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
-    
+
     auto indices = buildIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
-    
+
     auto pricing = buildPricing(b, asof, 0, 0, indices, 0, curves, 0, 0, vols, models);
-    
+
     // Fixed leg schedule
     auto feff = b.CreateString("2026-01-17");
     auto fterm = b.CreateString("2031-01-17");
@@ -57,7 +67,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
-    
+
     quantra::SwapFixedLegBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
@@ -65,7 +75,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
     flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto fixedLeg = flb.Finish();
-    
+
     // Float leg schedule
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -79,7 +89,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     flsb.add_end_of_month(false);
     auto floatSch = flsb.Finish();
-    
+
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::SwapFloatingLegBuilder flgb(b);
     flgb.add_notional(notional);
@@ -89,13 +99,13 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     flgb.add_spread(0.0);
     flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
     auto floatLeg = flgb.Finish();
-    
+
     quantra::VanillaSwapBuilder vsb(b);
     vsb.add_swap_type(quantra::enums::SwapType_Payer);
     vsb.add_fixed_leg(fixedLeg);
     vsb.add_floating_leg(floatLeg);
     auto uswap = vsb.Finish();
-    
+
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
     swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
@@ -104,11 +114,11 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     swb.add_exercise_type(quantra::enums::ExerciseType_European);
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
-    
+
     auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol");
     auto model_id = b.CreateString("black_swaption_model");
-    
+
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
     psb.add_discounting_curve(dc);
@@ -116,21 +126,27 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
-    
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
-    
+
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
     rb.add_swaptions(swaptions);
     b.Finish(rb.Finish());
-    
+
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                      ->swaptions()
+                      ->Get(0)
+                      ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
 }
 
@@ -144,22 +160,27 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     QuantLib::Date swapEnd(17, QuantLib::January, 2031);
 
     std::vector<QuantLib::Date> exerciseDates = {
-        QuantLib::Date(15, QuantLib::January, 2026),
-        QuantLib::Date(15, QuantLib::January, 2027),
-        QuantLib::Date(15, QuantLib::January, 2028)
-    };
+        QuantLib::Date(15, QuantLib::January, 2026), QuantLib::Date(15, QuantLib::January, 2027),
+        QuantLib::Date(15, QuantLib::January, 2028)};
 
-    QuantLib::Schedule fixSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
-    QuantLib::Schedule fltSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    QuantLib::Schedule fixSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
+    QuantLib::Schedule fltSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
-    auto swap = std::make_shared<QuantLib::VanillaSwap>(QuantLib::VanillaSwap::Payer, notional,
-        fixSch, strike, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0, QuantLib::Actual360());
+    auto swap = std::make_shared<QuantLib::VanillaSwap>(
+        QuantLib::VanillaSwap::Payer, notional, fixSch, strike,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0,
+        QuantLib::Actual360());
     auto ex = std::make_shared<QuantLib::BermudanExercise>(exerciseDates);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(swap, ex);
     auto hwModel = std::make_shared<QuantLib::HullWhite>(discountHandle_, hwA, hwSigma);
-    qlSwaption->setPricingEngine(std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, latticeSteps));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::TreeSwaptionEngine>(hwModel, latticeSteps));
     double qlNPV = qlSwaption->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
@@ -168,10 +189,12 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
     auto volSurface = buildSwaptionVolSurface(b, "swaption_vol", vol);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     auto model = buildSwaptionModel(
-        b, "hw_lattice_model", quantra::enums::IrModelType_HullWhiteLattice, hwA, hwSigma, latticeSteps);
+        b, "hw_lattice_model", quantra::enums::IrModelType_HullWhiteLattice, hwA, hwSigma,
+        latticeSteps);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
 
     auto indices = buildIndicesVector(b);
@@ -232,10 +255,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     auto uswap = vsb.Finish();
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
-        b.CreateString("2026-01-15"),
-        b.CreateString("2027-01-15"),
-        b.CreateString("2028-01-15")
-    };
+        b.CreateString("2026-01-15"), b.CreateString("2027-01-15"), b.CreateString("2028-01-15")};
     auto exDatesVec = b.CreateVector(exDateStrs);
 
     quantra::SwaptionBuilder swb(b);
@@ -258,7 +278,8 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -267,11 +288,16 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                      ->swaptions()
+                      ->Get(0)
+                      ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.05);
 }
 
@@ -279,17 +305,22 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
     const double notional = 1000000.0;
     const double strike = 0.035;
 
-    auto buildSwaptionPricing = [&](flatbuffers::grpc::MessageBuilder& b, bool calibrateMode, double hwA, double hwSigma, const std::string& modelId) {
+    auto buildSwaptionPricing = [&](flatbuffers::grpc::MessageBuilder& b, bool calibrateMode,
+                                    double hwA, double hwSigma, const std::string& modelId) {
         auto ts = buildCurve(b, "discount");
         auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-        std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
-        std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+        std::vector<QuantLib::Period> expiries = {
+            QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+        std::vector<QuantLib::Period> tenors = {
+            QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years)};
         auto volSurface = buildSwaptionVolAtmMatrixSurface(
             b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
-        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        auto vols =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
         auto model = buildSwaptionModel(
             b, modelId, quantra::enums::IrModelType_HullWhiteLattice, hwA, hwSigma, 50,
-            calibrateMode ? quantra::enums::ModelParamMode_Calibrate : quantra::enums::ModelParamMode_Explicit,
+            calibrateMode ? quantra::enums::ModelParamMode_Calibrate
+                          : quantra::enums::ModelParamMode_Explicit,
             "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
         auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
         auto indices = buildIndicesVector(b);
@@ -298,7 +329,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         return buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models);
     };
 
-    auto buildBermudanTrade = [&](flatbuffers::grpc::MessageBuilder& b, const std::string& modelId) {
+    auto buildBermudanTrade = [&](flatbuffers::grpc::MessageBuilder& b,
+                                  const std::string& modelId) {
         auto feff = b.CreateString("2026-01-17");
         auto fterm = b.CreateString("2031-01-17");
         quantra::ScheduleBuilder fsb(b);
@@ -307,7 +339,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         fsb.add_calendar(quantra::enums::Calendar_TARGET);
         fsb.add_frequency(quantra::enums::Frequency_Annual);
         fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_termination_date_convention(
+            quantra::enums::BusinessDayConvention_ModifiedFollowing);
         fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
         fsb.add_end_of_month(false);
         auto fixedSch = fsb.Finish();
@@ -328,7 +361,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         flsb.add_calendar(quantra::enums::Calendar_TARGET);
         flsb.add_frequency(quantra::enums::Frequency_Semiannual);
         flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_termination_date_convention(
+            quantra::enums::BusinessDayConvention_ModifiedFollowing);
         flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
         flsb.add_end_of_month(false);
         auto floatSch = flsb.Finish();
@@ -350,10 +384,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         auto uswap = vsb.Finish();
 
         std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
-            b.CreateString("2026-01-15"),
-            b.CreateString("2027-01-15"),
-            b.CreateString("2028-01-15")
-        };
+            b.CreateString("2026-01-15"), b.CreateString("2027-01-15"),
+            b.CreateString("2028-01-15")};
         auto exDatesVec = b.CreateVector(exDateStrs);
 
         quantra::SwaptionBuilder swb(b);
@@ -390,9 +422,12 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
 
         CalibrateSwaptionModelPricingRequest req;
         auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
+        auto resp = req.request(
+            respB,
+            flatbuffers::GetRoot<quantra::CalibrateSwaptionModelRequest>(b.GetBufferPointer()));
         respB->Finish(resp);
-        auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(respB->GetBufferPointer());
+        auto out = flatbuffers::GetRoot<quantra::CalibrateSwaptionModelResponse>(
+            respB->GetBufferPointer());
         aStar = out->hw_a();
         sigmaStar = out->hw_sigma();
     }
@@ -403,7 +438,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         flatbuffers::grpc::MessageBuilder b;
         auto pricing = buildSwaptionPricing(b, true, 0.03, 0.01, "hw_inline_model");
         auto ps = buildBermudanTrade(b, "hw_inline_model");
-        auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
+        auto swaptions =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
         quantra::PriceSwaptionRequestBuilder rb(b);
         rb.add_pricing(pricing);
         rb.add_swaptions(swaptions);
@@ -411,9 +447,13 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
 
         SwaptionPricingRequest req;
         auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+        auto resp = req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
         respB->Finish(resp);
-        npvInline = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+        npvInline = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                        ->swaptions()
+                        ->Get(0)
+                        ->npv();
     }
 
     // Explicit pricing with calibrated params
@@ -422,7 +462,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         flatbuffers::grpc::MessageBuilder b;
         auto pricing = buildSwaptionPricing(b, false, aStar, sigmaStar, "hw_explicit_model");
         auto ps = buildBermudanTrade(b, "hw_explicit_model");
-        auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
+        auto swaptions =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps});
         quantra::PriceSwaptionRequestBuilder rb(b);
         rb.add_pricing(pricing);
         rb.add_swaptions(swaptions);
@@ -430,9 +471,14 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
 
         SwaptionPricingRequest req;
         auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-        auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+        auto resp = req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
         respB->Finish(resp);
-        npvExplicit = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+        npvExplicit =
+            flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                ->swaptions()
+                ->Get(0)
+                ->npv();
     }
 
     EXPECT_NEAR(npvInline, npvExplicit, 1.0e-8);
@@ -447,14 +493,18 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     flatbuffers::grpc::MessageBuilder b;
     auto ts = buildCurve(b, "discount");
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years) };
+    std::vector<QuantLib::Period> expiries = {
+        QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {
+        QuantLib::Period(5, QuantLib::Years), QuantLib::Period(7, QuantLib::Years)};
     auto volSurface = buildSwaptionVolAtmMatrixSurface(
         b, "swaption_atm", expiries, tenors, {0.20, 0.21, 0.22, 0.23});
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(
         b, "hw_inline_model", quantra::enums::IrModelType_HullWhiteLattice, 0.03, 0.01, 50,
-        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M", "discount");
+        quantra::enums::ModelParamMode_Calibrate, "swaption_atm", "discount", "EUR_SWAP_6M",
+        "discount");
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
     auto swapIndices = buildSwapIndicesVector(b);
@@ -513,9 +563,7 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     auto uswap = vsb.Finish();
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
-        b.CreateString("2026-01-15"),
-        b.CreateString("2027-01-15")
-    };
+        b.CreateString("2026-01-15"), b.CreateString("2027-01-15")};
     auto exDatesVec = b.CreateVector(exDateStrs);
 
     quantra::SwaptionBuilder swb(b);
@@ -545,7 +593,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     psb2.add_model(model_id);
     auto ps2 = psb2.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps1, ps2});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{ps1, ps2});
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
     rb.add_swaptions(swaptions);
@@ -553,7 +602,8 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
 
     EXPECT_EQ(quantra::getHwCalibrationCallCount(), 1);
@@ -563,28 +613,41 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     std::cout << "\n=== Swaption (ATM Matrix) ===" << std::endl;
     double notional = 1000000.0, strike = 0.035;
     QuantLib::Date exDate = evaluationDate_ + QuantLib::Period(1, QuantLib::Years);
-    QuantLib::Date swapStart = exDate + 2, swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
+    QuantLib::Date swapStart = exDate + 2,
+                   swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
 
-    QuantLib::Schedule fixSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
-    QuantLib::Schedule fltSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    QuantLib::Schedule fixSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
+    QuantLib::Schedule fltSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
-    auto swap = std::make_shared<QuantLib::VanillaSwap>(QuantLib::VanillaSwap::Payer, notional,
-        fixSch, strike, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0, QuantLib::Actual360());
+    auto swap = std::make_shared<QuantLib::VanillaSwap>(
+        QuantLib::VanillaSwap::Payer, notional, fixSch, strike,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0,
+        QuantLib::Actual360());
     auto ex = std::make_shared<QuantLib::EuropeanExercise>(exDate);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(swap, ex);
 
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years), QuantLib::Period(10, QuantLib::Years) };
+    std::vector<QuantLib::Period> expiries = {
+        QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {
+        QuantLib::Period(5, QuantLib::Years), QuantLib::Period(10, QuantLib::Years)};
     QuantLib::Matrix qlVols(2, 2);
-    qlVols[0][0] = 0.20; qlVols[0][1] = 0.22;
-    qlVols[1][0] = 0.24; qlVols[1][1] = 0.25;
+    qlVols[0][0] = 0.20;
+    qlVols[0][1] = 0.22;
+    qlVols[1][0] = 0.24;
+    qlVols[1][1] = 0.25;
     auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
         std::make_shared<QuantLib::SwaptionVolatilityMatrix>(
-            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing,
-            expiries, tenors, qlVols, QuantLib::Actual365Fixed(), false, QuantLib::ShiftedLognormal, QuantLib::Matrix()));
-    qlSwaption->setPricingEngine(std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
+            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing, expiries, tenors,
+            qlVols, QuantLib::Actual365Fixed(), false, QuantLib::ShiftedLognormal,
+            QuantLib::Matrix()));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
     double qlNPV = qlSwaption->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
@@ -592,7 +655,8 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto volSurface = buildSwaptionVolAtmMatrixSurface(
         b, "swaption_atm", expiries, tenors, {0.20, 0.22, 0.24, 0.25});
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
@@ -672,7 +736,8 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -681,12 +746,16 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0);
+    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                   ->swaptions()
+                   ->Get(0);
     double qNPV = res->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_AtmMatrix2D);
 }
@@ -695,26 +764,36 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     std::cout << "\n=== Swaption (Smile Cube) ===" << std::endl;
     double notional = 1000000.0, strike = 0.02, vol = 0.20;
     QuantLib::Date exDate = evaluationDate_ + QuantLib::Period(1, QuantLib::Years);
-    QuantLib::Date swapStart = exDate + 2, swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
+    QuantLib::Date swapStart = exDate + 2,
+                   swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
 
-    QuantLib::Schedule fixSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
-    QuantLib::Schedule fltSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    QuantLib::Schedule fixSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
+    QuantLib::Schedule fltSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
-    auto swap = std::make_shared<QuantLib::VanillaSwap>(QuantLib::VanillaSwap::Payer, notional,
-        fixSch, strike, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0, QuantLib::Actual360());
+    auto swap = std::make_shared<QuantLib::VanillaSwap>(
+        QuantLib::VanillaSwap::Payer, notional, fixSch, strike,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0,
+        QuantLib::Actual360());
     auto ex = std::make_shared<QuantLib::EuropeanExercise>(exDate);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(swap, ex);
     auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
-        std::make_shared<QuantLib::ConstantSwaptionVolatility>(evaluationDate_, QuantLib::TARGET(),
-            QuantLib::ModifiedFollowing, vol, QuantLib::Actual365Fixed()));
-    qlSwaption->setPricingEngine(std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
+        std::make_shared<QuantLib::ConstantSwaptionVolatility>(
+            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing, vol,
+            QuantLib::Actual365Fixed()));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::BlackSwaptionEngine>(discountHandle_, volH));
     double qlNPV = qlSwaption->NPV();
 
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {
+        QuantLib::Period(1, QuantLib::Years), QuantLib::Period(2, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), vol);
 
     flatbuffers::grpc::MessageBuilder b;
@@ -723,7 +802,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     auto volSurface = buildSwaptionVolSmileCubeSurface(
         b, "swaption_smile", expiries, tenors, strikes, volsFlat,
         quantra::enums::SwaptionStrikeKind_SpreadFromATM, "EUR_SWAP_6M");
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
@@ -803,7 +883,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -812,12 +893,16 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0);
+    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                   ->swaptions()
+                   ->Get(0);
     double qNPV = res->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_SmileCube3D);
     ASSERT_TRUE(res->used_atm_forward().has_value());
@@ -826,16 +911,14 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     ASSERT_TRUE(res->used_cube_node_atm().has_value());
     ASSERT_TRUE(res->used_spread_from_atm().has_value());
     EXPECT_NEAR(
-        res->used_strike(),
-        *res->used_cube_node_atm() + *res->used_spread_from_atm(),
-        1.0e-12);
+        res->used_strike(), *res->used_cube_node_atm() + *res->used_spread_from_atm(), 1.0e-12);
 }
 
 TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     double notional = 1000000.0, strike = 0.02, vol = 0.20;
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), vol);
 
     flatbuffers::grpc::MessageBuilder b;
@@ -844,7 +927,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     auto volSurface = buildSwaptionVolSmileCubeSurface(
         b, "swaption_smile", expiries, tenors, strikes, volsFlat,
         quantra::enums::SwaptionStrikeKind_SpreadFromATM, "EUR_SWAP_3M");
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "black_swaption_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b, true);
@@ -922,7 +1006,8 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -932,16 +1017,17 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     EXPECT_THROW(
-        req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
+        req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
         QuantraError);
 }
 
 TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmRequiresFlag) {
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), 0.20);
-    std::vector<double> atmForwards = { 0.02 };
+    std::vector<double> atmForwards = {0.02};
 
     flatbuffers::grpc::MessageBuilder b;
     auto volSurface = buildSwaptionVolSmileCubeSurface(
@@ -951,15 +1037,14 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmRequiresFlag) {
 
     EXPECT_THROW(
         quantra::parseSwaptionVol(
-            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()),
-            nullptr),
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
         QuantraError);
 }
 
 TEST_F(QuantraComparisonTest, Swaption_SmileCube_SpreadRequiresAtmSourceAtParseTime) {
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), 0.20);
 
     flatbuffers::grpc::MessageBuilder b;
@@ -970,15 +1055,14 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_SpreadRequiresAtmSourceAtParseT
 
     EXPECT_THROW(
         quantra::parseSwaptionVol(
-            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()),
-            nullptr),
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
         QuantraError);
 }
 
 TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmEqualsInjectedServerAtm) {
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat = {0.20, 0.21, 0.22};
     std::vector<double> atmForwards = {0.02};
 
@@ -988,8 +1072,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmEqualsInjectedServer
         quantra::enums::SwaptionStrikeKind_SpreadFromATM, "EUR_SWAP_6M");
     b1.Finish(volSurface1);
     auto entryNoAtm = quantra::parseSwaptionVol(
-        flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b1.GetBufferPointer()),
-        nullptr);
+        flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b1.GetBufferPointer()), nullptr);
     auto injected = quantra::withSwaptionSmileCubeAtm(entryNoAtm, atmForwards);
 
     flatbuffers::grpc::MessageBuilder b2;
@@ -998,8 +1081,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmEqualsInjectedServer
         quantra::enums::SwaptionStrikeKind_SpreadFromATM, "EUR_SWAP_6M", atmForwards, true);
     b2.Finish(volSurface2);
     auto external = quantra::parseSwaptionVol(
-        flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b2.GetBufferPointer()),
-        nullptr);
+        flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b2.GetBufferPointer()), nullptr);
 
     const QuantLib::Date ref(15, QuantLib::January, 2025);
     const QuantLib::DayCounter dc = QuantLib::Actual365Fixed();
@@ -1015,11 +1097,11 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ExternalAtmEqualsInjectedServer
 }
 
 TEST_F(QuantraComparisonTest, Swaption_SmileCube_AbsoluteRejectsAtmForwards) {
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { 0.01, 0.02, 0.03 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {0.01, 0.02, 0.03};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), 0.20);
-    std::vector<double> atmForwards = { 0.02 };
+    std::vector<double> atmForwards = {0.02};
 
     flatbuffers::grpc::MessageBuilder b;
     auto volSurface = buildSwaptionVolSmileCubeSurface(
@@ -1029,8 +1111,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_AbsoluteRejectsAtmForwards) {
 
     EXPECT_THROW(
         quantra::parseSwaptionVol(
-            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()),
-            nullptr),
+            flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
         QuantraError);
 }
 
@@ -1084,8 +1165,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_RejectsDimensionMismatch) {
     // Matrix dimension override mismatches the periods grid.
     flatbuffers::grpc::MessageBuilder b2;
     auto vs2 = buildSwaptionSabrParamsSurface(
-        b2, "sabr_params_bad2", g.expiries, g.tenors,
-        g.alpha, g.beta, g.rho, g.nu, "EUR_SWAP_6M",
+        b2, "sabr_params_bad2", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu, "EUR_SWAP_6M",
         quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
         /*matrixRowsOverride=*/3, /*matrixColsOverride=*/2);
     b2.Finish(vs2);
@@ -1098,10 +1178,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_RejectsDimensionMismatch) {
 TEST_F(QuantraComparisonTest, Swaption_SabrParams_RejectsInvalidParameterRanges) {
     SabrSyntheticGrid g;
 
-    auto expectThrow = [&](const std::vector<double>& alpha,
-                           const std::vector<double>& beta,
-                           const std::vector<double>& rho,
-                           const std::vector<double>& nu,
+    auto expectThrow = [&](const std::vector<double>& alpha, const std::vector<double>& beta,
+                           const std::vector<double>& rho, const std::vector<double>& nu,
                            const std::string& tag) {
         flatbuffers::grpc::MessageBuilder b;
         auto vs = buildSwaptionSabrParamsSurface(
@@ -1110,31 +1188,40 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_RejectsInvalidParameterRanges)
         EXPECT_THROW(
             quantra::parseSwaptionVol(
                 flatbuffers::GetRoot<quantra::VolSurfaceSpec>(b.GetBufferPointer()), nullptr),
-            QuantraError) << tag;
+            QuantraError)
+            << tag;
     };
 
-    auto badAlpha = g.alpha; badAlpha[0] = 0.0;       // alpha must be > 0
+    auto badAlpha = g.alpha;
+    badAlpha[0] = 0.0; // alpha must be > 0
     expectThrow(badAlpha, g.beta, g.rho, g.nu, "alpha_zero");
 
-    auto badAlpha2 = g.alpha; badAlpha2[1] = -0.01;
+    auto badAlpha2 = g.alpha;
+    badAlpha2[1] = -0.01;
     expectThrow(badAlpha2, g.beta, g.rho, g.nu, "alpha_negative");
 
-    auto badBeta = g.beta; badBeta[2] = 1.5;          // beta must be in [0, 1]
+    auto badBeta = g.beta;
+    badBeta[2] = 1.5; // beta must be in [0, 1]
     expectThrow(g.alpha, badBeta, g.rho, g.nu, "beta_above");
 
-    auto badBeta2 = g.beta; badBeta2[3] = -0.01;
+    auto badBeta2 = g.beta;
+    badBeta2[3] = -0.01;
     expectThrow(g.alpha, badBeta2, g.rho, g.nu, "beta_below");
 
-    auto badRhoLow = g.rho; badRhoLow[0] = -1.0;      // rho must be in (-1, 1)
+    auto badRhoLow = g.rho;
+    badRhoLow[0] = -1.0; // rho must be in (-1, 1)
     expectThrow(g.alpha, g.beta, badRhoLow, g.nu, "rho_low");
 
-    auto badRhoHigh = g.rho; badRhoHigh[1] = 1.0;
+    auto badRhoHigh = g.rho;
+    badRhoHigh[1] = 1.0;
     expectThrow(g.alpha, g.beta, badRhoHigh, g.nu, "rho_high");
 
-    auto badNu = g.nu; badNu[2] = 0.0;                // nu must be > 0
+    auto badNu = g.nu;
+    badNu[2] = 0.0; // nu must be > 0
     expectThrow(g.alpha, g.beta, g.rho, badNu, "nu_zero");
 
-    auto badNu2 = g.nu; badNu2[3] = -0.01;
+    auto badNu2 = g.nu;
+    badNu2[3] = -0.01;
     expectThrow(g.alpha, g.beta, g.rho, badNu2, "nu_negative");
 }
 
@@ -1142,8 +1229,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_RejectsNormalVolType) {
     SabrSyntheticGrid g;
     flatbuffers::grpc::MessageBuilder b;
     auto vs = buildSwaptionSabrParamsSurface(
-        b, "sabr_normal", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu,
-        "EUR_SWAP_6M", quantra::enums::VolatilityType_Normal, 0.0);
+        b, "sabr_normal", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu, "EUR_SWAP_6M",
+        quantra::enums::VolatilityType_Normal, 0.0);
     b.Finish(vs);
     EXPECT_THROW(
         quantra::parseSwaptionVol(
@@ -1161,7 +1248,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto volSurface = buildSwaptionSabrParamsSurface(
         b, "sabr_vol", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "black_model", quantra::enums::IrModelType_Black);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
@@ -1236,7 +1324,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -1245,9 +1334,12 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0);
+    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                   ->swaptions()
+                   ->Get(0);
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_SabrParams);
     EXPECT_TRUE(std::isfinite(res->npv()));
     EXPECT_GT(res->npv(), 0.0);
@@ -1263,7 +1355,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto volSurface = buildSwaptionSabrParamsSurface(
         b, "sabr_vol", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
@@ -1338,7 +1431,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -1348,7 +1442,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     EXPECT_THROW(
-        req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
+        req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
         QuantraError);
 }
 
@@ -1368,10 +1463,12 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters
     {
         flatbuffers::grpc::MessageBuilder b;
         auto curve = buildLongCurve(b, "discount");
-        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        auto curves =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
         auto paramsSurface = buildSwaptionSabrParamsSurface(
             b, "sabr_params_seed", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
-        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
+        auto vols = b.CreateVector(
+            std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
         auto indices = buildIndicesVector(b);
         auto swapIndices = buildSwapIndicesVector(b);
         auto asof = b.CreateString("2025-01-15");
@@ -1391,8 +1488,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters
         tte.resize(4);
         for (int i = 0; i < 2; ++i) {
             QuantLib::Date exercise = finalEntry.calendar.advance(
-                finalEntry.referenceDate, finalEntry.expiries[i],
-                finalEntry.businessDayConvention);
+                finalEntry.referenceDate, finalEntry.expiries[i], finalEntry.businessDayConvention);
             double t = finalEntry.dayCounter.yearFraction(finalEntry.referenceDate, exercise);
             tte[i * 2 + 0] = t;
             tte[i * 2 + 1] = t;
@@ -1407,7 +1503,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
     auto calibSurface = buildSwaptionSabrCalibrateSurface(
         b, "sabr_calibrate", g.expiries, g.tenors, spreads, syntheticVols);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{calibSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{calibSurface});
     auto indices = buildIndicesVector(b);
     auto swapIndices = buildSwapIndicesVector(b);
     auto asof = b.CreateString("2025-01-15");
@@ -1429,8 +1526,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters
         outBuilder,
         flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
     outBuilder->Finish(respOff);
-    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
-        outBuilder->GetBufferPointer());
+    auto resp =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(outBuilder->GetBufferPointer());
     ASSERT_NE(resp, nullptr);
     ASSERT_NE(resp->diagnostics(), nullptr);
     auto* diag = resp->diagnostics();
@@ -1466,9 +1563,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsMismatchedDimensions
     // Tensor n_1/n_2/n_3 dims declared incorrectly relative to expiries/tenors/strikes.
     flatbuffers::grpc::MessageBuilder b;
     auto vs = buildSwaptionSabrCalibrateSurface(
-        b, "sabr_calibrate_dim_bad", g.expiries, g.tenors, spreads, okVols,
-        true, 0.5, false, "EUR_SWAP_6M",
-        quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
+        b, "sabr_calibrate_dim_bad", g.expiries, g.tenors, spreads, okVols, true, 0.5, false,
+        "EUR_SWAP_6M", quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
         /*n1Override=*/3, /*n2Override=*/2, /*n3Override=*/5);
     b.Finish(vs);
     EXPECT_THROW(
@@ -1518,12 +1614,12 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonPositiveVols) {
 TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNormalVolType) {
     SabrSyntheticGrid g;
     const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
-    std::vector<double> okVols(2 * 2 * 5, 0.01); // normal-scale, but rejection happens before vol shape check
+    std::vector<double> okVols(
+        2 * 2 * 5, 0.01); // normal-scale, but rejection happens before vol shape check
     flatbuffers::grpc::MessageBuilder b;
     auto vs = buildSwaptionSabrCalibrateSurface(
-        b, "sabr_calibrate_normal", g.expiries, g.tenors, spreads, okVols,
-        true, 0.5, false, "EUR_SWAP_6M",
-        quantra::enums::VolatilityType_Normal, 0.0);
+        b, "sabr_calibrate_normal", g.expiries, g.tenors, spreads, okVols, true, 0.5, false,
+        "EUR_SWAP_6M", quantra::enums::VolatilityType_Normal, 0.0);
     b.Finish(vs);
     EXPECT_THROW(
         quantra::parseSwaptionVol(
@@ -1546,8 +1642,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsOisSwapIndex) {
     auto indices = b.CreateVector(idxDefs);
     auto swapIndices = buildSwapIndicesVector(b, /*includeEur6m=*/true, /*includeOis=*/true);
     auto vs = buildSwaptionSabrCalibrateSurface(
-        b, "sabr_calibrate_ois", g.expiries, g.tenors, spreads, okVols,
-        true, 0.5, false, /*swapIndexId=*/"USD_SOFR_OIS");
+        b, "sabr_calibrate_ois", g.expiries, g.tenors, spreads, okVols, true, 0.5, false,
+        /*swapIndexId=*/"USD_SOFR_OIS");
     auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vs});
     auto asof = b.CreateString("2025-01-15");
     auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols);
@@ -1570,8 +1666,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsTooSmallGrid) {
     const std::vector<double> spreads{-0.02, -0.01, 0.0, 0.01, 0.02};
     const std::vector<double> vols(1 * 2 * 5, 0.20);
     flatbuffers::grpc::MessageBuilder b;
-    auto vs = buildSwaptionSabrCalibrateSurface(
-        b, "sabr_calibrate_thin", oneExp, tenors, spreads, vols);
+    auto vs =
+        buildSwaptionSabrCalibrateSurface(b, "sabr_calibrate_thin", oneExp, tenors, spreads, vols);
     b.Finish(vs);
     EXPECT_THROW(
         quantra::parseSwaptionVol(
@@ -1585,10 +1681,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonEmptyWeights) {
     const std::vector<double> okVols(2 * 2 * 5, 0.20);
     flatbuffers::grpc::MessageBuilder b;
     auto vs = buildSwaptionSabrCalibrateSurface(
-        b, "sabr_calibrate_weights", g.expiries, g.tenors, spreads, okVols,
-        true, 0.5, false, "EUR_SWAP_6M",
-        quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15",
-        -1, -1, -1, /*addNonEmptyWeights=*/true);
+        b, "sabr_calibrate_weights", g.expiries, g.tenors, spreads, okVols, true, 0.5, false,
+        "EUR_SWAP_6M", quantra::enums::VolatilityType_Lognormal, 0.0, "2025-01-15", -1, -1, -1,
+        /*addNonEmptyWeights=*/true);
     b.Finish(vs);
     EXPECT_THROW(
         quantra::parseSwaptionVol(
@@ -1604,13 +1699,10 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RejectsNonEmptyWeights) {
 namespace {
 struct ScopedSabrCacheEnabled {
     std::optional<bool> prior;
-    ScopedSabrCacheEnabled()
-        : prior(quantra::SabrCalibrateCache::enabledOverrideForTesting()) {
+    ScopedSabrCacheEnabled() : prior(quantra::SabrCalibrateCache::enabledOverrideForTesting()) {
         quantra::SabrCalibrateCache::setEnabledOverrideForTesting(true);
     }
-    ~ScopedSabrCacheEnabled() {
-        quantra::SabrCalibrateCache::setEnabledOverrideForTesting(prior);
-    }
+    ~ScopedSabrCacheEnabled() { quantra::SabrCalibrateCache::setEnabledOverrideForTesting(prior); }
 };
 } // namespace
 
@@ -1654,20 +1746,20 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
 
     // Compute the same forwards the production path would, by hand.
     auto& sidx = reg.rates.swapIndices.get(entry.swapIndexId);
-    auto computedForwards = quantra::computeServerAtmForwards(
-        entry, sidx, reg.rates.indices, dHandle, dHandle);
+    auto computedForwards =
+        quantra::computeServerAtmForwards(entry, sidx, reg.rates.indices, dHandle, dHandle);
     auto swapIndexBase = reg.rates.swapIndices.getIborSwapIndexWithCurves(
         entry.swapIndexId, entry.tenors.front(), reg.rates.indices, dHandle, dHandle);
 
     // First call: MISS + PUT, size 0 -> 1.
-    auto out1 = quantra::withSwaptionSabrCalibrateAtm(
-        entry, computedForwards, swapIndexBase, "test-key-A");
+    auto out1 =
+        quantra::withSwaptionSabrCalibrateAtm(entry, computedForwards, swapIndexBase, "test-key-A");
     EXPECT_EQ(SabrCalibrateCache::instance().size(), 1u);
     EXPECT_EQ(out1.sabrAlpha.size(), 4u);
 
     // Second call same key: HIT, size still 1.
-    auto out2 = quantra::withSwaptionSabrCalibrateAtm(
-        entry, computedForwards, swapIndexBase, "test-key-A");
+    auto out2 =
+        quantra::withSwaptionSabrCalibrateAtm(entry, computedForwards, swapIndexBase, "test-key-A");
     EXPECT_EQ(SabrCalibrateCache::instance().size(), 1u);
     // Cache HIT must return the same calibrated parameters.
     ASSERT_EQ(out2.sabrAlpha.size(), out1.sabrAlpha.size());
@@ -1678,14 +1770,13 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
     }
 
     // Third call different key: MISS + PUT, size grows to 2.
-    auto out3 = quantra::withSwaptionSabrCalibrateAtm(
-        entry, computedForwards, swapIndexBase, "test-key-B");
+    auto out3 =
+        quantra::withSwaptionSabrCalibrateAtm(entry, computedForwards, swapIndexBase, "test-key-B");
     EXPECT_EQ(SabrCalibrateCache::instance().size(), 2u);
     EXPECT_EQ(out3.sabrAlpha.size(), 4u);
 
     // Empty cache key bypasses cache entirely: size unchanged.
-    auto out4 = quantra::withSwaptionSabrCalibrateAtm(
-        entry, computedForwards, swapIndexBase, "");
+    auto out4 = quantra::withSwaptionSabrCalibrateAtm(entry, computedForwards, swapIndexBase, "");
     EXPECT_EQ(SabrCalibrateCache::instance().size(), 2u);
     EXPECT_EQ(out4.sabrAlpha.size(), 4u);
 
@@ -1693,13 +1784,13 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
     // canonical cache key changes. Same for a different curve cache key.
     auto entryPerturbed = entry;
     entryPerturbed.sabrMarketVolsFlat[2] += 0.0001;
-    const std::string keyA = quantra::buildSabrCalibrateCacheKey(
-        entry, computedForwards, "disc-key-1", "fwd-key-1");
+    const std::string keyA =
+        quantra::buildSabrCalibrateCacheKey(entry, computedForwards, "disc-key-1", "fwd-key-1");
     const std::string keyAPert = quantra::buildSabrCalibrateCacheKey(
         entryPerturbed, computedForwards, "disc-key-1", "fwd-key-1");
     EXPECT_NE(keyA, keyAPert);
-    const std::string keyB = quantra::buildSabrCalibrateCacheKey(
-        entry, computedForwards, "disc-key-2", "fwd-key-1");
+    const std::string keyB =
+        quantra::buildSabrCalibrateCacheKey(entry, computedForwards, "disc-key-2", "fwd-key-1");
     EXPECT_NE(keyA, keyB);
 
     // Bypass-when-curve-cache-disabled: finalize via the production path
@@ -1732,10 +1823,12 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
     {
         flatbuffers::grpc::MessageBuilder b;
         auto curve = buildLongCurve(b, "discount");
-        auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
+        auto curves =
+            b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{curve});
         auto paramsSurface = buildSwaptionSabrParamsSurface(
             b, "sabr_params_seed", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
-        auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
+        auto vols = b.CreateVector(
+            std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{paramsSurface});
         auto indices = buildIndicesVector(b);
         auto swapIndices = buildSwapIndicesVector(b);
         auto asof = b.CreateString("2025-01-15");
@@ -1754,8 +1847,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         tte.resize(4);
         for (int i = 0; i < 2; ++i) {
             QuantLib::Date exercise = finalEntry.calendar.advance(
-                finalEntry.referenceDate, finalEntry.expiries[i],
-                finalEntry.businessDayConvention);
+                finalEntry.referenceDate, finalEntry.expiries[i], finalEntry.businessDayConvention);
             double t = finalEntry.dayCounter.yearFraction(finalEntry.referenceDate, exercise);
             tte[i * 2 + 0] = t;
             tte[i * 2 + 1] = t;
@@ -1776,13 +1868,15 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
             volSurface = buildSwaptionSabrParamsSurface(
                 *b, "sabr_vol", g.expiries, g.tenors, g.alpha, g.beta, g.rho, g.nu);
         }
-        auto vols = b->CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        auto vols =
+            b->CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
         auto model = buildSwaptionModel(*b, "black_model", quantra::enums::IrModelType_Black);
         auto models = b->CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
         auto indices = buildIndicesVector(*b);
         auto swapIndices = buildSwapIndicesVector(*b);
         auto asof = b->CreateString("2025-01-15");
-        auto pricing = buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models);
+        auto pricing =
+            buildPricing(*b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models);
 
         auto feff = b->CreateString("2026-01-17");
         auto fterm = b->CreateString("2031-01-17");
@@ -1792,7 +1886,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         fsb.add_calendar(quantra::enums::Calendar_TARGET);
         fsb.add_frequency(quantra::enums::Frequency_Annual);
         fsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        fsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fsb.add_termination_date_convention(
+            quantra::enums::BusinessDayConvention_ModifiedFollowing);
         fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
         fsb.add_end_of_month(false);
         auto fixedSch = fsb.Finish();
@@ -1812,7 +1907,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         flsb.add_calendar(quantra::enums::Calendar_TARGET);
         flsb.add_frequency(quantra::enums::Frequency_Semiannual);
         flsb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        flsb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        flsb.add_termination_date_convention(
+            quantra::enums::BusinessDayConvention_ModifiedFollowing);
         flsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
         flsb.add_end_of_month(false);
         auto floatSch = flsb.Finish();
@@ -1851,7 +1947,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         psb.add_volatility(vol_id);
         psb.add_model(model_id);
         auto psbOff = psb.Finish();
-        auto swaptions = b->CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+        auto swaptions =
+            b->CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
         quantra::PriceSwaptionRequestBuilder rb(*b);
         rb.add_pricing(pricing);
@@ -1865,11 +1962,12 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         SwaptionPricingRequest req;
         auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
         auto resp = req.request(
-            respB,
-            flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b->GetBufferPointer()));
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b->GetBufferPointer()));
         respB->Finish(resp);
-        return flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(
-                   respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+        return flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+            ->swaptions()
+            ->Get(0)
+            ->npv();
     };
 
     double npvParams = runPrice(/*useCalibrate=*/false);
@@ -1899,7 +1997,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
     auto volSurface = buildSwaptionSabrCalibrateSurface(
         b, "sabr_vol", g.expiries, g.tenors, spreads, syntheticVols);
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = buildIndicesVector(b);
@@ -1974,7 +2073,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -1984,7 +2084,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
     EXPECT_THROW(
-        req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
+        req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer())),
         QuantraError);
     SabrCalibrateCache::instance().clear();
 }
@@ -2037,8 +2138,8 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_DiagnosticsEmitsHighRmseWar
         outBuilder,
         flatbuffers::GetRoot<quantra::CalibrateSwaptionVolRequest>(b.GetBufferPointer()));
     outBuilder->Finish(respOff);
-    auto resp = flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(
-        outBuilder->GetBufferPointer());
+    auto resp =
+        flatbuffers::GetRoot<quantra::CalibrateSwaptionVolResponse>(outBuilder->GetBufferPointer());
     ASSERT_NE(resp, nullptr);
     auto* d = resp->diagnostics();
     ASSERT_NE(d, nullptr);
@@ -2052,21 +2153,30 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     std::cout << "\n=== Swaption (Bachelier) ===" << std::endl;
     double notional = 1000000.0, strike = 0.035, vol = 0.01; // Normal vol
     QuantLib::Date exDate = evaluationDate_ + QuantLib::Period(1, QuantLib::Years);
-    QuantLib::Date swapStart = exDate + 2, swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
+    QuantLib::Date swapStart = exDate + 2,
+                   swapEnd = swapStart + QuantLib::Period(5, QuantLib::Years);
 
-    QuantLib::Schedule fixSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
-    QuantLib::Schedule fltSch(swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
+    QuantLib::Schedule fixSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
+    QuantLib::Schedule fltSch(
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Semiannual), QuantLib::TARGET(),
+        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward,
+        false);
     auto idx = std::make_shared<QuantLib::Euribor6M>(forwardHandle_);
-    auto swap = std::make_shared<QuantLib::VanillaSwap>(QuantLib::VanillaSwap::Payer, notional,
-        fixSch, strike, QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0, QuantLib::Actual360());
+    auto swap = std::make_shared<QuantLib::VanillaSwap>(
+        QuantLib::VanillaSwap::Payer, notional, fixSch, strike,
+        QuantLib::Thirty360(QuantLib::Thirty360::BondBasis), fltSch, idx, 0.0,
+        QuantLib::Actual360());
     auto ex = std::make_shared<QuantLib::EuropeanExercise>(exDate);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(swap, ex);
     auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
-        std::make_shared<QuantLib::ConstantSwaptionVolatility>(evaluationDate_, QuantLib::TARGET(),
-            QuantLib::ModifiedFollowing, vol, QuantLib::Actual365Fixed(), QuantLib::Normal));
-    qlSwaption->setPricingEngine(std::make_shared<QuantLib::BachelierSwaptionEngine>(discountHandle_, volH));
+        std::make_shared<QuantLib::ConstantSwaptionVolatility>(
+            evaluationDate_, QuantLib::TARGET(), QuantLib::ModifiedFollowing, vol,
+            QuantLib::Actual365Fixed(), QuantLib::Normal));
+    qlSwaption->setPricingEngine(
+        std::make_shared<QuantLib::BachelierSwaptionEngine>(discountHandle_, volH));
     double qlNPV = qlSwaption->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
@@ -2075,10 +2185,13 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
     auto volSurface = buildSwaptionVolSurface(
-        b, "swaption_vol_norm", vol, quantra::enums::VolatilityType_Normal, 0.0, "swaption_vol_quote");
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        b, "swaption_vol_norm", vol, quantra::enums::VolatilityType_Normal, 0.0,
+        "swaption_vol_quote");
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
-    auto model = buildSwaptionModel(b, "bachelier_swaption_model", quantra::enums::IrModelType_Bachelier);
+    auto model =
+        buildSwaptionModel(b, "bachelier_swaption_model", quantra::enums::IrModelType_Bachelier);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
 
     auto indices = buildIndicesVector(b);
@@ -2168,7 +2281,8 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -2177,11 +2291,16 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                      ->swaptions()
+                      ->Get(0)
+                      ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.01);
 }
 
@@ -2208,51 +2327,33 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     };
 
     std::vector<OisRate> oisRates = {
-        {1 * QuantLib::Weeks, 0.0533410},
-        {2 * QuantLib::Weeks, 0.0533585},
-        {3 * QuantLib::Weeks, 0.0533814},
-        {1 * QuantLib::Months, 0.0534261},
-        {2 * QuantLib::Months, 0.0520565},
-        {3 * QuantLib::Months, 0.0511385},
-        {4 * QuantLib::Months, 0.0502265},
-        {5 * QuantLib::Months, 0.0490300},
-        {6 * QuantLib::Months, 0.0478850},
-        {7 * QuantLib::Months, 0.0470850},
-        {8 * QuantLib::Months, 0.0460968},
-        {9 * QuantLib::Months, 0.0452458},
-        {10 * QuantLib::Months, 0.0444082},
-        {11 * QuantLib::Months, 0.0436380},
-        {12 * QuantLib::Months, 0.0428710},
-        {18 * QuantLib::Months, 0.0392930},
-        {2 * QuantLib::Years, 0.0373480},
-        {3 * QuantLib::Years, 0.0351270},
-        {4 * QuantLib::Years, 0.0340905},
-        {5 * QuantLib::Years, 0.0336448},
-        {6 * QuantLib::Years, 0.0334900},
-        {7 * QuantLib::Years, 0.0334540},
-        {8 * QuantLib::Years, 0.0335100},
-        {9 * QuantLib::Years, 0.0336048},
-        {10 * QuantLib::Years, 0.0337219},
-        {12 * QuantLib::Years, 0.0340177},
-        {15 * QuantLib::Years, 0.0343655},
-        {20 * QuantLib::Years, 0.0343820},
-        {25 * QuantLib::Years, 0.0337260},
-        {30 * QuantLib::Years, 0.0329430},
-        {40 * QuantLib::Years, 0.0310050},
-        {50 * QuantLib::Years, 0.0290915}
-    };
+        {1 * QuantLib::Weeks, 0.0533410},   {2 * QuantLib::Weeks, 0.0533585},
+        {3 * QuantLib::Weeks, 0.0533814},   {1 * QuantLib::Months, 0.0534261},
+        {2 * QuantLib::Months, 0.0520565},  {3 * QuantLib::Months, 0.0511385},
+        {4 * QuantLib::Months, 0.0502265},  {5 * QuantLib::Months, 0.0490300},
+        {6 * QuantLib::Months, 0.0478850},  {7 * QuantLib::Months, 0.0470850},
+        {8 * QuantLib::Months, 0.0460968},  {9 * QuantLib::Months, 0.0452458},
+        {10 * QuantLib::Months, 0.0444082}, {11 * QuantLib::Months, 0.0436380},
+        {12 * QuantLib::Months, 0.0428710}, {18 * QuantLib::Months, 0.0392930},
+        {2 * QuantLib::Years, 0.0373480},   {3 * QuantLib::Years, 0.0351270},
+        {4 * QuantLib::Years, 0.0340905},   {5 * QuantLib::Years, 0.0336448},
+        {6 * QuantLib::Years, 0.0334900},   {7 * QuantLib::Years, 0.0334540},
+        {8 * QuantLib::Years, 0.0335100},   {9 * QuantLib::Years, 0.0336048},
+        {10 * QuantLib::Years, 0.0337219},  {12 * QuantLib::Years, 0.0340177},
+        {15 * QuantLib::Years, 0.0343655},  {20 * QuantLib::Years, 0.0343820},
+        {25 * QuantLib::Years, 0.0337260},  {30 * QuantLib::Years, 0.0329430},
+        {40 * QuantLib::Years, 0.0310050},  {50 * QuantLib::Years, 0.0290915}};
 
     std::vector<std::shared_ptr<QuantLib::RateHelper>> helpers;
     auto sofr = std::make_shared<QuantLib::OvernightIndex>(
         "SOFR", 0, QuantLib::USDCurrency(), usGov, QuantLib::Actual360());
     for (const auto& tr : oisRates) {
-        helpers.push_back(std::make_shared<QuantLib::OISRateHelper>(
-            2, tr.tenor, tr.rate, sofr));
+        helpers.push_back(std::make_shared<QuantLib::OISRateHelper>(2, tr.tenor, tr.rate, sofr));
     }
 
-    auto oisCurve = std::make_shared<
-        QuantLib::PiecewiseYieldCurve<QuantLib::Discount, QuantLib::LogLinear>>(
-        evalDate, helpers, QuantLib::Actual365Fixed());
+    auto oisCurve =
+        std::make_shared<QuantLib::PiecewiseYieldCurve<QuantLib::Discount, QuantLib::LogLinear>>(
+            evalDate, helpers, QuantLib::Actual365Fixed());
     oisCurve->enableExtrapolation();
 
     QuantLib::Handle<QuantLib::YieldTermStructure> oisHandle(oisCurve);
@@ -2260,28 +2361,16 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
         "SOFR", 0, QuantLib::USDCurrency(), usGov, QuantLib::Actual360(), oisHandle);
 
     QuantLib::Schedule fixedSchedule(
-        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov,
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov, QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
     QuantLib::Schedule floatSchedule(
-        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov,
-        QuantLib::ModifiedFollowing, QuantLib::ModifiedFollowing,
-        QuantLib::DateGeneration::Forward, false);
+        swapStart, swapEnd, QuantLib::Period(QuantLib::Annual), usGov, QuantLib::ModifiedFollowing,
+        QuantLib::ModifiedFollowing, QuantLib::DateGeneration::Forward, false);
 
     auto oisSwap = std::make_shared<QuantLib::OvernightIndexedSwap>(
-        QuantLib::OvernightIndexedSwap::Payer,
-        notional,
-        fixedSchedule,
-        strike,
-        QuantLib::Actual360(),
-        floatSchedule,
-        sofrWithCurve,
-        0.0,
-        2,
-        QuantLib::ModifiedFollowing,
-        usGov,
-        false,
-        QuantLib::RateAveraging::Compound);
+        QuantLib::OvernightIndexedSwap::Payer, notional, fixedSchedule, strike,
+        QuantLib::Actual360(), floatSchedule, sofrWithCurve, 0.0, 2, QuantLib::ModifiedFollowing,
+        usGov, false, QuantLib::RateAveraging::Compound);
 
     auto ex = std::make_shared<QuantLib::EuropeanExercise>(exerciseDate);
     auto qlSwaption = std::make_shared<QuantLib::Swaption>(
@@ -2289,57 +2378,55 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
 
     auto volH = QuantLib::Handle<QuantLib::SwaptionVolatilityStructure>(
         std::make_shared<QuantLib::ConstantSwaptionVolatility>(
-            evalDate, usGov, QuantLib::ModifiedFollowing, vol,
-            QuantLib::Actual365Fixed(), QuantLib::Normal));
+            evalDate, usGov, QuantLib::ModifiedFollowing, vol, QuantLib::Actual365Fixed(),
+            QuantLib::Normal));
     qlSwaption->setPricingEngine(
         std::make_shared<QuantLib::BachelierSwaptionEngine>(oisHandle, volH));
     double qlNPV = qlSwaption->NPV();
 
     flatbuffers::grpc::MessageBuilder b;
 
-    std::vector<OisTenorRate> oisRatesFb = {
-        {1, quantra::enums::TimeUnit_Weeks, 0.0533410},
-        {2, quantra::enums::TimeUnit_Weeks, 0.0533585},
-        {3, quantra::enums::TimeUnit_Weeks, 0.0533814},
-        {1, quantra::enums::TimeUnit_Months, 0.0534261},
-        {2, quantra::enums::TimeUnit_Months, 0.0520565},
-        {3, quantra::enums::TimeUnit_Months, 0.0511385},
-        {4, quantra::enums::TimeUnit_Months, 0.0502265},
-        {5, quantra::enums::TimeUnit_Months, 0.0490300},
-        {6, quantra::enums::TimeUnit_Months, 0.0478850},
-        {7, quantra::enums::TimeUnit_Months, 0.0470850},
-        {8, quantra::enums::TimeUnit_Months, 0.0460968},
-        {9, quantra::enums::TimeUnit_Months, 0.0452458},
-        {10, quantra::enums::TimeUnit_Months, 0.0444082},
-        {11, quantra::enums::TimeUnit_Months, 0.0436380},
-        {12, quantra::enums::TimeUnit_Months, 0.0428710},
-        {18, quantra::enums::TimeUnit_Months, 0.0392930},
-        {2, quantra::enums::TimeUnit_Years, 0.0373480},
-        {3, quantra::enums::TimeUnit_Years, 0.0351270},
-        {4, quantra::enums::TimeUnit_Years, 0.0340905},
-        {5, quantra::enums::TimeUnit_Years, 0.0336448},
-        {6, quantra::enums::TimeUnit_Years, 0.0334900},
-        {7, quantra::enums::TimeUnit_Years, 0.0334540},
-        {8, quantra::enums::TimeUnit_Years, 0.0335100},
-        {9, quantra::enums::TimeUnit_Years, 0.0336048},
-        {10, quantra::enums::TimeUnit_Years, 0.0337219},
-        {12, quantra::enums::TimeUnit_Years, 0.0340177},
-        {15, quantra::enums::TimeUnit_Years, 0.0343655},
-        {20, quantra::enums::TimeUnit_Years, 0.0343820},
-        {25, quantra::enums::TimeUnit_Years, 0.0337260},
-        {30, quantra::enums::TimeUnit_Years, 0.0329430},
-        {40, quantra::enums::TimeUnit_Years, 0.0310050},
-        {50, quantra::enums::TimeUnit_Years, 0.0290915}
-    };
+    std::vector<OisTenorRate> oisRatesFb = {{1, quantra::enums::TimeUnit_Weeks, 0.0533410},
+                                            {2, quantra::enums::TimeUnit_Weeks, 0.0533585},
+                                            {3, quantra::enums::TimeUnit_Weeks, 0.0533814},
+                                            {1, quantra::enums::TimeUnit_Months, 0.0534261},
+                                            {2, quantra::enums::TimeUnit_Months, 0.0520565},
+                                            {3, quantra::enums::TimeUnit_Months, 0.0511385},
+                                            {4, quantra::enums::TimeUnit_Months, 0.0502265},
+                                            {5, quantra::enums::TimeUnit_Months, 0.0490300},
+                                            {6, quantra::enums::TimeUnit_Months, 0.0478850},
+                                            {7, quantra::enums::TimeUnit_Months, 0.0470850},
+                                            {8, quantra::enums::TimeUnit_Months, 0.0460968},
+                                            {9, quantra::enums::TimeUnit_Months, 0.0452458},
+                                            {10, quantra::enums::TimeUnit_Months, 0.0444082},
+                                            {11, quantra::enums::TimeUnit_Months, 0.0436380},
+                                            {12, quantra::enums::TimeUnit_Months, 0.0428710},
+                                            {18, quantra::enums::TimeUnit_Months, 0.0392930},
+                                            {2, quantra::enums::TimeUnit_Years, 0.0373480},
+                                            {3, quantra::enums::TimeUnit_Years, 0.0351270},
+                                            {4, quantra::enums::TimeUnit_Years, 0.0340905},
+                                            {5, quantra::enums::TimeUnit_Years, 0.0336448},
+                                            {6, quantra::enums::TimeUnit_Years, 0.0334900},
+                                            {7, quantra::enums::TimeUnit_Years, 0.0334540},
+                                            {8, quantra::enums::TimeUnit_Years, 0.0335100},
+                                            {9, quantra::enums::TimeUnit_Years, 0.0336048},
+                                            {10, quantra::enums::TimeUnit_Years, 0.0337219},
+                                            {12, quantra::enums::TimeUnit_Years, 0.0340177},
+                                            {15, quantra::enums::TimeUnit_Years, 0.0343655},
+                                            {20, quantra::enums::TimeUnit_Years, 0.0343820},
+                                            {25, quantra::enums::TimeUnit_Years, 0.0337260},
+                                            {30, quantra::enums::TimeUnit_Years, 0.0329430},
+                                            {40, quantra::enums::TimeUnit_Years, 0.0310050},
+                                            {50, quantra::enums::TimeUnit_Years, 0.0290915}};
 
     auto ts = buildOisCurve(
-        b, "USD_SOFR", "USD_SOFR", oisRatesFb,
-        quantra::enums::Calendar_UnitedStatesGovernmentBond);
+        b, "USD_SOFR", "USD_SOFR", oisRatesFb, quantra::enums::Calendar_UnitedStatesGovernmentBond);
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
     auto volSurface = buildSwaptionVolSurface(
         b, "usd_sofr_vol", vol, quantra::enums::VolatilityType_Normal, 0.0, "", "2024-08-14");
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
 
     auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
@@ -2431,7 +2518,8 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
 
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
@@ -2440,11 +2528,16 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0)->npv();
+    double qNPV = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                      ->swaptions()
+                      ->Get(0)
+                      ->npv();
 
-    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV << " | Diff: " << std::abs(qlNPV-qNPV) << std::endl;
+    std::cout << "QuantLib: " << qlNPV << " | Quantra: " << qNPV
+              << " | Diff: " << std::abs(qlNPV - qNPV) << std::endl;
     EXPECT_NEAR(qlNPV, qNPV, 0.05);
 
     QuantLib::Settings::instance().evaluationDate() = prevEval;
@@ -2454,28 +2547,24 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     flatbuffers::grpc::MessageBuilder b;
 
     std::vector<OisTenorRate> oisRatesFb = {
-        {1, quantra::enums::TimeUnit_Months, 0.02},
-        {6, quantra::enums::TimeUnit_Months, 0.021},
-        {1, quantra::enums::TimeUnit_Years, 0.022},
-        {2, quantra::enums::TimeUnit_Years, 0.023},
-        {5, quantra::enums::TimeUnit_Years, 0.024},
-        {10, quantra::enums::TimeUnit_Years, 0.025}
-    };
+        {1, quantra::enums::TimeUnit_Months, 0.02}, {6, quantra::enums::TimeUnit_Months, 0.021},
+        {1, quantra::enums::TimeUnit_Years, 0.022}, {2, quantra::enums::TimeUnit_Years, 0.023},
+        {5, quantra::enums::TimeUnit_Years, 0.024}, {10, quantra::enums::TimeUnit_Years, 0.025}};
 
     auto ts = buildOisCurve(
-        b, "USD_SOFR", "USD_SOFR", oisRatesFb,
-        quantra::enums::Calendar_UnitedStatesGovernmentBond);
+        b, "USD_SOFR", "USD_SOFR", oisRatesFb, quantra::enums::Calendar_UnitedStatesGovernmentBond);
     auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
 
-    std::vector<QuantLib::Period> expiries = { QuantLib::Period(1, QuantLib::Years) };
-    std::vector<QuantLib::Period> tenors = { QuantLib::Period(5, QuantLib::Years) };
-    std::vector<double> strikes = { -0.01, 0.0, 0.01 };
+    std::vector<QuantLib::Period> expiries = {QuantLib::Period(1, QuantLib::Years)};
+    std::vector<QuantLib::Period> tenors = {QuantLib::Period(5, QuantLib::Years)};
+    std::vector<double> strikes = {-0.01, 0.0, 0.01};
     std::vector<double> volsFlat(expiries.size() * tenors.size() * strikes.size(), 0.01);
     auto volSurface = buildSwaptionVolSmileCubeSurface(
         b, "usd_sofr_smile", expiries, tenors, strikes, volsFlat,
-        quantra::enums::SwaptionStrikeKind_SpreadFromATM, "USD_SOFR_OIS",
-        {}, false, quantra::enums::VolatilityType_Normal, 0.0, "2024-08-14");
-    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
+        quantra::enums::SwaptionStrikeKind_SpreadFromATM, "USD_SOFR_OIS", {}, false,
+        quantra::enums::VolatilityType_Normal, 0.0, "2024-08-14");
+    auto vols =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{volSurface});
     auto model = buildSwaptionModel(b, "bachelier_model", quantra::enums::IrModelType_Bachelier);
     auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
     auto indices = b.CreateVector(
@@ -2483,7 +2572,9 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     auto swapIndices = buildSwapIndicesVector(b, false, true, false);
     auto asof = b.CreateString("2024-08-14");
 
-    auto pricing = buildPricing(b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models, 0, 0, 0, false, false, false, true);
+    auto pricing = buildPricing(
+        b, asof, 0, 0, indices, swapIndices, curves, 0, 0, vols, models, 0, 0, 0, false, false,
+        false, true);
 
     auto feff = b.CreateString("2025-08-18");
     auto fterm = b.CreateString("2030-08-18");
@@ -2564,7 +2655,8 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
 
-    auto swaptions = b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
+    auto swaptions =
+        b.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{psbOff});
     quantra::PriceSwaptionRequestBuilder rb(b);
     rb.add_pricing(pricing);
     rb.add_swaptions(swaptions);
@@ -2572,9 +2664,12 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
 
     SwaptionPricingRequest req;
     auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
-    auto resp = req.request(respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+    auto resp = req.request(
+        respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
     respB->Finish(resp);
-    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())->swaptions()->Get(0);
+    auto res = flatbuffers::GetRoot<quantra::PriceSwaptionResponse>(respB->GetBufferPointer())
+                   ->swaptions()
+                   ->Get(0);
 
     EXPECT_EQ(res->vol_kind(), quantra::enums::SwaptionVolKind_SmileCube3D);
     EXPECT_EQ(res->used_strike_kind(), quantra::enums::SwaptionStrikeKind_SpreadFromATM);

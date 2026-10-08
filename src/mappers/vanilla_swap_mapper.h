@@ -7,11 +7,12 @@
  * serializes the VanillaSwapResult back into a PriceVanillaSwapResponse.
  */
 
-#include "flatbuffers/grpc.h"
+#include "vanilla_swap_evaluator.h"
 
 #include "price_vanilla_swap_request_generated.h"
-#include "vanilla_swap_evaluator.h"
 #include "vanilla_swap_response_generated.h"
+
+#include "flatbuffers/grpc.h"
 
 namespace quantra {
 
@@ -20,8 +21,7 @@ public:
     VanillaSwapInputs toInputs(const quantra::PriceVanillaSwapRequest* req) const;
 
     flatbuffers::Offset<quantra::PriceVanillaSwapResponse> toResponse(
-        flatbuffers::grpc::MessageBuilder& builder,
-        const VanillaSwapResult& result) const;
+        flatbuffers::grpc::MessageBuilder& builder, const VanillaSwapResult& result) const;
 };
 
 } // namespace quantra
