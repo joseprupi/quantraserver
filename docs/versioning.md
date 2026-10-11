@@ -26,6 +26,27 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.8.2 (October 2026) — rebump greeks bump curves once
+
+`v0.8.2` is a patch release: no schema change, no change to any plain pricing
+result.
+
+### Fixes
+
+- **Rebump greeks shift each curve quote exactly once.** With
+  `swaption_pricing_rebump`, the engine rebuilds the curves with every quote
+  moved by ±1bp and reprices. A curve pillar written with `quote_id` received
+  that shift twice: once when the request's `quotes[]` were loaded and again
+  when the pillar resolved its quote. Curves written entirely with `quote_id`
+  pillars therefore reported a rebump `dv01` about twice and a `gamma` about
+  four times the true value, and a curve mixing inline and `quote_id` pillars
+  got a lopsided shock (only the `quote_id` pillars moved 2bp). `vega` and
+  `theta`, plain pricing, `swaption_pricing_details` and curves written with
+  inline rates were never affected. Every pillar is now shifted once, so the
+  two spellings of the same market produce identical greeks.
+
+---
+
 ## Version 0.8.1 (October 2026) — request isolation and input guards
 
 `v0.8.1` is a patch release: no schema change, no change to any correctly

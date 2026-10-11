@@ -25,12 +25,9 @@ Handle<Quote> TermStructurePointParser::resolveQuote(
     if (quoteId && quotes) {
         const std::string id = quoteId->str();
         if (!id.empty()) {
-            if (bump == 0.0) {
-                return quotes->getHandle(id, expectedType);
-            }
-            double v = quotes->getValue(id, expectedType) + bump;
-            auto sq = std::make_shared<SimpleQuote>(v);
-            return Handle<Quote>(sq);
+            // The registry value already carries the curve bump (applied once
+            // when the request's quotes were loaded), so it is returned as-is.
+            return quotes->getHandle(id, expectedType);
         }
     }
     auto sq = std::make_shared<SimpleQuote>(inlineValue + bump);

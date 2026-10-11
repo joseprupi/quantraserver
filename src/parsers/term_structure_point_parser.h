@@ -50,6 +50,10 @@ public:
         double bump = 0.0) const;
 
 private:
+    /// Resolve a pillar's quote: the registry handle when quoteId names a
+    /// registered quote (its value already includes the curve bump applied by
+    /// CurveBootstrapper::bootstrapAll), otherwise a SimpleQuote holding
+    /// inlineValue + bump.
     QuantLib::Handle<QuantLib::Quote> resolveQuote(
         double inlineValue,
         const flatbuffers::String* quoteId,
