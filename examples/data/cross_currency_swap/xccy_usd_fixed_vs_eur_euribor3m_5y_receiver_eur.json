@@ -751,10 +751,11 @@
   "swaps": [
     {
       "cross_currency_swap": {
-        "swap_type": "Receiver",
         "leg1": {
+          "pay_receive": "Receive",
           "currency": "USD",
-          "fixed_leg": {
+          "coupons_type": "FixedCoupons",
+          "coupons": {
             "notional": 10850000.0,
             "schedule": {
               "calendar": "TARGET",
@@ -775,8 +776,10 @@
           "discounting_curve": "USD_SOFR_OIS"
         },
         "leg2": {
+          "pay_receive": "Pay",
           "currency": "EUR",
-          "floating_leg": {
+          "coupons_type": "IborCoupons",
+          "coupons": {
             "notional": 10000000.0,
             "schedule": {
               "calendar": "TARGET",

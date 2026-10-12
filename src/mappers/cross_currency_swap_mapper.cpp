@@ -19,83 +19,156 @@ std::string requireId(const flatbuffers::String* value, const std::string& field
     return value->str();
 }
 
-XccyLegData extractLeg(const quantra::XccyLeg* fb, const std::string& legName) {
+double requireFiniteLevel(double value, const std::string& field) {
+    if (!std::isfinite(value)) {
+        QUANTRA_INVALID_ARGUMENT(field + " must be finite");
+    }
+    return value;
+}
+
+void extractFixed(
+    const quantra::FixedCoupons* f,
+    const std::string& prefix,
+    ScheduleParser& scheduleParser,
+    SwapLegData& leg) {
+    if (!f->schedule()) {
+        QUANTRA_INVALID_ARGUMENT(prefix + "schedule is required");
+    }
+    rejectUnsupportedNotionals(f->notionals(), prefix + "notionals (price-swap)");
+    leg.kind = SwapLegData::Kind::Fixed;
+    leg.fixed.schedule = *scheduleParser.parse(f->schedule());
+    leg.notional = requirePositive(f->notional(), prefix + "notional");
+    leg.fixed.notionals = {leg.notional};
+    leg.fixed.rate = requireFiniteLevel(f->rate(), prefix + "rate");
+    leg.fixed.dayCounter = DayCounterToQL(requireEnum(f->day_counter(), prefix + "day_counter"));
+    leg.fixed.paymentConvention =
+        ConventionToQL(requireEnum(f->payment_convention(), prefix + "payment_convention"));
+}
+
+void extractIbor(
+    const quantra::IborCoupons* f,
+    const std::string& prefix,
+    ScheduleParser& scheduleParser,
+    SwapLegData& leg) {
+    if (!f->schedule()) {
+        QUANTRA_INVALID_ARGUMENT(prefix + "schedule is required");
+    }
+    if (!f->index() || !f->index()->id() || f->index()->id()->str().empty()) {
+        QUANTRA_INVALID_ARGUMENT(prefix + "index.id is required");
+    }
+    rejectUnsupportedNotionals(f->notionals(), prefix + "notionals (price-swap)");
+    leg.kind = SwapLegData::Kind::Ibor;
+    leg.indexId = f->index()->id()->str();
+    leg.ibor.schedule = *scheduleParser.parse(f->schedule());
+    leg.notional = requirePositive(f->notional(), prefix + "notional");
+    leg.ibor.notionals = {leg.notional};
+    leg.ibor.spread = requireFiniteLevel(f->spread(), prefix + "spread");
+    leg.ibor.dayCounter = DayCounterToQL(requireEnum(f->day_counter(), prefix + "day_counter"));
+    leg.ibor.paymentConvention =
+        ConventionToQL(requireEnum(f->payment_convention(), prefix + "payment_convention"));
+    leg.ibor.fixingDays = requireNonNegative(f->fixing_days(), prefix + "fixing_days");
+    leg.ibor.inArrears = f->in_arrears();
+}
+
+void extractOvernight(
+    const quantra::OvernightCoupons* f,
+    const std::string& prefix,
+    ScheduleParser& scheduleParser,
+    SwapLegData& leg) {
+    if (!f->schedule()) {
+        QUANTRA_INVALID_ARGUMENT(prefix + "schedule is required");
+    }
+    if (!f->index() || !f->index()->id() || f->index()->id()->str().empty()) {
+        QUANTRA_INVALID_ARGUMENT(prefix + "index.id is required");
+    }
+    leg.kind = SwapLegData::Kind::Overnight;
+    leg.indexId = f->index()->id()->str();
+    leg.overnight.schedule = *scheduleParser.parse(f->schedule());
+    leg.notional = requirePositive(f->notional(), prefix + "notional");
+    leg.overnight.notionals = {leg.notional};
+    leg.overnight.spread = requireFiniteLevel(f->spread(), prefix + "spread");
+    // OvernightCoupons.day_counter is accepted-but-unused: the coupons take
+    // the overnight index's day counter (as price-ois-swap does).
+    leg.overnight.paymentConvention =
+        ConventionToQL(requireEnum(f->payment_convention(), prefix + "payment_convention"));
+    leg.overnight.paymentCalendar =
+        CalendarToQL(requireEnum(f->payment_calendar(), prefix + "payment_calendar"));
+    leg.overnight.paymentLag = requireNonNegativeInt(f->payment_lag(), prefix + "payment_lag");
+    leg.overnight.averagingMethod =
+        RateAveragingToQL(requireEnum(f->averaging_method(), prefix + "averaging_method"));
+    leg.overnight.lookbackDays =
+        requireNonNegativeInt(f->lookback_days(), prefix + "lookback_days");
+    leg.overnight.lockoutDays = requireNonNegativeInt(f->lockout_days(), prefix + "lockout_days");
+    leg.overnight.applyObservationShift =
+        requireBool(f->apply_observation_shift(), prefix + "apply_observation_shift");
+    leg.overnight.telescopicValueDates = f->telescopic_value_dates();
+}
+
+SwapLegData extractLeg(const quantra::SwapLeg* fb, const std::string& name) {
     if (fb == nullptr) {
-        QUANTRA_INVALID_ARGUMENT("CrossCurrencySwap." + legName + " is required");
+        QUANTRA_INVALID_ARGUMENT(name + " is required");
     }
-    const std::string prefix = "CrossCurrencySwap." + legName + ".";
+    SwapLegData leg;
+    if (!fb->pay_receive().has_value()) {
+        QUANTRA_INVALID_ARGUMENT(name + ".pay_receive is required (Pay or Receive)");
+    }
+    leg.side = fb->pay_receive().value() == quantra::enums::PayReceive_Pay
+                   ? SwapLegData::Side::Pay
+                   : SwapLegData::Side::Receive;
+    leg.currency = RequireIsoCurrency(fb->currency(), name + ".currency");
 
-    XccyLegData leg;
-    leg.currency = RequireIsoCurrency(fb->currency(), prefix + "currency");
-
-    const bool hasFixed = fb->fixed_leg() != nullptr;
-    const bool hasFloating = fb->floating_leg() != nullptr;
-    if (hasFixed == hasFloating) {
+    const quantra::SwapCoupons kind = fb->coupons_type();
+    const char* kindName = quantra::EnumNameSwapCoupons(kind);
+    const bool floating =
+        kind == quantra::SwapCoupons_IborCoupons || kind == quantra::SwapCoupons_OvernightCoupons;
+    switch (kind) {
+        case quantra::SwapCoupons_NONE:
+            QUANTRA_INVALID_ARGUMENT(
+                name + ".coupons is required (coupons_type FixedCoupons, IborCoupons or "
+                       "OvernightCoupons with the matching coupons table)");
+        case quantra::SwapCoupons_CmsCoupons:
+            QUANTRA_INVALID_ARGUMENT(
+                name + ".coupons: CmsCoupons is not supported on price-cross-currency-swap in "
+                       "this version");
+        default: break;
+    }
+    if (fb->coupons() == nullptr) {
         QUANTRA_INVALID_ARGUMENT(
-            "CrossCurrencySwap." + legName +
-            " must contain exactly one of fixed_leg or floating_leg");
+            name + ".coupons is required with coupons_type " + std::string(kindName));
     }
-    leg.initialExchange = requireBool(fb->initial_exchange(), prefix + "initial_exchange");
-    leg.finalExchange = requireBool(fb->final_exchange(), prefix + "final_exchange");
-    leg.discountingCurveId = requireId(fb->discounting_curve(), prefix + "discounting_curve");
+
+    leg.initialExchange = requireBool(fb->initial_exchange(), name + ".initial_exchange");
+    leg.finalExchange = requireBool(fb->final_exchange(), name + ".final_exchange");
+    leg.discountingCurveId = requireId(fb->discounting_curve(), name + ".discounting_curve");
 
     const bool hasForwarding = fb->forwarding_curve() && !fb->forwarding_curve()->str().empty();
-    if (hasFloating && !hasForwarding) {
-        QUANTRA_INVALID_ARGUMENT(prefix + "forwarding_curve is required with a floating_leg");
-    }
-    if (hasFixed && hasForwarding) {
+    if (floating && !hasForwarding) {
         QUANTRA_INVALID_ARGUMENT(
-            prefix +
-            "forwarding_curve must be absent with a fixed_leg (a fixed leg projects nothing)");
+            name + ".forwarding_curve is required with " + std::string(kindName));
+    }
+    if (!floating && hasForwarding) {
+        QUANTRA_INVALID_ARGUMENT(
+            name + ".forwarding_curve must be absent with FixedCoupons (a fixed leg projects "
+                   "nothing)");
+    }
+    if (hasForwarding) {
+        leg.forwardingCurveId = fb->forwarding_curve()->str();
     }
 
     ScheduleParser scheduleParser;
-    if (hasFixed) {
-        const auto* f = fb->fixed_leg();
-        if (!f->schedule()) {
-            QUANTRA_INVALID_ARGUMENT(prefix + "fixed_leg.schedule is required");
-        }
-        rejectUnsupportedNotionals(f->notionals(), "CrossCurrencySwap " + legName + " fixed leg");
-        leg.kind = XccyLegData::Kind::Fixed;
-        leg.fixed.schedule = *scheduleParser.parse(f->schedule());
-        leg.notional = requirePositive(f->notional(), prefix + "fixed_leg.notional");
-        leg.fixed.notionals = {leg.notional};
-        leg.fixed.rate = f->rate();
-        if (!std::isfinite(leg.fixed.rate)) {
-            QUANTRA_INVALID_ARGUMENT(prefix + "fixed_leg.rate must be finite");
-        }
-        leg.fixed.dayCounter =
-            DayCounterToQL(requireEnum(f->day_counter(), prefix + "fixed_leg.day_counter"));
-        leg.fixed.paymentConvention = ConventionToQL(
-            requireEnum(f->payment_convention(), prefix + "fixed_leg.payment_convention"));
-        return leg;
+    const std::string prefix = name + ".coupons.";
+    switch (kind) {
+        case quantra::SwapCoupons_FixedCoupons:
+            extractFixed(fb->coupons_as_FixedCoupons(), prefix, scheduleParser, leg);
+            break;
+        case quantra::SwapCoupons_IborCoupons:
+            extractIbor(fb->coupons_as_IborCoupons(), prefix, scheduleParser, leg);
+            break;
+        case quantra::SwapCoupons_OvernightCoupons:
+            extractOvernight(fb->coupons_as_OvernightCoupons(), prefix, scheduleParser, leg);
+            break;
+        default: QUANTRA_INVALID_ARGUMENT(name + ".coupons_type is not supported");
     }
-
-    const auto* f = fb->floating_leg();
-    if (!f->schedule()) {
-        QUANTRA_INVALID_ARGUMENT(prefix + "floating_leg.schedule is required");
-    }
-    if (!f->index() || !f->index()->id() || f->index()->id()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(prefix + "floating_leg.index.id is required");
-    }
-    rejectUnsupportedNotionals(f->notionals(), "CrossCurrencySwap " + legName + " floating leg");
-    leg.kind = XccyLegData::Kind::Floating;
-    leg.forwardingCurveId = fb->forwarding_curve()->str();
-    leg.indexId = f->index()->id()->str();
-    leg.floating.schedule = *scheduleParser.parse(f->schedule());
-    leg.notional = requirePositive(f->notional(), prefix + "floating_leg.notional");
-    leg.floating.notionals = {leg.notional};
-    leg.floating.spread = f->spread();
-    if (!std::isfinite(leg.floating.spread)) {
-        QUANTRA_INVALID_ARGUMENT(prefix + "floating_leg.spread must be finite");
-    }
-    leg.floating.dayCounter =
-        DayCounterToQL(requireEnum(f->day_counter(), prefix + "floating_leg.day_counter"));
-    leg.floating.paymentConvention = ConventionToQL(
-        requireEnum(f->payment_convention(), prefix + "floating_leg.payment_convention"));
-    leg.floating.fixingDays =
-        requireNonNegative(f->fixing_days(), prefix + "floating_leg.fixing_days");
-    leg.floating.inArrears = f->in_arrears();
     return leg;
 }
 
@@ -109,25 +182,34 @@ CrossCurrencySwapTrade extractTrade(const quantra::PriceCrossCurrencySwap* prici
     }
 
     CrossCurrencySwapTrade trade;
-    trade.swapType = SwapTypeToQL(requireEnum(swap->swap_type(), "CrossCurrencySwap.swap_type"));
-    trade.leg1 = extractLeg(swap->leg1(), "leg1");
-    trade.leg2 = extractLeg(swap->leg2(), "leg2");
-    if (trade.leg1.currency == trade.leg2.currency) {
+    trade.legs.reserve(2);
+    trade.legs.push_back(extractLeg(swap->leg1(), "CrossCurrencySwap.leg1"));
+    trade.legs.push_back(extractLeg(swap->leg2(), "CrossCurrencySwap.leg2"));
+    const SwapLegData& l0 = trade.legs[0];
+    const SwapLegData& l1 = trade.legs[1];
+    if (l0.side == l1.side) {
+        QUANTRA_INVALID_ARGUMENT(
+            std::string(
+                "CrossCurrencySwap.leg1.pay_receive and CrossCurrencySwap.leg2.pay_receive "
+                "are both ") +
+            (l0.side == SwapLegData::Side::Pay ? "Pay" : "Receive") +
+            ": one leg must be paid and the other received");
+    }
+    if (l0.currency == l1.currency) {
         QUANTRA_INVALID_ARGUMENT(
             "CrossCurrencySwap.leg1.currency and CrossCurrencySwap.leg2.currency must differ, "
             "both are '" +
-            trade.leg1.currency +
-            "' (two legs in one currency are a basis or a vanilla swap: use "
-            "price-basis-swap / price-vanilla-swap)");
+            l0.currency +
+            "' (two legs in one currency are a vanilla, OIS or basis swap: use "
+            "price-vanilla-swap / price-ois-swap / price-basis-swap)");
     }
     trade.fxSpotId = requireId(pricing->fx_spot(), "PriceCrossCurrencySwap.fx_spot");
     trade.reportingCurrency = RequireIsoCurrency(
         pricing->reporting_currency(), "PriceCrossCurrencySwap.reporting_currency");
-    if (trade.reportingCurrency != trade.leg1.currency &&
-        trade.reportingCurrency != trade.leg2.currency) {
+    if (trade.reportingCurrency != l0.currency && trade.reportingCurrency != l1.currency) {
         QUANTRA_INVALID_ARGUMENT(
             "PriceCrossCurrencySwap.reporting_currency '" + trade.reportingCurrency + "' must be " +
-            trade.leg1.currency + " or " + trade.leg2.currency +
+            l0.currency + " or " + l1.currency +
             " (reporting in a third currency is not supported)");
     }
     return trade;
@@ -177,14 +259,22 @@ flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
     return fb.Finish();
 }
 
-flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>> serializeFlows(
-    flatbuffers::grpc::MessageBuilder& builder, const std::vector<SwapLegFlowPlain>& flows) {
-    std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> offsets;
-    offsets.reserve(flows.size());
-    for (const auto& f : flows) {
-        offsets.push_back(serializeFlow(builder, f));
+flatbuffers::Offset<quantra::SwapLegResult> serializeLeg(
+    flatbuffers::grpc::MessageBuilder& builder, const SwapLegPerLeg& leg, bool includeFlows) {
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>> flows = 0;
+    if (includeFlows) {
+        std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> offsets;
+        offsets.reserve(leg.flows.size());
+        for (const auto& f : leg.flows) {
+            offsets.push_back(serializeFlow(builder, f));
+        }
+        flows = builder.CreateVector(offsets);
     }
-    return builder.CreateVector(offsets);
+    quantra::SwapLegResultBuilder lb(builder);
+    lb.add_npv(leg.npv);
+    lb.add_npv_reporting(leg.npvReporting);
+    if (includeFlows) lb.add_flows(flows);
+    return lb.Finish();
 }
 
 } // namespace
@@ -216,23 +306,19 @@ flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> CrossCurrencySwapMa
     rows.reserve(result.swaps.size());
 
     for (const auto& swap : result.swaps) {
-        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>>
-            leg1Flows = 0,
-            leg2Flows = 0;
-        if (swap.includeFlows) {
-            leg1Flows = serializeFlows(builder, swap.leg1Flows);
-            leg2Flows = serializeFlows(builder, swap.leg2Flows);
+        std::vector<flatbuffers::Offset<quantra::SwapLegResult>> legOffsets;
+        legOffsets.reserve(swap.legs.size());
+        for (const auto& leg : swap.legs) {
+            legOffsets.push_back(serializeLeg(builder, leg, swap.includeFlows));
         }
+        auto legs = builder.CreateVector(legOffsets);
         auto spotDate = builder.CreateString(swap.spotDate);
 
         quantra::CrossCurrencySwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
-        rb.add_leg1_npv(swap.leg1Npv);
-        rb.add_leg2_npv(swap.leg2Npv);
-        rb.add_leg1_npv_reporting(swap.leg1NpvReporting);
-        rb.add_leg2_npv_reporting(swap.leg2NpvReporting);
+        rb.add_legs(legs);
         // Optional by construction: present only when the swap shape defines
-        // them (one fixed leg -> fair_rate; two floating legs -> fair_spread).
+        // them (one fixed leg -> fair_rate; no fixed leg -> fair_spread).
         if (swap.fairRate && std::isfinite(*swap.fairRate)) rb.add_fair_rate(*swap.fairRate);
         if (swap.fairSpread && std::isfinite(*swap.fairSpread)) {
             rb.add_fair_spread(*swap.fairSpread);
@@ -240,10 +326,6 @@ flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> CrossCurrencySwapMa
         rb.add_fx_spot_used(swap.fxSpotUsed);
         rb.add_fx_as_of_rate(swap.fxAsOfRate);
         rb.add_spot_date(spotDate);
-        if (swap.includeFlows) {
-            rb.add_leg1_flows(leg1Flows);
-            rb.add_leg2_flows(leg2Flows);
-        }
         rows.push_back(rb.Finish());
     }
 

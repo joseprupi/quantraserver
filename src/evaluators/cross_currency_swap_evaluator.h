@@ -3,10 +3,10 @@
 
 /**
  * CrossCurrencySwapEvaluator — pure QuantLib pricing core for cross-currency
- * swaps: two coupon legs (fixed, IBOR or compounded overnight) in two
- * currencies, each with its own discounting curve and its own principal
- * exchanges, converted to a reporting currency at the as-of exchange rate
- * implied by an FX spot and the two discount curves.
+ * swaps: two `SwapLeg`s (fixed, IBOR or overnight coupons) in two currencies,
+ * each discounted on its own curve, with its own principal exchanges, paid or
+ * received by the reported party, converted to a reporting currency at the
+ * as-of exchange rate implied by an FX spot and the two discount curves.
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
@@ -17,39 +17,38 @@
  *
  * Pricing (QuantLib has no cross-currency swap instrument: leg cash flows and
  * CashFlows::npv / bps only). For leg i with notional N_i, coupon leg C_i
- * (built by swap_leg_builder.h exactly as the vanilla / basis swaps build
- * theirs) and discounting curve D_i, the leg in its own frame is
+ * (built by swap_leg_builder.h exactly as the vanilla / OIS / basis swaps
+ * build theirs) and discounting curve D_i, the leg in its own frame is
  *
  *   L_i = C_i  +  [initial_exchange] SimpleCashFlow(-N_i, schedule start)
  *              +  [final_exchange]   SimpleCashFlow(+N_i, last coupon payment date)
  *
  * i.e. the party that receives the coupons pays the notional at the start and
- * receives it at the end. With s_1 = -1 for Payer (the reported party pays
- * leg1), +1 for Receiver, and s_2 = -s_1:
+ * receives it at the end. With s_i = -1 for a paid leg (`Pay`), +1 for a
+ * received one (`Receive`):
  *
- *   leg_i_npv           = s_i * CashFlows::npv(L_i, D_i)          [currency i]
- *   X                   = S * DF_quote(t_s) / DF_base(t_s)        [FxAsOfExchangeRate]
- *   leg_i_npv_reporting = leg_i_npv converted with X (or 1/X)     [reporting ccy]
- *   npv                 = leg1_npv_reporting + leg2_npv_reporting
+ *   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]
+ *   X                     = S * DF_quote(t_s) / DF_base(t_s)      [FxAsOfExchangeRate]
+ *   legs[i].npv_reporting = legs[i].npv converted with X (or 1/X) [reporting ccy]
+ *   npv                   = legs[0].npv_reporting + legs[1].npv_reporting
  *
  * where DF_base / DF_quote are the discounting curves of the legs whose
  * currency is the spot's base / quote currency. Fair quantities hold the
  * other leg and every exchange fixed; with the annuity of leg i's coupons
  * A_i = CashFlows::bps(C_i, D_i) / 1e-4 (exchanges excluded), the NPV is
- * linear in the fixed rate r_f / the spread q_2, so
+ * linear in the fixed rate r_f / the spread q_1, so
  *
  *   fair_rate   = r_f - NPV[fixed-leg ccy] / (s_f * A_f)   (exactly one fixed leg)
- *   fair_spread = q_2 - NPV[leg-2 ccy]     / (s_2 * A_2)   (both legs floating)
+ *   fair_spread = q_1 - NPV[legs[1] ccy]   / (s_1 * A_1)   (no fixed leg)
  *
  * and repricing at the fair value gives npv = 0 identically (the tests pin
- * it through the API).
+ * it through the API). These are QuantLib::VanillaSwap's /
+ * OvernightIndexedSwap's own fair-value formulas.
  */
 
 #include "pricing_context.h"
 #include "pricing_registry.h"
 #include "swap_leg_builder.h"
-
-#include <ql/instruments/vanillaswap.hpp>
 
 #include <optional>
 #include <string>
@@ -57,31 +56,47 @@
 
 namespace quantra {
 
-/// One leg of a cross-currency swap lifted out of the FB request by the
-/// mapper (ids resolved against the registry at evaluation time).
-struct XccyLegData {
-    enum class Kind { Fixed, Floating };
+/// One `SwapLeg` lifted out of the FB request by the mapper (ids resolved
+/// against the registry at evaluation time).
+struct SwapLegData {
+    enum class Kind { Fixed, Ibor, Overnight };
+    enum class Side { Pay, Receive };
     Kind kind = Kind::Fixed;
+    Side side = Side::Pay;
     std::string currency;
     double notional = 0.0;
     /// Populated when kind == Fixed.
     FixedRateLegSpec fixed;
-    /// Populated when kind == Floating, together with `indexId`.
-    FloatingLegSpec floating;
+    /// Populated when kind == Ibor, together with `indexId`.
+    FloatingLegSpec ibor;
+    /// Populated when kind == Overnight, together with `indexId`.
+    OvernightLegSpec overnight;
     std::string indexId;
     bool initialExchange = false;
     bool finalExchange = false;
     std::string discountingCurveId;
     /// Empty for a fixed leg (the mapper rejects a present value there).
     std::string forwardingCurveId;
+
+    /// The leg's schedule (whichever coupon kind it is).
+    const QuantLib::Schedule& schedule() const {
+        return kind == Kind::Fixed  ? fixed.schedule
+               : kind == Kind::Ibor ? ibor.schedule
+                                    : overnight.schedule;
+    }
+    double sign() const { return side == Side::Pay ? -1.0 : 1.0; }
+    /// Fixed rate or floating spread: the quantity the fair value solves for.
+    double level() const {
+        return kind == Kind::Fixed  ? fixed.rate
+               : kind == Kind::Ibor ? ibor.spread
+                                    : overnight.spread;
+    }
 };
 
-/// One swap. `swapType` follows the basis-swap convention: Payer = the
-/// reported party pays leg1 and receives leg2.
+/// One swap: the two legs in request order (leg1, leg2), in two different
+/// currencies, one paid and one received (the mapper enforces all of it).
 struct CrossCurrencySwapTrade {
-    QuantLib::VanillaSwap::Type swapType = QuantLib::VanillaSwap::Payer;
-    XccyLegData leg1;
-    XccyLegData leg2;
+    std::vector<SwapLegData> legs;
     std::string fxSpotId;
     /// leg1 or leg2 currency (the mapper rejects anything else).
     std::string reportingCurrency;
@@ -92,23 +107,25 @@ struct CrossCurrencySwapInputs {
     bool includeFlows = false;
 };
 
+/// Per-leg result. Mirrors the SwapLegResult FB table.
+struct SwapLegPerLeg {
+    double npv = 0.0;
+    double npvReporting = 0.0;
+    std::vector<SwapLegFlowPlain> flows;
+};
+
 /// Per-swap result. Mirrors the CrossCurrencySwapResponse FB table.
 struct CrossCurrencySwapPerSwap {
     double npv = 0.0;
-    double leg1Npv = 0.0;
-    double leg2Npv = 0.0;
-    double leg1NpvReporting = 0.0;
-    double leg2NpvReporting = 0.0;
+    std::vector<SwapLegPerLeg> legs;
     /// Present iff exactly one leg is fixed.
     std::optional<double> fairRate;
-    /// Present iff both legs float (spread on leg2).
+    /// Present iff no leg is fixed (spread on legs[1]).
     std::optional<double> fairSpread;
     double fxSpotUsed = 0.0;
     double fxAsOfRate = 0.0;
     std::string spotDate;
     bool includeFlows = false;
-    std::vector<SwapLegFlowPlain> leg1Flows;
-    std::vector<SwapLegFlowPlain> leg2Flows;
 };
 
 struct CrossCurrencySwapResult {

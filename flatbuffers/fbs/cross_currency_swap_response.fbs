@@ -1,51 +1,42 @@
-include "vanilla_swap_response.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
 /// Cross-currency swap pricing result. With, for leg i, L_i the leg's flows
 /// in its own frame (coupons +, initial exchange -N_i at the schedule start,
 /// final exchange +N_i with the last coupon), D_i its discounting curve,
-/// s_1 = -1 for `Payer` / +1 for `Receiver` and s_2 = -s_1, S the spot rate
-/// (delivery on the spot date t_s) and DF_base / DF_quote the discounting
-/// curves of the base- and quote-currency legs:
-///   leg_i_npv = s_i * CashFlows::npv(L_i, D_i)                [currency i]
-///   X         = S * DF_quote(t_s) / DF_base(t_s)              [quote per base, as of today]
-///   leg_i_npv_reporting = leg_i_npv, * X or / X               [reporting currency]
-///   npv       = leg1_npv_reporting + leg2_npv_reporting       [reporting currency]
+/// s_i = -1 for `Pay` / +1 for `Receive`, S the spot rate (delivery on the
+/// spot date t_s) and DF_base / DF_quote the discounting curves of the base-
+/// and quote-currency legs:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]
+///   X                     = S * DF_quote(t_s) / DF_base(t_s)      [quote per base, as of today]
+///   legs[i].npv_reporting = legs[i].npv, * X or / X                [reporting currency]
+///   npv                   = legs[0].npv_reporting + legs[1].npv_reporting
 /// Fair quantities hold the other leg and every exchange fixed and solve the
 /// linear equation in the fixed rate / the spread with the leg's annuity
 /// A_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):
-///   fair_rate   = rate_f   - NPV[in fixed-leg ccy]  / (s_f * A_f)
-///   fair_spread = spread_2 - NPV[in leg-2 ccy]      / (s_2 * A_2)
-/// so repricing at the fair value gives npv = 0 to rounding. Every value is
-/// as of the evaluation date (the curves' reference date).
+///   fair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)
+///   fair_spread = spread_1 - NPV[in legs[1]'s ccy]       / (s_1 * A_1)
+/// so repricing at the fair value gives npv = 0 to rounding. These are
+/// QuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas
+/// and the legs are built by the same code as the single-currency swap
+/// endpoints. Every value is as of the evaluation date (the curves'
+/// reference date); flows on that date are excluded, as for every swap.
 table CrossCurrencySwapResponse {
     /// Total present value in `reporting_currency`, positive in favour of the
-    /// party whose `swap_type` was given.
+    /// reported party (the one whose `pay_receive` sides were given).
     npv:double;
-    /// Present value of leg1 (coupons and exchanges) in `leg1.currency`,
-    /// signed from the reported party's view: the leg's own-frame value (as
-    /// its receiver sees it) times -1 when the party pays the leg (`Payer`)
-    /// and +1 when it receives it. A paid leg is therefore negative only
-    /// when it is worth paying for: paying a 2.55% fixed leg (with its
-    /// exchanges) on a 3% curve is in the payer's favour and positive.
-    leg1_npv:double;
-    /// Present value of leg2 (coupons and exchanges) in `leg2.currency`,
-    /// signed the same way (+1 for `Payer`, -1 for `Receiver`).
-    leg2_npv:double;
-    /// `leg1_npv` converted to `reporting_currency` at the as-of exchange
-    /// rate (unchanged when leg1 is in the reporting currency).
-    leg1_npv_reporting:double;
-    /// `leg2_npv` converted to `reporting_currency` at the as-of exchange
-    /// rate (unchanged when leg2 is in the reporting currency).
-    leg2_npv_reporting:double;
-    /// Present when exactly one leg is fixed: the fixed rate that zeroes the
-    /// total NPV, holding the floating leg and every notional exchange fixed.
+    /// One result per leg, in request order (`leg1` then `leg2`): the leg's
+    /// NPV in its own currency and in the reporting currency, and its flows
+    /// with `include_flows`.
+    legs:[SwapLegResult] (required);
+    /// Present iff exactly one leg has `FixedCoupons`: the fixed rate that
+    /// zeroes `npv`, holding the other leg and every notional exchange fixed.
     /// Absent for float/float and fixed/fixed swaps.
     fair_rate:double = null;
-    /// Present when both legs float: the spread on leg2 (by convention) that
-    /// zeroes the total NPV, holding leg1 and every notional exchange fixed.
-    /// Absent when a leg is fixed.
+    /// Present iff no leg has `FixedCoupons`: the spread on `legs[1]` (`leg2`,
+    /// by convention) that zeroes `npv`, holding `legs[0]` and every notional
+    /// exchange fixed. Absent when a leg is fixed.
     fair_spread:double = null;
     /// The spot rate the swap was priced with (quote units per base unit of
     /// the referenced spot, for delivery on `spot_date`).
@@ -57,13 +48,6 @@ table CrossCurrencySwapResponse {
     /// Spot date of the referenced spot: the (adjusted) evaluation date
     /// advanced `spot_days` business days on its joint calendar, ISO.
     spot_date:string;
-    /// Future flows of leg1 in payment order (`include_flows`), in the leg's
-    /// own frame: coupon amounts positive, the initial exchange -notional, the
-    /// final exchange +notional; `kind` tells them apart. The sum of their
-    /// `present_value`s is `leg1_npv / s_1`.
-    leg1_flows:[SwapLegFlow];
-    /// Future flows of leg2 (`include_flows`), same conventions as `leg1_flows`.
-    leg2_flows:[SwapLegFlow];
 }
 
 /// Response wrapper for multiple cross-currency swaps, in request order.

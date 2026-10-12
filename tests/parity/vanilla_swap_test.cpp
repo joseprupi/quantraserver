@@ -52,7 +52,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(fixedRate);
@@ -75,7 +75,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_NPVMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -204,7 +204,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(fixedRate);
@@ -228,7 +228,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_NPVMatches) {
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
     auto cmsSwapIndexId = b.CreateString("EUR_SWAP_6M");
     auto cmsVolId = b.CreateString("cms_swaption_vol");
-    quantra::SwapCmsLegBuilder cmsLb(b);
+    quantra::CmsCouponsBuilder cmsLb(b);
     cmsLb.add_notional(notional);
     cmsLb.add_schedule(cmsSchOff);
     cmsLb.add_swap_index_id(cmsSwapIndexId);
@@ -299,7 +299,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_MissingVolThrows) {
     sb.add_end_of_month(false);
     auto sch = sb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(1000000.0);
     flb.add_schedule(sch);
     flb.add_rate(0.03);
@@ -310,7 +310,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_MissingVolThrows) {
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
     auto swapIndexId = b.CreateString("EUR_SWAP_6M");
     auto missingVolId = b.CreateString("missing_cms_vol");
-    quantra::SwapCmsLegBuilder cmsLb(b);
+    quantra::CmsCouponsBuilder cmsLb(b);
     cmsLb.add_notional(1000000.0);
     cmsLb.add_schedule(sch);
     cmsLb.add_swap_index_id(swapIndexId);
@@ -373,7 +373,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_UnknownSwapIndexThrows) {
     sb.add_end_of_month(false);
     auto sch = sb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(1000000.0);
     flb.add_schedule(sch);
     flb.add_rate(0.03);
@@ -384,7 +384,7 @@ TEST_F(QuantraComparisonTest, VanillaSwap_CMS_UnknownSwapIndexThrows) {
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
     auto swapIndexId = b.CreateString("UNKNOWN_SWAP_INDEX");
     auto volId = b.CreateString("cms_swaption_vol");
-    quantra::SwapCmsLegBuilder cmsLb(b);
+    quantra::CmsCouponsBuilder cmsLb(b);
     cmsLb.add_notional(1000000.0);
     cmsLb.add_schedule(sch);
     cmsLb.add_swap_index_id(swapIndexId);
@@ -458,7 +458,7 @@ TEST_F(QuantraComparisonTest, CMSCoupons_PricerAttached) {
     auto cmsTenor = buildPeriod(b, 5, quantra::enums::TimeUnit_Years);
     auto swapIndexId = b.CreateString("EUR_SWAP_6M");
     auto volId = b.CreateString("cms_swaption_vol");
-    quantra::SwapCmsLegBuilder cmsLb(b);
+    quantra::CmsCouponsBuilder cmsLb(b);
     cmsLb.add_notional(1000000.0);
     cmsLb.add_schedule(sch);
     cmsLb.add_swap_index_id(swapIndexId);
@@ -470,7 +470,7 @@ TEST_F(QuantraComparisonTest, CMSCoupons_PricerAttached) {
     auto cmsLegFb = cmsLb.Finish();
 
     b.Finish(cmsLegFb);
-    auto cmsLegRoot = flatbuffers::GetRoot<quantra::SwapCmsLeg>(b.GetBufferPointer());
+    auto cmsLegRoot = flatbuffers::GetRoot<quantra::CmsCoupons>(b.GetBufferPointer());
 
     auto dIt = reg.rates.curves.find("discount");
     ASSERT_TRUE(dIt != reg.rates.curves.end());

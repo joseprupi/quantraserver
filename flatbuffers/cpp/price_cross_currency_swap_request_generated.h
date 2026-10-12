@@ -40,7 +40,7 @@ struct PriceCrossCurrencySwapT : public ::flatbuffers::NativeTable {
 
 /// One cross-currency swap together with the FX spot that converts between
 /// its two currencies and the currency its total NPV is reported in. The
-/// legs name their own discounting and forwarding curves (`XccyLeg`); every
+/// legs name their own discounting and forwarding curves (`SwapLeg`); every
 /// reference is by id into `pricing`.
 struct PriceCrossCurrencySwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef PriceCrossCurrencySwapT NativeTableType;
@@ -57,8 +57,8 @@ struct PriceCrossCurrencySwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::T
   /// Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base and quote
   /// currencies must be the two leg currencies, in either order (either leg
   /// may be the base-currency leg; the pair is never inverted). The spot
-  /// and the two legs' discounting curves give the as-of exchange rate.
-  /// Required.
+  /// and the two legs' discounting curves give the as-of exchange rate
+  /// X = S * DF_quote(t_s) / DF_base(t_s). Required.
   const ::flatbuffers::String *fx_spot() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT);
   }

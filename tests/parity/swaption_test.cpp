@@ -68,7 +68,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -91,7 +91,7 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -216,7 +216,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -239,7 +239,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -345,7 +345,7 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         fsb.add_end_of_month(false);
         auto fixedSch = fsb.Finish();
 
-        quantra::SwapFixedLegBuilder flb(b);
+        quantra::FixedCouponsBuilder flb(b);
         flb.add_notional(notional);
         flb.add_schedule(fixedSch);
         flb.add_rate(strike);
@@ -368,7 +368,7 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         auto floatSch = flsb.Finish();
 
         auto idx6m = buildIndexRef(b, "EUR_6M");
-        quantra::SwapFloatingLegBuilder flgb(b);
+        quantra::IborCouponsBuilder flgb(b);
         flgb.add_notional(notional);
         flgb.add_schedule(floatSch);
         flgb.add_index(idx6m);
@@ -525,7 +525,7 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -547,7 +547,7 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -678,7 +678,7 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -700,7 +700,7 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -825,7 +825,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -847,7 +847,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -950,7 +950,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -972,7 +972,7 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -1269,7 +1269,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -1290,7 +1290,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     flsb.add_end_of_month(false);
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -1376,7 +1376,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -1397,7 +1397,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     flsb.add_end_of_month(false);
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -1891,7 +1891,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
         fsb.add_end_of_month(false);
         auto fixedSch = fsb.Finish();
-        quantra::SwapFixedLegBuilder flb(*b);
+        quantra::FixedCouponsBuilder flb(*b);
         flb.add_notional(notional);
         flb.add_schedule(fixedSch);
         flb.add_rate(strike);
@@ -1913,7 +1913,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         flsb.add_end_of_month(false);
         auto floatSch = flsb.Finish();
         auto idx6m = buildIndexRef(*b, "EUR_6M");
-        quantra::SwapFloatingLegBuilder flgb(*b);
+        quantra::IborCouponsBuilder flgb(*b);
         flgb.add_notional(notional);
         flgb.add_schedule(floatSch);
         flgb.add_index(idx6m);
@@ -2018,7 +2018,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     fsb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -2039,7 +2039,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     flsb.add_end_of_month(false);
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -2222,7 +2222,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -2245,7 +2245,7 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -2451,7 +2451,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(strike);
@@ -2474,7 +2474,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     auto overnightSch = osb.Finish();
 
     auto idxRef = buildIndexRef(b, "USD_SOFR");
-    quantra::OisFloatingLegBuilder olb(b);
+    quantra::OvernightCouponsBuilder olb(b);
     olb.add_notional(notional);
     olb.add_schedule(overnightSch);
     olb.add_index(idxRef);
@@ -2589,7 +2589,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(1000000.0);
     flb.add_schedule(fixedSch);
     flb.add_rate(0.025);
@@ -2611,7 +2611,7 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     auto overnightSch = osb.Finish();
 
     auto idxRef = buildIndexRef(b, "USD_SOFR");
-    quantra::OisFloatingLegBuilder olb(b);
+    quantra::OvernightCouponsBuilder olb(b);
     olb.add_notional(1000000.0);
     olb.add_schedule(overnightSch);
     olb.add_index(idxRef);

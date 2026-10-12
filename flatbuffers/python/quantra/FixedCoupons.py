@@ -6,26 +6,30 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Fixed leg of a swap.
-class SwapFixedLeg(object):
+# Fixed-rate coupons of a swap leg: `notional x rate x accrual` per period of
+# `schedule`, paid on the period end adjusted with `payment_convention`.
+# Used as `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg` and as the
+# `FixedCoupons` member of `SwapLeg.coupons`. (Named `SwapFixedLeg` before
+# 0.9.0; the field names are unchanged.)
+class FixedCoupons(object):
     __slots__ = ['_tab']
 
     @classmethod
     def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = SwapFixedLeg()
+        x = FixedCoupons()
         x.Init(buf, n + offset)
         return x
 
     @classmethod
-    def GetRootAsSwapFixedLeg(cls, buf, offset=0):
+    def GetRootAsFixedCoupons(cls, buf, offset=0):
         """This method is deprecated. Please switch to GetRootAs."""
         return cls.GetRootAs(buf, offset)
-    # SwapFixedLeg
+    # FixedCoupons
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # SwapFixedLeg
+    # FixedCoupons
     def Schedule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -39,7 +43,7 @@ class SwapFixedLeg(object):
     # Constant notional. Presence-required and must be > 0 (unless the
     # per-period `notionals` vector is supplied). A bare double would default
     # to a silent zero notional.
-    # SwapFixedLeg
+    # FixedCoupons
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -49,8 +53,9 @@ class SwapFixedLeg(object):
     # Optional per-period notionals, one entry per coupon period in schedule
     # order. Present => amortizing/step-up leg (overrides `notional`); absent
     # => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-    # path; other readers (OIS, swaption underlying) reject a present value.
-    # SwapFixedLeg
+    # path; other readers (OIS, swaption underlying, `SwapLeg`) reject a
+    # present value.
+    # FixedCoupons
     def Notionals(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
@@ -58,108 +63,114 @@ class SwapFixedLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
         return 0
 
-    # SwapFixedLeg
+    # FixedCoupons
     def NotionalsAsNumpy(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
         return 0
 
-    # SwapFixedLeg
+    # FixedCoupons
     def NotionalsLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
-    # SwapFixedLeg
+    # FixedCoupons
     def NotionalsIsNone(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
-    # SwapFixedLeg
+    # Annual coupon rate as a decimal (0.032 = 3.20%). May be negative.
+    # FixedCoupons
     def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # SwapFixedLeg
+    # Accrual day count of the coupons. Presence-required.
+    # FixedCoupons
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # SwapFixedLeg
+    # Business-day convention applied to the payment dates. Presence-required.
+    # Not read by `price-vanilla-swap`, whose QuantLib::VanillaSwap adjusts
+    # both legs with the floating schedule's convention; read by every other
+    # reader.
+    # FixedCoupons
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-def SwapFixedLegStart(builder):
+def FixedCouponsStart(builder):
     builder.StartObject(6)
 
 def Start(builder):
-    SwapFixedLegStart(builder)
+    FixedCouponsStart(builder)
 
-def SwapFixedLegAddSchedule(builder, schedule):
+def FixedCouponsAddSchedule(builder, schedule):
     builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
 
 def AddSchedule(builder, schedule):
-    SwapFixedLegAddSchedule(builder, schedule)
+    FixedCouponsAddSchedule(builder, schedule)
 
-def SwapFixedLegAddNotional(builder, notional):
+def FixedCouponsAddNotional(builder, notional):
     builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
-    SwapFixedLegAddNotional(builder, notional)
+    FixedCouponsAddNotional(builder, notional)
 
-def SwapFixedLegAddNotionals(builder, notionals):
+def FixedCouponsAddNotionals(builder, notionals):
     builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
 
 def AddNotionals(builder, notionals):
-    SwapFixedLegAddNotionals(builder, notionals)
+    FixedCouponsAddNotionals(builder, notionals)
 
-def SwapFixedLegStartNotionalsVector(builder, numElems):
+def FixedCouponsStartNotionalsVector(builder, numElems):
     return builder.StartVector(8, numElems, 8)
 
 def StartNotionalsVector(builder, numElems):
-    return SwapFixedLegStartNotionalsVector(builder, numElems)
+    return FixedCouponsStartNotionalsVector(builder, numElems)
 
-def SwapFixedLegAddRate(builder, rate):
+def FixedCouponsAddRate(builder, rate):
     builder.PrependFloat64Slot(3, rate, 0.0)
 
 def AddRate(builder, rate):
-    SwapFixedLegAddRate(builder, rate)
+    FixedCouponsAddRate(builder, rate)
 
-def SwapFixedLegAddDayCounter(builder, dayCounter):
+def FixedCouponsAddDayCounter(builder, dayCounter):
     builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
-    SwapFixedLegAddDayCounter(builder, dayCounter)
+    FixedCouponsAddDayCounter(builder, dayCounter)
 
-def SwapFixedLegAddPaymentConvention(builder, paymentConvention):
+def FixedCouponsAddPaymentConvention(builder, paymentConvention):
     builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
-    SwapFixedLegAddPaymentConvention(builder, paymentConvention)
+    FixedCouponsAddPaymentConvention(builder, paymentConvention)
 
-def SwapFixedLegEnd(builder):
+def FixedCouponsEnd(builder):
     return builder.EndObject()
 
 def End(builder):
-    return SwapFixedLegEnd(builder)
+    return FixedCouponsEnd(builder)
 
 try:
     from typing import List, Optional
 except:
     pass
 
-class SwapFixedLegT(object):
+class FixedCouponsT(object):
 
-    # SwapFixedLegT
+    # FixedCouponsT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = None  # type: Optional[float]
@@ -170,9 +181,9 @@ class SwapFixedLegT(object):
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
-        swapFixedLeg = SwapFixedLeg()
-        swapFixedLeg.Init(buf, pos)
-        return cls.InitFromObj(swapFixedLeg)
+        fixedCoupons = FixedCoupons()
+        fixedCoupons.Init(buf, pos)
+        return cls.InitFromObj(fixedCoupons)
 
     @classmethod
     def InitFromPackedBuf(cls, buf, pos=0):
@@ -180,30 +191,30 @@ class SwapFixedLegT(object):
         return cls.InitFromBuf(buf, pos+n)
 
     @classmethod
-    def InitFromObj(cls, swapFixedLeg):
-        x = SwapFixedLegT()
-        x._UnPack(swapFixedLeg)
+    def InitFromObj(cls, fixedCoupons):
+        x = FixedCouponsT()
+        x._UnPack(fixedCoupons)
         return x
 
-    # SwapFixedLegT
-    def _UnPack(self, swapFixedLeg):
-        if swapFixedLeg is None:
+    # FixedCouponsT
+    def _UnPack(self, fixedCoupons):
+        if fixedCoupons is None:
             return
-        if swapFixedLeg.Schedule() is not None:
-            self.schedule = ScheduleT.InitFromObj(swapFixedLeg.Schedule())
-        self.notional = swapFixedLeg.Notional()
-        if not swapFixedLeg.NotionalsIsNone():
+        if fixedCoupons.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(fixedCoupons.Schedule())
+        self.notional = fixedCoupons.Notional()
+        if not fixedCoupons.NotionalsIsNone():
             if np is None:
                 self.notionals = []
-                for i in range(swapFixedLeg.NotionalsLength()):
-                    self.notionals.append(swapFixedLeg.Notionals(i))
+                for i in range(fixedCoupons.NotionalsLength()):
+                    self.notionals.append(fixedCoupons.Notionals(i))
             else:
-                self.notionals = swapFixedLeg.NotionalsAsNumpy()
-        self.rate = swapFixedLeg.Rate()
-        self.dayCounter = swapFixedLeg.DayCounter()
-        self.paymentConvention = swapFixedLeg.PaymentConvention()
+                self.notionals = fixedCoupons.NotionalsAsNumpy()
+        self.rate = fixedCoupons.Rate()
+        self.dayCounter = fixedCoupons.DayCounter()
+        self.paymentConvention = fixedCoupons.PaymentConvention()
 
-    # SwapFixedLegT
+    # FixedCouponsT
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
@@ -211,18 +222,18 @@ class SwapFixedLegT(object):
             if np is not None and type(self.notionals) is np.ndarray:
                 notionals = builder.CreateNumpyVector(self.notionals)
             else:
-                SwapFixedLegStartNotionalsVector(builder, len(self.notionals))
+                FixedCouponsStartNotionalsVector(builder, len(self.notionals))
                 for i in reversed(range(len(self.notionals))):
                     builder.PrependFloat64(self.notionals[i])
                 notionals = builder.EndVector()
-        SwapFixedLegStart(builder)
+        FixedCouponsStart(builder)
         if self.schedule is not None:
-            SwapFixedLegAddSchedule(builder, schedule)
-        SwapFixedLegAddNotional(builder, self.notional)
+            FixedCouponsAddSchedule(builder, schedule)
+        FixedCouponsAddNotional(builder, self.notional)
         if self.notionals is not None:
-            SwapFixedLegAddNotionals(builder, notionals)
-        SwapFixedLegAddRate(builder, self.rate)
-        SwapFixedLegAddDayCounter(builder, self.dayCounter)
-        SwapFixedLegAddPaymentConvention(builder, self.paymentConvention)
-        swapFixedLeg = SwapFixedLegEnd(builder)
-        return swapFixedLeg
+            FixedCouponsAddNotionals(builder, notionals)
+        FixedCouponsAddRate(builder, self.rate)
+        FixedCouponsAddDayCounter(builder, self.dayCounter)
+        FixedCouponsAddPaymentConvention(builder, self.paymentConvention)
+        fixedCoupons = FixedCouponsEnd(builder)
+        return fixedCoupons

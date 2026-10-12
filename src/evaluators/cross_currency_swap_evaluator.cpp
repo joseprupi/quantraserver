@@ -19,6 +19,10 @@ namespace {
 
 constexpr double kBasisPoint = 1.0e-4;
 
+std::string legName(std::size_t i) {
+    return std::string("CrossCurrencySwap.leg") + (i == 0 ? "1" : "2");
+}
+
 const QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& curveOrThrow(
     const PricingRegistry& reg, const std::string& id, const std::string& role) {
     auto it = reg.rates.curves.find(id);
@@ -44,62 +48,70 @@ struct BuiltLeg {
     double annuity = 0.0;
 };
 
+/// The coupon leg of `leg` on its forwarding index. The index kind must match
+/// the coupon kind: a compounded overnight coupon on an IBOR index (or an
+/// IBOR coupon on an overnight index) is a request error naming the table
+/// to use, never a silently different instrument.
+QuantLib::Leg buildCoupons(
+    const SwapLegData& leg, const std::string& name, const PricingRegistry& reg) {
+    if (leg.kind == SwapLegData::Kind::Fixed) {
+        return BuildFixedRateLeg(leg.fixed);
+    }
+    const auto& fwdHandle = curveOrThrow(reg, leg.forwardingCurveId, name + " forwarding curve");
+    if (!reg.rates.indices.has(leg.indexId)) {
+        QUANTRA_NOT_FOUND("Index not found: " + leg.indexId);
+    }
+    QuantLib::Handle<QuantLib::YieldTermStructure> fwd(fwdHandle.currentLink());
+    auto base = reg.rates.indices.get(leg.indexId);
+    // The leg currency is explicit on the wire and must be the index's own:
+    // the engine never infers a currency from an index id.
+    if (base->currency().code() != leg.currency) {
+        QUANTRA_INVALID_ARGUMENT(
+            name + ".currency '" + leg.currency + "' does not match the currency " +
+            base->currency().code() + " of its index '" + leg.indexId + "' (IndexDef.currency)");
+    }
+    const bool overnightIndex =
+        std::dynamic_pointer_cast<QuantLib::OvernightIndex>(base) != nullptr;
+    if (leg.kind == SwapLegData::Kind::Ibor) {
+        if (overnightIndex) {
+            QUANTRA_INVALID_ARGUMENT(
+                name + ".coupons is IborCoupons but its index '" + leg.indexId +
+                "' is an overnight index: use OvernightCoupons (daily fixings compounded over "
+                "each period), IborCoupons takes an IBOR index");
+        }
+        return BuildIborLeg(leg.ibor, reg.rates.indices.getIborWithCurve(leg.indexId, fwd));
+    }
+    if (!overnightIndex) {
+        QUANTRA_INVALID_ARGUMENT(
+            name + ".coupons is OvernightCoupons but its index '" + leg.indexId +
+            "' is not an overnight index: use IborCoupons (one fixing per period), "
+            "OvernightCoupons takes an overnight index");
+    }
+    return BuildOvernightLeg(
+        leg.overnight, reg.rates.indices.getOvernightWithCurve(leg.indexId, fwd));
+}
+
 BuiltLeg buildLeg(
-    const XccyLegData& leg,
-    const char* legName,
+    const SwapLegData& leg,
+    const std::string& name,
     const PricingRegistry& reg,
     const PricingContext& ctx) {
     BuiltLeg out;
-    const auto& discHandle =
-        curveOrThrow(reg, leg.discountingCurveId, std::string(legName) + " discounting curve");
+    const auto& discHandle = curveOrThrow(reg, leg.discountingCurveId, name + " discounting curve");
     out.discount = discHandle.currentLink().get();
-
-    if (leg.kind == XccyLegData::Kind::Fixed) {
-        out.coupons = BuildFixedRateLeg(leg.fixed);
-    } else {
-        const auto& fwdHandle =
-            curveOrThrow(reg, leg.forwardingCurveId, std::string(legName) + " forwarding curve");
-        if (!reg.rates.indices.has(leg.indexId)) {
-            QUANTRA_NOT_FOUND("Index not found: " + leg.indexId);
-        }
-        QuantLib::Handle<QuantLib::YieldTermStructure> fwd(fwdHandle.currentLink());
-        auto base = reg.rates.indices.get(leg.indexId);
-        // The leg currency is explicit on the wire and must be the index's
-        // own: the engine never infers a currency from an index id.
-        if (base->currency().code() != leg.currency) {
-            QUANTRA_INVALID_ARGUMENT(
-                std::string("XccyLeg.currency '") + leg.currency + "' of " + legName +
-                " does not match the currency " + base->currency().code() + " of its index '" +
-                leg.indexId + "' (IndexDef.currency)");
-        }
-        if (std::dynamic_pointer_cast<QuantLib::OvernightIndex>(base)) {
-            if (leg.floating.inArrears) {
-                QUANTRA_INVALID_ARGUMENT(
-                    std::string("XccyLeg.floating_leg.in_arrears of ") + legName +
-                    " must be false for an overnight index (index '" + leg.indexId +
-                    "'): a compounded overnight coupon fixes daily");
-            }
-            out.coupons = BuildOvernightLeg(
-                leg.floating, reg.rates.indices.getOvernightWithCurve(leg.indexId, fwd));
-        } else {
-            out.coupons =
-                BuildIborLeg(leg.floating, reg.rates.indices.getIborWithCurve(leg.indexId, fwd));
-        }
-    }
+    out.coupons = buildCoupons(leg, name, reg);
     if (out.coupons.empty()) {
-        QUANTRA_INVALID_ARGUMENT(
-            std::string("XccyLeg schedule of ") + legName + " produces no coupon");
+        QUANTRA_INVALID_ARGUMENT(name + " schedule produces no coupon");
     }
 
     // Principal exchanges in the leg's own frame: the receiver of the coupons
     // pays the notional on the schedule's start date and gets it back with
     // the last coupon.
     out.full = out.coupons;
-    const QuantLib::Schedule& schedule =
-        leg.kind == XccyLegData::Kind::Fixed ? leg.fixed.schedule : leg.floating.schedule;
     if (leg.initialExchange) {
         out.full.push_back(
-            std::make_shared<QuantLib::SimpleCashFlow>(-leg.notional, schedule.dates().front()));
+            std::make_shared<QuantLib::SimpleCashFlow>(
+                -leg.notional, leg.schedule().dates().front()));
     }
     if (leg.finalExchange) {
         out.full.push_back(
@@ -119,30 +131,35 @@ CrossCurrencySwapPerSwap priceTrade(
     const PricingRegistry& reg,
     const PricingContext& ctx,
     bool includeFlows) {
-    // Per-leg checks first (curves, index, index currency), then the spot:
-    // a request with several problems is reported leg by leg.
-    BuiltLeg leg1 = buildLeg(trade.leg1, "leg1", reg, ctx);
-    BuiltLeg leg2 = buildLeg(trade.leg2, "leg2", reg, ctx);
+    // Per-leg checks first (curves, index, index kind and currency), then
+    // the spot: a request with several problems is reported leg by leg.
+    std::vector<BuiltLeg> built;
+    built.reserve(trade.legs.size());
+    for (std::size_t i = 0; i < trade.legs.size(); ++i) {
+        built.push_back(buildLeg(trade.legs[i], legName(i), reg, ctx));
+    }
+    const SwapLegData& l0 = trade.legs[0];
+    const SwapLegData& l1 = trade.legs[1];
 
     const FxSpot& spot = reg.fx.spots.get(trade.fxSpotId); // QuantraNotFound when absent
 
     // The spot's pair must be the two leg currencies, in either order.
-    const bool leg1IsBase =
-        trade.leg1.currency == spot.baseCurrency && trade.leg2.currency == spot.quoteCurrency;
-    const bool leg2IsBase =
-        trade.leg2.currency == spot.baseCurrency && trade.leg1.currency == spot.quoteCurrency;
-    if (!leg1IsBase && !leg2IsBase) {
+    const bool leg0IsBase = l0.currency == spot.baseCurrency && l1.currency == spot.quoteCurrency;
+    const bool leg1IsBase = l1.currency == spot.baseCurrency && l0.currency == spot.quoteCurrency;
+    if (!leg0IsBase && !leg1IsBase) {
         QUANTRA_INVALID_ARGUMENT(
             "PriceCrossCurrencySwap.fx_spot '" + trade.fxSpotId + "' (" + spot.baseCurrency + "/" +
-            spot.quoteCurrency + ") does not quote the pair of the legs (" + trade.leg1.currency +
-            ", " + trade.leg2.currency + ")");
+            spot.quoteCurrency + ") does not quote the pair of the legs (" + l0.currency + ", " +
+            l1.currency + ")");
     }
 
     // As-of exchange rate from the spot and the two legs' discount curves.
     const QuantLib::Date spotDate = FxSpotDate(spot, ctx.asOf);
     const double S = spot.rate->value();
-    const QuantLib::YieldTermStructure& baseDisc = leg1IsBase ? *leg1.discount : *leg2.discount;
-    const QuantLib::YieldTermStructure& quoteDisc = leg1IsBase ? *leg2.discount : *leg1.discount;
+    const QuantLib::YieldTermStructure& baseDisc =
+        leg0IsBase ? *built[0].discount : *built[1].discount;
+    const QuantLib::YieldTermStructure& quoteDisc =
+        leg0IsBase ? *built[1].discount : *built[0].discount;
     const double X = FxAsOfExchangeRate(S, spotDate, baseDisc, quoteDisc);
 
     // Converts an amount between the two leg currencies (quote per base = X).
@@ -152,35 +169,32 @@ CrossCurrencySwapPerSwap priceTrade(
         return amount / X;
     };
 
-    const double s1 = trade.swapType == QuantLib::VanillaSwap::Payer ? -1.0 : 1.0;
-    const double s2 = -s1;
-
     CrossCurrencySwapPerSwap out;
-    out.leg1Npv = s1 * leg1.npvOwn;
-    out.leg2Npv = s2 * leg2.npvOwn;
-    out.leg1NpvReporting = convert(out.leg1Npv, trade.leg1.currency, trade.reportingCurrency);
-    out.leg2NpvReporting = convert(out.leg2Npv, trade.leg2.currency, trade.reportingCurrency);
-    out.npv = out.leg1NpvReporting + out.leg2NpvReporting;
+    out.legs.resize(trade.legs.size());
+    for (std::size_t i = 0; i < trade.legs.size(); ++i) {
+        out.legs[i].npv = trade.legs[i].sign() * built[i].npvOwn;
+        out.legs[i].npvReporting =
+            convert(out.legs[i].npv, trade.legs[i].currency, trade.reportingCurrency);
+    }
+    out.npv = out.legs[0].npvReporting + out.legs[1].npvReporting;
 
     // Fair rate / spread: the NPV is linear in the fixed rate (spread) with
     // slope s_i * A_i in the leg's own currency.
-    const bool fixed1 = trade.leg1.kind == XccyLegData::Kind::Fixed;
-    const bool fixed2 = trade.leg2.kind == XccyLegData::Kind::Fixed;
     auto npvIn = [&](const std::string& ccy) {
-        return convert(out.leg1Npv, trade.leg1.currency, ccy) +
-               convert(out.leg2Npv, trade.leg2.currency, ccy);
+        return convert(out.legs[0].npv, l0.currency, ccy) +
+               convert(out.legs[1].npv, l1.currency, ccy);
     };
-    if (fixed1 != fixed2) {
-        const XccyLegData& f = fixed1 ? trade.leg1 : trade.leg2;
-        const BuiltLeg& built = fixed1 ? leg1 : leg2;
-        const double sf = fixed1 ? s1 : s2;
-        if (std::fabs(built.annuity) > 0.0) {
-            out.fairRate = f.fixed.rate - npvIn(f.currency) / (sf * built.annuity);
+    const bool fixed0 = l0.kind == SwapLegData::Kind::Fixed;
+    const bool fixed1 = l1.kind == SwapLegData::Kind::Fixed;
+    if (fixed0 != fixed1) {
+        const std::size_t f = fixed0 ? 0 : 1;
+        const SwapLegData& leg = trade.legs[f];
+        if (std::fabs(built[f].annuity) > 0.0) {
+            out.fairRate = leg.level() - npvIn(leg.currency) / (leg.sign() * built[f].annuity);
         }
-    } else if (!fixed1 && !fixed2) {
-        if (std::fabs(leg2.annuity) > 0.0) {
-            out.fairSpread =
-                trade.leg2.floating.spread - npvIn(trade.leg2.currency) / (s2 * leg2.annuity);
+    } else if (!fixed0 && !fixed1) {
+        if (std::fabs(built[1].annuity) > 0.0) {
+            out.fairSpread = l1.level() - npvIn(l1.currency) / (l1.sign() * built[1].annuity);
         }
     }
 
@@ -189,12 +203,13 @@ CrossCurrencySwapPerSwap priceTrade(
     out.spotDate = DateToIso(spotDate);
     out.includeFlows = includeFlows;
     if (includeFlows) {
-        ExtractSwapLegFlows(leg1.full, *leg1.discount, ctx.asOf, out.leg1Flows);
-        ExtractSwapLegFlows(leg2.full, *leg2.discount, ctx.asOf, out.leg2Flows);
+        for (std::size_t i = 0; i < trade.legs.size(); ++i) {
+            ExtractSwapLegFlows(built[i].full, *built[i].discount, ctx.asOf, out.legs[i].flows);
+        }
     }
 
-    std::cout << "Cross-currency swap " << trade.leg1.currency << "/" << trade.leg2.currency
-              << " NPV (" << trade.reportingCurrency << "): " << out.npv << std::endl;
+    std::cout << "Cross-currency swap " << l0.currency << "/" << l1.currency << " NPV ("
+              << trade.reportingCurrency << "): " << out.npv << std::endl;
     return out;
 }
 

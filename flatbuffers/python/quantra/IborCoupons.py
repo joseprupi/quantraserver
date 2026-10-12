@@ -6,26 +6,32 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Floating leg of a swap.
-class SwapFloatingLeg(object):
+# IBOR floating coupons of a swap leg: one fixing of `index` per period of
+# `schedule` (`fixing_days` before the accrual start, or at the accrual end
+# with `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as
+# `VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`
+# member of `SwapLeg.coupons`, where the index must be an IBOR index (an
+# overnight index is a 400 naming `OvernightCoupons`). (Named
+# `SwapFloatingLeg` before 0.9.0; the field names are unchanged.)
+class IborCoupons(object):
     __slots__ = ['_tab']
 
     @classmethod
     def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = SwapFloatingLeg()
+        x = IborCoupons()
         x.Init(buf, n + offset)
         return x
 
     @classmethod
-    def GetRootAsSwapFloatingLeg(cls, buf, offset=0):
+    def GetRootAsIborCoupons(cls, buf, offset=0):
         """This method is deprecated. Please switch to GetRootAs."""
         return cls.GetRootAs(buf, offset)
-    # SwapFloatingLeg
+    # IborCoupons
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # SwapFloatingLeg
+    # IborCoupons
     def Schedule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -39,7 +45,7 @@ class SwapFloatingLeg(object):
     # Constant notional. Presence-required and must be > 0 (unless the
     # per-period `notionals` vector is supplied). A bare double would default
     # to a silent zero notional.
-    # SwapFloatingLeg
+    # IborCoupons
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -49,9 +55,9 @@ class SwapFloatingLeg(object):
     # Optional per-period notionals, one entry per coupon period in schedule
     # order. Present => amortizing/step-up leg (overrides `notional`); absent
     # => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-    # path; other readers (basis swap, swaption underlying) reject a present
-    # value.
-    # SwapFloatingLeg
+    # path; other readers (basis swap, swaption underlying, `SwapLeg`)
+    # reject a present value.
+    # IborCoupons
     def Notionals(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
@@ -59,27 +65,27 @@ class SwapFloatingLeg(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
         return 0
 
-    # SwapFloatingLeg
+    # IborCoupons
     def NotionalsAsNumpy(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
         return 0
 
-    # SwapFloatingLeg
+    # IborCoupons
     def NotionalsLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
-    # SwapFloatingLeg
+    # IborCoupons
     def NotionalsIsNone(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
     # Reference to an IndexDef by id (e.g., "EUR_6M").
-    # SwapFloatingLeg
+    # IborCoupons
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
@@ -90,121 +96,133 @@ class SwapFloatingLeg(object):
             return obj
         return None
 
-    # SwapFloatingLeg
+    # Additive spread over the index fixing, as a decimal (0.0005 = 5 bp).
+    # Keeps a literal 0.0 default: zero is the market-standard value.
+    # IborCoupons
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # SwapFloatingLeg
+    # Accrual day count of the coupons. Presence-required.
+    # IborCoupons
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # SwapFloatingLeg
+    # Business-day convention applied to the payment dates. Presence-required.
+    # Not read by `price-vanilla-swap`'s constant-notional in-advance path
+    # (QuantLib::VanillaSwap uses the floating schedule's convention).
+    # IborCoupons
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return None
 
-    # SwapFloatingLeg
+    # Fixing lag in business days before each accrual start. Not read by
+    # `price-vanilla-swap`'s constant-notional in-advance path, which fixes
+    # on the index's own `fixing_days`; read everywhere else.
+    # IborCoupons
     def FixingDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 2
 
-    # SwapFloatingLeg
+    # When true the coupon fixes at the end of its accrual period (no
+    # convexity adjustment is priced: the zero-volatility pricer reads the
+    # shifted fixing).
+    # IborCoupons
     def InArrears(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-def SwapFloatingLegStart(builder):
+def IborCouponsStart(builder):
     builder.StartObject(9)
 
 def Start(builder):
-    SwapFloatingLegStart(builder)
+    IborCouponsStart(builder)
 
-def SwapFloatingLegAddSchedule(builder, schedule):
+def IborCouponsAddSchedule(builder, schedule):
     builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
 
 def AddSchedule(builder, schedule):
-    SwapFloatingLegAddSchedule(builder, schedule)
+    IborCouponsAddSchedule(builder, schedule)
 
-def SwapFloatingLegAddNotional(builder, notional):
+def IborCouponsAddNotional(builder, notional):
     builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
-    SwapFloatingLegAddNotional(builder, notional)
+    IborCouponsAddNotional(builder, notional)
 
-def SwapFloatingLegAddNotionals(builder, notionals):
+def IborCouponsAddNotionals(builder, notionals):
     builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
 
 def AddNotionals(builder, notionals):
-    SwapFloatingLegAddNotionals(builder, notionals)
+    IborCouponsAddNotionals(builder, notionals)
 
-def SwapFloatingLegStartNotionalsVector(builder, numElems):
+def IborCouponsStartNotionalsVector(builder, numElems):
     return builder.StartVector(8, numElems, 8)
 
 def StartNotionalsVector(builder, numElems):
-    return SwapFloatingLegStartNotionalsVector(builder, numElems)
+    return IborCouponsStartNotionalsVector(builder, numElems)
 
-def SwapFloatingLegAddIndex(builder, index):
+def IborCouponsAddIndex(builder, index):
     builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
-    SwapFloatingLegAddIndex(builder, index)
+    IborCouponsAddIndex(builder, index)
 
-def SwapFloatingLegAddSpread(builder, spread):
+def IborCouponsAddSpread(builder, spread):
     builder.PrependFloat64Slot(4, spread, 0.0)
 
 def AddSpread(builder, spread):
-    SwapFloatingLegAddSpread(builder, spread)
+    IborCouponsAddSpread(builder, spread)
 
-def SwapFloatingLegAddDayCounter(builder, dayCounter):
+def IborCouponsAddDayCounter(builder, dayCounter):
     builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
-    SwapFloatingLegAddDayCounter(builder, dayCounter)
+    IborCouponsAddDayCounter(builder, dayCounter)
 
-def SwapFloatingLegAddPaymentConvention(builder, paymentConvention):
+def IborCouponsAddPaymentConvention(builder, paymentConvention):
     builder.PrependInt8Slot(6, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
-    SwapFloatingLegAddPaymentConvention(builder, paymentConvention)
+    IborCouponsAddPaymentConvention(builder, paymentConvention)
 
-def SwapFloatingLegAddFixingDays(builder, fixingDays):
+def IborCouponsAddFixingDays(builder, fixingDays):
     builder.PrependInt32Slot(7, fixingDays, 2)
 
 def AddFixingDays(builder, fixingDays):
-    SwapFloatingLegAddFixingDays(builder, fixingDays)
+    IborCouponsAddFixingDays(builder, fixingDays)
 
-def SwapFloatingLegAddInArrears(builder, inArrears):
+def IborCouponsAddInArrears(builder, inArrears):
     builder.PrependBoolSlot(8, inArrears, 0)
 
 def AddInArrears(builder, inArrears):
-    SwapFloatingLegAddInArrears(builder, inArrears)
+    IborCouponsAddInArrears(builder, inArrears)
 
-def SwapFloatingLegEnd(builder):
+def IborCouponsEnd(builder):
     return builder.EndObject()
 
 def End(builder):
-    return SwapFloatingLegEnd(builder)
+    return IborCouponsEnd(builder)
 
 try:
     from typing import List, Optional
 except:
     pass
 
-class SwapFloatingLegT(object):
+class IborCouponsT(object):
 
-    # SwapFloatingLegT
+    # IborCouponsT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = None  # type: Optional[float]
@@ -218,9 +236,9 @@ class SwapFloatingLegT(object):
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
-        swapFloatingLeg = SwapFloatingLeg()
-        swapFloatingLeg.Init(buf, pos)
-        return cls.InitFromObj(swapFloatingLeg)
+        iborCoupons = IborCoupons()
+        iborCoupons.Init(buf, pos)
+        return cls.InitFromObj(iborCoupons)
 
     @classmethod
     def InitFromPackedBuf(cls, buf, pos=0):
@@ -228,34 +246,34 @@ class SwapFloatingLegT(object):
         return cls.InitFromBuf(buf, pos+n)
 
     @classmethod
-    def InitFromObj(cls, swapFloatingLeg):
-        x = SwapFloatingLegT()
-        x._UnPack(swapFloatingLeg)
+    def InitFromObj(cls, iborCoupons):
+        x = IborCouponsT()
+        x._UnPack(iborCoupons)
         return x
 
-    # SwapFloatingLegT
-    def _UnPack(self, swapFloatingLeg):
-        if swapFloatingLeg is None:
+    # IborCouponsT
+    def _UnPack(self, iborCoupons):
+        if iborCoupons is None:
             return
-        if swapFloatingLeg.Schedule() is not None:
-            self.schedule = ScheduleT.InitFromObj(swapFloatingLeg.Schedule())
-        self.notional = swapFloatingLeg.Notional()
-        if not swapFloatingLeg.NotionalsIsNone():
+        if iborCoupons.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(iborCoupons.Schedule())
+        self.notional = iborCoupons.Notional()
+        if not iborCoupons.NotionalsIsNone():
             if np is None:
                 self.notionals = []
-                for i in range(swapFloatingLeg.NotionalsLength()):
-                    self.notionals.append(swapFloatingLeg.Notionals(i))
+                for i in range(iborCoupons.NotionalsLength()):
+                    self.notionals.append(iborCoupons.Notionals(i))
             else:
-                self.notionals = swapFloatingLeg.NotionalsAsNumpy()
-        if swapFloatingLeg.Index() is not None:
-            self.index = IndexRefT.InitFromObj(swapFloatingLeg.Index())
-        self.spread = swapFloatingLeg.Spread()
-        self.dayCounter = swapFloatingLeg.DayCounter()
-        self.paymentConvention = swapFloatingLeg.PaymentConvention()
-        self.fixingDays = swapFloatingLeg.FixingDays()
-        self.inArrears = swapFloatingLeg.InArrears()
+                self.notionals = iborCoupons.NotionalsAsNumpy()
+        if iborCoupons.Index() is not None:
+            self.index = IndexRefT.InitFromObj(iborCoupons.Index())
+        self.spread = iborCoupons.Spread()
+        self.dayCounter = iborCoupons.DayCounter()
+        self.paymentConvention = iborCoupons.PaymentConvention()
+        self.fixingDays = iborCoupons.FixingDays()
+        self.inArrears = iborCoupons.InArrears()
 
-    # SwapFloatingLegT
+    # IborCouponsT
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
@@ -263,24 +281,24 @@ class SwapFloatingLegT(object):
             if np is not None and type(self.notionals) is np.ndarray:
                 notionals = builder.CreateNumpyVector(self.notionals)
             else:
-                SwapFloatingLegStartNotionalsVector(builder, len(self.notionals))
+                IborCouponsStartNotionalsVector(builder, len(self.notionals))
                 for i in reversed(range(len(self.notionals))):
                     builder.PrependFloat64(self.notionals[i])
                 notionals = builder.EndVector()
         if self.index is not None:
             index = self.index.Pack(builder)
-        SwapFloatingLegStart(builder)
+        IborCouponsStart(builder)
         if self.schedule is not None:
-            SwapFloatingLegAddSchedule(builder, schedule)
-        SwapFloatingLegAddNotional(builder, self.notional)
+            IborCouponsAddSchedule(builder, schedule)
+        IborCouponsAddNotional(builder, self.notional)
         if self.notionals is not None:
-            SwapFloatingLegAddNotionals(builder, notionals)
+            IborCouponsAddNotionals(builder, notionals)
         if self.index is not None:
-            SwapFloatingLegAddIndex(builder, index)
-        SwapFloatingLegAddSpread(builder, self.spread)
-        SwapFloatingLegAddDayCounter(builder, self.dayCounter)
-        SwapFloatingLegAddPaymentConvention(builder, self.paymentConvention)
-        SwapFloatingLegAddFixingDays(builder, self.fixingDays)
-        SwapFloatingLegAddInArrears(builder, self.inArrears)
-        swapFloatingLeg = SwapFloatingLegEnd(builder)
-        return swapFloatingLeg
+            IborCouponsAddIndex(builder, index)
+        IborCouponsAddSpread(builder, self.spread)
+        IborCouponsAddDayCounter(builder, self.dayCounter)
+        IborCouponsAddPaymentConvention(builder, self.paymentConvention)
+        IborCouponsAddFixingDays(builder, self.fixingDays)
+        IborCouponsAddInArrears(builder, self.inArrears)
+        iborCoupons = IborCouponsEnd(builder)
+        return iborCoupons

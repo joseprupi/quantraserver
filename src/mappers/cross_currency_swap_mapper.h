@@ -3,7 +3,7 @@
 
 /**
  * CrossCurrencySwapMapper — the one place cross-currency swap flatbuffers
- * live. Decodes a PriceCrossCurrencySwapRequest into plain
+ * live. Decodes a PriceCrossCurrencySwapRequest (two `SwapLeg`s) into plain
  * CrossCurrencySwapInputs (validating every field that can be checked without
  * market data) and serializes the CrossCurrencySwapResult back into a
  * PriceCrossCurrencySwapResponse.

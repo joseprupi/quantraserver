@@ -84,8 +84,9 @@ SERIES_TOLERANCE = 1e-9
 # amounts set the absolute tolerance; the rates are pinned at 1e-12 relative
 # in tests/contract/fx_forward_test.py.
 FX_FORWARD_TOLERANCE = 1e-4
-# Cross-currency swap cases compare every scalar response field (NPVs in
-# their currencies, fair rate / spread, spot and as-of rate) with the
+# Cross-currency swap cases compare every scalar response field (npv, both
+# legs' NPVs in their currencies and in the reporting currency, fair rate /
+# spread, spot and as-of rate) with the
 # reference's leg cash-flow algebra on the same curves; the strict per-field
 # tolerances (1e-9 of the notional, 1e-11 on rates) are in
 # tests/contract/cross_currency_swap_test.py.
@@ -4223,16 +4224,19 @@ CASES = [
             "X = S * DF_USD(spot) / DF_EUR(spot). The SOFR leg with its "
             "exchanges is a par floater (NPV ~ 0); the fixed rate sits above "
             "the fair rate (~2.107%), so the payer's NPV is negative. Compares "
-            "npv, both leg NPVs in their currencies and in USD, the fair rate "
-            "and the as-of rate with the reference's cash-flow algebra."
+            "npv, both legs' NPVs in their currencies and in USD, the fair rate "
+            "and the as-of rate with the reference's cash-flow algebra. The legs "
+            "are SwapLeg entries: pay_receive, currency, coupons_type/coupons "
+            "(FixedCoupons / OvernightCoupons with the OIS conventions), "
+            "exchange flags and curves."
         ),
         "request": "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json",
         "ql_pricer": "price_cross_currency_swap_ql",
         "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
         "compare": "fields",
-        "exercises": ["cross-currency swap", "fixed vs compounded overnight", "EUR/USD",
-                      "both principal exchanges", "fair rate", "reporting in quote ccy",
-                      "collateral-adjusted discounting"],
+        "exercises": ["cross-currency swap", "SwapLeg", "FixedCoupons vs OvernightCoupons",
+                      "EUR/USD", "both principal exchanges", "fair rate",
+                      "reporting in quote ccy", "collateral-adjusted discounting"],
     },
     {
         "id": "xccy_eur_fixed_vs_usd_sofr_5y_payer_eur",
@@ -4328,7 +4332,7 @@ CASES = [
         "ql_pricer": "price_cross_currency_swap_ql",
         "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
         "compare": "fields",
-        "exercises": ["cross-currency swap", "fixed leg in the quote currency", "IBOR floating leg",
-                      "Receiver", "reporting in base ccy", "fair rate"],
+        "exercises": ["cross-currency swap", "fixed leg in the quote currency", "IborCoupons",
+                      "fixed leg received", "reporting in base ccy", "fair rate"],
     },
 ]

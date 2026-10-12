@@ -6,26 +6,34 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Floating leg for OIS swaps (compounded overnight).
-class OisFloatingLeg(object):
+# Overnight floating coupons of a swap leg: the daily fixings of an
+# overnight `index` compounded (or averaged) over each period of `schedule`,
+# paid `payment_lag` business days after the period end on
+# `payment_calendar`, with the lookback / lockout / observation-shift
+# conventions of the market. Used as `OisSwap.overnight_leg` and as the
+# `OvernightCoupons` member of `SwapLeg.coupons` (built by the same code),
+# where the index must be an overnight index (an IBOR index is a 400 naming
+# `IborCoupons`). (Named `OisFloatingLeg` before 0.9.0; the field names are
+# unchanged.)
+class OvernightCoupons(object):
     __slots__ = ['_tab']
 
     @classmethod
     def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = OisFloatingLeg()
+        x = OvernightCoupons()
         x.Init(buf, n + offset)
         return x
 
     @classmethod
-    def GetRootAsOisFloatingLeg(cls, buf, offset=0):
+    def GetRootAsOvernightCoupons(cls, buf, offset=0):
         """This method is deprecated. Please switch to GetRootAs."""
         return cls.GetRootAs(buf, offset)
-    # OisFloatingLeg
+    # OvernightCoupons
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # OisFloatingLeg
+    # OvernightCoupons
     def Schedule(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -38,7 +46,7 @@ class OisFloatingLeg(object):
 
     # Notional. Presence-required and must be > 0 (a bare double would default
     # to a silent zero notional).
-    # OisFloatingLeg
+    # OvernightCoupons
     def Notional(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -46,7 +54,7 @@ class OisFloatingLeg(object):
         return None
 
     # Reference to an overnight IndexDef by id (e.g., "USD_SOFR").
-    # OisFloatingLeg
+    # OvernightCoupons
     def Index(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
@@ -60,18 +68,18 @@ class OisFloatingLeg(object):
     # Spread over the compounded/averaged overnight rate. Keeps a literal 0.0
     # default on purpose: zero is the genuine market-standard value, not a
     # convention that could silently diverge.
-    # OisFloatingLeg
+    # OvernightCoupons
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes
-    # the overnight leg's day counter from the overnight index itself, so this
-    # field is ignored if present and may be omitted. Kept optional for
-    # backward compatibility.
-    # OisFloatingLeg
+    # DEPRECATED / accepted-but-unused. The overnight coupons take their day
+    # counter from the overnight index itself (as QuantLib's
+    # OvernightIndexedSwap does), so this field is ignored if present and may
+    # be omitted. Kept optional for backward compatibility.
+    # OvernightCoupons
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
@@ -79,7 +87,7 @@ class OisFloatingLeg(object):
         return None
 
     # Payment-date business-day convention. Required.
-    # OisFloatingLeg
+    # OvernightCoupons
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
@@ -87,7 +95,7 @@ class OisFloatingLeg(object):
         return None
 
     # Payment-date adjustment calendar. Required.
-    # OisFloatingLeg
+    # OvernightCoupons
     def PaymentCalendar(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
@@ -96,7 +104,7 @@ class OisFloatingLeg(object):
 
     # Payment lag in business days between accrual end and payment. Required;
     # must be >= 0.
-    # OisFloatingLeg
+    # OvernightCoupons
     def PaymentLag(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
@@ -104,7 +112,7 @@ class OisFloatingLeg(object):
         return None
 
     # Compound or Simple averaging of the overnight fixings. Required.
-    # OisFloatingLeg
+    # OvernightCoupons
     def AveragingMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
@@ -114,7 +122,7 @@ class OisFloatingLeg(object):
     # Fixing lookback in business days. Required; must be >= 0; 0 = no
     # lookback (the index's own fixing delay applies — QuantLib encodes this
     # as Null, not as a zero-day lookback).
-    # OisFloatingLeg
+    # OvernightCoupons
     def LookbackDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
@@ -123,7 +131,7 @@ class OisFloatingLeg(object):
 
     # Lockout (rate-cutoff) days at period end. Required; must be >= 0;
     # 0 = no lockout.
-    # OisFloatingLeg
+    # OvernightCoupons
     def LockoutDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
@@ -132,7 +140,7 @@ class OisFloatingLeg(object):
 
     # Whether the observation-shift convention applies to the lookback.
     # Required.
-    # OisFloatingLeg
+    # OvernightCoupons
     def ApplyObservationShift(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
@@ -141,111 +149,111 @@ class OisFloatingLeg(object):
 
     # Performance toggle for QuantLib's telescopic value-dates optimization,
     # not a market convention — keeps a literal false default on purpose.
-    # OisFloatingLeg
+    # OvernightCoupons
     def TelescopicValueDates(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
-def OisFloatingLegStart(builder):
+def OvernightCouponsStart(builder):
     builder.StartObject(13)
 
 def Start(builder):
-    OisFloatingLegStart(builder)
+    OvernightCouponsStart(builder)
 
-def OisFloatingLegAddSchedule(builder, schedule):
+def OvernightCouponsAddSchedule(builder, schedule):
     builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
 
 def AddSchedule(builder, schedule):
-    OisFloatingLegAddSchedule(builder, schedule)
+    OvernightCouponsAddSchedule(builder, schedule)
 
-def OisFloatingLegAddNotional(builder, notional):
+def OvernightCouponsAddNotional(builder, notional):
     builder.PrependFloat64Slot(1, notional, None)
 
 def AddNotional(builder, notional):
-    OisFloatingLegAddNotional(builder, notional)
+    OvernightCouponsAddNotional(builder, notional)
 
-def OisFloatingLegAddIndex(builder, index):
+def OvernightCouponsAddIndex(builder, index):
     builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
-    OisFloatingLegAddIndex(builder, index)
+    OvernightCouponsAddIndex(builder, index)
 
-def OisFloatingLegAddSpread(builder, spread):
+def OvernightCouponsAddSpread(builder, spread):
     builder.PrependFloat64Slot(3, spread, 0.0)
 
 def AddSpread(builder, spread):
-    OisFloatingLegAddSpread(builder, spread)
+    OvernightCouponsAddSpread(builder, spread)
 
-def OisFloatingLegAddDayCounter(builder, dayCounter):
+def OvernightCouponsAddDayCounter(builder, dayCounter):
     builder.PrependInt8Slot(4, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
-    OisFloatingLegAddDayCounter(builder, dayCounter)
+    OvernightCouponsAddDayCounter(builder, dayCounter)
 
-def OisFloatingLegAddPaymentConvention(builder, paymentConvention):
+def OvernightCouponsAddPaymentConvention(builder, paymentConvention):
     builder.PrependInt8Slot(5, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
-    OisFloatingLegAddPaymentConvention(builder, paymentConvention)
+    OvernightCouponsAddPaymentConvention(builder, paymentConvention)
 
-def OisFloatingLegAddPaymentCalendar(builder, paymentCalendar):
+def OvernightCouponsAddPaymentCalendar(builder, paymentCalendar):
     builder.PrependInt8Slot(6, paymentCalendar, None)
 
 def AddPaymentCalendar(builder, paymentCalendar):
-    OisFloatingLegAddPaymentCalendar(builder, paymentCalendar)
+    OvernightCouponsAddPaymentCalendar(builder, paymentCalendar)
 
-def OisFloatingLegAddPaymentLag(builder, paymentLag):
+def OvernightCouponsAddPaymentLag(builder, paymentLag):
     builder.PrependInt32Slot(7, paymentLag, None)
 
 def AddPaymentLag(builder, paymentLag):
-    OisFloatingLegAddPaymentLag(builder, paymentLag)
+    OvernightCouponsAddPaymentLag(builder, paymentLag)
 
-def OisFloatingLegAddAveragingMethod(builder, averagingMethod):
+def OvernightCouponsAddAveragingMethod(builder, averagingMethod):
     builder.PrependInt8Slot(8, averagingMethod, None)
 
 def AddAveragingMethod(builder, averagingMethod):
-    OisFloatingLegAddAveragingMethod(builder, averagingMethod)
+    OvernightCouponsAddAveragingMethod(builder, averagingMethod)
 
-def OisFloatingLegAddLookbackDays(builder, lookbackDays):
+def OvernightCouponsAddLookbackDays(builder, lookbackDays):
     builder.PrependInt32Slot(9, lookbackDays, None)
 
 def AddLookbackDays(builder, lookbackDays):
-    OisFloatingLegAddLookbackDays(builder, lookbackDays)
+    OvernightCouponsAddLookbackDays(builder, lookbackDays)
 
-def OisFloatingLegAddLockoutDays(builder, lockoutDays):
+def OvernightCouponsAddLockoutDays(builder, lockoutDays):
     builder.PrependInt32Slot(10, lockoutDays, None)
 
 def AddLockoutDays(builder, lockoutDays):
-    OisFloatingLegAddLockoutDays(builder, lockoutDays)
+    OvernightCouponsAddLockoutDays(builder, lockoutDays)
 
-def OisFloatingLegAddApplyObservationShift(builder, applyObservationShift):
+def OvernightCouponsAddApplyObservationShift(builder, applyObservationShift):
     builder.PrependBoolSlot(11, applyObservationShift, None)
 
 def AddApplyObservationShift(builder, applyObservationShift):
-    OisFloatingLegAddApplyObservationShift(builder, applyObservationShift)
+    OvernightCouponsAddApplyObservationShift(builder, applyObservationShift)
 
-def OisFloatingLegAddTelescopicValueDates(builder, telescopicValueDates):
+def OvernightCouponsAddTelescopicValueDates(builder, telescopicValueDates):
     builder.PrependBoolSlot(12, telescopicValueDates, 0)
 
 def AddTelescopicValueDates(builder, telescopicValueDates):
-    OisFloatingLegAddTelescopicValueDates(builder, telescopicValueDates)
+    OvernightCouponsAddTelescopicValueDates(builder, telescopicValueDates)
 
-def OisFloatingLegEnd(builder):
+def OvernightCouponsEnd(builder):
     return builder.EndObject()
 
 def End(builder):
-    return OisFloatingLegEnd(builder)
+    return OvernightCouponsEnd(builder)
 
 try:
     from typing import Optional
 except:
     pass
 
-class OisFloatingLegT(object):
+class OvernightCouponsT(object):
 
-    # OisFloatingLegT
+    # OvernightCouponsT
     def __init__(self):
         self.schedule = None  # type: Optional[ScheduleT]
         self.notional = None  # type: Optional[float]
@@ -263,9 +271,9 @@ class OisFloatingLegT(object):
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
-        oisFloatingLeg = OisFloatingLeg()
-        oisFloatingLeg.Init(buf, pos)
-        return cls.InitFromObj(oisFloatingLeg)
+        overnightCoupons = OvernightCoupons()
+        overnightCoupons.Init(buf, pos)
+        return cls.InitFromObj(overnightCoupons)
 
     @classmethod
     def InitFromPackedBuf(cls, buf, pos=0):
@@ -273,52 +281,52 @@ class OisFloatingLegT(object):
         return cls.InitFromBuf(buf, pos+n)
 
     @classmethod
-    def InitFromObj(cls, oisFloatingLeg):
-        x = OisFloatingLegT()
-        x._UnPack(oisFloatingLeg)
+    def InitFromObj(cls, overnightCoupons):
+        x = OvernightCouponsT()
+        x._UnPack(overnightCoupons)
         return x
 
-    # OisFloatingLegT
-    def _UnPack(self, oisFloatingLeg):
-        if oisFloatingLeg is None:
+    # OvernightCouponsT
+    def _UnPack(self, overnightCoupons):
+        if overnightCoupons is None:
             return
-        if oisFloatingLeg.Schedule() is not None:
-            self.schedule = ScheduleT.InitFromObj(oisFloatingLeg.Schedule())
-        self.notional = oisFloatingLeg.Notional()
-        if oisFloatingLeg.Index() is not None:
-            self.index = IndexRefT.InitFromObj(oisFloatingLeg.Index())
-        self.spread = oisFloatingLeg.Spread()
-        self.dayCounter = oisFloatingLeg.DayCounter()
-        self.paymentConvention = oisFloatingLeg.PaymentConvention()
-        self.paymentCalendar = oisFloatingLeg.PaymentCalendar()
-        self.paymentLag = oisFloatingLeg.PaymentLag()
-        self.averagingMethod = oisFloatingLeg.AveragingMethod()
-        self.lookbackDays = oisFloatingLeg.LookbackDays()
-        self.lockoutDays = oisFloatingLeg.LockoutDays()
-        self.applyObservationShift = oisFloatingLeg.ApplyObservationShift()
-        self.telescopicValueDates = oisFloatingLeg.TelescopicValueDates()
+        if overnightCoupons.Schedule() is not None:
+            self.schedule = ScheduleT.InitFromObj(overnightCoupons.Schedule())
+        self.notional = overnightCoupons.Notional()
+        if overnightCoupons.Index() is not None:
+            self.index = IndexRefT.InitFromObj(overnightCoupons.Index())
+        self.spread = overnightCoupons.Spread()
+        self.dayCounter = overnightCoupons.DayCounter()
+        self.paymentConvention = overnightCoupons.PaymentConvention()
+        self.paymentCalendar = overnightCoupons.PaymentCalendar()
+        self.paymentLag = overnightCoupons.PaymentLag()
+        self.averagingMethod = overnightCoupons.AveragingMethod()
+        self.lookbackDays = overnightCoupons.LookbackDays()
+        self.lockoutDays = overnightCoupons.LockoutDays()
+        self.applyObservationShift = overnightCoupons.ApplyObservationShift()
+        self.telescopicValueDates = overnightCoupons.TelescopicValueDates()
 
-    # OisFloatingLegT
+    # OvernightCouponsT
     def Pack(self, builder):
         if self.schedule is not None:
             schedule = self.schedule.Pack(builder)
         if self.index is not None:
             index = self.index.Pack(builder)
-        OisFloatingLegStart(builder)
+        OvernightCouponsStart(builder)
         if self.schedule is not None:
-            OisFloatingLegAddSchedule(builder, schedule)
-        OisFloatingLegAddNotional(builder, self.notional)
+            OvernightCouponsAddSchedule(builder, schedule)
+        OvernightCouponsAddNotional(builder, self.notional)
         if self.index is not None:
-            OisFloatingLegAddIndex(builder, index)
-        OisFloatingLegAddSpread(builder, self.spread)
-        OisFloatingLegAddDayCounter(builder, self.dayCounter)
-        OisFloatingLegAddPaymentConvention(builder, self.paymentConvention)
-        OisFloatingLegAddPaymentCalendar(builder, self.paymentCalendar)
-        OisFloatingLegAddPaymentLag(builder, self.paymentLag)
-        OisFloatingLegAddAveragingMethod(builder, self.averagingMethod)
-        OisFloatingLegAddLookbackDays(builder, self.lookbackDays)
-        OisFloatingLegAddLockoutDays(builder, self.lockoutDays)
-        OisFloatingLegAddApplyObservationShift(builder, self.applyObservationShift)
-        OisFloatingLegAddTelescopicValueDates(builder, self.telescopicValueDates)
-        oisFloatingLeg = OisFloatingLegEnd(builder)
-        return oisFloatingLeg
+            OvernightCouponsAddIndex(builder, index)
+        OvernightCouponsAddSpread(builder, self.spread)
+        OvernightCouponsAddDayCounter(builder, self.dayCounter)
+        OvernightCouponsAddPaymentConvention(builder, self.paymentConvention)
+        OvernightCouponsAddPaymentCalendar(builder, self.paymentCalendar)
+        OvernightCouponsAddPaymentLag(builder, self.paymentLag)
+        OvernightCouponsAddAveragingMethod(builder, self.averagingMethod)
+        OvernightCouponsAddLookbackDays(builder, self.lookbackDays)
+        OvernightCouponsAddLockoutDays(builder, self.lockoutDays)
+        OvernightCouponsAddApplyObservationShift(builder, self.applyObservationShift)
+        OvernightCouponsAddTelescopicValueDates(builder, self.telescopicValueDates)
+        overnightCoupons = OvernightCouponsEnd(builder)
+        return overnightCoupons

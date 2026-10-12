@@ -200,9 +200,10 @@ class Client:
         self,
         request: PriceCrossCurrencySwapRequestT
     ) -> PriceCrossCurrencySwapResponse:
-        """Price cross-currency swaps (two coupon legs in two currencies with
-        principal exchanges; FX spot in pricing.fx, one discounting curve per
-        leg)."""
+        """Price cross-currency swaps: two SwapLeg entries (FixedCoupons /
+        IborCoupons / OvernightCoupons), each paid or received, in two
+        currencies with principal exchanges; FX spot in pricing.fx, one
+        discounting curve per leg."""
         return self._call(
             'cross_currency_swap',
             request,
@@ -363,8 +364,8 @@ from quantra.PriceFloatingRateBond import PriceFloatingRateBondT
 
 # Swaps
 from quantra.VanillaSwap import VanillaSwapT
-from quantra.SwapFixedLeg import SwapFixedLegT
-from quantra.SwapFloatingLeg import SwapFloatingLegT
+from quantra.FixedCoupons import FixedCouponsT
+from quantra.IborCoupons import IborCouponsT
 from quantra.PriceVanillaSwap import PriceVanillaSwapT
 
 # FRA
@@ -377,8 +378,10 @@ from quantra.FxMarketData import FxMarketDataT
 from quantra.FxForward import FxForwardT
 from quantra.PriceFxForward import PriceFxForwardT
 
-# Cross-currency swap
-from quantra.XccyLeg import XccyLegT
+# Cross-currency swap (SwapLeg model)
+from quantra.OvernightCoupons import OvernightCouponsT
+from quantra.SwapCoupons import SwapCoupons
+from quantra.SwapLeg import SwapLegT
 from quantra.CrossCurrencySwap import CrossCurrencySwapT
 from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
 
@@ -408,7 +411,9 @@ from quantra.enums.DateGenerationRule import DateGenerationRule
 from quantra.enums.Interpolator import Interpolator
 from quantra.enums.BootstrapTrait import BootstrapTrait
 from quantra.enums.Compounding import Compounding
+from quantra.enums.RateAveragingType import RateAveragingType
 from quantra.enums.SwapType import SwapType
+from quantra.enums.PayReceive import PayReceive
 from quantra.enums.FRAType import FRAType
 from quantra.enums.FxDirection import FxDirection
 from quantra.enums.SwapFlowKind import SwapFlowKind
@@ -511,8 +516,8 @@ __all__ = [
     'FloatingRateBondT',
     'PriceFloatingRateBondT',
     'VanillaSwapT',
-    'SwapFixedLegT',
-    'SwapFloatingLegT',
+    'FixedCouponsT',
+    'IborCouponsT',
     'PriceVanillaSwapT',
     'FRAT',
     'PriceFRAT',
@@ -520,7 +525,9 @@ __all__ = [
     'FxMarketDataT',
     'FxForwardT',
     'PriceFxForwardT',
-    'XccyLegT',
+    'OvernightCouponsT',
+    'SwapCoupons',
+    'SwapLegT',
     'CrossCurrencySwapT',
     'PriceCrossCurrencySwapT',
     'CapFloorT',
@@ -544,7 +551,9 @@ __all__ = [
     'Interpolator',
     'BootstrapTrait',
     'Compounding',
+    'RateAveragingType',
     'SwapType',
+    'PayReceive',
     'FRAType',
     'FxDirection',
     'SwapFlowKind',

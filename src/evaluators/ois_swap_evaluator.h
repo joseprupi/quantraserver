@@ -3,7 +3,10 @@
 
 /**
  * OisSwapEvaluator — pure QuantLib pricing core for overnight-indexed swaps
- * (fixed leg vs compounded/averaged overnight leg).
+ * (fixed leg vs compounded/averaged overnight leg). Both legs are built by
+ * the shared swap_leg_builder (the chains of QuantLib::OvernightIndexedSwap)
+ * and priced as a generic QuantLib::Swap, so `price-swap` with
+ * OvernightCoupons reproduces this endpoint bit-for-bit.
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
@@ -49,7 +52,7 @@ struct OisSwapOvernightLegData {
     QuantLib::Calendar paymentCalendar;
     int paymentLag = 0;
     QuantLib::RateAveraging::Type averagingMethod = QuantLib::RateAveraging::Compound;
-    /// 0 = no lookback: the evaluator translates <=0 to QL's Null<Natural>()
+    /// 0 = no lookback: the leg builder translates <=0 to QL's Null<Natural>()
     /// (QuantLib's off-state), never to a literal zero-day lookback.
     int lookbackDays = 0;
     int lockoutDays = 0;

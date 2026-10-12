@@ -25,8 +25,8 @@ struct BasisSwapT;
 struct BasisSwapT : public ::flatbuffers::NativeTable {
   typedef BasisSwap TableType;
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::SwapFloatingLegT> leg1{};
-  std::unique_ptr<quantra::SwapFloatingLegT> leg2{};
+  std::unique_ptr<quantra::IborCouponsT> leg1{};
+  std::unique_ptr<quantra::IborCouponsT> leg2{};
   BasisSwapT() = default;
   BasisSwapT(const BasisSwapT &o);
   BasisSwapT(BasisSwapT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -47,11 +47,11 @@ struct BasisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
     return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
-  const quantra::SwapFloatingLeg *leg1() const {
-    return GetPointer<const quantra::SwapFloatingLeg *>(VT_LEG1);
+  const quantra::IborCoupons *leg1() const {
+    return GetPointer<const quantra::IborCoupons *>(VT_LEG1);
   }
-  const quantra::SwapFloatingLeg *leg2() const {
-    return GetPointer<const quantra::SwapFloatingLeg *>(VT_LEG2);
+  const quantra::IborCoupons *leg2() const {
+    return GetPointer<const quantra::IborCoupons *>(VT_LEG2);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -74,10 +74,10 @@ struct BasisSwapBuilder {
   void add_swap_type(quantra::enums::SwapType swap_type) {
     fbb_.AddElement<int8_t>(BasisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
-  void add_leg1(::flatbuffers::Offset<quantra::SwapFloatingLeg> leg1) {
+  void add_leg1(::flatbuffers::Offset<quantra::IborCoupons> leg1) {
     fbb_.AddOffset(BasisSwap::VT_LEG1, leg1);
   }
-  void add_leg2(::flatbuffers::Offset<quantra::SwapFloatingLeg> leg2) {
+  void add_leg2(::flatbuffers::Offset<quantra::IborCoupons> leg2) {
     fbb_.AddOffset(BasisSwap::VT_LEG2, leg2);
   }
   explicit BasisSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -94,8 +94,8 @@ struct BasisSwapBuilder {
 inline ::flatbuffers::Offset<BasisSwap> CreateBasisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::SwapFloatingLeg> leg1 = 0,
-    ::flatbuffers::Offset<quantra::SwapFloatingLeg> leg2 = 0) {
+    ::flatbuffers::Offset<quantra::IborCoupons> leg1 = 0,
+    ::flatbuffers::Offset<quantra::IborCoupons> leg2 = 0) {
   BasisSwapBuilder builder_(_fbb);
   builder_.add_leg2(leg2);
   builder_.add_leg1(leg1);
@@ -107,8 +107,8 @@ inline ::flatbuffers::Offset<BasisSwap> CreateBasisSwap(
 
 inline BasisSwapT::BasisSwapT(const BasisSwapT &o)
       : swap_type(o.swap_type),
-        leg1((o.leg1) ? new quantra::SwapFloatingLegT(*o.leg1) : nullptr),
-        leg2((o.leg2) ? new quantra::SwapFloatingLegT(*o.leg2) : nullptr) {
+        leg1((o.leg1) ? new quantra::IborCouponsT(*o.leg1) : nullptr),
+        leg2((o.leg2) ? new quantra::IborCouponsT(*o.leg2) : nullptr) {
 }
 
 inline BasisSwapT &BasisSwapT::operator=(BasisSwapT o) FLATBUFFERS_NOEXCEPT {
@@ -128,8 +128,8 @@ inline void BasisSwap::UnPackTo(BasisSwapT *_o, const ::flatbuffers::resolver_fu
   (void)_o;
   (void)_resolver;
   { auto _e = swap_type(); _o->swap_type = _e; }
-  { auto _e = leg1(); if (_e) { if(_o->leg1) { _e->UnPackTo(_o->leg1.get(), _resolver); } else { _o->leg1 = std::unique_ptr<quantra::SwapFloatingLegT>(_e->UnPack(_resolver)); } } else if (_o->leg1) { _o->leg1.reset(); } }
-  { auto _e = leg2(); if (_e) { if(_o->leg2) { _e->UnPackTo(_o->leg2.get(), _resolver); } else { _o->leg2 = std::unique_ptr<quantra::SwapFloatingLegT>(_e->UnPack(_resolver)); } } else if (_o->leg2) { _o->leg2.reset(); } }
+  { auto _e = leg1(); if (_e) { if(_o->leg1) { _e->UnPackTo(_o->leg1.get(), _resolver); } else { _o->leg1 = std::unique_ptr<quantra::IborCouponsT>(_e->UnPack(_resolver)); } } else if (_o->leg1) { _o->leg1.reset(); } }
+  { auto _e = leg2(); if (_e) { if(_o->leg2) { _e->UnPackTo(_o->leg2.get(), _resolver); } else { _o->leg2 = std::unique_ptr<quantra::IborCouponsT>(_e->UnPack(_resolver)); } } else if (_o->leg2) { _o->leg2.reset(); } }
 }
 
 inline ::flatbuffers::Offset<BasisSwap> BasisSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const BasisSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -141,8 +141,8 @@ inline ::flatbuffers::Offset<BasisSwap> CreateBasisSwap(::flatbuffers::FlatBuffe
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const BasisSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swap_type = _o->swap_type;
-  auto _leg1 = _o->leg1 ? CreateSwapFloatingLeg(_fbb, _o->leg1.get(), _rehasher) : 0;
-  auto _leg2 = _o->leg2 ? CreateSwapFloatingLeg(_fbb, _o->leg2.get(), _rehasher) : 0;
+  auto _leg1 = _o->leg1 ? CreateIborCoupons(_fbb, _o->leg1.get(), _rehasher) : 0;
+  auto _leg2 = _o->leg2 ? CreateIborCoupons(_fbb, _o->leg2.get(), _rehasher) : 0;
   return quantra::CreateBasisSwap(
       _fbb,
       _swap_type,

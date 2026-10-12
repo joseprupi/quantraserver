@@ -736,10 +736,11 @@
   "swaps": [
     {
       "cross_currency_swap": {
-        "swap_type": "Payer",
         "leg1": {
+          "pay_receive": "Pay",
           "currency": "EUR",
-          "fixed_leg": {
+          "coupons_type": "FixedCoupons",
+          "coupons": {
             "notional": 10000000.0,
             "schedule": {
               "calendar": "TARGET",
@@ -760,8 +761,10 @@
           "discounting_curve": "EUR_USD_COLLATERAL"
         },
         "leg2": {
+          "pay_receive": "Receive",
           "currency": "USD",
-          "floating_leg": {
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
             "notional": 10850000.0,
             "schedule": {
               "calendar": "TARGET",
@@ -777,8 +780,14 @@
               "id": "USD_SOFR"
             },
             "spread": 0.0,
-            "day_counter": "Actual360",
-            "payment_convention": "ModifiedFollowing"
+            "payment_convention": "ModifiedFollowing",
+            "payment_calendar": "TARGET",
+            "payment_lag": 0,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
           },
           "initial_exchange": true,
           "final_exchange": true,

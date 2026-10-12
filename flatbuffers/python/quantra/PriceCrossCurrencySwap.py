@@ -8,7 +8,7 @@ np = import_numpy()
 
 # One cross-currency swap together with the FX spot that converts between
 # its two currencies and the currency its total NPV is reported in. The
-# legs name their own discounting and forwarding curves (`XccyLeg`); every
+# legs name their own discounting and forwarding curves (`SwapLeg`); every
 # reference is by id into `pricing`.
 class PriceCrossCurrencySwap(object):
     __slots__ = ['_tab']
@@ -43,8 +43,8 @@ class PriceCrossCurrencySwap(object):
     # Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base and quote
     # currencies must be the two leg currencies, in either order (either leg
     # may be the base-currency leg; the pair is never inverted). The spot
-    # and the two legs' discounting curves give the as-of exchange rate.
-    # Required.
+    # and the two legs' discounting curves give the as-of exchange rate
+    # X = S * DF_quote(t_s) / DF_base(t_s). Required.
     # PriceCrossCurrencySwap
     def FxSpot(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))

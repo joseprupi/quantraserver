@@ -1519,29 +1519,29 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Payment lag in business days between accrual end and payment. Required;
-  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
   ::flatbuffers::Optional<int32_t> payment_lag() const {
     return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
   /// Compound or Simple averaging of the overnight fixings. Required.
-  /// Name mirrors OisFloatingLeg.averaging_method.
+  /// Name mirrors OvernightCoupons.averaging_method.
   ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
     return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
   }
   /// Fixing lookback in business days. Required; must be >= 0; 0 = no
   /// lookback (the index's own fixing delay applies — QuantLib encodes this
   /// as Null, not as a zero-day lookback). Name mirrors
-  /// OisFloatingLeg.lookback_days.
+  /// OvernightCoupons.lookback_days.
   ::flatbuffers::Optional<int32_t> lookback_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
   }
   /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
   ::flatbuffers::Optional<int32_t> lockout_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
   }
   /// Whether the observation-shift convention applies to the lookback.
-  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
   ::flatbuffers::Optional<bool> apply_observation_shift() const {
     return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
@@ -1805,29 +1805,29 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Payment lag in business days between accrual end and payment. Required;
-  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
   ::flatbuffers::Optional<int32_t> payment_lag() const {
     return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
   /// Compound or Simple averaging of the overnight fixings. Required.
-  /// Name mirrors OisFloatingLeg.averaging_method.
+  /// Name mirrors OvernightCoupons.averaging_method.
   ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
     return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
   }
   /// Fixing lookback in business days. Required; must be >= 0; 0 = no
   /// lookback (the index's own fixing delay applies — QuantLib encodes this
   /// as Null, not as a zero-day lookback). Name mirrors
-  /// OisFloatingLeg.lookback_days.
+  /// OvernightCoupons.lookback_days.
   ::flatbuffers::Optional<int32_t> lookback_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
   }
   /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
   ::flatbuffers::Optional<int32_t> lockout_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
   }
   /// Whether the observation-shift convention applies to the lookback.
-  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
   ::flatbuffers::Optional<bool> apply_observation_shift() const {
     return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }

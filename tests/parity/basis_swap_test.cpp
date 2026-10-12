@@ -77,7 +77,7 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
 
     auto sch1 = buildSchedule(b, "2025-01-17", "2030-01-17", quantra::enums::Frequency_Quarterly);
     auto leg1Idx = buildIndexRef(b, "EUR_3M");
-    quantra::SwapFloatingLegBuilder leg1b(b);
+    quantra::IborCouponsBuilder leg1b(b);
     leg1b.add_notional(notional);
     leg1b.add_schedule(sch1);
     leg1b.add_index(leg1Idx);
@@ -88,7 +88,7 @@ TEST_F(QuantraComparisonTest, BasisSwap_NPVMatches) {
 
     auto sch2 = buildSchedule(b, "2025-01-17", "2030-01-17", quantra::enums::Frequency_Semiannual);
     auto leg2Idx = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder leg2b(b);
+    quantra::IborCouponsBuilder leg2b(b);
     leg2b.add_notional(notional);
     leg2b.add_schedule(sch2);
     leg2b.add_index(leg2Idx);
@@ -164,7 +164,7 @@ TEST_F(QuantraComparisonTest, BasisSwap_Receiver_SpreadLeg1) {
 
     auto sch1 = buildSchedule(b, "2025-01-17", "2028-01-17", quantra::enums::Frequency_Semiannual);
     auto leg1Idx = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder leg1b(b);
+    quantra::IborCouponsBuilder leg1b(b);
     leg1b.add_notional(notional);
     leg1b.add_schedule(sch1);
     leg1b.add_index(leg1Idx);
@@ -175,7 +175,7 @@ TEST_F(QuantraComparisonTest, BasisSwap_Receiver_SpreadLeg1) {
 
     auto sch2 = buildSchedule(b, "2025-01-17", "2028-01-17", quantra::enums::Frequency_Quarterly);
     auto leg2Idx = buildIndexRef(b, "EUR_3M");
-    quantra::SwapFloatingLegBuilder leg2b(b);
+    quantra::IborCouponsBuilder leg2b(b);
     leg2b.add_notional(notional);
     leg2b.add_schedule(sch2);
     leg2b.add_index(leg2Idx);

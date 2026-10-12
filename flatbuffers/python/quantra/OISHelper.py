@@ -104,7 +104,7 @@ class OISHelper(object):
         return None
 
     # Payment lag in business days between accrual end and payment. Required;
-    # must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+    # must be >= 0. Name mirrors OvernightCoupons.payment_lag.
     # OISHelper
     def PaymentLag(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -113,7 +113,7 @@ class OISHelper(object):
         return None
 
     # Compound or Simple averaging of the overnight fixings. Required.
-    # Name mirrors OisFloatingLeg.averaging_method.
+    # Name mirrors OvernightCoupons.averaging_method.
     # OISHelper
     def AveragingMethod(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
@@ -124,7 +124,7 @@ class OISHelper(object):
     # Fixing lookback in business days. Required; must be >= 0; 0 = no
     # lookback (the index's own fixing delay applies — QuantLib encodes this
     # as Null, not as a zero-day lookback). Name mirrors
-    # OisFloatingLeg.lookback_days.
+    # OvernightCoupons.lookback_days.
     # OISHelper
     def LookbackDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
@@ -133,7 +133,7 @@ class OISHelper(object):
         return None
 
     # Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-    # 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+    # 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
     # OISHelper
     def LockoutDays(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -142,7 +142,7 @@ class OISHelper(object):
         return None
 
     # Whether the observation-shift convention applies to the lookback.
-    # Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+    # Required. Name mirrors OvernightCoupons.apply_observation_shift.
     # OISHelper
     def ApplyObservationShift(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))

@@ -117,10 +117,11 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
-  /// Kind of flow. Set on every flow of a cross-currency swap leg, whose
-  /// lists mix coupons and notional exchanges (a NotionalExchange flow has
-  /// `payment_date`, `amount`, `discount`, `present_value` and `kind` only).
-  /// Absent on the other swap endpoints, whose flows are all coupons.
+  /// Kind of flow. Set on every flow of a `SwapLeg` result
+  /// (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
+  /// (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
+  /// `present_value` and `kind` only). Absent on the other swap endpoints,
+  /// whose flows are all coupons.
   ::flatbuffers::Optional<quantra::enums::SwapFlowKind> kind() const {
     return GetOptional<int8_t, quantra::enums::SwapFlowKind>(VT_KIND);
   }

@@ -850,6 +850,39 @@ inline const char *EnumNameSwapType(SwapType e) {
   return EnumNamesSwapType()[index];
 }
 
+/// Side of one swap leg from the reported party's view (`SwapLeg.pay_receive`):
+/// `Pay` = the party pays the leg's coupons (and, with the exchanges on, receives
+/// the initial notional and pays the final one), `Receive` the opposite.
+enum PayReceive : int8_t {
+  PayReceive_Pay = 0,
+  PayReceive_Receive = 1,
+  PayReceive_MIN = PayReceive_Pay,
+  PayReceive_MAX = PayReceive_Receive
+};
+
+inline const PayReceive (&EnumValuesPayReceive())[2] {
+  static const PayReceive values[] = {
+    PayReceive_Pay,
+    PayReceive_Receive
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPayReceive() {
+  static const char * const names[3] = {
+    "Pay",
+    "Receive",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePayReceive(PayReceive e) {
+  if (::flatbuffers::IsOutRange(e, PayReceive_Pay, PayReceive_Receive)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPayReceive()[index];
+}
+
 /// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : int8_t {
   FRAType_Long = 0,

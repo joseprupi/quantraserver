@@ -13,7 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "vanilla_swap_response_generated.h"
+#include "swap_leg_generated.h"
 
 namespace quantra {
 
@@ -28,17 +28,12 @@ struct PriceCrossCurrencySwapResponseT;
 struct CrossCurrencySwapResponseT : public ::flatbuffers::NativeTable {
   typedef CrossCurrencySwapResponse TableType;
   double npv = 0.0;
-  double leg1_npv = 0.0;
-  double leg2_npv = 0.0;
-  double leg1_npv_reporting = 0.0;
-  double leg2_npv_reporting = 0.0;
+  std::vector<std::unique_ptr<quantra::SwapLegResultT>> legs{};
   ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
   double fx_spot_used = 0.0;
   double fx_as_of_rate = 0.0;
   std::string spot_date{};
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> leg1_flows{};
-  std::vector<std::unique_ptr<quantra::SwapLegFlowT>> leg2_flows{};
   CrossCurrencySwapResponseT() = default;
   CrossCurrencySwapResponseT(const CrossCurrencySwapResponseT &o);
   CrossCurrencySwapResponseT(CrossCurrencySwapResponseT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -48,75 +43,55 @@ struct CrossCurrencySwapResponseT : public ::flatbuffers::NativeTable {
 /// Cross-currency swap pricing result. With, for leg i, L_i the leg's flows
 /// in its own frame (coupons +, initial exchange -N_i at the schedule start,
 /// final exchange +N_i with the last coupon), D_i its discounting curve,
-/// s_1 = -1 for `Payer` / +1 for `Receiver` and s_2 = -s_1, S the spot rate
-/// (delivery on the spot date t_s) and DF_base / DF_quote the discounting
-/// curves of the base- and quote-currency legs:
-///   leg_i_npv = s_i * CashFlows::npv(L_i, D_i)                [currency i]
-///   X         = S * DF_quote(t_s) / DF_base(t_s)              [quote per base, as of today]
-///   leg_i_npv_reporting = leg_i_npv, * X or / X               [reporting currency]
-///   npv       = leg1_npv_reporting + leg2_npv_reporting       [reporting currency]
+/// s_i = -1 for `Pay` / +1 for `Receive`, S the spot rate (delivery on the
+/// spot date t_s) and DF_base / DF_quote the discounting curves of the base-
+/// and quote-currency legs:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]
+///   X                     = S * DF_quote(t_s) / DF_base(t_s)      [quote per base, as of today]
+///   legs[i].npv_reporting = legs[i].npv, * X or / X                [reporting currency]
+///   npv                   = legs[0].npv_reporting + legs[1].npv_reporting
 /// Fair quantities hold the other leg and every exchange fixed and solve the
 /// linear equation in the fixed rate / the spread with the leg's annuity
 /// A_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):
-///   fair_rate   = rate_f   - NPV[in fixed-leg ccy]  / (s_f * A_f)
-///   fair_spread = spread_2 - NPV[in leg-2 ccy]      / (s_2 * A_2)
-/// so repricing at the fair value gives npv = 0 to rounding. Every value is
-/// as of the evaluation date (the curves' reference date).
+///   fair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)
+///   fair_spread = spread_1 - NPV[in legs[1]'s ccy]       / (s_1 * A_1)
+/// so repricing at the fair value gives npv = 0 to rounding. These are
+/// QuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas
+/// and the legs are built by the same code as the single-currency swap
+/// endpoints. Every value is as of the evaluation date (the curves'
+/// reference date); flows on that date are excluded, as for every swap.
 struct CrossCurrencySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CrossCurrencySwapResponseT NativeTableType;
   typedef CrossCurrencySwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NPV = 4,
-    VT_LEG1_NPV = 6,
-    VT_LEG2_NPV = 8,
-    VT_LEG1_NPV_REPORTING = 10,
-    VT_LEG2_NPV_REPORTING = 12,
-    VT_FAIR_RATE = 14,
-    VT_FAIR_SPREAD = 16,
-    VT_FX_SPOT_USED = 18,
-    VT_FX_AS_OF_RATE = 20,
-    VT_SPOT_DATE = 22,
-    VT_LEG1_FLOWS = 24,
-    VT_LEG2_FLOWS = 26
+    VT_LEGS = 6,
+    VT_FAIR_RATE = 8,
+    VT_FAIR_SPREAD = 10,
+    VT_FX_SPOT_USED = 12,
+    VT_FX_AS_OF_RATE = 14,
+    VT_SPOT_DATE = 16
   };
   /// Total present value in `reporting_currency`, positive in favour of the
-  /// party whose `swap_type` was given.
+  /// reported party (the one whose `pay_receive` sides were given).
   double npv() const {
     return GetField<double>(VT_NPV, 0.0);
   }
-  /// Present value of leg1 (coupons and exchanges) in `leg1.currency`,
-  /// signed from the reported party's view: the leg's own-frame value (as
-  /// its receiver sees it) times -1 when the party pays the leg (`Payer`)
-  /// and +1 when it receives it. A paid leg is therefore negative only
-  /// when it is worth paying for: paying a 2.55% fixed leg (with its
-  /// exchanges) on a 3% curve is in the payer's favour and positive.
-  double leg1_npv() const {
-    return GetField<double>(VT_LEG1_NPV, 0.0);
+  /// One result per leg, in request order (`leg1` then `leg2`): the leg's
+  /// NPV in its own currency and in the reporting currency, and its flows
+  /// with `include_flows`.
+  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>> *>(VT_LEGS);
   }
-  /// Present value of leg2 (coupons and exchanges) in `leg2.currency`,
-  /// signed the same way (+1 for `Payer`, -1 for `Receiver`).
-  double leg2_npv() const {
-    return GetField<double>(VT_LEG2_NPV, 0.0);
-  }
-  /// `leg1_npv` converted to `reporting_currency` at the as-of exchange
-  /// rate (unchanged when leg1 is in the reporting currency).
-  double leg1_npv_reporting() const {
-    return GetField<double>(VT_LEG1_NPV_REPORTING, 0.0);
-  }
-  /// `leg2_npv` converted to `reporting_currency` at the as-of exchange
-  /// rate (unchanged when leg2 is in the reporting currency).
-  double leg2_npv_reporting() const {
-    return GetField<double>(VT_LEG2_NPV_REPORTING, 0.0);
-  }
-  /// Present when exactly one leg is fixed: the fixed rate that zeroes the
-  /// total NPV, holding the floating leg and every notional exchange fixed.
+  /// Present iff exactly one leg has `FixedCoupons`: the fixed rate that
+  /// zeroes `npv`, holding the other leg and every notional exchange fixed.
   /// Absent for float/float and fixed/fixed swaps.
   ::flatbuffers::Optional<double> fair_rate() const {
     return GetOptional<double, double>(VT_FAIR_RATE);
   }
-  /// Present when both legs float: the spread on leg2 (by convention) that
-  /// zeroes the total NPV, holding leg1 and every notional exchange fixed.
-  /// Absent when a leg is fixed.
+  /// Present iff no leg has `FixedCoupons`: the spread on `legs[1]` (`leg2`,
+  /// by convention) that zeroes `npv`, holding `legs[0]` and every notional
+  /// exchange fixed. Absent when a leg is fixed.
   ::flatbuffers::Optional<double> fair_spread() const {
     return GetOptional<double, double>(VT_FAIR_SPREAD);
   }
@@ -136,36 +111,18 @@ struct CrossCurrencySwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers
   const ::flatbuffers::String *spot_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_SPOT_DATE);
   }
-  /// Future flows of leg1 in payment order (`include_flows`), in the leg's
-  /// own frame: coupon amounts positive, the initial exchange -notional, the
-  /// final exchange +notional; `kind` tells them apart. The sum of their
-  /// `present_value`s is `leg1_npv / s_1`.
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg1_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_LEG1_FLOWS);
-  }
-  /// Future flows of leg2 (`include_flows`), same conventions as `leg1_flows`.
-  const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg2_flows() const {
-    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *>(VT_LEG2_FLOWS);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
-           VerifyField<double>(verifier, VT_LEG1_NPV, 8) &&
-           VerifyField<double>(verifier, VT_LEG2_NPV, 8) &&
-           VerifyField<double>(verifier, VT_LEG1_NPV_REPORTING, 8) &&
-           VerifyField<double>(verifier, VT_LEG2_NPV_REPORTING, 8) &&
+           VerifyOffsetRequired(verifier, VT_LEGS) &&
+           verifier.VerifyVector(legs()) &&
+           verifier.VerifyVectorOfTables(legs()) &&
            VerifyField<double>(verifier, VT_FAIR_RATE, 8) &&
            VerifyField<double>(verifier, VT_FAIR_SPREAD, 8) &&
            VerifyField<double>(verifier, VT_FX_SPOT_USED, 8) &&
            VerifyField<double>(verifier, VT_FX_AS_OF_RATE, 8) &&
            VerifyOffset(verifier, VT_SPOT_DATE) &&
            verifier.VerifyString(spot_date()) &&
-           VerifyOffset(verifier, VT_LEG1_FLOWS) &&
-           verifier.VerifyVector(leg1_flows()) &&
-           verifier.VerifyVectorOfTables(leg1_flows()) &&
-           VerifyOffset(verifier, VT_LEG2_FLOWS) &&
-           verifier.VerifyVector(leg2_flows()) &&
-           verifier.VerifyVectorOfTables(leg2_flows()) &&
            verifier.EndTable();
   }
   CrossCurrencySwapResponseT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -180,17 +137,8 @@ struct CrossCurrencySwapResponseBuilder {
   void add_npv(double npv) {
     fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_NPV, npv, 0.0);
   }
-  void add_leg1_npv(double leg1_npv) {
-    fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_LEG1_NPV, leg1_npv, 0.0);
-  }
-  void add_leg2_npv(double leg2_npv) {
-    fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_LEG2_NPV, leg2_npv, 0.0);
-  }
-  void add_leg1_npv_reporting(double leg1_npv_reporting) {
-    fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_LEG1_NPV_REPORTING, leg1_npv_reporting, 0.0);
-  }
-  void add_leg2_npv_reporting(double leg2_npv_reporting) {
-    fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_LEG2_NPV_REPORTING, leg2_npv_reporting, 0.0);
+  void add_legs(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs) {
+    fbb_.AddOffset(CrossCurrencySwapResponse::VT_LEGS, legs);
   }
   void add_fair_rate(double fair_rate) {
     fbb_.AddElement<double>(CrossCurrencySwapResponse::VT_FAIR_RATE, fair_rate);
@@ -207,12 +155,6 @@ struct CrossCurrencySwapResponseBuilder {
   void add_spot_date(::flatbuffers::Offset<::flatbuffers::String> spot_date) {
     fbb_.AddOffset(CrossCurrencySwapResponse::VT_SPOT_DATE, spot_date);
   }
-  void add_leg1_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg1_flows) {
-    fbb_.AddOffset(CrossCurrencySwapResponse::VT_LEG1_FLOWS, leg1_flows);
-  }
-  void add_leg2_flows(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg2_flows) {
-    fbb_.AddOffset(CrossCurrencySwapResponse::VT_LEG2_FLOWS, leg2_flows);
-  }
   explicit CrossCurrencySwapResponseBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -220,6 +162,7 @@ struct CrossCurrencySwapResponseBuilder {
   ::flatbuffers::Offset<CrossCurrencySwapResponse> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<CrossCurrencySwapResponse>(end);
+    fbb_.Required(o, CrossCurrencySwapResponse::VT_LEGS);
     return o;
   }
 };
@@ -227,64 +170,43 @@ struct CrossCurrencySwapResponseBuilder {
 inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double leg1_npv = 0.0,
-    double leg2_npv = 0.0,
-    double leg1_npv_reporting = 0.0,
-    double leg2_npv_reporting = 0.0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs = 0,
     ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     double fx_spot_used = 0.0,
     double fx_as_of_rate = 0.0,
-    ::flatbuffers::Offset<::flatbuffers::String> spot_date = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg1_flows = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegFlow>>> leg2_flows = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> spot_date = 0) {
   CrossCurrencySwapResponseBuilder builder_(_fbb);
   builder_.add_fx_as_of_rate(fx_as_of_rate);
   builder_.add_fx_spot_used(fx_spot_used);
   if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   if(fair_rate) { builder_.add_fair_rate(*fair_rate); }
-  builder_.add_leg2_npv_reporting(leg2_npv_reporting);
-  builder_.add_leg1_npv_reporting(leg1_npv_reporting);
-  builder_.add_leg2_npv(leg2_npv);
-  builder_.add_leg1_npv(leg1_npv);
   builder_.add_npv(npv);
-  builder_.add_leg2_flows(leg2_flows);
-  builder_.add_leg1_flows(leg1_flows);
   builder_.add_spot_date(spot_date);
+  builder_.add_legs(legs);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapResponseDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
-    double leg1_npv = 0.0,
-    double leg2_npv = 0.0,
-    double leg1_npv_reporting = 0.0,
-    double leg2_npv_reporting = 0.0,
+    const std::vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs = nullptr,
     ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     double fx_spot_used = 0.0,
     double fx_as_of_rate = 0.0,
-    const char *spot_date = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg1_flows = nullptr,
-    const std::vector<::flatbuffers::Offset<quantra::SwapLegFlow>> *leg2_flows = nullptr) {
+    const char *spot_date = nullptr) {
+  auto legs__ = legs ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>>(*legs) : 0;
   auto spot_date__ = spot_date ? _fbb.CreateString(spot_date) : 0;
-  auto leg1_flows__ = leg1_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*leg1_flows) : 0;
-  auto leg2_flows__ = leg2_flows ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>>(*leg2_flows) : 0;
   return quantra::CreateCrossCurrencySwapResponse(
       _fbb,
       npv,
-      leg1_npv,
-      leg2_npv,
-      leg1_npv_reporting,
-      leg2_npv_reporting,
+      legs__,
       fair_rate,
       fair_spread,
       fx_spot_used,
       fx_as_of_rate,
-      spot_date__,
-      leg1_flows__,
-      leg2_flows__);
+      spot_date__);
 }
 
 ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapResponse(::flatbuffers::FlatBufferBuilder &_fbb, const CrossCurrencySwapResponseT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -360,34 +282,23 @@ inline ::flatbuffers::Offset<PriceCrossCurrencySwapResponse> CreatePriceCrossCur
 
 inline CrossCurrencySwapResponseT::CrossCurrencySwapResponseT(const CrossCurrencySwapResponseT &o)
       : npv(o.npv),
-        leg1_npv(o.leg1_npv),
-        leg2_npv(o.leg2_npv),
-        leg1_npv_reporting(o.leg1_npv_reporting),
-        leg2_npv_reporting(o.leg2_npv_reporting),
         fair_rate(o.fair_rate),
         fair_spread(o.fair_spread),
         fx_spot_used(o.fx_spot_used),
         fx_as_of_rate(o.fx_as_of_rate),
         spot_date(o.spot_date) {
-  leg1_flows.reserve(o.leg1_flows.size());
-  for (const auto &leg1_flows_ : o.leg1_flows) { leg1_flows.emplace_back((leg1_flows_) ? new quantra::SwapLegFlowT(*leg1_flows_) : nullptr); }
-  leg2_flows.reserve(o.leg2_flows.size());
-  for (const auto &leg2_flows_ : o.leg2_flows) { leg2_flows.emplace_back((leg2_flows_) ? new quantra::SwapLegFlowT(*leg2_flows_) : nullptr); }
+  legs.reserve(o.legs.size());
+  for (const auto &legs_ : o.legs) { legs.emplace_back((legs_) ? new quantra::SwapLegResultT(*legs_) : nullptr); }
 }
 
 inline CrossCurrencySwapResponseT &CrossCurrencySwapResponseT::operator=(CrossCurrencySwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(npv, o.npv);
-  std::swap(leg1_npv, o.leg1_npv);
-  std::swap(leg2_npv, o.leg2_npv);
-  std::swap(leg1_npv_reporting, o.leg1_npv_reporting);
-  std::swap(leg2_npv_reporting, o.leg2_npv_reporting);
+  std::swap(legs, o.legs);
   std::swap(fair_rate, o.fair_rate);
   std::swap(fair_spread, o.fair_spread);
   std::swap(fx_spot_used, o.fx_spot_used);
   std::swap(fx_as_of_rate, o.fx_as_of_rate);
   std::swap(spot_date, o.spot_date);
-  std::swap(leg1_flows, o.leg1_flows);
-  std::swap(leg2_flows, o.leg2_flows);
   return *this;
 }
 
@@ -401,17 +312,12 @@ inline void CrossCurrencySwapResponse::UnPackTo(CrossCurrencySwapResponseT *_o, 
   (void)_o;
   (void)_resolver;
   { auto _e = npv(); _o->npv = _e; }
-  { auto _e = leg1_npv(); _o->leg1_npv = _e; }
-  { auto _e = leg2_npv(); _o->leg2_npv = _e; }
-  { auto _e = leg1_npv_reporting(); _o->leg1_npv_reporting = _e; }
-  { auto _e = leg2_npv_reporting(); _o->leg2_npv_reporting = _e; }
+  { auto _e = legs(); if (_e) { _o->legs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->legs[_i]) { _e->Get(_i)->UnPackTo(_o->legs[_i].get(), _resolver); } else { _o->legs[_i] = std::unique_ptr<quantra::SwapLegResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->legs.resize(0); } }
   { auto _e = fair_rate(); _o->fair_rate = _e; }
   { auto _e = fair_spread(); _o->fair_spread = _e; }
   { auto _e = fx_spot_used(); _o->fx_spot_used = _e; }
   { auto _e = fx_as_of_rate(); _o->fx_as_of_rate = _e; }
   { auto _e = spot_date(); if (_e) _o->spot_date = _e->str(); }
-  { auto _e = leg1_flows(); if (_e) { _o->leg1_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->leg1_flows[_i]) { _e->Get(_i)->UnPackTo(_o->leg1_flows[_i].get(), _resolver); } else { _o->leg1_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->leg1_flows.resize(0); } }
-  { auto _e = leg2_flows(); if (_e) { _o->leg2_flows.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->leg2_flows[_i]) { _e->Get(_i)->UnPackTo(_o->leg2_flows[_i].get(), _resolver); } else { _o->leg2_flows[_i] = std::unique_ptr<quantra::SwapLegFlowT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->leg2_flows.resize(0); } }
 }
 
 inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CrossCurrencySwapResponse::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CrossCurrencySwapResponseT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -423,31 +329,21 @@ inline ::flatbuffers::Offset<CrossCurrencySwapResponse> CreateCrossCurrencySwapR
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CrossCurrencySwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _npv = _o->npv;
-  auto _leg1_npv = _o->leg1_npv;
-  auto _leg2_npv = _o->leg2_npv;
-  auto _leg1_npv_reporting = _o->leg1_npv_reporting;
-  auto _leg2_npv_reporting = _o->leg2_npv_reporting;
+  auto _legs = _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>> (_o->legs.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegResult(*__va->__fbb, __va->__o->legs[i].get(), __va->__rehasher); }, &_va );
   auto _fair_rate = _o->fair_rate;
   auto _fair_spread = _o->fair_spread;
   auto _fx_spot_used = _o->fx_spot_used;
   auto _fx_as_of_rate = _o->fx_as_of_rate;
   auto _spot_date = _o->spot_date.empty() ? 0 : _fbb.CreateString(_o->spot_date);
-  auto _leg1_flows = _o->leg1_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->leg1_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->leg1_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
-  auto _leg2_flows = _o->leg2_flows.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegFlow>> (_o->leg2_flows.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegFlow(*__va->__fbb, __va->__o->leg2_flows[i].get(), __va->__rehasher); }, &_va ) : 0;
   return quantra::CreateCrossCurrencySwapResponse(
       _fbb,
       _npv,
-      _leg1_npv,
-      _leg2_npv,
-      _leg1_npv_reporting,
-      _leg2_npv_reporting,
+      _legs,
       _fair_rate,
       _fair_spread,
       _fx_spot_used,
       _fx_as_of_rate,
-      _spot_date,
-      _leg1_flows,
-      _leg2_flows);
+      _spot_date);
 }
 
 inline PriceCrossCurrencySwapResponseT::PriceCrossCurrencySwapResponseT(const PriceCrossCurrencySwapResponseT &o) {

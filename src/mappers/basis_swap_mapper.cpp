@@ -12,7 +12,7 @@ namespace quantra {
 namespace {
 
 BasisSwapFloatingLegData extractLeg(
-    const quantra::SwapFloatingLeg* fb, const char* legName, ScheduleParser& scheduleParser) {
+    const quantra::IborCoupons* fb, const char* legName, ScheduleParser& scheduleParser) {
     BasisSwapFloatingLegData leg;
     if (!fb->day_counter().has_value()) {
         QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");

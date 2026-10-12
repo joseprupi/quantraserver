@@ -16,7 +16,7 @@
 
 namespace quantra {
 
-class SwapCmsLeg;
+class CmsCoupons;
 
 struct CmsPricerUsed {
     quantra::enums::CmsPricerType pricerType = quantra::enums::CmsPricerType_LinearTsr;
@@ -37,14 +37,14 @@ struct CmsPricerBuildResult {
 class CmsLegParser {
 public:
     QuantLib::Leg parse(
-        const quantra::SwapCmsLeg* leg,
+        const quantra::CmsCoupons* leg,
         const quantra::IndexRegistry& indices,
         const quantra::SwapIndexRegistry& swapIndices,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const;
 
     CmsPricerBuildResult makeCouponPricer(
-        const quantra::SwapCmsLeg* leg,
+        const quantra::CmsCoupons* leg,
         const quantra::SwaptionVolEntry& volEntry,
         const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const;
 };

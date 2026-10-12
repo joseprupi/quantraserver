@@ -566,7 +566,7 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSch);
     flb.add_rate(fixedRate);
@@ -588,7 +588,7 @@ TEST_F(ServerClientTest, VanillaSwap_RoundTrip) {
     auto floatSch = flsb.Finish();
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder flgb(b);
+    quantra::IborCouponsBuilder flgb(b);
     flgb.add_notional(notional);
     flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
@@ -657,7 +657,7 @@ TEST_F(ServerClientTest, OisSwap_RoundTrip) {
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder fixedB(b);
+    quantra::FixedCouponsBuilder fixedB(b);
     fixedB.add_notional(notional);
     fixedB.add_schedule(fixedSch);
     fixedB.add_rate(0.03);
@@ -677,7 +677,7 @@ TEST_F(ServerClientTest, OisSwap_RoundTrip) {
     auto overnightSch = osb.Finish();
 
     auto sofr = buildIndexRef(b, "USD_SOFR");
-    quantra::OisFloatingLegBuilder ob(b);
+    quantra::OvernightCouponsBuilder ob(b);
     ob.add_notional(notional);
     ob.add_schedule(overnightSch);
     ob.add_index(sofr);
@@ -812,18 +812,20 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     };
 
     auto fixedSch = schedule(quantra::enums::Frequency_Annual);
-    quantra::SwapFixedLegBuilder fixedB(b);
+    quantra::FixedCouponsBuilder fixedB(b);
     fixedB.add_notional(eurNotional);
     fixedB.add_schedule(fixedSch);
     fixedB.add_rate(0.0255);
     fixedB.add_day_counter(quantra::enums::DayCounter_Thirty360);
     fixedB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = fixedB.Finish();
+    auto fixedCoupons = fixedB.Finish();
     auto eur = b.CreateString("EUR");
     auto discount1 = b.CreateString("discount");
-    quantra::XccyLegBuilder l1(b);
+    quantra::SwapLegBuilder l1(b);
+    l1.add_pay_receive(quantra::enums::PayReceive_Pay);
     l1.add_currency(eur);
-    l1.add_fixed_leg(fixedLeg);
+    l1.add_coupons_type(quantra::SwapCoupons_FixedCoupons);
+    l1.add_coupons(fixedCoupons.Union());
     l1.add_initial_exchange(true);
     l1.add_final_exchange(true);
     l1.add_discounting_curve(discount1);
@@ -831,20 +833,27 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
 
     auto floatSch = schedule(quantra::enums::Frequency_Quarterly);
     auto sofr = buildIndexRef(b, "USD_SOFR");
-    quantra::SwapFloatingLegBuilder floatB(b);
-    floatB.add_notional(usdNotional);
-    floatB.add_schedule(floatSch);
-    floatB.add_index(sofr);
-    floatB.add_spread(0.0);
-    floatB.add_day_counter(quantra::enums::DayCounter_Actual360);
-    floatB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = floatB.Finish();
+    quantra::OvernightCouponsBuilder onB(b);
+    onB.add_notional(usdNotional);
+    onB.add_schedule(floatSch);
+    onB.add_index(sofr);
+    onB.add_spread(0.0);
+    onB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    onB.add_payment_calendar(quantra::enums::Calendar_TARGET);
+    onB.add_payment_lag(0);
+    onB.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+    onB.add_lookback_days(0);
+    onB.add_lockout_days(0);
+    onB.add_apply_observation_shift(false);
+    auto overnightCoupons = onB.Finish();
     auto usd = b.CreateString("USD");
     auto discount2 = b.CreateString("discount");
     auto forward2 = b.CreateString("discount");
-    quantra::XccyLegBuilder l2(b);
+    quantra::SwapLegBuilder l2(b);
+    l2.add_pay_receive(quantra::enums::PayReceive_Receive);
     l2.add_currency(usd);
-    l2.add_floating_leg(floatLeg);
+    l2.add_coupons_type(quantra::SwapCoupons_OvernightCoupons);
+    l2.add_coupons(overnightCoupons.Union());
     l2.add_initial_exchange(true);
     l2.add_final_exchange(true);
     l2.add_discounting_curve(discount2);
@@ -852,7 +861,6 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     auto leg2 = l2.Finish();
 
     quantra::CrossCurrencySwapBuilder sb(b);
-    sb.add_swap_type(quantra::enums::SwapType_Payer);
     sb.add_leg1(leg1);
     sb.add_leg2(leg2);
     auto swap = sb.Finish();
@@ -873,19 +881,21 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     EXPECT_NEAR(r->fx_as_of_rate(), spot, 1e-12);
     EXPECT_DOUBLE_EQ(r->fx_spot_used(), spot);
     EXPECT_EQ(r->spot_date()->str(), "2025-01-17");
-    EXPECT_GT(r->leg1_npv(), 0.0);                       // pays 2.55% on a 3% curve
-    EXPECT_NEAR(r->leg2_npv(), 0.0, 1e-3 * usdNotional); // par floater + exchanges
-    EXPECT_NEAR(r->leg1_npv_reporting(), r->leg1_npv() * spot, 1e-6);
-    EXPECT_DOUBLE_EQ(r->leg2_npv_reporting(), r->leg2_npv());
-    EXPECT_NEAR(r->npv(), r->leg1_npv_reporting() + r->leg2_npv_reporting(), 1e-6);
+    ASSERT_EQ(r->legs()->size(), 2u);
+    const auto* l1r = r->legs()->Get(0);
+    const auto* l2r = r->legs()->Get(1);
+    EXPECT_GT(l1r->npv(), 0.0);                       // pays 2.55% on a 3% curve
+    EXPECT_NEAR(l2r->npv(), 0.0, 1e-3 * usdNotional); // par floater + exchanges
+    EXPECT_NEAR(l1r->npv_reporting(), l1r->npv() * spot, 1e-6);
+    EXPECT_DOUBLE_EQ(l2r->npv_reporting(), l2r->npv());
+    EXPECT_NEAR(r->npv(), l1r->npv_reporting() + l2r->npv_reporting(), 1e-6);
     ASSERT_TRUE(r->fair_rate().has_value());
     EXPECT_FALSE(r->fair_spread().has_value());
-    ASSERT_TRUE(r->leg1_flows() && r->leg2_flows());
-    EXPECT_EQ(r->leg1_flows()->size(), 5u + 2u);
-    EXPECT_EQ(r->leg2_flows()->size(), 20u + 2u);
-    EXPECT_EQ(
-        r->leg1_flows()->Get(5)->kind().value(), quantra::enums::SwapFlowKind_NotionalExchange);
-    EXPECT_DOUBLE_EQ(r->leg1_flows()->Get(5)->amount(), -eurNotional);
+    ASSERT_TRUE(l1r->flows() && l2r->flows());
+    EXPECT_EQ(l1r->flows()->size(), 5u + 2u);
+    EXPECT_EQ(l2r->flows()->size(), 20u + 2u);
+    EXPECT_EQ(l1r->flows()->Get(5)->kind().value(), quantra::enums::SwapFlowKind_NotionalExchange);
+    EXPECT_DOUBLE_EQ(l1r->flows()->Get(5)->amount(), -eurNotional);
     std::cout << "  npv (USD): " << r->npv() << ", fair rate: " << r->fair_rate().value()
               << std::endl;
 }
@@ -928,7 +938,7 @@ TEST_F(ServerClientTest, BasisSwap_RoundTrip) {
     auto sch2 = l2b.Finish();
 
     auto eur3m = buildIndexRef(b, "EUR_3M");
-    quantra::SwapFloatingLegBuilder leg1b(b);
+    quantra::IborCouponsBuilder leg1b(b);
     leg1b.add_notional(notional);
     leg1b.add_schedule(sch1);
     leg1b.add_index(eur3m);
@@ -938,7 +948,7 @@ TEST_F(ServerClientTest, BasisSwap_RoundTrip) {
     auto leg1 = leg1b.Finish();
 
     auto eur6m = buildIndexRef(b, "EUR_6M");
-    quantra::SwapFloatingLegBuilder leg2b(b);
+    quantra::IborCouponsBuilder leg2b(b);
     leg2b.add_notional(notional);
     leg2b.add_schedule(sch2);
     leg2b.add_index(eur6m);

@@ -133,21 +133,21 @@ table OISHelper {
     /// compatibility.
     fixed_leg_day_counter:enums.DayCounter = null;
     /// Payment lag in business days between accrual end and payment. Required;
-    /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+    /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
     payment_lag:int = null;
     /// Compound or Simple averaging of the overnight fixings. Required.
-    /// Name mirrors OisFloatingLeg.averaging_method.
+    /// Name mirrors OvernightCoupons.averaging_method.
     averaging_method:enums.RateAveragingType = null;
     /// Fixing lookback in business days. Required; must be >= 0; 0 = no
     /// lookback (the index's own fixing delay applies — QuantLib encodes this
     /// as Null, not as a zero-day lookback). Name mirrors
-    /// OisFloatingLeg.lookback_days.
+    /// OvernightCoupons.lookback_days.
     lookback_days:int = null;
     /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-    /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+    /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
     lockout_days:int = null;
     /// Whether the observation-shift convention applies to the lookback.
-    /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+    /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
     apply_observation_shift:bool = null;
     /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;
@@ -181,21 +181,21 @@ table DatedOISHelper {
     /// present and may be omitted. Kept optional for backward compatibility.
     fixed_leg_day_counter:enums.DayCounter = null;
     /// Payment lag in business days between accrual end and payment. Required;
-    /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+    /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
     payment_lag:int = null;
     /// Compound or Simple averaging of the overnight fixings. Required.
-    /// Name mirrors OisFloatingLeg.averaging_method.
+    /// Name mirrors OvernightCoupons.averaging_method.
     averaging_method:enums.RateAveragingType = null;
     /// Fixing lookback in business days. Required; must be >= 0; 0 = no
     /// lookback (the index's own fixing delay applies — QuantLib encodes this
     /// as Null, not as a zero-day lookback). Name mirrors
-    /// OisFloatingLeg.lookback_days.
+    /// OvernightCoupons.lookback_days.
     lookback_days:int = null;
     /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-    /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+    /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
     lockout_days:int = null;
     /// Whether the observation-shift convention applies to the lookback.
-    /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+    /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
     apply_observation_shift:bool = null;
     /// Exogenous discount curve for dual-curve OIS bootstrapping.
     deps:HelperDependencies;

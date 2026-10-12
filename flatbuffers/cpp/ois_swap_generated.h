@@ -20,16 +20,16 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
-struct OisFloatingLeg;
-struct OisFloatingLegBuilder;
-struct OisFloatingLegT;
+struct OvernightCoupons;
+struct OvernightCouponsBuilder;
+struct OvernightCouponsT;
 
 struct OisSwap;
 struct OisSwapBuilder;
 struct OisSwapT;
 
-struct OisFloatingLegT : public ::flatbuffers::NativeTable {
-  typedef OisFloatingLeg TableType;
+struct OvernightCouponsT : public ::flatbuffers::NativeTable {
+  typedef OvernightCoupons TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::unique_ptr<quantra::IndexRefT> index{};
@@ -43,16 +43,24 @@ struct OisFloatingLegT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt;
   bool telescopic_value_dates = false;
-  OisFloatingLegT() = default;
-  OisFloatingLegT(const OisFloatingLegT &o);
-  OisFloatingLegT(OisFloatingLegT&&) FLATBUFFERS_NOEXCEPT = default;
-  OisFloatingLegT &operator=(OisFloatingLegT o) FLATBUFFERS_NOEXCEPT;
+  OvernightCouponsT() = default;
+  OvernightCouponsT(const OvernightCouponsT &o);
+  OvernightCouponsT(OvernightCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
+  OvernightCouponsT &operator=(OvernightCouponsT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Floating leg for OIS swaps (compounded overnight).
-struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef OisFloatingLegT NativeTableType;
-  typedef OisFloatingLegBuilder Builder;
+/// Overnight floating coupons of a swap leg: the daily fixings of an
+/// overnight `index` compounded (or averaged) over each period of `schedule`,
+/// paid `payment_lag` business days after the period end on
+/// `payment_calendar`, with the lookback / lockout / observation-shift
+/// conventions of the market. Used as `OisSwap.overnight_leg` and as the
+/// `OvernightCoupons` member of `SwapLeg.coupons` (built by the same code),
+/// where the index must be an overnight index (an IBOR index is a 400 naming
+/// `IborCoupons`). (Named `OisFloatingLeg` before 0.9.0; the field names are
+/// unchanged.)
+struct OvernightCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef OvernightCouponsT NativeTableType;
+  typedef OvernightCouponsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCHEDULE = 4,
     VT_NOTIONAL = 6,
@@ -86,10 +94,10 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
-  /// DEPRECATED / accepted-but-unused. QuantLib's OvernightIndexedSwap takes
-  /// the overnight leg's day counter from the overnight index itself, so this
-  /// field is ignored if present and may be omitted. Kept optional for
-  /// backward compatibility.
+  /// DEPRECATED / accepted-but-unused. The overnight coupons take their day
+  /// counter from the overnight index itself (as QuantLib's
+  /// OvernightIndexedSwap does), so this field is ignored if present and may
+  /// be omitted. Kept optional for backward compatibility.
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
@@ -150,67 +158,67 @@ struct OisFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<uint8_t>(verifier, VT_TELESCOPIC_VALUE_DATES, 1) &&
            verifier.EndTable();
   }
-  OisFloatingLegT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(OisFloatingLegT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<OisFloatingLeg> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OisFloatingLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  OvernightCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(OvernightCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<OvernightCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct OisFloatingLegBuilder {
-  typedef OisFloatingLeg Table;
+struct OvernightCouponsBuilder {
+  typedef OvernightCoupons Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(OisFloatingLeg::VT_SCHEDULE, schedule);
+    fbb_.AddOffset(OvernightCoupons::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(OisFloatingLeg::VT_NOTIONAL, notional);
+    fbb_.AddElement<double>(OvernightCoupons::VT_NOTIONAL, notional);
   }
   void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
-    fbb_.AddOffset(OisFloatingLeg::VT_INDEX, index);
+    fbb_.AddOffset(OvernightCoupons::VT_INDEX, index);
   }
   void add_spread(double spread) {
-    fbb_.AddElement<double>(OisFloatingLeg::VT_SPREAD, spread, 0.0);
+    fbb_.AddElement<double>(OvernightCoupons::VT_SPREAD, spread, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+    fbb_.AddElement<int8_t>(OvernightCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+    fbb_.AddElement<int8_t>(OvernightCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_payment_calendar(quantra::enums::Calendar payment_calendar) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
+    fbb_.AddElement<int8_t>(OvernightCoupons::VT_PAYMENT_CALENDAR, static_cast<int8_t>(payment_calendar));
   }
   void add_payment_lag(int32_t payment_lag) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_PAYMENT_LAG, payment_lag);
+    fbb_.AddElement<int32_t>(OvernightCoupons::VT_PAYMENT_LAG, payment_lag);
   }
   void add_averaging_method(quantra::enums::RateAveragingType averaging_method) {
-    fbb_.AddElement<int8_t>(OisFloatingLeg::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
+    fbb_.AddElement<int8_t>(OvernightCoupons::VT_AVERAGING_METHOD, static_cast<int8_t>(averaging_method));
   }
   void add_lookback_days(int32_t lookback_days) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOOKBACK_DAYS, lookback_days);
+    fbb_.AddElement<int32_t>(OvernightCoupons::VT_LOOKBACK_DAYS, lookback_days);
   }
   void add_lockout_days(int32_t lockout_days) {
-    fbb_.AddElement<int32_t>(OisFloatingLeg::VT_LOCKOUT_DAYS, lockout_days);
+    fbb_.AddElement<int32_t>(OvernightCoupons::VT_LOCKOUT_DAYS, lockout_days);
   }
   void add_apply_observation_shift(bool apply_observation_shift) {
-    fbb_.AddElement<uint8_t>(OisFloatingLeg::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
+    fbb_.AddElement<uint8_t>(OvernightCoupons::VT_APPLY_OBSERVATION_SHIFT, static_cast<uint8_t>(apply_observation_shift));
   }
   void add_telescopic_value_dates(bool telescopic_value_dates) {
-    fbb_.AddElement<uint8_t>(OisFloatingLeg::VT_TELESCOPIC_VALUE_DATES, static_cast<uint8_t>(telescopic_value_dates), 0);
+    fbb_.AddElement<uint8_t>(OvernightCoupons::VT_TELESCOPIC_VALUE_DATES, static_cast<uint8_t>(telescopic_value_dates), 0);
   }
-  explicit OisFloatingLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit OvernightCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<OisFloatingLeg> Finish() {
+  ::flatbuffers::Offset<OvernightCoupons> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<OisFloatingLeg>(end);
-    fbb_.Required(o, OisFloatingLeg::VT_INDEX);
+    auto o = ::flatbuffers::Offset<OvernightCoupons>(end);
+    fbb_.Required(o, OvernightCoupons::VT_INDEX);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
+inline ::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -225,7 +233,7 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
     ::flatbuffers::Optional<int32_t> lockout_days = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<bool> apply_observation_shift = ::flatbuffers::nullopt,
     bool telescopic_value_dates = false) {
-  OisFloatingLegBuilder builder_(_fbb);
+  OvernightCouponsBuilder builder_(_fbb);
   builder_.add_spread(spread);
   if(notional) { builder_.add_notional(*notional); }
   if(lockout_days) { builder_.add_lockout_days(*lockout_days); }
@@ -242,13 +250,13 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(
   return builder_.Finish();
 }
 
-::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(::flatbuffers::FlatBufferBuilder &_fbb, const OisFloatingLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct OisSwapT : public ::flatbuffers::NativeTable {
   typedef OisSwap TableType;
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::SwapFixedLegT> fixed_leg{};
-  std::unique_ptr<quantra::OisFloatingLegT> overnight_leg{};
+  std::unique_ptr<quantra::FixedCouponsT> fixed_leg{};
+  std::unique_ptr<quantra::OvernightCouponsT> overnight_leg{};
   OisSwapT() = default;
   OisSwapT(const OisSwapT &o);
   OisSwapT(OisSwapT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -269,11 +277,11 @@ struct OisSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
     return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
-  const quantra::SwapFixedLeg *fixed_leg() const {
-    return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
+  const quantra::FixedCoupons *fixed_leg() const {
+    return GetPointer<const quantra::FixedCoupons *>(VT_FIXED_LEG);
   }
-  const quantra::OisFloatingLeg *overnight_leg() const {
-    return GetPointer<const quantra::OisFloatingLeg *>(VT_OVERNIGHT_LEG);
+  const quantra::OvernightCoupons *overnight_leg() const {
+    return GetPointer<const quantra::OvernightCoupons *>(VT_OVERNIGHT_LEG);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -296,10 +304,10 @@ struct OisSwapBuilder {
   void add_swap_type(quantra::enums::SwapType swap_type) {
     fbb_.AddElement<int8_t>(OisSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
-  void add_fixed_leg(::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg) {
+  void add_fixed_leg(::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg) {
     fbb_.AddOffset(OisSwap::VT_FIXED_LEG, fixed_leg);
   }
-  void add_overnight_leg(::flatbuffers::Offset<quantra::OisFloatingLeg> overnight_leg) {
+  void add_overnight_leg(::flatbuffers::Offset<quantra::OvernightCoupons> overnight_leg) {
     fbb_.AddOffset(OisSwap::VT_OVERNIGHT_LEG, overnight_leg);
   }
   explicit OisSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -316,8 +324,8 @@ struct OisSwapBuilder {
 inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
-    ::flatbuffers::Offset<quantra::OisFloatingLeg> overnight_leg = 0) {
+    ::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg = 0,
+    ::flatbuffers::Offset<quantra::OvernightCoupons> overnight_leg = 0) {
   OisSwapBuilder builder_(_fbb);
   builder_.add_overnight_leg(overnight_leg);
   builder_.add_fixed_leg(fixed_leg);
@@ -327,7 +335,7 @@ inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(
 
 ::flatbuffers::Offset<OisSwap> CreateOisSwap(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline OisFloatingLegT::OisFloatingLegT(const OisFloatingLegT &o)
+inline OvernightCouponsT::OvernightCouponsT(const OvernightCouponsT &o)
       : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         notional(o.notional),
         index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
@@ -343,7 +351,7 @@ inline OisFloatingLegT::OisFloatingLegT(const OisFloatingLegT &o)
         telescopic_value_dates(o.telescopic_value_dates) {
 }
 
-inline OisFloatingLegT &OisFloatingLegT::operator=(OisFloatingLegT o) FLATBUFFERS_NOEXCEPT {
+inline OvernightCouponsT &OvernightCouponsT::operator=(OvernightCouponsT o) FLATBUFFERS_NOEXCEPT {
   std::swap(schedule, o.schedule);
   std::swap(notional, o.notional);
   std::swap(index, o.index);
@@ -360,13 +368,13 @@ inline OisFloatingLegT &OisFloatingLegT::operator=(OisFloatingLegT o) FLATBUFFER
   return *this;
 }
 
-inline OisFloatingLegT *OisFloatingLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<OisFloatingLegT>(new OisFloatingLegT());
+inline OvernightCouponsT *OvernightCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<OvernightCouponsT>(new OvernightCouponsT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void OisFloatingLeg::UnPackTo(OisFloatingLegT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void OvernightCoupons::UnPackTo(OvernightCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
@@ -384,14 +392,14 @@ inline void OisFloatingLeg::UnPackTo(OisFloatingLegT *_o, const ::flatbuffers::r
   { auto _e = telescopic_value_dates(); _o->telescopic_value_dates = _e; }
 }
 
-inline ::flatbuffers::Offset<OisFloatingLeg> OisFloatingLeg::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OisFloatingLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateOisFloatingLeg(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<OvernightCoupons> OvernightCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateOvernightCoupons(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(::flatbuffers::FlatBufferBuilder &_fbb, const OisFloatingLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<OvernightCoupons> CreateOvernightCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const OvernightCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OisFloatingLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OvernightCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _notional = _o->notional;
   auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
@@ -405,7 +413,7 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(::flatbuffers:
   auto _lockout_days = _o->lockout_days;
   auto _apply_observation_shift = _o->apply_observation_shift;
   auto _telescopic_value_dates = _o->telescopic_value_dates;
-  return quantra::CreateOisFloatingLeg(
+  return quantra::CreateOvernightCoupons(
       _fbb,
       _schedule,
       _notional,
@@ -424,8 +432,8 @@ inline ::flatbuffers::Offset<OisFloatingLeg> CreateOisFloatingLeg(::flatbuffers:
 
 inline OisSwapT::OisSwapT(const OisSwapT &o)
       : swap_type(o.swap_type),
-        fixed_leg((o.fixed_leg) ? new quantra::SwapFixedLegT(*o.fixed_leg) : nullptr),
-        overnight_leg((o.overnight_leg) ? new quantra::OisFloatingLegT(*o.overnight_leg) : nullptr) {
+        fixed_leg((o.fixed_leg) ? new quantra::FixedCouponsT(*o.fixed_leg) : nullptr),
+        overnight_leg((o.overnight_leg) ? new quantra::OvernightCouponsT(*o.overnight_leg) : nullptr) {
 }
 
 inline OisSwapT &OisSwapT::operator=(OisSwapT o) FLATBUFFERS_NOEXCEPT {
@@ -445,8 +453,8 @@ inline void OisSwap::UnPackTo(OisSwapT *_o, const ::flatbuffers::resolver_functi
   (void)_o;
   (void)_resolver;
   { auto _e = swap_type(); _o->swap_type = _e; }
-  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapFixedLegT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
-  { auto _e = overnight_leg(); if (_e) { if(_o->overnight_leg) { _e->UnPackTo(_o->overnight_leg.get(), _resolver); } else { _o->overnight_leg = std::unique_ptr<quantra::OisFloatingLegT>(_e->UnPack(_resolver)); } } else if (_o->overnight_leg) { _o->overnight_leg.reset(); } }
+  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::FixedCouponsT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
+  { auto _e = overnight_leg(); if (_e) { if(_o->overnight_leg) { _e->UnPackTo(_o->overnight_leg.get(), _resolver); } else { _o->overnight_leg = std::unique_ptr<quantra::OvernightCouponsT>(_e->UnPack(_resolver)); } } else if (_o->overnight_leg) { _o->overnight_leg.reset(); } }
 }
 
 inline ::flatbuffers::Offset<OisSwap> OisSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const OisSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -458,8 +466,8 @@ inline ::flatbuffers::Offset<OisSwap> CreateOisSwap(::flatbuffers::FlatBufferBui
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const OisSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swap_type = _o->swap_type;
-  auto _fixed_leg = _o->fixed_leg ? CreateSwapFixedLeg(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
-  auto _overnight_leg = _o->overnight_leg ? CreateOisFloatingLeg(_fbb, _o->overnight_leg.get(), _rehasher) : 0;
+  auto _fixed_leg = _o->fixed_leg ? CreateFixedCoupons(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
+  auto _overnight_leg = _o->overnight_leg ? CreateOvernightCoupons(_fbb, _o->overnight_leg.get(), _rehasher) : 0;
   return quantra::CreateOisSwap(
       _fbb,
       _swap_type,

@@ -57,19 +57,32 @@ two FX-implied curve helpers and two products.
   leg PVs, spot and adjusted maturity dates. Spot-date and maturity rules are
   QuantLib's FX-swap-helper rules, so a forward struck on an FX swap pillar
   reprices spot + points.
-- **Cross-currency swap** (`POST /price-cross-currency-swap`): two coupon legs
-  in two currencies (fixed or floating; IBOR or compounded overnight), each
-  discounted on its own curve, with explicit `initial_exchange` /
-  `final_exchange` flags, converted to the reporting currency at the as-of
-  rate. Returns the total NPV, each leg's NPV in its own currency and in the
-  reporting currency (signed from the reported party's view), `fair_rate`
-  (one fixed leg) or `fair_spread` (two floating legs), the spot used, the
-  as-of rate and, with `include_flows`, each leg's flows tagged `Coupon` or
-  `NotionalExchange` (new `SwapLegFlow.kind`, absent on the other swap
-  endpoints).
-- `FxDirection` and `SwapFlowKind` enums; `fx_forward.fbs`,
-  `cross_currency_swap.fbs` and their request/response schemas; Python client
-  `price_fx_forwards` / `price_cross_currency_swaps`; OpenAPI "FX" tag.
+- **Cross-currency swap** (`POST /price-cross-currency-swap`): two legs in
+  two currencies, each discounted on its own curve, with explicit
+  `initial_exchange` / `final_exchange` flags, converted to the reporting
+  currency at the as-of rate. Returns the total NPV, each leg's NPV in its
+  own currency and in the reporting currency (`legs[]`, signed from the
+  reported party's view), `fair_rate` (exactly one fixed leg) or
+  `fair_spread` (no fixed leg), the spot used, the as-of rate and, with
+  `include_flows`, each leg's flows tagged `Coupon` or `NotionalExchange`
+  (new `SwapLegFlow.kind`, absent on the other swap endpoints).
+- **`SwapLeg`, the shared swap-leg table** (`swap_leg.fbs`): `pay_receive`
+  (new `PayReceive` enum, per leg, replacing a swap-level side), `currency`,
+  `coupons` (union `SwapCoupons` of `FixedCoupons`, `IborCoupons`,
+  `OvernightCoupons`, `CmsCoupons`; written in JSON as `coupons_type` +
+  `coupons`), `discounting_curve`, `forwarding_curve`, `initial_exchange`,
+  `final_exchange`; `SwapLegResult` (`npv`, `npv_reporting`, `flows`). The
+  cross-currency swap is its first user; from 0.10.0 the vanilla, OIS and
+  basis swaps keep their endpoints and take `SwapLeg` legs too. An
+  `OvernightCoupons` leg is built by the same code as `price-ois-swap`'s
+  overnight leg; `IborCoupons` on an overnight index (and the reverse) is a
+  `400` naming the table to use; `CmsCoupons` is a `400` on the
+  cross-currency swap in this version.
+- `FxDirection`, `SwapFlowKind` and `PayReceive` enums; `fx_forward.fbs`,
+  `swap_leg.fbs`, `cross_currency_swap.fbs` and their request/response
+  schemas; Python client `price_fx_forwards` / `price_cross_currency_swaps`
+  (exports `SwapLegT`, `SwapCoupons`, `PayReceive`, `OvernightCouponsT`,
+  `RateAveragingType`); OpenAPI "FX" tag.
 
 ### Changed
 
@@ -78,11 +91,20 @@ two FX-implied curve helpers and two products.
   affected. `HelperDependencies.projection_curve_2` and
   `HelperDependencies.fx_spot_quote_id`, which no helper ever read, are
   removed (last two slots; earlier fields keep their positions).
-- The vanilla, basis and cross-currency swap evaluators share one swap-leg
-  builder. Results of the existing endpoints are unchanged (pinned by the
-  parity suites); a basis-swap IBOR leg marked `in_arrears` now carries the
-  explicit zero-volatility coupon pricer, which is a no-op for in-advance
-  coupons.
+- **Coupon tables renamed** (generated class names only; every field name,
+  the JSON and the binary wire of the existing endpoints are unchanged):
+  `SwapFixedLeg` -> `FixedCoupons`, `SwapFloatingLeg` -> `IborCoupons`,
+  `OisFloatingLeg` -> `OvernightCoupons`, `SwapCmsLeg` -> `CmsCoupons`. C++
+  and Python object-API users rename the types (`FixedCouponsT`,
+  `IborCouponsBuilder`, ...); JSON users change nothing. Error messages of
+  the existing endpoints keep their wording.
+- The vanilla, OIS, basis and cross-currency swap evaluators share one
+  swap-leg builder (the OIS legs are now built through it and priced as a
+  generic `Swap`, exactly QuantLib's `OvernightIndexedSwap` chain). Results
+  of the existing endpoints are unchanged (pinned by the parity suites and
+  a byte-for-byte comparison of every catalog case); a basis-swap IBOR leg
+  marked `in_arrears` now carries the explicit zero-volatility coupon pricer,
+  which is a no-op for in-advance coupons.
 
 ### Rejections added (all `400` naming the field, `404` for unknown ids)
 
@@ -94,7 +116,8 @@ spot lag / calendars / convention, collateral currency outside the pair,
 both or neither discount curve on a basis helper, mark-to-market reset
 requested, a forward or swap whose currencies do not match the spot (no
 implicit pair inversion), a reporting currency outside the pair, two legs in
-one currency, `in_arrears` on an overnight leg, per-period notionals.
+one currency, both legs on the same side, a coupon table that does not match
+its index kind, `CmsCoupons`, per-period notionals.
 
 ### Still not supported (planned)
 

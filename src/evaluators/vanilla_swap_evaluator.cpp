@@ -60,7 +60,7 @@ QuantLib::GFunctionFactory::YieldCurveModel toYieldCurveModel(
 /**
  * Build a CMS coupon pricer from plain params. Mirrors
  * cms_leg_parser.makeCouponPricer verbatim — kept inline here so the pricer
- * stays FB-free (cms_leg_parser's only entry point takes a SwapCmsLeg* and
+ * stays FB-free (cms_leg_parser's only entry point takes a CmsCoupons* and
  * is intended for the mapper).
  */
 CmsPricerBuildResult buildCmsPricer(

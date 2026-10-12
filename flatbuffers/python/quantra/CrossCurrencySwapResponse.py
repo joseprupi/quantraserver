@@ -9,20 +9,23 @@ np = import_numpy()
 # Cross-currency swap pricing result. With, for leg i, L_i the leg's flows
 # in its own frame (coupons +, initial exchange -N_i at the schedule start,
 # final exchange +N_i with the last coupon), D_i its discounting curve,
-# s_1 = -1 for `Payer` / +1 for `Receiver` and s_2 = -s_1, S the spot rate
-# (delivery on the spot date t_s) and DF_base / DF_quote the discounting
-# curves of the base- and quote-currency legs:
-#   leg_i_npv = s_i * CashFlows::npv(L_i, D_i)                [currency i]
-#   X         = S * DF_quote(t_s) / DF_base(t_s)              [quote per base, as of today]
-#   leg_i_npv_reporting = leg_i_npv, * X or / X               [reporting currency]
-#   npv       = leg1_npv_reporting + leg2_npv_reporting       [reporting currency]
+# s_i = -1 for `Pay` / +1 for `Receive`, S the spot rate (delivery on the
+# spot date t_s) and DF_base / DF_quote the discounting curves of the base-
+# and quote-currency legs:
+#   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)        [currency i]
+#   X                     = S * DF_quote(t_s) / DF_base(t_s)      [quote per base, as of today]
+#   legs[i].npv_reporting = legs[i].npv, * X or / X                [reporting currency]
+#   npv                   = legs[0].npv_reporting + legs[1].npv_reporting
 # Fair quantities hold the other leg and every exchange fixed and solve the
 # linear equation in the fixed rate / the spread with the leg's annuity
 # A_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):
-#   fair_rate   = rate_f   - NPV[in fixed-leg ccy]  / (s_f * A_f)
-#   fair_spread = spread_2 - NPV[in leg-2 ccy]      / (s_2 * A_2)
-# so repricing at the fair value gives npv = 0 to rounding. Every value is
-# as of the evaluation date (the curves' reference date).
+#   fair_rate   = rate_f   - NPV[in the fixed leg's ccy] / (s_f * A_f)
+#   fair_spread = spread_1 - NPV[in legs[1]'s ccy]       / (s_1 * A_1)
+# so repricing at the fair value gives npv = 0 to rounding. These are
+# QuantLib::VanillaSwap's / OvernightIndexedSwap's own fair-value formulas
+# and the legs are built by the same code as the single-currency swap
+# endpoints. Every value is as of the evaluation date (the curves'
+# reference date); flows on that date are excluded, as for every swap.
 class CrossCurrencySwapResponse(object):
     __slots__ = ['_tab']
 
@@ -42,7 +45,7 @@ class CrossCurrencySwapResponse(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Total present value in `reporting_currency`, positive in favour of the
-    # party whose `swap_type` was given.
+    # reported party (the one whose `pay_receive` sides were given).
     # CrossCurrencySwapResponse
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -50,62 +53,50 @@ class CrossCurrencySwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Present value of leg1 (coupons and exchanges) in `leg1.currency`,
-    # signed from the reported party's view: the leg's own-frame value (as
-    # its receiver sees it) times -1 when the party pays the leg (`Payer`)
-    # and +1 when it receives it. A paid leg is therefore negative only
-    # when it is worth paying for: paying a 2.55% fixed leg (with its
-    # exchanges) on a 3% curve is in the payer's favour and positive.
+    # One result per leg, in request order (`leg1` then `leg2`): the leg's
+    # NPV in its own currency and in the reporting currency, and its flows
+    # with `include_flows`.
     # CrossCurrencySwapResponse
-    def Leg1Npv(self):
+    def Legs(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra.SwapLegResult import SwapLegResult
+            obj = SwapLegResult()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
-    # Present value of leg2 (coupons and exchanges) in `leg2.currency`,
-    # signed the same way (+1 for `Payer`, -1 for `Receiver`).
     # CrossCurrencySwapResponse
-    def Leg2Npv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+    def LegsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            return self._tab.VectorLen(o)
+        return 0
 
-    # `leg1_npv` converted to `reporting_currency` at the as-of exchange
-    # rate (unchanged when leg1 is in the reporting currency).
     # CrossCurrencySwapResponse
-    def Leg1NpvReporting(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+    def LegsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
 
-    # `leg2_npv` converted to `reporting_currency` at the as-of exchange
-    # rate (unchanged when leg2 is in the reporting currency).
-    # CrossCurrencySwapResponse
-    def Leg2NpvReporting(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Present when exactly one leg is fixed: the fixed rate that zeroes the
-    # total NPV, holding the floating leg and every notional exchange fixed.
+    # Present iff exactly one leg has `FixedCoupons`: the fixed rate that
+    # zeroes `npv`, holding the other leg and every notional exchange fixed.
     # Absent for float/float and fixed/fixed swaps.
     # CrossCurrencySwapResponse
     def FairRate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
-    # Present when both legs float: the spread on leg2 (by convention) that
-    # zeroes the total NPV, holding leg1 and every notional exchange fixed.
-    # Absent when a leg is fixed.
+    # Present iff no leg has `FixedCoupons`: the spread on `legs[1]` (`leg2`,
+    # by convention) that zeroes `npv`, holding `legs[0]` and every notional
+    # exchange fixed. Absent when a leg is fixed.
     # CrossCurrencySwapResponse
     def FairSpread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -114,7 +105,7 @@ class CrossCurrencySwapResponse(object):
     # the referenced spot, for delivery on `spot_date`).
     # CrossCurrencySwapResponse
     def FxSpotUsed(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -124,7 +115,7 @@ class CrossCurrencySwapResponse(object):
     # the referenced spot).
     # CrossCurrencySwapResponse
     def FxAsOfRate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -133,67 +124,13 @@ class CrossCurrencySwapResponse(object):
     # advanced `spot_days` business days on its joint calendar, ISO.
     # CrossCurrencySwapResponse
     def SpotDate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Future flows of leg1 in payment order (`include_flows`), in the leg's
-    # own frame: coupon amounts positive, the initial exchange -notional, the
-    # final exchange +notional; `kind` tells them apart. The sum of their
-    # `present_value`s is `leg1_npv / s_1`.
-    # CrossCurrencySwapResponse
-    def Leg1Flows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
-        if o != 0:
-            x = self._tab.Vector(o)
-            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
-            x = self._tab.Indirect(x)
-            from quantra.SwapLegFlow import SwapLegFlow
-            obj = SwapLegFlow()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # CrossCurrencySwapResponse
-    def Leg1FlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # CrossCurrencySwapResponse
-    def Leg1FlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
-        return o == 0
-
-    # Future flows of leg2 (`include_flows`), same conventions as `leg1_flows`.
-    # CrossCurrencySwapResponse
-    def Leg2Flows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
-        if o != 0:
-            x = self._tab.Vector(o)
-            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
-            x = self._tab.Indirect(x)
-            obj = SwapLegFlow()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # CrossCurrencySwapResponse
-    def Leg2FlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # CrossCurrencySwapResponse
-    def Leg2FlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
-        return o == 0
-
 def CrossCurrencySwapResponseStart(builder):
-    builder.StartObject(12)
+    builder.StartObject(7)
 
 def Start(builder):
     CrossCurrencySwapResponseStart(builder)
@@ -204,83 +141,47 @@ def CrossCurrencySwapResponseAddNpv(builder, npv):
 def AddNpv(builder, npv):
     CrossCurrencySwapResponseAddNpv(builder, npv)
 
-def CrossCurrencySwapResponseAddLeg1Npv(builder, leg1Npv):
-    builder.PrependFloat64Slot(1, leg1Npv, 0.0)
+def CrossCurrencySwapResponseAddLegs(builder, legs):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
 
-def AddLeg1Npv(builder, leg1Npv):
-    CrossCurrencySwapResponseAddLeg1Npv(builder, leg1Npv)
+def AddLegs(builder, legs):
+    CrossCurrencySwapResponseAddLegs(builder, legs)
 
-def CrossCurrencySwapResponseAddLeg2Npv(builder, leg2Npv):
-    builder.PrependFloat64Slot(2, leg2Npv, 0.0)
+def CrossCurrencySwapResponseStartLegsVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
 
-def AddLeg2Npv(builder, leg2Npv):
-    CrossCurrencySwapResponseAddLeg2Npv(builder, leg2Npv)
-
-def CrossCurrencySwapResponseAddLeg1NpvReporting(builder, leg1NpvReporting):
-    builder.PrependFloat64Slot(3, leg1NpvReporting, 0.0)
-
-def AddLeg1NpvReporting(builder, leg1NpvReporting):
-    CrossCurrencySwapResponseAddLeg1NpvReporting(builder, leg1NpvReporting)
-
-def CrossCurrencySwapResponseAddLeg2NpvReporting(builder, leg2NpvReporting):
-    builder.PrependFloat64Slot(4, leg2NpvReporting, 0.0)
-
-def AddLeg2NpvReporting(builder, leg2NpvReporting):
-    CrossCurrencySwapResponseAddLeg2NpvReporting(builder, leg2NpvReporting)
+def StartLegsVector(builder, numElems):
+    return CrossCurrencySwapResponseStartLegsVector(builder, numElems)
 
 def CrossCurrencySwapResponseAddFairRate(builder, fairRate):
-    builder.PrependFloat64Slot(5, fairRate, None)
+    builder.PrependFloat64Slot(2, fairRate, None)
 
 def AddFairRate(builder, fairRate):
     CrossCurrencySwapResponseAddFairRate(builder, fairRate)
 
 def CrossCurrencySwapResponseAddFairSpread(builder, fairSpread):
-    builder.PrependFloat64Slot(6, fairSpread, None)
+    builder.PrependFloat64Slot(3, fairSpread, None)
 
 def AddFairSpread(builder, fairSpread):
     CrossCurrencySwapResponseAddFairSpread(builder, fairSpread)
 
 def CrossCurrencySwapResponseAddFxSpotUsed(builder, fxSpotUsed):
-    builder.PrependFloat64Slot(7, fxSpotUsed, 0.0)
+    builder.PrependFloat64Slot(4, fxSpotUsed, 0.0)
 
 def AddFxSpotUsed(builder, fxSpotUsed):
     CrossCurrencySwapResponseAddFxSpotUsed(builder, fxSpotUsed)
 
 def CrossCurrencySwapResponseAddFxAsOfRate(builder, fxAsOfRate):
-    builder.PrependFloat64Slot(8, fxAsOfRate, 0.0)
+    builder.PrependFloat64Slot(5, fxAsOfRate, 0.0)
 
 def AddFxAsOfRate(builder, fxAsOfRate):
     CrossCurrencySwapResponseAddFxAsOfRate(builder, fxAsOfRate)
 
 def CrossCurrencySwapResponseAddSpotDate(builder, spotDate):
-    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(spotDate), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(spotDate), 0)
 
 def AddSpotDate(builder, spotDate):
     CrossCurrencySwapResponseAddSpotDate(builder, spotDate)
-
-def CrossCurrencySwapResponseAddLeg1Flows(builder, leg1Flows):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(leg1Flows), 0)
-
-def AddLeg1Flows(builder, leg1Flows):
-    CrossCurrencySwapResponseAddLeg1Flows(builder, leg1Flows)
-
-def CrossCurrencySwapResponseStartLeg1FlowsVector(builder, numElems):
-    return builder.StartVector(4, numElems, 4)
-
-def StartLeg1FlowsVector(builder, numElems):
-    return CrossCurrencySwapResponseStartLeg1FlowsVector(builder, numElems)
-
-def CrossCurrencySwapResponseAddLeg2Flows(builder, leg2Flows):
-    builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(leg2Flows), 0)
-
-def AddLeg2Flows(builder, leg2Flows):
-    CrossCurrencySwapResponseAddLeg2Flows(builder, leg2Flows)
-
-def CrossCurrencySwapResponseStartLeg2FlowsVector(builder, numElems):
-    return builder.StartVector(4, numElems, 4)
-
-def StartLeg2FlowsVector(builder, numElems):
-    return CrossCurrencySwapResponseStartLeg2FlowsVector(builder, numElems)
 
 def CrossCurrencySwapResponseEnd(builder):
     return builder.EndObject()
@@ -298,17 +199,12 @@ class CrossCurrencySwapResponseT(object):
     # CrossCurrencySwapResponseT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.leg1Npv = 0.0  # type: float
-        self.leg2Npv = 0.0  # type: float
-        self.leg1NpvReporting = 0.0  # type: float
-        self.leg2NpvReporting = 0.0  # type: float
+        self.legs = None  # type: List[SwapLegResultT]
         self.fairRate = None  # type: Optional[float]
         self.fairSpread = None  # type: Optional[float]
         self.fxSpotUsed = 0.0  # type: float
         self.fxAsOfRate = 0.0  # type: float
         self.spotDate = None  # type: str
-        self.leg1Flows = None  # type: List[SwapLegFlowT]
-        self.leg2Flows = None  # type: List[SwapLegFlowT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -332,67 +228,41 @@ class CrossCurrencySwapResponseT(object):
         if crossCurrencySwapResponse is None:
             return
         self.npv = crossCurrencySwapResponse.Npv()
-        self.leg1Npv = crossCurrencySwapResponse.Leg1Npv()
-        self.leg2Npv = crossCurrencySwapResponse.Leg2Npv()
-        self.leg1NpvReporting = crossCurrencySwapResponse.Leg1NpvReporting()
-        self.leg2NpvReporting = crossCurrencySwapResponse.Leg2NpvReporting()
+        if not crossCurrencySwapResponse.LegsIsNone():
+            self.legs = []
+            for i in range(crossCurrencySwapResponse.LegsLength()):
+                if crossCurrencySwapResponse.Legs(i) is None:
+                    self.legs.append(None)
+                else:
+                    swapLegResult_ = SwapLegResultT.InitFromObj(crossCurrencySwapResponse.Legs(i))
+                    self.legs.append(swapLegResult_)
         self.fairRate = crossCurrencySwapResponse.FairRate()
         self.fairSpread = crossCurrencySwapResponse.FairSpread()
         self.fxSpotUsed = crossCurrencySwapResponse.FxSpotUsed()
         self.fxAsOfRate = crossCurrencySwapResponse.FxAsOfRate()
         self.spotDate = crossCurrencySwapResponse.SpotDate()
-        if not crossCurrencySwapResponse.Leg1FlowsIsNone():
-            self.leg1Flows = []
-            for i in range(crossCurrencySwapResponse.Leg1FlowsLength()):
-                if crossCurrencySwapResponse.Leg1Flows(i) is None:
-                    self.leg1Flows.append(None)
-                else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(crossCurrencySwapResponse.Leg1Flows(i))
-                    self.leg1Flows.append(swapLegFlow_)
-        if not crossCurrencySwapResponse.Leg2FlowsIsNone():
-            self.leg2Flows = []
-            for i in range(crossCurrencySwapResponse.Leg2FlowsLength()):
-                if crossCurrencySwapResponse.Leg2Flows(i) is None:
-                    self.leg2Flows.append(None)
-                else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(crossCurrencySwapResponse.Leg2Flows(i))
-                    self.leg2Flows.append(swapLegFlow_)
 
     # CrossCurrencySwapResponseT
     def Pack(self, builder):
+        if self.legs is not None:
+            legslist = []
+            for i in range(len(self.legs)):
+                legslist.append(self.legs[i].Pack(builder))
+            CrossCurrencySwapResponseStartLegsVector(builder, len(self.legs))
+            for i in reversed(range(len(self.legs))):
+                builder.PrependUOffsetTRelative(legslist[i])
+            legs = builder.EndVector()
         if self.spotDate is not None:
             spotDate = builder.CreateString(self.spotDate)
-        if self.leg1Flows is not None:
-            leg1Flowslist = []
-            for i in range(len(self.leg1Flows)):
-                leg1Flowslist.append(self.leg1Flows[i].Pack(builder))
-            CrossCurrencySwapResponseStartLeg1FlowsVector(builder, len(self.leg1Flows))
-            for i in reversed(range(len(self.leg1Flows))):
-                builder.PrependUOffsetTRelative(leg1Flowslist[i])
-            leg1Flows = builder.EndVector()
-        if self.leg2Flows is not None:
-            leg2Flowslist = []
-            for i in range(len(self.leg2Flows)):
-                leg2Flowslist.append(self.leg2Flows[i].Pack(builder))
-            CrossCurrencySwapResponseStartLeg2FlowsVector(builder, len(self.leg2Flows))
-            for i in reversed(range(len(self.leg2Flows))):
-                builder.PrependUOffsetTRelative(leg2Flowslist[i])
-            leg2Flows = builder.EndVector()
         CrossCurrencySwapResponseStart(builder)
         CrossCurrencySwapResponseAddNpv(builder, self.npv)
-        CrossCurrencySwapResponseAddLeg1Npv(builder, self.leg1Npv)
-        CrossCurrencySwapResponseAddLeg2Npv(builder, self.leg2Npv)
-        CrossCurrencySwapResponseAddLeg1NpvReporting(builder, self.leg1NpvReporting)
-        CrossCurrencySwapResponseAddLeg2NpvReporting(builder, self.leg2NpvReporting)
+        if self.legs is not None:
+            CrossCurrencySwapResponseAddLegs(builder, legs)
         CrossCurrencySwapResponseAddFairRate(builder, self.fairRate)
         CrossCurrencySwapResponseAddFairSpread(builder, self.fairSpread)
         CrossCurrencySwapResponseAddFxSpotUsed(builder, self.fxSpotUsed)
         CrossCurrencySwapResponseAddFxAsOfRate(builder, self.fxAsOfRate)
         if self.spotDate is not None:
             CrossCurrencySwapResponseAddSpotDate(builder, spotDate)
-        if self.leg1Flows is not None:
-            CrossCurrencySwapResponseAddLeg1Flows(builder, leg1Flows)
-        if self.leg2Flows is not None:
-            CrossCurrencySwapResponseAddLeg2Flows(builder, leg2Flows)
         crossCurrencySwapResponse = CrossCurrencySwapResponseEnd(builder)
         return crossCurrencySwapResponse

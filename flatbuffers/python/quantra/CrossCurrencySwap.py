@@ -6,12 +6,15 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Cross-currency swap: two coupon legs in two currencies, each with its own
-# discounting (and forwarding) curve and its own principal exchanges. Priced
-# as two QuantLib legs (coupons plus `SimpleCashFlow` exchanges), each NPV'd
-# on its own curve and converted to the reporting currency at the as-of
-# exchange rate implied by the FX spot and the two discount curves (see
-# `CrossCurrencySwapResponse`).
+# Cross-currency swap: two `SwapLeg`s in two different currencies (400 when
+# equal: two legs in one currency are a vanilla, OIS or basis swap), each
+# with its own discounting (and forwarding) curve and its own principal
+# exchanges, one paid and one received (`SwapLeg.pay_receive`; 400 when
+# both legs take the same side). Any combination of coupon kinds is allowed
+# (fixed/float, float/float, fixed/fixed). Priced as two QuantLib legs
+# (coupons plus `SimpleCashFlow` exchanges), each NPV'd on its own curve and
+# converted to the reporting currency at the as-of exchange rate implied by
+# the FX spot and the two discount curves (see `CrossCurrencySwapResponse`).
 class CrossCurrencySwap(object):
     __slots__ = ['_tab']
 
@@ -30,61 +33,43 @@ class CrossCurrencySwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Side of the party whose NPV is reported: `Payer` pays `leg1` (its
-    # coupons, and its principal as the leg's receiver would receive it:
-    # the payer of the coupons receives the initial exchange and pays the
-    # final one) and receives `leg2`; `Receiver` the opposite.
-    # Presence-required.
-    # CrossCurrencySwap
-    def SwapType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # First leg. Required.
+    # First leg. Required. Reported as `legs[0]`.
     # CrossCurrencySwap
     def Leg1(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.XccyLeg import XccyLeg
-            obj = XccyLeg()
+            from quantra.SwapLeg import SwapLeg
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
-    # Second leg, in the other currency. Required.
+    # Second leg, in the other currency. Required. Reported as `legs[1]`.
     # CrossCurrencySwap
     def Leg2(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            obj = XccyLeg()
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def CrossCurrencySwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(2)
 
 def Start(builder):
     CrossCurrencySwapStart(builder)
 
-def CrossCurrencySwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, None)
-
-def AddSwapType(builder, swapType):
-    CrossCurrencySwapAddSwapType(builder, swapType)
-
 def CrossCurrencySwapAddLeg1(builder, leg1):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(leg1), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(leg1), 0)
 
 def AddLeg1(builder, leg1):
     CrossCurrencySwapAddLeg1(builder, leg1)
 
 def CrossCurrencySwapAddLeg2(builder, leg2):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(leg2), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(leg2), 0)
 
 def AddLeg2(builder, leg2):
     CrossCurrencySwapAddLeg2(builder, leg2)
@@ -104,9 +89,8 @@ class CrossCurrencySwapT(object):
 
     # CrossCurrencySwapT
     def __init__(self):
-        self.swapType = None  # type: Optional[int]
-        self.leg1 = None  # type: Optional[XccyLegT]
-        self.leg2 = None  # type: Optional[XccyLegT]
+        self.leg1 = None  # type: Optional[SwapLegT]
+        self.leg2 = None  # type: Optional[SwapLegT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -129,11 +113,10 @@ class CrossCurrencySwapT(object):
     def _UnPack(self, crossCurrencySwap):
         if crossCurrencySwap is None:
             return
-        self.swapType = crossCurrencySwap.SwapType()
         if crossCurrencySwap.Leg1() is not None:
-            self.leg1 = XccyLegT.InitFromObj(crossCurrencySwap.Leg1())
+            self.leg1 = SwapLegT.InitFromObj(crossCurrencySwap.Leg1())
         if crossCurrencySwap.Leg2() is not None:
-            self.leg2 = XccyLegT.InitFromObj(crossCurrencySwap.Leg2())
+            self.leg2 = SwapLegT.InitFromObj(crossCurrencySwap.Leg2())
 
     # CrossCurrencySwapT
     def Pack(self, builder):
@@ -142,7 +125,6 @@ class CrossCurrencySwapT(object):
         if self.leg2 is not None:
             leg2 = self.leg2.Pack(builder)
         CrossCurrencySwapStart(builder)
-        CrossCurrencySwapAddSwapType(builder, self.swapType)
         if self.leg1 is not None:
             CrossCurrencySwapAddLeg1(builder, leg1)
         if self.leg2 is not None:

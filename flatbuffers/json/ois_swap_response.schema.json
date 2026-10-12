@@ -73,6 +73,10 @@
       "type" : "string",
       "enum": ["Payer", "Receiver"]
     },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
     "quantra_enums_FRAType" : {
       "type" : "string",
       "enum": ["Long", "Short"]
@@ -357,7 +361,7 @@
               },
         "kind" : {
                 "$ref" : "#/definitions/quantra_enums_SwapFlowKind",
-                "description" : "Kind of flow. Set on every flow of a cross-currency swap leg, whose\nlists mix coupons and notional exchanges (a NotionalExchange flow has\n`payment_date`, `amount`, `discount`, `present_value` and `kind` only).\nAbsent on the other swap endpoints, whose flows are all coupons."
+                "description" : "Kind of flow. Set on every flow of a `SwapLeg` result\n(`SwapLegResult.flows`), whose lists mix coupons and notional exchanges\n(a NotionalExchange flow has `payment_date`, `amount`, `discount`,\n`present_value` and `kind` only). Absent on the other swap endpoints,\nwhose flows are all coupons."
               }
       },
       "additionalProperties" : false

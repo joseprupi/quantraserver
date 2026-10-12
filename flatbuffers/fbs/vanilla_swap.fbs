@@ -4,8 +4,12 @@ include "index.fbs";
 
 namespace quantra;
 
-/// Fixed leg of a swap.
-table SwapFixedLeg {
+/// Fixed-rate coupons of a swap leg: `notional x rate x accrual` per period of
+/// `schedule`, paid on the period end adjusted with `payment_convention`.
+/// Used as `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg` and as the
+/// `FixedCoupons` member of `SwapLeg.coupons`. (Named `SwapFixedLeg` before
+/// 0.9.0; the field names are unchanged.)
+table FixedCoupons {
     schedule:Schedule;
     /// Constant notional. Presence-required and must be > 0 (unless the
     /// per-period `notionals` vector is supplied). A bare double would default
@@ -14,15 +18,28 @@ table SwapFixedLeg {
     /// Optional per-period notionals, one entry per coupon period in schedule
     /// order. Present => amortizing/step-up leg (overrides `notional`); absent
     /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-    /// path; other readers (OIS, swaption underlying) reject a present value.
+    /// path; other readers (OIS, swaption underlying, `SwapLeg`) reject a
+    /// present value.
     notionals:[double];
+    /// Annual coupon rate as a decimal (0.032 = 3.20%). May be negative.
     rate:double;
+    /// Accrual day count of the coupons. Presence-required.
     day_counter:enums.DayCounter = null;
+    /// Business-day convention applied to the payment dates. Presence-required.
+    /// Not read by `price-vanilla-swap`, whose QuantLib::VanillaSwap adjusts
+    /// both legs with the floating schedule's convention; read by every other
+    /// reader.
     payment_convention:enums.BusinessDayConvention = null;
 }
 
-/// Floating leg of a swap.
-table SwapFloatingLeg {
+/// IBOR floating coupons of a swap leg: one fixing of `index` per period of
+/// `schedule` (`fixing_days` before the accrual start, or at the accrual end
+/// with `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as
+/// `VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`
+/// member of `SwapLeg.coupons`, where the index must be an IBOR index (an
+/// overnight index is a 400 naming `OvernightCoupons`). (Named
+/// `SwapFloatingLeg` before 0.9.0; the field names are unchanged.)
+table IborCoupons {
     schedule:Schedule;
     /// Constant notional. Presence-required and must be > 0 (unless the
     /// per-period `notionals` vector is supplied). A bare double would default
@@ -31,15 +48,27 @@ table SwapFloatingLeg {
     /// Optional per-period notionals, one entry per coupon period in schedule
     /// order. Present => amortizing/step-up leg (overrides `notional`); absent
     /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-    /// path; other readers (basis swap, swaption underlying) reject a present
-    /// value.
+    /// path; other readers (basis swap, swaption underlying, `SwapLeg`)
+    /// reject a present value.
     notionals:[double];
     /// Reference to an IndexDef by id (e.g., "EUR_6M").
     index:IndexRef (required);
+    /// Additive spread over the index fixing, as a decimal (0.0005 = 5 bp).
+    /// Keeps a literal 0.0 default: zero is the market-standard value.
     spread:double = 0.0;
+    /// Accrual day count of the coupons. Presence-required.
     day_counter:enums.DayCounter = null;
+    /// Business-day convention applied to the payment dates. Presence-required.
+    /// Not read by `price-vanilla-swap`'s constant-notional in-advance path
+    /// (QuantLib::VanillaSwap uses the floating schedule's convention).
     payment_convention:enums.BusinessDayConvention = null;
+    /// Fixing lag in business days before each accrual start. Not read by
+    /// `price-vanilla-swap`'s constant-notional in-advance path, which fixes
+    /// on the index's own `fixing_days`; read everywhere else.
     fixing_days:int = 2;
+    /// When true the coupon fixes at the end of its accrual period (no
+    /// convexity adjustment is priced: the zero-volatility pricer reads the
+    /// shifted fixing).
     in_arrears:bool = false;
 }
 
@@ -63,9 +92,12 @@ table CmsPricerSpec {
     hagan_hard_upper_limit:double = -1.0;
 }
 
-/// CMS leg of a swap.
+/// CMS coupons of a swap leg.
 /// Coupon formula: notional * accrual * (gear * CMSRate + spread).
-table SwapCmsLeg {
+/// Used as `VanillaSwap.cms_leg`; the `CmsCoupons` member of `SwapLeg.coupons`
+/// is rejected by `price-cross-currency-swap` in this version. (Named
+/// `SwapCmsLeg` before 0.9.0; the field names are unchanged.)
+table CmsCoupons {
     /// Coupon/payment schedule.
     schedule:Schedule;
     /// Coupon notional. Presence-required and must be > 0.
@@ -102,12 +134,12 @@ table VanillaSwap {
     /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
     /// type is a 400, never the alphabetical-0 default (Payer).
     swap_type:enums.SwapType = null;
-    fixed_leg:SwapFixedLeg;
+    fixed_leg:FixedCoupons;
     /// Standard IBOR floating leg path.
-    floating_leg:SwapFloatingLeg;
+    floating_leg:IborCoupons;
     /// Optional CMS floating leg path.
     /// Exactly one of floating_leg or cms_leg must be provided.
-    cms_leg:SwapCmsLeg;
+    cms_leg:CmsCoupons;
 }
 
 root_type VanillaSwap;

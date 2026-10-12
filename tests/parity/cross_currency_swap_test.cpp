@@ -1,19 +1,24 @@
-// Cross-currency swap parity and contract tests.
+// Cross-currency swap (`SwapLeg` model) parity and contract tests.
 //
 // Parity: the endpoint's NPVs, fair rate / fair spread and as-of rate must
 // equal the cash-flow algebra the product documents
 // (cross_currency_swap_evaluator.h), evaluated here on QuantLib legs built
-// independently of the engine (FixedRateLeg / IborLeg / OvernightLeg +
-// SimpleCashFlow exchanges, CashFlows::npv / bps) on curves bootstrapped from
-// the fixture's helper set at a flat rate per currency: amounts to 1e-9 of
-// the notional (the two bootstraps agree to ~1e-14 on the discount factors;
-// 25 flows on a 1e7 notional stay well inside 1e-2 currency units), rates to
-// 1e-12 relative. Side, reporting currency, the reprice-at-fair round trips,
-// the exchange conventions and the flows are pinned.
+// independently of the engine
+// (FixedRateLeg / IborLeg / OvernightLeg + SimpleCashFlow exchanges,
+// CashFlows::npv / bps) on curves bootstrapped from the fixture's helper set
+// at a flat rate per currency: amounts to 1e-9 of the notional (the two
+// bootstraps agree to ~1e-14 on the discount factors; 25 flows on a 1e7
+// notional stay well inside 1e-2 currency units), rates to 1e-12 relative.
+// Side, reporting currency, the reprice-at-fair round trips, the exchange
+// conventions and the flows are pinned. An OvernightCoupons leg must
+// reproduce `price-ois-swap`'s overnight leg EXACTLY (EXPECT_DOUBLE_EQ): the
+// same leg builder prices both.
 //
 // Contract: the mapper's validations are 400s naming the field; the leg
-// currency must be its index's; unknown references are 404s.
+// currency must be its index's; the coupon table must match the index kind;
+// unknown references are 404s.
 #include "cross_currency_swap_handler.h"
+#include "ois_swap_handler.h"
 #include "parity_fixture.h"
 
 #include "cross_currency_swap_response_generated.h"
@@ -40,6 +45,7 @@
 
 #include <cmath>
 #include <functional>
+#include <iomanip>
 #include <optional>
 
 namespace quantra { namespace testing {
@@ -107,15 +113,20 @@ struct LegFields {
     const char* discountingCurve;
     const char* forwardingCurve = nullptr; // floating only
     const char* indexId = nullptr;         // floating only
+    /// Absent = the field is left out of the request (a 400).
+    flatbuffers::Optional<quantra::enums::PayReceive> side = quantra::enums::PayReceive_Pay;
 };
 
+/// The default trade: pay EUR 2.55% fixed (annual 30/360, both exchanges),
+/// receive USD SOFR compounded quarterly (both exchanges), NPV in USD.
 struct TradeFields {
     LegFields leg1{"EUR", LegKind::Fixed, kEurNotional, kFixedRate, true, true, "EUR_DISC"};
-    LegFields leg2{"USD", LegKind::Overnight, kUsdNotional, 0.0,       true,
-                   true,  "USD_DISC",         "USD_DISC",   "USD_SOFR"};
-    flatbuffers::Optional<quantra::enums::SwapType> swapType = quantra::enums::SwapType_Payer;
+    LegFields leg2{
+        "USD", LegKind::Overnight, kUsdNotional, 0.0,        true,
+        true,  "USD_DISC",         "USD_DISC",   "USD_SOFR", quantra::enums::PayReceive_Receive};
     const char* spotId = "EURUSD_SPOT";
     const char* reporting = "USD";
+    bool payer() const { return leg1.side.value() == quantra::enums::PayReceive_Pay; }
 };
 
 /// Reference value of one leg in its own frame on an independent curve.
@@ -200,8 +211,8 @@ Reference referencePrice(const TradeFields& t, const QuantLib::Date& asOf) {
         return from == "EUR" ? amount * r.X : amount / r.X;
     };
     const RefLeg l1 = referenceLeg(t.leg1, asOf), l2 = referenceLeg(t.leg2, asOf);
-    const double s1 = t.swapType.value() == quantra::enums::SwapType_Payer ? -1.0 : 1.0;
-    const double s2 = -s1;
+    const double s1 = t.leg1.side.value() == quantra::enums::PayReceive_Pay ? -1.0 : 1.0;
+    const double s2 = t.leg2.side.value() == quantra::enums::PayReceive_Pay ? -1.0 : 1.0;
     r.leg1Npv = s1 * l1.pvOwn;
     r.leg2Npv = s2 * l2.pvOwn;
     r.leg1Rep = convert(r.leg1Npv, t.leg1.currency, t.reporting);
@@ -241,43 +252,82 @@ protected:
         return sb.Finish();
     }
 
-    flatbuffers::Offset<quantra::XccyLeg> fbLeg(
+    flatbuffers::Offset<quantra::FixedCoupons> fbFixed(
         flatbuffers::grpc::MessageBuilder& b, const LegFields& leg) {
-        flatbuffers::Offset<quantra::SwapFixedLeg> fixed = 0;
-        flatbuffers::Offset<quantra::SwapFloatingLeg> floating = 0;
-        if (leg.kind == LegKind::Fixed) {
-            auto sch = fbSchedule(b, quantra::enums::Frequency_Annual);
-            quantra::SwapFixedLegBuilder fl(b);
-            fl.add_notional(leg.notional);
-            fl.add_schedule(sch);
-            fl.add_rate(leg.level);
-            fl.add_day_counter(quantra::enums::DayCounter_Thirty360);
-            fl.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-            fixed = fl.Finish();
-        } else {
-            auto sch = fbSchedule(
-                b, leg.kind == LegKind::Overnight ? quantra::enums::Frequency_Quarterly
-                                                  : quantra::enums::Frequency_Semiannual);
-            auto idx = buildIndexRef(b, leg.indexId);
-            quantra::SwapFloatingLegBuilder fl(b);
-            fl.add_notional(leg.notional);
-            fl.add_schedule(sch);
-            fl.add_index(idx);
-            fl.add_spread(leg.level);
-            fl.add_day_counter(quantra::enums::DayCounter_Actual360);
-            fl.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-            floating = fl.Finish();
+        auto sch = fbSchedule(b, quantra::enums::Frequency_Annual);
+        quantra::FixedCouponsBuilder fl(b);
+        fl.add_notional(leg.notional);
+        fl.add_schedule(sch);
+        fl.add_rate(leg.level);
+        fl.add_day_counter(quantra::enums::DayCounter_Thirty360);
+        fl.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        return fl.Finish();
+    }
+
+    flatbuffers::Offset<quantra::IborCoupons> fbIbor(
+        flatbuffers::grpc::MessageBuilder& b, const LegFields& leg) {
+        auto sch = fbSchedule(b, quantra::enums::Frequency_Semiannual);
+        auto idx = buildIndexRef(b, leg.indexId);
+        quantra::IborCouponsBuilder fl(b);
+        fl.add_notional(leg.notional);
+        fl.add_schedule(sch);
+        fl.add_index(idx);
+        fl.add_spread(leg.level);
+        fl.add_day_counter(quantra::enums::DayCounter_Actual360);
+        fl.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        return fl.Finish();
+    }
+
+    flatbuffers::Offset<quantra::OvernightCoupons> fbOvernight(
+        flatbuffers::grpc::MessageBuilder& b, const LegFields& leg, int paymentLag = 0) {
+        auto sch = fbSchedule(b, quantra::enums::Frequency_Quarterly);
+        auto idx = buildIndexRef(b, leg.indexId);
+        quantra::OvernightCouponsBuilder fl(b);
+        fl.add_notional(leg.notional);
+        fl.add_schedule(sch);
+        fl.add_index(idx);
+        fl.add_spread(leg.level);
+        fl.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        fl.add_payment_calendar(quantra::enums::Calendar_TARGET);
+        fl.add_payment_lag(paymentLag);
+        fl.add_averaging_method(quantra::enums::RateAveragingType_Compound);
+        fl.add_lookback_days(0);
+        fl.add_lockout_days(0);
+        fl.add_apply_observation_shift(false);
+        return fl.Finish();
+    }
+
+    /// `couponsOverride` swaps the coupon table for a mismatching one (the
+    /// index-kind contract tests): the leg's own kind picks the schedule.
+    flatbuffers::Offset<quantra::SwapLeg> fbLeg(
+        flatbuffers::grpc::MessageBuilder& b,
+        const LegFields& leg,
+        std::optional<quantra::SwapCoupons> couponsOverride = std::nullopt,
+        int overnightPaymentLag = 0) {
+        quantra::SwapCoupons kind = leg.kind == LegKind::Fixed ? quantra::SwapCoupons_FixedCoupons
+                                    : leg.kind == LegKind::Overnight
+                                        ? quantra::SwapCoupons_OvernightCoupons
+                                        : quantra::SwapCoupons_IborCoupons;
+        if (couponsOverride) kind = *couponsOverride;
+        flatbuffers::Offset<void> coupons;
+        switch (kind) {
+            case quantra::SwapCoupons_FixedCoupons: coupons = fbFixed(b, leg).Union(); break;
+            case quantra::SwapCoupons_IborCoupons: coupons = fbIbor(b, leg).Union(); break;
+            case quantra::SwapCoupons_OvernightCoupons:
+                coupons = fbOvernight(b, leg, overnightPaymentLag).Union();
+                break;
+            default: coupons = 0;
         }
         auto ccy = b.CreateString(leg.currency);
         auto disc = b.CreateString(leg.discountingCurve);
         flatbuffers::Offset<flatbuffers::String> fwd = 0;
         if (leg.forwardingCurve) fwd = b.CreateString(leg.forwardingCurve);
-        quantra::XccyLegBuilder xl(b);
+        quantra::SwapLegBuilder xl(b);
+        if (leg.side.has_value()) xl.add_pay_receive(leg.side.value());
         xl.add_currency(ccy);
-        if (leg.kind == LegKind::Fixed) {
-            xl.add_fixed_leg(fixed);
-        } else {
-            xl.add_floating_leg(floating);
+        if (kind != quantra::SwapCoupons_NONE) {
+            xl.add_coupons_type(kind);
+            xl.add_coupons(coupons);
         }
         xl.add_initial_exchange(leg.initialExchange);
         xl.add_final_exchange(leg.finalExchange);
@@ -286,13 +336,10 @@ protected:
         return xl.Finish();
     }
 
-    /// Builds and prices a one-swap request on the EUR 3% / USD 4.5% curves
+    /// The market every request here is priced on: EUR 3% / USD 4.5% curves
     /// (EUR_6M and USD_SOFR indices) and the EUR/USD spot.
-    const quantra::CrossCurrencySwapResponse* price(
+    flatbuffers::Offset<quantra::Pricing> fbPricing(
         flatbuffers::grpc::MessageBuilder& b,
-        std::shared_ptr<flatbuffers::grpc::MessageBuilder>& rb,
-        const TradeFields& t,
-        bool includeFlows = false,
         const char* spotBase = "EUR",
         const char* spotQuote = "USD",
         double spotRate = kSpot) {
@@ -306,15 +353,26 @@ protected:
         auto fx = quantra::CreateFxMarketDataDirect(b, &spots);
         auto rates = quantra::CreateRatesMarketData(b, indices, 0, curvesVec, 0);
         auto asOf = b.CreateString("2025-01-15");
-        auto pricing = quantra::CreatePricing(b, asOf, 0, 0, rates, 0, 0, 0, 0, 0, 0, fx);
+        return quantra::CreatePricing(b, asOf, 0, 0, rates, 0, 0, 0, 0, 0, 0, fx);
+    }
 
-        auto leg1 = fbLeg(b, t.leg1);
-        auto leg2 = fbLeg(b, t.leg2);
-        quantra::CrossCurrencySwapBuilder sb(b);
-        if (t.swapType.has_value()) sb.add_swap_type(t.swapType.value());
-        sb.add_leg1(leg1);
-        sb.add_leg2(leg2);
-        auto swap = sb.Finish();
+    /// Builds and prices a one-swap request. `legs` overrides the two legs
+    /// already built (contract tests that need a malformed leg).
+    const quantra::CrossCurrencySwapResponse* price(
+        flatbuffers::grpc::MessageBuilder& b,
+        std::shared_ptr<flatbuffers::grpc::MessageBuilder>& rb,
+        const TradeFields& t,
+        bool includeFlows = false,
+        const char* spotBase = "EUR",
+        const char* spotQuote = "USD",
+        double spotRate = kSpot,
+        std::optional<
+            std::pair<flatbuffers::Offset<quantra::SwapLeg>, flatbuffers::Offset<quantra::SwapLeg>>>
+            legs = std::nullopt) {
+        auto pricing = fbPricing(b, spotBase, spotQuote, spotRate);
+        auto leg1 = legs ? legs->first : fbLeg(b, t.leg1);
+        auto leg2 = legs ? legs->second : fbLeg(b, t.leg2);
+        auto swap = quantra::CreateCrossCurrencySwap(b, leg1, leg2);
         auto entry = quantra::CreatePriceCrossCurrencySwapDirect(b, swap, t.spotId, t.reporting);
         std::vector<flatbuffers::Offset<quantra::PriceCrossCurrencySwap>> entries{entry};
         auto req =
@@ -341,13 +399,21 @@ protected:
         return "";
     }
 
+    static double legNpv(const quantra::CrossCurrencySwapResponse* r, unsigned i) {
+        return r->legs()->Get(i)->npv();
+    }
+    static double legRep(const quantra::CrossCurrencySwapResponse* r, unsigned i) {
+        return r->legs()->Get(i)->npv_reporting();
+    }
+
     void expectMatches(const quantra::CrossCurrencySwapResponse* r, const Reference& ref) {
         const double amountTol = 1e-9 * kUsdNotional;
+        ASSERT_EQ(r->legs()->size(), 2u);
         EXPECT_NEAR(r->npv(), ref.npv, amountTol);
-        EXPECT_NEAR(r->leg1_npv(), ref.leg1Npv, amountTol);
-        EXPECT_NEAR(r->leg2_npv(), ref.leg2Npv, amountTol);
-        EXPECT_NEAR(r->leg1_npv_reporting(), ref.leg1Rep, amountTol);
-        EXPECT_NEAR(r->leg2_npv_reporting(), ref.leg2Rep, amountTol);
+        EXPECT_NEAR(legNpv(r, 0), ref.leg1Npv, amountTol);
+        EXPECT_NEAR(legNpv(r, 1), ref.leg2Npv, amountTol);
+        EXPECT_NEAR(legRep(r, 0), ref.leg1Rep, amountTol);
+        EXPECT_NEAR(legRep(r, 1), ref.leg2Rep, amountTol);
         EXPECT_NEAR(r->fx_as_of_rate(), ref.X, 1e-12 * ref.X);
         EXPECT_DOUBLE_EQ(r->fx_spot_used(), kSpot);
         EXPECT_EQ(r->spot_date()->str(), "2025-01-17");
@@ -376,12 +442,12 @@ TEST_F(CrossCurrencySwapParityTest, FixedVsOvernight_MatchesCashFlowAlgebra) {
     // Paying 2.55% fixed on a flat 3% curve (with both exchanges: a bond
     // bought below par) is in the payer's favour; the received SOFR leg with
     // its exchanges is a par floater on its own curve, NPV ~ 0.
-    EXPECT_GT(r->leg1_npv(), 0.0);
-    EXPECT_NEAR(r->leg2_npv(), 0.0, 1e-3 * kUsdNotional);
+    EXPECT_GT(legNpv(r, 0), 0.0);
+    EXPECT_NEAR(legNpv(r, 1), 0.0, 1e-3 * kUsdNotional);
     EXPECT_GT(r->npv(), 0.0);
     EXPECT_GT(r->fair_rate().value(), kFixedRate);
-    EXPECT_DOUBLE_EQ(r->leg2_npv_reporting(), r->leg2_npv());
-    EXPECT_FALSE(r->leg1_flows());
+    EXPECT_DOUBLE_EQ(legRep(r, 1), legNpv(r, 1));
+    EXPECT_FALSE(r->legs()->Get(0)->flows());
 }
 
 TEST_F(CrossCurrencySwapParityTest, FloatVsFloat_MatchesCashFlowAlgebra) {
@@ -390,8 +456,9 @@ TEST_F(CrossCurrencySwapParityTest, FloatVsFloat_MatchesCashFlowAlgebra) {
     TradeFields t;
     t.leg1 = LegFields{"EUR", LegKind::Ibor, kEurNotional, -0.0015, true,
                        true,  "EUR_DISC",    "EUR_DISC",   "EUR_6M"};
-    t.leg2 = LegFields{"USD", LegKind::Overnight, kUsdNotional, 0.0,       true,
-                       true,  "USD_DISC",         "USD_DISC",   "USD_SOFR"};
+    t.leg2 = LegFields{
+        "USD", LegKind::Overnight, kUsdNotional, 0.0,        true,
+        true,  "USD_DISC",         "USD_DISC",   "USD_SOFR", quantra::enums::PayReceive_Receive};
     const auto* r = price(b, rb, t);
     expectMatches(r, referencePrice(t, evaluationDate_));
     EXPECT_TRUE(r->fair_spread().has_value());
@@ -403,12 +470,13 @@ TEST_F(CrossCurrencySwapParityTest, ReceiverIsTheExactNegative) {
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> rb1, rb2;
     const auto* payer = price(b1, rb1, TradeFields{});
     TradeFields t;
-    t.swapType = quantra::enums::SwapType_Receiver;
+    t.leg1.side = quantra::enums::PayReceive_Receive;
+    t.leg2.side = quantra::enums::PayReceive_Pay;
     const auto* receiver = price(b2, rb2, t);
     expectMatches(receiver, referencePrice(t, evaluationDate_));
     EXPECT_DOUBLE_EQ(payer->npv(), -receiver->npv());
-    EXPECT_DOUBLE_EQ(payer->leg1_npv(), -receiver->leg1_npv());
-    EXPECT_DOUBLE_EQ(payer->leg2_npv(), -receiver->leg2_npv());
+    EXPECT_DOUBLE_EQ(legNpv(payer, 0), -legNpv(receiver, 0));
+    EXPECT_DOUBLE_EQ(legNpv(payer, 1), -legNpv(receiver, 1));
     EXPECT_DOUBLE_EQ(payer->fair_rate().value(), receiver->fair_rate().value());
 }
 
@@ -423,11 +491,11 @@ TEST_F(CrossCurrencySwapParityTest, ReportedInBase_UsesTheAsOfExchangeRate) {
     const double X = inUsd->fx_as_of_rate();
     EXPECT_DOUBLE_EQ(inEur->fx_as_of_rate(), X);
     EXPECT_NEAR(inEur->npv() * X, inUsd->npv(), 1e-12 * std::abs(inUsd->npv()));
-    EXPECT_DOUBLE_EQ(inEur->leg1_npv(), inUsd->leg1_npv());
-    EXPECT_DOUBLE_EQ(inEur->leg2_npv(), inUsd->leg2_npv());
-    EXPECT_DOUBLE_EQ(inEur->leg1_npv_reporting(), inEur->leg1_npv());
-    EXPECT_DOUBLE_EQ(inUsd->leg1_npv_reporting(), inUsd->leg1_npv() * X);
-    EXPECT_DOUBLE_EQ(inEur->leg2_npv_reporting(), inEur->leg2_npv() / X);
+    EXPECT_DOUBLE_EQ(legNpv(inEur, 0), legNpv(inUsd, 0));
+    EXPECT_DOUBLE_EQ(legNpv(inEur, 1), legNpv(inUsd, 1));
+    EXPECT_DOUBLE_EQ(legRep(inEur, 0), legNpv(inEur, 0));
+    EXPECT_DOUBLE_EQ(legRep(inUsd, 0), legNpv(inUsd, 0) * X);
+    EXPECT_DOUBLE_EQ(legRep(inEur, 1), legNpv(inEur, 1) / X);
 }
 
 TEST_F(CrossCurrencySwapParityTest, RepricedAtFairRateHasZeroNpv) {
@@ -438,7 +506,8 @@ TEST_F(CrossCurrencySwapParityTest, RepricedAtFairRateHasZeroNpv) {
     atFair.leg1.level = fair;
     EXPECT_NEAR(price(b2, rb2, atFair)->npv(), 0.0, 1e-9 * kEurNotional);
     atFair.reporting = "EUR";
-    atFair.swapType = quantra::enums::SwapType_Receiver;
+    atFair.leg1.side = quantra::enums::PayReceive_Receive;
+    atFair.leg2.side = quantra::enums::PayReceive_Pay;
     const auto* r = price(b3, rb3, atFair);
     EXPECT_NEAR(r->npv(), 0.0, 1e-9 * kEurNotional);
     EXPECT_NEAR(r->fair_rate().value(), fair, 1e-12);
@@ -450,8 +519,9 @@ TEST_F(CrossCurrencySwapParityTest, RepricedAtFairSpreadHasZeroNpv) {
     TradeFields t;
     t.leg1 = LegFields{"USD", LegKind::Overnight, kUsdNotional, 0.0,       true,
                        true,  "USD_DISC",         "USD_DISC",   "USD_SOFR"};
-    t.leg2 = LegFields{"EUR", LegKind::Ibor, kEurNotional, -0.0015, true,
-                       true,  "EUR_DISC",    "EUR_DISC",   "EUR_6M"};
+    t.leg2 =
+        LegFields{"EUR", LegKind::Ibor, kEurNotional, -0.0015,  true,
+                  true,  "EUR_DISC",    "EUR_DISC",   "EUR_6M", quantra::enums::PayReceive_Receive};
     const double fair = price(b1, rb1, t)->fair_spread().value();
     t.leg2.level = fair;
     const auto* r = price(b2, rb2, t);
@@ -472,9 +542,9 @@ TEST_F(CrossCurrencySwapParityTest, ExchangeFlagsAddExactlyThePvOfTheNotionalFlo
     const RefLeg l1 = referenceLeg(TradeFields{}.leg1, evaluationDate_);
     const RefLeg l2 = referenceLeg(TradeFields{}.leg2, evaluationDate_);
     EXPECT_NEAR(
-        finalOnly->leg1_npv(), both->leg1_npv() - kEurNotional * l1.dfStart, 1e-9 * kEurNotional);
+        legNpv(finalOnly, 0), legNpv(both, 0) - kEurNotional * l1.dfStart, 1e-9 * kEurNotional);
     EXPECT_NEAR(
-        finalOnly->leg2_npv(), both->leg2_npv() + kUsdNotional * l2.dfStart, 1e-9 * kUsdNotional);
+        legNpv(finalOnly, 1), legNpv(both, 1) + kUsdNotional * l2.dfStart, 1e-9 * kUsdNotional);
     expectMatches(finalOnly, referencePrice(noInitial, evaluationDate_));
     TradeFields none = noInitial;
     none.leg1.finalExchange = false;
@@ -486,9 +556,11 @@ TEST_F(CrossCurrencySwapParityTest, FlowsListCouponsThenExchangesWithKind) {
     flatbuffers::grpc::MessageBuilder b;
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> rb;
     const auto* r = price(b, rb, TradeFields{}, true);
-    ASSERT_TRUE(r->leg1_flows() && r->leg2_flows());
-    ASSERT_EQ(r->leg1_flows()->size(), 5u + 2u);  // annual fixed + 2 exchanges
-    ASSERT_EQ(r->leg2_flows()->size(), 20u + 2u); // quarterly SOFR + 2 exchanges
+    const auto* flows1 = r->legs()->Get(0)->flows();
+    const auto* flows2 = r->legs()->Get(1)->flows();
+    ASSERT_TRUE(flows1 && flows2);
+    ASSERT_EQ(flows1->size(), 5u + 2u);  // annual fixed + 2 exchanges
+    ASSERT_EQ(flows2->size(), 20u + 2u); // quarterly SOFR + 2 exchanges
     auto check = [&](const flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>* flows,
                      double notional, double legNpv, double sign, bool floating) {
         double pv = 0.0;
@@ -515,15 +587,17 @@ TEST_F(CrossCurrencySwapParityTest, FlowsListCouponsThenExchangesWithKind) {
             flows->Get(n - 1)->payment_date()->str(), flows->Get(n - 3)->payment_date()->str());
         EXPECT_NEAR(pv, legNpv / sign, 1e-6);
     };
-    check(r->leg1_flows(), kEurNotional, r->leg1_npv(), -1.0, false);
-    check(r->leg2_flows(), kUsdNotional, r->leg2_npv(), +1.0, true);
+    check(flows1, kEurNotional, legNpv(r, 0), -1.0, false);
+    check(flows2, kUsdNotional, legNpv(r, 1), +1.0, true);
 }
 
 TEST_F(CrossCurrencySwapParityTest, FixedFixedHasNoFairQuantity) {
     flatbuffers::grpc::MessageBuilder b;
     std::shared_ptr<flatbuffers::grpc::MessageBuilder> rb;
     TradeFields t;
-    t.leg2 = LegFields{"USD", LegKind::Fixed, kUsdNotional, 0.041, true, true, "USD_DISC"};
+    t.leg2 =
+        LegFields{"USD", LegKind::Fixed, kUsdNotional, 0.041,   true,
+                  true,  "USD_DISC",     nullptr,      nullptr, quantra::enums::PayReceive_Receive};
     const auto* r = price(b, rb, t);
     expectMatches(r, referencePrice(t, evaluationDate_));
     EXPECT_FALSE(r->fair_rate().has_value());
@@ -538,8 +612,83 @@ TEST_F(CrossCurrencySwapParityTest, SpotQuotedTheOtherWayRoundIsAccepted) {
     const auto* usdeur = price(b2, rb2, TradeFields{}, false, "USD", "EUR", 1.0 / kSpot);
     EXPECT_NEAR(usdeur->fx_as_of_rate() * eurusd->fx_as_of_rate(), 1.0, 1e-12);
     EXPECT_NEAR(usdeur->npv(), eurusd->npv(), 1e-6);
-    EXPECT_DOUBLE_EQ(usdeur->leg1_npv(), eurusd->leg1_npv());
-    EXPECT_DOUBLE_EQ(usdeur->leg2_npv(), eurusd->leg2_npv());
+    EXPECT_DOUBLE_EQ(legNpv(usdeur, 0), legNpv(eurusd, 0));
+    EXPECT_DOUBLE_EQ(legNpv(usdeur, 1), legNpv(eurusd, 1));
+}
+
+TEST_F(CrossCurrencySwapParityTest, OvernightCouponsReproduceTheOisEndpointLeg) {
+    // The SOFR leg of the swap (OvernightCoupons, received, no exchanges) and
+    // the overnight leg of the same trade on price-ois-swap are built by the
+    // same function of swap_leg_builder, so their NPVs on the same curve are
+    // the same double, with and without a payment lag.
+    for (int paymentLag : {0, 2}) {
+        flatbuffers::grpc::MessageBuilder b;
+        auto pricing = fbPricing(b);
+        TradeFields t;
+        t.leg2.initialExchange = false;
+        t.leg2.finalExchange = false;
+        auto leg1 = fbLeg(b, t.leg1);
+        auto leg2 = fbLeg(b, t.leg2, std::nullopt, paymentLag);
+        auto swap = quantra::CreateCrossCurrencySwap(b, leg1, leg2);
+        std::vector<flatbuffers::Offset<quantra::PriceCrossCurrencySwap>> entries{
+            quantra::CreatePriceCrossCurrencySwapDirect(b, swap, t.spotId, t.reporting)};
+        b.Finish(quantra::CreatePriceCrossCurrencySwapRequestDirect(b, pricing, &entries, false));
+        CrossCurrencySwapEndpoint endpoint;
+        auto rb = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        rb->Finish(endpoint.request(
+            rb,
+            flatbuffers::GetRoot<quantra::PriceCrossCurrencySwapRequest>(b.GetBufferPointer())));
+        const double xccyLeg =
+            flatbuffers::GetRoot<quantra::PriceCrossCurrencySwapResponse>(rb->GetBufferPointer())
+                ->swaps()
+                ->Get(0)
+                ->legs()
+                ->Get(1)
+                ->npv();
+
+        // The same overnight leg on price-ois-swap (Payer: the overnight leg
+        // is received), fixed leg irrelevant to the compared quantity.
+        flatbuffers::grpc::MessageBuilder ob;
+        auto oPricing = fbPricing(ob);
+        auto fixedSch = fbSchedule(ob, quantra::enums::Frequency_Annual);
+        quantra::FixedCouponsBuilder flb(ob);
+        flb.add_notional(kUsdNotional);
+        flb.add_schedule(fixedSch);
+        flb.add_rate(0.04);
+        flb.add_day_counter(quantra::enums::DayCounter_Actual360);
+        flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        auto fixedLeg = flb.Finish();
+        auto onLeg = fbOvernight(ob, t.leg2, paymentLag);
+        quantra::OisSwapBuilder sb(ob);
+        sb.add_swap_type(quantra::enums::SwapType_Payer);
+        sb.add_fixed_leg(fixedLeg);
+        sb.add_overnight_leg(onLeg);
+        auto ois = sb.Finish();
+        auto dc = ob.CreateString("USD_DISC");
+        quantra::PriceOisSwapBuilder psb(ob);
+        psb.add_ois_swap(ois);
+        psb.add_discounting_curve(dc);
+        psb.add_forwarding_curve(dc);
+        auto swaps =
+            ob.CreateVector(std::vector<flatbuffers::Offset<quantra::PriceOisSwap>>{psb.Finish()});
+        quantra::PriceOisSwapRequestBuilder prb(ob);
+        prb.add_pricing(oPricing);
+        prb.add_swaps(swaps);
+        ob.Finish(prb.Finish());
+        OisSwapEndpoint oisEndpoint;
+        auto orb = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+        orb->Finish(oisEndpoint.request(
+            orb, flatbuffers::GetRoot<quantra::PriceOisSwapRequest>(ob.GetBufferPointer())));
+        const double oisLeg =
+            flatbuffers::GetRoot<quantra::PriceOisSwapResponse>(orb->GetBufferPointer())
+                ->swaps()
+                ->Get(0)
+                ->overnight_leg_npv();
+        std::cout << "  SOFR leg, payment lag " << paymentLag << ": price-cross-currency-swap "
+                  << std::setprecision(17) << xccyLeg << " | price-ois-swap " << oisLeg
+                  << std::endl;
+        EXPECT_DOUBLE_EQ(xccyLeg, oisLeg) << "payment lag " << paymentLag;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -555,20 +704,25 @@ TEST_F(CrossCurrencySwapParityTest, MapperValidationsName_TheField) {
             << "expected '" << expected << "' in '" << msg << "'";
     };
     TradeFields t;
-    t.swapType = flatbuffers::Optional<quantra::enums::SwapType>();
-    check(t, "CrossCurrencySwap.swap_type is required");
+    t.leg1.side = flatbuffers::Optional<quantra::enums::PayReceive>();
+    check(t, "CrossCurrencySwap.leg1.pay_receive is required");
+    t = TradeFields{};
+    t.leg2.side = quantra::enums::PayReceive_Pay;
+    check(
+        t,
+        "CrossCurrencySwap.leg1.pay_receive and CrossCurrencySwap.leg2.pay_receive are both Pay");
     t = TradeFields{};
     t.leg1.notional = 0.0;
-    check(t, "CrossCurrencySwap.leg1.fixed_leg.notional must be positive");
+    check(t, "CrossCurrencySwap.leg1.coupons.notional must be positive");
     t = TradeFields{};
     t.leg2.notional = -1.0;
-    check(t, "CrossCurrencySwap.leg2.floating_leg.notional must be positive");
+    check(t, "CrossCurrencySwap.leg2.coupons.notional must be positive");
     t = TradeFields{};
     t.leg1.forwardingCurve = "EUR_DISC";
-    check(t, "CrossCurrencySwap.leg1.forwarding_curve must be absent with a fixed_leg");
+    check(t, "CrossCurrencySwap.leg1.forwarding_curve must be absent with FixedCoupons");
     t = TradeFields{};
     t.leg2.forwardingCurve = nullptr;
-    check(t, "CrossCurrencySwap.leg2.forwarding_curve is required with a floating_leg");
+    check(t, "CrossCurrencySwap.leg2.forwarding_curve is required with OvernightCoupons");
     t = TradeFields{};
     t.leg1.currency = "EURUSD";
     check(t, "CrossCurrencySwap.leg1.currency must be a three-letter uppercase ISO currency code");
@@ -586,8 +740,43 @@ TEST_F(CrossCurrencySwapParityTest, MapperValidationsName_TheField) {
     t.leg2.currency = "GBP";
     t.reporting = "EUR";
     check(
-        t,
-        "XccyLeg.currency 'GBP' of leg2 does not match the currency USD of its index 'USD_SOFR'");
+        t, "CrossCurrencySwap.leg2.currency 'GBP' does not match the currency USD of its index "
+           "'USD_SOFR'");
+}
+
+TEST_F(CrossCurrencySwapParityTest, CouponTableMustMatchTheIndexKind) {
+    // IborCoupons on the overnight SOFR index names OvernightCoupons;
+    // OvernightCoupons on Euribor 6M names IborCoupons.
+    auto priceWith = [&](std::optional<quantra::SwapCoupons> leg1Kind,
+                         std::optional<quantra::SwapCoupons> leg2Kind, LegFields leg1,
+                         LegFields leg2) {
+        flatbuffers::grpc::MessageBuilder b;
+        std::shared_ptr<flatbuffers::grpc::MessageBuilder> rb;
+        return errorOf([&] {
+            price(
+                b, rb, TradeFields{}, false, "EUR", "USD", kSpot,
+                std::make_pair(fbLeg(b, leg1, leg1Kind), fbLeg(b, leg2, leg2Kind)));
+        });
+    };
+    TradeFields t;
+    std::string msg = priceWith(std::nullopt, quantra::SwapCoupons_IborCoupons, t.leg1, t.leg2);
+    EXPECT_NE(
+        msg.find(
+            "CrossCurrencySwap.leg2.coupons is IborCoupons but its index 'USD_SOFR' is "
+            "an overnight index: use OvernightCoupons"),
+        std::string::npos)
+        << msg;
+    LegFields eurIbor{"EUR", LegKind::Ibor, kEurNotional, 0.0,     true,
+                      true,  "EUR_DISC",    "EUR_DISC",   "EUR_6M"};
+    msg = priceWith(quantra::SwapCoupons_OvernightCoupons, std::nullopt, eurIbor, t.leg2);
+    EXPECT_NE(
+        msg.find(
+            "CrossCurrencySwap.leg1.coupons is OvernightCoupons but its index 'EUR_6M' is "
+            "not an overnight index: use IborCoupons"),
+        std::string::npos)
+        << msg;
+    // A leg without coupons cannot be built: `coupons` is (required) and the
+    // FlatBuffers builder asserts; the JSON parser rejects it (contract suite).
 }
 
 TEST_F(CrossCurrencySwapParityTest, SpotMustQuoteTheLegsPair) {

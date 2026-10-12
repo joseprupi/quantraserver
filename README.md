@@ -36,7 +36,7 @@ Priced instruments:
 - CDS
 - Equity options
 - FX forwards
-- Cross-currency swaps (fixed/float or float/float legs in two currencies, principal exchanges)
+- Cross-currency swaps (two `SwapLeg` legs in two currencies: fixed, IBOR or overnight coupons, principal exchanges)
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
 surface sampling, Hull-White and SABR calibration, and calendar date

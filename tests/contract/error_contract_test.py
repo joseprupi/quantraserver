@@ -1030,7 +1030,7 @@ SCENARIOS = [
     # fixing date, so an omitted value must be a named 400, never a silent
     # default; a negative day count would wrap into QuantLib's unsigned
     # Natural, so it is rejected explicitly. Locked on both the priced leg
-    # (OisFloatingLeg) and the curve helper (OISHelper).
+    # (OvernightCoupons) and the curve helper (OISHelper).
     ("ec:400 ois_swap leg missing payment_lag", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "payment_lag"),
@@ -1262,7 +1262,7 @@ SCENARIOS = [
                            [1e7, 1e7, 1e7, 1e7, 0.0]),
      _ec_body_contains("SwapFixedLeg.notionals entries must be positive")),
     # ---- 400 INVALID_ARGUMENT: shared-table paths reject amortizing notionals ----
-    # SwapFixedLeg / SwapFloatingLeg are shared with the OIS, basis and
+    # FixedCoupons / IborCoupons are shared with the OIS, basis and
     # swaption-underlying paths, which do not support amortizing notionals yet.
     # A present notionals vector must be rejected, never silently ignored.
     ("ec:400 ois_swap fixed leg notionals rejected", "ois_swap",

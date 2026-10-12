@@ -14,16 +14,25 @@
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
+#include <ql/utilities/null.hpp>
 
 #include <limits>
 
 namespace quantra {
 
 QuantLib::Leg BuildFixedRateLeg(const FixedRateLegSpec& spec) {
+    // An empty payment calendar means the schedule's own, which is what
+    // FixedRateLeg falls back to by itself; a zero lag is a plain adjustment.
+    // Both are passed explicitly so the OIS fixed leg (lagged, on the payment
+    // calendar) and the vanilla one go through the identical chain.
+    const QuantLib::Calendar paymentCalendar =
+        spec.paymentCalendar.empty() ? spec.schedule.calendar() : spec.paymentCalendar;
     return QuantLib::FixedRateLeg(spec.schedule)
         .withNotionals(spec.notionals)
         .withCouponRates(spec.rate, spec.dayCounter)
-        .withPaymentAdjustment(spec.paymentConvention);
+        .withPaymentAdjustment(spec.paymentConvention)
+        .withPaymentCalendar(paymentCalendar)
+        .withPaymentLag(spec.paymentLag);
 }
 
 QuantLib::Leg BuildIborLeg(
@@ -51,14 +60,29 @@ QuantLib::Leg BuildIborLeg(
 }
 
 QuantLib::Leg BuildOvernightLeg(
-    const FloatingLegSpec& spec, const std::shared_ptr<QuantLib::OvernightIndex>& index) {
-    // OvernightLeg attaches its own compounding pricer to every coupon.
+    const OvernightLegSpec& spec, const std::shared_ptr<QuantLib::OvernightIndex>& index) {
+    // The chain of QuantLib::OvernightIndexedSwap's constructor: no payment
+    // day counter (the coupons take the index's), the payment calendar
+    // defaulting to the schedule's, lookback <= 0 translated to QuantLib's
+    // off-state Null<Natural> (a literal 0 would force a zero-day lookback
+    // even on an index with a non-zero intrinsic fixing delay). OvernightLeg
+    // attaches its own compounding pricer to every coupon.
+    const QuantLib::Calendar paymentCalendar =
+        spec.paymentCalendar.empty() ? spec.schedule.calendar() : spec.paymentCalendar;
+    const QuantLib::Natural lookbackDays = spec.lookbackDays <= 0
+                                               ? QuantLib::Null<QuantLib::Natural>()
+                                               : static_cast<QuantLib::Natural>(spec.lookbackDays);
     return QuantLib::OvernightLeg(spec.schedule, index)
         .withNotionals(spec.notionals)
-        .withPaymentDayCounter(spec.dayCounter)
-        .withPaymentAdjustment(spec.paymentConvention)
         .withSpreads(spec.spread)
-        .withAveragingMethod(QuantLib::RateAveraging::Compound);
+        .withTelescopicValueDates(spec.telescopicValueDates)
+        .withAveragingMethod(spec.averagingMethod)
+        .withPaymentLag(spec.paymentLag)
+        .withPaymentAdjustment(spec.paymentConvention)
+        .withPaymentCalendar(paymentCalendar)
+        .withLookbackDays(lookbackDays)
+        .withLockoutDays(static_cast<QuantLib::Natural>(spec.lockoutDays))
+        .withObservationShift(spec.applyObservationShift);
 }
 
 void ExtractSwapLegFlows(

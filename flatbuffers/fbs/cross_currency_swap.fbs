@@ -1,66 +1,21 @@
-include "enums.fbs";
-include "vanilla_swap.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// One leg of a cross-currency swap: a fixed or a floating coupon leg in its
-/// own currency, optionally with principal exchanges, discounted on its own
-/// curve. The coupon legs are the ordinary swap legs (`SwapFixedLeg`,
-/// `SwapFloatingLeg`), unchanged; a floating leg's index may be an IBOR index
-/// (one fixing per period) or an overnight index (daily fixings compounded
-/// over each period, paid at the period end with no payment lag).
-///
-/// Principal exchanges follow the leg: the party that RECEIVES the leg's
-/// coupons PAYS the leg's notional on the schedule's start date (initial
-/// exchange) and RECEIVES it with the last coupon (final exchange). In the
-/// leg's own frame the flows are therefore coupons +, initial exchange
-/// -notional, final exchange +notional; `CrossCurrencySwap.swap_type` then
-/// says which leg the reported party pays.
-table XccyLeg {
-    /// ISO 4217 code of the leg's currency (three uppercase letters). A
-    /// floating leg's index must carry the same `IndexDef.currency`; the two
-    /// legs of a swap must differ (two legs in one currency are a basis or a
-    /// vanilla swap: use those endpoints). Required.
-    currency:string (required);
-    /// Fixed coupon leg. Exactly one of `fixed_leg` / `floating_leg`.
-    fixed_leg:SwapFixedLeg;
-    /// Floating coupon leg (IBOR or overnight index). Exactly one of
-    /// `fixed_leg` / `floating_leg`. `in_arrears` is rejected on an overnight
-    /// index (a compounded coupon fixes daily; `fixing_days` is not read for
-    /// it). Per-period `notionals` are not supported on either leg (400).
-    floating_leg:SwapFloatingLeg;
-    /// Whether the leg's notional is exchanged on its schedule's start date
-    /// (paid by the receiver of the leg's coupons). Presence-required.
-    initial_exchange:bool = null;
-    /// Whether the leg's notional is exchanged on the last coupon's payment
-    /// date (received by the receiver of the leg's coupons). Presence-required.
-    final_exchange:bool = null;
-    /// Id of the curve in `pricing.rates.curves` that discounts every flow of
-    /// this leg (for a collateralised trade, the currency's collateral-adjusted
-    /// curve). Required.
-    discounting_curve:string (required);
-    /// Id of the curve the floating index projects off. Required with
-    /// `floating_leg`, rejected with `fixed_leg`.
-    forwarding_curve:string;
-}
-
-/// Cross-currency swap: two coupon legs in two currencies, each with its own
-/// discounting (and forwarding) curve and its own principal exchanges. Priced
-/// as two QuantLib legs (coupons plus `SimpleCashFlow` exchanges), each NPV'd
-/// on its own curve and converted to the reporting currency at the as-of
-/// exchange rate implied by the FX spot and the two discount curves (see
-/// `CrossCurrencySwapResponse`).
+/// Cross-currency swap: two `SwapLeg`s in two different currencies (400 when
+/// equal: two legs in one currency are a vanilla, OIS or basis swap), each
+/// with its own discounting (and forwarding) curve and its own principal
+/// exchanges, one paid and one received (`SwapLeg.pay_receive`; 400 when
+/// both legs take the same side). Any combination of coupon kinds is allowed
+/// (fixed/float, float/float, fixed/fixed). Priced as two QuantLib legs
+/// (coupons plus `SimpleCashFlow` exchanges), each NPV'd on its own curve and
+/// converted to the reporting currency at the as-of exchange rate implied by
+/// the FX spot and the two discount curves (see `CrossCurrencySwapResponse`).
 table CrossCurrencySwap {
-    /// Side of the party whose NPV is reported: `Payer` pays `leg1` (its
-    /// coupons, and its principal as the leg's receiver would receive it:
-    /// the payer of the coupons receives the initial exchange and pays the
-    /// final one) and receives `leg2`; `Receiver` the opposite.
-    /// Presence-required.
-    swap_type:enums.SwapType = null;
-    /// First leg. Required.
-    leg1:XccyLeg (required);
-    /// Second leg, in the other currency. Required.
-    leg2:XccyLeg (required);
+    /// First leg. Required. Reported as `legs[0]`.
+    leg1:SwapLeg (required);
+    /// Second leg, in the other currency. Required. Reported as `legs[1]`.
+    leg2:SwapLeg (required);
 }
 
 root_type CrossCurrencySwap;

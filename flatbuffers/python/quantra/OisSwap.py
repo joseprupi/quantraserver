@@ -39,8 +39,8 @@ class OisSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.SwapFixedLeg import SwapFixedLeg
-            obj = SwapFixedLeg()
+            from quantra.FixedCoupons import FixedCoupons
+            obj = FixedCoupons()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -50,8 +50,8 @@ class OisSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.OisFloatingLeg import OisFloatingLeg
-            obj = OisFloatingLeg()
+            from quantra.OvernightCoupons import OvernightCoupons
+            obj = OvernightCoupons()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -96,8 +96,8 @@ class OisSwapT(object):
     # OisSwapT
     def __init__(self):
         self.swapType = None  # type: Optional[int]
-        self.fixedLeg = None  # type: Optional[SwapFixedLegT]
-        self.overnightLeg = None  # type: Optional[OisFloatingLegT]
+        self.fixedLeg = None  # type: Optional[FixedCouponsT]
+        self.overnightLeg = None  # type: Optional[OvernightCouponsT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -122,9 +122,9 @@ class OisSwapT(object):
             return
         self.swapType = oisSwap.SwapType()
         if oisSwap.FixedLeg() is not None:
-            self.fixedLeg = SwapFixedLegT.InitFromObj(oisSwap.FixedLeg())
+            self.fixedLeg = FixedCouponsT.InitFromObj(oisSwap.FixedLeg())
         if oisSwap.OvernightLeg() is not None:
-            self.overnightLeg = OisFloatingLegT.InitFromObj(oisSwap.OvernightLeg())
+            self.overnightLeg = OvernightCouponsT.InitFromObj(oisSwap.OvernightLeg())
 
     # OisSwapT
     def Pack(self, builder):

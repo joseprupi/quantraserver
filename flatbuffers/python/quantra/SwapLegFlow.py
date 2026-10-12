@@ -122,10 +122,11 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Kind of flow. Set on every flow of a cross-currency swap leg, whose
-    # lists mix coupons and notional exchanges (a NotionalExchange flow has
-    # `payment_date`, `amount`, `discount`, `present_value` and `kind` only).
-    # Absent on the other swap endpoints, whose flows are all coupons.
+    # Kind of flow. Set on every flow of a `SwapLeg` result
+    # (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
+    # (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
+    # `present_value` and `kind` only). Absent on the other swap endpoints,
+    # whose flows are all coupons.
     # SwapLegFlow
     def Kind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
