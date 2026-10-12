@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (fixed/float or float/float legs in two currencies, principal exchanges) |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
     "version": "0.8.2",
     "contact": {
       "name": "Quantra API Support",
@@ -34,7 +34,7 @@
     },
     {
       "name": "FX",
-      "description": "FX forwards priced off FX spots and per-currency discount curves"
+      "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"
     },
     {
       "name": "Curves",
@@ -1633,6 +1633,69 @@
         }
       }
     },
+    "/price-cross-currency-swap": {
+      "post": {
+        "summary": "Price Cross-Currency Swap",
+        "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (one fixed leg) or the fair spread on leg2 (two floating legs), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two fixed or floating (IBOR or compounded overnight) coupon legs in two currencies, each discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only; no currency is inferred from curve or index ids.",
+        "tags": [
+          "FX"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceCrossCurrencySwapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceCrossCurrencySwapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -2126,6 +2189,13 @@
         "enum": [
           "BuyBase",
           "SellBase"
+        ]
+      },
+      "quantra_enums_SwapFlowKind": {
+        "type": "string",
+        "enum": [
+          "Coupon",
+          "NotionalExchange"
         ]
       },
       "quantra_Flow": {
@@ -2652,6 +2722,9 @@
           "rate": {
             "type": "number",
             "description": "Coupon rate: fixed-leg rate or effective floating coupon rate."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/quantra_enums_SwapFlowKind"
           }
         },
         "additionalProperties": false
@@ -6425,6 +6498,140 @@
         ],
         "additionalProperties": false
       },
+      "quantra_XccyLeg": {
+        "type": "object",
+        "description": "One leg of a cross-currency swap: a fixed or a floating coupon leg in its\nown currency, optionally with principal exchanges, discounted on its own\ncurve. The coupon legs are the ordinary swap legs (`SwapFixedLeg`,\n`SwapFloatingLeg`), unchanged; a floating leg's index may be an IBOR index\n(one fixing per period) or an overnight index (daily fixings compounded\nover each period, paid at the period end with no payment lag).\n\nPrincipal exchanges follow the leg: the party that RECEIVES the leg's\ncoupons PAYS the leg's notional on the schedule's start date (initial\nexchange) and RECEIVES it with the last coupon (final exchange). In the\nleg's own frame the flows are therefore coupons +, initial exchange\n-notional, final exchange +notional; `CrossCurrencySwap.swap_type` then\nsays which leg the reported party pays.",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code of the leg's currency (three uppercase letters). A\nfloating leg's index must carry the same `IndexDef.currency`; the two\nlegs of a swap must differ (two legs in one currency are a basis or a\nvanilla swap: use those endpoints). Required."
+          },
+          "fixed_leg": {
+            "$ref": "#/components/schemas/quantra_SwapFixedLeg"
+          },
+          "floating_leg": {
+            "$ref": "#/components/schemas/quantra_SwapFloatingLeg"
+          },
+          "initial_exchange": {
+            "type": "boolean",
+            "description": "Whether the leg's notional is exchanged on its schedule's start date\n(paid by the receiver of the leg's coupons). Presence-required."
+          },
+          "final_exchange": {
+            "type": "boolean",
+            "description": "Whether the leg's notional is exchanged on the last coupon's payment\ndate (received by the receiver of the leg's coupons). Presence-required."
+          },
+          "discounting_curve": {
+            "type": "string",
+            "description": "Id of the curve in `pricing.rates.curves` that discounts every flow of\nthis leg (for a collateralised trade, the currency's collateral-adjusted\ncurve). Required."
+          },
+          "forwarding_curve": {
+            "type": "string",
+            "description": "Id of the curve the floating index projects off. Required with\n`floating_leg`, rejected with `fixed_leg`."
+          }
+        },
+        "required": [
+          "currency",
+          "discounting_curve"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CrossCurrencySwap": {
+        "type": "object",
+        "description": "Cross-currency swap: two coupon legs in two currencies, each with its own\ndiscounting (and forwarding) curve and its own principal exchanges. Priced\nas two QuantLib legs (coupons plus `SimpleCashFlow` exchanges), each NPV'd\non its own curve and converted to the reporting currency at the as-of\nexchange rate implied by the FX spot and the two discount curves (see\n`CrossCurrencySwapResponse`).",
+        "properties": {
+          "swap_type": {
+            "$ref": "#/components/schemas/quantra_enums_SwapType"
+          },
+          "leg1": {
+            "$ref": "#/components/schemas/quantra_XccyLeg"
+          },
+          "leg2": {
+            "$ref": "#/components/schemas/quantra_XccyLeg"
+          }
+        },
+        "required": [
+          "leg1",
+          "leg2"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_CrossCurrencySwapResponse": {
+        "type": "object",
+        "description": "Cross-currency swap pricing result. With, for leg i, L_i the leg's flows\nin its own frame (coupons +, initial exchange -N_i at the schedule start,\nfinal exchange +N_i with the last coupon), D_i its discounting curve,\ns_1 = -1 for `Payer` / +1 for `Receiver` and s_2 = -s_1, S the spot rate\n(delivery on the spot date t_s) and DF_base / DF_quote the discounting\ncurves of the base- and quote-currency legs:\nleg_i_npv = s_i * CashFlows::npv(L_i, D_i)                [currency i]\nX         = S * DF_quote(t_s) / DF_base(t_s)              [quote per base, as of today]\nleg_i_npv_reporting = leg_i_npv, * X or / X               [reporting currency]\nnpv       = leg1_npv_reporting + leg2_npv_reporting       [reporting currency]\nFair quantities hold the other leg and every exchange fixed and solve the\nlinear equation in the fixed rate / the spread with the leg's annuity\nA_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):\nfair_rate   = rate_f   - NPV[in fixed-leg ccy]  / (s_f * A_f)\nfair_spread = spread_2 - NPV[in leg-2 ccy]      / (s_2 * A_2)\nso repricing at the fair value gives npv = 0 to rounding. Every value is\nas of the evaluation date (the curves' reference date).",
+        "properties": {
+          "npv": {
+            "type": "number",
+            "description": "Total present value in `reporting_currency`, positive in favour of the\nparty whose `swap_type` was given."
+          },
+          "leg1_npv": {
+            "type": "number",
+            "description": "Present value of leg1 (coupons and exchanges) in `leg1.currency`,\nsigned from the reported party's view: the leg's own-frame value (as\nits receiver sees it) times -1 when the party pays the leg (`Payer`)\nand +1 when it receives it. A paid leg is therefore negative only\nwhen it is worth paying for: paying a 2.55% fixed leg (with its\nexchanges) on a 3% curve is in the payer's favour and positive."
+          },
+          "leg2_npv": {
+            "type": "number",
+            "description": "Present value of leg2 (coupons and exchanges) in `leg2.currency`,\nsigned the same way (+1 for `Payer`, -1 for `Receiver`)."
+          },
+          "leg1_npv_reporting": {
+            "type": "number",
+            "description": "`leg1_npv` converted to `reporting_currency` at the as-of exchange\nrate (unchanged when leg1 is in the reporting currency)."
+          },
+          "leg2_npv_reporting": {
+            "type": "number",
+            "description": "`leg2_npv` converted to `reporting_currency` at the as-of exchange\nrate (unchanged when leg2 is in the reporting currency)."
+          },
+          "fair_rate": {
+            "type": "number",
+            "description": "Present when exactly one leg is fixed: the fixed rate that zeroes the\ntotal NPV, holding the floating leg and every notional exchange fixed.\nAbsent for float/float and fixed/fixed swaps."
+          },
+          "fair_spread": {
+            "type": "number",
+            "description": "Present when both legs float: the spread on leg2 (by convention) that\nzeroes the total NPV, holding leg1 and every notional exchange fixed.\nAbsent when a leg is fixed."
+          },
+          "fx_spot_used": {
+            "type": "number",
+            "description": "The spot rate the swap was priced with (quote units per base unit of\nthe referenced spot, for delivery on `spot_date`)."
+          },
+          "fx_as_of_rate": {
+            "type": "number",
+            "description": "As-of exchange rate X = S * DF_quote(t_s) / DF_base(t_s) used to\nconvert between the two leg currencies (quote units per base unit of\nthe referenced spot)."
+          },
+          "spot_date": {
+            "type": "string",
+            "description": "Spot date of the referenced spot: the (adjusted) evaluation date\nadvanced `spot_days` business days on its joint calendar, ISO."
+          },
+          "leg1_flows": {
+            "type": "array",
+            "description": "Future flows of leg1 in payment order (`include_flows`), in the leg's\nown frame: coupon amounts positive, the initial exchange -notional, the\nfinal exchange +notional; `kind` tells them apart. The sum of their\n`present_value`s is `leg1_npv / s_1`.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+            }
+          },
+          "leg2_flows": {
+            "type": "array",
+            "description": "Future flows of leg2 (`include_flows`), same conventions as `leg1_flows`.",
+            "items": {
+              "$ref": "#/components/schemas/quantra_SwapLegFlow"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceCrossCurrencySwapResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple cross-currency swaps, in request order.",
+        "properties": {
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_CrossCurrencySwapResponse"
+            }
+          }
+        },
+        "required": [
+          "swaps"
+        ],
+        "additionalProperties": false
+      },
       "quantra_EquityOptionResponse": {
         "type": "object",
         "description": "Equity option pricing result.",
@@ -7078,6 +7285,49 @@
             "items": {
               "$ref": "#/components/schemas/quantra_PriceCDS"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceCrossCurrencySwap": {
+        "type": "object",
+        "description": "One cross-currency swap together with the FX spot that converts between\nits two currencies and the currency its total NPV is reported in. The\nlegs name their own discounting and forwarding curves (`XccyLeg`); every\nreference is by id into `pricing`.",
+        "properties": {
+          "cross_currency_swap": {
+            "$ref": "#/components/schemas/quantra_CrossCurrencySwap"
+          },
+          "fx_spot": {
+            "type": "string",
+            "description": "Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base and quote\ncurrencies must be the two leg currencies, in either order (either leg\nmay be the base-currency leg; the pair is never inverted). The spot\nand the two legs' discounting curves give the as-of exchange rate.\nRequired."
+          },
+          "reporting_currency": {
+            "type": "string",
+            "description": "Currency of the reported `npv`: `leg1.currency` or `leg2.currency`\n(400 for any other value; reporting in a third currency is not\nsupported). Required."
+          }
+        },
+        "required": [
+          "cross_currency_swap",
+          "fx_spot",
+          "reporting_currency"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_PriceCrossCurrencySwapRequest": {
+        "type": "object",
+        "description": "Request to price one or more cross-currency swaps against one market.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceCrossCurrencySwap"
+            }
+          },
+          "include_flows": {
+            "type": "boolean",
+            "description": "When true every response row lists each leg's future flows (coupons\nand notional exchanges) in payment order."
           }
         },
         "additionalProperties": false

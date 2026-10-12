@@ -1730,6 +1730,40 @@ inline const char *EnumNameFxDirection(FxDirection e) {
   return EnumNamesFxDirection()[index];
 }
 
+/// Kind of a swap-leg cash flow. Coupon: an interest payment (fixed or
+/// floating). NotionalExchange: a principal flow of a cross-currency swap
+/// (the initial exchange at the leg's start date, the final one with the last
+/// coupon); it carries no accrual or rate fields.
+enum SwapFlowKind : int8_t {
+  SwapFlowKind_Coupon = 0,
+  SwapFlowKind_NotionalExchange = 1,
+  SwapFlowKind_MIN = SwapFlowKind_Coupon,
+  SwapFlowKind_MAX = SwapFlowKind_NotionalExchange
+};
+
+inline const SwapFlowKind (&EnumValuesSwapFlowKind())[2] {
+  static const SwapFlowKind values[] = {
+    SwapFlowKind_Coupon,
+    SwapFlowKind_NotionalExchange
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwapFlowKind() {
+  static const char * const names[3] = {
+    "Coupon",
+    "NotionalExchange",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwapFlowKind(SwapFlowKind e) {
+  if (::flatbuffers::IsOutRange(e, SwapFlowKind_Coupon, SwapFlowKind_NotionalExchange)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwapFlowKind()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

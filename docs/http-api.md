@@ -571,6 +571,158 @@ reported in EUR, a 1Y forward struck on-market (spot + 1Y points, NPV zero
 to bootstrap accuracy), the spot through an `Fx` quote, and a USD/JPY 3M sale
 on SOFR and TONA OIS curves.
 
+## Cross-currency swap
+
+`POST /price-cross-currency-swap` prices swaps with two coupon legs in two
+currencies: each leg is fixed, IBOR floating or compounded-overnight
+floating, is discounted on its own curve, and exchanges its notional at the
+start and/or at the end. The swap names the FX spot that converts between
+the two currencies (`pricing.fx.spots`, see "FX spot market data") and the
+currency its total NPV is reported in. The legs are the ordinary swap legs
+(`SwapFixedLeg`, `SwapFloatingLeg`, unchanged). QuantLib has no
+cross-currency swap instrument: each leg is a QuantLib cash-flow leg
+(coupons plus `SimpleCashFlow` exchanges) valued with `CashFlows::npv` /
+`CashFlows::bps`; the conversion uses the same as-of exchange rate as the FX
+forward, so a basis swap with the conventions of a `CrossCcyBasisHelper`
+pillar reprices that pillar's spread as its fair spread.
+
+### Request
+
+```json
+{
+  "pricing": { "as_of_date": "2025-01-15",
+               "rates": { "...": "indices EUR_ESTR, USD_SOFR; curves EUR_USD_COLLATERAL, EUR_ESTR_OIS, USD_SOFR_OIS" },
+               "fx": { "spots": [ { "id": "EURUSD_SPOT", "base_currency": "EUR", "quote_currency": "USD",
+                                    "rate": 1.0850, "spot_days": 2,
+                                    "settlement_calendars": ["TARGET", "UnitedStatesSettlement"],
+                                    "business_day_convention": "ModifiedFollowing" } ] } },
+  "swaps": [
+    {
+      "cross_currency_swap": {
+        "swap_type": "Payer",
+        "leg1": {
+          "currency": "EUR",
+          "fixed_leg": { "notional": 10000000.0, "rate": 0.0255, "day_counter": "Thirty360",
+                         "payment_convention": "ModifiedFollowing",
+                         "schedule": { "effective_date": "2025-01-17", "termination_date": "2030-01-17",
+                                       "frequency": "Annual", "calendar": "TARGET", "...": "..." } },
+          "initial_exchange": true,
+          "final_exchange": true,
+          "discounting_curve": "EUR_USD_COLLATERAL"
+        },
+        "leg2": {
+          "currency": "USD",
+          "floating_leg": { "notional": 10850000.0, "index": { "id": "USD_SOFR" }, "spread": 0.0,
+                            "day_counter": "Actual360", "payment_convention": "ModifiedFollowing",
+                            "schedule": { "frequency": "Quarterly", "...": "..." } },
+          "initial_exchange": true,
+          "final_exchange": true,
+          "discounting_curve": "USD_SOFR_OIS",
+          "forwarding_curve": "USD_SOFR_OIS"
+        }
+      },
+      "fx_spot": "EURUSD_SPOT",
+      "reporting_currency": "USD"
+    }
+  ],
+  "include_flows": false
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `cross_currency_swap.swap_type` | Side of the party whose NPV is reported: `Payer` pays `leg1` and receives `leg2`, `Receiver` the opposite. Presence-required. |
+| `leg1`, `leg2` | The two legs (`XccyLeg`), in different currencies. Required. |
+| `legN.currency` | ISO 4217 code of the leg (three uppercase letters). A floating leg's index must carry the same `IndexDef.currency`. Required. |
+| `legN.fixed_leg` / `legN.floating_leg` | Exactly one. The ordinary `SwapFixedLeg` / `SwapFloatingLeg`: constant `notional` (presence-required, `> 0`; per-period `notionals` are rejected), `day_counter` and `payment_convention` presence-required. A floating index may be IBOR (one fixing per period, `fixing_days`, `in_arrears`) or overnight (daily fixings compounded over each period, paid at the period end with no payment lag; `in_arrears` must be false, `fixing_days` is not read). |
+| `legN.initial_exchange` | Whether the leg's notional is exchanged on its schedule's start date. Presence-required. |
+| `legN.final_exchange` | Whether the leg's notional is exchanged on the last coupon's payment date. Presence-required. |
+| `legN.discounting_curve` | Curve in `pricing.rates.curves` that discounts every flow of the leg (for a collateralised trade, the currency's collateral-adjusted curve). Required. |
+| `legN.forwarding_curve` | Curve the floating index projects off. Required with `floating_leg`, rejected with `fixed_leg`. |
+| `fx_spot` | Id in `pricing.fx.spots`. Its base and quote currencies must be the two leg currencies, in either order (either leg may be the base-currency leg; the spot is never inverted). Required. |
+| `reporting_currency` | Currency of `npv`: `leg1.currency` or `leg2.currency`. Any other value is a `400` (a third reporting currency is not supported). Required. |
+| `include_flows` | When true each row lists both legs' future flows (coupons and notional exchanges). Default false. |
+
+### Principal exchanges and signs
+
+The exchanges follow the leg: the party that **receives the leg's coupons
+pays the leg's notional on the schedule's start date** (initial exchange)
+**and receives it with the last coupon** (final exchange). In the leg's own
+frame the flows are therefore coupons `+`, initial exchange `-notional`,
+final exchange `+notional`. `swap_type` then applies the side: a `Payer`
+pays `leg1` (its coupons and, as the payer of the coupons, receives the
+initial exchange and pays the final one) and receives `leg2`. A
+market-standard EUR/USD swap with `notional_USD = notional_EUR x spot` and
+both exchanges on both legs therefore exchanges equal values on the start
+date and re-exchanges the same amounts at maturity.
+
+### Response
+
+One row per swap, in request order.
+
+| Field | Currency / unit | Meaning |
+| --- | --- | --- |
+| `npv` | `reporting_currency` | Total present value, positive in favour of the party whose `swap_type` was given. |
+| `leg1_npv`, `leg2_npv` | the leg's currency | Present value of the leg (coupons and exchanges), signed from the reported party's view: the leg's own-frame value (as its receiver sees it) times `-1` for a leg the party pays and `+1` for a leg it receives. A paid leg is negative only when it is worth paying for (paying 2.55% fixed with both exchanges on a 3% curve is in the payer's favour and positive). |
+| `leg1_npv_reporting`, `leg2_npv_reporting` | `reporting_currency` | The leg NPVs converted at the as-of exchange rate (unchanged for the leg already in the reporting currency); `npv` is their sum. |
+| `fair_rate` | rate (decimal) | Present iff exactly one leg is fixed: the fixed rate that zeroes `npv`, holding the floating leg and every exchange fixed. Absent for float/float and fixed/fixed swaps. |
+| `fair_spread` | rate (decimal) | Present iff both legs float: the spread on **leg2** that zeroes `npv`, holding leg1 and every exchange fixed. Absent when a leg is fixed. |
+| `fx_spot_used` | quote per base of the spot | The spot rate used, inline or through the referenced `Fx` quote. |
+| `fx_as_of_rate` | quote per base of the spot | `X = S x DF_quote(t_s) / DF_base(t_s)` on the two legs' discounting curves (see "FX forward"). |
+| `spot_date` | ISO date | Spot date of the referenced spot. |
+| `leg1_flows`, `leg2_flows` | — | With `include_flows`: the leg's future flows in leg order (coupons first, then the exchanges), in the leg's own frame: coupon amounts positive, the initial exchange `-notional`, the final `+notional`. Every flow carries `kind` (`Coupon` or `NotionalExchange`); a `NotionalExchange` has `payment_date`, `amount`, `discount`, `present_value` and `kind` only. The sum of a leg's `present_value`s is its own-frame PV (`leg_npv` without the side's sign). For an overnight coupon `rate` is the compounded rate (plus spread) and `index_fixing` the fixing on the coupon's first fixing date, as on the OIS endpoint. |
+
+### Pricing
+
+For leg `i` with coupon leg `C_i`, notional `N_i` and discounting curve
+`D_i`, `s_1 = -1` for `Payer` / `+1` for `Receiver`, `s_2 = -s_1`, `S` the
+spot (delivery on the spot date `t_s`) and `DF_base` / `DF_quote` the
+discounting curves of the legs in the spot's base / quote currency:
+
+```
+L_i                 = C_i + [initial_exchange] (-N_i at the schedule start)
+                          + [final_exchange]   (+N_i on the last coupon's payment date)
+leg_i_npv           = s_i * CashFlows::npv(L_i, D_i)              [currency i]
+X                   = S * DF_quote(t_s) / DF_base(t_s)            [quote per base, as of today]
+leg_i_npv_reporting = leg_i_npv  (x X when converting base -> quote, / X the other way)
+npv                 = leg1_npv_reporting + leg2_npv_reporting
+A_i                 = CashFlows::bps(C_i, D_i) / 1e-4             [annuity of the coupons; exchanges excluded]
+fair_rate           = rate_f   - NPV[in the fixed leg's currency] / (s_f * A_f)
+fair_spread         = spread_2 - NPV[in leg2's currency]          / (s_2 * A_2)
+```
+
+The NPV is linear in the fixed rate and in the spread (a fixed coupon is
+`N x rate x accrual`; an IBOR or compounded overnight coupon adds the spread
+to its rate), so repricing at the reported fair value gives an NPV of zero
+to rounding. Flows on the evaluation date are excluded, as for every other
+swap. The spot is per-request data and never cached; the curves are cached as
+usual.
+
+### Rejected requests
+
+Each is a `400` naming the field: an empty `swaps`; a missing `swap_type`;
+a leg with both or neither of `fixed_leg` / `floating_leg`; a missing
+`initial_exchange` or `final_exchange`; a missing `forwarding_curve` on a
+floating leg or a present one on a fixed leg; a missing, non-positive or
+non-finite notional; a per-period `notionals` vector; a missing
+`day_counter` or `payment_convention`; a negative `fixing_days`; a currency
+that is not three uppercase letters; the two legs in the same currency (a
+basis or vanilla swap: use `price-basis-swap` / `price-vanilla-swap`); a leg
+currency that is not its floating index's `IndexDef.currency`; `in_arrears`
+on an overnight index; a spot that does not quote the two leg currencies
+(`PriceCrossCurrencySwap.fx_spot` is named); a `reporting_currency` outside
+the two legs. Missing required strings and tables (`cross_currency_swap`,
+`leg1`, `leg2`, `currency`, `discounting_curve`, `fx_spot`,
+`reporting_currency`) are rejected by the JSON parser. An unknown `fx_spot`,
+curve or index id is a `404`.
+
+Worked examples, each checked against a QuantLib reference in the gate, are
+in `examples/data/cross_currency_swap/`: EUR 2.55% fixed vs USD SOFR with
+both exchanges reported in USD and in EUR, the same struck at its fair rate
+(NPV zero), USD SOFR vs EUR ESTR - 15 bp with both exchanges (fair spread =
+the collateral curve's 5Y basis pillar) and with the final exchange only,
+and USD 4.10% fixed vs EUR Euribor 3M received, reported in EUR.
+
 ## Swaption greeks: units and definitions
 
 `POST /price-swaption` can return greeks under two request flags in
@@ -616,7 +768,8 @@ default, so a `double` that is exactly `0.0` (for example a bond's
 Fields declared optional (`= null` in the schema) are the exception: they are
 absent until the engine sets them. A scalar that the engine computes only under
 a request flag or condition (the swaption greeks, `atm_forward`, `annuity`,
-the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, `fair_spread`) is
+the Hull-White `used_hw_*` diagnostics, `cms_swap_rate`, `fair_spread`, the
+cross-currency swap's `fair_rate` / `fair_spread` and the flow `kind`) is
 declared optional for that reason, so its absence always means "not computed"
 and a reported `0.0` always means "computed and equal to zero".
 

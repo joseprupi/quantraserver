@@ -16,6 +16,7 @@
 #include "calendar_holidays_request_generated.h"
 #include "calendar_holidays_response_generated.h"
 #include "cds_response_generated.h"
+#include "cross_currency_swap_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
 #include "fx_forward_response_generated.h"
 #include "index_generated.h"
@@ -24,6 +25,7 @@
 #include "ois_swap_response_generated.h"
 #include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
+#include "price_cross_currency_swap_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
 #include "price_fx_forward_request_generated.h"
 #include "price_ois_swap_request_generated.h"
@@ -768,6 +770,123 @@ TEST_F(ServerClientTest, FxForward_RoundTrip) {
     EXPECT_EQ(r->maturity_date()->str(), "2025-07-17");
     EXPECT_DOUBLE_EQ(r->fx_spot_used(), spot);
     std::cout << "  npv (USD): " << r->npv() << ", fair forward: " << r->fair_forward_rate()
+              << std::endl;
+}
+
+TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
+    std::cout << "\n=== Server-Client: Cross-Currency Swap ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double eurNotional = 10000000.0, spot = 1.0850;
+    const double usdNotional = eurNotional * spot;
+
+    // One flat curve discounts and projects both currencies: the as-of rate is
+    // then the spot itself and the received SOFR leg with both exchanges is a
+    // par floater on its own curve (NPV ~ 0).
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto rates = quantra::CreateRatesMarketData(b, indices, 0, curves, 0);
+    std::vector<int8_t> calendars = {
+        static_cast<int8_t>(quantra::enums::Calendar_TARGET),
+        static_cast<int8_t>(quantra::enums::Calendar_UnitedStatesSettlement)};
+    std::vector<flatbuffers::Offset<quantra::FxSpotSpec>> spots{quantra::CreateFxSpotSpecDirect(
+        b, "EURUSD_SPOT", "EUR", "USD", spot, nullptr, 2, &calendars,
+        quantra::enums::BusinessDayConvention_ModifiedFollowing)};
+    auto fx = quantra::CreateFxMarketDataDirect(b, &spots);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = quantra::CreatePricing(b, asof, 0, 0, rates, 0, 0, 0, 0, 0, 0, fx);
+
+    auto schedule = [&](quantra::enums::Frequency freq) {
+        auto eff = b.CreateString("2025-01-17");
+        auto term = b.CreateString("2030-01-17");
+        quantra::ScheduleBuilder sb(b);
+        sb.add_effective_date(eff);
+        sb.add_termination_date(term);
+        sb.add_calendar(quantra::enums::Calendar_TARGET);
+        sb.add_frequency(freq);
+        sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        sb.add_end_of_month(false);
+        return sb.Finish();
+    };
+
+    auto fixedSch = schedule(quantra::enums::Frequency_Annual);
+    quantra::SwapFixedLegBuilder fixedB(b);
+    fixedB.add_notional(eurNotional);
+    fixedB.add_schedule(fixedSch);
+    fixedB.add_rate(0.0255);
+    fixedB.add_day_counter(quantra::enums::DayCounter_Thirty360);
+    fixedB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto fixedLeg = fixedB.Finish();
+    auto eur = b.CreateString("EUR");
+    auto discount1 = b.CreateString("discount");
+    quantra::XccyLegBuilder l1(b);
+    l1.add_currency(eur);
+    l1.add_fixed_leg(fixedLeg);
+    l1.add_initial_exchange(true);
+    l1.add_final_exchange(true);
+    l1.add_discounting_curve(discount1);
+    auto leg1 = l1.Finish();
+
+    auto floatSch = schedule(quantra::enums::Frequency_Quarterly);
+    auto sofr = buildIndexRef(b, "USD_SOFR");
+    quantra::SwapFloatingLegBuilder floatB(b);
+    floatB.add_notional(usdNotional);
+    floatB.add_schedule(floatSch);
+    floatB.add_index(sofr);
+    floatB.add_spread(0.0);
+    floatB.add_day_counter(quantra::enums::DayCounter_Actual360);
+    floatB.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+    auto floatLeg = floatB.Finish();
+    auto usd = b.CreateString("USD");
+    auto discount2 = b.CreateString("discount");
+    auto forward2 = b.CreateString("discount");
+    quantra::XccyLegBuilder l2(b);
+    l2.add_currency(usd);
+    l2.add_floating_leg(floatLeg);
+    l2.add_initial_exchange(true);
+    l2.add_final_exchange(true);
+    l2.add_discounting_curve(discount2);
+    l2.add_forwarding_curve(forward2);
+    auto leg2 = l2.Finish();
+
+    quantra::CrossCurrencySwapBuilder sb(b);
+    sb.add_swap_type(quantra::enums::SwapType_Payer);
+    sb.add_leg1(leg1);
+    sb.add_leg2(leg2);
+    auto swap = sb.Finish();
+    std::vector<flatbuffers::Offset<quantra::PriceCrossCurrencySwap>> entries{
+        quantra::CreatePriceCrossCurrencySwapDirect(b, swap, "EURUSD_SPOT", "USD")};
+    b.Finish(quantra::CreatePriceCrossCurrencySwapRequestDirect(b, pricing, &entries, true));
+    auto request = b.ReleaseMessage<quantra::PriceCrossCurrencySwapRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceCrossCurrencySwapResponse> response;
+    auto status = stub_->PriceCrossCurrencySwap(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    ASSERT_EQ(response.GetRoot()->swaps()->size(), 1u);
+    auto r = response.GetRoot()->swaps()->Get(0);
+    EXPECT_TRUE(std::isfinite(r->npv()));
+    EXPECT_NEAR(r->fx_as_of_rate(), spot, 1e-12);
+    EXPECT_DOUBLE_EQ(r->fx_spot_used(), spot);
+    EXPECT_EQ(r->spot_date()->str(), "2025-01-17");
+    EXPECT_GT(r->leg1_npv(), 0.0);                       // pays 2.55% on a 3% curve
+    EXPECT_NEAR(r->leg2_npv(), 0.0, 1e-3 * usdNotional); // par floater + exchanges
+    EXPECT_NEAR(r->leg1_npv_reporting(), r->leg1_npv() * spot, 1e-6);
+    EXPECT_DOUBLE_EQ(r->leg2_npv_reporting(), r->leg2_npv());
+    EXPECT_NEAR(r->npv(), r->leg1_npv_reporting() + r->leg2_npv_reporting(), 1e-6);
+    ASSERT_TRUE(r->fair_rate().has_value());
+    EXPECT_FALSE(r->fair_spread().has_value());
+    ASSERT_TRUE(r->leg1_flows() && r->leg2_flows());
+    EXPECT_EQ(r->leg1_flows()->size(), 5u + 2u);
+    EXPECT_EQ(r->leg2_flows()->size(), 20u + 2u);
+    EXPECT_EQ(
+        r->leg1_flows()->Get(5)->kind().value(), quantra::enums::SwapFlowKind_NotionalExchange);
+    EXPECT_DOUBLE_EQ(r->leg1_flows()->Get(5)->amount(), -eurNotional);
+    std::cout << "  npv (USD): " << r->npv() << ", fair rate: " << r->fair_rate().value()
               << std::endl;
 }
 

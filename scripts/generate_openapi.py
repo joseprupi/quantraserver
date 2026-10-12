@@ -78,6 +78,7 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |
 | Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
 | FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |
+| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (fixed/float or float/float legs in two currencies, principal exchanges) |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -223,6 +224,11 @@ ENDPOINT_METADATA = {
         "summary": "Price Callable Fixed Rate Bond",
         "description": "Calculate NPV, clean/dirty price, and settlement date for callable (or puttable) fixed-rate bonds (QuantLib CallableFixedRateBond) priced on a TreeCallableFixedRateBondEngine over a Hull-White short-rate model referenced by id (the same model mechanism as swaptions, with explicit or calibrated parameters). Option-adjusted spread is a documented future extension.",
         "tags": ["Bonds"]
+    },
+    "cross_currency_swap": {
+        "summary": "Price Cross-Currency Swap",
+        "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (one fixed leg) or the fair spread on leg2 (two floating legs), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two fixed or floating (IBOR or compounded overnight) coupon legs in two currencies, each discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only; no currency is inferred from curve or index ids.",
+        "tags": ["FX"]
     },
     "fx_forward": {
         "summary": "Price FX Forward",
@@ -572,7 +578,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Equity Derivatives", "description": "Equity option pricing"},
-            {"name": "FX", "description": "FX forwards priced off FX spots and per-currency discount curves"},
+            {"name": "FX", "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},

@@ -33,6 +33,7 @@ from quantra.PriceFloatingRateBondRequest import PriceFloatingRateBondRequestT
 from quantra.PriceVanillaSwapRequest import PriceVanillaSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
+from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
@@ -54,6 +55,7 @@ from quantra.PriceFloatingRateBondResponse import PriceFloatingRateBondResponse
 from quantra.PriceVanillaSwapResponse import PriceVanillaSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
+from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
@@ -83,6 +85,7 @@ class Client:
         'vanilla_swap': '/quantra.QuantraServer/PriceVanillaSwap',
         'fra': '/quantra.QuantraServer/PriceFRA',
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
+        'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
@@ -191,6 +194,19 @@ class Client:
             'fx_forward',
             request,
             PriceFxForwardResponse
+        )
+    
+    def price_cross_currency_swaps(
+        self,
+        request: PriceCrossCurrencySwapRequestT
+    ) -> PriceCrossCurrencySwapResponse:
+        """Price cross-currency swaps (two coupon legs in two currencies with
+        principal exchanges; FX spot in pricing.fx, one discounting curve per
+        leg)."""
+        return self._call(
+            'cross_currency_swap',
+            request,
+            PriceCrossCurrencySwapResponse
         )
     
     def price_cap_floors(
@@ -361,6 +377,11 @@ from quantra.FxMarketData import FxMarketDataT
 from quantra.FxForward import FxForwardT
 from quantra.PriceFxForward import PriceFxForwardT
 
+# Cross-currency swap
+from quantra.XccyLeg import XccyLegT
+from quantra.CrossCurrencySwap import CrossCurrencySwapT
+from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
+
 # Cap/Floor
 from quantra.CapFloor import CapFloorT
 from quantra.PriceCapFloor import PriceCapFloorT
@@ -390,6 +411,7 @@ from quantra.enums.Compounding import Compounding
 from quantra.enums.SwapType import SwapType
 from quantra.enums.FRAType import FRAType
 from quantra.enums.FxDirection import FxDirection
+from quantra.enums.SwapFlowKind import SwapFlowKind
 from quantra.enums.CapFloorType import CapFloorType
 from quantra.enums.ExerciseType import ExerciseType
 from quantra.enums.SettlementType import SettlementType
@@ -413,6 +435,7 @@ __all__ = [
     'PriceVanillaSwapRequestT',
     'PriceFRARequestT',
     'PriceFxForwardRequestT',
+    'PriceCrossCurrencySwapRequestT',
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
     'PriceCDSRequestT',
@@ -425,6 +448,7 @@ __all__ = [
     'PriceVanillaSwapResponse',
     'PriceFRAResponse',
     'PriceFxForwardResponse',
+    'PriceCrossCurrencySwapResponse',
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
     'PriceCDSResponse',
@@ -496,6 +520,9 @@ __all__ = [
     'FxMarketDataT',
     'FxForwardT',
     'PriceFxForwardT',
+    'XccyLegT',
+    'CrossCurrencySwapT',
+    'PriceCrossCurrencySwapT',
     'CapFloorT',
     'PriceCapFloorT',
     'SwaptionT',
@@ -520,6 +547,7 @@ __all__ = [
     'SwapType',
     'FRAType',
     'FxDirection',
+    'SwapFlowKind',
     'CapFloorType',
     'ExerciseType',
     'SettlementType',

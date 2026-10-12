@@ -177,6 +177,10 @@
       "type" : "string",
       "enum": ["BuyBase", "SellBase"]
     },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
     "quantra_ConstantOptionletVolatility" : {
       "type" : "object",
       "description" : "Constant optionlet volatility for coupon pricer.",

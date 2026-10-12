@@ -177,6 +177,10 @@
       "type" : "string",
       "enum": ["BuyBase", "SellBase"]
     },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
     "quantra_CalendarHolidaysResponse" : {
       "type" : "object",
       "description" : "Holidays/vacations for a calendar date range.",

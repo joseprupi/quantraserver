@@ -177,6 +177,10 @@
       "type" : "string",
       "enum": ["BuyBase", "SellBase"]
     },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
     "quantra_Flow" : {
       "type" : "string",
       "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
@@ -350,6 +354,10 @@
         "rate" : {
                 "type" : "number",
                 "description" : "Coupon rate: fixed-leg rate or effective floating coupon rate."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwapFlowKind",
+                "description" : "Kind of flow. Set on every flow of a cross-currency swap leg, whose\nlists mix coupons and notional exchanges (a NotionalExchange flow has\n`payment_date`, `amount`, `discount`, `present_value` and `kind` only).\nAbsent on the other swap endpoints, whose flows are all coupons."
               }
       },
       "additionalProperties" : false

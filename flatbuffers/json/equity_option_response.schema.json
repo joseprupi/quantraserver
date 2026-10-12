@@ -177,6 +177,10 @@
       "type" : "string",
       "enum": ["BuyBase", "SellBase"]
     },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
     "quantra_EquityOptionResponse" : {
       "type" : "object",
       "description" : "Equity option pricing result.",

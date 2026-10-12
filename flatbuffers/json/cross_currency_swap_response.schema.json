@@ -1,0 +1,523 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_enums_DayCounter" : {
+      "type" : "string",
+      "enum": ["Actual360", "Actual365Fixed", "Actual365NoLeap", "ActualActual", "ActualActualISMA", "ActualActualBond", "ActualActualISDA", "ActualActualHistorical", "ActualActual365", "ActualActualAFB", "ActualActualEuro", "Business252", "One", "Simple", "Thirty360"]
+    },
+    "quantra_enums_Interpolator" : {
+      "type" : "string",
+      "enum": ["BackwardFlat", "ForwardFlat", "Linear", "LogCubic", "LogLinear"]
+    },
+    "quantra_enums_SurfaceInterpolator2D" : {
+      "type" : "string",
+      "enum": ["Bilinear", "Bicubic"]
+    },
+    "quantra_enums_BootstrapTrait" : {
+      "type" : "string",
+      "enum": ["Discount", "FwdRate", "InterpolatedDiscount", "InterpolatedFwd", "InterpolatedZero", "ZeroRate"]
+    },
+    "quantra_enums_TimeUnit" : {
+      "type" : "string",
+      "enum": ["Days", "Hours", "Microseconds", "Milliseconds", "Minutes", "Months", "Seconds", "Weeks", "Years"]
+    },
+    "quantra_enums_Calendar" : {
+      "type" : "string",
+      "enum": ["Argentina", "Australia", "BespokeCalendar", "Brazil", "Canada", "China", "CzechRepublic", "Denmark", "Finland", "Germany", "HongKong", "Hungary", "Iceland", "India", "Indonesia", "Israel", "Italy", "Japan", "Mexico", "NewZealand", "Norway", "NullCalendar", "Poland", "Romania", "Russia", "SaudiArabia", "Singapore", "Slovakia", "SouthAfrica", "SouthKorea", "Sweden", "Switzerland", "TARGET", "Taiwan", "Turkey", "Ukraine", "UnitedKingdom", "UnitedStates", "UnitedStatesGovernmentBond", "UnitedStatesNERC", "UnitedStatesNYSE", "UnitedStatesSettlement", "WeekendsOnly"]
+    },
+    "quantra_enums_BusinessDayConvention" : {
+      "type" : "string",
+      "enum": ["Following", "HalfMonthModifiedFollowing", "ModifiedFollowing", "ModifiedPreceding", "Nearest", "Preceding", "Unadjusted"]
+    },
+    "quantra_enums_Frequency" : {
+      "type" : "string",
+      "enum": ["Annual", "Bimonthly", "Biweekly", "Daily", "EveryFourthMonth", "EveryFourthWeek", "Monthly", "NoFrequency", "Once", "OtherFrequency", "Quarterly", "Semiannual", "Weekly"]
+    },
+    "quantra_enums_DateGenerationRule" : {
+      "type" : "string",
+      "enum": ["Backward", "CDS", "Forward", "OldCDS", "ThirdWednesday", "Twentieth", "TwentiethIMM", "Zero"]
+    },
+    "quantra_enums_CdsEngineType" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsHelperModel" : {
+      "type" : "string",
+      "enum": ["MidPoint", "ISDA"]
+    },
+    "quantra_enums_CdsQuoteType" : {
+      "type" : "string",
+      "enum": ["ParSpread", "Upfront"]
+    },
+    "quantra_enums_CdsIsdaNumericalFix" : {
+      "type" : "string",
+      "enum": ["None", "Taylor"]
+    },
+    "quantra_enums_CdsIsdaAccrualBias" : {
+      "type" : "string",
+      "enum": ["HalfDayBias", "NoBias"]
+    },
+    "quantra_enums_CdsIsdaForwardsInCouponPeriod" : {
+      "type" : "string",
+      "enum": ["Flat", "Piecewise"]
+    },
+    "quantra_enums_Compounding" : {
+      "type" : "string",
+      "enum": ["Compounded", "Continuous", "Simple", "SimpleThenCompounded"]
+    },
+    "quantra_enums_RateAveragingType" : {
+      "type" : "string",
+      "enum": ["Compound", "Simple"]
+    },
+    "quantra_enums_SwapType" : {
+      "type" : "string",
+      "enum": ["Payer", "Receiver"]
+    },
+    "quantra_enums_FRAType" : {
+      "type" : "string",
+      "enum": ["Long", "Short"]
+    },
+    "quantra_enums_CapFloorType" : {
+      "type" : "string",
+      "enum": ["Cap", "Floor", "Collar"]
+    },
+    "quantra_enums_CallabilityType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_ExerciseType" : {
+      "type" : "string",
+      "enum": ["European", "Bermudan", "American"]
+    },
+    "quantra_enums_SettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_SettlementMethod" : {
+      "type" : "string",
+      "enum": ["PhysicalOTC", "PhysicalCleared", "CollateralizedCashPrice", "ParYieldCurve"]
+    },
+    "quantra_enums_ProtectionSide" : {
+      "type" : "string",
+      "enum": ["Buyer", "Seller"]
+    },
+    "quantra_enums_VolatilityType" : {
+      "type" : "string",
+      "enum": ["Normal", "Lognormal", "ShiftedLognormal"]
+    },
+    "quantra_enums_VolSurfaceShape" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SurfaceFromPrices", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_YoYInflationCapFloorEngineType" : {
+      "type" : "string",
+      "enum": ["Black", "UnitDisplacedBlack", "Bachelier"]
+    },
+    "quantra_enums_SwaptionVolKind" : {
+      "type" : "string",
+      "enum": ["Constant", "AtmMatrix2D", "SmileCube3D", "SabrParams", "SabrCalibrate"]
+    },
+    "quantra_enums_SwaptionStrikeKind" : {
+      "type" : "string",
+      "enum": ["Absolute", "SpreadFromATM"]
+    },
+    "quantra_enums_InflationCurveKind" : {
+      "type" : "string",
+      "enum": ["ZeroInflation", "YoYInflation"]
+    },
+    "quantra_enums_InflationCurveMeasure" : {
+      "type" : "string",
+      "enum": ["ZeroRate", "YoYRate"]
+    },
+    "quantra_enums_CPIInterpolationType" : {
+      "type" : "string",
+      "enum": ["AsIndex", "Flat", "Linear"]
+    },
+    "quantra_enums_BondPriceType" : {
+      "type" : "string",
+      "enum": ["Clean", "Dirty"]
+    },
+    "quantra_enums_IrModelType" : {
+      "type" : "string",
+      "enum": ["Black", "ShiftedBlack", "Bachelier", "HullWhiteLattice"]
+    },
+    "quantra_enums_ModelParamMode" : {
+      "type" : "string",
+      "enum": ["Explicit", "Calibrate"]
+    },
+    "quantra_enums_CmsPricerType" : {
+      "type" : "string",
+      "enum": ["LinearTsr", "HaganAnalytic", "HaganNumeric"]
+    },
+    "quantra_enums_CmsYieldCurveModel" : {
+      "type" : "string",
+      "enum": ["Standard", "ExactYield", "ParallelShifts", "NonParallelShifts"]
+    },
+    "quantra_enums_EquityModelType" : {
+      "type" : "string",
+      "enum": ["BlackScholesAnalytic", "BinomialCRR"]
+    },
+    "quantra_enums_EquityOptionType" : {
+      "type" : "string",
+      "enum": ["Call", "Put"]
+    },
+    "quantra_enums_EquitySettlementType" : {
+      "type" : "string",
+      "enum": ["Physical", "Cash"]
+    },
+    "quantra_enums_EquityBarrierType" : {
+      "type" : "string",
+      "enum": ["DownIn", "UpIn", "DownOut", "UpOut"]
+    },
+    "quantra_enums_EquityBarrierMonitoring" : {
+      "type" : "string",
+      "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
+    "quantra_Flow" : {
+      "type" : "string",
+      "enum": ["NONE", "FlowInterest", "FlowPastInterest", "FlowNotional"]
+    },
+    "quantra_Period" : {
+      "type" : "object",
+      "description" : "Canonical period type used across APIs. Both fields are presence-required:\na bare `n` would silently default to 0 and an omitted `unit` would silently\nmean Months, so a forgotten value is a 400 naming the field rather than a\nsilent (0 Months) tenor.",
+      "properties" : {
+        "n" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
+              },
+        "unit" : {
+                "$ref" : "#/definitions/quantra_enums_TimeUnit"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Yield" : {
+      "type" : "object",
+      "description" : "Yield/compounding convention specification.",
+      "properties" : {
+        "day_counter" : {
+                "$ref" : "#/definitions/quantra_enums_DayCounter"
+              },
+        "compounding" : {
+                "$ref" : "#/definitions/quantra_enums_Compounding"
+              },
+        "frequency" : {
+                "$ref" : "#/definitions/quantra_enums_Frequency"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_Error" : {
+      "type" : "object",
+      "description" : "Error message container.",
+      "properties" : {
+        "error_message" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowInterest" : {
+      "type" : "object",
+      "description" : "Interest cash flow with fixing and accrual metadata.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowPastInterest" : {
+      "type" : "object",
+      "description" : "Past fixed interest cash flow.",
+      "properties" : {
+        "amount" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "rate" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowNotional" : {
+      "type" : "object",
+      "description" : "Notional exchange cash flow.",
+      "properties" : {
+        "date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "price" : {
+                "type" : "number"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_FlowsWrapper" : {
+      "type" : "object",
+      "description" : "Wrapper for a single flow in a collection.",
+      "properties" : {
+        "flow_type" : {
+                "$ref" : "#/definitions/quantra_Flow"
+              },
+        "flow" : {
+                "anyOf": [{ "$ref" : "#/definitions/quantra_FlowInterest" },{ "$ref" : "#/definitions/quantra_FlowPastInterest" },{ "$ref" : "#/definitions/quantra_FlowNotional" }]
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapLegFlow" : {
+      "type" : "object",
+      "description" : "Cashflow for a swap leg.",
+      "properties" : {
+        "payment_date" : {
+                "type" : "string"
+              },
+        "accrual_start_date" : {
+                "type" : "string"
+              },
+        "accrual_end_date" : {
+                "type" : "string"
+              },
+        "amount" : {
+                "type" : "number"
+              },
+        "accrual_year_fraction" : {
+                "type" : "number",
+                "description" : "Accrual year fraction used by the coupon."
+              },
+        "gearing" : {
+                "type" : "number",
+                "description" : "Coupon gearing multiplier (1.0 for fixed coupons)."
+              },
+        "discount" : {
+                "type" : "number"
+              },
+        "present_value" : {
+                "type" : "number"
+              },
+        "fixing_date" : {
+                "type" : "string",
+                "description" : "Floating leg metadata. For overnight coupons this may not represent the compounded effective coupon rate."
+              },
+        "index_fixing" : {
+                "type" : "number",
+                "description" : "Underlying index fixing. For CMS coupons this is the CMS swap-rate fixing."
+              },
+        "cms_swap_rate" : {
+                "type" : "number",
+                "description" : "CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons."
+              },
+        "spread" : {
+                "type" : "number"
+              },
+        "rate" : {
+                "type" : "number",
+                "description" : "Coupon rate: fixed-leg rate or effective floating coupon rate."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwapFlowKind",
+                "description" : "Kind of flow. Set on every flow of a cross-currency swap leg, whose\nlists mix coupons and notional exchanges (a NotionalExchange flow has\n`payment_date`, `amount`, `discount`, `present_value` and `kind` only).\nAbsent on the other swap endpoints, whose flows are all coupons."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_SwapLegResponse" : {
+      "type" : "object",
+      "description" : "Response for a single swap leg.",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "bps" : {
+                "type" : "number"
+              },
+        "flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_VanillaSwapResponse" : {
+      "type" : "object",
+      "description" : "Full vanilla swap pricing response.",
+      "properties" : {
+        "npv" : {
+                "type" : "number"
+              },
+        "fair_rate" : {
+                "type" : "number"
+              },
+        "fair_spread" : {
+                "type" : "number"
+              },
+        "fixed_leg_bps" : {
+                "type" : "number"
+              },
+        "floating_leg_bps" : {
+                "type" : "number"
+              },
+        "fixed_leg_npv" : {
+                "type" : "number"
+              },
+        "floating_leg_npv" : {
+                "type" : "number"
+              },
+        "fixed_leg_flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"},
+                "description" : "Optional detailed flows per leg."
+              },
+        "floating_leg_flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"}
+              },
+        "used_cms_pricer_type" : {
+                "$ref" : "#/definitions/quantra_enums_CmsPricerType",
+                "description" : "Effective CMS pricer type used for CMS leg valuation."
+              },
+        "used_cms_yield_curve_model" : {
+                "$ref" : "#/definitions/quantra_enums_CmsYieldCurveModel",
+                "description" : "Effective yield-curve model used by CMS Hagan-family pricers."
+              },
+        "used_cms_mean_reversion" : {
+                "type" : "number",
+                "description" : "Effective CMS mean reversion used by pricer. Absent when no CMS leg."
+              },
+        "used_cms_hagan_lower_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan lower integration limit. Absent when not applicable."
+              },
+        "used_cms_hagan_upper_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan upper integration limit. Absent when not applicable."
+              },
+        "used_cms_hagan_precision" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan integration precision. Absent when not applicable."
+              },
+        "used_cms_hagan_hard_upper_limit" : {
+                "type" : "number",
+                "description" : "Effective Numeric Hagan hard upper integration limit. Absent when not applicable."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceVanillaSwapResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple vanilla swaps.",
+      "properties" : {
+        "swaps" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_VanillaSwapResponse"}
+              }
+      },
+      "required" : ["swaps"],
+      "additionalProperties" : false
+    },
+    "quantra_CrossCurrencySwapResponse" : {
+      "type" : "object",
+      "description" : "Cross-currency swap pricing result. With, for leg i, L_i the leg's flows\nin its own frame (coupons +, initial exchange -N_i at the schedule start,\nfinal exchange +N_i with the last coupon), D_i its discounting curve,\ns_1 = -1 for `Payer` / +1 for `Receiver` and s_2 = -s_1, S the spot rate\n(delivery on the spot date t_s) and DF_base / DF_quote the discounting\ncurves of the base- and quote-currency legs:\nleg_i_npv = s_i * CashFlows::npv(L_i, D_i)                [currency i]\nX         = S * DF_quote(t_s) / DF_base(t_s)              [quote per base, as of today]\nleg_i_npv_reporting = leg_i_npv, * X or / X               [reporting currency]\nnpv       = leg1_npv_reporting + leg2_npv_reporting       [reporting currency]\nFair quantities hold the other leg and every exchange fixed and solve the\nlinear equation in the fixed rate / the spread with the leg's annuity\nA_i = CashFlows::bps(coupons of leg i, D_i) / 1e-4 (exchanges excluded):\nfair_rate   = rate_f   - NPV[in fixed-leg ccy]  / (s_f * A_f)\nfair_spread = spread_2 - NPV[in leg-2 ccy]      / (s_2 * A_2)\nso repricing at the fair value gives npv = 0 to rounding. Every value is\nas of the evaluation date (the curves' reference date).",
+      "properties" : {
+        "npv" : {
+                "type" : "number",
+                "description" : "Total present value in `reporting_currency`, positive in favour of the\nparty whose `swap_type` was given."
+              },
+        "leg1_npv" : {
+                "type" : "number",
+                "description" : "Present value of leg1 (coupons and exchanges) in `leg1.currency`,\nsigned from the reported party's view: the leg's own-frame value (as\nits receiver sees it) times -1 when the party pays the leg (`Payer`)\nand +1 when it receives it. A paid leg is therefore negative only\nwhen it is worth paying for: paying a 2.55% fixed leg (with its\nexchanges) on a 3% curve is in the payer's favour and positive."
+              },
+        "leg2_npv" : {
+                "type" : "number",
+                "description" : "Present value of leg2 (coupons and exchanges) in `leg2.currency`,\nsigned the same way (+1 for `Payer`, -1 for `Receiver`)."
+              },
+        "leg1_npv_reporting" : {
+                "type" : "number",
+                "description" : "`leg1_npv` converted to `reporting_currency` at the as-of exchange\nrate (unchanged when leg1 is in the reporting currency)."
+              },
+        "leg2_npv_reporting" : {
+                "type" : "number",
+                "description" : "`leg2_npv` converted to `reporting_currency` at the as-of exchange\nrate (unchanged when leg2 is in the reporting currency)."
+              },
+        "fair_rate" : {
+                "type" : "number",
+                "description" : "Present when exactly one leg is fixed: the fixed rate that zeroes the\ntotal NPV, holding the floating leg and every notional exchange fixed.\nAbsent for float/float and fixed/fixed swaps."
+              },
+        "fair_spread" : {
+                "type" : "number",
+                "description" : "Present when both legs float: the spread on leg2 (by convention) that\nzeroes the total NPV, holding leg1 and every notional exchange fixed.\nAbsent when a leg is fixed."
+              },
+        "fx_spot_used" : {
+                "type" : "number",
+                "description" : "The spot rate the swap was priced with (quote units per base unit of\nthe referenced spot, for delivery on `spot_date`)."
+              },
+        "fx_as_of_rate" : {
+                "type" : "number",
+                "description" : "As-of exchange rate X = S * DF_quote(t_s) / DF_base(t_s) used to\nconvert between the two leg currencies (quote units per base unit of\nthe referenced spot)."
+              },
+        "spot_date" : {
+                "type" : "string",
+                "description" : "Spot date of the referenced spot: the (adjusted) evaluation date\nadvanced `spot_days` business days on its joint calendar, ISO."
+              },
+        "leg1_flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"},
+                "description" : "Future flows of leg1 in payment order (`include_flows`), in the leg's\nown frame: coupon amounts positive, the initial exchange -notional, the\nfinal exchange +notional; `kind` tells them apart. The sum of their\n`present_value`s is `leg1_npv / s_1`."
+              },
+        "leg2_flows" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegFlow"},
+                "description" : "Future flows of leg2 (`include_flows`), same conventions as `leg1_flows`."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceCrossCurrencySwapResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple cross-currency swaps, in request order.",
+      "properties" : {
+        "swaps" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CrossCurrencySwapResponse"}
+              }
+      },
+      "required" : ["swaps"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceCrossCurrencySwapResponse"
+}

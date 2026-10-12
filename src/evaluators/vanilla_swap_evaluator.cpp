@@ -2,6 +2,7 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "swap_leg_builder.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
@@ -19,9 +20,6 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quote.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
-#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 #include <cmath>
@@ -280,31 +278,18 @@ VanillaSwapPerSwap priceIborManualLeg(
     const QuantLib::BusinessDayConvention paymentConvention =
         trade.ibor.schedule.businessDayConvention();
 
-    QuantLib::Leg fixedLeg = QuantLib::FixedRateLeg(trade.fixed.schedule)
-                                 .withNotionals(fixedNotionals)
-                                 .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
-                                 .withPaymentAdjustment(paymentConvention);
-
-    QuantLib::Leg iborLeg =
-        QuantLib::IborLeg(trade.ibor.schedule, iborIndex)
-            .withNotionals(iborNotionals)
-            .withPaymentDayCounter(trade.ibor.dayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withSpreads(trade.ibor.spread)
-            .withFixingDays(static_cast<QuantLib::Natural>(trade.ibor.fixingDays))
-            .inArrears(trade.ibor.inArrears);
-
-    // IBOR coupons need a pricer to compute their forward rate; a zero-vol Black
-    // pricer reproduces VanillaSwap's own internal pricing for an in-advance leg
-    // (no convexity/timing adjustment is triggered) and, for an in-arrears leg,
-    // reads the shifted (end-of-period) fixing with no convexity adjustment.
-    auto optionletVol = std::make_shared<QuantLib::ConstantOptionletVolatility>(
-        0, iborIndex->fixingCalendar(), QuantLib::ModifiedFollowing, 0.0,
-        QuantLib::Actual365Fixed());
-    auto iborPricer = std::make_shared<QuantLib::BlackIborCouponPricer>();
-    iborPricer->setCapletVolatility(
-        QuantLib::Handle<QuantLib::OptionletVolatilityStructure>(optionletVol));
-    QuantLib::setCouponPricer(iborLeg, iborPricer);
+    // Both legs come from the shared builders (swap_leg_builder.h): the IBOR
+    // leg carries the zero-vol Black pricer that reproduces VanillaSwap's own
+    // in-advance pricing and reads the end-of-period fixing in arrears.
+    QuantLib::Leg fixedLeg = BuildFixedRateLeg(
+        FixedRateLegSpec{
+            trade.fixed.schedule, fixedNotionals, trade.fixed.rate, trade.fixed.dayCounter,
+            paymentConvention});
+    QuantLib::Leg iborLeg = BuildIborLeg(
+        FloatingLegSpec{
+            trade.ibor.schedule, iborNotionals, trade.ibor.spread, trade.ibor.dayCounter,
+            paymentConvention, trade.ibor.fixingDays, trade.ibor.inArrears},
+        iborIndex);
 
     const bool payerFixed = (trade.swapType == QuantLib::VanillaSwap::Payer);
     std::vector<QuantLib::Leg> legs{fixedLeg, iborLeg};
@@ -388,10 +373,10 @@ VanillaSwapPerSwap priceCmsBranch(
             trade.cms.swaptionVolId + "'");
     }
 
-    QuantLib::Leg fixedLeg = QuantLib::FixedRateLeg(trade.fixed.schedule)
-                                 .withNotionals(trade.fixed.notional)
-                                 .withCouponRates(trade.fixed.rate, trade.fixed.dayCounter)
-                                 .withPaymentAdjustment(trade.fixed.paymentConvention);
+    QuantLib::Leg fixedLeg = BuildFixedRateLeg(
+        FixedRateLegSpec{
+            trade.fixed.schedule, std::vector<double>{trade.fixed.notional}, trade.fixed.rate,
+            trade.fixed.dayCounter, trade.fixed.paymentConvention});
 
     QuantLib::Handle<QuantLib::YieldTermStructure> fwdH(fwdHandle.currentLink());
     QuantLib::Handle<QuantLib::YieldTermStructure> discH(discHandle.currentLink());

@@ -18,6 +18,7 @@ scenario drops in as a one-line CASES addition — no other change needed.
 
 import copy
 import json
+import re
 import time
 from collections import namedtuple
 
@@ -98,6 +99,12 @@ CASES = [
          "fx_forward/fx_forward_eurusd_6m_buy_eur.json", "fx_forwards"),
     Case("fx_forward_eurusd_6m_spot_quote_id", "fx_forward",
          "fx_forward/fx_forward_eurusd_6m_buy_eur_spot_quote_id.json", "fx_forwards"),
+    # Cross-currency swaps on the same three curves: a fixed/float one (fair
+    # rate) and a float/float one (fair spread); the spot is request data.
+    Case("xccy_eur_fixed_vs_usd_sofr_5y", "cross_currency_swap",
+         "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json", "swaps"),
+    Case("xccy_usd_sofr_vs_eur_estr_5y", "cross_currency_swap",
+         "cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json", "swaps"),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row
@@ -851,3 +858,79 @@ def test_fx_forward_spot_change_changes_npv_but_not_the_pure_rates_curves(
         "the FX-implied EUR curve was served from the cache although the spot moved")
     # The original entries still answer the original request.
     assert _canonical(cache_client.price(FX_FORWARD_CASE.product, plain)) == _canonical(off_plain)
+
+
+# ---------------------------------------------------------------------------
+# Cross-currency swap: the spot is request data, the curves are cached
+# ---------------------------------------------------------------------------
+XCCY_SWAP_CASE = next(c for c in CASES if c.id == "xccy_eur_fixed_vs_usd_sofr_5y")
+
+_CURVE_KEY_LINE = re.compile(r"\[CurveCache\] curve=(?P<curve>\S+) key=(?P<key>\S+) ")
+
+
+def _curve_keys(log_path: Path, curve_id: str, start_line: int = 0) -> set:
+    """Set of cache keys the server logged for `curve_id` from `start_line`
+    on (every event: hit, miss, store)."""
+    if not log_path.exists():
+        return set()
+    keys = set()
+    for line in log_path.read_text(errors="replace").splitlines()[start_line:]:
+        m = _CURVE_KEY_LINE.search(line)
+        if m and m.group("curve") == curve_id:
+            keys.add(m.group("key"))
+    return keys
+
+
+def _log_lines(log_path: Path) -> int:
+    return len(log_path.read_text(errors="replace").splitlines()) if log_path.exists() else 0
+
+
+def test_xccy_spot_change_changes_npv_but_not_the_pure_rates_curves(
+        nocache_client, cache_client, data_dir, cache_log_path):
+    """Moving the FX spot re-values the swap's notional exchanges and the
+    FX-implied EUR curve, whose key carries the spot: the moved request must
+    look the curve up under a key the plain request never used, while the
+    pure-rates curves (USD SOFR OIS, EUR ESTR OIS) keep their keys and hit.
+    Keys, not hit counts, are pinned: the moved spot's entry may already be
+    in the cache from an earlier request of the same market (the FX forward
+    test moves the same spot), in which case the moved request legitimately
+    hits it. Cache-ON equals cache-OFF for the moved spot and the original
+    entries still answer the original request."""
+    plain = load_json(data_dir / XCCY_SWAP_CASE.filename)
+    moved = copy.deepcopy(plain)
+    moved["pricing"]["fx"]["spots"][0]["rate"] = 1.0950
+    off_plain = nocache_client.price(XCCY_SWAP_CASE.product, plain)
+    off_moved = nocache_client.price(XCCY_SWAP_CASE.product, moved)
+    assert off_moved["swaps"][0]["npv"] != off_plain["swaps"][0]["npv"], (
+        "a spot change must move the swap's NPV")
+    assert off_moved["swaps"][0]["fx_spot_used"] == 1.0950
+
+    first = _log_lines(cache_log_path)
+    cache_client.price(XCCY_SWAP_CASE.product, plain)       # populate
+    cache_client.price(XCCY_SWAP_CASE.product, plain)       # all three curves hit
+    time.sleep(0.5)
+    plain_keys = {c: _curve_keys(cache_log_path, c, first)
+                  for c in (FX_CURVE_ID,) + FX_FORWARD_PURE_RATES_CURVES}
+    for curve, keys in plain_keys.items():
+        assert len(keys) == 1, f"{curve}: the plain request used keys {keys}"
+    before = {c: _count_curve_hits(cache_log_path, c) for c in FX_FORWARD_PURE_RATES_CURVES}
+
+    mark = _log_lines(cache_log_path)
+    got = cache_client.price(XCCY_SWAP_CASE.product, moved)  # rates curves hit, FX curve re-keyed
+    assert _canonical(got) == _canonical(off_moved), (
+        "cache-ON response for the moved spot differs from cache-OFF")
+    for curve in FX_FORWARD_PURE_RATES_CURVES:
+        after = _wait_for_hits(cache_log_path, curve, before[curve])
+        assert after > before[curve], (
+            f"the pure-rates curve {curve} did not hit the cache after an FX spot "
+            f"change (hits {before[curve]} -> {after})")
+    time.sleep(0.5)
+    moved_fx_keys = _curve_keys(cache_log_path, FX_CURVE_ID, mark)
+    assert moved_fx_keys and not (moved_fx_keys & plain_keys[FX_CURVE_ID]), (
+        f"the FX-implied EUR curve kept its key after the spot moved: "
+        f"{moved_fx_keys} vs {plain_keys[FX_CURVE_ID]}")
+    for curve in FX_FORWARD_PURE_RATES_CURVES:
+        assert _curve_keys(cache_log_path, curve, mark) == plain_keys[curve], (
+            f"the pure-rates curve {curve} changed key on an FX spot move")
+    # The original entries still answer the original request.
+    assert _canonical(cache_client.price(XCCY_SWAP_CASE.product, plain)) == _canonical(off_plain)

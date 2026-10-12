@@ -177,6 +177,10 @@
       "type" : "string",
       "enum": ["BuyBase", "SellBase"]
     },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
+    },
     "quantra_FxForward" : {
       "type" : "object",
       "description" : "Outright FX forward: at `maturity_date` one party delivers `base_notional`\nunits of `base_currency` against `base_notional x forward_rate` units of\n`quote_currency`. Priced off the FX spot and the two discount curves named\non the PriceFxForward wrapper; the engine never infers a currency from a\ncurve or index id.\n\nSign convention: `direction` is the side of the party whose NPV is\nreported and a positive NPV is in favour of that party. A BuyBase forward\nis worth more when the fair forward rises above `forward_rate`.",

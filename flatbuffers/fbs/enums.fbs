@@ -387,3 +387,12 @@ enum FxDirection : byte {
     BuyBase = 0,
     SellBase = 1
 }
+
+/// Kind of a swap-leg cash flow. Coupon: an interest payment (fixed or
+/// floating). NotionalExchange: a principal flow of a cross-currency swap
+/// (the initial exchange at the leg's start date, the final one with the last
+/// coupon); it carries no accrual or rate fields.
+enum SwapFlowKind : byte {
+    Coupon = 0,
+    NotionalExchange = 1
+}

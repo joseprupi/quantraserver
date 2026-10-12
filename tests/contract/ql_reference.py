@@ -2103,6 +2103,177 @@ def price_fx_forward_ql(request: dict) -> dict:
     return {f"fx_forwards.0.{name}": values[name] for name in FX_FORWARD_COMPARED_FIELDS}
 
 
+# =============================================================================
+# Cross-currency swap
+# =============================================================================
+
+
+def _xccy_term_structure(curve):
+    """The QuantLib term structure behind a handle (CashFlows.npv / bps take
+    the structure itself)."""
+    return curve.currentLink() if hasattr(curve, "currentLink") else curve
+
+
+def _xccy_coupon_leg(leg: dict, request: dict, forward_curve):
+    """Coupon leg of one XccyLeg, built exactly as the server's shared leg
+    builder (src/evaluators/swap_leg_builder.cpp) builds it: FixedRateLeg,
+    IborLeg with the zero-vol Black pricer, or OvernightLeg (compounded, no
+    payment lag) when the index is overnight. Returns (ql.Leg, schedule,
+    notional, rate_or_spread, is_fixed)."""
+    if "fixed_leg" in leg:
+        f = leg["fixed_leg"]
+        schedule = _wire_schedule_from(f["schedule"])
+        dc = get_day_counter(f["day_counter"])
+        conv = get_convention(f["payment_convention"])
+        coupons = ql.FixedRateLeg(schedule, dc, [float(f["notional"])], [float(f["rate"])], conv)
+        return coupons, schedule, float(f["notional"]), float(f["rate"]), True
+    f = leg["floating_leg"]
+    schedule = _wire_schedule_from(f["schedule"])
+    dc = get_day_counter(f["day_counter"])
+    conv = get_convention(f["payment_convention"])
+    spread = float(f.get("spread", 0.0))
+    idx_def = find_index_def(f["index"]["id"], request)
+    if idx_def is None:
+        raise ValueError(f"Index not found: {f['index']['id']}")
+    if idx_def.get("index_type") == "Overnight":
+        index = build_overnight_index(idx_def, forward_curve)
+        coupons = ql.OvernightLeg([float(f["notional"])], schedule, index, dc, conv,
+                                  [1.0], [spread], False, ql.RateAveraging.Compound)
+    else:
+        index = build_ibor_index(idx_def, forward_curve)
+        coupons = ql.IborLeg([float(f["notional"])], schedule, index, dc, conv,
+                             [int(f.get("fixing_days", 2))], [1.0], [spread], [], [],
+                             bool(f.get("in_arrears", False)))
+        vol = ql.ConstantOptionletVolatility(
+            0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
+        pricer = ql.BlackIborCouponPricer()
+        pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
+        ql.setCouponPricer(coupons, pricer)
+    return coupons, schedule, float(f["notional"]), spread, False
+
+
+def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
+    """Price one swap of a PriceCrossCurrencySwapRequest with the cash-flow
+    algebra of src/evaluators/cross_currency_swap_evaluator.cpp on QuantLib
+    curves built from the request. For leg i (coupons C_i, notional N_i,
+    discounting curve D_i, own frame = as received by the receiver of the
+    coupons):
+
+      L_i   = C_i + [initial] SimpleCashFlow(-N_i, schedule start)
+                  + [final]   SimpleCashFlow(+N_i, last coupon payment date)
+      leg_i_npv = s_i * CashFlows.npv(L_i, D_i)      s_1 = -1 Payer / +1 Receiver, s_2 = -s_1
+      X     = S * DF_quote(t_s) / DF_base(t_s)        (fx_as_of_exchange_rate_ql)
+      npv   = leg1_npv_reporting + leg2_npv_reporting
+      A_i   = CashFlows.bps(C_i, D_i) / 1e-4
+      fair_rate   = r_f - NPV[fixed ccy] / (s_f * A_f)   (exactly one fixed leg)
+      fair_spread = q_2 - NPV[leg2 ccy]  / (s_2 * A_2)   (both legs floating)
+
+    Returns every scalar response field ({npv, leg1_npv, leg2_npv,
+    leg1_npv_reporting, leg2_npv_reporting, fair_rate?, fair_spread?,
+    fx_spot_used, fx_as_of_rate, spot_date}) plus, under "leg1_pv_own" /
+    "leg2_pv_own", each leg's own-frame PV (not on the wire) and under
+    "leg1_flows" / "leg2_flows" the (date, amount, discount) of every future
+    flow of the full legs, in leg order, for the flows test."""
+    pricing = _reference_pricing_view(request)
+    entry = request["swaps"][index]
+    swap = entry["cross_currency_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    spot = build_fx_spot(request["pricing"], entry["fx_spot"], request)
+
+    curves = {}
+
+    def curve(curve_id):
+        if curve_id not in curves:
+            curve_json = next(c for c in pricing["curves"] if c["id"] == curve_id)
+            curves[curve_id] = build_curve_from_json(curve_json, eval_date, request)
+        return curves[curve_id]
+
+    def build(leg):
+        disc = curve(leg["discounting_curve"])
+        fwd = curve(leg["forwarding_curve"]) if "floating_leg" in leg else None
+        coupons, schedule, notional, level, is_fixed = _xccy_coupon_leg(leg, request, fwd)
+        full = list(coupons)
+        if leg["initial_exchange"]:
+            full.append(ql.SimpleCashFlow(-notional, schedule.dates()[0]))
+        if leg["final_exchange"]:
+            full.append(ql.SimpleCashFlow(notional, coupons[-1].date()))
+        yts = _xccy_term_structure(disc)
+        pv_own = ql.CashFlows.npv(full, yts, False, eval_date, eval_date)
+        annuity = ql.CashFlows.bps(coupons, yts, False, eval_date, eval_date) / 1e-4
+        flows = [(cf.date().ISO(), cf.amount(), yts.discount(cf.date()))
+                 for cf in full if not cf.hasOccurred(eval_date)]
+        return {"ccy": leg["currency"], "disc": disc, "pv_own": pv_own, "annuity": annuity,
+                "level": level, "is_fixed": is_fixed, "flows": flows}
+
+    leg1 = build(swap["leg1"])
+    leg2 = build(swap["leg2"])
+    pair = {leg1["ccy"], leg2["ccy"]}
+    if pair != {spot["base"], spot["quote"]}:
+        raise ValueError("PriceCrossCurrencySwap.fx_spot does not quote the legs' pair")
+    base_leg, quote_leg = (leg1, leg2) if leg1["ccy"] == spot["base"] else (leg2, leg1)
+
+    spot_date = fx_spot_date_ql(spot, eval_date)
+    S = spot["rate"]
+    X = fx_as_of_exchange_rate_ql(S, spot_date, base_leg["disc"], quote_leg["disc"])
+
+    def convert(amount, from_ccy, to_ccy):
+        if from_ccy == to_ccy:
+            return amount
+        return amount * X if from_ccy == spot["base"] else amount / X
+
+    s1 = -1.0 if swap["swap_type"] == "Payer" else 1.0
+    s2 = -s1
+    leg1_npv = s1 * leg1["pv_own"]
+    leg2_npv = s2 * leg2["pv_own"]
+    reporting = entry["reporting_currency"]
+    if reporting not in pair:
+        raise ValueError("PriceCrossCurrencySwap.reporting_currency must be a leg currency")
+    leg1_rep = convert(leg1_npv, leg1["ccy"], reporting)
+    leg2_rep = convert(leg2_npv, leg2["ccy"], reporting)
+
+    def npv_in(ccy):
+        return convert(leg1_npv, leg1["ccy"], ccy) + convert(leg2_npv, leg2["ccy"], ccy)
+
+    out = {
+        "npv": leg1_rep + leg2_rep,
+        "leg1_npv": leg1_npv,
+        "leg2_npv": leg2_npv,
+        "leg1_npv_reporting": leg1_rep,
+        "leg2_npv_reporting": leg2_rep,
+        "fx_spot_used": S,
+        "fx_as_of_rate": X,
+        "spot_date": spot_date.ISO(),
+        "leg1_pv_own": leg1["pv_own"],
+        "leg2_pv_own": leg2["pv_own"],
+        "leg1_flows": leg1["flows"],
+        "leg2_flows": leg2["flows"],
+    }
+    if leg1["is_fixed"] != leg2["is_fixed"]:
+        f, sf = (leg1, s1) if leg1["is_fixed"] else (leg2, s2)
+        out["fair_rate"] = f["level"] - npv_in(f["ccy"]) / (sf * f["annuity"])
+    elif not leg1["is_fixed"] and not leg2["is_fixed"]:
+        out["fair_spread"] = leg2["level"] - npv_in(leg2["ccy"]) / (s2 * leg2["annuity"])
+    return out
+
+
+CROSS_CURRENCY_SWAP_COMPARED_FIELDS = ("npv", "leg1_npv", "leg2_npv", "leg1_npv_reporting",
+                                       "leg2_npv_reporting", "fair_rate", "fair_spread",
+                                       "fx_spot_used", "fx_as_of_rate")
+
+
+def price_cross_currency_swap_ql(request: dict) -> dict:
+    """Functional-catalog reference for /price-cross-currency-swap
+    (compare="fields"): every numeric response field of the first swap
+    (fair_rate / fair_spread when the swap shape defines them), keyed by its
+    dotted response path."""
+    values = cross_currency_swap_ql(request, 0)
+    return {f"swaps.0.{name}": values[name]
+            for name in CROSS_CURRENCY_SWAP_COMPARED_FIELDS if name in values}
+
+
 def price_cap_floor_ql(request: dict) -> float:
     """Price cap/floor using QuantLib.
 

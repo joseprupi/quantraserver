@@ -348,6 +348,13 @@ JsonResponse QuantraClient::PriceFxForwardJSON(
         ProductType::FxForward, json, &QuantraServer::Stub::PriceFxForward, request_id);
 }
 
+JsonResponse QuantraClient::PriceCrossCurrencySwapJSON(
+    const std::string& json, const std::string& request_id) {
+    return impl_->CallJSON<PriceCrossCurrencySwapRequest, PriceCrossCurrencySwapResponse>(
+        ProductType::CrossCurrencySwap, json, &QuantraServer::Stub::PriceCrossCurrencySwap,
+        request_id);
+}
+
 JsonResponse QuantraClient::PriceCapFloorJSON(
     const std::string& json, const std::string& request_id) {
     return impl_->CallJSON<PriceCapFloorRequest, PriceCapFloorResponse>(
@@ -519,6 +526,14 @@ grpc::Status QuantraClient::PriceFxForward(
     grpc::ClientContext context;
     SetDefaultDeadline(context);
     return impl_->GetStub()->PriceFxForward(&context, request, response);
+}
+
+grpc::Status QuantraClient::PriceCrossCurrencySwap(
+    const Message<PriceCrossCurrencySwapRequest>& request,
+    Message<PriceCrossCurrencySwapResponse>* response) {
+    grpc::ClientContext context;
+    SetDefaultDeadline(context);
+    return impl_->GetStub()->PriceCrossCurrencySwap(&context, request, response);
 }
 
 grpc::Status QuantraClient::PriceCapFloor(

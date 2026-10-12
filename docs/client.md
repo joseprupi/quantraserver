@@ -57,6 +57,7 @@ Pricing:
 - CDS
 - equity options
 - FX forwards
+- cross-currency swaps
 
 Utility:
 

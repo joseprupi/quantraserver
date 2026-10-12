@@ -16,6 +16,7 @@
 #include "callable_fixed_rate_bond_handler.h"
 #include "cap_floor_handler.h"
 #include "cds_handler.h"
+#include "cross_currency_swap_handler.h"
 #include "equity_option_handler.h"
 #include "fixed_rate_bond_handler.h"
 #include "floating_rate_bond_handler.h"
