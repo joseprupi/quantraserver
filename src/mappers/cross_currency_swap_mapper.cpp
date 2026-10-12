@@ -101,7 +101,8 @@ flatbuffers::Offset<quantra::PriceCrossCurrencySwapResponse> CrossCurrencySwapMa
         rb.add_npv(swap.npv);
         rb.add_legs(legs);
         // Optional by construction: present only when the swap shape defines
-        // them (one fixed leg -> fair_rate; no fixed leg -> fair_spread).
+        // them (exactly one fixed leg -> fair_rate; a floating leg ->
+        // fair_spread, as on every swap endpoint).
         if (swap.fairRate && std::isfinite(*swap.fairRate)) rb.add_fair_rate(*swap.fairRate);
         if (swap.fairSpread && std::isfinite(*swap.fairSpread)) {
             rb.add_fair_spread(*swap.fairSpread);

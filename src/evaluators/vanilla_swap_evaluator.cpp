@@ -33,6 +33,15 @@ VanillaSwapPerSwap priceTrade(
         const double fairRate = trade.fixedLeg.level() - out.npv / (fixedBps / kBasisPoint);
         if (std::isfinite(fairRate)) out.fairRate = fairRate;
     }
+    // VanillaSwap::fairSpread: spread - NPV / (floatingLegBPS / basisPoint),
+    // the same linear solve on the floating leg's signed annuity (the IBOR
+    // forwards or CMS coupons unchanged; a capped / floored CMS leg keeps its
+    // strikes, so there the result is the first-order fair spread).
+    const double floatingBps = SignedBps(trade.floatingLeg, floating);
+    if (floatingBps != 0.0) {
+        const double fairSpread = trade.floatingLeg.level() - out.npv / (floatingBps / kBasisPoint);
+        if (std::isfinite(fairSpread)) out.fairSpread = fairSpread;
+    }
     out.cmsUsed = floating.cmsUsed;
 
     std::cout << "Vanilla swap NPV (" << trade.fixedLeg.currency << "): " << out.npv << std::endl;

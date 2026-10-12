@@ -72,6 +72,7 @@ flatbuffers::Offset<quantra::PriceOisSwapResponse> OisSwapMapper::toResponse(
         quantra::OisSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
         if (swap.fairRate) rb.add_fair_rate(*swap.fairRate);
+        if (swap.fairSpread) rb.add_fair_spread(*swap.fairSpread);
         rb.add_legs(legs);
         rows.push_back(rb.Finish());
     }

@@ -221,13 +221,19 @@ Reference referencePrice(const TradeFields& t, const QuantLib::Date& asOf) {
     auto npvIn = [&](const std::string& ccy) {
         return convert(r.leg1Npv, t.leg1.currency, ccy) + convert(r.leg2Npv, t.leg2.currency, ccy);
     };
+    // As on every swap endpoint: fair_rate iff exactly one fixed leg,
+    // fair_spread iff a floating leg (that leg; leg2 when both float).
     const bool fixed1 = t.leg1.kind == LegKind::Fixed, fixed2 = t.leg2.kind == LegKind::Fixed;
     if (fixed1 != fixed2) {
         const LegFields& f = fixed1 ? t.leg1 : t.leg2;
         r.fairRate =
             f.level - npvIn(f.currency) / ((fixed1 ? s1 : s2) * (fixed1 ? l1 : l2).annuity);
-    } else if (!fixed1) {
-        r.fairSpread = t.leg2.level - npvIn(t.leg2.currency) / (s2 * l2.annuity);
+    }
+    if (!fixed1 || !fixed2) {
+        const bool onLeg1 = fixed2;
+        const LegFields& q = onLeg1 ? t.leg1 : t.leg2;
+        r.fairSpread =
+            q.level - npvIn(q.currency) / ((onLeg1 ? s1 : s2) * (onLeg1 ? l1 : l2).annuity);
     }
     return r;
 }

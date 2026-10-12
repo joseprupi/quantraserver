@@ -73,12 +73,13 @@ protected:
         return flb.Finish();
     }
 
-    /// Euribor 6M coupons, zero spread.
-    flatbuffers::Offset<quantra::IborCoupons> fbIbor(flatbuffers::grpc::MessageBuilder& b) {
+    /// Euribor 6M coupons at `spread` (zero by default).
+    flatbuffers::Offset<quantra::IborCoupons> fbIbor(
+        flatbuffers::grpc::MessageBuilder& b, double spread = 0.0) {
         auto idx6m = buildIndexRef(b, "EUR_6M");
         quantra::IborCouponsBuilder flgb(b);
         flgb.add_index(idx6m);
-        flgb.add_spread(0.0);
+        flgb.add_spread(spread);
         return flgb.Finish();
     }
 
@@ -217,6 +218,33 @@ TEST_F(VanillaSwapParityTest, VanillaSwap_NPVMatches) {
     // No CMS leg: the CMS diagnostic is omitted entirely rather than emitting a
     // -1.0 sentinel, so the optional scalar has no value.
     EXPECT_FALSE(r->used_cms_mean_reversion().has_value());
+}
+
+// fair_spread is QuantLib::VanillaSwap::fairSpread (the spread on the
+// floating leg that zeroes the swap, the fixed leg held fixed), and the swap
+// repriced through the API with that spread has a zero NPV.
+TEST_F(VanillaSwapParityTest, VanillaSwap_FairSpreadMatchesQuantLibAndReprices) {
+    auto qlSwap = qlPayerSwap();
+    const double qlFairSpread = qlSwap->fairSpread();
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto pricing = fbPricing(b);
+    const auto* r = price(b, pricing, fbPayerSwap(b));
+    ASSERT_TRUE(r->fair_spread().has_value());
+    EXPECT_NEAR(qlFairSpread, r->fair_spread().value(), 1e-12);
+    const double fairSpread = r->fair_spread().value();
+
+    flatbuffers::grpc::MessageBuilder b2;
+    auto pricing2 = fbPricing(b2);
+    auto atFair = buildVanillaSwap(
+        b2, quantra::enums::PayReceive_Pay, "EUR", fixedFields(b2), fbFixed(b2), floatingFields(b2),
+        fbIbor(b2, fairSpread), "discount", "discount");
+    const auto* r2 = price(b2, pricing2, atFair);
+    EXPECT_LT(std::abs(r2->npv()), 1e-9 * kNotional);
+    ASSERT_TRUE(r2->fair_spread().has_value());
+    EXPECT_NEAR(fairSpread, r2->fair_spread().value(), 1e-12);
+    // Both fair quantities are reported on every vanilla swap.
+    ASSERT_TRUE(r2->fair_rate().has_value());
 }
 
 TEST_F(VanillaSwapParityTest, VanillaSwap_LegRulesAre400s) {
@@ -521,6 +549,10 @@ TEST_F(VanillaSwapParityTest, VanillaSwap_CMS_NPVMatches) {
     ASSERT_TRUE(out->fair_rate().has_value());
     EXPECT_TRUE(std::isfinite(out->fair_rate().value()));
     EXPECT_NEAR(out->fair_rate().value(), kFixedRate - qlNPV / (qlSwap->legBPS(0) / 1e-4), 1e-6);
+    // The spread on the CMS leg that zeroes the swap (the fixed leg held
+    // fixed) is reported too, from the CMS coupons' annuity.
+    ASSERT_TRUE(out->fair_spread().has_value());
+    EXPECT_NEAR(out->fair_spread().value(), 0.0 - qlNPV / (qlSwap->legBPS(1) / 1e-4), 1e-6);
     // The effective CMS pricer settings are echoed back.
     ASSERT_TRUE(out->used_cms_mean_reversion().has_value());
     EXPECT_DOUBLE_EQ(out->used_cms_mean_reversion().value(), 0.03);

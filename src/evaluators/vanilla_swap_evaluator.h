@@ -17,9 +17,13 @@
  * legs' own-frame values (exchanges included in the NPV, excluded from the
  * bps):
  *   legs[i].npv = s_i * npvOwn_i,   npv = legs[0].npv + legs[1].npv
- *   fair_rate   = rate_0 - npv / ((s_0 * bpsOwn_0) / 1e-4)
- * the latter being QuantLib::VanillaSwap::fairRate's own formula (the signed
- * leg BPS divided by the basis point), so the numbers equal the instrument's.
+ *   fair_rate   = rate_0   - npv / ((s_0 * bpsOwn_0) / 1e-4)
+ *   fair_spread = spread_1 - npv / ((s_1 * bpsOwn_1) / 1e-4)
+ * the latter two being QuantLib::VanillaSwap::fairRate's / fairSpread's own
+ * formulas (the signed leg BPS divided by the basis point), so the numbers
+ * equal the instrument's. Every swap endpoint reports `fair_rate` iff exactly
+ * one leg is fixed and `fair_spread` iff a leg is floating (IBOR, overnight
+ * or CMS).
  */
 
 #include "pricing_context.h"
@@ -50,6 +54,9 @@ struct VanillaSwapPerSwap {
     double npv = 0.0;
     /// Absent when the fixed leg's signed bps is zero (nothing to solve for).
     std::optional<double> fairRate;
+    /// Spread on the floating leg (IBOR or CMS) that zeroes the NPV; absent
+    /// when that leg's signed bps is zero.
+    std::optional<double> fairSpread;
     /// fixed_leg then floating_leg.
     std::vector<SwapLegPerLeg> legs;
     /// Set when the floating leg carries CMS coupons (the `used_cms_*` block).

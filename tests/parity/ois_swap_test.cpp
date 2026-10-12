@@ -211,6 +211,39 @@ TEST_F(OisSwapParityTest, OisSwap_NPVMatches) {
     EXPECT_NEAR(r->npv(), r->legs()->Get(0)->npv() + r->legs()->Get(1)->npv(), 1e-9);
 }
 
+// fair_spread is QuantLib::OvernightIndexedSwap::fairSpread (the spread on
+// the overnight leg that zeroes the swap, the fixed leg held fixed), and the
+// OIS repriced through the API with that spread has a zero NPV.
+TEST_F(OisSwapParityTest, OisSwap_FairSpreadMatchesQuantLibAndReprices) {
+    const double notional = 1000000.0, fixedRate = 0.03;
+    auto ql = qlSwap(
+        QuantLib::OvernightIndexedSwap::Payer, QuantLib::Date(17, QuantLib::January, 2030),
+        QuantLib::Annual, notional, fixedRate, 0.0, 0);
+    const double qlFairSpread = ql->fairSpread();
+
+    flatbuffers::grpc::MessageBuilder b;
+    auto swap = fbSwap(
+        b, quantra::enums::PayReceive_Pay,
+        fixedFields(b, "2030-01-17", quantra::enums::Frequency_Annual, notional), fixedRate,
+        overnightFields(b, "2030-01-17", quantra::enums::Frequency_Annual, notional, 0), 0.0);
+    const auto* r = price(b, swap);
+    ASSERT_TRUE(r->fair_spread().has_value());
+    EXPECT_NEAR(qlFairSpread, r->fair_spread().value(), 1e-12);
+    const double fairSpread = r->fair_spread().value();
+
+    flatbuffers::grpc::MessageBuilder b2;
+    auto atFair = fbSwap(
+        b2, quantra::enums::PayReceive_Pay,
+        fixedFields(b2, "2030-01-17", quantra::enums::Frequency_Annual, notional), fixedRate,
+        overnightFields(b2, "2030-01-17", quantra::enums::Frequency_Annual, notional, 0),
+        fairSpread);
+    const auto* r2 = price(b2, atFair);
+    EXPECT_LT(std::abs(r2->npv()), 1e-9 * notional);
+    ASSERT_TRUE(r2->fair_spread().has_value());
+    EXPECT_NEAR(fairSpread, r2->fair_spread().value(), 1e-12);
+    ASSERT_TRUE(r2->fair_rate().has_value());
+}
+
 // Variation: receiver OIS, semiannual schedules, non-zero overnight spread and a
 // 2-day payment lag (on both legs, as QuantLib applies it). Exercises a
 // different leg shape than the base case.
@@ -237,6 +270,8 @@ TEST_F(OisSwapParityTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     EXPECT_NEAR(ql->NPV(), r->npv(), 0.01);
     ASSERT_TRUE(r->fair_rate().has_value());
     EXPECT_NEAR(ql->fairRate(), r->fair_rate().value(), 1e-6);
+    ASSERT_TRUE(r->fair_spread().has_value());
+    EXPECT_NEAR(ql->fairSpread(), r->fair_spread().value(), 1e-12);
     EXPECT_NEAR(ql->fixedLegNPV(), r->legs()->Get(0)->npv(), 0.01);
     EXPECT_NEAR(ql->overnightLegNPV(), r->legs()->Get(1)->npv(), 0.01);
 }

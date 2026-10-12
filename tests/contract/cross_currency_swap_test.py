@@ -14,7 +14,8 @@ CashFlows.npv / bps on the legs:
     legs[i].npv = s_i * npv(L_i, D_i)          s_i = -1 Pay / +1 Receive
     npv   = legs[0].npv_reporting + legs[1].npv_reporting
     fair_rate   = r_f - NPV[fixed ccy]   / (s_f * A_f)   (one fixed leg)
-    fair_spread = q_1 - NPV[legs[1] ccy] / (s_1 * A_1)   (no fixed leg)
+    fair_spread = q_k - NPV[leg k ccy]   / (s_k * A_k)   (k = the floating leg of
+                  a fixed/float swap, legs[1] of a float/float one)
 
 The fixtures (examples/data/cross_currency_swap/) are 5Y EUR/USD swaps on
 the USD-collateralised EUR curve + EUR ESTR OIS + USD SOFR OIS market of the
@@ -36,7 +37,8 @@ a functional-catalog case.
   * exchange flags change the NPV by exactly the PV of the notional flows;
   * flows: coupons and exchanges listed in leg order with `kind`, their PVs
     sum to the leg NPV, exchanges carry no accrual fields;
-  * fair_rate / fair_spread present exactly when the swap shape defines them;
+  * fair_rate (exactly one fixed leg) / fair_spread (a floating leg) present
+    exactly when the swap shape defines them, as on every swap endpoint;
   * the coupon table must match the index kind (IborCoupons on an overnight
     index names OvernightCoupons and vice versa); CmsCoupons is a 400;
   * `payment_calendar` / `payment_lag` are optional on a cross-currency leg
@@ -200,7 +202,8 @@ def test_xccy_baseline_shape_and_signs(client, data_dir):
     a par floater on its own curve: its NPV is a rounding of zero (the
     initial exchange sits two days out). The fixed leg is paid above its fair
     rate, so the payer's NPV is negative; the as-of rate sits within a few
-    pips of the spot; only fair_rate is reported."""
+    pips of the spot; fair_rate (the fixed leg) and fair_spread (the SOFR
+    leg) are both reported."""
     request = load_json(data_dir / FIXED_USD)
     row = _price(client, request)
     assert row["spot_date"] == "2025-01-17"
@@ -211,8 +214,9 @@ def test_xccy_baseline_shape_and_signs(client, data_dir):
     assert _leg_npv(row, 0) < 0 and _leg_rep(row, 0) < 0           # pays 2.55% above fair
     assert abs(row["npv"] - (_leg_rep(row, 0) + _leg_rep(row, 1))) < 1e-6
     assert row["npv"] < 0
-    assert "fair_rate" in row and "fair_spread" not in row
+    assert "fair_rate" in row and "fair_spread" in row
     assert 0.0 < row["fair_rate"] < 0.0255
+    assert row["fair_spread"] > 0.0        # the payer is owed a spread on the SOFR leg
 
 
 # ---------------------------------------------------------------------------
@@ -286,10 +290,11 @@ def test_xccy_fixed_at_fair_rate_example(client, data_dir):
     assert abs(row["fair_rate"] - _coupons(_leg(request, 1))["rate"]) < RATE_TOLERANCE
 
 
-@pytest.mark.parametrize("fixture", [BASIS_BOTH, BASIS_FINAL_ONLY])
+@pytest.mark.parametrize("fixture", [BASIS_BOTH, BASIS_FINAL_ONLY, FIXED_USD, USD_FIXED_EURIBOR])
 def test_xccy_repriced_at_fair_spread_has_zero_npv(client, data_dir, fixture):
-    """The reported fair_spread (on leg2) rebuilt through the API — not by
-    linear extrapolation — zeroes the NPV."""
+    """The reported fair_spread (on leg2: the quoted leg of a float/float
+    swap, the floating leg of the two fixed/float fixtures) rebuilt through
+    the API — not by linear extrapolation — zeroes the NPV."""
     request = load_json(data_dir / fixture)
     fair = _price(client, request)["fair_spread"]
     at_fair = _mutated(request, lambda r: _coupons(_leg(r, 2)).update(spread=fair))
@@ -354,7 +359,7 @@ def test_xccy_leg_roles_either_leg_may_be_the_base_currency(client, data_dir):
     assert abs(_leg_rep(row, 0) - _leg_npv(row, 0) / X) < 1e-4
     assert _leg_rep(row, 1) == _leg_npv(row, 1)
     assert _leg_npv(row, 0) > 0 > _leg_npv(row, 1)       # receives USD fixed, pays EUR float
-    assert "fair_rate" in row and "fair_spread" not in row
+    assert "fair_rate" in row and "fair_spread" in row
 
 
 def test_xccy_fixed_fixed_has_no_fair_quantity(client, data_dir):
@@ -368,12 +373,13 @@ def test_xccy_fixed_fixed_has_no_fair_quantity(client, data_dir):
 
 
 def test_xccy_fair_fields_presence_by_shape(client, data_dir):
-    """fair_rate iff exactly one fixed leg; fair_spread iff both float; the
-    flows only with include_flows."""
-    for fixture, present in ((FIXED_USD, "fair_rate"), (BASIS_BOTH, "fair_spread"),
-                             (USD_FIXED_EURIBOR, "fair_rate")):
+    """fair_rate iff exactly one fixed leg; fair_spread iff a leg floats
+    (fixed/fixed: neither, see above); the flows only with include_flows."""
+    for fixture, present in ((FIXED_USD, {"fair_rate", "fair_spread"}),
+                             (BASIS_BOTH, {"fair_spread"}),
+                             (USD_FIXED_EURIBOR, {"fair_rate", "fair_spread"})):
         row = _price(client, load_json(data_dir / fixture))
-        assert set(row) == SCALAR_FIELDS | {present}, f"{fixture}: {sorted(row)}"
+        assert set(row) == SCALAR_FIELDS | present, f"{fixture}: {sorted(row)}"
 
 
 def test_xccy_multi_trade_in_request_order(client, data_dir):

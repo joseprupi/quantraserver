@@ -83,6 +83,9 @@ CrossCurrencySwapPerSwap priceTrade(
         return convert(out.legs[0].npv, l0.currency, ccy) +
                convert(out.legs[1].npv, l1.currency, ccy);
     };
+    // As on every swap endpoint: fair_rate iff exactly one leg is fixed,
+    // fair_spread iff a leg is floating (on the floating leg of a fixed/float
+    // swap, on legs[1] of a float/float one).
     const bool fixed0 = l0.kind == SwapLegData::Kind::Fixed;
     const bool fixed1 = l1.kind == SwapLegData::Kind::Fixed;
     if (fixed0 != fixed1) {
@@ -91,9 +94,12 @@ CrossCurrencySwapPerSwap priceTrade(
         if (std::fabs(annuityOf(built[f])) > 0.0) {
             out.fairRate = leg.level() - npvIn(leg.currency) / (leg.sign() * annuityOf(built[f]));
         }
-    } else if (!fixed0 && !fixed1) {
-        if (std::fabs(annuityOf(built[1])) > 0.0) {
-            out.fairSpread = l1.level() - npvIn(l1.currency) / (l1.sign() * annuityOf(built[1]));
+    }
+    if (!fixed0 || !fixed1) {
+        const std::size_t k = fixed1 ? 0 : 1;
+        const SwapLegData& leg = trade.legs[k];
+        if (std::fabs(annuityOf(built[k])) > 0.0) {
+            out.fairSpread = leg.level() - npvIn(leg.currency) / (leg.sign() * annuityOf(built[k]));
         }
     }
 

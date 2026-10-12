@@ -659,12 +659,19 @@ CashFlows::bps(coupons of leg i, D_i)` its signed basis-point sensitivity
 ```
 legs[i].npv = s_i * CashFlows::npv(L_i, D_i)
 npv         = legs[0].npv + legs[1].npv                      (one currency)
-fair_rate   = rate_fixed   - npv / (B_fixed / 1e-4)          (vanilla, OIS: QuantLib's VanillaSwap / OvernightIndexedSwap formula)
+fair_rate   = rate_fixed   - npv / (B_fixed / 1e-4)          (vanilla, OIS: QuantLib's VanillaSwap / OvernightIndexedSwap fairRate)
+fair_spread = spread_float - npv / (B_float / 1e-4)          (vanilla, OIS: the floating / overnight leg; QuantLib's fairSpread)
 fair_spread = spread_k     - npv * 1e-4 / B_k                (basis: leg k = the leg carrying the request's spread)
 ```
 
-Repricing at the fair value gives an NPV of zero to rounding. A fair
-quantity is absent when its leg's annuity is zero.
+Every swap endpoint reports `fair_rate` iff exactly one leg carries
+`FixedCoupons` and `fair_spread` iff a leg carries `IborCoupons`,
+`OvernightCoupons` or `CmsCoupons` (a fixed-vs-floating swap reports both,
+a float/float swap only `fair_spread`, a fixed/fixed cross-currency swap
+neither). Each holds the other leg and every exchange fixed; repricing at
+the fair value gives an NPV of zero to rounding (a CMS leg with a `cap` /
+`floor` keeps its strikes, so there `fair_spread` zeroes the NPV to first
+order). A fair quantity is absent when its leg's annuity is zero.
 
 ### Rejected requests (every swap endpoint)
 
@@ -735,8 +742,10 @@ pricer settings). Both legs accept a per-period `notionals` vector
 ```
 
 Response row: `npv`, `fair_rate` (the fixed rate that zeroes `npv`, the
-floating leg held fixed; also for a CMS floating leg), `legs[0]` (the fixed
-leg), `legs[1]` (the floating leg) and, for a CMS floating leg,
+floating leg held fixed; also for a CMS floating leg), `fair_spread` (the
+floating leg's spread that zeroes `npv`, the fixed leg held fixed; also for
+a CMS floating leg), `legs[0]` (the fixed leg), `legs[1]` (the floating leg)
+and, for a CMS floating leg,
 `used_cms_pricer_type`, `used_cms_yield_curve_model`,
 `used_cms_mean_reversion` and the `used_cms_hagan_*` limits. Worked
 examples: `examples/data/ir_swaps/irs_*.json` and `cms_*.json`.
@@ -753,7 +762,8 @@ two business days after each period end states
 `"payment_lag": 0`.
 
 Response row: `npv`, `fair_rate` (the fixed rate that zeroes `npv`),
-`legs[0]` (the fixed leg), `legs[1]` (the overnight leg). Worked examples:
+`fair_spread` (the overnight leg's spread that zeroes `npv`), `legs[0]` (the
+fixed leg), `legs[1]` (the overnight leg). Worked examples:
 `examples/data/ir_swaps/ois_*.json`.
 
 ## Basis swap
@@ -884,7 +894,7 @@ One row per swap, in request order.
 | `legs[i].npv` | the leg's currency | Present value of the leg (coupons and exchanges), signed from the reported party's view: the leg's own-frame value (as the receiver of its coupons sees it) times `-1` for a leg the party pays and `+1` for a leg it receives. A paid leg is negative only when it is worth paying for (paying 2.55% fixed with both exchanges on a 3% curve is in the payer's favour and positive). `legs[0]` is `leg1`, `legs[1]` is `leg2`. |
 | `legs[i].npv_reporting` | `reporting_currency` | The leg NPV converted at the as-of exchange rate (unchanged for the leg already in the reporting currency); `npv` is their sum. |
 | `fair_rate` | rate (decimal) | Present iff exactly one leg has `FixedCoupons`: the fixed rate that zeroes `npv`, holding the other leg and every exchange fixed. Absent for float/float and fixed/fixed swaps. |
-| `fair_spread` | rate (decimal) | Present iff no leg has `FixedCoupons`: the spread on **`legs[1]`** (`leg2`) that zeroes `npv`, holding `legs[0]` and every exchange fixed. Absent when a leg is fixed. |
+| `fair_spread` | rate (decimal) | Present iff a leg has `IborCoupons` or `OvernightCoupons`: the spread on the floating leg of a fixed/float swap, or on **`legs[1]`** (`leg2`) of a float/float one, that zeroes `npv`, holding the other leg and every exchange fixed. Absent for fixed/fixed swaps. |
 | `fx_spot_used` | quote per base of the spot | The spot rate used, inline or through the referenced `Fx` quote. |
 | `fx_as_of_rate` | quote per base of the spot | `X = S x DF_quote(t_s) / DF_base(t_s)` on the two legs' discounting curves (see "FX forward"). |
 | `spot_date` | ISO date | Spot date of the referenced spot. |
@@ -906,7 +916,7 @@ legs[i].npv_reporting = legs[i].npv  (x X when converting base -> quote, / X the
 npv                   = legs[0].npv_reporting + legs[1].npv_reporting
 A_i                   = CashFlows::bps(C_i, D_i) / 1e-4             [annuity of the coupons; exchanges excluded]
 fair_rate             = rate_f   - NPV[in the fixed leg's currency] / (s_f * A_f)
-fair_spread           = spread_1 - NPV[in legs[1]'s currency]       / (s_1 * A_1)
+fair_spread           = spread_k - NPV[in leg k's currency]         / (s_k * A_k)   (k = the floating leg, legs[1] when both float)
 ```
 
 The NPV is linear in the fixed rate and in the spread (a fixed coupon is

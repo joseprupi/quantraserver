@@ -17,8 +17,11 @@
  * With s_i the leg signs (-1 Pay / +1 Receive), npvOwn_i and bpsOwn_i the
  * legs' own-frame values:
  *   legs[i].npv = s_i * npvOwn_i,   npv = legs[0].npv + legs[1].npv
- *   fair_rate   = rate_0 - npv / ((s_0 * bpsOwn_0) / 1e-4)
- * which is QuantLib::OvernightIndexedSwap::fairRate's own formula.
+ *   fair_rate   = rate_0   - npv / ((s_0 * bpsOwn_0) / 1e-4)
+ *   fair_spread = spread_1 - npv / ((s_1 * bpsOwn_1) / 1e-4)
+ * which are QuantLib::OvernightIndexedSwap::fairRate's / fairSpread's own
+ * formulas. Every swap endpoint reports `fair_rate` iff exactly one leg is
+ * fixed and `fair_spread` iff a leg is floating.
  */
 
 #include "pricing_context.h"
@@ -49,6 +52,9 @@ struct OisSwapPerSwap {
     double npv = 0.0;
     /// Absent when the fixed leg's signed bps is zero (nothing to solve for).
     std::optional<double> fairRate;
+    /// Spread on the overnight leg that zeroes the NPV; absent when that
+    /// leg's signed bps is zero.
+    std::optional<double> fairSpread;
     /// fixed_leg then overnight_leg.
     std::vector<SwapLegPerLeg> legs;
     bool includeFlows = false;

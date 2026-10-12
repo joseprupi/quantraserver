@@ -31,9 +31,10 @@ first release that promises wire stability.
 `v0.10.0` is a **wire-breaking** MINOR release under the 0.x rules: the four
 swap endpoints and the swaption request change shape. Numbers do not change:
 every 0.9.0 swap and swaption request, converted with the shipped tool,
-returns the same values (11,372 of 11,396 captured values identical; the
-remaining 24 are the CMS `fair_rate`, which 0.9.0 reported as `0.0` and
-0.10.0 now computes). A converter and a field-by-field guide are included.
+returns the same values (11,430 of 11,478 captured values identical; the
+remaining 48 are the CMS `fair_rate` and `fair_spread`, which 0.9.0 reported
+as `0.0` and 0.10.0 now computes). A converter and a field-by-field guide
+are included.
 
 ### Changed — the `SwapLeg` model
 
@@ -78,11 +79,16 @@ leg's currency signed from the reported party's view, `npv_reporting`, and
 `flows` with `include_flows` (each flow tagged `Coupon` or
 `NotionalExchange`). The per-leg fields `fixed_leg_npv`, `floating_leg_npv`,
 `overnight_leg_npv`, `leg1_npv`, `leg2_npv`, the `*_bps` fields and the
-per-leg `*_flows` lists are removed. `fair_rate` (vanilla, OIS: one fixed
-leg) and `fair_spread` (basis: on the leg that carries the request's spread;
-both zero → `leg2`) are `= null` optionals; basis `fair_spread_leg1/2` and
-the vanilla/OIS `fair_spread` are removed. The vanilla `used_cms_*`
-diagnostics are present only for a CMS leg.
+per-leg `*_flows` lists are removed. One rule on every swap endpoint:
+`fair_rate` is present iff exactly one leg carries `FixedCoupons` and
+`fair_spread` iff a leg carries `IborCoupons`, `OvernightCoupons` or
+`CmsCoupons` — on vanilla and OIS the floating / overnight leg's spread
+(QuantLib's `fairSpread`, as in 0.9.0), on basis the leg that carries the
+request's spread (both zero → `leg2`), on cross-currency the floating leg of
+a fixed/float swap (new: 0.9.0 reported it only for float/float) or `leg2`
+of a float/float one. Both are `= null` optionals; basis
+`fair_spread_leg1/2` are removed. The vanilla `used_cms_*` diagnostics are
+present only for a CMS leg.
 
 Swaptions: `PriceSwaption.discounting_curve` / `forwarding_curve` are gone;
 the underlying's legs carry the curves, and both legs must name the same
@@ -90,7 +96,9 @@ the underlying's legs carry the curves, and both legs must name the same
 
 ### Fixed
 
-- CMS swaps report their real `fair_rate` (0.9.0 wrote `0.0`).
+- CMS swaps report their real `fair_rate` and `fair_spread` (0.9.0 wrote
+  `0.0` for both; the spread is solved on the CMS coupons' annuity with a
+  `cap` / `floor` held at its strike).
 - An overnight index under `IborCoupons` is rejected with a `400` naming
   `OvernightCoupons` on every swap endpoint; 0.9.0's `price-vanilla-swap` /
   `price-basis-swap` silently priced it as daily IBOR coupons (#150).

@@ -29,6 +29,7 @@ struct VanillaSwapResponseT : public ::flatbuffers::NativeTable {
   typedef VanillaSwapResponse TableType;
   double npv = 0.0;
   ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt;
   std::vector<std::unique_ptr<quantra::SwapLegResultT>> legs{};
   ::flatbuffers::Optional<quantra::enums::CmsPricerType> used_cms_pricer_type = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::CmsYieldCurveModel> used_cms_yield_curve_model = ::flatbuffers::nullopt;
@@ -57,24 +58,29 @@ struct VanillaSwapResponseT : public ::flatbuffers::NativeTable {
 ///   fair_rate = rate_0 - npv / (B_0 / 1e-4)
 /// which is QuantLib::VanillaSwap's own fair-rate formula, so repricing at
 /// `fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same
-/// formula applies, the CMS coupons being held fixed). Every value is as of
-/// the evaluation date (the curves' reference date); flows on that date are
-/// excluded, as for every swap. Positive `npv` is in favour of the reported
-/// party (the one whose `pay_receive` sides were given).
+/// formula applies, the CMS coupons being held fixed). `fair_spread` is the
+/// mirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons
+/// of leg 1, D_1),
+///   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+/// which is QuantLib::VanillaSwap's own fair-spread formula. Every value is
+/// as of the evaluation date (the curves' reference date); flows on that
+/// date are excluded, as for every swap. Positive `npv` is in favour of the
+/// reported party (the one whose `pay_receive` sides were given).
 struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VanillaSwapResponseT NativeTableType;
   typedef VanillaSwapResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NPV = 4,
     VT_FAIR_RATE = 6,
-    VT_LEGS = 8,
-    VT_USED_CMS_PRICER_TYPE = 10,
-    VT_USED_CMS_YIELD_CURVE_MODEL = 12,
-    VT_USED_CMS_MEAN_REVERSION = 14,
-    VT_USED_CMS_HAGAN_LOWER_LIMIT = 16,
-    VT_USED_CMS_HAGAN_UPPER_LIMIT = 18,
-    VT_USED_CMS_HAGAN_PRECISION = 20,
-    VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT = 22
+    VT_FAIR_SPREAD = 8,
+    VT_LEGS = 10,
+    VT_USED_CMS_PRICER_TYPE = 12,
+    VT_USED_CMS_YIELD_CURVE_MODEL = 14,
+    VT_USED_CMS_MEAN_REVERSION = 16,
+    VT_USED_CMS_HAGAN_LOWER_LIMIT = 18,
+    VT_USED_CMS_HAGAN_UPPER_LIMIT = 20,
+    VT_USED_CMS_HAGAN_PRECISION = 22,
+    VT_USED_CMS_HAGAN_HARD_UPPER_LIMIT = 24
   };
   /// Total present value in the legs' currency, positive in favour of the
   /// reported party.
@@ -86,6 +92,19 @@ struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   /// solve for) or the value is not finite.
   ::flatbuffers::Optional<double> fair_rate() const {
     return GetOptional<double, double>(VT_FAIR_RATE);
+  }
+  /// The spread on the floating leg (`IborCoupons` or `CmsCoupons`) that
+  /// zeroes `npv`, the fixed leg and every exchange held fixed (the
+  /// floating coupons' forwards unchanged). Present on every priced vanilla
+  /// swap whose floating leg's annuity is non-zero and the value finite,
+  /// as for every swap endpoint: `fair_rate` iff exactly one leg carries
+  /// `FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,
+  /// `OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or
+  /// `floor` the cap / floor strikes are held where the request put them
+  /// (the linear solve on the coupon annuity), so repricing a capped or
+  /// floored CMS leg at `fair_spread` zeroes `npv` only to first order.
+  ::flatbuffers::Optional<double> fair_spread() const {
+    return GetOptional<double, double>(VT_FAIR_SPREAD);
   }
   /// One result per leg, in request order (`fixed_leg` then
   /// `floating_leg`): the leg's signed NPV and, with `include_flows`, its
@@ -127,6 +146,7 @@ struct VanillaSwapResponse FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_NPV, 8) &&
            VerifyField<double>(verifier, VT_FAIR_RATE, 8) &&
+           VerifyField<double>(verifier, VT_FAIR_SPREAD, 8) &&
            VerifyOffsetRequired(verifier, VT_LEGS) &&
            verifier.VerifyVector(legs()) &&
            verifier.VerifyVectorOfTables(legs()) &&
@@ -153,6 +173,9 @@ struct VanillaSwapResponseBuilder {
   }
   void add_fair_rate(double fair_rate) {
     fbb_.AddElement<double>(VanillaSwapResponse::VT_FAIR_RATE, fair_rate);
+  }
+  void add_fair_spread(double fair_spread) {
+    fbb_.AddElement<double>(VanillaSwapResponse::VT_FAIR_SPREAD, fair_spread);
   }
   void add_legs(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs) {
     fbb_.AddOffset(VanillaSwapResponse::VT_LEGS, legs);
@@ -194,6 +217,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponse(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
     ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::SwapLegResult>>> legs = 0,
     ::flatbuffers::Optional<quantra::enums::CmsPricerType> used_cms_pricer_type = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::CmsYieldCurveModel> used_cms_yield_curve_model = ::flatbuffers::nullopt,
@@ -208,6 +232,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponse(
   if(used_cms_hagan_upper_limit) { builder_.add_used_cms_hagan_upper_limit(*used_cms_hagan_upper_limit); }
   if(used_cms_hagan_lower_limit) { builder_.add_used_cms_hagan_lower_limit(*used_cms_hagan_lower_limit); }
   if(used_cms_mean_reversion) { builder_.add_used_cms_mean_reversion(*used_cms_mean_reversion); }
+  if(fair_spread) { builder_.add_fair_spread(*fair_spread); }
   if(fair_rate) { builder_.add_fair_rate(*fair_rate); }
   builder_.add_npv(npv);
   builder_.add_legs(legs);
@@ -220,6 +245,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponseDirec
     ::flatbuffers::FlatBufferBuilder &_fbb,
     double npv = 0.0,
     ::flatbuffers::Optional<double> fair_rate = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<double> fair_spread = ::flatbuffers::nullopt,
     const std::vector<::flatbuffers::Offset<quantra::SwapLegResult>> *legs = nullptr,
     ::flatbuffers::Optional<quantra::enums::CmsPricerType> used_cms_pricer_type = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::CmsYieldCurveModel> used_cms_yield_curve_model = ::flatbuffers::nullopt,
@@ -233,6 +259,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponseDirec
       _fbb,
       npv,
       fair_rate,
+      fair_spread,
       legs__,
       used_cms_pricer_type,
       used_cms_yield_curve_model,
@@ -317,6 +344,7 @@ inline ::flatbuffers::Offset<PriceVanillaSwapResponse> CreatePriceVanillaSwapRes
 inline VanillaSwapResponseT::VanillaSwapResponseT(const VanillaSwapResponseT &o)
       : npv(o.npv),
         fair_rate(o.fair_rate),
+        fair_spread(o.fair_spread),
         used_cms_pricer_type(o.used_cms_pricer_type),
         used_cms_yield_curve_model(o.used_cms_yield_curve_model),
         used_cms_mean_reversion(o.used_cms_mean_reversion),
@@ -331,6 +359,7 @@ inline VanillaSwapResponseT::VanillaSwapResponseT(const VanillaSwapResponseT &o)
 inline VanillaSwapResponseT &VanillaSwapResponseT::operator=(VanillaSwapResponseT o) FLATBUFFERS_NOEXCEPT {
   std::swap(npv, o.npv);
   std::swap(fair_rate, o.fair_rate);
+  std::swap(fair_spread, o.fair_spread);
   std::swap(legs, o.legs);
   std::swap(used_cms_pricer_type, o.used_cms_pricer_type);
   std::swap(used_cms_yield_curve_model, o.used_cms_yield_curve_model);
@@ -353,6 +382,7 @@ inline void VanillaSwapResponse::UnPackTo(VanillaSwapResponseT *_o, const ::flat
   (void)_resolver;
   { auto _e = npv(); _o->npv = _e; }
   { auto _e = fair_rate(); _o->fair_rate = _e; }
+  { auto _e = fair_spread(); _o->fair_spread = _e; }
   { auto _e = legs(); if (_e) { _o->legs.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->legs[_i]) { _e->Get(_i)->UnPackTo(_o->legs[_i].get(), _resolver); } else { _o->legs[_i] = std::unique_ptr<quantra::SwapLegResultT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->legs.resize(0); } }
   { auto _e = used_cms_pricer_type(); _o->used_cms_pricer_type = _e; }
   { auto _e = used_cms_yield_curve_model(); _o->used_cms_yield_curve_model = _e; }
@@ -373,6 +403,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponse(::fl
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const VanillaSwapResponseT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _npv = _o->npv;
   auto _fair_rate = _o->fair_rate;
+  auto _fair_spread = _o->fair_spread;
   auto _legs = _fbb.CreateVector<::flatbuffers::Offset<quantra::SwapLegResult>> (_o->legs.size(), [](size_t i, _VectorArgs *__va) { return CreateSwapLegResult(*__va->__fbb, __va->__o->legs[i].get(), __va->__rehasher); }, &_va );
   auto _used_cms_pricer_type = _o->used_cms_pricer_type;
   auto _used_cms_yield_curve_model = _o->used_cms_yield_curve_model;
@@ -385,6 +416,7 @@ inline ::flatbuffers::Offset<VanillaSwapResponse> CreateVanillaSwapResponse(::fl
       _fbb,
       _npv,
       _fair_rate,
+      _fair_spread,
       _legs,
       _used_cms_pricer_type,
       _used_cms_yield_curve_model,

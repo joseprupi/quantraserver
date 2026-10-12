@@ -16,10 +16,14 @@ namespace quantra;
 ///   fair_rate = rate_0 - npv / (B_0 / 1e-4)
 /// which is QuantLib::VanillaSwap's own fair-rate formula, so repricing at
 /// `fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same
-/// formula applies, the CMS coupons being held fixed). Every value is as of
-/// the evaluation date (the curves' reference date); flows on that date are
-/// excluded, as for every swap. Positive `npv` is in favour of the reported
-/// party (the one whose `pay_receive` sides were given).
+/// formula applies, the CMS coupons being held fixed). `fair_spread` is the
+/// mirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons
+/// of leg 1, D_1),
+///   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+/// which is QuantLib::VanillaSwap's own fair-spread formula. Every value is
+/// as of the evaluation date (the curves' reference date); flows on that
+/// date are excluded, as for every swap. Positive `npv` is in favour of the
+/// reported party (the one whose `pay_receive` sides were given).
 table VanillaSwapResponse {
     /// Total present value in the legs' currency, positive in favour of the
     /// reported party.
@@ -28,6 +32,17 @@ table VanillaSwapResponse {
     /// held fixed. Absent when the fixed leg's annuity is zero (nothing to
     /// solve for) or the value is not finite.
     fair_rate:double = null;
+    /// The spread on the floating leg (`IborCoupons` or `CmsCoupons`) that
+    /// zeroes `npv`, the fixed leg and every exchange held fixed (the
+    /// floating coupons' forwards unchanged). Present on every priced vanilla
+    /// swap whose floating leg's annuity is non-zero and the value finite,
+    /// as for every swap endpoint: `fair_rate` iff exactly one leg carries
+    /// `FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,
+    /// `OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or
+    /// `floor` the cap / floor strikes are held where the request put them
+    /// (the linear solve on the coupon annuity), so repricing a capped or
+    /// floored CMS leg at `fair_spread` zeroes `npv` only to first order.
+    fair_spread:double = null;
     /// One result per leg, in request order (`fixed_leg` then
     /// `floating_leg`): the leg's signed NPV and, with `include_flows`, its
     /// flows.

@@ -8,8 +8,9 @@ fair_spread already behave. These tests pin that behaviour end-to-end:
   - a swaption priced with a non-Hull-White model carries no `used_hw_*` keys;
   - a plain vanilla (IBOR) swap carries no `used_cms_*` keys and no
     `cms_swap_rate` / `has_cms_swap_rate` keys on any flow (`legs[i].flows`);
-  - the fair value a swap solves for is the only one it reports: `fair_rate`
-    on a fixed-vs-floating swap, `fair_spread` on a basis swap.
+  - a swap reports exactly the fair values its shape defines: `fair_rate`
+    iff exactly one leg is fixed, `fair_spread` iff a leg is floating (both
+    on a fixed-vs-floating swap, only `fair_spread` on a basis swap).
 """
 
 import json
@@ -74,12 +75,10 @@ def test_plain_vanilla_swap_omits_cms_diagnostics(client, data_dir):
                 assert "has_cms_swap_rate" not in flow, (
                     f"has_cms_swap_rate must be removed from the schema: {flow}"
                 )
-        # A fixed-vs-floating swap solves for a fair RATE; it carries no
-        # fair_spread (that field belongs to the basis swap response).
+        # A fixed-vs-floating swap solves for both fair quantities: the
+        # fixed rate (one fixed leg) and the floating leg's spread.
         assert "fair_rate" in swap, f"vanilla swap response lacks fair_rate: {swap}"
-        assert "fair_spread" not in swap, (
-            f"vanilla swap response unexpectedly carries fair_spread: {swap}"
-        )
+        assert "fair_spread" in swap, f"vanilla swap response lacks fair_spread: {swap}"
 
 
 def test_basis_swap_solves_fair_spread_not_fair_rate(client, data_dir):

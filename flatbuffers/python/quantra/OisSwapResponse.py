@@ -19,9 +19,13 @@ np = import_numpy()
 # B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
 #   fair_rate = rate_0 - npv / (B_0 / 1e-4)
 # which is QuantLib::OvernightIndexedSwap's own fair-rate formula, so
-# repricing at `fair_rate` gives npv = 0 to rounding. Every value is as of
-# the evaluation date (the curves' reference date); flows on that date are
-# excluded. Positive `npv` is in favour of the reported party.
+# repricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the
+# mirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons
+# of leg 1, D_1),
+#   fair_spread = spread_1 - npv / (B_1 / 1e-4)
+# which is QuantLib::OvernightIndexedSwap's own fair-spread formula. Every
+# value is as of the evaluation date (the curves' reference date); flows on
+# that date are excluded. Positive `npv` is in favour of the reported party.
 class OisSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -59,6 +63,19 @@ class OisSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # The spread on the overnight leg that zeroes `npv`, the fixed leg and
+    # every exchange held fixed (the compounded overnight rates unchanged).
+    # Present on every priced OIS whose overnight leg's annuity is non-zero
+    # and the value finite, as for every swap endpoint: `fair_rate` iff
+    # exactly one leg carries `FixedCoupons`, `fair_spread` iff a leg
+    # carries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`.
+    # OisSwapResponse
+    def FairSpread(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return None
+
     # One result per leg, in request order (`fixed_leg` then
     # `overnight_leg`): the leg's signed NPV and, with `include_flows`, its
     # flows. An overnight coupon's `rate` is the compounded (or averaged)
@@ -66,7 +83,7 @@ class OisSwapResponse(object):
     # date.
     # OisSwapResponse
     def Legs(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
@@ -79,18 +96,18 @@ class OisSwapResponse(object):
 
     # OisSwapResponse
     def LegsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # OisSwapResponse
     def LegsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         return o == 0
 
 def OisSwapResponseStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(4)
 
 def Start(builder):
     OisSwapResponseStart(builder)
@@ -107,8 +124,14 @@ def OisSwapResponseAddFairRate(builder, fairRate):
 def AddFairRate(builder, fairRate):
     OisSwapResponseAddFairRate(builder, fairRate)
 
+def OisSwapResponseAddFairSpread(builder, fairSpread):
+    builder.PrependFloat64Slot(2, fairSpread, None)
+
+def AddFairSpread(builder, fairSpread):
+    OisSwapResponseAddFairSpread(builder, fairSpread)
+
 def OisSwapResponseAddLegs(builder, legs):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
 
 def AddLegs(builder, legs):
     OisSwapResponseAddLegs(builder, legs)
@@ -136,6 +159,7 @@ class OisSwapResponseT(object):
     def __init__(self):
         self.npv = 0.0  # type: float
         self.fairRate = None  # type: Optional[float]
+        self.fairSpread = None  # type: Optional[float]
         self.legs = None  # type: List[SwapLegResultT]
 
     @classmethod
@@ -161,6 +185,7 @@ class OisSwapResponseT(object):
             return
         self.npv = oisSwapResponse.Npv()
         self.fairRate = oisSwapResponse.FairRate()
+        self.fairSpread = oisSwapResponse.FairSpread()
         if not oisSwapResponse.LegsIsNone():
             self.legs = []
             for i in range(oisSwapResponse.LegsLength()):
@@ -183,6 +208,7 @@ class OisSwapResponseT(object):
         OisSwapResponseStart(builder)
         OisSwapResponseAddNpv(builder, self.npv)
         OisSwapResponseAddFairRate(builder, self.fairRate)
+        OisSwapResponseAddFairSpread(builder, self.fairSpread)
         if self.legs is not None:
             OisSwapResponseAddLegs(builder, legs)
         oisSwapResponse = OisSwapResponseEnd(builder)

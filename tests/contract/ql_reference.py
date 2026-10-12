@@ -1418,14 +1418,18 @@ def swap_legs_ql(request: dict, index: int = 0) -> dict:
       npv         = legs[0].npv + legs[1].npv
       B_i         = s_i * CashFlows.bps(C_i, D_i)          (exchanges excluded)
       fair_rate   = r_0 - npv / (B_0 / 1e-4)       vanilla / OIS (leg 0 = fixed)
+      fair_spread = q_1 - npv / (B_1 / 1e-4)       vanilla / OIS (leg 1 = floating)
       fair_spread = q_k - npv * 1e-4 / B_k         basis; k = leg1 when only
                     leg1 carries a spread, leg2 otherwise
 
     Every value is as of the evaluation date, flows on that date excluded (as
     QuantLib's DiscountingSwapEngine values a leg). A CMS floating leg goes
-    through the same algebra (the CMS coupons held fixed for `fair_rate`).
+    through the same algebra (the CMS coupons held fixed for `fair_rate`, the
+    CMS coupons' annuity for `fair_spread`). As on every swap endpoint,
+    `fair_rate` is present iff exactly one leg is fixed and `fair_spread` iff
+    a leg is floating.
 
-    Returns {npv, legs: [{npv, npv_reporting, pv_own, flows}], fair_rate? /
+    Returns {npv, legs: [{npv, npv_reporting, pv_own, flows}], fair_rate?,
     fair_spread?} with `flows` = (ISO payment date, amount, discount) of every
     future flow of the full leg, in leg order (coupons first, then the
     exchanges, as the engine lists them)."""
@@ -1472,10 +1476,15 @@ def swap_legs_ql(request: dict, index: int = 0) -> dict:
             fair = legs[k]["level"] - npv * 1e-4 / legs[k]["signed_bps"]
             if math.isfinite(fair):
                 out["fair_spread"] = fair
-    elif legs[0]["signed_bps"] != 0.0:
-        fair = legs[0]["level"] - npv / (legs[0]["signed_bps"] / 1e-4)
-        if math.isfinite(fair):
-            out["fair_rate"] = fair
+    else:
+        if legs[0]["signed_bps"] != 0.0:
+            fair = legs[0]["level"] - npv / (legs[0]["signed_bps"] / 1e-4)
+            if math.isfinite(fair):
+                out["fair_rate"] = fair
+        if legs[1]["signed_bps"] != 0.0:
+            fair = legs[1]["level"] - npv / (legs[1]["signed_bps"] / 1e-4)
+            if math.isfinite(fair):
+                out["fair_spread"] = fair
     return out
 
 
@@ -2243,7 +2252,8 @@ def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
       npv   = legs[0].npv_reporting + legs[1].npv_reporting
       A_i   = CashFlows.bps(C_i, D_i) / 1e-4
       fair_rate   = r_f - NPV[fixed ccy]   / (s_f * A_f)   (exactly one fixed leg)
-      fair_spread = q_1 - NPV[legs[1] ccy] / (s_1 * A_1)   (no fixed leg)
+      fair_spread = q_k - NPV[leg k ccy]   / (s_k * A_k)   (k = the floating leg of
+                    a fixed/float swap, legs[1] of a float/float one)
 
     Returns the scalar response fields ({npv, fair_rate?, fair_spread?,
     fx_spot_used, fx_as_of_rate, spot_date}) and "legs": one dict per leg
@@ -2321,8 +2331,8 @@ def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
     if legs[0]["is_fixed"] != legs[1]["is_fixed"]:
         f = legs[0] if legs[0]["is_fixed"] else legs[1]
         out["fair_rate"] = f["level"] - npv_in(f["ccy"]) / (f["sign"] * f["annuity"])
-    elif not legs[0]["is_fixed"] and not legs[1]["is_fixed"]:
-        q = legs[1]
+    if not legs[0]["is_fixed"] or not legs[1]["is_fixed"]:
+        q = legs[0] if legs[1]["is_fixed"] else legs[1]
         out["fair_spread"] = q["level"] - npv_in(q["ccy"]) / (q["sign"] * q["annuity"])
     return out
 

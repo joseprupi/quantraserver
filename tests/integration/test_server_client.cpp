@@ -859,8 +859,10 @@ TEST_F(ServerClientTest, CrossCurrencySwap_RoundTrip) {
     EXPECT_NEAR(l1r->npv_reporting(), l1r->npv() * spot, 1e-6);
     EXPECT_DOUBLE_EQ(l2r->npv_reporting(), l2r->npv());
     EXPECT_NEAR(r->npv(), l1r->npv_reporting() + l2r->npv_reporting(), 1e-6);
+    // Fixed vs SOFR: the fixed rate and the SOFR leg's spread are both solved.
     ASSERT_TRUE(r->fair_rate().has_value());
-    EXPECT_FALSE(r->fair_spread().has_value());
+    ASSERT_TRUE(r->fair_spread().has_value());
+    EXPECT_TRUE(std::isfinite(r->fair_spread().value()));
     ASSERT_TRUE(l1r->flows() && l2r->flows());
     EXPECT_EQ(l1r->flows()->size(), 5u + 2u);
     EXPECT_EQ(l2r->flows()->size(), 20u + 2u);

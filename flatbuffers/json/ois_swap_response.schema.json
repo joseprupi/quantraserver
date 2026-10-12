@@ -729,7 +729,7 @@
     },
     "quantra_OisSwapResponse" : {
       "type" : "object",
-      "description" : "Overnight indexed swap pricing result. With, for leg i, L_i the leg's\nflows in its own frame (coupons +, initial exchange -N_i at the schedule\nstart, final exchange +N_i with the last coupon; no exchanges unless the\nleg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /\n+1 for `Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the overnight leg and every exchange fixed and solves\nthe linear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::OvernightIndexedSwap's own fair-rate formula, so\nrepricing at `fair_rate` gives npv = 0 to rounding. Every value is as of\nthe evaluation date (the curves' reference date); flows on that date are\nexcluded. Positive `npv` is in favour of the reported party.",
+      "description" : "Overnight indexed swap pricing result. With, for leg i, L_i the leg's\nflows in its own frame (coupons +, initial exchange -N_i at the schedule\nstart, final exchange +N_i with the last coupon; no exchanges unless the\nleg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /\n+1 for `Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the overnight leg and every exchange fixed and solves\nthe linear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::OvernightIndexedSwap's own fair-rate formula, so\nrepricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the\nmirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons\nof leg 1, D_1),\nfair_spread = spread_1 - npv / (B_1 / 1e-4)\nwhich is QuantLib::OvernightIndexedSwap's own fair-spread formula. Every\nvalue is as of the evaluation date (the curves' reference date); flows on\nthat date are excluded. Positive `npv` is in favour of the reported party.",
       "properties" : {
         "npv" : {
                 "type" : "number",
@@ -738,6 +738,10 @@
         "fair_rate" : {
                 "type" : "number",
                 "description" : "The fixed rate that zeroes `npv`, the overnight leg and every exchange\nheld fixed. Absent when the fixed leg's annuity is zero or the value\nis not finite."
+              },
+        "fair_spread" : {
+                "type" : "number",
+                "description" : "The spread on the overnight leg that zeroes `npv`, the fixed leg and\nevery exchange held fixed (the compounded overnight rates unchanged).\nPresent on every priced OIS whose overnight leg's annuity is non-zero\nand the value finite, as for every swap endpoint: `fair_rate` iff\nexactly one leg carries `FixedCoupons`, `fair_spread` iff a leg\ncarries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`."
               },
         "legs" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegResult"},

@@ -8,8 +8,12 @@ answer with one `SwapLegResult` per leg in request order. These tests pin,
 end to end against the running JSON API:
 
   - the response shape: `legs` of length 2 whose signed NPVs sum to `npv`,
-    `npv_reporting == npv` on a one-currency swap, and the fair value a swap
-    solves for (`fair_rate` on fixed-vs-floating, `fair_spread` on basis);
+    `npv_reporting == npv` on a one-currency swap, and the fair values the
+    swap's shape defines (`fair_rate` iff exactly one leg is fixed,
+    `fair_spread` iff a leg is floating: both on fixed-vs-floating, only
+    `fair_spread` on basis);
+  - the vanilla / OIS `fair_spread` is the floating leg's par spread:
+    repricing that leg at it (the fixed leg untouched) zeroes the swap;
   - the sign convention: flipping both `pay_receive` values negates `npv`
     and both leg NPVs;
   - the basis `fair_spread` lands on the leg that carries the request's
@@ -41,12 +45,16 @@ FIXTURES = {
     "basis_swap": "basis_swap_request.json",
 }
 
-# The fair value each endpoint solves for, and the one it must NOT report.
-FAIR_FIELD = {
-    "vanilla_swap": ("fair_rate", "fair_spread"),
-    "ois_swap": ("fair_rate", "fair_spread"),
-    "basis_swap": ("fair_spread", "fair_rate"),
+# The fair values each endpoint reports (fair_rate iff exactly one leg is
+# fixed, fair_spread iff a leg is floating) and the ones it must NOT report.
+FAIR_FIELDS = {
+    "vanilla_swap": ({"fair_rate", "fair_spread"}, set()),
+    "ois_swap": ({"fair_rate", "fair_spread"}, set()),
+    "basis_swap": ({"fair_spread"}, {"fair_rate"}),
 }
+# The leg whose spread `fair_spread` solves for on the fixed-vs-floating
+# endpoints.
+FLOATING_ROLE = {"vanilla_swap": "floating_leg", "ois_swap": "overnight_leg"}
 
 
 def _swap(request, product):
@@ -100,9 +108,11 @@ def test_legs_sum_to_npv_and_fair_value_matches_the_product(client, data_dir, pr
             "on a single-currency swap"
         )
 
-    present, absent = FAIR_FIELD[product]
-    assert present in row, f"{product}: response lacks {present}: {row}"
-    assert absent not in row, f"{product}: response must not carry {absent}: {row}"
+    present, absent = FAIR_FIELDS[product]
+    for name in present:
+        assert name in row, f"{product}: response lacks {name}: {row}"
+    for name in absent:
+        assert name not in row, f"{product}: response must not carry {name}: {row}"
 
 
 @pytest.mark.parametrize("product", list(FIXTURES))
@@ -118,8 +128,8 @@ def test_legs_match_the_quantlib_leg_algebra(client, data_dir, product):
         assert row["legs"][i]["npv"] == pytest.approx(ref["legs"][i]["npv"], abs=1e-4), (
             f"legs[{i}]: API {row['legs'][i]['npv']} vs QuantLib {ref['legs'][i]['npv']}"
         )
-    present = FAIR_FIELD[product][0]
-    assert row[present] == pytest.approx(ref[present], abs=1e-10), (row[present], ref[present])
+    for name in FAIR_FIELDS[product][0]:
+        assert row[name] == pytest.approx(ref[name], abs=1e-10), (name, row[name], ref[name])
 
 
 # ---------------------------------------------------------------------------
@@ -148,9 +158,39 @@ def test_flipping_both_sides_negates_npv_and_leg_npvs(client, data_dir, product)
         assert other["legs"][i]["npv"] == pytest.approx(-row["legs"][i]["npv"], abs=1e-6), (
             f"legs[{i}]: {row['legs'][i]['npv']} vs flipped {other['legs'][i]['npv']}"
         )
-    # The fair value is a property of the trade, not of the side.
-    present = FAIR_FIELD[product][0]
-    assert other[present] == pytest.approx(row[present], abs=1e-12)
+    # The fair values are properties of the trade, not of the side.
+    for name in FAIR_FIELDS[product][0]:
+        assert other[name] == pytest.approx(row[name], abs=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Vanilla / OIS fair spread
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("product", list(FLOATING_ROLE))
+def test_fixed_vs_floating_fair_spread_reprices_the_floating_leg(client, data_dir, product):
+    """`fair_spread` on a fixed-vs-floating swap is the floating (overnight)
+    leg's spread that zeroes the swap, the fixed leg and the forwards held
+    fixed (QuantLib's VanillaSwap / OvernightIndexedSwap fairSpread):
+    repricing the floating leg at it through the API gives a zero NPV, and
+    the fair rate is unchanged by the spread only through the NPV."""
+    request = load_json(data_dir / FIXTURES[product])
+    row = _row(client, product, request)
+    fair = row["fair_spread"]
+    leg = _swap(request, product)[FLOATING_ROLE[product]]
+    assert fair != pytest.approx(leg["coupons"].get("spread", 0.0)), (
+        "the fixture is not at par; the test needs a non-trivial fair spread"
+    )
+
+    at_par = copy.deepcopy(request)
+    _swap(at_par, product)[FLOATING_ROLE[product]]["coupons"]["spread"] = fair
+    repriced = _row(client, product, at_par)
+    notional = _notional(request, product)
+    assert abs(repriced["npv"]) < 1e-9 * notional, (
+        f"{product}: floating leg repriced at fair_spread {fair}: npv {repriced['npv']}"
+    )
+    assert repriced["fair_spread"] == pytest.approx(fair, abs=1e-12)
+    assert "fair_rate" in repriced
 
 
 # ---------------------------------------------------------------------------

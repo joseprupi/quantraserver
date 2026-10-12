@@ -39,7 +39,9 @@
  * linear in the fixed rate r_f / the spread q_1, so
  *
  *   fair_rate   = r_f - NPV[fixed-leg ccy] / (s_f * A_f)   (exactly one fixed leg)
- *   fair_spread = q_1 - NPV[legs[1] ccy]   / (s_1 * A_1)   (no fixed leg)
+ *   fair_spread = q_k - NPV[leg k ccy]     / (s_k * A_k)   (k = the floating leg of a
+ *                                                           fixed/float swap, legs[1]
+ *                                                           of a float/float one)
  *
  * and repricing at the fair value gives npv = 0 identically (the tests pin
  * it through the API). These are QuantLib::VanillaSwap's /
@@ -77,7 +79,8 @@ struct CrossCurrencySwapPerSwap {
     std::vector<SwapLegPerLeg> legs;
     /// Present iff exactly one leg is fixed.
     std::optional<double> fairRate;
-    /// Present iff no leg is fixed (spread on legs[1]).
+    /// Present iff a leg is floating: the spread on the floating leg of a
+    /// fixed/float swap, on legs[1] of a float/float one.
     std::optional<double> fairSpread;
     double fxSpotUsed = 0.0;
     double fxAsOfRate = 0.0;

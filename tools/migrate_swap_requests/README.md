@@ -176,7 +176,8 @@ states that explicitly, so the converted swap pays on the same dates. A
 0.9.0 OIS fixed-leg body that already carries one of the two is an error
 naming it (it cannot be told apart from the overnight leg's value).
 
-Response: `fixed_leg_npv` / `overnight_leg_npv` become `legs[0]` / `legs[1]`.
+Response: `fixed_leg_npv` / `overnight_leg_npv` / `*_bps` / `*_flows` become
+`legs[0]` / `legs[1]`; `npv`, `fair_rate` and `fair_spread` stay.
 
 ### `price-basis-swap`
 
@@ -208,7 +209,8 @@ curves and exchange flags on the leg) but nested the whole coupon body under
 A shared field that is both on the leg and inside `coupons`, or a leg with
 shared fields on both levels, is an error naming the field inside `coupons`.
 Response: unchanged (`npv`, `legs[]`, `fair_rate`, `fair_spread`, the FX
-fields).
+fields); a fixed/float swap now also reports `fair_spread` (the floating
+leg's), which 0.9.0 gave only for float/float.
 
 ### `price-swaption`
 

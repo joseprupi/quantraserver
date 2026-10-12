@@ -33,6 +33,14 @@ OisSwapPerSwap priceTrade(
         const double fairRate = trade.fixedLeg.level() - out.npv / (fixedBps / kBasisPoint);
         if (std::isfinite(fairRate)) out.fairRate = fairRate;
     }
+    // OvernightIndexedSwap::fairSpread: spread - NPV / (overnightLegBPS /
+    // basisPoint), the same linear solve on the overnight leg's signed annuity.
+    const double overnightBps = SignedBps(trade.overnightLeg, overnight);
+    if (overnightBps != 0.0) {
+        const double fairSpread =
+            trade.overnightLeg.level() - out.npv / (overnightBps / kBasisPoint);
+        if (std::isfinite(fairSpread)) out.fairSpread = fairSpread;
+    }
 
     std::cout << "OIS swap NPV (" << trade.fixedLeg.currency << "): " << out.npv << std::endl;
     return out;

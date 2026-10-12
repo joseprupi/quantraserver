@@ -14,7 +14,8 @@ server for the converted request. This tool proves it:
             0.9.0 response shape (`fixed_leg_npv`, `leg1_flows`,
             `fair_spread_leg2`, ...) into the 0.10.0 one (`legs[i].npv`,
             `legs[i].flows`, `fair_spread`) and reporting every value that is
-            not bit-identical at the precision the server prints.
+            not bit-identical at the precision the server prints. The vanilla
+            and OIS `fair_rate` / `fair_spread` are compared as they are.
 
 Usage:
   python3 tests/tools/swap_leg_snapshot.py capture --url http://localhost:8080 \
@@ -65,11 +66,12 @@ LEG_FIELDS = {
 }
 
 # Old scalar fields that have no 0.10.0 counterpart (dropped by design: the
-# leg BPS and the vanilla / OIS `fair_spread`, which the leg model reports only
-# where the request carries a spread to solve for).
+# leg BPS). The vanilla / OIS `fair_rate` and `fair_spread` are compared; a
+# 0.9.0 CMS swap wrote `0.0` for both, 0.10.0 computes them, so those are the
+# expected differences.
 DROPPED = {
-    "vanilla_swap": {"fixed_leg_bps", "floating_leg_bps", "fair_spread"},
-    "ois_swap": {"fixed_leg_bps", "overnight_leg_bps", "fair_spread"},
+    "vanilla_swap": {"fixed_leg_bps", "floating_leg_bps"},
+    "ois_swap": {"fixed_leg_bps", "overnight_leg_bps"},
     "basis_swap": {"leg1_bps", "leg2_bps"},
     "swaption": set(),
 }

@@ -80,6 +80,7 @@ flatbuffers::Offset<quantra::PriceVanillaSwapResponse> VanillaSwapMapper::toResp
         quantra::VanillaSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
         if (swap.fairRate) rb.add_fair_rate(*swap.fairRate);
+        if (swap.fairSpread) rb.add_fair_spread(*swap.fairSpread);
         rb.add_legs(legs);
         // The CMS diagnostics block exists only for a CMS floating leg; an
         // unset optional leaves every `used_cms_*` field absent.

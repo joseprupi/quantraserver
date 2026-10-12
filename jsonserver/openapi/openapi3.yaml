@@ -5454,9 +5454,11 @@ components:
 
         fair_rate   = rate_f   - NPV[in the fixed leg''s ccy] / (s_f * A_f)
 
-        fair_spread = spread_1 - NPV[in legs[1]''s ccy]       / (s_1 * A_1)
+        fair_spread = spread_k - NPV[in leg k''s ccy]         / (s_k * A_k)
 
-        so repricing at the fair value gives npv = 0 to rounding. These are
+        (k = the floating leg of a fixed/float swap, `legs[1]` of a float/float
+
+        one) so repricing at the fair value gives npv = 0 to rounding. These are
 
         QuantLib::VanillaSwap''s / OvernightIndexedSwap''s own fair-value formulas
 
@@ -5492,12 +5494,16 @@ components:
             Absent for float/float and fixed/fixed swaps.'
         fair_spread:
           type: number
-          description: 'Present iff no leg has `FixedCoupons`: the spread on `legs[1]`
-            (`leg2`,
+          description: 'Present iff a leg has `IborCoupons` or `OvernightCoupons`
+            (as on every
 
-            by convention) that zeroes `npv`, holding `legs[0]` and every notional
+            swap endpoint): the spread on the floating leg of a fixed/float swap,
 
-            exchange fixed. Absent when a leg is fixed.'
+            or on `legs[1]` (`leg2`, by convention) of a float/float one, that
+
+            zeroes `npv`, holding the other leg and every notional exchange fixed.
+
+            Absent for fixed/fixed swaps.'
         fx_spot_used:
           type: number
           description: 'The spot rate the swap was priced with (quote units per base
@@ -6009,11 +6015,19 @@ components:
 
         which is QuantLib::OvernightIndexedSwap''s own fair-rate formula, so
 
-        repricing at `fair_rate` gives npv = 0 to rounding. Every value is as of
+        repricing at `fair_rate` gives npv = 0 to rounding. `fair_spread` is the
 
-        the evaluation date (the curves'' reference date); flows on that date are
+        mirror image on the overnight leg: with B_1 = s_1 * CashFlows::bps(coupons
 
-        excluded. Positive `npv` is in favour of the reported party.'
+        of leg 1, D_1),
+
+        fair_spread = spread_1 - npv / (B_1 / 1e-4)
+
+        which is QuantLib::OvernightIndexedSwap''s own fair-spread formula. Every
+
+        value is as of the evaluation date (the curves'' reference date); flows on
+
+        that date are excluded. Positive `npv` is in favour of the reported party.'
       properties:
         npv:
           type: number
@@ -6029,6 +6043,20 @@ components:
             held fixed. Absent when the fixed leg''s annuity is zero or the value
 
             is not finite.'
+        fair_spread:
+          type: number
+          description: 'The spread on the overnight leg that zeroes `npv`, the fixed
+            leg and
+
+            every exchange held fixed (the compounded overnight rates unchanged).
+
+            Present on every priced OIS whose overnight leg''s annuity is non-zero
+
+            and the value finite, as for every swap endpoint: `fair_rate` iff
+
+            exactly one leg carries `FixedCoupons`, `fair_spread` iff a leg
+
+            carries `IborCoupons`, `OvernightCoupons` or `CmsCoupons`.'
         legs:
           type: array
           description: 'One result per leg, in request order (`fixed_leg` then
@@ -7390,13 +7418,21 @@ components:
 
         `fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same
 
-        formula applies, the CMS coupons being held fixed). Every value is as of
+        formula applies, the CMS coupons being held fixed). `fair_spread` is the
 
-        the evaluation date (the curves'' reference date); flows on that date are
+        mirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons
 
-        excluded, as for every swap. Positive `npv` is in favour of the reported
+        of leg 1, D_1),
 
-        party (the one whose `pay_receive` sides were given).'
+        fair_spread = spread_1 - npv / (B_1 / 1e-4)
+
+        which is QuantLib::VanillaSwap''s own fair-spread formula. Every value is
+
+        as of the evaluation date (the curves'' reference date); flows on that
+
+        date are excluded, as for every swap. Positive `npv` is in favour of the
+
+        reported party (the one whose `pay_receive` sides were given).'
       properties:
         npv:
           type: number
@@ -7412,6 +7448,28 @@ components:
             held fixed. Absent when the fixed leg''s annuity is zero (nothing to
 
             solve for) or the value is not finite.'
+        fair_spread:
+          type: number
+          description: 'The spread on the floating leg (`IborCoupons` or `CmsCoupons`)
+            that
+
+            zeroes `npv`, the fixed leg and every exchange held fixed (the
+
+            floating coupons'' forwards unchanged). Present on every priced vanilla
+
+            swap whose floating leg''s annuity is non-zero and the value finite,
+
+            as for every swap endpoint: `fair_rate` iff exactly one leg carries
+
+            `FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,
+
+            `OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or
+
+            `floor` the cap / floor strikes are held where the request put them
+
+            (the linear solve on the coupon annuity), so repricing a capped or
+
+            floored CMS leg at `fair_spread` zeroes `npv` only to first order.'
         legs:
           type: array
           description: 'One result per leg, in request order (`fixed_leg` then

@@ -729,7 +729,7 @@
     },
     "quantra_VanillaSwapResponse" : {
       "type" : "object",
-      "description" : "Vanilla swap pricing result. With, for leg i, L_i the leg's flows in its\nown frame (coupons +, initial exchange -N_i at the schedule start, final\nexchange +N_i with the last coupon; no exchanges unless the leg asks for\nthem), D_i its discounting curve and s_i = -1 for `Pay` / +1 for\n`Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the floating leg and every exchange fixed and solves the\nlinear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::VanillaSwap's own fair-rate formula, so repricing at\n`fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same\nformula applies, the CMS coupons being held fixed). Every value is as of\nthe evaluation date (the curves' reference date); flows on that date are\nexcluded, as for every swap. Positive `npv` is in favour of the reported\nparty (the one whose `pay_receive` sides were given).",
+      "description" : "Vanilla swap pricing result. With, for leg i, L_i the leg's flows in its\nown frame (coupons +, initial exchange -N_i at the schedule start, final\nexchange +N_i with the last coupon; no exchanges unless the leg asks for\nthem), D_i its discounting curve and s_i = -1 for `Pay` / +1 for\n`Receive`:\nlegs[i].npv           = s_i * CashFlows::npv(L_i, D_i)\nlegs[i].npv_reporting = legs[i].npv                (one currency)\nnpv                   = legs[0].npv + legs[1].npv\n`fair_rate` holds the floating leg and every exchange fixed and solves the\nlinear equation in the fixed rate with the fixed leg's signed annuity\nB_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):\nfair_rate = rate_0 - npv / (B_0 / 1e-4)\nwhich is QuantLib::VanillaSwap's own fair-rate formula, so repricing at\n`fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same\nformula applies, the CMS coupons being held fixed). `fair_spread` is the\nmirror image on the floating leg: with B_1 = s_1 * CashFlows::bps(coupons\nof leg 1, D_1),\nfair_spread = spread_1 - npv / (B_1 / 1e-4)\nwhich is QuantLib::VanillaSwap's own fair-spread formula. Every value is\nas of the evaluation date (the curves' reference date); flows on that\ndate are excluded, as for every swap. Positive `npv` is in favour of the\nreported party (the one whose `pay_receive` sides were given).",
       "properties" : {
         "npv" : {
                 "type" : "number",
@@ -738,6 +738,10 @@
         "fair_rate" : {
                 "type" : "number",
                 "description" : "The fixed rate that zeroes `npv`, the floating leg and every exchange\nheld fixed. Absent when the fixed leg's annuity is zero (nothing to\nsolve for) or the value is not finite."
+              },
+        "fair_spread" : {
+                "type" : "number",
+                "description" : "The spread on the floating leg (`IborCoupons` or `CmsCoupons`) that\nzeroes `npv`, the fixed leg and every exchange held fixed (the\nfloating coupons' forwards unchanged). Present on every priced vanilla\nswap whose floating leg's annuity is non-zero and the value finite,\nas for every swap endpoint: `fair_rate` iff exactly one leg carries\n`FixedCoupons`, `fair_spread` iff a leg carries `IborCoupons`,\n`OvernightCoupons` or `CmsCoupons`. For a CMS leg with a `cap` or\n`floor` the cap / floor strikes are held where the request put them\n(the linear solve on the coupon annuity), so repricing a capped or\nfloored CMS leg at `fair_spread` zeroes `npv` only to first order."
               },
         "legs" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_SwapLegResult"},
