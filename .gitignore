@@ -33,3 +33,4 @@ bench_*.json
 
 # Editor workspace files
 *.code-workspace
+__pycache__/
