@@ -173,6 +173,10 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
     "quantra_CalendarHolidaysResponse" : {
       "type" : "object",
       "description" : "Holidays/vacations for a calendar date range.",

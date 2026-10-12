@@ -20,6 +20,7 @@
 #include "fixed_rate_bond_handler.h"
 #include "floating_rate_bond_handler.h"
 #include "fra_handler.h"
+#include "fx_forward_handler.h"
 #include "ois_swap_handler.h"
 #include "sample_vol_surfaces_handler.h"
 #include "swaption_handler.h"

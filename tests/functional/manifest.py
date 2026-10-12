@@ -44,7 +44,10 @@ Field reference (all keys required unless noted):
               response must equal it exactly (order and length included).
               "fields": for calibration endpoints returning a flat result
               object — the reference returns {dotted.response.path: float or
-              [floats]} and each named field is compared within tolerance.
+              [floats]} and each named field is compared within tolerance;
+              a numeric path part indexes a list (fx_forwards.0.npv), so
+              per-instrument responses with several compared fields (the FX
+              forward's npv, fair forward, points and leg PVs) use it too.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
@@ -52,7 +55,8 @@ examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
 examples/data/curves/, calendar utilities in examples/data/calendar/,
 inflation swaps in examples/data/inflation/, equity options in
-examples/data/equity/, vol sampling and calibration in examples/data/vol/),
+examples/data/equity/, FX forwards in examples/data/fx_forward/, vol sampling
+and calibration in examples/data/vol/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -72,6 +76,13 @@ DEFAULT_TOLERANCE = 0.01
 # structures, values O(0.005-0.4)) sit on the same noise floor and use the
 # same tolerance.
 SERIES_TOLERANCE = 1e-9
+# FX forward cases compare every numeric response field (npv and leg PVs in
+# currency units up to ~1e9 for USD/JPY, the fair forward and points in price
+# units) against the same discount-factor algebra on the same QuantLib curves.
+# The two bootstraps agree to ~1e-14 relative on the discount factors, so the
+# amounts set the absolute tolerance; the rates are pinned at 1e-12 relative
+# in tests/contract/fx_forward_test.py.
+FX_FORWARD_TOLERANCE = 1e-4
 
 # Tolerance for calibration-output fields (Hull-White a/sigma, SABR
 # alpha/beta/rho/nu, fit RMSEs — all O(0.001-1.0)). Both sides run the same
@@ -4067,5 +4078,124 @@ CASES = [
         "exercises": ["calendar_overrides", "added holiday",
                       "removed holiday", "OIS", "SOFR",
                       "UnitedStatesGovernmentBond"],
+    },
+    # ------------------------------------------------------------------
+    # FX forwards — outright forwards off an FX spot + two discount curves
+    # ------------------------------------------------------------------
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, buy 10m EUR at 1.0950, NPV in USD",
+        "description": (
+            "Baseline outright: buy EUR 10m six months forward at 1.0950 "
+            "against the EUR/USD spot 1.0850 (T+2 on the joint TARGET + US "
+            "settlement calendar, spot date 2025-01-17). The EUR leg is "
+            "discounted on the USD-collateralised EUR curve (FX swaps + "
+            "cross-currency basis) and the USD leg on USD SOFR OIS, so the "
+            "fair forward at the 6M pillar reprices the market point "
+            "1.0850 + 0.01310 = 1.09810; the contract rate sits below it and "
+            "the buyer of EUR is in the money. Compares npv, fair forward, "
+            "points and both leg PVs with the reference's discount-factor "
+            "algebra on the same curves."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "BuyBase", "EUR/USD", "reporting in quote ccy",
+                      "collateral-adjusted discounting", "fair forward at an FX swap pillar"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_sell_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, the same trade sold",
+        "description": (
+            "The sold side of the baseline: sell EUR 10m at 1.0950. Everything "
+            "else is identical, so npv and both leg PVs are the exact negatives "
+            "of the buy case while the fair forward and the forward points are "
+            "unchanged (they are market quantities, not positions)."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_sell_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "SellBase", "sign flip", "EUR/USD"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur_reported_in_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, NPV reported in EUR",
+        "description": (
+            "The baseline buy with reporting_currency EUR: the USD leg is "
+            "converted at the as-of exchange rate X = S * DF_USD(spot) / "
+            "DF_EUR(spot) (the FxSwapRateHelper identity), so npv_EUR * X "
+            "equals the USD-reported npv. The leg PVs stay in their own "
+            "currencies."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur_reported_in_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "reporting in base ccy", "as-of exchange rate"],
+    },
+    {
+        "id": "fx_forward_eurusd_1y_on_market",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 1Y forward struck on-market (spot + 1Y points)",
+        "description": (
+            "Buy EUR 10m one year forward at 1.11202 = spot 1.0850 + the 1Y "
+            "FX swap points 0.02702 the EUR curve was bootstrapped from. The "
+            "maturity is given as Saturday 2026-01-17 and rolls on the joint "
+            "calendar past the US holiday to 2026-01-20, the 1Y pillar date, "
+            "so the contract rate equals the fair forward and the NPV is zero "
+            "to bootstrap accuracy (an on-market forward)."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_1y_on_market.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "zero NPV at the fair forward",
+                      "maturity rolled on the joint calendar", "1Y FX swap pillar"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur_spot_quote_id",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, spot through an Fx quote",
+        "description": (
+            "The baseline buy with the EUR/USD spot carried in pricing.quotes "
+            "as an Fx-type quote and referenced by quote_id from the "
+            "FxSpotSpec (the rate bump never shifts an Fx quote). Must price "
+            "identically to the inline spot."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur_spot_quote_id.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "spot by quote_id", "Fx quote type"],
+    },
+    {
+        "id": "fx_forward_usdjpy_3m_sell_usd",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "USD/JPY 3M forward, sell 5m USD at 153.80, NPV in JPY",
+        "description": (
+            "A pair whose quote amounts are ~150x the base ones: sell USD 5m "
+            "three months forward at 153.80 against spot 155.00 (T+2 on the "
+            "joint US settlement + Japan calendar), USD leg on SOFR OIS, JPY "
+            "leg on a TONA OIS curve. JPY rates far below USD rates put the "
+            "fair forward below the spot (negative points); the seller of USD "
+            "at 153.80 is short against a lower fair forward."
+        ),
+        "request": "fx_forward/fx_forward_usdjpy_3m_sell_usd.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "USD/JPY", "Japan calendar", "negative forward points",
+                      "SellBase", "TONA OIS discounting"],
     },
 ]

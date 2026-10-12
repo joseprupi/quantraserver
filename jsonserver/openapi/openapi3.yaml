@@ -30,11 +30,12 @@ info:
     \ | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation\
     \ Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation\
     \ caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond`\
-    \ | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| Status\
-    \ | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build\
-    \ metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick\
-    \ Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price\
-    \ a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
+    \ | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward\
+    \ | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount\
+    \ curves |\n| Status | `/status` | Runtime health and worker aggregation |\n|\
+    \ Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight\
+    \ liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\
+    \n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond\
     \ \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n\
     ```\n"
   version: 0.8.2
@@ -53,6 +54,8 @@ tags:
   description: Credit default swaps
 - name: Equity Derivatives
   description: Equity option pricing
+- name: FX
+  description: FX forwards priced off FX spots and per-currency discount curves
 - name: Curves
   description: Yield curve bootstrapping and rate extraction
 - name: Inflation
@@ -1031,6 +1034,49 @@ paths:
                   error:
                     type: string
                     description: Error message
+  /price-fx-forward:
+    post:
+      summary: Price FX Forward
+      description: Calculate NPV in a reporting currency, fair forward rate, forward
+        points and per-currency leg present values for outright FX forwards, from
+        an FX spot (pricing.fx.spots) and one discount curve per currency, using the
+        same spot-date discount-factor algebra as QuantLib's FxSwapRateHelper. No
+        currency is inferred from curve or index ids.
+      tags:
+      - FX
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/quantra_PriceFxForwardRequest'
+      responses:
+        '200':
+          description: Successful pricing response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quantra_PriceFxForwardResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /health:
     get:
       summary: Health Check
@@ -1408,6 +1454,11 @@ components:
       enum:
       - Continuous
       - Discrete
+    quantra_enums_FxDirection:
+      type: string
+      enum:
+      - BuyBase
+      - SellBase
     quantra_Flow:
       type: string
       enum:
@@ -5284,6 +5335,156 @@ components:
       required:
       - fras
       additionalProperties: false
+    quantra_FxForward:
+      type: object
+      description: 'Outright FX forward: at `maturity_date` one party delivers `base_notional`
+
+        units of `base_currency` against `base_notional x forward_rate` units of
+
+        `quote_currency`. Priced off the FX spot and the two discount curves named
+
+        on the PriceFxForward wrapper; the engine never infers a currency from a
+
+        curve or index id.
+
+
+        Sign convention: `direction` is the side of the party whose NPV is
+
+        reported and a positive NPV is in favour of that party. A BuyBase forward
+
+        is worth more when the fair forward rises above `forward_rate`.'
+      properties:
+        base_currency:
+          type: string
+          description: 'ISO 4217 code of the base currency (three uppercase letters).
+            One unit
+
+            of it is exchanged for `forward_rate` units of `quote_currency`. Must
+
+            equal the `base_currency` of the referenced FX spot. Required.'
+        quote_currency:
+          type: string
+          description: 'ISO 4217 code of the quote currency. Must equal the `quote_currency`
+            of
+
+            the referenced FX spot (the engine never inverts a pair). Required.'
+        base_notional:
+          type: number
+          description: 'Notional in base-currency units exchanged at maturity.
+
+            Presence-required; must be finite and > 0.'
+        forward_rate:
+          type: number
+          description: 'Contract (strike) rate, quote units per base unit, applied
+            to
+
+            `base_notional` to give the quote-currency amount exchanged at
+
+            maturity. Presence-required; must be finite and > 0.'
+        maturity_date:
+          type: string
+          description: 'Delivery date, ISO `YYYY-MM-DD`. Adjusted with the spot''s
+            joint
+
+            settlement calendar and business-day convention; the adjusted date
+
+            must fall after the spot date (400 otherwise). Required.'
+        direction:
+          $ref: '#/components/schemas/quantra_enums_FxDirection'
+      required:
+      - base_currency
+      - quote_currency
+      - maturity_date
+      additionalProperties: false
+    quantra_FxForwardResponse:
+      type: object
+      description: 'FX forward pricing result. With S the spot rate, t_s the spot
+        date, T the
+
+        adjusted maturity, N the base notional, K the contract rate, sign = +1 for
+
+        BuyBase / -1 for SellBase, and DF_b / DF_q the two discount curves:
+
+        base_leg_pv  = sign * N * DF_b(T)              (base currency)
+
+        quote_leg_pv = -sign * N * K * DF_q(T)         (quote currency)
+
+        X            = S * DF_q(t_s) / DF_b(t_s)       (as-of exchange rate, quote
+        per base)
+
+        npv          = base_leg_pv * X + quote_leg_pv  (reporting = quote currency)
+
+        = base_leg_pv + quote_leg_pv / X  (reporting = base currency)
+
+        fair_forward_rate = X * DF_b(T) / DF_q(T)
+
+        = S * [DF_b(T)/DF_b(t_s)] / [DF_q(T)/DF_q(t_s)]
+
+        Repricing the forward at K = fair_forward_rate gives npv = 0. Every value
+        is
+
+        as of the evaluation date (the curves'' reference date), like the NPV of
+
+        every other product.'
+      properties:
+        npv:
+          type: number
+          description: 'Present value in `reporting_currency`, positive in favour
+            of the party
+
+            whose `direction` was given.'
+        fair_forward_rate:
+          type: number
+          description: 'Fair (zero-NPV) forward rate for the adjusted maturity, quote
+            units per
+
+            base unit.'
+        forward_points:
+          type: number
+          description: '`fair_forward_rate - spot`, in price units of the pair (the
+            forward
+
+            points at this maturity, as an FX swap screen quotes them).'
+        base_leg_pv:
+          type: number
+          description: 'Present value of the base-currency cash flow, in base currency
+
+            (positive when the reported party receives it).'
+        quote_leg_pv:
+          type: number
+          description: 'Present value of the quote-currency cash flow, in quote currency
+
+            (negative when the reported party pays it).'
+        spot_date:
+          type: string
+          description: 'Spot date used: the (adjusted) evaluation date advanced `spot_days`
+
+            business days on the spot''s joint settlement calendar, ISO.'
+        maturity_date:
+          type: string
+          description: 'Maturity date after adjustment with the spot''s calendar and
+
+            business-day convention, ISO. The cash flows are discounted to it.'
+        fx_spot_used:
+          type: number
+          description: 'The spot rate the forward was priced with (quote units per
+            base unit,
+
+            for delivery on `spot_date`), resolved from `pricing.fx.spots` or the
+
+            referenced Fx quote.'
+      additionalProperties: false
+    quantra_PriceFxForwardResponse:
+      type: object
+      description: Response wrapper for multiple FX forwards, in request order.
+      properties:
+        fx_forwards:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_FxForwardResponse'
+      required:
+      - fx_forwards
+      additionalProperties: false
     quantra_OisSwapResponse:
       type: object
       description: OIS swap pricing response (fixed vs compounded overnight leg).
@@ -5566,6 +5767,63 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/quantra_PriceFRA'
+      additionalProperties: false
+    quantra_PriceFxForward:
+      type: object
+      description: 'One FX forward together with the market data it is priced off:
+        the FX
+
+        spot (pair, spot rate, spot lag, settlement calendars) and one discount
+
+        curve per currency. All references are by id into `pricing`.'
+      properties:
+        fx_forward:
+          $ref: '#/components/schemas/quantra_FxForward'
+        fx_spot:
+          type: string
+          description: 'Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base/quote
+            currencies
+
+            must equal the forward''s (same order; a pair quoted the other way round
+
+            is rejected rather than inverted). Required.'
+        base_discounting_curve:
+          type: string
+          description: 'Id of the curve in `pricing.rates.curves` that discounts the
+
+            base-currency cash flow (for a collateralised trade, the base
+
+            currency''s collateral-adjusted discount curve). Required.'
+        quote_discounting_curve:
+          type: string
+          description: 'Id of the curve in `pricing.rates.curves` that discounts the
+
+            quote-currency cash flow. Required.'
+        reporting_currency:
+          type: string
+          description: 'Currency of the reported `npv`: `base_currency` or `quote_currency`
+            of
+
+            the forward (400 for any other value; reporting in a third currency is
+
+            not supported). Required.'
+      required:
+      - fx_forward
+      - fx_spot
+      - base_discounting_curve
+      - quote_discounting_curve
+      - reporting_currency
+      additionalProperties: false
+    quantra_PriceFxForwardRequest:
+      type: object
+      description: Request to price one or more FX forwards against one market.
+      properties:
+        pricing:
+          $ref: '#/components/schemas/quantra_Pricing'
+        fx_forwards:
+          type: array
+          items:
+            $ref: '#/components/schemas/quantra_PriceFxForward'
       additionalProperties: false
     quantra_OisFloatingLeg:
       type: object

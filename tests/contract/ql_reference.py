@@ -189,6 +189,7 @@ def get_calendar(name: str):
         "UnitedStatesSettlement": ql.UnitedStates(ql.UnitedStates.Settlement),
         "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
+        "Japan": ql.Japan(),
     }
     return mapping.get(name, ql.TARGET())
 
@@ -1994,6 +1995,112 @@ def price_fra_ql(request: dict) -> float:
         )
 
     return ql_fra.NPV()
+
+
+# =============================================================================
+# FX forward
+# =============================================================================
+
+def fx_spot_date_ql(spot: dict, eval_date: ql.Date) -> ql.Date:
+    """Spot date of a resolved FX spot (build_fx_spot): the evaluation date
+    adjusted on the joint settlement calendar, then advanced `spot_days`
+    business days — QuantLib FxSwapRateHelper::initializeDates, which the
+    server's FxSpotDate mirrors."""
+    cal = spot["calendar"]
+    return cal.advance(cal.adjust(eval_date), ql.Period(spot["spot_days"], ql.Days))
+
+
+def fx_as_of_exchange_rate_ql(spot_rate: float, spot_date: ql.Date, base_curve, quote_curve) -> float:
+    """As-of exchange rate X = S * DF_quote(spot) / DF_base(spot), quote units
+    per base unit at the curves' reference date (docs/http-api.md, FX spot
+    market data)."""
+    return spot_rate * quote_curve.discount(spot_date) / base_curve.discount(spot_date)
+
+
+def fx_forward_ql(request: dict, index: int = 0) -> dict:
+    """Price one FX forward of a PriceFxForwardRequest with the discount-factor
+    algebra of src/evaluators/fx_forward_evaluator.cpp, on QuantLib curves built
+    from the request:
+
+      base_leg_pv  = sign * N * DF_b(T)              (base ccy)
+      quote_leg_pv = -sign * N * K * DF_q(T)         (quote ccy)
+      X            = S * DF_q(t_s) / DF_b(t_s)
+      npv          = base_leg_pv * X + quote_leg_pv  (reporting = quote)
+                   = base_leg_pv + quote_leg_pv / X  (reporting = base)
+      fair         = X * DF_b(T) / DF_q(T)
+      forward_points = fair - S
+
+    t_s is the spot date (fx_spot_date_ql) and T the maturity adjusted with
+    the spot's joint calendar and convention. Returns every response field:
+    {npv, fair_forward_rate, forward_points, base_leg_pv, quote_leg_pv,
+    spot_date, maturity_date, fx_spot_used} plus "as_of_exchange_rate" (X,
+    not on the wire) for the reporting-currency identity test."""
+    pricing = _reference_pricing_view(request)
+    entry = request["fx_forwards"][index]
+    fwd = entry["fx_forward"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    spot = build_fx_spot(request["pricing"], entry["fx_spot"], request)
+    if (fwd["base_currency"], fwd["quote_currency"]) != (spot["base"], spot["quote"]):
+        raise ValueError("FxForward pair does not match the spot's pair")
+
+    def curve(curve_id):
+        curve_json = next(c for c in pricing["curves"] if c["id"] == curve_id)
+        return build_curve_from_json(curve_json, eval_date, request)
+
+    base_curve = curve(entry["base_discounting_curve"])
+    quote_curve = curve(entry["quote_discounting_curve"])
+
+    spot_date = fx_spot_date_ql(spot, eval_date)
+    maturity = spot["calendar"].adjust(parse_date(fwd["maturity_date"]), spot["bdc"])
+    if maturity <= spot_date:
+        raise ValueError("FxForward.maturity_date must fall after the spot date")
+
+    S = spot["rate"]
+    N = float(fwd["base_notional"])
+    K = float(fwd["forward_rate"])
+    sign = 1.0 if fwd["direction"] == "BuyBase" else -1.0
+
+    df_b = base_curve.discount(maturity)
+    df_q = quote_curve.discount(maturity)
+    base_leg_pv = sign * N * df_b
+    quote_leg_pv = -sign * N * K * df_q
+    X = fx_as_of_exchange_rate_ql(S, spot_date, base_curve, quote_curve)
+    fair = X * df_b / df_q
+
+    reporting = entry["reporting_currency"]
+    if reporting == fwd["quote_currency"]:
+        npv = base_leg_pv * X + quote_leg_pv
+    elif reporting == fwd["base_currency"]:
+        npv = base_leg_pv + quote_leg_pv / X
+    else:
+        raise ValueError("PriceFxForward.reporting_currency must be the base or quote currency")
+
+    return {
+        "npv": npv,
+        "fair_forward_rate": fair,
+        "forward_points": fair - S,
+        "base_leg_pv": base_leg_pv,
+        "quote_leg_pv": quote_leg_pv,
+        "spot_date": spot_date.ISO(),
+        "maturity_date": maturity.ISO(),
+        "fx_spot_used": S,
+        "as_of_exchange_rate": X,
+    }
+
+
+FX_FORWARD_COMPARED_FIELDS = ("npv", "fair_forward_rate", "forward_points",
+                              "base_leg_pv", "quote_leg_pv", "fx_spot_used")
+
+
+def price_fx_forward_ql(request: dict) -> dict:
+    """Functional-catalog reference for /price-fx-forward (compare="fields"):
+    every numeric response field of the first forward, keyed by its dotted
+    response path."""
+    values = fx_forward_ql(request, 0)
+    return {f"fx_forwards.0.{name}": values[name] for name in FX_FORWARD_COMPARED_FIELDS}
 
 
 def price_cap_floor_ql(request: dict) -> float:

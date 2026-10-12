@@ -5,8 +5,8 @@
  * Plain-domain mirror of flatbuffers/fbs/fx.fbs:FxSpotSpec.
  *
  * Produced by FxSpotParser (parsers layer) from the wire table and stored in
- * FxSpotRegistry (market layer); consumed by the FX curve helpers and, later,
- * by the FX product evaluators. Holds QuantLib values only — no FlatBuffers
+ * FxSpotRegistry (market layer); consumed by the FX curve helpers and by the
+ * FX forward evaluator. Holds QuantLib values only — no FlatBuffers
  * pointers — so evaluators stay FlatBuffers-free.
  */
 

@@ -174,9 +174,18 @@ def _assert_exact_parity(case, actual, expected):
 
 
 def _dig(response, path, case_id):
-    """Resolve a dotted field path (e.g. diagnostics.alpha_per_node)."""
+    """Resolve a dotted field path (e.g. diagnostics.alpha_per_node). A
+    numeric part indexes a list (e.g. fx_forwards.0.npv for per-instrument
+    responses that carry several compared fields)."""
     value = response
     for part in path.split("."):
+        if isinstance(value, list) and part.isdigit():
+            assert int(part) < len(value), (
+                f"{case_id}: response has no '{path}' field "
+                f"(index {part} out of range, list has {len(value)} items)"
+            )
+            value = value[int(part)]
+            continue
         assert isinstance(value, dict) and part in value, (
             f"{case_id}: response has no '{path}' field "
             f"(missing '{part}'; got {sorted(value) if isinstance(value, dict) else type(value).__name__})"

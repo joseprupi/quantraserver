@@ -173,6 +173,10 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
     "quantra_CalendarOverride" : {
       "type" : "object",
       "description" : "Per-request holiday overrides for one calendar. The overrides apply to every\nuse of that calendar while the request is processed and are discarded\nafterwards; nothing is stored on the server.",

@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Quantra Pricing API",
-    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
+    "description": "\n## QuantLib-powered Financial Instrument Pricing API\n\nQuantra provides a high-performance JSON HTTP API for pricing financial instruments using the QuantLib library.\n\n### Supported Products\n\n| Product | Endpoint | Description |\n|---------|----------|-------------|\n| Fixed Rate Bond | `/price-fixed-rate-bond` | Price fixed coupon bonds |\n| Floating Rate Bond | `/price-floating-rate-bond` | Price floating rate notes |\n| Vanilla Swap | `/price-vanilla-swap` | Price interest rate swaps |\n| Zero Coupon Inflation Swap | `/price-zero-coupon-inflation-swap` | Price zero-coupon inflation swaps |\n| Year-on-Year Inflation Swap | `/price-year-on-year-inflation-swap` | Price year-on-year inflation swaps |\n| OIS Swap | `/price-ois-swap` | Price overnight indexed swaps |\n| Basis Swap | `/price-basis-swap` | Price two-floating-leg basis swaps |\n| FRA | `/price-fra` | Price forward rate agreements |\n| Cap/Floor | `/price-cap-floor` | Price interest rate caps and floors |\n| Swaption | `/price-swaption` | Price swaptions |\n| CDS | `/price-cds` | Price credit default swaps |\n| Bootstrap Curves | `/bootstrap-curves` | Bootstrap yield curves and extract rates |\n| Bootstrap Inflation Curves | `/bootstrap-inflation-curves` | Bootstrap inflation curves and extract zero/YoY rates |\n| Vol Surface Sampler | `/sample-vol-surfaces` | Sample volatility surfaces on expiry/tenor/strike grids |\n| Calendar Business Days | `/calendar-business-days` | List business days for a calendar and date range |\n| Calendar Holidays | `/calendar-holidays` | List holidays for a calendar and date range |\n| Calendar Advance | `/calendar-advance` | Advance a date by period using calendar conventions |\n| Calibrate Swaption Model | `/calibrate-swaption-model` | Calibrate Hull-White model parameters from swaption vol surface |\n| Calibrate Swaption Vol | `/calibrate-swaption-vol` | Calibrate a SABR swaption volatility surface and return diagnostics |\n| Equity Option | `/price-equity-option` | Price equity vanilla/barrier options |\n| Zero Coupon Bond | `/price-zero-coupon-bond` | Price zero-coupon (single redemption) bonds |\n| Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |\n| Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |\n| Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |\n| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |\n| Status | `/status` | Runtime health and worker aggregation |\n| Meta | `/meta` | Service/version/build metadata |\n| Health | `/health` | Lightweight liveness check |\n\n### Quick Start\n\n```bash\n# Health check\ncurl http://localhost:8080/health\n\n# Price a fixed rate bond\ncurl -X POST http://localhost:8080/price-fixed-rate-bond \\\n  -H \"Content-Type: application/json\" \\\n  -d @examples/data/fixed_rate_bond_request.json\n```\n",
     "version": "0.8.2",
     "contact": {
       "name": "Quantra API Support",
@@ -31,6 +31,10 @@
     {
       "name": "Equity Derivatives",
       "description": "Equity option pricing"
+    },
+    {
+      "name": "FX",
+      "description": "FX forwards priced off FX spots and per-currency discount curves"
     },
     {
       "name": "Curves",
@@ -1566,6 +1570,69 @@
         }
       }
     },
+    "/price-fx-forward": {
+      "post": {
+        "summary": "Price FX Forward",
+        "description": "Calculate NPV in a reporting currency, fair forward rate, forward points and per-currency leg present values for outright FX forwards, from an FX spot (pricing.fx.spots) and one discount curve per currency, using the same spot-date discount-factor algebra as QuantLib's FxSwapRateHelper. No currency is inferred from curve or index ids.",
+        "tags": [
+          "FX"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/quantra_PriceFxForwardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful pricing response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/quantra_PriceFxForwardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -2052,6 +2119,13 @@
         "enum": [
           "Continuous",
           "Discrete"
+        ]
+      },
+      "quantra_enums_FxDirection": {
+        "type": "string",
+        "enum": [
+          "BuyBase",
+          "SellBase"
         ]
       },
       "quantra_Flow": {
@@ -6700,6 +6774,96 @@
         ],
         "additionalProperties": false
       },
+      "quantra_FxForward": {
+        "type": "object",
+        "description": "Outright FX forward: at `maturity_date` one party delivers `base_notional`\nunits of `base_currency` against `base_notional x forward_rate` units of\n`quote_currency`. Priced off the FX spot and the two discount curves named\non the PriceFxForward wrapper; the engine never infers a currency from a\ncurve or index id.\n\nSign convention: `direction` is the side of the party whose NPV is\nreported and a positive NPV is in favour of that party. A BuyBase forward\nis worth more when the fair forward rises above `forward_rate`.",
+        "properties": {
+          "base_currency": {
+            "type": "string",
+            "description": "ISO 4217 code of the base currency (three uppercase letters). One unit\nof it is exchanged for `forward_rate` units of `quote_currency`. Must\nequal the `base_currency` of the referenced FX spot. Required."
+          },
+          "quote_currency": {
+            "type": "string",
+            "description": "ISO 4217 code of the quote currency. Must equal the `quote_currency` of\nthe referenced FX spot (the engine never inverts a pair). Required."
+          },
+          "base_notional": {
+            "type": "number",
+            "description": "Notional in base-currency units exchanged at maturity.\nPresence-required; must be finite and > 0."
+          },
+          "forward_rate": {
+            "type": "number",
+            "description": "Contract (strike) rate, quote units per base unit, applied to\n`base_notional` to give the quote-currency amount exchanged at\nmaturity. Presence-required; must be finite and > 0."
+          },
+          "maturity_date": {
+            "type": "string",
+            "description": "Delivery date, ISO `YYYY-MM-DD`. Adjusted with the spot's joint\nsettlement calendar and business-day convention; the adjusted date\nmust fall after the spot date (400 otherwise). Required."
+          },
+          "direction": {
+            "$ref": "#/components/schemas/quantra_enums_FxDirection"
+          }
+        },
+        "required": [
+          "base_currency",
+          "quote_currency",
+          "maturity_date"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_FxForwardResponse": {
+        "type": "object",
+        "description": "FX forward pricing result. With S the spot rate, t_s the spot date, T the\nadjusted maturity, N the base notional, K the contract rate, sign = +1 for\nBuyBase / -1 for SellBase, and DF_b / DF_q the two discount curves:\nbase_leg_pv  = sign * N * DF_b(T)              (base currency)\nquote_leg_pv = -sign * N * K * DF_q(T)         (quote currency)\nX            = S * DF_q(t_s) / DF_b(t_s)       (as-of exchange rate, quote per base)\nnpv          = base_leg_pv * X + quote_leg_pv  (reporting = quote currency)\n= base_leg_pv + quote_leg_pv / X  (reporting = base currency)\nfair_forward_rate = X * DF_b(T) / DF_q(T)\n= S * [DF_b(T)/DF_b(t_s)] / [DF_q(T)/DF_q(t_s)]\nRepricing the forward at K = fair_forward_rate gives npv = 0. Every value is\nas of the evaluation date (the curves' reference date), like the NPV of\nevery other product.",
+        "properties": {
+          "npv": {
+            "type": "number",
+            "description": "Present value in `reporting_currency`, positive in favour of the party\nwhose `direction` was given."
+          },
+          "fair_forward_rate": {
+            "type": "number",
+            "description": "Fair (zero-NPV) forward rate for the adjusted maturity, quote units per\nbase unit."
+          },
+          "forward_points": {
+            "type": "number",
+            "description": "`fair_forward_rate - spot`, in price units of the pair (the forward\npoints at this maturity, as an FX swap screen quotes them)."
+          },
+          "base_leg_pv": {
+            "type": "number",
+            "description": "Present value of the base-currency cash flow, in base currency\n(positive when the reported party receives it)."
+          },
+          "quote_leg_pv": {
+            "type": "number",
+            "description": "Present value of the quote-currency cash flow, in quote currency\n(negative when the reported party pays it)."
+          },
+          "spot_date": {
+            "type": "string",
+            "description": "Spot date used: the (adjusted) evaluation date advanced `spot_days`\nbusiness days on the spot's joint settlement calendar, ISO."
+          },
+          "maturity_date": {
+            "type": "string",
+            "description": "Maturity date after adjustment with the spot's calendar and\nbusiness-day convention, ISO. The cash flows are discounted to it."
+          },
+          "fx_spot_used": {
+            "type": "number",
+            "description": "The spot rate the forward was priced with (quote units per base unit,\nfor delivery on `spot_date`), resolved from `pricing.fx.spots` or the\nreferenced Fx quote."
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceFxForwardResponse": {
+        "type": "object",
+        "description": "Response wrapper for multiple FX forwards, in request order.",
+        "properties": {
+          "fx_forwards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_FxForwardResponse"
+            }
+          }
+        },
+        "required": [
+          "fx_forwards"
+        ],
+        "additionalProperties": false
+      },
       "quantra_OisSwapResponse": {
         "type": "object",
         "description": "OIS swap pricing response (fixed vs compounded overnight leg).",
@@ -7055,6 +7219,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/quantra_PriceFRA"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "quantra_PriceFxForward": {
+        "type": "object",
+        "description": "One FX forward together with the market data it is priced off: the FX\nspot (pair, spot rate, spot lag, settlement calendars) and one discount\ncurve per currency. All references are by id into `pricing`.",
+        "properties": {
+          "fx_forward": {
+            "$ref": "#/components/schemas/quantra_FxForward"
+          },
+          "fx_spot": {
+            "type": "string",
+            "description": "Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base/quote currencies\nmust equal the forward's (same order; a pair quoted the other way round\nis rejected rather than inverted). Required."
+          },
+          "base_discounting_curve": {
+            "type": "string",
+            "description": "Id of the curve in `pricing.rates.curves` that discounts the\nbase-currency cash flow (for a collateralised trade, the base\ncurrency's collateral-adjusted discount curve). Required."
+          },
+          "quote_discounting_curve": {
+            "type": "string",
+            "description": "Id of the curve in `pricing.rates.curves` that discounts the\nquote-currency cash flow. Required."
+          },
+          "reporting_currency": {
+            "type": "string",
+            "description": "Currency of the reported `npv`: `base_currency` or `quote_currency` of\nthe forward (400 for any other value; reporting in a third currency is\nnot supported). Required."
+          }
+        },
+        "required": [
+          "fx_forward",
+          "fx_spot",
+          "base_discounting_curve",
+          "quote_discounting_curve",
+          "reporting_currency"
+        ],
+        "additionalProperties": false
+      },
+      "quantra_PriceFxForwardRequest": {
+        "type": "object",
+        "description": "Request to price one or more FX forwards against one market.",
+        "properties": {
+          "pricing": {
+            "$ref": "#/components/schemas/quantra_Pricing"
+          },
+          "fx_forwards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/quantra_PriceFxForward"
             }
           }
         },

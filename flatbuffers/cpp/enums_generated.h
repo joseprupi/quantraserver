@@ -1695,6 +1695,41 @@ inline const char *EnumNameEquityBarrierMonitoring(EquityBarrierMonitoring e) {
   return EnumNamesEquityBarrierMonitoring()[index];
 }
 
+/// Direction of the base-currency notional of an FX forward, seen from the
+/// party whose NPV is reported. BuyBase: that party receives the base-currency
+/// notional at maturity and pays base_notional x forward_rate units of the
+/// quote currency. SellBase: the opposite. A positive NPV is in favour of that
+/// party.
+enum FxDirection : int8_t {
+  FxDirection_BuyBase = 0,
+  FxDirection_SellBase = 1,
+  FxDirection_MIN = FxDirection_BuyBase,
+  FxDirection_MAX = FxDirection_SellBase
+};
+
+inline const FxDirection (&EnumValuesFxDirection())[2] {
+  static const FxDirection values[] = {
+    FxDirection_BuyBase,
+    FxDirection_SellBase
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesFxDirection() {
+  static const char * const names[3] = {
+    "BuyBase",
+    "SellBase",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameFxDirection(FxDirection e) {
+  if (::flatbuffers::IsOutRange(e, FxDirection_BuyBase, FxDirection_SellBase)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesFxDirection()[index];
+}
+
 }  // namespace enums
 }  // namespace quantra
 

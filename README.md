@@ -35,6 +35,7 @@ Priced instruments:
 - Year-on-year inflation caps, floors, and collars
 - CDS
 - Equity options
+- FX forwards
 
 Utility endpoints cover yield- and inflation-curve bootstrapping, volatility
 surface sampling, Hull-White and SABR calibration, and calendar date

@@ -136,6 +136,16 @@ enum class SampleExpiryKind : std::int8_t {
     GridDate = 1,
 };
 
+// --- FX product mirrors (see flatbuffers/fbs/enums.fbs) ---
+
+/// Mirrors FB enums::FxDirection; value-locked in common/enums_domain.cpp.
+/// Direction of the base-currency notional for the party whose NPV is
+/// reported: BuyBase receives the base notional at maturity, SellBase pays it.
+enum class FxDirectionKind : std::int8_t {
+    BuyBase = 0,
+    SellBase = 1,
+};
+
 } // namespace quantra
 
 #endif // QUANTRA_ENUMS_DOMAIN_H

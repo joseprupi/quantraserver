@@ -31,6 +31,16 @@ public:
 QuantLib::Calendar JointSettlementCalendar(
     const flatbuffers::Vector<int8_t>* calendars, const std::string& spotId);
 
+/**
+ * Require a currency field to be present and a three-letter uppercase ISO
+ * 4217 code (a pair string such as "EURUSD" is not a currency). `field` names
+ * the wire field in the 400; `context` is appended to the message when
+ * non-empty (e.g. " (spot 'EURUSD_SPOT')"). Shared by the FX spot parser and
+ * the FX product mappers.
+ */
+std::string RequireIsoCurrency(
+    const flatbuffers::String* value, const std::string& field, const std::string& context = "");
+
 } // namespace quantra
 
 #endif // QUANTRA_FX_SPOT_PARSER_H

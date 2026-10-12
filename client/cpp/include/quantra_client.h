@@ -51,6 +51,7 @@
 #include "fixed_rate_bond_response_generated.h"
 #include "floating_rate_bond_response_generated.h"
 #include "fra_response_generated.h"
+#include "fx_forward_response_generated.h"
 #include "ois_swap_response_generated.h"
 #include "sample_vol_surfaces_response_generated.h"
 #include "swaption_response_generated.h"
@@ -144,6 +145,7 @@ public:
     JsonResponse PriceOisSwapJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceBasisSwapJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceFRAJSON(const std::string& json, const std::string& request_id = "");
+    JsonResponse PriceFxForwardJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCapFloorJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceSwaptionJSON(const std::string& json, const std::string& request_id = "");
     JsonResponse PriceCDSJSON(const std::string& json, const std::string& request_id = "");
@@ -203,6 +205,9 @@ public:
 
     grpc::Status PriceFRA(
         const Message<PriceFRARequest>& request, Message<PriceFRAResponse>* response);
+
+    grpc::Status PriceFxForward(
+        const Message<PriceFxForwardRequest>& request, Message<PriceFxForwardResponse>* response);
 
     grpc::Status PriceCapFloor(
         const Message<PriceCapFloorRequest>& request, Message<PriceCapFloorResponse>* response);

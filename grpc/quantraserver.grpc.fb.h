@@ -202,6 +202,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>> PrepareAsyncPriceCallableFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>>(PrepareAsyncPriceCallableFixedRateBondRaw(context, request, cq));
     }
+    virtual ::grpc::Status PriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, flatbuffers::grpc::Message<PriceFxForwardResponse>* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>> AsyncPriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>>(AsyncPriceFxForwardRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>> PrepareAsyncPriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>>(PrepareAsyncPriceFxForwardRaw(context, request, cq));
+    }
     virtual ::grpc::Status Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<MetaResponse>>> AsyncMeta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<MetaResponse>>>(AsyncMetaRaw(context, request, cq));
@@ -258,6 +265,8 @@ class QuantraServer final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>* PrepareAsyncPriceYearOnYearInflationCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>* AsyncPriceCallableFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>* PrepareAsyncPriceCallableFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>* AsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<PriceFxForwardResponse>>* PrepareAsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<MetaResponse>>* AsyncMetaRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< flatbuffers::grpc::Message<MetaResponse>>* PrepareAsyncMetaRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) = 0;
   };
@@ -432,6 +441,13 @@ class QuantraServer final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>> PrepareAsyncPriceCallableFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>>(PrepareAsyncPriceCallableFixedRateBondRaw(context, request, cq));
     }
+    ::grpc::Status PriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, flatbuffers::grpc::Message<PriceFxForwardResponse>* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>> AsyncPriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>>(AsyncPriceFxForwardRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>> PrepareAsyncPriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>>(PrepareAsyncPriceFxForwardRaw(context, request, cq));
+    }
     ::grpc::Status Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) override;
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<MetaResponse>>> AsyncMeta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<MetaResponse>>>(AsyncMetaRaw(context, request, cq));
@@ -490,6 +506,8 @@ class QuantraServer final {
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>>* PrepareAsyncPriceYearOnYearInflationCapFloorRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>* AsyncPriceCallableFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>* PrepareAsyncPriceCallableFixedRateBondRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>* AsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>* PrepareAsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<MetaResponse>>* AsyncMetaRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<MetaResponse>>* PrepareAsyncMetaRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_PriceFixedRateBond_;
@@ -516,6 +534,7 @@ class QuantraServer final {
     const ::grpc::internal::RpcMethod rpcmethod_PriceZeroCouponSwap_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceYearOnYearInflationCapFloor_;
     const ::grpc::internal::RpcMethod rpcmethod_PriceCallableFixedRateBond_;
+    const ::grpc::internal::RpcMethod rpcmethod_PriceFxForward_;
     const ::grpc::internal::RpcMethod rpcmethod_Meta_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
@@ -548,6 +567,7 @@ class QuantraServer final {
     virtual ::grpc::Status PriceZeroCouponSwap(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceZeroCouponSwapRequest>* request, flatbuffers::grpc::Message<PriceZeroCouponSwapResponse>* response);
     virtual ::grpc::Status PriceYearOnYearInflationCapFloor(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorRequest>* request, flatbuffers::grpc::Message<PriceYearOnYearInflationCapFloorResponse>* response);
     virtual ::grpc::Status PriceCallableFixedRateBond(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>* request, flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>* response);
+    virtual ::grpc::Status PriceFxForward(::grpc::ServerContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>* request, flatbuffers::grpc::Message<PriceFxForwardResponse>* response);
     virtual ::grpc::Status Meta(::grpc::ServerContext* context, const flatbuffers::grpc::Message<MetaRequest>* request, flatbuffers::grpc::Message<MetaResponse>* response);
   };
   template <class BaseClass>
@@ -1031,12 +1051,32 @@ class QuantraServer final {
     }
   };
   template <class BaseClass>
+  class WithAsyncMethod_PriceFxForward : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithAsyncMethod_PriceFxForward() {
+      ::grpc::Service::MarkMethodAsync(24);
+    }
+    ~WithAsyncMethod_PriceFxForward() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceFxForward(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFxForwardRequest>* /*request*/, flatbuffers::grpc::Message<PriceFxForwardResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPriceFxForward(::grpc::ServerContext* context, flatbuffers::grpc::Message<PriceFxForwardRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<PriceFxForwardResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(24, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithAsyncMethod_Meta : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithAsyncMethod_Meta() {
-      ::grpc::Service::MarkMethodAsync(24);
+      ::grpc::Service::MarkMethodAsync(25);
     }
     ~WithAsyncMethod_Meta() override {
       BaseClassMustBeDerivedFromService(this);
@@ -1047,10 +1087,10 @@ class QuantraServer final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestMeta(::grpc::ServerContext* context, flatbuffers::grpc::Message<MetaRequest>* request, ::grpc::ServerAsyncResponseWriter< flatbuffers::grpc::Message<MetaResponse>>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(24, context, request, response, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncUnary(25, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceZeroCouponInflationSwap<  WithAsyncMethod_PriceYearOnYearInflationSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_BootstrapInflationCurves<  WithAsyncMethod_SampleVolSurfaces<  WithAsyncMethod_CalendarBusinessDays<  WithAsyncMethod_CalendarHolidays<  WithAsyncMethod_CalendarAdvance<  WithAsyncMethod_CalibrateSwaptionModel<  WithAsyncMethod_CalibrateSwaptionVol<  WithAsyncMethod_PriceEquityOption<  WithAsyncMethod_PriceZeroCouponBond<  WithAsyncMethod_PriceZeroCouponSwap<  WithAsyncMethod_PriceYearOnYearInflationCapFloor<  WithAsyncMethod_PriceCallableFixedRateBond<  WithAsyncMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
+  typedef   WithAsyncMethod_PriceFixedRateBond<  WithAsyncMethod_PriceFloatingRateBond<  WithAsyncMethod_PriceVanillaSwap<  WithAsyncMethod_PriceZeroCouponInflationSwap<  WithAsyncMethod_PriceYearOnYearInflationSwap<  WithAsyncMethod_PriceOisSwap<  WithAsyncMethod_PriceBasisSwap<  WithAsyncMethod_PriceFRA<  WithAsyncMethod_PriceCapFloor<  WithAsyncMethod_PriceSwaption<  WithAsyncMethod_PriceCDS<  WithAsyncMethod_BootstrapCurves<  WithAsyncMethod_BootstrapInflationCurves<  WithAsyncMethod_SampleVolSurfaces<  WithAsyncMethod_CalendarBusinessDays<  WithAsyncMethod_CalendarHolidays<  WithAsyncMethod_CalendarAdvance<  WithAsyncMethod_CalibrateSwaptionModel<  WithAsyncMethod_CalibrateSwaptionVol<  WithAsyncMethod_PriceEquityOption<  WithAsyncMethod_PriceZeroCouponBond<  WithAsyncMethod_PriceZeroCouponSwap<  WithAsyncMethod_PriceYearOnYearInflationCapFloor<  WithAsyncMethod_PriceCallableFixedRateBond<  WithAsyncMethod_PriceFxForward<  WithAsyncMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   AsyncService;
   template <class BaseClass>
   class WithGenericMethod_PriceFixedRateBond : public BaseClass {
    private:
@@ -1460,12 +1500,29 @@ class QuantraServer final {
     }
   };
   template <class BaseClass>
+  class WithGenericMethod_PriceFxForward : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithGenericMethod_PriceFxForward() {
+      ::grpc::Service::MarkMethodGeneric(24);
+    }
+    ~WithGenericMethod_PriceFxForward() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status PriceFxForward(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFxForwardRequest>* /*request*/, flatbuffers::grpc::Message<PriceFxForwardResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
   class WithGenericMethod_Meta : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithGenericMethod_Meta() {
-      ::grpc::Service::MarkMethodGeneric(24);
+      ::grpc::Service::MarkMethodGeneric(25);
     }
     ~WithGenericMethod_Meta() override {
       BaseClassMustBeDerivedFromService(this);
@@ -1957,12 +2014,32 @@ class QuantraServer final {
     virtual ::grpc::Status StreamedPriceCallableFixedRateBond(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>,flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>* server_unary_streamer) = 0;
   };
   template <class BaseClass>
+  class WithStreamedUnaryMethod_PriceFxForward : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
+   public:
+    WithStreamedUnaryMethod_PriceFxForward() {
+      ::grpc::Service::MarkMethodStreamed(24,
+        new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<PriceFxForwardRequest>, flatbuffers::grpc::Message<PriceFxForwardResponse>>(std::bind(&WithStreamedUnaryMethod_PriceFxForward<BaseClass>::StreamedPriceFxForward, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_PriceFxForward() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status PriceFxForward(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFxForwardRequest>* /*request*/, flatbuffers::grpc::Message<PriceFxForwardResponse>* /*response*/) final override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPriceFxForward(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<PriceFxForwardRequest>,flatbuffers::grpc::Message<PriceFxForwardResponse>>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
   class WithStreamedUnaryMethod_Meta : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service */*service*/) {}
    public:
     WithStreamedUnaryMethod_Meta() {
-      ::grpc::Service::MarkMethodStreamed(24,
+      ::grpc::Service::MarkMethodStreamed(25,
         new ::grpc::internal::StreamedUnaryHandler< flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(std::bind(&WithStreamedUnaryMethod_Meta<BaseClass>::StreamedMeta, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithStreamedUnaryMethod_Meta() override {
@@ -1976,9 +2053,9 @@ class QuantraServer final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedMeta(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< flatbuffers::grpc::Message<MetaRequest>,flatbuffers::grpc::Message<MetaResponse>>* server_unary_streamer) = 0;
   };
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceZeroCouponInflationSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_CalibrateSwaptionVol<  WithStreamedUnaryMethod_PriceEquityOption<  WithStreamedUnaryMethod_PriceZeroCouponBond<  WithStreamedUnaryMethod_PriceZeroCouponSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationCapFloor<  WithStreamedUnaryMethod_PriceCallableFixedRateBond<  WithStreamedUnaryMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceZeroCouponInflationSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_CalibrateSwaptionVol<  WithStreamedUnaryMethod_PriceEquityOption<  WithStreamedUnaryMethod_PriceZeroCouponBond<  WithStreamedUnaryMethod_PriceZeroCouponSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationCapFloor<  WithStreamedUnaryMethod_PriceCallableFixedRateBond<  WithStreamedUnaryMethod_PriceFxForward<  WithStreamedUnaryMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedUnaryService;
   typedef   Service   SplitStreamedService;
-  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceZeroCouponInflationSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_CalibrateSwaptionVol<  WithStreamedUnaryMethod_PriceEquityOption<  WithStreamedUnaryMethod_PriceZeroCouponBond<  WithStreamedUnaryMethod_PriceZeroCouponSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationCapFloor<  WithStreamedUnaryMethod_PriceCallableFixedRateBond<  WithStreamedUnaryMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
+  typedef   WithStreamedUnaryMethod_PriceFixedRateBond<  WithStreamedUnaryMethod_PriceFloatingRateBond<  WithStreamedUnaryMethod_PriceVanillaSwap<  WithStreamedUnaryMethod_PriceZeroCouponInflationSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationSwap<  WithStreamedUnaryMethod_PriceOisSwap<  WithStreamedUnaryMethod_PriceBasisSwap<  WithStreamedUnaryMethod_PriceFRA<  WithStreamedUnaryMethod_PriceCapFloor<  WithStreamedUnaryMethod_PriceSwaption<  WithStreamedUnaryMethod_PriceCDS<  WithStreamedUnaryMethod_BootstrapCurves<  WithStreamedUnaryMethod_BootstrapInflationCurves<  WithStreamedUnaryMethod_SampleVolSurfaces<  WithStreamedUnaryMethod_CalendarBusinessDays<  WithStreamedUnaryMethod_CalendarHolidays<  WithStreamedUnaryMethod_CalendarAdvance<  WithStreamedUnaryMethod_CalibrateSwaptionModel<  WithStreamedUnaryMethod_CalibrateSwaptionVol<  WithStreamedUnaryMethod_PriceEquityOption<  WithStreamedUnaryMethod_PriceZeroCouponBond<  WithStreamedUnaryMethod_PriceZeroCouponSwap<  WithStreamedUnaryMethod_PriceYearOnYearInflationCapFloor<  WithStreamedUnaryMethod_PriceCallableFixedRateBond<  WithStreamedUnaryMethod_PriceFxForward<  WithStreamedUnaryMethod_Meta<  Service   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   >   StreamedService;
 };
 
 }  // namespace quantra

@@ -56,6 +56,7 @@ Pricing:
 - year-on-year inflation caps/floors
 - CDS
 - equity options
+- FX forwards
 
 Utility:
 

@@ -173,6 +173,10 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
     "quantra_EquityExercise" : {
       "type" : "string",
       "enum": ["NONE", "EquityEuropeanExercise", "EquityAmericanExercise", "EquityBermudanExercise"]

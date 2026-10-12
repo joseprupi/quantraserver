@@ -783,6 +783,14 @@ int main(int argc, char** argv) {
                     });
             });
 
+        CROW_ROUTE(app, "/price-fx-forward").methods("POST"_method)([&](const crow::request& req) {
+            return respond(
+                "/price-fx-forward", req,
+                [&](const std::string& body, const std::string& request_id) {
+                    return client.PriceFxForwardJSON(body, request_id);
+                });
+        });
+
         // Print endpoints
         std::cout << "Endpoints:\n"
                   << "  POST /price-fixed-rate-bond\n"
@@ -809,6 +817,7 @@ int main(int argc, char** argv) {
                   << "  POST /price-zero-coupon-swap\n"
                   << "  POST /price-year-on-year-inflation-cap-floor\n"
                   << "  POST /price-callable-fixed-rate-bond\n"
+                  << "  POST /price-fx-forward\n"
                   << "  GET  /status\n"
                   << "  GET  /meta\n"
                   << "  GET  /health\n\n"

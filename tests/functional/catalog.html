@@ -1283,6 +1283,48 @@
 </tr>
 </tbody>
 </table>
-<footer>196 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<h2>FX</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR/USD 6M forward, buy 10m EUR at 1.0950, NPV in USD</div><div class="desc">Baseline outright: buy EUR 10m six months forward at 1.0950 against the EUR/USD spot 1.0850 (T+2 on the joint TARGET + US settlement calendar, spot date 2025-01-17). The EUR leg is discounted on the USD-collateralised EUR curve (FX swaps + cross-currency basis) and the USD leg on USD SOFR OIS, so the fair forward at the 6M pillar reprices the market point 1.0850 + 0.01310 = 1.09810; the contract rate sits below it and the buyer of EUR is in the money. Compares npv, fair forward, points and both leg PVs with the reference&#x27;s discount-factor algebra on the same curves.</div></td>
+<td><code>FX forward</code> <code>BuyBase</code> <code>EUR/USD</code> <code>reporting in quote ccy</code> <code>collateral-adjusted discounting</code> <code>fair forward at an FX swap pillar</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur.json">fx_forward_eurusd_6m_buy_eur.json</a></td>
+<td class="npv">npv=30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, the same trade sold</div><div class="desc">The sold side of the baseline: sell EUR 10m at 1.0950. Everything else is identical, so npv and both leg PVs are the exact negatives of the buy case while the fair forward and the forward points are unchanged (they are market quantities, not positions).</div></td>
+<td><code>FX forward</code> <code>SellBase</code> <code>sign flip</code> <code>EUR/USD</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_sell_eur.json">fx_forward_eurusd_6m_sell_eur.json</a></td>
+<td class="npv">npv=-30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=-9.86131e+06, quote_leg_pv=1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, NPV reported in EUR</div><div class="desc">The baseline buy with reporting_currency EUR: the USD leg is converted at the as-of exchange rate X = S * DF_USD(spot) / DF_EUR(spot) (the FxSwapRateHelper identity), so npv_EUR * X equals the USD-reported npv. The leg PVs stay in their own currencies.</div></td>
+<td><code>FX forward</code> <code>reporting in base ccy</code> <code>as-of exchange rate</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur_reported_in_eur.json">fx_forward_eurusd_6m_buy_eur_reported_in_eur.json</a></td>
+<td class="npv">npv=27839.1, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 1Y forward struck on-market (spot + 1Y points)</div><div class="desc">Buy EUR 10m one year forward at 1.11202 = spot 1.0850 + the 1Y FX swap points 0.02702 the EUR curve was bootstrapped from. The maturity is given as Saturday 2026-01-17 and rolls on the joint calendar past the US holiday to 2026-01-20, the 1Y pillar date, so the contract rate equals the fair forward and the NPV is zero to bootstrap accuracy (an on-market forward).</div></td>
+<td><code>FX forward</code> <code>zero NPV at the fair forward</code> <code>maturity rolled on the joint calendar</code> <code>1Y FX swap pillar</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_1y_on_market.json">fx_forward_eurusd_1y_on_market.json</a></td>
+<td class="npv">npv=0, fair_forward_rate=1.11202, forward_points=0.02702, base_leg_pv=9.75386e+06, quote_leg_pv=-1.05815e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, spot through an Fx quote</div><div class="desc">The baseline buy with the EUR/USD spot carried in pricing.quotes as an Fx-type quote and referenced by quote_id from the FxSpotSpec (the rate bump never shifts an Fx quote). Must price identically to the inline spot.</div></td>
+<td><code>FX forward</code> <code>spot by quote_id</code> <code>Fx quote type</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur_spot_quote_id.json">fx_forward_eurusd_6m_buy_eur_spot_quote_id.json</a></td>
+<td class="npv">npv=30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">USD/JPY 3M forward, sell 5m USD at 153.80, NPV in JPY</div><div class="desc">A pair whose quote amounts are ~150x the base ones: sell USD 5m three months forward at 153.80 against spot 155.00 (T+2 on the joint US settlement + Japan calendar), USD leg on SOFR OIS, JPY leg on a TONA OIS curve. JPY rates far below USD rates put the fair forward below the spot (negative points); the seller of USD at 153.80 is short against a lower fair forward.</div></td>
+<td><code>FX forward</code> <code>USD/JPY</code> <code>Japan calendar</code> <code>negative forward points</code> <code>SellBase</code> <code>TONA OIS discounting</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_usdjpy_3m_sell_usd.json">fx_forward_usdjpy_3m_sell_usd.json</a></td>
+<td class="npv">npv=3.18747e+06, fair_forward_rate=153.162, forward_points=-1.8383, base_leg_pv=-4.93316e+06, quote_leg_pv=7.68034e+08, fx_spot_used=155</td>
+</tr>
+</tbody>
+</table>
+<footer>202 cases across 14 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

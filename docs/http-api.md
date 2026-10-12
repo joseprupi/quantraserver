@@ -207,7 +207,7 @@ To check the effect, call `/calendar-holidays`, `/calendar-advance` or
 
 FX spot rates live in `pricing.fx.spots[]` and are referenced by id, the same
 way curves and indices are: by the FX-implied curve helpers (`FxSwapHelper`,
-`CrossCcyBasisHelper`) and by the FX products as they ship.
+`CrossCcyBasisHelper`) and by the FX forward product (`/price-fx-forward`).
 
 | Field | Meaning |
 | --- | --- |
@@ -453,6 +453,123 @@ required strings and tables (`tenor`, `fx_spot`, the indices, the forwarding
 curves) are rejected by the JSON parser. An unknown `fx_spot`, `quote_id`,
 index or curve is a `404`. `TenorBasisSwapHelper` is the only remaining
 schema-ready pillar that returns `501`.
+
+## FX forward
+
+`POST /price-fx-forward` prices outright FX forwards: at `maturity_date` one
+party delivers `base_notional` units of the base currency against
+`base_notional x forward_rate` units of the quote currency. Each forward names
+the FX spot it is priced off (`pricing.fx.spots`, see "FX spot market data")
+and one discount curve per currency; nothing is inferred from curve or index
+ids. QuantLib has no FX forward instrument: the price is discount-factor
+algebra on the two curves, the same algebra `FxSwapRateHelper` uses, so a
+forward maturing on an FX swap pillar of a collateral-adjusted curve reprices
+that pillar's spot + points as its fair rate.
+
+### Request
+
+```json
+{
+  "pricing": { "as_of_date": "2025-01-15", "rates": { "...": "curves EUR_USD_COLLATERAL, USD_SOFR_OIS" },
+               "fx": { "spots": [ { "id": "EURUSD_SPOT", "base_currency": "EUR", "quote_currency": "USD",
+                                    "rate": 1.0850, "spot_days": 2,
+                                    "settlement_calendars": ["TARGET", "UnitedStatesSettlement"],
+                                    "business_day_convention": "ModifiedFollowing" } ] } },
+  "fx_forwards": [
+    {
+      "fx_forward": {
+        "base_currency": "EUR",
+        "quote_currency": "USD",
+        "base_notional": 10000000.0,
+        "forward_rate": 1.0950,
+        "maturity_date": "2025-07-17",
+        "direction": "BuyBase"
+      },
+      "fx_spot": "EURUSD_SPOT",
+      "base_discounting_curve": "EUR_USD_COLLATERAL",
+      "quote_discounting_curve": "USD_SOFR_OIS",
+      "reporting_currency": "USD"
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `fx_forward.base_currency` | ISO 4217 code (three uppercase letters). One unit of it is exchanged for `forward_rate` units of `quote_currency`. Must equal the spot's `base_currency`. Required. |
+| `fx_forward.quote_currency` | ISO 4217 code; must equal the spot's `quote_currency`. A forward quoted the other way round than its spot is rejected, never inverted. Required. |
+| `fx_forward.base_notional` | Notional in base-currency units. Presence-required, finite, `> 0`. |
+| `fx_forward.forward_rate` | Contract rate, quote units per base unit. Presence-required, finite, `> 0`. |
+| `fx_forward.maturity_date` | Delivery date, `YYYY-MM-DD`. Adjusted with the spot's joint settlement calendar and business-day convention (as an FX swap's far date is); the adjusted date must fall after the spot date. Required. |
+| `fx_forward.direction` | `BuyBase` or `SellBase` for the party whose NPV is reported. Presence-required. |
+| `fx_spot` | Id in `pricing.fx.spots`: the pair, the spot rate, the spot lag and the settlement calendars. Required. |
+| `base_discounting_curve` | Curve in `pricing.rates.curves` that discounts the base-currency cash flow (for a collateralised trade, that currency's collateral-adjusted curve). Required. |
+| `quote_discounting_curve` | Curve that discounts the quote-currency cash flow. Required. |
+| `reporting_currency` | Currency of `npv`: the forward's base or quote currency. Any other value is a `400` (a third reporting currency is not supported). Required. |
+
+### Response
+
+One row per forward, in request order. No field is optional: a reported
+`0.0` is a computed zero.
+
+| Field | Currency / unit | Meaning |
+| --- | --- | --- |
+| `npv` | `reporting_currency` | Present value, positive in favour of the party whose `direction` was given. |
+| `fair_forward_rate` | quote per base | The zero-NPV forward rate for the adjusted maturity. |
+| `forward_points` | price units of the pair | `fair_forward_rate - spot`, as an FX swap screen quotes them. |
+| `base_leg_pv` | base currency | PV of the base-currency cash flow (positive when received). |
+| `quote_leg_pv` | quote currency | PV of the quote-currency cash flow (negative when paid). |
+| `spot_date` | ISO date | Spot date used: the evaluation date, adjusted on the joint calendar, plus `spot_days` business days. |
+| `maturity_date` | ISO date | The maturity after adjustment with the spot's calendar and convention. |
+| `fx_spot_used` | quote per base | The spot rate the forward was priced with, inline or through the referenced `Fx` quote. |
+
+### Pricing
+
+With `S` the spot rate (delivery on the spot date `t_s`), `T` the adjusted
+maturity, `N` the base notional, `K` the contract rate, `sign = +1` for
+`BuyBase` and `-1` for `SellBase`, and `DF_b`, `DF_q` the two discount
+curves:
+
+```
+base_leg_pv  = sign * N * DF_b(T)                     [base currency]
+quote_leg_pv = -sign * N * K * DF_q(T)                [quote currency]
+X            = S * DF_q(t_s) / DF_b(t_s)              [as-of exchange rate, quote per base]
+npv          = base_leg_pv * X + quote_leg_pv         [reporting_currency = quote]
+             = base_leg_pv + quote_leg_pv / X         [reporting_currency = base]
+fair_forward_rate = X * DF_b(T) / DF_q(T)
+                  = S * [DF_b(T) / DF_b(t_s)] / [DF_q(T) / DF_q(t_s)]
+forward_points    = fair_forward_rate - S
+```
+
+`X` converts between the two currencies at the valuation date (see "FX spot
+market data"): one base unit delivered at `t_s` is worth `DF_b(t_s)` base
+units today and `S` quote units at `t_s`, i.e. `S * DF_q(t_s)` quote units
+today. Substituting `K = fair_forward_rate` into `npv` gives zero identically,
+so repricing a forward at its reported fair rate returns an NPV of zero to
+rounding, and `npv_base * X = npv_quote`. Every value is as of the evaluation
+date (the curves' reference date), like the NPV of every other product. The
+spot is per-request data and never cached; the curves are cached as usual, and
+a spot change leaves the pure-rates curves' cache entries untouched.
+
+### Rejected requests
+
+Each is a `400` naming the field: an empty `fx_forwards`; a currency that is
+not three uppercase letters; `base_currency` equal to `quote_currency`; a
+missing, non-positive or non-finite `base_notional` or `forward_rate`; a
+missing `direction`; a `maturity_date` that is not `YYYY-MM-DD` or whose
+adjusted date is not after the spot date; a pair that is not the spot's pair
+in the same order (`PriceFxForward.fx_spot` is named); a `reporting_currency`
+outside the pair. Missing required strings and tables (`fx_forward`,
+`maturity_date`, `fx_spot`, the two curve ids, `reporting_currency`) are
+rejected by the JSON parser. An unknown `fx_spot` or curve id is a `404`, as
+is an unknown spot `quote_id`; a spot `quote_id` that is not an `Fx` quote is
+a `400`.
+
+Worked examples, each checked against a QuantLib reference in the gate, are
+in `examples/data/fx_forward/`: the EUR/USD 6M buy, its sold twin, the same
+reported in EUR, a 1Y forward struck on-market (spot + 1Y points, NPV zero
+to bootstrap accuracy), the spot through an `Fx` quote, and a USD/JPY 3M sale
+on SOFR and TONA OIS curves.
 
 ## Swaption greeks: units and definitions
 

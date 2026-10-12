@@ -1,4 +1,5 @@
 #include "date_convert.h"
+#include "enums_domain.h"
 
 #include "enums_generated.h"
 
@@ -46,5 +47,8 @@ QuantLib::Option::Type EquityOptionTypeToQL(const quantra::enums::EquityOptionTy
 QuantLib::Barrier::Type EquityBarrierTypeToQL(const quantra::enums::EquityBarrierType barrierType);
 QuantLib::Settlement::Type EquitySettlementTypeToQL(
     const quantra::enums::EquitySettlementType settlement);
+/// FX forward direction: the wire enum has no QuantLib counterpart, so it maps
+/// to the FB-free domain mirror the evaluator consumes.
+quantra::FxDirectionKind FxDirectionToDomain(const quantra::enums::FxDirection direction);
 
 #endif //ENUM_CONVERT_H

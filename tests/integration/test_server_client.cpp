@@ -17,6 +17,7 @@
 #include "calendar_holidays_response_generated.h"
 #include "cds_response_generated.h"
 #include "fixed_rate_bond_response_generated.h"
+#include "fx_forward_response_generated.h"
 #include "index_generated.h"
 #include "meta_request_generated.h"
 #include "meta_response_generated.h"
@@ -24,6 +25,7 @@
 #include "price_basis_swap_request_generated.h"
 #include "price_cds_request_generated.h"
 #include "price_fixed_rate_bond_request_generated.h"
+#include "price_fx_forward_request_generated.h"
 #include "price_ois_swap_request_generated.h"
 #include "price_vanilla_swap_request_generated.h"
 #include "price_year_on_year_inflation_swap_request_generated.h"
@@ -718,6 +720,55 @@ TEST_F(ServerClientTest, OisSwap_RoundTrip) {
     auto r = response.GetRoot()->swaps()->Get(0);
     EXPECT_TRUE(std::isfinite(r->npv()));
     EXPECT_TRUE(std::isfinite(r->fair_rate()));
+}
+
+TEST_F(ServerClientTest, FxForward_RoundTrip) {
+    std::cout << "\n=== Server-Client: FX Forward ===" << std::endl;
+    flatbuffers::grpc::MessageBuilder b;
+    const double notional = 10000000.0, spot = 1.0850, strike = 1.0900;
+
+    // One flat curve discounts both currencies: the fair forward is then the
+    // spot itself and npv = N * DF(T) * (S - K) in USD.
+    auto ts = buildCurve(b, "discount");
+    auto curves = b.CreateVector(std::vector<flatbuffers::Offset<quantra::TermStructure>>{ts});
+    auto indices = buildIndicesVector(b);
+    auto rates = quantra::CreateRatesMarketData(b, indices, 0, curves, 0);
+    std::vector<int8_t> calendars = {
+        static_cast<int8_t>(quantra::enums::Calendar_TARGET),
+        static_cast<int8_t>(quantra::enums::Calendar_UnitedStatesSettlement)};
+    std::vector<flatbuffers::Offset<quantra::FxSpotSpec>> spots{quantra::CreateFxSpotSpecDirect(
+        b, "EURUSD_SPOT", "EUR", "USD", spot, nullptr, 2, &calendars,
+        quantra::enums::BusinessDayConvention_ModifiedFollowing)};
+    auto fx = quantra::CreateFxMarketDataDirect(b, &spots);
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing = quantra::CreatePricing(b, asof, 0, 0, rates, 0, 0, 0, 0, 0, 0, fx);
+
+    auto fwd = quantra::CreateFxForwardDirect(
+        b, "EUR", "USD", notional, strike, "2025-07-17", quantra::enums::FxDirection_BuyBase);
+    std::vector<flatbuffers::Offset<quantra::PriceFxForward>> entries{
+        quantra::CreatePriceFxForwardDirect(b, fwd, "EURUSD_SPOT", "discount", "discount", "USD")};
+    b.Finish(quantra::CreatePriceFxForwardRequestDirect(b, pricing, &entries));
+    auto request = b.ReleaseMessage<quantra::PriceFxForwardRequest>();
+    ASSERT_TRUE(request.Verify());
+
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+    flatbuffers::grpc::Message<quantra::PriceFxForwardResponse> response;
+    auto status = stub_->PriceFxForward(&context, request, &response);
+    ASSERT_TRUE(status.ok()) << "gRPC failed: " << status.error_message();
+    ASSERT_EQ(response.GetRoot()->fx_forwards()->size(), 1u);
+    auto r = response.GetRoot()->fx_forwards()->Get(0);
+    EXPECT_TRUE(std::isfinite(r->npv()));
+    EXPECT_NEAR(r->fair_forward_rate(), spot, 1e-12);
+    EXPECT_NEAR(r->forward_points(), 0.0, 1e-12);
+    EXPECT_LT(r->npv(), 0.0); // bought EUR above the fair forward
+    EXPECT_GT(r->base_leg_pv(), 0.0);
+    EXPECT_LT(r->quote_leg_pv(), 0.0);
+    EXPECT_EQ(r->spot_date()->str(), "2025-01-17");
+    EXPECT_EQ(r->maturity_date()->str(), "2025-07-17");
+    EXPECT_DOUBLE_EQ(r->fx_spot_used(), spot);
+    std::cout << "  npv (USD): " << r->npv() << ", fair forward: " << r->fair_forward_rate()
+              << std::endl;
 }
 
 TEST_F(ServerClientTest, BasisSwap_RoundTrip) {

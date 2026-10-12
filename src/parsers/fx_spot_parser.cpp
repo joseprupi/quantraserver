@@ -25,19 +25,24 @@ bool isIsoCurrencyCode(const std::string& code) {
 
 std::string requireCurrency(
     const flatbuffers::String* value, const std::string& field, const std::string& spotId) {
+    return RequireIsoCurrency(value, field, " (spot '" + spotId + "')");
+}
+
+} // namespace
+
+std::string RequireIsoCurrency(
+    const flatbuffers::String* value, const std::string& field, const std::string& context) {
     if (!value || value->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT(field + " is required (spot '" + spotId + "')");
+        QUANTRA_INVALID_ARGUMENT(field + " is required" + context);
     }
     const std::string code = value->str();
     if (!isIsoCurrencyCode(code)) {
         QUANTRA_INVALID_ARGUMENT(
-            field + " must be a three-letter uppercase ISO currency code, got '" + code +
-            "' (spot '" + spotId + "')");
+            field + " must be a three-letter uppercase ISO currency code, got '" + code + "'" +
+            context);
     }
     return code;
 }
-
-} // namespace
 
 FxSpot FxSpotParser::parse(const quantra::FxSpotSpec* spec, const QuoteRegistry* quotes) const {
     if (!spec) {

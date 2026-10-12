@@ -173,6 +173,10 @@
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
     },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
     "quantra_ZeroCouponBond" : {
       "type" : "object",
       "description" : "Zero-coupon bond instrument. Pays a single redemption cashflow at maturity\nand carries no periodic coupons, so it needs no schedule.",

@@ -1,0 +1,38 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// Outright FX forward: at `maturity_date` one party delivers `base_notional`
+/// units of `base_currency` against `base_notional x forward_rate` units of
+/// `quote_currency`. Priced off the FX spot and the two discount curves named
+/// on the PriceFxForward wrapper; the engine never infers a currency from a
+/// curve or index id.
+///
+/// Sign convention: `direction` is the side of the party whose NPV is
+/// reported and a positive NPV is in favour of that party. A BuyBase forward
+/// is worth more when the fair forward rises above `forward_rate`.
+table FxForward {
+    /// ISO 4217 code of the base currency (three uppercase letters). One unit
+    /// of it is exchanged for `forward_rate` units of `quote_currency`. Must
+    /// equal the `base_currency` of the referenced FX spot. Required.
+    base_currency:string (required);
+    /// ISO 4217 code of the quote currency. Must equal the `quote_currency` of
+    /// the referenced FX spot (the engine never inverts a pair). Required.
+    quote_currency:string (required);
+    /// Notional in base-currency units exchanged at maturity.
+    /// Presence-required; must be finite and > 0.
+    base_notional:double = null;
+    /// Contract (strike) rate, quote units per base unit, applied to
+    /// `base_notional` to give the quote-currency amount exchanged at
+    /// maturity. Presence-required; must be finite and > 0.
+    forward_rate:double = null;
+    /// Delivery date, ISO `YYYY-MM-DD`. Adjusted with the spot's joint
+    /// settlement calendar and business-day convention; the adjusted date
+    /// must fall after the spot date (400 otherwise). Required.
+    maturity_date:string (required);
+    /// BuyBase or SellBase for the party whose NPV is reported.
+    /// Presence-required.
+    direction:enums.FxDirection = null;
+}
+
+root_type FxForward;

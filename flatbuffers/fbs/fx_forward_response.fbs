@@ -1,0 +1,49 @@
+namespace quantra;
+
+/// FX forward pricing result. With S the spot rate, t_s the spot date, T the
+/// adjusted maturity, N the base notional, K the contract rate, sign = +1 for
+/// BuyBase / -1 for SellBase, and DF_b / DF_q the two discount curves:
+///   base_leg_pv  = sign * N * DF_b(T)              (base currency)
+///   quote_leg_pv = -sign * N * K * DF_q(T)         (quote currency)
+///   X            = S * DF_q(t_s) / DF_b(t_s)       (as-of exchange rate, quote per base)
+///   npv          = base_leg_pv * X + quote_leg_pv  (reporting = quote currency)
+///                = base_leg_pv + quote_leg_pv / X  (reporting = base currency)
+///   fair_forward_rate = X * DF_b(T) / DF_q(T)
+///                     = S * [DF_b(T)/DF_b(t_s)] / [DF_q(T)/DF_q(t_s)]
+/// Repricing the forward at K = fair_forward_rate gives npv = 0. Every value is
+/// as of the evaluation date (the curves' reference date), like the NPV of
+/// every other product.
+table FxForwardResponse {
+    /// Present value in `reporting_currency`, positive in favour of the party
+    /// whose `direction` was given.
+    npv:double;
+    /// Fair (zero-NPV) forward rate for the adjusted maturity, quote units per
+    /// base unit.
+    fair_forward_rate:double;
+    /// `fair_forward_rate - spot`, in price units of the pair (the forward
+    /// points at this maturity, as an FX swap screen quotes them).
+    forward_points:double;
+    /// Present value of the base-currency cash flow, in base currency
+    /// (positive when the reported party receives it).
+    base_leg_pv:double;
+    /// Present value of the quote-currency cash flow, in quote currency
+    /// (negative when the reported party pays it).
+    quote_leg_pv:double;
+    /// Spot date used: the (adjusted) evaluation date advanced `spot_days`
+    /// business days on the spot's joint settlement calendar, ISO.
+    spot_date:string;
+    /// Maturity date after adjustment with the spot's calendar and
+    /// business-day convention, ISO. The cash flows are discounted to it.
+    maturity_date:string;
+    /// The spot rate the forward was priced with (quote units per base unit,
+    /// for delivery on `spot_date`), resolved from `pricing.fx.spots` or the
+    /// referenced Fx quote.
+    fx_spot_used:double;
+}
+
+/// Response wrapper for multiple FX forwards, in request order.
+table PriceFxForwardResponse {
+    fx_forwards:[FxForwardResponse] (required);
+}
+
+root_type PriceFxForwardResponse;

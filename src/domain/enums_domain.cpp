@@ -194,4 +194,12 @@ static_assert(
     same(quantra::SampleExpiryKind::GridDate, quantra::ExpiryKind_GridDate),
     "SampleExpiryKind drift vs FB ExpiryKind");
 
+// --- FxDirectionKind vs enums::FxDirection ---
+static_assert(
+    same(quantra::FxDirectionKind::BuyBase, quantra::enums::FxDirection_BuyBase),
+    "FxDirectionKind drift vs FB FxDirection");
+static_assert(
+    same(quantra::FxDirectionKind::SellBase, quantra::enums::FxDirection_SellBase),
+    "FxDirectionKind drift vs FB FxDirection");
+
 } // namespace
