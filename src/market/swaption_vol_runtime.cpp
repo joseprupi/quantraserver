@@ -140,17 +140,10 @@ std::string getCurveCacheKey(const PricingRegistry& reg, const std::string& curv
     return (it == reg.rates.curveKeys.end()) ? std::string() : it->second;
 }
 
-std::string getCurveIdFromTrade(const quantra::PriceSwaption* trade, bool discounting) {
-    if (!trade) return "";
-    auto* id = discounting ? trade->discounting_curve() : trade->forwarding_curve();
-    return id ? id->str() : "";
-}
-
 } // namespace
 
 SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
     const SwaptionVolEntry& raw,
-    const quantra::PriceSwaption* trade,
     const PricingRegistry& reg,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
@@ -219,16 +212,10 @@ SwaptionVolEntry finalizeSwaptionVolEntryForPricing(
 
         // Derive the discount/forwarding curve cache keys for the SABR cube
         // cache. Empty keys (e.g. bumped runs, or callers that didn't supply
-        // ids and have no trade) disable caching for this run — safe; we
-        // always rebuild rather than risk serving a stale cube.
-        const std::string discId = !discountCurveId.empty()
-                                       ? discountCurveId
-                                       : getCurveIdFromTrade(trade, /*discounting=*/true);
-        const std::string fwdId = !forwardingCurveId.empty()
-                                      ? forwardingCurveId
-                                      : getCurveIdFromTrade(trade, /*discounting=*/false);
-        const std::string discCurveKey = getCurveCacheKey(reg, discId);
-        const std::string fwdCurveKey = getCurveCacheKey(reg, fwdId);
+        // ids) disable caching for this run — safe; we always rebuild rather
+        // than risk serving a stale cube.
+        const std::string discCurveKey = getCurveCacheKey(reg, discountCurveId);
+        const std::string fwdCurveKey = getCurveCacheKey(reg, forwardingCurveId);
         std::string cubeKey;
         if (!discCurveKey.empty() && !fwdCurveKey.empty()) {
             cubeKey = buildSabrCalibrateCacheKey(raw, atms, discCurveKey, fwdCurveKey);

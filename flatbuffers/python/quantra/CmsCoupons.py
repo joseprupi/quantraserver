@@ -6,11 +6,15 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# CMS coupons of a swap leg.
-# Coupon formula: notional * accrual * (gear * CMSRate + spread).
-# Used as `VanillaSwap.cms_leg`; the `CmsCoupons` member of `SwapLeg.coupons`
-# is rejected by `price-cross-currency-swap` in this version. (Named
-# `SwapCmsLeg` before 0.9.0; the field names are unchanged.)
+# Constant-maturity swap-rate coupons. Coupon formula per period of the
+# leg's `schedule`: `notional x accrual x (gear x CMSRate + spread)` with
+# the leg's `day_counter`, optionally capped and floored. The `CmsCoupons`
+# member of `SwapLeg.coupons`: the floating leg of `price-vanilla-swap` (a
+# CMS swap is a vanilla swap whose floating leg carries CMS coupons).
+# Rejected (400) on `price-ois-swap`, `price-basis-swap`,
+# `price-cross-currency-swap` and a swaption underlying; a CMS leg takes no
+# `payment_calendar` / `payment_lag` (400 when present). (Named
+# `SwapCmsLeg` before 0.9.0.)
 class CmsCoupons(object):
     __slots__ = ['_tab']
 
@@ -29,30 +33,10 @@ class CmsCoupons(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Coupon/payment schedule.
-    # CmsCoupons
-    def Schedule(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Schedule import Schedule
-            obj = Schedule()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # Coupon notional. Presence-required and must be > 0.
-    # CmsCoupons
-    def Notional(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return None
-
     # Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
     # CmsCoupons
     def SwapIndexId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
@@ -60,7 +44,7 @@ class CmsCoupons(object):
     # Constant maturity tenor for CMS fixing (e.g. 10Y).
     # CmsCoupons
     def SwapTenor(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.Period import Period
@@ -72,7 +56,7 @@ class CmsCoupons(object):
     # Swaption volatility surface id from Pricing.vol_surfaces used by CMS pricer.
     # CmsCoupons
     def SwaptionVolId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
         return None
@@ -80,31 +64,15 @@ class CmsCoupons(object):
     # Optional fixing days override; if negative, uses swap index spot_days.
     # CmsCoupons
     def FixingDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return -1
 
-    # Coupon accrual day-count convention.
-    # CmsCoupons
-    def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # Payment business-day convention.
-    # CmsCoupons
-    def PaymentConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
     # Coupon gearing multiplier.
     # CmsCoupons
     def Gear(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 1.0
@@ -112,7 +80,7 @@ class CmsCoupons(object):
     # Coupon additive spread.
     # CmsCoupons
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -121,7 +89,7 @@ class CmsCoupons(object):
     # If null, defaults are used (LinearTsr with mean_reversion=0.03).
     # CmsCoupons
     def Pricer(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.CmsPricerSpec import CmsPricerSpec
@@ -134,7 +102,7 @@ class CmsCoupons(object):
     # (produces CappedFlooredCmsCoupons). Absent => uncapped.
     # CmsCoupons
     def Cap(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -143,91 +111,67 @@ class CmsCoupons(object):
     # Absent => unfloored. If both cap and floor are present, cap must be >= floor.
     # CmsCoupons
     def Floor(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
 def CmsCouponsStart(builder):
-    builder.StartObject(13)
+    builder.StartObject(9)
 
 def Start(builder):
     CmsCouponsStart(builder)
 
-def CmsCouponsAddSchedule(builder, schedule):
-    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
-
-def AddSchedule(builder, schedule):
-    CmsCouponsAddSchedule(builder, schedule)
-
-def CmsCouponsAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, None)
-
-def AddNotional(builder, notional):
-    CmsCouponsAddNotional(builder, notional)
-
 def CmsCouponsAddSwapIndexId(builder, swapIndexId):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(swapIndexId), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(swapIndexId), 0)
 
 def AddSwapIndexId(builder, swapIndexId):
     CmsCouponsAddSwapIndexId(builder, swapIndexId)
 
 def CmsCouponsAddSwapTenor(builder, swapTenor):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(swapTenor), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(swapTenor), 0)
 
 def AddSwapTenor(builder, swapTenor):
     CmsCouponsAddSwapTenor(builder, swapTenor)
 
 def CmsCouponsAddSwaptionVolId(builder, swaptionVolId):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(swaptionVolId), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(swaptionVolId), 0)
 
 def AddSwaptionVolId(builder, swaptionVolId):
     CmsCouponsAddSwaptionVolId(builder, swaptionVolId)
 
 def CmsCouponsAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(5, fixingDays, -1)
+    builder.PrependInt32Slot(3, fixingDays, -1)
 
 def AddFixingDays(builder, fixingDays):
     CmsCouponsAddFixingDays(builder, fixingDays)
 
-def CmsCouponsAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, None)
-
-def AddDayCounter(builder, dayCounter):
-    CmsCouponsAddDayCounter(builder, dayCounter)
-
-def CmsCouponsAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, None)
-
-def AddPaymentConvention(builder, paymentConvention):
-    CmsCouponsAddPaymentConvention(builder, paymentConvention)
-
 def CmsCouponsAddGear(builder, gear):
-    builder.PrependFloat64Slot(8, gear, 1.0)
+    builder.PrependFloat64Slot(4, gear, 1.0)
 
 def AddGear(builder, gear):
     CmsCouponsAddGear(builder, gear)
 
 def CmsCouponsAddSpread(builder, spread):
-    builder.PrependFloat64Slot(9, spread, 0.0)
+    builder.PrependFloat64Slot(5, spread, 0.0)
 
 def AddSpread(builder, spread):
     CmsCouponsAddSpread(builder, spread)
 
 def CmsCouponsAddPricer(builder, pricer):
-    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(pricer), 0)
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(pricer), 0)
 
 def AddPricer(builder, pricer):
     CmsCouponsAddPricer(builder, pricer)
 
 def CmsCouponsAddCap(builder, cap):
-    builder.PrependFloat64Slot(11, cap, None)
+    builder.PrependFloat64Slot(7, cap, None)
 
 def AddCap(builder, cap):
     CmsCouponsAddCap(builder, cap)
 
 def CmsCouponsAddFloor(builder, floor):
-    builder.PrependFloat64Slot(12, floor, None)
+    builder.PrependFloat64Slot(8, floor, None)
 
 def AddFloor(builder, floor):
     CmsCouponsAddFloor(builder, floor)
@@ -247,14 +191,10 @@ class CmsCouponsT(object):
 
     # CmsCouponsT
     def __init__(self):
-        self.schedule = None  # type: Optional[ScheduleT]
-        self.notional = None  # type: Optional[float]
         self.swapIndexId = None  # type: str
         self.swapTenor = None  # type: Optional[PeriodT]
         self.swaptionVolId = None  # type: str
         self.fixingDays = -1  # type: int
-        self.dayCounter = None  # type: Optional[int]
-        self.paymentConvention = None  # type: Optional[int]
         self.gear = 1.0  # type: float
         self.spread = 0.0  # type: float
         self.pricer = None  # type: Optional[CmsPricerSpecT]
@@ -282,16 +222,11 @@ class CmsCouponsT(object):
     def _UnPack(self, cmsCoupons):
         if cmsCoupons is None:
             return
-        if cmsCoupons.Schedule() is not None:
-            self.schedule = ScheduleT.InitFromObj(cmsCoupons.Schedule())
-        self.notional = cmsCoupons.Notional()
         self.swapIndexId = cmsCoupons.SwapIndexId()
         if cmsCoupons.SwapTenor() is not None:
             self.swapTenor = PeriodT.InitFromObj(cmsCoupons.SwapTenor())
         self.swaptionVolId = cmsCoupons.SwaptionVolId()
         self.fixingDays = cmsCoupons.FixingDays()
-        self.dayCounter = cmsCoupons.DayCounter()
-        self.paymentConvention = cmsCoupons.PaymentConvention()
         self.gear = cmsCoupons.Gear()
         self.spread = cmsCoupons.Spread()
         if cmsCoupons.Pricer() is not None:
@@ -301,8 +236,6 @@ class CmsCouponsT(object):
 
     # CmsCouponsT
     def Pack(self, builder):
-        if self.schedule is not None:
-            schedule = self.schedule.Pack(builder)
         if self.swapIndexId is not None:
             swapIndexId = builder.CreateString(self.swapIndexId)
         if self.swapTenor is not None:
@@ -312,9 +245,6 @@ class CmsCouponsT(object):
         if self.pricer is not None:
             pricer = self.pricer.Pack(builder)
         CmsCouponsStart(builder)
-        if self.schedule is not None:
-            CmsCouponsAddSchedule(builder, schedule)
-        CmsCouponsAddNotional(builder, self.notional)
         if self.swapIndexId is not None:
             CmsCouponsAddSwapIndexId(builder, swapIndexId)
         if self.swapTenor is not None:
@@ -322,8 +252,6 @@ class CmsCouponsT(object):
         if self.swaptionVolId is not None:
             CmsCouponsAddSwaptionVolId(builder, swaptionVolId)
         CmsCouponsAddFixingDays(builder, self.fixingDays)
-        CmsCouponsAddDayCounter(builder, self.dayCounter)
-        CmsCouponsAddPaymentConvention(builder, self.paymentConvention)
         CmsCouponsAddGear(builder, self.gear)
         CmsCouponsAddSpread(builder, self.spread)
         if self.pricer is not None:

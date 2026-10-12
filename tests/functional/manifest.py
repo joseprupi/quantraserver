@@ -4226,9 +4226,10 @@ CASES = [
             "the fair rate (~2.107%), so the payer's NPV is negative. Compares "
             "npv, both legs' NPVs in their currencies and in USD, the fair rate "
             "and the as-of rate with the reference's cash-flow algebra. The legs "
-            "are SwapLeg entries: pay_receive, currency, coupons_type/coupons "
-            "(FixedCoupons / OvernightCoupons with the OIS conventions), "
-            "exchange flags and curves."
+            "are SwapLeg entries: pay_receive, currency, the shared notional / "
+            "schedule / day counter / payment conventions on the leg, "
+            "coupons_type/coupons (FixedCoupons / OvernightCoupons with the OIS "
+            "averaging conventions), exchange flags and curves."
         ),
         "request": "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json",
         "ql_pricer": "price_cross_currency_swap_ql",

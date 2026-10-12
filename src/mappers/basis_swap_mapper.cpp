@@ -1,120 +1,36 @@
 #include "basis_swap_mapper.h"
 
-#include "enum_convert.h"
 #include "error.h"
-#include "request_validation.h"
-#include "schedule_parser.h"
-
-#include <cmath>
+#include "swap_leg_mapper.h"
 
 namespace quantra {
 
 namespace {
 
-BasisSwapFloatingLegData extractLeg(
-    const quantra::IborCoupons* fb, const char* legName, ScheduleParser& scheduleParser) {
-    BasisSwapFloatingLegData leg;
-    if (!fb->day_counter().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.day_counter is required");
-    }
-    if (!fb->payment_convention().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("SwapFloatingLeg.payment_convention is required");
-    }
-    // The basis swap path does not support per-period notionals yet.
-    rejectUnsupportedNotionals(fb->notionals(), std::string("BasisSwap ") + legName);
-    auto schedule = scheduleParser.parse(fb->schedule());
-    leg.schedule = *schedule;
-    leg.notional = requirePositive(fb->notional(), "SwapFloatingLeg.notional");
-    leg.indexId = fb->index()->id()->str();
-    leg.spread = fb->spread();
-    leg.dayCounter = DayCounterToQL(fb->day_counter().value());
-    leg.paymentConvention = ConventionToQL(fb->payment_convention().value());
-    leg.fixingDays = requireNonNegative(fb->fixing_days(), "SwapFloatingLeg.fixing_days");
-    leg.inArrears = fb->in_arrears();
-    return leg;
+/// Both `BasisSwap` legs take IborCoupons or OvernightCoupons; no per-period
+/// notionals, exchange flags optional (absent = false).
+SwapLegRules legRules() {
+    SwapLegRules rules;
+    rules.allowedKinds = {SwapLegData::Kind::Ibor, SwapLegData::Kind::Overnight};
+    rules.endpoint = "price-basis-swap";
+    return rules;
 }
 
 BasisSwapTrade extractTrade(const quantra::PriceBasisSwap* pricing) {
     if (pricing == nullptr) {
         QUANTRA_INVALID_ARGUMENT("PriceBasisSwap entry is null");
     }
-    if (!pricing->basis_swap()) {
+    const auto* swap = pricing->basis_swap();
+    if (!swap) {
         QUANTRA_INVALID_ARGUMENT("PriceBasisSwap.basis_swap is required");
     }
-    if (!pricing->discounting_curve() || pricing->discounting_curve()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceBasisSwap.discounting_curve is required");
-    }
-    if (!pricing->forwarding_curve_leg1() || pricing->forwarding_curve_leg1()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceBasisSwap.forwarding_curve_leg1 is required");
-    }
-    if (!pricing->forwarding_curve_leg2() || pricing->forwarding_curve_leg2()->str().empty()) {
-        QUANTRA_INVALID_ARGUMENT("PriceBasisSwap.forwarding_curve_leg2 is required");
-    }
-
-    const auto* swap = pricing->basis_swap();
-    if (!swap->swap_type().has_value()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.swap_type is required");
-    }
-    if (!swap->leg1()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg1 is required");
-    }
-    if (!swap->leg2()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg2 is required");
-    }
-
-    const auto* leg1Fb = swap->leg1();
-    if (!leg1Fb->schedule()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg1.schedule is required");
-    }
-    if (!leg1Fb->index() || !leg1Fb->index()->id()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg1.index.id is required");
-    }
-
-    const auto* leg2Fb = swap->leg2();
-    if (!leg2Fb->schedule()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg2.schedule is required");
-    }
-    if (!leg2Fb->index() || !leg2Fb->index()->id()) {
-        QUANTRA_INVALID_ARGUMENT("BasisSwap.leg2.index.id is required");
-    }
-
-    ScheduleParser scheduleParser;
-
     BasisSwapTrade trade;
-    trade.swapType = SwapTypeToQL(swap->swap_type().value());
-    trade.discountingCurveId = pricing->discounting_curve()->str();
-    trade.forwardingCurveLeg1Id = pricing->forwarding_curve_leg1()->str();
-    trade.forwardingCurveLeg2Id = pricing->forwarding_curve_leg2()->str();
-    trade.leg1 = extractLeg(leg1Fb, "leg1", scheduleParser);
-    trade.leg2 = extractLeg(leg2Fb, "leg2", scheduleParser);
+    trade.leg1 = DecodeSwapLeg(swap->leg1(), "BasisSwap.leg1", legRules());
+    trade.leg2 = DecodeSwapLeg(swap->leg2(), "BasisSwap.leg2", legRules());
+    RequireOppositeSides(trade.leg1, "BasisSwap.leg1", trade.leg2, "BasisSwap.leg2");
+    RequireOneCurrency(
+        trade.leg1, "BasisSwap.leg1", trade.leg2, "BasisSwap.leg2", "price-basis-swap");
     return trade;
-}
-
-flatbuffers::Offset<quantra::SwapLegFlow> serializeFlow(
-    flatbuffers::grpc::MessageBuilder& builder, const BasisSwapFlowPlain& f) {
-    auto paymentDate = builder.CreateString(f.paymentDate);
-    auto accrualStart = builder.CreateString(f.accrualStartDate);
-    auto accrualEnd = builder.CreateString(f.accrualEndDate);
-    flatbuffers::Offset<flatbuffers::String> fixingDate = 0;
-    if (f.isFloating) {
-        fixingDate = builder.CreateString(f.fixingDate);
-    }
-
-    quantra::SwapLegFlowBuilder fb(builder);
-    fb.add_payment_date(paymentDate);
-    fb.add_accrual_start_date(accrualStart);
-    fb.add_accrual_end_date(accrualEnd);
-    fb.add_accrual_year_fraction(f.accrualYearFraction);
-    fb.add_amount(f.amount);
-    fb.add_discount(f.discount);
-    fb.add_present_value(f.presentValue);
-    fb.add_rate(f.rate);
-    if (f.isFloating) {
-        fb.add_fixing_date(fixingDate);
-        if (std::isfinite(f.indexFixing)) fb.add_index_fixing(f.indexFixing);
-        fb.add_spread(f.spread);
-    }
-    return fb.Finish();
 }
 
 } // namespace
@@ -140,49 +56,22 @@ BasisSwapInputs BasisSwapMapper::toInputs(const quantra::PriceBasisSwapRequest* 
 flatbuffers::Offset<quantra::PriceBasisSwapResponse> BasisSwapMapper::toResponse(
     flatbuffers::grpc::MessageBuilder& builder, const BasisSwapResult& result) const {
 
-    std::vector<flatbuffers::Offset<quantra::BasisSwapResponse>> swapsVector;
-    swapsVector.reserve(result.swaps.size());
+    std::vector<flatbuffers::Offset<quantra::BasisSwapResponse>> rows;
+    rows.reserve(result.swaps.size());
 
     for (const auto& swap : result.swaps) {
-        std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> leg1FlowOffsets;
-        std::vector<flatbuffers::Offset<quantra::SwapLegFlow>> leg2FlowOffsets;
-        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>>
-            leg1Flows = 0;
-        flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<quantra::SwapLegFlow>>>
-            leg2Flows = 0;
-        if (swap.includeFlows) {
-            leg1FlowOffsets.reserve(swap.leg1Flows.size());
-            for (const auto& f : swap.leg1Flows) {
-                leg1FlowOffsets.push_back(serializeFlow(builder, f));
-            }
-            leg2FlowOffsets.reserve(swap.leg2Flows.size());
-            for (const auto& f : swap.leg2Flows) {
-                leg2FlowOffsets.push_back(serializeFlow(builder, f));
-            }
-            leg1Flows = builder.CreateVector(leg1FlowOffsets);
-            leg2Flows = builder.CreateVector(leg2FlowOffsets);
-        }
+        auto legs = SerializeSwapLegResults(builder, swap.legs, swap.includeFlows);
 
         quantra::BasisSwapResponseBuilder rb(builder);
         rb.add_npv(swap.npv);
-        rb.add_leg1_bps(swap.leg1Bps);
-        rb.add_leg2_bps(swap.leg2Bps);
-        rb.add_leg1_npv(swap.leg1Npv);
-        rb.add_leg2_npv(swap.leg2Npv);
-        // A zero-BPS leg (e.g. notional 0) makes the fair spread NaN, which is
-        // not representable in JSON. Omit it rather than emit a bare `nan`.
-        if (std::isfinite(swap.fairSpreadLeg1)) rb.add_fair_spread_leg1(swap.fairSpreadLeg1);
-        if (std::isfinite(swap.fairSpreadLeg2)) rb.add_fair_spread_leg2(swap.fairSpreadLeg2);
-        if (swap.includeFlows) {
-            rb.add_leg1_flows(leg1Flows);
-            rb.add_leg2_flows(leg2Flows);
-        }
-        swapsVector.push_back(rb.Finish());
+        if (swap.fairSpread) rb.add_fair_spread(*swap.fairSpread);
+        rb.add_legs(legs);
+        rows.push_back(rb.Finish());
     }
 
-    auto swapsVec = builder.CreateVector(swapsVector);
+    auto rowsVec = builder.CreateVector(rows);
     quantra::PriceBasisSwapResponseBuilder rb(builder);
-    rb.add_swaps(swapsVec);
+    rb.add_swaps(rowsVec);
     return rb.Finish();
 }
 

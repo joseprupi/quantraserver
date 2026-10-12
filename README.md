@@ -23,15 +23,15 @@ Priced instruments:
 - Floating-rate bonds
 - Zero-coupon bonds
 - Callable / puttable fixed-rate bonds
-- Vanilla swaps
-- OIS swaps
-- Basis swaps
+- Vanilla swaps (two `SwapLeg` legs: fixed vs IBOR or CMS coupons)
+- OIS swaps (two `SwapLeg` legs: fixed vs overnight coupons)
+- Basis swaps (two floating `SwapLeg` legs: IBOR or overnight coupons)
 - Zero-coupon swaps
 - Zero-coupon inflation swaps
 - Year-on-year inflation swaps
 - FRAs
 - Caps and floors
-- Swaptions
+- Swaptions (on a vanilla or OIS underlying built from `SwapLeg` legs)
 - Year-on-year inflation caps, floors, and collars
 - CDS
 - Equity options

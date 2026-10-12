@@ -47,8 +47,7 @@ CalibrateSwaptionVolResult CalibrateSwaptionVolEvaluator::evaluate(
     quantra::SwaptionVolEntry finalized;
     try {
         finalized = quantra::finalizeSwaptionVolEntryForPricing(
-            rawEntry,
-            /*trade=*/nullptr, reg,
+            rawEntry, reg,
             QuantLib::Handle<QuantLib::YieldTermStructure>(dIt->second->currentLink()),
             QuantLib::Handle<QuantLib::YieldTermStructure>(fIt->second->currentLink()),
             /*forceRecomputeAtm=*/false, inputs.discountingCurveId, inputs.forwardingCurveId);

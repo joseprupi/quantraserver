@@ -47,7 +47,7 @@ SWAP_REQUEST = {
         "as_of_date": "2024-01-15",
         "rates": {"indices": [
             {"id": "EUR_6M", "name": "Euribor", "index_type": "Ibor", "tenor": {"n": 6, "unit": "Months"}, "fixing_days": 2, "calendar": "TARGET", "business_day_convention": "ModifiedFollowing", "day_counter": "Actual360", "end_of_month": True, "currency": "EUR"},
-            {"id": "EUR_ESTR", "name": "ESTR", "index_type": "Overnight", "tenor": {"n": 0, "unit": "Days"}, "fixing_days": 0, "calendar": "TARGET", "business_day_convention": "Following", "day_counter": "Actual360", "currency": "EUR"}
+            {"id": "EUR_ESTR", "name": "ESTR", "index_type": "Overnight", "tenor": {"n": 0, "unit": "Days"}, "fixing_days": 0, "calendar": "TARGET", "business_day_convention": "Following", "day_counter": "Actual360", "end_of_month": False, "currency": "EUR"}
         ],
         "curves": [
             {
@@ -88,18 +88,22 @@ SWAP_REQUEST = {
     },
     "swaps": [{
         "vanilla_swap": {
-            "swap_type": "Payer",
             "fixed_leg": {
+                "pay_receive": "Pay", "currency": "EUR", "notional": 10000000,
                 "schedule": {"calendar": "TARGET", "effective_date": "2024-01-17", "termination_date": "2034-01-17", "frequency": "Annual", "convention": "ModifiedFollowing", "termination_date_convention": "ModifiedFollowing", "date_generation_rule": "Forward", "end_of_month": False},
-                "notional": 10000000, "rate": 0.032, "day_counter": "Thirty360", "payment_convention": "ModifiedFollowing"
+                "day_counter": "Thirty360", "payment_convention": "ModifiedFollowing",
+                "coupons_type": "FixedCoupons", "coupons": {"rate": 0.032},
+                "discounting_curve": "EUR_OIS"
             },
             "floating_leg": {
+                "pay_receive": "Receive", "currency": "EUR", "notional": 10000000,
                 "schedule": {"calendar": "TARGET", "effective_date": "2024-01-17", "termination_date": "2034-01-17", "frequency": "Semiannual", "convention": "ModifiedFollowing", "termination_date_convention": "ModifiedFollowing", "date_generation_rule": "Forward", "end_of_month": False},
-                "notional": 10000000, "index": {"id": "EUR_6M"}, "spread": 0.0, "day_counter": "Actual360", "payment_convention": "ModifiedFollowing"
+                "day_counter": "Actual360", "payment_convention": "ModifiedFollowing",
+                "coupons_type": "IborCoupons", "coupons": {"index": {"id": "EUR_6M"}, "spread": 0.0},
+                "discounting_curve": "EUR_OIS",
+                "forwarding_curve": "EUR_6M_CURVE"
             }
-        },
-        "discounting_curve": "EUR_OIS",
-        "forwarding_curve": "EUR_6M_CURVE"
+        }
     }]
 }
 

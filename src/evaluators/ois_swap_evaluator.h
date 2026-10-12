@@ -2,71 +2,41 @@
 #define QUANTRA_OIS_SWAP_EVALUATOR_H
 
 /**
- * OisSwapEvaluator — pure QuantLib pricing core for overnight-indexed swaps
- * (fixed leg vs compounded/averaged overnight leg). Both legs are built by
- * the shared swap_leg_builder (the chains of QuantLib::OvernightIndexedSwap)
- * and priced as a generic QuantLib::Swap, so `price-swap` with
- * OvernightCoupons reproduces this endpoint bit-for-bit.
+ * OisSwapEvaluator — pure QuantLib pricing core for overnight-indexed swaps:
+ * a fixed `SwapLeg` against an overnight `SwapLeg` in one currency, each
+ * valued on its own discount curve by swap_leg_pricer.h (the builders of
+ * swap_leg_builder.h: FixedRateLeg with the fixed leg's own payment calendar
+ * and lag, OvernightLeg with the overnight conventions — the chains
+ * QuantLib::OvernightIndexedSwap assembles).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
  * enforces this with a literal grep. All wire-format conversion lives in
- * ois_swap_mapper.{h,cpp}. The evaluator reads market data exclusively from the
- * QL-typed registry fields (reg.rates.curves, reg.rates.indices).
+ * ois_swap_mapper.{h,cpp}.
+ *
+ * With s_i the leg signs (-1 Pay / +1 Receive), npvOwn_i and bpsOwn_i the
+ * legs' own-frame values:
+ *   legs[i].npv = s_i * npvOwn_i,   npv = legs[0].npv + legs[1].npv
+ *   fair_rate   = rate_0 - npv / ((s_0 * bpsOwn_0) / 1e-4)
+ * which is QuantLib::OvernightIndexedSwap::fairRate's own formula.
  */
 
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "swap_leg_data.h"
+#include "swap_leg_pricer.h"
 
-#include <ql/cashflows/rateaveraging.hpp>
-#include <ql/instruments/overnightindexedswap.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/calendar.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/schedule.hpp>
-
-#include <memory>
-#include <string>
+#include <optional>
 #include <vector>
 
 namespace quantra {
 
-/// Plain fixed-leg description (parsed by the mapper).
-struct OisSwapFixedLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    double rate = 0.0;
-    QuantLib::DayCounter dayCounter;
-};
-
-/// Plain overnight-leg description (parsed by the mapper). Carries every
-/// QL OvernightIndexedSwap knob the legacy parser exposes: payment lag /
-/// calendar / convention, averaging method, lookback/lockout days, the
-/// observation-shift toggle, and the telescopic-value-dates optimization.
-struct OisSwapOvernightLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    std::string indexId;
-    double spread = 0.0;
-    QuantLib::BusinessDayConvention paymentConvention = QuantLib::Following;
-    QuantLib::Calendar paymentCalendar;
-    int paymentLag = 0;
-    QuantLib::RateAveraging::Type averagingMethod = QuantLib::RateAveraging::Compound;
-    /// 0 = no lookback: the leg builder translates <=0 to QL's Null<Natural>()
-    /// (QuantLib's off-state), never to a literal zero-day lookback.
-    int lookbackDays = 0;
-    int lockoutDays = 0;
-    bool applyObservationShift = false;
-    bool telescopicValueDates = false;
-};
-
-/// One OIS swap trade lifted out of the FB request by the mapper.
+/// One OIS: the two legs in request order, lifted by the mapper (fixed leg =
+/// FixedCoupons, overnight leg = OvernightCoupons, one currency, opposite
+/// sides — all enforced by the mapper).
 struct OisSwapTrade {
-    QuantLib::OvernightIndexedSwap::Type swapType = QuantLib::OvernightIndexedSwap::Payer;
-    std::string discountingCurveId;
-    std::string forwardingCurveId;
-    OisSwapFixedLegData fixed;
-    OisSwapOvernightLegData overnight;
+    SwapLegData fixedLeg;
+    SwapLegData overnightLeg;
 };
 
 struct OisSwapInputs {
@@ -74,40 +44,14 @@ struct OisSwapInputs {
     bool includeFlows = false;
 };
 
-/**
- * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the SwapLegFlow FB table verbatim — the evaluator pre-computes
- * discount factor / present value / ISO date strings so the mapper never
- * touches QuantLib types.
- */
-struct OisSwapFlowPlain {
-    bool isFloating = false;
-    std::string paymentDate;
-    std::string accrualStartDate;
-    std::string accrualEndDate;
-    double amount = 0.0;
-    double accrualYearFraction = 0.0;
-    double discount = 0.0;
-    double presentValue = 0.0;
-    double rate = 0.0;
-    // Floating-only fields. Left default-constructed for fixed flows.
-    std::string fixingDate;
-    double indexFixing = 0.0;
-    double spread = 0.0;
-};
-
-/// Per-swap result. Mirrors the OisSwapResponse FB table.
+/// Per-swap result. Mirrors the OisSwapResponse wire table.
 struct OisSwapPerSwap {
     double npv = 0.0;
-    double fairRate = 0.0;
-    double fairSpread = 0.0;
-    double fixedLegNpv = 0.0;
-    double overnightLegNpv = 0.0;
-    double fixedLegBps = 0.0;
-    double overnightLegBps = 0.0;
+    /// Absent when the fixed leg's signed bps is zero (nothing to solve for).
+    std::optional<double> fairRate;
+    /// fixed_leg then overnight_leg.
+    std::vector<SwapLegPerLeg> legs;
     bool includeFlows = false;
-    std::vector<OisSwapFlowPlain> fixedFlows;
-    std::vector<OisSwapFlowPlain> overnightFlows;
 };
 
 struct OisSwapResult {

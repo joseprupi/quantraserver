@@ -3,17 +3,20 @@ include "ois_swap.fbs";
 
 namespace quantra;
 
-/// Single OIS swap pricing context with curve references.
+/// One overnight indexed swap to price. The legs name their own discounting
+/// and forwarding curves (`SwapLeg`); every reference is by id into
+/// `pricing`. The NPV is reported in the legs' currency.
 table PriceOisSwap {
-    ois_swap:OisSwap;
-    discounting_curve:string;
-    forwarding_curve:string;
+    /// The swap. Required.
+    ois_swap:OisSwap (required);
 }
 
-/// Request to price one or more OIS swaps.
+/// Request to price one or more OIS swaps against one market.
 table PriceOisSwapRequest {
     pricing:Pricing;
     swaps:[PriceOisSwap];
+    /// When true every response row lists each leg's future flows (coupons
+    /// and notional exchanges) in payment order.
     include_flows:bool = false;
 }
 

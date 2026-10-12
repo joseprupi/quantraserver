@@ -23,7 +23,17 @@ struct Swaption;
 struct SwaptionBuilder;
 struct SwaptionT;
 
-/// Underlying swap type: VanillaSwap or OisSwap.
+/// Underlying swap of a swaption: a `VanillaSwap` (fixed vs `IborCoupons`
+/// only: `CmsCoupons`, `in_arrears`, per-period `notionals` and notional
+/// exchanges are rejected, 400 naming the field) or an `OisSwap` (fixed vs
+/// `OvernightCoupons`, same restrictions). The legs are `SwapLeg`s: both
+/// must name the same `discounting_curve` (the swaption is priced on one
+/// discount curve) and the floating / overnight leg's `forwarding_curve`
+/// projects the index. The swaption is priced from QuantLib's own
+/// VanillaSwap / OvernightIndexedSwap built from the two legs, which takes
+/// the fixed leg's notional for both legs and adjusts both legs' payments
+/// with the floating schedule's convention; `pay_receive` on the fixed leg
+/// gives the option type (Pay = payer swaption).
 enum SwaptionUnderlying : uint8_t {
   SwaptionUnderlying_NONE = 0,
   SwaptionUnderlying_VanillaSwap = 1,
@@ -180,7 +190,8 @@ struct Swaption FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   quantra::SwaptionUnderlying underlying_type() const {
     return static_cast<quantra::SwaptionUnderlying>(GetField<uint8_t>(VT_UNDERLYING_TYPE, 0));
   }
-  /// Underlying swap instrument.
+  /// Underlying swap instrument (see `SwaptionUnderlying`). Required; in
+  /// JSON `"underlying_type": "VanillaSwap"` precedes `"underlying"`.
   const void *underlying() const {
     return GetPointer<const void *>(VT_UNDERLYING);
   }

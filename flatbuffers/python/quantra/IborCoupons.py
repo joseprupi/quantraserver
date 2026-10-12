@@ -6,13 +6,14 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# IBOR floating coupons of a swap leg: one fixing of `index` per period of
+# IBOR floating coupons: one fixing of `index` per period of the leg's
 # `schedule` (`fixing_days` before the accrual start, or at the accrual end
-# with `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as
-# `VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`
-# member of `SwapLeg.coupons`, where the index must be an IBOR index (an
-# overnight index is a 400 naming `OvernightCoupons`). (Named
-# `SwapFloatingLeg` before 0.9.0; the field names are unchanged.)
+# with `in_arrears`), coupon `notional x (fixing + spread) x accrual` with
+# the leg's `day_counter`. The `IborCoupons` member of `SwapLeg.coupons`:
+# the floating leg of `price-vanilla-swap` and a swaption underlying, both
+# `price-basis-swap` legs, a `price-cross-currency-swap` leg. The index
+# must be an IBOR index: an overnight index here is a 400 naming
+# `OvernightCoupons`. (Named `SwapFloatingLeg` before 0.9.0.)
 class IborCoupons(object):
     __slots__ = ['_tab']
 
@@ -31,63 +32,10 @@ class IborCoupons(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # IborCoupons
-    def Schedule(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.Schedule import Schedule
-            obj = Schedule()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # Constant notional. Presence-required and must be > 0 (unless the
-    # per-period `notionals` vector is supplied). A bare double would default
-    # to a silent zero notional.
-    # IborCoupons
-    def Notional(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return None
-
-    # Optional per-period notionals, one entry per coupon period in schedule
-    # order. Present => amortizing/step-up leg (overrides `notional`); absent
-    # => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-    # path; other readers (basis swap, swaption underlying, `SwapLeg`)
-    # reject a present value.
-    # IborCoupons
-    def Notionals(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            a = self._tab.Vector(o)
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
-        return 0
-
-    # IborCoupons
-    def NotionalsAsNumpy(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
-        return 0
-
-    # IborCoupons
-    def NotionalsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # IborCoupons
-    def NotionalsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        return o == 0
-
-    # Reference to an IndexDef by id (e.g., "EUR_6M").
+    # Reference to an IBOR IndexDef by id (e.g., "EUR_6M"). Required.
     # IborCoupons
     def Index(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -100,111 +48,59 @@ class IborCoupons(object):
     # Keeps a literal 0.0 default: zero is the market-standard value.
     # IborCoupons
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Accrual day count of the coupons. Presence-required.
-    # IborCoupons
-    def DayCounter(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # Business-day convention applied to the payment dates. Presence-required.
-    # Not read by `price-vanilla-swap`'s constant-notional in-advance path
-    # (QuantLib::VanillaSwap uses the floating schedule's convention).
-    # IborCoupons
-    def PaymentConvention(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
-    # Fixing lag in business days before each accrual start. Not read by
-    # `price-vanilla-swap`'s constant-notional in-advance path, which fixes
-    # on the index's own `fixing_days`; read everywhere else.
+    # Fixing lag in business days before each accrual start. Absent = the
+    # index's own `IndexDef.fixing_days` (QuantLib's default for an IBOR
+    # leg); present => this value overrides it for the leg. Must be >= 0.
+    # Not read for a swaption underlying, which always fixes on the index's
+    # own fixing days.
     # IborCoupons
     def FixingDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # When true the coupon fixes at the end of its accrual period (no
     # convexity adjustment is priced: the zero-volatility pricer reads the
-    # shifted fixing).
+    # shifted fixing). Rejected (400) on a swaption underlying.
     # IborCoupons
     def InArrears(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return False
 
 def IborCouponsStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(4)
 
 def Start(builder):
     IborCouponsStart(builder)
 
-def IborCouponsAddSchedule(builder, schedule):
-    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(schedule), 0)
-
-def AddSchedule(builder, schedule):
-    IborCouponsAddSchedule(builder, schedule)
-
-def IborCouponsAddNotional(builder, notional):
-    builder.PrependFloat64Slot(1, notional, None)
-
-def AddNotional(builder, notional):
-    IborCouponsAddNotional(builder, notional)
-
-def IborCouponsAddNotionals(builder, notionals):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(notionals), 0)
-
-def AddNotionals(builder, notionals):
-    IborCouponsAddNotionals(builder, notionals)
-
-def IborCouponsStartNotionalsVector(builder, numElems):
-    return builder.StartVector(8, numElems, 8)
-
-def StartNotionalsVector(builder, numElems):
-    return IborCouponsStartNotionalsVector(builder, numElems)
-
 def IborCouponsAddIndex(builder, index):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(index), 0)
 
 def AddIndex(builder, index):
     IborCouponsAddIndex(builder, index)
 
 def IborCouponsAddSpread(builder, spread):
-    builder.PrependFloat64Slot(4, spread, 0.0)
+    builder.PrependFloat64Slot(1, spread, 0.0)
 
 def AddSpread(builder, spread):
     IborCouponsAddSpread(builder, spread)
 
-def IborCouponsAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, None)
-
-def AddDayCounter(builder, dayCounter):
-    IborCouponsAddDayCounter(builder, dayCounter)
-
-def IborCouponsAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(6, paymentConvention, None)
-
-def AddPaymentConvention(builder, paymentConvention):
-    IborCouponsAddPaymentConvention(builder, paymentConvention)
-
 def IborCouponsAddFixingDays(builder, fixingDays):
-    builder.PrependInt32Slot(7, fixingDays, 2)
+    builder.PrependInt32Slot(2, fixingDays, None)
 
 def AddFixingDays(builder, fixingDays):
     IborCouponsAddFixingDays(builder, fixingDays)
 
 def IborCouponsAddInArrears(builder, inArrears):
-    builder.PrependBoolSlot(8, inArrears, 0)
+    builder.PrependBoolSlot(3, inArrears, 0)
 
 def AddInArrears(builder, inArrears):
     IborCouponsAddInArrears(builder, inArrears)
@@ -216,7 +112,7 @@ def End(builder):
     return IborCouponsEnd(builder)
 
 try:
-    from typing import List, Optional
+    from typing import Optional
 except:
     pass
 
@@ -224,14 +120,9 @@ class IborCouponsT(object):
 
     # IborCouponsT
     def __init__(self):
-        self.schedule = None  # type: Optional[ScheduleT]
-        self.notional = None  # type: Optional[float]
-        self.notionals = None  # type: List[float]
         self.index = None  # type: Optional[IndexRefT]
         self.spread = 0.0  # type: float
-        self.dayCounter = None  # type: Optional[int]
-        self.paymentConvention = None  # type: Optional[int]
-        self.fixingDays = 2  # type: int
+        self.fixingDays = None  # type: Optional[int]
         self.inArrears = False  # type: bool
 
     @classmethod
@@ -255,49 +146,20 @@ class IborCouponsT(object):
     def _UnPack(self, iborCoupons):
         if iborCoupons is None:
             return
-        if iborCoupons.Schedule() is not None:
-            self.schedule = ScheduleT.InitFromObj(iborCoupons.Schedule())
-        self.notional = iborCoupons.Notional()
-        if not iborCoupons.NotionalsIsNone():
-            if np is None:
-                self.notionals = []
-                for i in range(iborCoupons.NotionalsLength()):
-                    self.notionals.append(iborCoupons.Notionals(i))
-            else:
-                self.notionals = iborCoupons.NotionalsAsNumpy()
         if iborCoupons.Index() is not None:
             self.index = IndexRefT.InitFromObj(iborCoupons.Index())
         self.spread = iborCoupons.Spread()
-        self.dayCounter = iborCoupons.DayCounter()
-        self.paymentConvention = iborCoupons.PaymentConvention()
         self.fixingDays = iborCoupons.FixingDays()
         self.inArrears = iborCoupons.InArrears()
 
     # IborCouponsT
     def Pack(self, builder):
-        if self.schedule is not None:
-            schedule = self.schedule.Pack(builder)
-        if self.notionals is not None:
-            if np is not None and type(self.notionals) is np.ndarray:
-                notionals = builder.CreateNumpyVector(self.notionals)
-            else:
-                IborCouponsStartNotionalsVector(builder, len(self.notionals))
-                for i in reversed(range(len(self.notionals))):
-                    builder.PrependFloat64(self.notionals[i])
-                notionals = builder.EndVector()
         if self.index is not None:
             index = self.index.Pack(builder)
         IborCouponsStart(builder)
-        if self.schedule is not None:
-            IborCouponsAddSchedule(builder, schedule)
-        IborCouponsAddNotional(builder, self.notional)
-        if self.notionals is not None:
-            IborCouponsAddNotionals(builder, notionals)
         if self.index is not None:
             IborCouponsAddIndex(builder, index)
         IborCouponsAddSpread(builder, self.spread)
-        IborCouponsAddDayCounter(builder, self.dayCounter)
-        IborCouponsAddPaymentConvention(builder, self.paymentConvention)
         IborCouponsAddFixingDays(builder, self.fixingDays)
         IborCouponsAddInArrears(builder, self.inArrears)
         iborCoupons = IborCouponsEnd(builder)

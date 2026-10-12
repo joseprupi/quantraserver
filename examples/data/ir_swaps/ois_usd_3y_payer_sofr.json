@@ -105,8 +105,9 @@
   "swaps": [
     {
       "ois_swap": {
-        "swap_type": "Payer",
         "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "USD",
           "notional": 10000000.0,
           "schedule": {
             "calendar": "UnitedStatesGovernmentBond",
@@ -118,39 +119,50 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "rate": 0.0405,
-          "day_counter": "Actual360",
-          "payment_convention": "ModifiedFollowing"
-        },
-        "overnight_leg": {
-          "notional": 10000000.0,
-          "schedule": {
-            "calendar": "UnitedStatesGovernmentBond",
-            "effective_date": "2025-01-17",
-            "termination_date": "2028-01-17",
-            "frequency": "Annual",
-            "convention": "ModifiedFollowing",
-            "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward",
-            "end_of_month": false
-          },
-          "index": {
-            "id": "USD_SOFR"
-          },
-          "spread": 0.0,
           "day_counter": "Actual360",
           "payment_convention": "ModifiedFollowing",
           "payment_calendar": "UnitedStatesGovernmentBond",
-          "averaging_method": "Compound",
-          "lockout_days": 0,
-          "apply_observation_shift": false,
-          "telescopic_value_dates": false,
           "payment_lag": 0,
-          "lookback_days": 0
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.0405
+          },
+          "discounting_curve": "USD_SOFR_CURVE"
+        },
+        "overnight_leg": {
+          "pay_receive": "Receive",
+          "currency": "USD",
+          "notional": 10000000.0,
+          "schedule": {
+            "calendar": "UnitedStatesGovernmentBond",
+            "effective_date": "2025-01-17",
+            "termination_date": "2028-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "UnitedStatesGovernmentBond",
+          "payment_lag": 0,
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
+            "index": {
+              "id": "USD_SOFR"
+            },
+            "spread": 0.0,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
+          },
+          "discounting_curve": "USD_SOFR_CURVE",
+          "forwarding_curve": "USD_SOFR_CURVE"
         }
-      },
-      "discounting_curve": "USD_SOFR_CURVE",
-      "forwarding_curve": "USD_SOFR_CURVE"
+      }
     }
   ]
 }

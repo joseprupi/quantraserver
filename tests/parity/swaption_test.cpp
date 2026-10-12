@@ -69,12 +69,9 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     // Float leg schedule
     auto fleff = b.CreateString("2026-01-17");
@@ -92,19 +89,16 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -115,14 +109,11 @@ TEST_F(QuantraComparisonTest, Swaption_NPVMatches) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol");
     auto model_id = b.CreateString("black_swaption_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -217,12 +208,9 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     // Float leg schedule
     auto fleff = b.CreateString("2026-01-17");
@@ -240,19 +228,16 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
         b.CreateString("2026-01-15"), b.CreateString("2027-01-15"), b.CreateString("2028-01-15")};
@@ -266,14 +251,11 @@ TEST_F(QuantraComparisonTest, Swaption_Bermudan_HullWhiteLattice_NPVMatches) {
     swb.add_exercise_dates(exDatesVec);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol");
     auto model_id = b.CreateString("hw_lattice_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -346,12 +328,9 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         auto fixedSch = fsb.Finish();
 
         quantra::FixedCouponsBuilder flb(b);
-        flb.add_notional(notional);
-        flb.add_schedule(fixedSch);
         flb.add_rate(strike);
-        flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-        flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        auto fixedLeg = flb.Finish();
+        auto fixedCoupons = flb.Finish();
+        SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
         auto fleff = b.CreateString("2026-01-17");
         auto flterm = b.CreateString("2031-01-17");
@@ -369,19 +348,16 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
 
         auto idx6m = buildIndexRef(b, "EUR_6M");
         quantra::IborCouponsBuilder flgb(b);
-        flgb.add_notional(notional);
-        flgb.add_schedule(floatSch);
         flgb.add_index(idx6m);
-        flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
         flgb.add_spread(0.0);
-        flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        auto floatLeg = flgb.Finish();
+        auto floatCoupons = flgb.Finish();
+        SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-        quantra::VanillaSwapBuilder vsb(b);
-        vsb.add_swap_type(quantra::enums::SwapType_Payer);
-        vsb.add_fixed_leg(fixedLeg);
-        vsb.add_floating_leg(floatLeg);
-        auto uswap = vsb.Finish();
+        // Payer underlying: the fixed leg is paid, the floating leg received;
+        // both legs name the swaption's single discount curve.
+        auto uswap = buildVanillaSwap(
+            b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+            floatCoupons, "discount", "discount");
 
         std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
             b.CreateString("2026-01-15"), b.CreateString("2027-01-15"),
@@ -396,13 +372,10 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_MatchesEndpoint) {
         swb.add_exercise_dates(exDatesVec);
         auto swaption = swb.Finish();
 
-        auto dc = b.CreateString("discount");
         auto vol_id = b.CreateString("swaption_atm");
         auto model_id = b.CreateString(modelId);
         quantra::PriceSwaptionBuilder psb(b);
         psb.add_swaption(swaption);
-        psb.add_discounting_curve(dc);
-        psb.add_forwarding_curve(dc);
         psb.add_volatility(vol_id);
         psb.add_model(model_id);
         return psb.Finish();
@@ -526,12 +499,9 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -548,19 +518,16 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     std::vector<flatbuffers::Offset<flatbuffers::String>> exDateStrs = {
         b.CreateString("2026-01-15"), b.CreateString("2027-01-15")};
@@ -574,21 +541,16 @@ TEST_F(QuantraComparisonTest, PriceSwaption_InlineCalibrate_CachesPerModel) {
     swb.add_exercise_dates(exDatesVec);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_atm");
     auto model_id = b.CreateString("hw_inline_model");
     quantra::PriceSwaptionBuilder psb1(b);
     psb1.add_swaption(swaption);
-    psb1.add_discounting_curve(dc);
-    psb1.add_forwarding_curve(dc);
     psb1.add_volatility(vol_id);
     psb1.add_model(model_id);
     auto ps1 = psb1.Finish();
 
     quantra::PriceSwaptionBuilder psb2(b);
     psb2.add_swaption(swaption);
-    psb2.add_discounting_curve(dc);
-    psb2.add_forwarding_curve(dc);
     psb2.add_volatility(vol_id);
     psb2.add_model(model_id);
     auto ps2 = psb2.Finish();
@@ -679,12 +641,9 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -701,19 +660,16 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -724,14 +680,11 @@ TEST_F(QuantraComparisonTest, Swaption_ATMMatrix_NPVMatches) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_atm");
     auto model_id = b.CreateString("black_swaption_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -826,12 +779,9 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -848,19 +798,16 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -871,14 +818,11 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_ConstantMatches) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_smile");
     auto model_id = b.CreateString("black_swaption_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -951,12 +895,9 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -973,19 +914,16 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -996,13 +934,10 @@ TEST_F(QuantraComparisonTest, Swaption_SmileCube_IndexMismatchThrows) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_smile");
     auto model_id = b.CreateString("black_swaption_model");
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -1270,12 +1205,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -1291,19 +1223,16 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -1314,13 +1243,10 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_PriceWithBlackProducesFinitePo
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("sabr_vol");
     auto model_id = b.CreateString("black_model");
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -1377,12 +1303,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -1398,19 +1321,16 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -1421,13 +1341,10 @@ TEST_F(QuantraComparisonTest, Swaption_SabrParams_BachelierEnginePairingRejected
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("sabr_vol");
     auto model_id = b.CreateString("bachelier_model");
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -1482,7 +1399,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_RoundTripRecoversParameters
         auto dCurve = reg.rates.curves.at("discount");
         QuantLib::Handle<QuantLib::YieldTermStructure> dHandle(dCurve->currentLink());
         auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
-            entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+            entry, reg, dHandle, dHandle, false, "discount", "discount");
         forwards = finalEntry.atmForwardsFlat;
         ASSERT_EQ(forwards.size(), 4u);
         tte.resize(4);
@@ -1798,7 +1715,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_CacheBehavior) {
     // because cube key is empty.
     const size_t sizeBefore = SabrCalibrateCache::instance().size();
     auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
-        entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+        entry, reg, dHandle, dHandle, false, "discount", "discount");
     EXPECT_EQ(SabrCalibrateCache::instance().size(), sizeBefore);
     EXPECT_EQ(finalEntry.sabrAlpha.size(), 4u);
 
@@ -1842,7 +1759,7 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         auto dCurve = reg.rates.curves.at("discount");
         QuantLib::Handle<QuantLib::YieldTermStructure> dHandle(dCurve->currentLink());
         auto finalEntry = quantra::finalizeSwaptionVolEntryForPricing(
-            entry, nullptr, reg, dHandle, dHandle, false, "discount", "discount");
+            entry, reg, dHandle, dHandle, false, "discount", "discount");
         forwards = finalEntry.atmForwardsFlat;
         tte.resize(4);
         for (int i = 0; i < 2; ++i) {
@@ -1892,12 +1809,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         fsb.add_end_of_month(false);
         auto fixedSch = fsb.Finish();
         quantra::FixedCouponsBuilder flb(*b);
-        flb.add_notional(notional);
-        flb.add_schedule(fixedSch);
         flb.add_rate(strike);
-        flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-        flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        auto fixedLeg = flb.Finish();
+        auto fixedCoupons = flb.Finish();
+        SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
         auto fleff = b->CreateString("2026-01-17");
         auto flterm = b->CreateString("2031-01-17");
@@ -1914,19 +1828,16 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         auto floatSch = flsb.Finish();
         auto idx6m = buildIndexRef(*b, "EUR_6M");
         quantra::IborCouponsBuilder flgb(*b);
-        flgb.add_notional(notional);
-        flgb.add_schedule(floatSch);
         flgb.add_index(idx6m);
-        flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
         flgb.add_spread(0.0);
-        flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-        auto floatLeg = flgb.Finish();
+        auto floatCoupons = flgb.Finish();
+        SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-        quantra::VanillaSwapBuilder vsb(*b);
-        vsb.add_swap_type(quantra::enums::SwapType_Payer);
-        vsb.add_fixed_leg(fixedLeg);
-        vsb.add_floating_leg(floatLeg);
-        auto uswap = vsb.Finish();
+        // Payer underlying: the fixed leg is paid, the floating leg received;
+        // both legs name the swaption's single discount curve.
+        auto uswap = buildVanillaSwap(
+            *b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+            floatCoupons, "discount", "discount");
 
         auto exd = b->CreateString("2026-01-15");
         quantra::SwaptionBuilder swb(*b);
@@ -1937,13 +1848,10 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_PriceWithBlackEqualsParamsP
         swb.add_settlement_type(quantra::enums::SettlementType_Physical);
         auto swaption = swb.Finish();
 
-        auto dc = b->CreateString("discount");
         auto vol_id = b->CreateString("sabr_vol");
         auto model_id = b->CreateString("black_model");
         quantra::PriceSwaptionBuilder psb(*b);
         psb.add_swaption(swaption);
-        psb.add_discounting_curve(dc);
-        psb.add_forwarding_curve(dc);
         psb.add_volatility(vol_id);
         psb.add_model(model_id);
         auto psbOff = psb.Finish();
@@ -2019,12 +1927,9 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     fsb.add_end_of_month(false);
     auto fixedSch = fsb.Finish();
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     auto fleff = b.CreateString("2026-01-17");
     auto flterm = b.CreateString("2031-01-17");
@@ -2040,19 +1945,16 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     auto floatSch = flsb.Finish();
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -2063,13 +1965,10 @@ TEST_F(QuantraComparisonTest, Swaption_SabrCalibrate_BachelierEnginePairingRejec
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("sabr_vol");
     auto model_id = b.CreateString("bachelier_model");
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -2223,12 +2122,9 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Thirty360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Thirty360);
 
     // Float leg schedule
     auto fleff = b.CreateString("2026-01-17");
@@ -2246,19 +2142,16 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
 
     auto idx6m = buildIndexRef(b, "EUR_6M");
     quantra::IborCouponsBuilder flgb(b);
-    flgb.add_notional(notional);
-    flgb.add_schedule(floatSch);
     flgb.add_index(idx6m);
-    flgb.add_day_counter(quantra::enums::DayCounter_Actual360);
     flgb.add_spread(0.0);
-    flgb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto floatLeg = flgb.Finish();
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, notional, quantra::enums::DayCounter_Actual360);
 
-    quantra::VanillaSwapBuilder vsb(b);
-    vsb.add_swap_type(quantra::enums::SwapType_Payer);
-    vsb.add_fixed_leg(fixedLeg);
-    vsb.add_floating_leg(floatLeg);
-    auto uswap = vsb.Finish();
+    // Payer underlying: the fixed leg is paid, the floating leg received;
+    // both legs name the swaption's single discount curve.
+    auto uswap = buildVanillaSwap(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, floatFields,
+        floatCoupons, "discount", "discount");
 
     auto exd = b.CreateString("2026-01-15");
     quantra::SwaptionBuilder swb(b);
@@ -2269,14 +2162,11 @@ TEST_F(QuantraComparisonTest, Swaption_Bachelier_NPVMatches) {
     swb.add_settlement_type(quantra::enums::SettlementType_Physical);
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("discount");
     auto vol_id = b.CreateString("swaption_vol_norm");
     auto model_id = b.CreateString("bachelier_swaption_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -2452,12 +2342,9 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(notional);
-    flb.add_schedule(fixedSch);
     flb.add_rate(strike);
-    flb.add_day_counter(quantra::enums::DayCounter_Actual360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, notional, quantra::enums::DayCounter_Actual360);
 
     // Overnight leg schedule
     auto oeff = b.CreateString("2024-09-18");
@@ -2475,26 +2362,22 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
 
     auto idxRef = buildIndexRef(b, "USD_SOFR");
     quantra::OvernightCouponsBuilder olb(b);
-    olb.add_notional(notional);
-    olb.add_schedule(overnightSch);
     olb.add_index(idxRef);
     olb.add_spread(0.0);
-    olb.add_day_counter(quantra::enums::DayCounter_Actual360);
-    olb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    olb.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
-    olb.add_payment_lag(2);
     olb.add_averaging_method(quantra::enums::RateAveragingType_Compound);
     olb.add_lookback_days(0);
     olb.add_lockout_days(0);
     olb.add_apply_observation_shift(false);
     olb.add_telescopic_value_dates(false);
-    auto overnightLeg = olb.Finish();
+    auto overnightCoupons = olb.Finish();
+    SwapLegFields overnightFields(overnightSch, notional, quantra::enums::DayCounter_Actual360);
+    overnightFields.withPaymentTerms(quantra::enums::Calendar_UnitedStatesGovernmentBond, 2);
 
-    quantra::OisSwapBuilder oisBuilder(b);
-    oisBuilder.add_swap_type(quantra::enums::SwapType_Payer);
-    oisBuilder.add_fixed_leg(fixedLeg);
-    oisBuilder.add_overnight_leg(overnightLeg);
-    auto oisSwapFb = oisBuilder.Finish();
+    // Payer underlying: the fixed leg is paid, the overnight leg received;
+    // both legs name the swaption's single discount curve.
+    auto oisSwapFb = buildOisSwap(
+        b, quantra::enums::PayReceive_Pay, "USD", fixedFields, fixedCoupons, overnightFields,
+        overnightCoupons, "USD_SOFR", "USD_SOFR");
 
     auto exd = b.CreateString("2024-09-16");
     quantra::SwaptionBuilder swb(b);
@@ -2506,14 +2389,11 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_Bachelier_NPVMatches) {
     swb.add_underlying(oisSwapFb.Union());
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("USD_SOFR");
     auto vol_id = b.CreateString("usd_sofr_vol");
     auto model_id = b.CreateString("bachelier_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -2590,12 +2470,9 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     auto fixedSch = fsb.Finish();
 
     quantra::FixedCouponsBuilder flb(b);
-    flb.add_notional(1000000.0);
-    flb.add_schedule(fixedSch);
     flb.add_rate(0.025);
-    flb.add_day_counter(quantra::enums::DayCounter_Actual360);
-    flb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    auto fixedLeg = flb.Finish();
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, 1000000.0, quantra::enums::DayCounter_Actual360);
 
     auto oeff = b.CreateString("2025-08-18");
     auto oterm = b.CreateString("2030-08-18");
@@ -2612,26 +2489,22 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
 
     auto idxRef = buildIndexRef(b, "USD_SOFR");
     quantra::OvernightCouponsBuilder olb(b);
-    olb.add_notional(1000000.0);
-    olb.add_schedule(overnightSch);
     olb.add_index(idxRef);
     olb.add_spread(0.0);
-    olb.add_day_counter(quantra::enums::DayCounter_Actual360);
-    olb.add_payment_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
-    olb.add_payment_calendar(quantra::enums::Calendar_UnitedStatesGovernmentBond);
-    olb.add_payment_lag(2);
     olb.add_averaging_method(quantra::enums::RateAveragingType_Compound);
     olb.add_lookback_days(0);
     olb.add_lockout_days(0);
     olb.add_apply_observation_shift(false);
     olb.add_telescopic_value_dates(false);
-    auto overnightLeg = olb.Finish();
+    auto overnightCoupons = olb.Finish();
+    SwapLegFields overnightFields(overnightSch, 1000000.0, quantra::enums::DayCounter_Actual360);
+    overnightFields.withPaymentTerms(quantra::enums::Calendar_UnitedStatesGovernmentBond, 2);
 
-    quantra::OisSwapBuilder oisBuilder(b);
-    oisBuilder.add_swap_type(quantra::enums::SwapType_Payer);
-    oisBuilder.add_fixed_leg(fixedLeg);
-    oisBuilder.add_overnight_leg(overnightLeg);
-    auto oisSwapFb = oisBuilder.Finish();
+    // Payer underlying: the fixed leg is paid, the overnight leg received;
+    // both legs name the swaption's single discount curve.
+    auto oisSwapFb = buildOisSwap(
+        b, quantra::enums::PayReceive_Pay, "USD", fixedFields, fixedCoupons, overnightFields,
+        overnightCoupons, "USD_SOFR", "USD_SOFR");
 
     auto exd = b.CreateString("2025-08-15");
     quantra::SwaptionBuilder swb(b);
@@ -2643,14 +2516,11 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     swb.add_underlying(oisSwapFb.Union());
     auto swaption = swb.Finish();
 
-    auto dc = b.CreateString("USD_SOFR");
     auto vol_id = b.CreateString("usd_sofr_smile");
     auto model_id = b.CreateString("bachelier_model");
 
     quantra::PriceSwaptionBuilder psb(b);
     psb.add_swaption(swaption);
-    psb.add_discounting_curve(dc);
-    psb.add_forwarding_curve(dc);
     psb.add_volatility(vol_id);
     psb.add_model(model_id);
     auto psbOff = psb.Finish();
@@ -2677,6 +2547,86 @@ TEST_F(QuantraComparisonTest, Swaption_OIS_SmileCubeSpreadFromATM_UsesSwapIndexR
     ASSERT_TRUE(res->used_cube_node_atm().has_value());
     EXPECT_GT(*res->used_atm_forward(), 0.0);
     EXPECT_GT(*res->used_cube_node_atm(), 0.0);
+}
+
+// A swaption is priced on ONE discount curve: the two legs of its underlying
+// must name the same `discounting_curve` (400 naming both fields).
+TEST_F(QuantraComparisonTest, Swaption_UnderlyingLegsMustShareTheDiscountCurve) {
+    flatbuffers::grpc::MessageBuilder b;
+    std::vector<flatbuffers::Offset<quantra::TermStructure>> curves{
+        buildCurve(b, "discount"), buildCurve(b, "other")};
+    auto curvesVec = b.CreateVector(curves);
+    auto indices = buildIndicesVector(b);
+    auto swapIndices = buildSwapIndicesVector(b);
+    auto vol = buildSwaptionVolSurface(b, "swaption_vol", 0.20);
+    auto vols = b.CreateVector(std::vector<flatbuffers::Offset<quantra::VolSurfaceSpec>>{vol});
+    auto model = buildSwaptionModel(b, "black_swaption_model");
+    auto models = b.CreateVector(std::vector<flatbuffers::Offset<quantra::ModelSpec>>{model});
+    auto asof = b.CreateString("2025-01-15");
+    auto pricing =
+        buildPricing(b, asof, asof, 0, indices, swapIndices, curvesVec, 0, 0, vols, models);
+
+    auto schedule = [&](quantra::enums::Frequency freq) {
+        auto eff = b.CreateString("2026-01-17");
+        auto term = b.CreateString("2031-01-17");
+        quantra::ScheduleBuilder sb(b);
+        sb.add_effective_date(eff);
+        sb.add_termination_date(term);
+        sb.add_calendar(quantra::enums::Calendar_TARGET);
+        sb.add_frequency(freq);
+        sb.add_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_termination_date_convention(quantra::enums::BusinessDayConvention_ModifiedFollowing);
+        sb.add_date_generation_rule(quantra::enums::DateGenerationRule_Forward);
+        sb.add_end_of_month(false);
+        return sb.Finish();
+    };
+    auto fixedSch = schedule(quantra::enums::Frequency_Annual);
+    quantra::FixedCouponsBuilder flb(b);
+    flb.add_rate(0.035);
+    auto fixedCoupons = flb.Finish();
+    SwapLegFields fixedFields(fixedSch, 1000000.0, quantra::enums::DayCounter_Thirty360);
+    auto floatSch = schedule(quantra::enums::Frequency_Semiannual);
+    auto idx6m = buildIndexRef(b, "EUR_6M");
+    quantra::IborCouponsBuilder flgb(b);
+    flgb.add_index(idx6m);
+    flgb.add_spread(0.0);
+    auto floatCoupons = flgb.Finish();
+    SwapLegFields floatFields(floatSch, 1000000.0, quantra::enums::DayCounter_Actual360);
+
+    // fixed_leg on "discount", floating_leg on "other".
+    auto fixedLeg = buildSwapLeg(
+        b, quantra::enums::PayReceive_Pay, "EUR", fixedFields, fixedCoupons, "discount");
+    auto floatingLeg = buildSwapLeg(
+        b, quantra::enums::PayReceive_Receive, "EUR", floatFields, floatCoupons, "other",
+        "discount");
+    auto uswap = quantra::CreateVanillaSwap(b, fixedLeg, floatingLeg);
+
+    auto exd = b.CreateString("2026-01-15");
+    quantra::SwaptionBuilder swb(b);
+    swb.add_underlying_type(quantra::SwaptionUnderlying_VanillaSwap);
+    swb.add_underlying(uswap.Union());
+    swb.add_exercise_date(exd);
+    swb.add_exercise_type(quantra::enums::ExerciseType_European);
+    swb.add_settlement_type(quantra::enums::SettlementType_Physical);
+    auto swaption = swb.Finish();
+    auto swaptions = b.CreateVector(
+        std::vector<flatbuffers::Offset<quantra::PriceSwaption>>{quantra::CreatePriceSwaptionDirect(
+            b, swaption, "swaption_vol", "black_swaption_model")});
+    b.Finish(quantra::CreatePriceSwaptionRequest(b, pricing, swaptions));
+
+    SwaptionPricingRequest req;
+    auto respB = std::make_shared<flatbuffers::grpc::MessageBuilder>();
+    std::string msg;
+    try {
+        req.request(
+            respB, flatbuffers::GetRoot<quantra::PriceSwaptionRequest>(b.GetBufferPointer()));
+        FAIL() << "expected a 400 for two discount curves on a swaption underlying";
+    } catch (const QuantraInvalidArgument& e) {
+        msg = e.what();
+    }
+    EXPECT_NE(msg.find("must be equal"), std::string::npos) << msg;
+    EXPECT_NE(msg.find("Swaption.underlying.fixed_leg.discounting_curve"), std::string::npos)
+        << msg;
 }
 
 }} // namespace quantra::testing

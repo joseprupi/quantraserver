@@ -6,7 +6,22 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# OIS swap pricing response (fixed vs compounded overnight leg).
+# Overnight indexed swap pricing result. With, for leg i, L_i the leg's
+# flows in its own frame (coupons +, initial exchange -N_i at the schedule
+# start, final exchange +N_i with the last coupon; no exchanges unless the
+# leg asks for them), D_i its discounting curve and s_i = -1 for `Pay` /
+# +1 for `Receive`:
+#   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+#   legs[i].npv_reporting = legs[i].npv                (one currency)
+#   npv                   = legs[0].npv + legs[1].npv
+# `fair_rate` holds the overnight leg and every exchange fixed and solves
+# the linear equation in the fixed rate with the fixed leg's signed annuity
+# B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
+#   fair_rate = rate_0 - npv / (B_0 / 1e-4)
+# which is QuantLib::OvernightIndexedSwap's own fair-rate formula, so
+# repricing at `fair_rate` gives npv = 0 to rounding. Every value is as of
+# the evaluation date (the curves' reference date); flows on that date are
+# excluded. Positive `npv` is in favour of the reported party.
 class OisSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -25,6 +40,8 @@ class OisSwapResponse(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Total present value in the legs' currency, positive in favour of the
+    # reported party.
     # OisSwapResponse
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,99 +49,48 @@ class OisSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # The fixed rate that zeroes `npv`, the overnight leg and every exchange
+    # held fixed. Absent when the fixed leg's annuity is zero or the value
+    # is not finite.
     # OisSwapResponse
     def FairRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
+    # One result per leg, in request order (`fixed_leg` then
+    # `overnight_leg`): the leg's signed NPV and, with `include_flows`, its
+    # flows. An overnight coupon's `rate` is the compounded (or averaged)
+    # rate plus spread and `index_fixing` the fixing on its first fixing
+    # date.
     # OisSwapResponse
-    def FairSpread(self):
+    def Legs(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # OisSwapResponse
-    def FixedLegBps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # OisSwapResponse
-    def OvernightLegBps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # OisSwapResponse
-    def FixedLegNpv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # OisSwapResponse
-    def OvernightLegNpv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # OisSwapResponse
-    def FixedLegFlows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.SwapLegFlow import SwapLegFlow
-            obj = SwapLegFlow()
+            from quantra.SwapLegResult import SwapLegResult
+            obj = SwapLegResult()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # OisSwapResponse
-    def FixedLegFlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+    def LegsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # OisSwapResponse
-    def FixedLegFlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        return o == 0
-
-    # OisSwapResponse
-    def OvernightLegFlows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            x = self._tab.Vector(o)
-            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
-            x = self._tab.Indirect(x)
-            obj = SwapLegFlow()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # OisSwapResponse
-    def OvernightLegFlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # OisSwapResponse
-    def OvernightLegFlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
+    def LegsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
 def OisSwapResponseStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(3)
 
 def Start(builder):
     OisSwapResponseStart(builder)
@@ -136,64 +102,22 @@ def AddNpv(builder, npv):
     OisSwapResponseAddNpv(builder, npv)
 
 def OisSwapResponseAddFairRate(builder, fairRate):
-    builder.PrependFloat64Slot(1, fairRate, 0.0)
+    builder.PrependFloat64Slot(1, fairRate, None)
 
 def AddFairRate(builder, fairRate):
     OisSwapResponseAddFairRate(builder, fairRate)
 
-def OisSwapResponseAddFairSpread(builder, fairSpread):
-    builder.PrependFloat64Slot(2, fairSpread, 0.0)
+def OisSwapResponseAddLegs(builder, legs):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
 
-def AddFairSpread(builder, fairSpread):
-    OisSwapResponseAddFairSpread(builder, fairSpread)
+def AddLegs(builder, legs):
+    OisSwapResponseAddLegs(builder, legs)
 
-def OisSwapResponseAddFixedLegBps(builder, fixedLegBps):
-    builder.PrependFloat64Slot(3, fixedLegBps, 0.0)
-
-def AddFixedLegBps(builder, fixedLegBps):
-    OisSwapResponseAddFixedLegBps(builder, fixedLegBps)
-
-def OisSwapResponseAddOvernightLegBps(builder, overnightLegBps):
-    builder.PrependFloat64Slot(4, overnightLegBps, 0.0)
-
-def AddOvernightLegBps(builder, overnightLegBps):
-    OisSwapResponseAddOvernightLegBps(builder, overnightLegBps)
-
-def OisSwapResponseAddFixedLegNpv(builder, fixedLegNpv):
-    builder.PrependFloat64Slot(5, fixedLegNpv, 0.0)
-
-def AddFixedLegNpv(builder, fixedLegNpv):
-    OisSwapResponseAddFixedLegNpv(builder, fixedLegNpv)
-
-def OisSwapResponseAddOvernightLegNpv(builder, overnightLegNpv):
-    builder.PrependFloat64Slot(6, overnightLegNpv, 0.0)
-
-def AddOvernightLegNpv(builder, overnightLegNpv):
-    OisSwapResponseAddOvernightLegNpv(builder, overnightLegNpv)
-
-def OisSwapResponseAddFixedLegFlows(builder, fixedLegFlows):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(fixedLegFlows), 0)
-
-def AddFixedLegFlows(builder, fixedLegFlows):
-    OisSwapResponseAddFixedLegFlows(builder, fixedLegFlows)
-
-def OisSwapResponseStartFixedLegFlowsVector(builder, numElems):
+def OisSwapResponseStartLegsVector(builder, numElems):
     return builder.StartVector(4, numElems, 4)
 
-def StartFixedLegFlowsVector(builder, numElems):
-    return OisSwapResponseStartFixedLegFlowsVector(builder, numElems)
-
-def OisSwapResponseAddOvernightLegFlows(builder, overnightLegFlows):
-    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(overnightLegFlows), 0)
-
-def AddOvernightLegFlows(builder, overnightLegFlows):
-    OisSwapResponseAddOvernightLegFlows(builder, overnightLegFlows)
-
-def OisSwapResponseStartOvernightLegFlowsVector(builder, numElems):
-    return builder.StartVector(4, numElems, 4)
-
-def StartOvernightLegFlowsVector(builder, numElems):
-    return OisSwapResponseStartOvernightLegFlowsVector(builder, numElems)
+def StartLegsVector(builder, numElems):
+    return OisSwapResponseStartLegsVector(builder, numElems)
 
 def OisSwapResponseEnd(builder):
     return builder.EndObject()
@@ -211,14 +135,8 @@ class OisSwapResponseT(object):
     # OisSwapResponseT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.fairRate = 0.0  # type: float
-        self.fairSpread = 0.0  # type: float
-        self.fixedLegBps = 0.0  # type: float
-        self.overnightLegBps = 0.0  # type: float
-        self.fixedLegNpv = 0.0  # type: float
-        self.overnightLegNpv = 0.0  # type: float
-        self.fixedLegFlows = None  # type: List[SwapLegFlowT]
-        self.overnightLegFlows = None  # type: List[SwapLegFlowT]
+        self.fairRate = None  # type: Optional[float]
+        self.legs = None  # type: List[SwapLegResultT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -243,57 +161,29 @@ class OisSwapResponseT(object):
             return
         self.npv = oisSwapResponse.Npv()
         self.fairRate = oisSwapResponse.FairRate()
-        self.fairSpread = oisSwapResponse.FairSpread()
-        self.fixedLegBps = oisSwapResponse.FixedLegBps()
-        self.overnightLegBps = oisSwapResponse.OvernightLegBps()
-        self.fixedLegNpv = oisSwapResponse.FixedLegNpv()
-        self.overnightLegNpv = oisSwapResponse.OvernightLegNpv()
-        if not oisSwapResponse.FixedLegFlowsIsNone():
-            self.fixedLegFlows = []
-            for i in range(oisSwapResponse.FixedLegFlowsLength()):
-                if oisSwapResponse.FixedLegFlows(i) is None:
-                    self.fixedLegFlows.append(None)
+        if not oisSwapResponse.LegsIsNone():
+            self.legs = []
+            for i in range(oisSwapResponse.LegsLength()):
+                if oisSwapResponse.Legs(i) is None:
+                    self.legs.append(None)
                 else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(oisSwapResponse.FixedLegFlows(i))
-                    self.fixedLegFlows.append(swapLegFlow_)
-        if not oisSwapResponse.OvernightLegFlowsIsNone():
-            self.overnightLegFlows = []
-            for i in range(oisSwapResponse.OvernightLegFlowsLength()):
-                if oisSwapResponse.OvernightLegFlows(i) is None:
-                    self.overnightLegFlows.append(None)
-                else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(oisSwapResponse.OvernightLegFlows(i))
-                    self.overnightLegFlows.append(swapLegFlow_)
+                    swapLegResult_ = SwapLegResultT.InitFromObj(oisSwapResponse.Legs(i))
+                    self.legs.append(swapLegResult_)
 
     # OisSwapResponseT
     def Pack(self, builder):
-        if self.fixedLegFlows is not None:
-            fixedLegFlowslist = []
-            for i in range(len(self.fixedLegFlows)):
-                fixedLegFlowslist.append(self.fixedLegFlows[i].Pack(builder))
-            OisSwapResponseStartFixedLegFlowsVector(builder, len(self.fixedLegFlows))
-            for i in reversed(range(len(self.fixedLegFlows))):
-                builder.PrependUOffsetTRelative(fixedLegFlowslist[i])
-            fixedLegFlows = builder.EndVector()
-        if self.overnightLegFlows is not None:
-            overnightLegFlowslist = []
-            for i in range(len(self.overnightLegFlows)):
-                overnightLegFlowslist.append(self.overnightLegFlows[i].Pack(builder))
-            OisSwapResponseStartOvernightLegFlowsVector(builder, len(self.overnightLegFlows))
-            for i in reversed(range(len(self.overnightLegFlows))):
-                builder.PrependUOffsetTRelative(overnightLegFlowslist[i])
-            overnightLegFlows = builder.EndVector()
+        if self.legs is not None:
+            legslist = []
+            for i in range(len(self.legs)):
+                legslist.append(self.legs[i].Pack(builder))
+            OisSwapResponseStartLegsVector(builder, len(self.legs))
+            for i in reversed(range(len(self.legs))):
+                builder.PrependUOffsetTRelative(legslist[i])
+            legs = builder.EndVector()
         OisSwapResponseStart(builder)
         OisSwapResponseAddNpv(builder, self.npv)
         OisSwapResponseAddFairRate(builder, self.fairRate)
-        OisSwapResponseAddFairSpread(builder, self.fairSpread)
-        OisSwapResponseAddFixedLegBps(builder, self.fixedLegBps)
-        OisSwapResponseAddOvernightLegBps(builder, self.overnightLegBps)
-        OisSwapResponseAddFixedLegNpv(builder, self.fixedLegNpv)
-        OisSwapResponseAddOvernightLegNpv(builder, self.overnightLegNpv)
-        if self.fixedLegFlows is not None:
-            OisSwapResponseAddFixedLegFlows(builder, fixedLegFlows)
-        if self.overnightLegFlows is not None:
-            OisSwapResponseAddOvernightLegFlows(builder, overnightLegFlows)
+        if self.legs is not None:
+            OisSwapResponseAddLegs(builder, legs)
         oisSwapResponse = OisSwapResponseEnd(builder)
         return oisSwapResponse

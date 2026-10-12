@@ -98,8 +98,9 @@
   "swaps": [
     {
       "ois_swap": {
-        "swap_type": "Payer",
         "fixed_leg": {
+          "pay_receive": "Pay",
+          "currency": "EUR",
           "notional": 1000000.0,
           "schedule": {
             "calendar": "TARGET",
@@ -111,39 +112,50 @@
             "date_generation_rule": "Forward",
             "end_of_month": false
           },
-          "rate": 0.03,
-          "day_counter": "Actual360",
-          "payment_convention": "ModifiedFollowing"
-        },
-        "overnight_leg": {
-          "notional": 1000000.0,
-          "schedule": {
-            "calendar": "TARGET",
-            "effective_date": "2025-01-17",
-            "termination_date": "2030-01-17",
-            "frequency": "Annual",
-            "convention": "ModifiedFollowing",
-            "termination_date_convention": "ModifiedFollowing",
-            "date_generation_rule": "Forward",
-            "end_of_month": false
-          },
-          "index": {
-            "id": "ESTR"
-          },
-          "spread": 0.0,
           "day_counter": "Actual360",
           "payment_convention": "ModifiedFollowing",
           "payment_calendar": "TARGET",
-          "averaging_method": "Compound",
-          "lockout_days": 0,
-          "apply_observation_shift": false,
-          "telescopic_value_dates": false,
           "payment_lag": 0,
-          "lookback_days": 0
+          "coupons_type": "FixedCoupons",
+          "coupons": {
+            "rate": 0.03
+          },
+          "discounting_curve": "discount"
+        },
+        "overnight_leg": {
+          "pay_receive": "Receive",
+          "currency": "EUR",
+          "notional": 1000000.0,
+          "schedule": {
+            "calendar": "TARGET",
+            "effective_date": "2025-01-17",
+            "termination_date": "2030-01-17",
+            "frequency": "Annual",
+            "convention": "ModifiedFollowing",
+            "termination_date_convention": "ModifiedFollowing",
+            "date_generation_rule": "Forward",
+            "end_of_month": false
+          },
+          "day_counter": "Actual360",
+          "payment_convention": "ModifiedFollowing",
+          "payment_calendar": "TARGET",
+          "payment_lag": 0,
+          "coupons_type": "OvernightCoupons",
+          "coupons": {
+            "index": {
+              "id": "ESTR"
+            },
+            "spread": 0.0,
+            "averaging_method": "Compound",
+            "lookback_days": 0,
+            "lockout_days": 0,
+            "apply_observation_shift": false,
+            "telescopic_value_dates": false
+          },
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount"
         }
-      },
-      "discounting_curve": "discount",
-      "forwarding_curve": "discount"
+      }
     }
   ]
 }

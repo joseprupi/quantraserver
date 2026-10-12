@@ -6,7 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Request to price one or more vanilla swaps.
+# Request to price one or more vanilla swaps against one market.
 class PriceVanillaSwapRequest(object):
     __slots__ = ['_tab']
 
@@ -61,7 +61,8 @@ class PriceVanillaSwapRequest(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
-    # Include detailed cashflows in response.
+    # When true every response row lists each leg's future flows (coupons
+    # and notional exchanges) in payment order.
     # PriceVanillaSwapRequest
     def IncludeFlows(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

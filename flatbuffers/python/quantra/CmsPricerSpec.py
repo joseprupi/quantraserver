@@ -6,8 +6,7 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# CMS leg of a swap.
-# Coupon formula: notional * accrual * (gear * CMSRate + spread).
+# CMS coupon pricer configuration (`CmsCoupons.pricer`).
 class CmsPricerSpec(object):
     __slots__ = ['_tab']
 

@@ -2,118 +2,42 @@
 #define QUANTRA_VANILLA_SWAP_EVALUATOR_H
 
 /**
- * VanillaSwapEvaluator — pure QuantLib pricing core for vanilla swaps
- * (IBOR floating leg or CMS floating leg, mutually exclusive).
+ * VanillaSwapEvaluator — pure QuantLib pricing core for vanilla swaps: a
+ * fixed `SwapLeg` against an IBOR or CMS `SwapLeg` in one currency, each
+ * valued on its own discount curve by swap_leg_pricer.h (the builders of
+ * swap_leg_builder.h: FixedRateLeg / IborLeg as QuantLib::VanillaSwap
+ * assembles them, CmsLeg with the requested pricer).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
  * enforces this with a literal grep. All wire-format conversion lives in
  * vanilla_swap_mapper.{h,cpp}.
+ *
+ * With s_i the leg signs (-1 Pay / +1 Receive), npvOwn_i and bpsOwn_i the
+ * legs' own-frame values (exchanges included in the NPV, excluded from the
+ * bps):
+ *   legs[i].npv = s_i * npvOwn_i,   npv = legs[0].npv + legs[1].npv
+ *   fair_rate   = rate_0 - npv / ((s_0 * bpsOwn_0) / 1e-4)
+ * the latter being QuantLib::VanillaSwap::fairRate's own formula (the signed
+ * leg BPS divided by the basis point), so the numbers equal the instrument's.
  */
 
-#include "cms_leg_parser.h" // CmsPricerUsed (plain struct) and enum-only deps
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "swap_leg_data.h"
+#include "swap_leg_pricer.h"
 
-#include <ql/cashflow.hpp>
-#include <ql/instruments/vanillaswap.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/period.hpp>
-#include <ql/time/schedule.hpp>
-
-#include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
 namespace quantra {
 
-/**
- * Plain CMS pricer params extracted from FB by the mapper. Mirrors the
- * fields cms_leg_parser.makeCouponPricer consumes — but as plain values, so
- * the pricer never sees the FB CmsPricerSpec table directly.
- */
-struct VanillaSwapCmsPricerParams {
-    quantra::enums::CmsPricerType pricerType = quantra::enums::CmsPricerType_LinearTsr;
-    quantra::enums::CmsYieldCurveModel yieldCurveModel =
-        quantra::enums::CmsYieldCurveModel_Standard;
-    double meanReversion = 0.03;
-    double haganLowerLimit = 0.0;
-    double haganUpperLimit = 1.0;
-    double haganPrecision = 1.0e-6;
-    /// Negative sentinel preserved: the evaluator translates <=0 to QL's default.
-    double haganHardUpperLimit = -1.0;
-};
-
-/// Plain fixed-leg description (parsed by the mapper).
-struct VanillaSwapFixedLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    /// Optional per-period notionals (one per coupon period). Empty => constant
-    /// `notional`; non-empty => amortizing/step-up fixed leg. Validated by the
-    /// mapper against the schedule before it reaches the evaluator.
-    std::vector<double> notionals;
-    double rate = 0.0;
-    QuantLib::DayCounter dayCounter;
-    /// Used only by the CMS branch (FixedRateLeg builder); the IBOR branch
-    /// passes its schedule directly to QuantLib::VanillaSwap which doesn't
-    /// re-adjust payments.
-    QuantLib::BusinessDayConvention paymentConvention = QuantLib::ModifiedFollowing;
-};
-
-/// Plain IBOR floating-leg description (parsed by the mapper).
-struct VanillaSwapIborLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    /// Optional per-period notionals (one per coupon period). Empty => constant
-    /// `notional`; non-empty => amortizing/step-up floating leg. Validated by
-    /// the mapper against the schedule before it reaches the evaluator.
-    std::vector<double> notionals;
-    std::string indexId;
-    double spread = 0.0;
-    QuantLib::DayCounter dayCounter;
-    /// Per-coupon fixing-days override applied via IborLeg::withFixingDays.
-    /// Defaults to the FB schema default (2). Honored on the manual-leg path
-    /// (in-arrears or amortizing); the plain in-advance QuantLib::VanillaSwap
-    /// path uses the index's own fixing days.
-    int fixingDays = 2;
-    /// When true the coupon fixes at the end of its accrual period
-    /// (IborLeg::inArrears). Forces the manual-leg path since QuantLib::VanillaSwap
-    /// cannot express an in-arrears floating leg.
-    bool inArrears = false;
-};
-
-/// Plain CMS floating-leg description (parsed by the mapper).
-struct VanillaSwapCmsLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    std::string swapIndexId;
-    QuantLib::Period swapTenor;
-    std::string swaptionVolId;
-    /// Negative sentinel preserved: evaluator falls back to swap-index spot_days.
-    int fixingDays = -1;
-    QuantLib::DayCounter dayCounter;
-    QuantLib::BusinessDayConvention paymentConvention = QuantLib::ModifiedFollowing;
-    double gear = 1.0;
-    double spread = 0.0;
-    /// Optional per-coupon cap/floor strikes. Present => a CappedFlooredCmsCoupon
-    /// leg (capped/floored at the given rate). Absent => plain CMS coupons.
-    std::optional<double> cap;
-    std::optional<double> floor;
-    VanillaSwapCmsPricerParams pricerParams{};
-};
-
-/// One swap trade. `branch` selects ibor vs cms fields.
+/// One vanilla swap: the two legs in request order, lifted by the mapper
+/// (fixed leg = FixedCoupons, floating leg = IborCoupons or CmsCoupons, one
+/// currency, opposite sides — all enforced by the mapper).
 struct VanillaSwapTrade {
-    enum class Branch { Ibor, Cms };
-    Branch branch = Branch::Ibor;
-    QuantLib::VanillaSwap::Type swapType = QuantLib::VanillaSwap::Payer;
-    std::string discountingCurveId;
-    std::string forwardingCurveId;
-    VanillaSwapFixedLegData fixed;
-    VanillaSwapIborLegData ibor; // populated when branch == Ibor
-    VanillaSwapCmsLegData cms;   // populated when branch == Cms
+    SwapLegData fixedLeg;
+    SwapLegData floatingLeg;
 };
 
 struct VanillaSwapInputs {
@@ -121,46 +45,16 @@ struct VanillaSwapInputs {
     bool includeFlows = false;
 };
 
-/**
- * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the SwapLegFlow FB table verbatim — the evaluator pre-computes
- * everything that depends on the discount curve (discount, present_value,
- * ISO date strings) so the mapper never touches QuantLib types.
- */
-struct VanillaSwapFlowPlain {
-    bool isFloating = false;
-    std::string paymentDate;
-    std::string accrualStartDate;
-    std::string accrualEndDate;
-    double amount = 0.0;
-    double accrualYearFraction = 0.0;
-    double gearing = 1.0;
-    double discount = 0.0;
-    double presentValue = 0.0;
-    double rate = 0.0;
-    // Floating-only fields. Left default-constructed for fixed flows.
-    std::string fixingDate;
-    double indexFixing = 0.0;
-    bool hasCmsSwapRate = false;
-    double cmsSwapRate = 0.0;
-    double spread = 0.0;
-};
-
-/// Per-swap result. `hasCmsLeg` toggles the optional CMS diagnostics block
-/// the mapper emits.
+/// Per-swap result. Mirrors the VanillaSwapResponse wire table.
 struct VanillaSwapPerSwap {
     double npv = 0.0;
-    double fairRate = 0.0;
-    double fairSpread = 0.0;
-    double fixedLegNpv = 0.0;
-    double floatingLegNpv = 0.0;
-    double fixedLegBps = 0.0;
-    double floatingLegBps = 0.0;
-    bool hasCmsLeg = false;
-    CmsPricerUsed cmsUsed{};
+    /// Absent when the fixed leg's signed bps is zero (nothing to solve for).
+    std::optional<double> fairRate;
+    /// fixed_leg then floating_leg.
+    std::vector<SwapLegPerLeg> legs;
+    /// Set when the floating leg carries CMS coupons (the `used_cms_*` block).
+    std::optional<CmsPricerUsed> cmsUsed;
     bool includeFlows = false;
-    std::vector<VanillaSwapFlowPlain> fixedFlows;
-    std::vector<VanillaSwapFlowPlain> floatingFlows;
 };
 
 struct VanillaSwapResult {

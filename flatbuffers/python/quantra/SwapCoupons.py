@@ -2,21 +2,28 @@
 
 # namespace: quantra
 
-# The coupons of one swap leg: exactly one of the coupon tables the swap
-# endpoints share. In JSON a union is written as two fields, the tag and the
-# value: `"coupons_type": "FixedCoupons", "coupons": { ... }` (the tag must
-# precede the value).
-#   FixedCoupons     fixed rate (`rate`): `price-vanilla-swap`'s fixed_leg.
-#   IborCoupons      one IBOR fixing per period (+ `spread`); the index must
-#                    be an IBOR index (an overnight index is a 400 naming
+# The kind-specific part of one swap leg's coupons: exactly one of the
+# coupon tables the swap endpoints share (the shared fields — notional,
+# schedule, day count, payment conventions — are on the `SwapLeg`). In JSON
+# a union is written as two fields, the tag and the value:
+# `"coupons_type": "FixedCoupons", "coupons": { "rate": 0.03 }` (the tag
+# must precede the value). Which members an endpoint accepts on which leg
+# is fixed by the leg's role (400 naming the field otherwise):
+#   FixedCoupons     a fixed rate (`rate`): `VanillaSwap.fixed_leg`,
+#                    `OisSwap.fixed_leg`, either `CrossCurrencySwap` leg.
+#   IborCoupons      one IBOR fixing per period (+ `spread`):
+#                    `VanillaSwap.floating_leg`, either `BasisSwap` leg,
+#                    either `CrossCurrencySwap` leg; the index must be an
+#                    IBOR index (an overnight index is a 400 naming
 #                    OvernightCoupons).
 #   OvernightCoupons daily overnight fixings compounded / averaged over each
 #                    period with payment lag, lookback, lockout and
-#                    observation shift (`price-ois-swap`'s overnight_leg,
-#                    built by the same code); the index must be an overnight
-#                    index (an IBOR index is a 400 naming IborCoupons).
-#   CmsCoupons       constant-maturity swap-rate coupons; not supported on
-#                    `price-cross-currency-swap` in this version (400).
+#                    observation shift: `OisSwap.overnight_leg`, either
+#                    `BasisSwap` leg, either `CrossCurrencySwap` leg; the
+#                    index must be an overnight index (an IBOR index is a
+#                    400 naming IborCoupons).
+#   CmsCoupons       constant-maturity swap-rate coupons:
+#                    `VanillaSwap.floating_leg` only.
 class SwapCoupons(object):
     NONE = 0
     FixedCoupons = 1

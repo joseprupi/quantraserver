@@ -31,7 +31,7 @@ class SwapLegResult(object):
     # pays the leg (`Pay`) and +1 when it receives it (`Receive`). A paid leg
     # is therefore negative only when it is worth paying for: paying a 2.55%
     # fixed leg (with its exchanges) on a 3% curve is in the payer's favour
-    # and positive.
+    # and positive. The swap's `npv` is the sum of its legs' values.
     # SwapLegResult
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -40,7 +40,8 @@ class SwapLegResult(object):
         return 0.0
 
     # `npv` converted to the swap's reporting currency at the as-of exchange
-    # rate (unchanged when the leg is in the reporting currency).
+    # rate. Equal to `npv` on a single-currency swap (vanilla, OIS, basis),
+    # whose reporting currency is the legs' currency.
     # SwapLegResult
     def NpvReporting(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -54,7 +55,8 @@ class SwapLegResult(object):
     # sum of their `present_value`s is `npv / s` (s = -1 for `Pay`, +1 for
     # `Receive`). For an overnight coupon `rate` is the compounded rate (plus
     # spread) and `index_fixing` the fixing on the coupon's first fixing
-    # date, as on `price-ois-swap`.
+    # date; for a CMS coupon `index_fixing` and `cms_swap_rate` are the CMS
+    # swap-rate fixing.
     # SwapLegResult
     def Flows(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))

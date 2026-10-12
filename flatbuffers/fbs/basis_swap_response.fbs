@@ -1,23 +1,38 @@
-include "vanilla_swap_response.fbs";
+include "swap_leg.fbs";
 
 namespace quantra;
 
-/// Basis swap pricing response (two floating legs).
+/// Basis swap pricing result. With, for leg i, L_i the leg's flows in its
+/// own frame (coupons +, initial exchange -N_i at the schedule start, final
+/// exchange +N_i with the last coupon; no exchanges unless the leg asks for
+/// them), D_i its discounting curve and s_i = -1 for `Pay` / +1 for
+/// `Receive`:
+///   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+///   legs[i].npv_reporting = legs[i].npv                (one currency)
+///   npv                   = legs[0].npv + legs[1].npv
+/// `fair_spread` holds the other leg and every exchange fixed and solves the
+/// linear equation in the spread of leg k with that leg's signed annuity
+/// B_k = s_k * CashFlows::bps(coupons of leg k, D_k) (exchanges excluded):
+///   fair_spread = spread_k - npv * 1e-4 / B_k
+/// so repricing leg k at `fair_spread` gives npv = 0 to rounding. Every
+/// value is as of the evaluation date (the curves' reference date); flows on
+/// that date are excluded. Positive `npv` is in favour of the reported party.
 table BasisSwapResponse {
+    /// Total present value in the legs' currency, positive in favour of the
+    /// reported party.
     npv:double;
-    leg1_bps:double;
-    leg2_bps:double;
-    leg1_npv:double;
-    leg2_npv:double;
-    /// Par spread for leg1 keeping leg2 spread fixed.
-    fair_spread_leg1:double;
-    /// Par spread for leg2 keeping leg1 spread fixed.
-    fair_spread_leg2:double;
-    leg1_flows:[SwapLegFlow];
-    leg2_flows:[SwapLegFlow];
+    /// Par spread of the leg that carries the request's spread, the other
+    /// leg's spread and every exchange held fixed: leg k = `leg1` when only
+    /// `leg1.coupons.spread` is non-zero, `leg2` otherwise (both spreads
+    /// zero or both non-zero: `leg2`, the quoted leg by market convention).
+    /// Absent when that leg's annuity is zero or the value is not finite.
+    fair_spread:double = null;
+    /// One result per leg, in request order (`leg1` then `leg2`): the leg's
+    /// signed NPV and, with `include_flows`, its flows.
+    legs:[SwapLegResult] (required);
 }
 
-/// Response wrapper for multiple basis swaps.
+/// Response wrapper for multiple basis swaps, in request order.
 table PriceBasisSwapResponse {
     swaps:[BasisSwapResponse] (required);
 }

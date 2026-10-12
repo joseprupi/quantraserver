@@ -6,7 +6,24 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Full vanilla swap pricing response.
+# Vanilla swap pricing result. With, for leg i, L_i the leg's flows in its
+# own frame (coupons +, initial exchange -N_i at the schedule start, final
+# exchange +N_i with the last coupon; no exchanges unless the leg asks for
+# them), D_i its discounting curve and s_i = -1 for `Pay` / +1 for
+# `Receive`:
+#   legs[i].npv           = s_i * CashFlows::npv(L_i, D_i)
+#   legs[i].npv_reporting = legs[i].npv                (one currency)
+#   npv                   = legs[0].npv + legs[1].npv
+# `fair_rate` holds the floating leg and every exchange fixed and solves the
+# linear equation in the fixed rate with the fixed leg's signed annuity
+# B_0 = s_0 * CashFlows::bps(coupons of leg 0, D_0) (exchanges excluded):
+#   fair_rate = rate_0 - npv / (B_0 / 1e-4)
+# which is QuantLib::VanillaSwap's own fair-rate formula, so repricing at
+# `fair_rate` gives npv = 0 to rounding (for a CMS floating leg the same
+# formula applies, the CMS coupons being held fixed). Every value is as of
+# the evaluation date (the curves' reference date); flows on that date are
+# excluded, as for every swap. Positive `npv` is in favour of the reported
+# party (the one whose `pay_receive` sides were given).
 class VanillaSwapResponse(object):
     __slots__ = ['_tab']
 
@@ -25,6 +42,8 @@ class VanillaSwapResponse(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Total present value in the legs' currency, positive in favour of the
+    # reported party.
     # VanillaSwapResponse
     def Npv(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -32,118 +51,66 @@ class VanillaSwapResponse(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # The fixed rate that zeroes `npv`, the floating leg and every exchange
+    # held fixed. Absent when the fixed leg's annuity is zero (nothing to
+    # solve for) or the value is not finite.
     # VanillaSwapResponse
     def FairRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
+    # One result per leg, in request order (`fixed_leg` then
+    # `floating_leg`): the leg's signed NPV and, with `include_flows`, its
+    # flows.
     # VanillaSwapResponse
-    def FairSpread(self):
+    def Legs(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # VanillaSwapResponse
-    def FixedLegBps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # VanillaSwapResponse
-    def FloatingLegBps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # VanillaSwapResponse
-    def FixedLegNpv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # VanillaSwapResponse
-    def FloatingLegNpv(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Optional detailed flows per leg.
-    # VanillaSwapResponse
-    def FixedLegFlows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
-        if o != 0:
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra.SwapLegFlow import SwapLegFlow
-            obj = SwapLegFlow()
+            from quantra.SwapLegResult import SwapLegResult
+            obj = SwapLegResult()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # VanillaSwapResponse
-    def FixedLegFlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+    def LegsLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
     # VanillaSwapResponse
-    def FixedLegFlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
+    def LegsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
-    # VanillaSwapResponse
-    def FloatingLegFlows(self, j):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            x = self._tab.Vector(o)
-            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
-            x = self._tab.Indirect(x)
-            obj = SwapLegFlow()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # VanillaSwapResponse
-    def FloatingLegFlowsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # VanillaSwapResponse
-    def FloatingLegFlowsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
-        return o == 0
-
-    # Effective CMS pricer type used for CMS leg valuation.
+    # Effective CMS pricer type used for CMS leg valuation. Present only
+    # when the floating leg carries `CmsCoupons`.
     # VanillaSwapResponse
     def UsedCmsPricerType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # Effective yield-curve model used by CMS Hagan-family pricers.
+    # Effective yield-curve model used by CMS Hagan-family pricers. Present
+    # only when the floating leg carries `CmsCoupons`.
     # VanillaSwapResponse
     def UsedCmsYieldCurveModel(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
-    # Effective CMS mean reversion used by pricer. Absent when no CMS leg.
+    # Effective CMS mean reversion used by the pricer. Absent when no CMS leg.
     # VanillaSwapResponse
     def UsedCmsMeanReversion(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -151,7 +118,7 @@ class VanillaSwapResponse(object):
     # Effective Numeric Hagan lower integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganLowerLimit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -159,7 +126,7 @@ class VanillaSwapResponse(object):
     # Effective Numeric Hagan upper integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganUpperLimit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -167,7 +134,7 @@ class VanillaSwapResponse(object):
     # Effective Numeric Hagan integration precision. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganPrecision(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
@@ -175,13 +142,13 @@ class VanillaSwapResponse(object):
     # Effective Numeric Hagan hard upper integration limit. Absent when not applicable.
     # VanillaSwapResponse
     def UsedCmsHaganHardUpperLimit(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
 def VanillaSwapResponseStart(builder):
-    builder.StartObject(16)
+    builder.StartObject(10)
 
 def Start(builder):
     VanillaSwapResponseStart(builder)
@@ -193,103 +160,61 @@ def AddNpv(builder, npv):
     VanillaSwapResponseAddNpv(builder, npv)
 
 def VanillaSwapResponseAddFairRate(builder, fairRate):
-    builder.PrependFloat64Slot(1, fairRate, 0.0)
+    builder.PrependFloat64Slot(1, fairRate, None)
 
 def AddFairRate(builder, fairRate):
     VanillaSwapResponseAddFairRate(builder, fairRate)
 
-def VanillaSwapResponseAddFairSpread(builder, fairSpread):
-    builder.PrependFloat64Slot(2, fairSpread, 0.0)
+def VanillaSwapResponseAddLegs(builder, legs):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(legs), 0)
 
-def AddFairSpread(builder, fairSpread):
-    VanillaSwapResponseAddFairSpread(builder, fairSpread)
+def AddLegs(builder, legs):
+    VanillaSwapResponseAddLegs(builder, legs)
 
-def VanillaSwapResponseAddFixedLegBps(builder, fixedLegBps):
-    builder.PrependFloat64Slot(3, fixedLegBps, 0.0)
-
-def AddFixedLegBps(builder, fixedLegBps):
-    VanillaSwapResponseAddFixedLegBps(builder, fixedLegBps)
-
-def VanillaSwapResponseAddFloatingLegBps(builder, floatingLegBps):
-    builder.PrependFloat64Slot(4, floatingLegBps, 0.0)
-
-def AddFloatingLegBps(builder, floatingLegBps):
-    VanillaSwapResponseAddFloatingLegBps(builder, floatingLegBps)
-
-def VanillaSwapResponseAddFixedLegNpv(builder, fixedLegNpv):
-    builder.PrependFloat64Slot(5, fixedLegNpv, 0.0)
-
-def AddFixedLegNpv(builder, fixedLegNpv):
-    VanillaSwapResponseAddFixedLegNpv(builder, fixedLegNpv)
-
-def VanillaSwapResponseAddFloatingLegNpv(builder, floatingLegNpv):
-    builder.PrependFloat64Slot(6, floatingLegNpv, 0.0)
-
-def AddFloatingLegNpv(builder, floatingLegNpv):
-    VanillaSwapResponseAddFloatingLegNpv(builder, floatingLegNpv)
-
-def VanillaSwapResponseAddFixedLegFlows(builder, fixedLegFlows):
-    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(fixedLegFlows), 0)
-
-def AddFixedLegFlows(builder, fixedLegFlows):
-    VanillaSwapResponseAddFixedLegFlows(builder, fixedLegFlows)
-
-def VanillaSwapResponseStartFixedLegFlowsVector(builder, numElems):
+def VanillaSwapResponseStartLegsVector(builder, numElems):
     return builder.StartVector(4, numElems, 4)
 
-def StartFixedLegFlowsVector(builder, numElems):
-    return VanillaSwapResponseStartFixedLegFlowsVector(builder, numElems)
-
-def VanillaSwapResponseAddFloatingLegFlows(builder, floatingLegFlows):
-    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(floatingLegFlows), 0)
-
-def AddFloatingLegFlows(builder, floatingLegFlows):
-    VanillaSwapResponseAddFloatingLegFlows(builder, floatingLegFlows)
-
-def VanillaSwapResponseStartFloatingLegFlowsVector(builder, numElems):
-    return builder.StartVector(4, numElems, 4)
-
-def StartFloatingLegFlowsVector(builder, numElems):
-    return VanillaSwapResponseStartFloatingLegFlowsVector(builder, numElems)
+def StartLegsVector(builder, numElems):
+    return VanillaSwapResponseStartLegsVector(builder, numElems)
 
 def VanillaSwapResponseAddUsedCmsPricerType(builder, usedCmsPricerType):
-    builder.PrependInt8Slot(9, usedCmsPricerType, 0)
+    builder.PrependInt8Slot(3, usedCmsPricerType, None)
 
 def AddUsedCmsPricerType(builder, usedCmsPricerType):
     VanillaSwapResponseAddUsedCmsPricerType(builder, usedCmsPricerType)
 
 def VanillaSwapResponseAddUsedCmsYieldCurveModel(builder, usedCmsYieldCurveModel):
-    builder.PrependInt8Slot(10, usedCmsYieldCurveModel, 0)
+    builder.PrependInt8Slot(4, usedCmsYieldCurveModel, None)
 
 def AddUsedCmsYieldCurveModel(builder, usedCmsYieldCurveModel):
     VanillaSwapResponseAddUsedCmsYieldCurveModel(builder, usedCmsYieldCurveModel)
 
 def VanillaSwapResponseAddUsedCmsMeanReversion(builder, usedCmsMeanReversion):
-    builder.PrependFloat64Slot(11, usedCmsMeanReversion, None)
+    builder.PrependFloat64Slot(5, usedCmsMeanReversion, None)
 
 def AddUsedCmsMeanReversion(builder, usedCmsMeanReversion):
     VanillaSwapResponseAddUsedCmsMeanReversion(builder, usedCmsMeanReversion)
 
 def VanillaSwapResponseAddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit):
-    builder.PrependFloat64Slot(12, usedCmsHaganLowerLimit, None)
+    builder.PrependFloat64Slot(6, usedCmsHaganLowerLimit, None)
 
 def AddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit):
     VanillaSwapResponseAddUsedCmsHaganLowerLimit(builder, usedCmsHaganLowerLimit)
 
 def VanillaSwapResponseAddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit):
-    builder.PrependFloat64Slot(13, usedCmsHaganUpperLimit, None)
+    builder.PrependFloat64Slot(7, usedCmsHaganUpperLimit, None)
 
 def AddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit):
     VanillaSwapResponseAddUsedCmsHaganUpperLimit(builder, usedCmsHaganUpperLimit)
 
 def VanillaSwapResponseAddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision):
-    builder.PrependFloat64Slot(14, usedCmsHaganPrecision, None)
+    builder.PrependFloat64Slot(8, usedCmsHaganPrecision, None)
 
 def AddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision):
     VanillaSwapResponseAddUsedCmsHaganPrecision(builder, usedCmsHaganPrecision)
 
 def VanillaSwapResponseAddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit):
-    builder.PrependFloat64Slot(15, usedCmsHaganHardUpperLimit, None)
+    builder.PrependFloat64Slot(9, usedCmsHaganHardUpperLimit, None)
 
 def AddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit):
     VanillaSwapResponseAddUsedCmsHaganHardUpperLimit(builder, usedCmsHaganHardUpperLimit)
@@ -310,16 +235,10 @@ class VanillaSwapResponseT(object):
     # VanillaSwapResponseT
     def __init__(self):
         self.npv = 0.0  # type: float
-        self.fairRate = 0.0  # type: float
-        self.fairSpread = 0.0  # type: float
-        self.fixedLegBps = 0.0  # type: float
-        self.floatingLegBps = 0.0  # type: float
-        self.fixedLegNpv = 0.0  # type: float
-        self.floatingLegNpv = 0.0  # type: float
-        self.fixedLegFlows = None  # type: List[SwapLegFlowT]
-        self.floatingLegFlows = None  # type: List[SwapLegFlowT]
-        self.usedCmsPricerType = 0  # type: int
-        self.usedCmsYieldCurveModel = 0  # type: int
+        self.fairRate = None  # type: Optional[float]
+        self.legs = None  # type: List[SwapLegResultT]
+        self.usedCmsPricerType = None  # type: Optional[int]
+        self.usedCmsYieldCurveModel = None  # type: Optional[int]
         self.usedCmsMeanReversion = None  # type: Optional[float]
         self.usedCmsHaganLowerLimit = None  # type: Optional[float]
         self.usedCmsHaganUpperLimit = None  # type: Optional[float]
@@ -349,27 +268,14 @@ class VanillaSwapResponseT(object):
             return
         self.npv = vanillaSwapResponse.Npv()
         self.fairRate = vanillaSwapResponse.FairRate()
-        self.fairSpread = vanillaSwapResponse.FairSpread()
-        self.fixedLegBps = vanillaSwapResponse.FixedLegBps()
-        self.floatingLegBps = vanillaSwapResponse.FloatingLegBps()
-        self.fixedLegNpv = vanillaSwapResponse.FixedLegNpv()
-        self.floatingLegNpv = vanillaSwapResponse.FloatingLegNpv()
-        if not vanillaSwapResponse.FixedLegFlowsIsNone():
-            self.fixedLegFlows = []
-            for i in range(vanillaSwapResponse.FixedLegFlowsLength()):
-                if vanillaSwapResponse.FixedLegFlows(i) is None:
-                    self.fixedLegFlows.append(None)
+        if not vanillaSwapResponse.LegsIsNone():
+            self.legs = []
+            for i in range(vanillaSwapResponse.LegsLength()):
+                if vanillaSwapResponse.Legs(i) is None:
+                    self.legs.append(None)
                 else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(vanillaSwapResponse.FixedLegFlows(i))
-                    self.fixedLegFlows.append(swapLegFlow_)
-        if not vanillaSwapResponse.FloatingLegFlowsIsNone():
-            self.floatingLegFlows = []
-            for i in range(vanillaSwapResponse.FloatingLegFlowsLength()):
-                if vanillaSwapResponse.FloatingLegFlows(i) is None:
-                    self.floatingLegFlows.append(None)
-                else:
-                    swapLegFlow_ = SwapLegFlowT.InitFromObj(vanillaSwapResponse.FloatingLegFlows(i))
-                    self.floatingLegFlows.append(swapLegFlow_)
+                    swapLegResult_ = SwapLegResultT.InitFromObj(vanillaSwapResponse.Legs(i))
+                    self.legs.append(swapLegResult_)
         self.usedCmsPricerType = vanillaSwapResponse.UsedCmsPricerType()
         self.usedCmsYieldCurveModel = vanillaSwapResponse.UsedCmsYieldCurveModel()
         self.usedCmsMeanReversion = vanillaSwapResponse.UsedCmsMeanReversion()
@@ -380,34 +286,19 @@ class VanillaSwapResponseT(object):
 
     # VanillaSwapResponseT
     def Pack(self, builder):
-        if self.fixedLegFlows is not None:
-            fixedLegFlowslist = []
-            for i in range(len(self.fixedLegFlows)):
-                fixedLegFlowslist.append(self.fixedLegFlows[i].Pack(builder))
-            VanillaSwapResponseStartFixedLegFlowsVector(builder, len(self.fixedLegFlows))
-            for i in reversed(range(len(self.fixedLegFlows))):
-                builder.PrependUOffsetTRelative(fixedLegFlowslist[i])
-            fixedLegFlows = builder.EndVector()
-        if self.floatingLegFlows is not None:
-            floatingLegFlowslist = []
-            for i in range(len(self.floatingLegFlows)):
-                floatingLegFlowslist.append(self.floatingLegFlows[i].Pack(builder))
-            VanillaSwapResponseStartFloatingLegFlowsVector(builder, len(self.floatingLegFlows))
-            for i in reversed(range(len(self.floatingLegFlows))):
-                builder.PrependUOffsetTRelative(floatingLegFlowslist[i])
-            floatingLegFlows = builder.EndVector()
+        if self.legs is not None:
+            legslist = []
+            for i in range(len(self.legs)):
+                legslist.append(self.legs[i].Pack(builder))
+            VanillaSwapResponseStartLegsVector(builder, len(self.legs))
+            for i in reversed(range(len(self.legs))):
+                builder.PrependUOffsetTRelative(legslist[i])
+            legs = builder.EndVector()
         VanillaSwapResponseStart(builder)
         VanillaSwapResponseAddNpv(builder, self.npv)
         VanillaSwapResponseAddFairRate(builder, self.fairRate)
-        VanillaSwapResponseAddFairSpread(builder, self.fairSpread)
-        VanillaSwapResponseAddFixedLegBps(builder, self.fixedLegBps)
-        VanillaSwapResponseAddFloatingLegBps(builder, self.floatingLegBps)
-        VanillaSwapResponseAddFixedLegNpv(builder, self.fixedLegNpv)
-        VanillaSwapResponseAddFloatingLegNpv(builder, self.floatingLegNpv)
-        if self.fixedLegFlows is not None:
-            VanillaSwapResponseAddFixedLegFlows(builder, fixedLegFlows)
-        if self.floatingLegFlows is not None:
-            VanillaSwapResponseAddFloatingLegFlows(builder, floatingLegFlows)
+        if self.legs is not None:
+            VanillaSwapResponseAddLegs(builder, legs)
         VanillaSwapResponseAddUsedCmsPricerType(builder, self.usedCmsPricerType)
         VanillaSwapResponseAddUsedCmsYieldCurveModel(builder, self.usedCmsYieldCurveModel)
         VanillaSwapResponseAddUsedCmsMeanReversion(builder, self.usedCmsMeanReversion)

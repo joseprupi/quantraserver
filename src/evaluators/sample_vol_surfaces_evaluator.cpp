@@ -370,7 +370,7 @@ VolSurfaceSampleResult priceOneQuery(
                 QUANTRA_NOT_FOUND("Sampling curve ids not found for ATM computation");
             }
             volEntry = finalizeSwaptionVolEntryForPricing(
-                volEntry, nullptr, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
+                volEntry, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
                 Handle<YieldTermStructure>(fIt->second->currentLink()), false, q.discountingCurveId,
                 q.forwardingCurveId);
         }
@@ -992,7 +992,7 @@ SampleVolSurfacesResult SampleVolSurfacesEvaluator::evaluate(
                     ok = false;
                 } else {
                     entry = finalizeSwaptionVolEntryForPricing(
-                        entry, nullptr, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
+                        entry, reg, Handle<YieldTermStructure>(dIt->second->currentLink()),
                         Handle<YieldTermStructure>(fIt->second->currentLink()), false,
                         job.discountCurveId, job.forwardingCurveId);
                 }

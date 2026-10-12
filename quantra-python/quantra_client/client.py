@@ -31,6 +31,8 @@ from typing import Union, Optional
 from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
 from quantra.PriceFloatingRateBondRequest import PriceFloatingRateBondRequestT
 from quantra.PriceVanillaSwapRequest import PriceVanillaSwapRequestT
+from quantra.PriceOisSwapRequest import PriceOisSwapRequestT
+from quantra.PriceBasisSwapRequest import PriceBasisSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
 from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
 from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
@@ -53,6 +55,8 @@ from quantra.PricingOptions import PricingOptionsT
 from quantra.PriceFixedRateBondResponse import PriceFixedRateBondResponse
 from quantra.PriceFloatingRateBondResponse import PriceFloatingRateBondResponse
 from quantra.PriceVanillaSwapResponse import PriceVanillaSwapResponse
+from quantra.PriceOisSwapResponse import PriceOisSwapResponse
+from quantra.PriceBasisSwapResponse import PriceBasisSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
 from quantra.PriceFxForwardResponse import PriceFxForwardResponse
 from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
@@ -83,6 +87,8 @@ class Client:
         'fixed_rate_bond': '/quantra.QuantraServer/PriceFixedRateBond',
         'floating_rate_bond': '/quantra.QuantraServer/PriceFloatingRateBond',
         'vanilla_swap': '/quantra.QuantraServer/PriceVanillaSwap',
+        'ois_swap': '/quantra.QuantraServer/PriceOisSwap',
+        'basis_swap': '/quantra.QuantraServer/PriceBasisSwap',
         'fra': '/quantra.QuantraServer/PriceFRA',
         'fx_forward': '/quantra.QuantraServer/PriceFxForward',
         'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
@@ -166,11 +172,53 @@ class Client:
         self,
         request: PriceVanillaSwapRequestT
     ) -> PriceVanillaSwapResponse:
-        """Price vanilla interest rate swaps."""
+        """Price vanilla interest rate swaps: a VanillaSwap is two SwapLeg
+        entries, fixedLeg (FixedCoupons) and floatingLeg (IborCoupons or
+        CmsCoupons), each paid or received, in one currency, with its
+        discounting curve (and forwarding curve on the floating leg) on the
+        leg. The fields every coupon kind shares - notional (or per-period
+        notionals), schedule, dayCounter, paymentConvention and the optional
+        paymentCalendar / paymentLag - sit on the SwapLegT itself; the
+        coupons union holds only the kind-specific ones (rate; index and
+        spread; ...). The response carries legs[0] (fixed) / legs[1]
+        (floating)."""
         return self._call(
             'vanilla_swap',
             request,
             PriceVanillaSwapResponse
+        )
+
+    def price_ois_swaps(
+        self,
+        request: PriceOisSwapRequestT
+    ) -> PriceOisSwapResponse:
+        """Price overnight-indexed swaps: an OisSwap is two SwapLeg entries,
+        fixedLeg (FixedCoupons) and overnightLeg (OvernightCoupons), each
+        paid or received, in the index's currency, curves on the legs. Both
+        legs state their paymentCalendar and paymentLag on the leg (required
+        here, so both legs pay on the lagged dates); notional, schedule and
+        paymentConvention sit on the leg too, the coupons union holds only
+        the kind-specific fields. The response carries legs[0] (fixed) /
+        legs[1] (overnight)."""
+        return self._call(
+            'ois_swap',
+            request,
+            PriceOisSwapResponse
+        )
+
+    def price_basis_swaps(
+        self,
+        request: PriceBasisSwapRequestT
+    ) -> PriceBasisSwapResponse:
+        """Price basis swaps: a BasisSwap is two floating SwapLeg entries,
+        leg1 and leg2 (IborCoupons or OvernightCoupons), each paid or
+        received, in one currency, curves on the legs. The response carries
+        legs[0] / legs[1] and the fair spread of the leg carrying the
+        request's spread."""
+        return self._call(
+            'basis_swap',
+            request,
+            PriceBasisSwapResponse
         )
     
     def price_fras(
@@ -225,7 +273,10 @@ class Client:
         self,
         request: PriceSwaptionRequestT
     ) -> PriceSwaptionResponse:
-        """Price swaptions."""
+        """Price swaptions. The underlying is a VanillaSwap or an OisSwap
+        in the same SwapLeg shape as the swap endpoints: both legs name the
+        same discounting curve, the floating leg its forwarding curve; the
+        PriceSwaption wrapper carries only the volatility and model ids."""
         return self._call(
             'swaption',
             request,
@@ -362,11 +413,22 @@ from quantra.PriceFixedRateBond import PriceFixedRateBondT
 from quantra.FloatingRateBond import FloatingRateBondT
 from quantra.PriceFloatingRateBond import PriceFloatingRateBondT
 
-# Swaps
-from quantra.VanillaSwap import VanillaSwapT
+# Swaps (SwapLeg model: every leg is a SwapLegT whose couponsType /
+# coupons union is one of FixedCouponsT, IborCouponsT, OvernightCouponsT,
+# CmsCouponsT; results come back as SwapLegResult per leg)
+from quantra.SwapLeg import SwapLegT
+from quantra.SwapLegResult import SwapLegResultT
+from quantra.SwapCoupons import SwapCoupons
 from quantra.FixedCoupons import FixedCouponsT
 from quantra.IborCoupons import IborCouponsT
+from quantra.OvernightCoupons import OvernightCouponsT
+from quantra.CmsCoupons import CmsCouponsT
+from quantra.VanillaSwap import VanillaSwapT
 from quantra.PriceVanillaSwap import PriceVanillaSwapT
+from quantra.OisSwap import OisSwapT
+from quantra.PriceOisSwap import PriceOisSwapT
+from quantra.BasisSwap import BasisSwapT
+from quantra.PriceBasisSwap import PriceBasisSwapT
 
 # FRA
 from quantra.FRA import FRAT
@@ -378,10 +440,7 @@ from quantra.FxMarketData import FxMarketDataT
 from quantra.FxForward import FxForwardT
 from quantra.PriceFxForward import PriceFxForwardT
 
-# Cross-currency swap (SwapLeg model)
-from quantra.OvernightCoupons import OvernightCouponsT
-from quantra.SwapCoupons import SwapCoupons
-from quantra.SwapLeg import SwapLegT
+# Cross-currency swap (two SwapLegT entries in two currencies)
 from quantra.CrossCurrencySwap import CrossCurrencySwapT
 from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
 
@@ -438,6 +497,8 @@ __all__ = [
     'PriceFixedRateBondRequestT',
     'PriceFloatingRateBondRequestT',
     'PriceVanillaSwapRequestT',
+    'PriceOisSwapRequestT',
+    'PriceBasisSwapRequestT',
     'PriceFRARequestT',
     'PriceFxForwardRequestT',
     'PriceCrossCurrencySwapRequestT',
@@ -451,6 +512,8 @@ __all__ = [
     'PriceFixedRateBondResponse',
     'PriceFloatingRateBondResponse',
     'PriceVanillaSwapResponse',
+    'PriceOisSwapResponse',
+    'PriceBasisSwapResponse',
     'PriceFRAResponse',
     'PriceFxForwardResponse',
     'PriceCrossCurrencySwapResponse',
@@ -515,19 +578,25 @@ __all__ = [
     'PriceFixedRateBondT',
     'FloatingRateBondT',
     'PriceFloatingRateBondT',
-    'VanillaSwapT',
+    'SwapLegT',
+    'SwapLegResultT',
+    'SwapCoupons',
     'FixedCouponsT',
     'IborCouponsT',
+    'OvernightCouponsT',
+    'CmsCouponsT',
+    'VanillaSwapT',
     'PriceVanillaSwapT',
+    'OisSwapT',
+    'PriceOisSwapT',
+    'BasisSwapT',
+    'PriceBasisSwapT',
     'FRAT',
     'PriceFRAT',
     'FxSpotSpecT',
     'FxMarketDataT',
     'FxForwardT',
     'PriceFxForwardT',
-    'OvernightCouponsT',
-    'SwapCoupons',
-    'SwapLegT',
     'CrossCurrencySwapT',
     'PriceCrossCurrencySwapT',
     'CapFloorT',

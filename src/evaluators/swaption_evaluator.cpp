@@ -42,45 +42,55 @@ namespace quantra {
 
 namespace {
 
-/// Build the underlying QL swap from the plain instrument. Reproduces
-/// VanillaSwapParser::parse / OisSwapParser::parse construction exactly — same
-/// argument order, same index cloning against the forwarding handle, same
-/// notional-mismatch warning — so the swaption prices byte-identically.
+/// Build the underlying QL swap from the two `SwapLeg`s of the instrument:
+/// QuantLib::VanillaSwap / OvernightIndexedSwap with the fixed leg's notional
+/// for both legs (the instruments take one nominal; a different floating
+/// notional is warned about, as the pre-0.10.0 endpoints did), the fixed
+/// leg's side as the swap type, and the index cloned against the forwarding
+/// handle. QuantLib adjusts both legs' payments with the floating schedule's
+/// convention and fixes the IBOR leg on the index's own fixing days.
 std::shared_ptr<QuantLib::FixedVsFloatingSwap> buildUnderlyingSwap(
     const SwaptionInstrument& inst,
     const IndexRegistry& indices,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwarding) {
     if (inst.underlyingIsVanilla) {
-        const auto& v = inst.vanillaUnderlying;
-        auto iborIndex = indices.getIborWithCurve(v.ibor.indexId, forwarding);
-        if (v.fixed.notional != v.ibor.notional) {
+        const SwapLegData& fixed = inst.vanillaUnderlying.fixedLeg;
+        const SwapLegData& floating = inst.vanillaUnderlying.floatingLeg;
+        auto iborIndex = indices.getIborWithCurve(floating.indexId, forwarding);
+        if (fixed.notional != floating.notional) {
             std::cout << "Warning: Fixed and floating notionals differ. Using fixed notional."
                       << std::endl;
         }
+        const auto type = fixed.side == SwapLegData::Side::Pay ? QuantLib::VanillaSwap::Payer
+                                                               : QuantLib::VanillaSwap::Receiver;
         return std::make_shared<QuantLib::VanillaSwap>(
-            v.swapType, v.fixed.notional, v.fixed.schedule, v.fixed.rate, v.fixed.dayCounter,
-            v.ibor.schedule, iborIndex, v.ibor.spread, v.ibor.dayCounter);
+            type, fixed.notional, fixed.fixed.schedule, fixed.fixed.rate, fixed.fixed.dayCounter,
+            floating.ibor.schedule, iborIndex, floating.ibor.spread, floating.ibor.dayCounter);
     }
 
-    const auto& o = inst.oisUnderlying;
-    auto overnightIndex = indices.getOvernightWithCurve(o.overnight.indexId, forwarding);
+    const SwapLegData& fixed = inst.oisUnderlying.fixedLeg;
+    const SwapLegData& on = inst.oisUnderlying.overnightLeg;
+    auto overnightIndex = indices.getOvernightWithCurve(on.indexId, forwarding);
     // 0 = no lookback: QuantLib's off-state is Null<Natural>, not a zero-day
     // lookback (a literal 0 would force the fixing delay to 0 even when the
     // index carries a non-zero intrinsic fixing delay).
-    QuantLib::Natural lookbackDays = o.overnight.lookbackDays <= 0
-                                         ? QuantLib::Null<QuantLib::Natural>()
-                                         : static_cast<QuantLib::Natural>(o.overnight.lookbackDays);
-    QuantLib::Natural lockoutDays = static_cast<QuantLib::Natural>(o.overnight.lockoutDays);
-    if (o.fixed.notional != o.overnight.notional) {
+    QuantLib::Natural lookbackDays =
+        on.overnight.lookbackDays <= 0 ? QuantLib::Null<QuantLib::Natural>()
+                                       : static_cast<QuantLib::Natural>(on.overnight.lookbackDays);
+    QuantLib::Natural lockoutDays = static_cast<QuantLib::Natural>(on.overnight.lockoutDays);
+    if (fixed.notional != on.notional) {
         std::cout << "Warning: Fixed and overnight notionals differ. Using fixed notional."
                   << std::endl;
     }
+    const auto type = fixed.side == SwapLegData::Side::Pay
+                          ? QuantLib::OvernightIndexedSwap::Payer
+                          : QuantLib::OvernightIndexedSwap::Receiver;
     return std::make_shared<QuantLib::OvernightIndexedSwap>(
-        o.swapType, o.fixed.notional, o.fixed.schedule, o.fixed.rate, o.fixed.dayCounter,
-        o.overnight.schedule, overnightIndex, o.overnight.spread, o.overnight.paymentLag,
-        o.overnight.paymentConvention, o.overnight.paymentCalendar,
-        o.overnight.telescopicValueDates, o.overnight.averagingMethod, lookbackDays, lockoutDays,
-        o.overnight.applyObservationShift);
+        type, fixed.notional, fixed.fixed.schedule, fixed.fixed.rate, fixed.fixed.dayCounter,
+        on.overnight.schedule, overnightIndex, on.overnight.spread, on.overnight.paymentLag,
+        on.overnight.paymentConvention, on.overnight.paymentCalendar,
+        on.overnight.telescopicValueDates, on.overnight.averagingMethod, lookbackDays, lockoutDays,
+        on.overnight.applyObservationShift);
 }
 
 /// FB-free reconstruction of the QuantLib::Swaption from the plain instrument.

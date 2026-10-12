@@ -4,20 +4,20 @@ include "vanilla_swap.fbs";
 
 namespace quantra;
 
-/// Single vanilla swap pricing context with curve references.
+/// One vanilla swap to price. The legs name their own discounting and
+/// forwarding curves (`SwapLeg`); every reference is by id into `pricing`.
+/// The NPV is reported in the legs' currency.
 table PriceVanillaSwap {
-    vanilla_swap:VanillaSwap;
-    /// Reference to curve in pricing.rates.curves by id.
-    discounting_curve:string;
-    /// Reference to curve in pricing.rates.curves for forward rates by id.
-    forwarding_curve:string;
+    /// The swap. Required.
+    vanilla_swap:VanillaSwap (required);
 }
 
-/// Request to price one or more vanilla swaps.
+/// Request to price one or more vanilla swaps against one market.
 table PriceVanillaSwapRequest {
     pricing:Pricing;
     swaps:[PriceVanillaSwap];
-    /// Include detailed cashflows in response.
+    /// When true every response row lists each leg's future flows (coupons
+    /// and notional exchanges) in payment order.
     include_flows:bool = false;
 }
 

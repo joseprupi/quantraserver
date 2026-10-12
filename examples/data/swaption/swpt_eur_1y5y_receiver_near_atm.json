@@ -222,8 +222,9 @@
         "exercise_date": "2026-01-15",
         "underlying_type": "VanillaSwap",
         "underlying": {
-          "swap_type": "Receiver",
           "fixed_leg": {
+            "pay_receive": "Receive",
+            "currency": "EUR",
             "notional": 1000000.0,
             "schedule": {
               "calendar": "TARGET",
@@ -235,11 +236,17 @@
               "date_generation_rule": "Forward",
               "end_of_month": false
             },
-            "rate": 0.031,
             "day_counter": "Thirty360",
-            "payment_convention": "ModifiedFollowing"
+            "payment_convention": "ModifiedFollowing",
+            "coupons_type": "FixedCoupons",
+            "coupons": {
+              "rate": 0.031
+            },
+            "discounting_curve": "discount"
           },
           "floating_leg": {
+            "pay_receive": "Pay",
+            "currency": "EUR",
             "notional": 1000000.0,
             "schedule": {
               "calendar": "TARGET",
@@ -251,17 +258,20 @@
               "date_generation_rule": "Forward",
               "end_of_month": false
             },
-            "index": {
-              "id": "EUR_6M"
-            },
-            "spread": 0.0,
             "day_counter": "Actual360",
-            "payment_convention": "ModifiedFollowing"
+            "payment_convention": "ModifiedFollowing",
+            "coupons_type": "IborCoupons",
+            "coupons": {
+              "index": {
+                "id": "EUR_6M"
+              },
+              "spread": 0.0
+            },
+            "discounting_curve": "discount",
+            "forwarding_curve": "discount"
           }
         }
       },
-      "discounting_curve": "discount",
-      "forwarding_curve": "discount",
       "volatility": "swpt_vol_lognormal_20pct",
       "model": "black_model"
     }

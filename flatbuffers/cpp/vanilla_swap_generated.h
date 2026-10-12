@@ -13,811 +13,57 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "enums_generated.h"
-#include "index_generated.h"
-#include "schedule_generated.h"
+#include "swap_leg_generated.h"
 
 namespace quantra {
-
-struct FixedCoupons;
-struct FixedCouponsBuilder;
-struct FixedCouponsT;
-
-struct IborCoupons;
-struct IborCouponsBuilder;
-struct IborCouponsT;
-
-struct CmsPricerSpec;
-struct CmsPricerSpecBuilder;
-struct CmsPricerSpecT;
-
-struct CmsCoupons;
-struct CmsCouponsBuilder;
-struct CmsCouponsT;
 
 struct VanillaSwap;
 struct VanillaSwapBuilder;
 struct VanillaSwapT;
 
-struct FixedCouponsT : public ::flatbuffers::NativeTable {
-  typedef FixedCoupons TableType;
-  std::unique_ptr<quantra::ScheduleT> schedule{};
-  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
-  std::vector<double> notionals{};
-  double rate = 0.0;
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
-  FixedCouponsT() = default;
-  FixedCouponsT(const FixedCouponsT &o);
-  FixedCouponsT(FixedCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
-  FixedCouponsT &operator=(FixedCouponsT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// Fixed-rate coupons of a swap leg: `notional x rate x accrual` per period of
-/// `schedule`, paid on the period end adjusted with `payment_convention`.
-/// Used as `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg` and as the
-/// `FixedCoupons` member of `SwapLeg.coupons`. (Named `SwapFixedLeg` before
-/// 0.9.0; the field names are unchanged.)
-struct FixedCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef FixedCouponsT NativeTableType;
-  typedef FixedCouponsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SCHEDULE = 4,
-    VT_NOTIONAL = 6,
-    VT_NOTIONALS = 8,
-    VT_RATE = 10,
-    VT_DAY_COUNTER = 12,
-    VT_PAYMENT_CONVENTION = 14
-  };
-  const quantra::Schedule *schedule() const {
-    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
-  }
-  /// Constant notional. Presence-required and must be > 0 (unless the
-  /// per-period `notionals` vector is supplied). A bare double would default
-  /// to a silent zero notional.
-  ::flatbuffers::Optional<double> notional() const {
-    return GetOptional<double, double>(VT_NOTIONAL);
-  }
-  /// Optional per-period notionals, one entry per coupon period in schedule
-  /// order. Present => amortizing/step-up leg (overrides `notional`); absent
-  /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-  /// path; other readers (OIS, swaption underlying, `SwapLeg`) reject a
-  /// present value.
-  const ::flatbuffers::Vector<double> *notionals() const {
-    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
-  }
-  /// Annual coupon rate as a decimal (0.032 = 3.20%). May be negative.
-  double rate() const {
-    return GetField<double>(VT_RATE, 0.0);
-  }
-  /// Accrual day count of the coupons. Presence-required.
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
-    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
-  }
-  /// Business-day convention applied to the payment dates. Presence-required.
-  /// Not read by `price-vanilla-swap`, whose QuantLib::VanillaSwap adjusts
-  /// both legs with the floating schedule's convention; read by every other
-  /// reader.
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
-    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_SCHEDULE) &&
-           verifier.VerifyTable(schedule()) &&
-           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
-           VerifyOffset(verifier, VT_NOTIONALS) &&
-           verifier.VerifyVector(notionals()) &&
-           VerifyField<double>(verifier, VT_RATE, 8) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
-           verifier.EndTable();
-  }
-  FixedCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FixedCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<FixedCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct FixedCouponsBuilder {
-  typedef FixedCoupons Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(FixedCoupons::VT_SCHEDULE, schedule);
-  }
-  void add_notional(double notional) {
-    fbb_.AddElement<double>(FixedCoupons::VT_NOTIONAL, notional);
-  }
-  void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
-    fbb_.AddOffset(FixedCoupons::VT_NOTIONALS, notionals);
-  }
-  void add_rate(double rate) {
-    fbb_.AddElement<double>(FixedCoupons::VT_RATE, rate, 0.0);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(FixedCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
-  }
-  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(FixedCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
-  }
-  explicit FixedCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<FixedCoupons> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<FixedCoupons>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
-    double rate = 0.0,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
-  FixedCouponsBuilder builder_(_fbb);
-  builder_.add_rate(rate);
-  if(notional) { builder_.add_notional(*notional); }
-  builder_.add_notionals(notionals);
-  builder_.add_schedule(schedule);
-  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
-  if(day_counter) { builder_.add_day_counter(*day_counter); }
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCouponsDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    const std::vector<double> *notionals = nullptr,
-    double rate = 0.0,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
-  auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
-  return quantra::CreateFixedCoupons(
-      _fbb,
-      schedule,
-      notional,
-      notionals__,
-      rate,
-      day_counter,
-      payment_convention);
-}
-
-::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct IborCouponsT : public ::flatbuffers::NativeTable {
-  typedef IborCoupons TableType;
-  std::unique_ptr<quantra::ScheduleT> schedule{};
-  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
-  std::vector<double> notionals{};
-  std::unique_ptr<quantra::IndexRefT> index{};
-  double spread = 0.0;
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
-  int32_t fixing_days = 2;
-  bool in_arrears = false;
-  IborCouponsT() = default;
-  IborCouponsT(const IborCouponsT &o);
-  IborCouponsT(IborCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
-  IborCouponsT &operator=(IborCouponsT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// IBOR floating coupons of a swap leg: one fixing of `index` per period of
-/// `schedule` (`fixing_days` before the accrual start, or at the accrual end
-/// with `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as
-/// `VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`
-/// member of `SwapLeg.coupons`, where the index must be an IBOR index (an
-/// overnight index is a 400 naming `OvernightCoupons`). (Named
-/// `SwapFloatingLeg` before 0.9.0; the field names are unchanged.)
-struct IborCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef IborCouponsT NativeTableType;
-  typedef IborCouponsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SCHEDULE = 4,
-    VT_NOTIONAL = 6,
-    VT_NOTIONALS = 8,
-    VT_INDEX = 10,
-    VT_SPREAD = 12,
-    VT_DAY_COUNTER = 14,
-    VT_PAYMENT_CONVENTION = 16,
-    VT_FIXING_DAYS = 18,
-    VT_IN_ARREARS = 20
-  };
-  const quantra::Schedule *schedule() const {
-    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
-  }
-  /// Constant notional. Presence-required and must be > 0 (unless the
-  /// per-period `notionals` vector is supplied). A bare double would default
-  /// to a silent zero notional.
-  ::flatbuffers::Optional<double> notional() const {
-    return GetOptional<double, double>(VT_NOTIONAL);
-  }
-  /// Optional per-period notionals, one entry per coupon period in schedule
-  /// order. Present => amortizing/step-up leg (overrides `notional`); absent
-  /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-  /// path; other readers (basis swap, swaption underlying, `SwapLeg`)
-  /// reject a present value.
-  const ::flatbuffers::Vector<double> *notionals() const {
-    return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
-  }
-  /// Reference to an IndexDef by id (e.g., "EUR_6M").
-  const quantra::IndexRef *index() const {
-    return GetPointer<const quantra::IndexRef *>(VT_INDEX);
-  }
-  /// Additive spread over the index fixing, as a decimal (0.0005 = 5 bp).
-  /// Keeps a literal 0.0 default: zero is the market-standard value.
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
-  }
-  /// Accrual day count of the coupons. Presence-required.
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
-    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
-  }
-  /// Business-day convention applied to the payment dates. Presence-required.
-  /// Not read by `price-vanilla-swap`'s constant-notional in-advance path
-  /// (QuantLib::VanillaSwap uses the floating schedule's convention).
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
-    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
-  }
-  /// Fixing lag in business days before each accrual start. Not read by
-  /// `price-vanilla-swap`'s constant-notional in-advance path, which fixes
-  /// on the index's own `fixing_days`; read everywhere else.
-  int32_t fixing_days() const {
-    return GetField<int32_t>(VT_FIXING_DAYS, 2);
-  }
-  /// When true the coupon fixes at the end of its accrual period (no
-  /// convexity adjustment is priced: the zero-volatility pricer reads the
-  /// shifted fixing).
-  bool in_arrears() const {
-    return GetField<uint8_t>(VT_IN_ARREARS, 0) != 0;
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_SCHEDULE) &&
-           verifier.VerifyTable(schedule()) &&
-           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
-           VerifyOffset(verifier, VT_NOTIONALS) &&
-           verifier.VerifyVector(notionals()) &&
-           VerifyOffsetRequired(verifier, VT_INDEX) &&
-           verifier.VerifyTable(index()) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
-           VerifyField<uint8_t>(verifier, VT_IN_ARREARS, 1) &&
-           verifier.EndTable();
-  }
-  IborCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(IborCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<IborCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct IborCouponsBuilder {
-  typedef IborCoupons Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(IborCoupons::VT_SCHEDULE, schedule);
-  }
-  void add_notional(double notional) {
-    fbb_.AddElement<double>(IborCoupons::VT_NOTIONAL, notional);
-  }
-  void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
-    fbb_.AddOffset(IborCoupons::VT_NOTIONALS, notionals);
-  }
-  void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
-    fbb_.AddOffset(IborCoupons::VT_INDEX, index);
-  }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(IborCoupons::VT_SPREAD, spread, 0.0);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(IborCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
-  }
-  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(IborCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
-  }
-  void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(IborCoupons::VT_FIXING_DAYS, fixing_days, 2);
-  }
-  void add_in_arrears(bool in_arrears) {
-    fbb_.AddElement<uint8_t>(IborCoupons::VT_IN_ARREARS, static_cast<uint8_t>(in_arrears), 0);
-  }
-  explicit IborCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<IborCoupons> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<IborCoupons>(end);
-    fbb_.Required(o, IborCoupons::VT_INDEX);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<IborCoupons> CreateIborCoupons(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals = 0,
-    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    double spread = 0.0,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
-    int32_t fixing_days = 2,
-    bool in_arrears = false) {
-  IborCouponsBuilder builder_(_fbb);
-  builder_.add_spread(spread);
-  if(notional) { builder_.add_notional(*notional); }
-  builder_.add_fixing_days(fixing_days);
-  builder_.add_index(index);
-  builder_.add_notionals(notionals);
-  builder_.add_schedule(schedule);
-  builder_.add_in_arrears(in_arrears);
-  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
-  if(day_counter) { builder_.add_day_counter(*day_counter); }
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<IborCoupons> CreateIborCouponsDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    const std::vector<double> *notionals = nullptr,
-    ::flatbuffers::Offset<quantra::IndexRef> index = 0,
-    double spread = 0.0,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
-    int32_t fixing_days = 2,
-    bool in_arrears = false) {
-  auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
-  return quantra::CreateIborCoupons(
-      _fbb,
-      schedule,
-      notional,
-      notionals__,
-      index,
-      spread,
-      day_counter,
-      payment_convention,
-      fixing_days,
-      in_arrears);
-}
-
-::flatbuffers::Offset<IborCoupons> CreateIborCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct CmsPricerSpecT : public ::flatbuffers::NativeTable {
-  typedef CmsPricerSpec TableType;
-  quantra::enums::CmsPricerType pricer_type = quantra::enums::CmsPricerType_LinearTsr;
-  quantra::enums::CmsYieldCurveModel yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard;
-  double mean_reversion = 0.03;
-  double hagan_lower_limit = 0.0;
-  double hagan_upper_limit = 1.0;
-  double hagan_precision = 1.0e-6;
-  double hagan_hard_upper_limit = -1.0;
-};
-
-/// CMS leg of a swap.
-/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
-struct CmsPricerSpec FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CmsPricerSpecT NativeTableType;
-  typedef CmsPricerSpecBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_PRICER_TYPE = 4,
-    VT_YIELD_CURVE_MODEL = 6,
-    VT_MEAN_REVERSION = 8,
-    VT_HAGAN_LOWER_LIMIT = 10,
-    VT_HAGAN_UPPER_LIMIT = 12,
-    VT_HAGAN_PRECISION = 14,
-    VT_HAGAN_HARD_UPPER_LIMIT = 16
-  };
-  /// CMS coupon pricer implementation.
-  quantra::enums::CmsPricerType pricer_type() const {
-    return static_cast<quantra::enums::CmsPricerType>(GetField<int8_t>(VT_PRICER_TYPE, 0));
-  }
-  /// Yield-curve model used by Hagan-family pricers.
-  quantra::enums::CmsYieldCurveModel yield_curve_model() const {
-    return static_cast<quantra::enums::CmsYieldCurveModel>(GetField<int8_t>(VT_YIELD_CURVE_MODEL, 0));
-  }
-  /// Mean reversion parameter used by TSR/Hagan-family pricers.
-  double mean_reversion() const {
-    return GetField<double>(VT_MEAN_REVERSION, 0.03);
-  }
-  /// Numeric Hagan lower integration limit.
-  double hagan_lower_limit() const {
-    return GetField<double>(VT_HAGAN_LOWER_LIMIT, 0.0);
-  }
-  /// Numeric Hagan upper integration limit.
-  double hagan_upper_limit() const {
-    return GetField<double>(VT_HAGAN_UPPER_LIMIT, 1.0);
-  }
-  /// Numeric Hagan integration precision.
-  double hagan_precision() const {
-    return GetField<double>(VT_HAGAN_PRECISION, 1.0e-6);
-  }
-  /// Numeric Hagan hard upper integration limit.
-  /// If <= 0.0, QuantLib default hard upper limit is used.
-  double hagan_hard_upper_limit() const {
-    return GetField<double>(VT_HAGAN_HARD_UPPER_LIMIT, -1.0);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_PRICER_TYPE, 1) &&
-           VerifyField<int8_t>(verifier, VT_YIELD_CURVE_MODEL, 1) &&
-           VerifyField<double>(verifier, VT_MEAN_REVERSION, 8) &&
-           VerifyField<double>(verifier, VT_HAGAN_LOWER_LIMIT, 8) &&
-           VerifyField<double>(verifier, VT_HAGAN_UPPER_LIMIT, 8) &&
-           VerifyField<double>(verifier, VT_HAGAN_PRECISION, 8) &&
-           VerifyField<double>(verifier, VT_HAGAN_HARD_UPPER_LIMIT, 8) &&
-           verifier.EndTable();
-  }
-  CmsPricerSpecT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CmsPricerSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CmsPricerSpec> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct CmsPricerSpecBuilder {
-  typedef CmsPricerSpec Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_pricer_type(quantra::enums::CmsPricerType pricer_type) {
-    fbb_.AddElement<int8_t>(CmsPricerSpec::VT_PRICER_TYPE, static_cast<int8_t>(pricer_type), 0);
-  }
-  void add_yield_curve_model(quantra::enums::CmsYieldCurveModel yield_curve_model) {
-    fbb_.AddElement<int8_t>(CmsPricerSpec::VT_YIELD_CURVE_MODEL, static_cast<int8_t>(yield_curve_model), 0);
-  }
-  void add_mean_reversion(double mean_reversion) {
-    fbb_.AddElement<double>(CmsPricerSpec::VT_MEAN_REVERSION, mean_reversion, 0.03);
-  }
-  void add_hagan_lower_limit(double hagan_lower_limit) {
-    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_LOWER_LIMIT, hagan_lower_limit, 0.0);
-  }
-  void add_hagan_upper_limit(double hagan_upper_limit) {
-    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_UPPER_LIMIT, hagan_upper_limit, 1.0);
-  }
-  void add_hagan_precision(double hagan_precision) {
-    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_PRECISION, hagan_precision, 1.0e-6);
-  }
-  void add_hagan_hard_upper_limit(double hagan_hard_upper_limit) {
-    fbb_.AddElement<double>(CmsPricerSpec::VT_HAGAN_HARD_UPPER_LIMIT, hagan_hard_upper_limit, -1.0);
-  }
-  explicit CmsPricerSpecBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<CmsPricerSpec> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CmsPricerSpec>(end);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    quantra::enums::CmsPricerType pricer_type = quantra::enums::CmsPricerType_LinearTsr,
-    quantra::enums::CmsYieldCurveModel yield_curve_model = quantra::enums::CmsYieldCurveModel_Standard,
-    double mean_reversion = 0.03,
-    double hagan_lower_limit = 0.0,
-    double hagan_upper_limit = 1.0,
-    double hagan_precision = 1.0e-6,
-    double hagan_hard_upper_limit = -1.0) {
-  CmsPricerSpecBuilder builder_(_fbb);
-  builder_.add_hagan_hard_upper_limit(hagan_hard_upper_limit);
-  builder_.add_hagan_precision(hagan_precision);
-  builder_.add_hagan_upper_limit(hagan_upper_limit);
-  builder_.add_hagan_lower_limit(hagan_lower_limit);
-  builder_.add_mean_reversion(mean_reversion);
-  builder_.add_yield_curve_model(yield_curve_model);
-  builder_.add_pricer_type(pricer_type);
-  return builder_.Finish();
-}
-
-::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct CmsCouponsT : public ::flatbuffers::NativeTable {
-  typedef CmsCoupons TableType;
-  std::unique_ptr<quantra::ScheduleT> schedule{};
-  ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
-  std::string swap_index_id{};
-  std::unique_ptr<quantra::PeriodT> swap_tenor{};
-  std::string swaption_vol_id{};
-  int32_t fixing_days = -1;
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
-  double gear = 1.0;
-  double spread = 0.0;
-  std::unique_ptr<quantra::CmsPricerSpecT> pricer{};
-  ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt;
-  CmsCouponsT() = default;
-  CmsCouponsT(const CmsCouponsT &o);
-  CmsCouponsT(CmsCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
-  CmsCouponsT &operator=(CmsCouponsT o) FLATBUFFERS_NOEXCEPT;
-};
-
-/// CMS coupons of a swap leg.
-/// Coupon formula: notional * accrual * (gear * CMSRate + spread).
-/// Used as `VanillaSwap.cms_leg`; the `CmsCoupons` member of `SwapLeg.coupons`
-/// is rejected by `price-cross-currency-swap` in this version. (Named
-/// `SwapCmsLeg` before 0.9.0; the field names are unchanged.)
-struct CmsCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef CmsCouponsT NativeTableType;
-  typedef CmsCouponsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SCHEDULE = 4,
-    VT_NOTIONAL = 6,
-    VT_SWAP_INDEX_ID = 8,
-    VT_SWAP_TENOR = 10,
-    VT_SWAPTION_VOL_ID = 12,
-    VT_FIXING_DAYS = 14,
-    VT_DAY_COUNTER = 16,
-    VT_PAYMENT_CONVENTION = 18,
-    VT_GEAR = 20,
-    VT_SPREAD = 22,
-    VT_PRICER = 24,
-    VT_CAP = 26,
-    VT_FLOOR = 28
-  };
-  /// Coupon/payment schedule.
-  const quantra::Schedule *schedule() const {
-    return GetPointer<const quantra::Schedule *>(VT_SCHEDULE);
-  }
-  /// Coupon notional. Presence-required and must be > 0.
-  ::flatbuffers::Optional<double> notional() const {
-    return GetOptional<double, double>(VT_NOTIONAL);
-  }
-  /// Swap index conventions id from Pricing.swap_indices (e.g. "EUR_SWAP_6M").
-  const ::flatbuffers::String *swap_index_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_SWAP_INDEX_ID);
-  }
-  /// Constant maturity tenor for CMS fixing (e.g. 10Y).
-  const quantra::Period *swap_tenor() const {
-    return GetPointer<const quantra::Period *>(VT_SWAP_TENOR);
-  }
-  /// Swaption volatility surface id from Pricing.vol_surfaces used by CMS pricer.
-  const ::flatbuffers::String *swaption_vol_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_SWAPTION_VOL_ID);
-  }
-  /// Optional fixing days override; if negative, uses swap index spot_days.
-  int32_t fixing_days() const {
-    return GetField<int32_t>(VT_FIXING_DAYS, -1);
-  }
-  /// Coupon accrual day-count convention.
-  ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
-    return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
-  }
-  /// Payment business-day convention.
-  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
-    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
-  }
-  /// Coupon gearing multiplier.
-  double gear() const {
-    return GetField<double>(VT_GEAR, 1.0);
-  }
-  /// Coupon additive spread.
-  double spread() const {
-    return GetField<double>(VT_SPREAD, 0.0);
-  }
-  /// Optional CMS coupon pricer configuration.
-  /// If null, defaults are used (LinearTsr with mean_reversion=0.03).
-  const quantra::CmsPricerSpec *pricer() const {
-    return GetPointer<const quantra::CmsPricerSpec *>(VT_PRICER);
-  }
-  /// Optional cap strike. Present => every CMS coupon is capped at this rate
-  /// (produces CappedFlooredCmsCoupons). Absent => uncapped.
-  ::flatbuffers::Optional<double> cap() const {
-    return GetOptional<double, double>(VT_CAP);
-  }
-  /// Optional floor strike. Present => every CMS coupon is floored at this rate.
-  /// Absent => unfloored. If both cap and floor are present, cap must be >= floor.
-  ::flatbuffers::Optional<double> floor() const {
-    return GetOptional<double, double>(VT_FLOOR);
-  }
-  bool Verify(::flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_SCHEDULE) &&
-           verifier.VerifyTable(schedule()) &&
-           VerifyField<double>(verifier, VT_NOTIONAL, 8) &&
-           VerifyOffsetRequired(verifier, VT_SWAP_INDEX_ID) &&
-           verifier.VerifyString(swap_index_id()) &&
-           VerifyOffsetRequired(verifier, VT_SWAP_TENOR) &&
-           verifier.VerifyTable(swap_tenor()) &&
-           VerifyOffsetRequired(verifier, VT_SWAPTION_VOL_ID) &&
-           verifier.VerifyString(swaption_vol_id()) &&
-           VerifyField<int32_t>(verifier, VT_FIXING_DAYS, 4) &&
-           VerifyField<int8_t>(verifier, VT_DAY_COUNTER, 1) &&
-           VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
-           VerifyField<double>(verifier, VT_GEAR, 8) &&
-           VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyOffset(verifier, VT_PRICER) &&
-           verifier.VerifyTable(pricer()) &&
-           VerifyField<double>(verifier, VT_CAP, 8) &&
-           VerifyField<double>(verifier, VT_FLOOR, 8) &&
-           verifier.EndTable();
-  }
-  CmsCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(CmsCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<CmsCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct CmsCouponsBuilder {
-  typedef CmsCoupons Table;
-  ::flatbuffers::FlatBufferBuilder &fbb_;
-  ::flatbuffers::uoffset_t start_;
-  void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(CmsCoupons::VT_SCHEDULE, schedule);
-  }
-  void add_notional(double notional) {
-    fbb_.AddElement<double>(CmsCoupons::VT_NOTIONAL, notional);
-  }
-  void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
-    fbb_.AddOffset(CmsCoupons::VT_SWAP_INDEX_ID, swap_index_id);
-  }
-  void add_swap_tenor(::flatbuffers::Offset<quantra::Period> swap_tenor) {
-    fbb_.AddOffset(CmsCoupons::VT_SWAP_TENOR, swap_tenor);
-  }
-  void add_swaption_vol_id(::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id) {
-    fbb_.AddOffset(CmsCoupons::VT_SWAPTION_VOL_ID, swaption_vol_id);
-  }
-  void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(CmsCoupons::VT_FIXING_DAYS, fixing_days, -1);
-  }
-  void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(CmsCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
-  }
-  void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(CmsCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
-  }
-  void add_gear(double gear) {
-    fbb_.AddElement<double>(CmsCoupons::VT_GEAR, gear, 1.0);
-  }
-  void add_spread(double spread) {
-    fbb_.AddElement<double>(CmsCoupons::VT_SPREAD, spread, 0.0);
-  }
-  void add_pricer(::flatbuffers::Offset<quantra::CmsPricerSpec> pricer) {
-    fbb_.AddOffset(CmsCoupons::VT_PRICER, pricer);
-  }
-  void add_cap(double cap) {
-    fbb_.AddElement<double>(CmsCoupons::VT_CAP, cap);
-  }
-  void add_floor(double floor) {
-    fbb_.AddElement<double>(CmsCoupons::VT_FLOOR, floor);
-  }
-  explicit CmsCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ::flatbuffers::Offset<CmsCoupons> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<CmsCoupons>(end);
-    fbb_.Required(o, CmsCoupons::VT_SWAP_INDEX_ID);
-    fbb_.Required(o, CmsCoupons::VT_SWAP_TENOR);
-    fbb_.Required(o, CmsCoupons::VT_SWAPTION_VOL_ID);
-    return o;
-  }
-};
-
-inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<::flatbuffers::String> swap_index_id = 0,
-    ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id = 0,
-    int32_t fixing_days = -1,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
-    double gear = 1.0,
-    double spread = 0.0,
-    ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
-    ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
-  CmsCouponsBuilder builder_(_fbb);
-  if(floor) { builder_.add_floor(*floor); }
-  if(cap) { builder_.add_cap(*cap); }
-  builder_.add_spread(spread);
-  builder_.add_gear(gear);
-  if(notional) { builder_.add_notional(*notional); }
-  builder_.add_pricer(pricer);
-  builder_.add_fixing_days(fixing_days);
-  builder_.add_swaption_vol_id(swaption_vol_id);
-  builder_.add_swap_tenor(swap_tenor);
-  builder_.add_swap_index_id(swap_index_id);
-  builder_.add_schedule(schedule);
-  if(payment_convention) { builder_.add_payment_convention(*payment_convention); }
-  if(day_counter) { builder_.add_day_counter(*day_counter); }
-  return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCouponsDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
-    ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
-    const char *swap_index_id = nullptr,
-    ::flatbuffers::Offset<quantra::Period> swap_tenor = 0,
-    const char *swaption_vol_id = nullptr,
-    int32_t fixing_days = -1,
-    ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
-    double gear = 1.0,
-    double spread = 0.0,
-    ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
-    ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
-  auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
-  auto swaption_vol_id__ = swaption_vol_id ? _fbb.CreateString(swaption_vol_id) : 0;
-  return quantra::CreateCmsCoupons(
-      _fbb,
-      schedule,
-      notional,
-      swap_index_id__,
-      swap_tenor,
-      swaption_vol_id__,
-      fixing_days,
-      day_counter,
-      payment_convention,
-      gear,
-      spread,
-      pricer,
-      cap,
-      floor);
-}
-
-::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct VanillaSwapT : public ::flatbuffers::NativeTable {
   typedef VanillaSwap TableType;
-  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::FixedCouponsT> fixed_leg{};
-  std::unique_ptr<quantra::IborCouponsT> floating_leg{};
-  std::unique_ptr<quantra::CmsCouponsT> cms_leg{};
+  std::unique_ptr<quantra::SwapLegT> fixed_leg{};
+  std::unique_ptr<quantra::SwapLegT> floating_leg{};
   VanillaSwapT() = default;
   VanillaSwapT(const VanillaSwapT &o);
   VanillaSwapT(VanillaSwapT&&) FLATBUFFERS_NOEXCEPT = default;
   VanillaSwapT &operator=(VanillaSwapT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Vanilla interest rate swap (fixed vs floating).
+/// Vanilla interest rate swap: a fixed leg against an IBOR or CMS floating
+/// leg, both `SwapLeg`s in one currency (400 when the currencies differ:
+/// two currencies are a cross-currency swap), one paid and one received
+/// (`SwapLeg.pay_receive`; 400 when both take the same side). The legs name
+/// their own discounting and forwarding curves. Each leg is priced as a
+/// QuantLib leg on its own discount curve: FixedRateLeg / IborLeg (the
+/// chains QuantLib::VanillaSwap builds, with a zero-volatility Black pricer
+/// on the IBOR coupons) or CmsLeg with the requested CMS pricer, plus the
+/// notional exchanges when a leg asks for them (see `VanillaSwapResponse`).
 struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef VanillaSwapT NativeTableType;
   typedef VanillaSwapBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SWAP_TYPE = 4,
-    VT_FIXED_LEG = 6,
-    VT_FLOATING_LEG = 8,
-    VT_CMS_LEG = 10
+    VT_FIXED_LEG = 4,
+    VT_FLOATING_LEG = 6
   };
-  /// Payer/receiver refer to the fixed leg. Presence-required: an omitted
-  /// type is a 400, never the alphabetical-0 default (Payer).
-  ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
-    return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
+  /// The fixed leg: `coupons` must be `FixedCoupons`. Required. Reported as
+  /// `legs[0]`.
+  const quantra::SwapLeg *fixed_leg() const {
+    return GetPointer<const quantra::SwapLeg *>(VT_FIXED_LEG);
   }
-  const quantra::FixedCoupons *fixed_leg() const {
-    return GetPointer<const quantra::FixedCoupons *>(VT_FIXED_LEG);
-  }
-  /// Standard IBOR floating leg path.
-  const quantra::IborCoupons *floating_leg() const {
-    return GetPointer<const quantra::IborCoupons *>(VT_FLOATING_LEG);
-  }
-  /// Optional CMS floating leg path.
-  /// Exactly one of floating_leg or cms_leg must be provided.
-  const quantra::CmsCoupons *cms_leg() const {
-    return GetPointer<const quantra::CmsCoupons *>(VT_CMS_LEG);
+  /// The floating leg: `coupons` must be `IborCoupons` or `CmsCoupons` (a
+  /// CMS swap is a vanilla swap whose floating leg carries CMS coupons).
+  /// Required. Reported as `legs[1]`.
+  const quantra::SwapLeg *floating_leg() const {
+    return GetPointer<const quantra::SwapLeg *>(VT_FLOATING_LEG);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_SWAP_TYPE, 1) &&
-           VerifyOffset(verifier, VT_FIXED_LEG) &&
+           VerifyOffsetRequired(verifier, VT_FIXED_LEG) &&
            verifier.VerifyTable(fixed_leg()) &&
-           VerifyOffset(verifier, VT_FLOATING_LEG) &&
+           VerifyOffsetRequired(verifier, VT_FLOATING_LEG) &&
            verifier.VerifyTable(floating_leg()) &&
-           VerifyOffset(verifier, VT_CMS_LEG) &&
-           verifier.VerifyTable(cms_leg()) &&
            verifier.EndTable();
   }
   VanillaSwapT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -829,17 +75,11 @@ struct VanillaSwapBuilder {
   typedef VanillaSwap Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_swap_type(quantra::enums::SwapType swap_type) {
-    fbb_.AddElement<int8_t>(VanillaSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
-  }
-  void add_fixed_leg(::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg) {
+  void add_fixed_leg(::flatbuffers::Offset<quantra::SwapLeg> fixed_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FIXED_LEG, fixed_leg);
   }
-  void add_floating_leg(::flatbuffers::Offset<quantra::IborCoupons> floating_leg) {
+  void add_floating_leg(::flatbuffers::Offset<quantra::SwapLeg> floating_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FLOATING_LEG, floating_leg);
-  }
-  void add_cms_leg(::flatbuffers::Offset<quantra::CmsCoupons> cms_leg) {
-    fbb_.AddOffset(VanillaSwap::VT_CMS_LEG, cms_leg);
   }
   explicit VanillaSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -848,312 +88,32 @@ struct VanillaSwapBuilder {
   ::flatbuffers::Offset<VanillaSwap> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<VanillaSwap>(end);
+    fbb_.Required(o, VanillaSwap::VT_FIXED_LEG);
+    fbb_.Required(o, VanillaSwap::VT_FLOATING_LEG);
     return o;
   }
 };
 
 inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg = 0,
-    ::flatbuffers::Offset<quantra::IborCoupons> floating_leg = 0,
-    ::flatbuffers::Offset<quantra::CmsCoupons> cms_leg = 0) {
+    ::flatbuffers::Offset<quantra::SwapLeg> fixed_leg = 0,
+    ::flatbuffers::Offset<quantra::SwapLeg> floating_leg = 0) {
   VanillaSwapBuilder builder_(_fbb);
-  builder_.add_cms_leg(cms_leg);
   builder_.add_floating_leg(floating_leg);
   builder_.add_fixed_leg(fixed_leg);
-  if(swap_type) { builder_.add_swap_type(*swap_type); }
   return builder_.Finish();
 }
 
 ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(::flatbuffers::FlatBufferBuilder &_fbb, const VanillaSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline FixedCouponsT::FixedCouponsT(const FixedCouponsT &o)
-      : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        notional(o.notional),
-        notionals(o.notionals),
-        rate(o.rate),
-        day_counter(o.day_counter),
-        payment_convention(o.payment_convention) {
-}
-
-inline FixedCouponsT &FixedCouponsT::operator=(FixedCouponsT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(schedule, o.schedule);
-  std::swap(notional, o.notional);
-  std::swap(notionals, o.notionals);
-  std::swap(rate, o.rate);
-  std::swap(day_counter, o.day_counter);
-  std::swap(payment_convention, o.payment_convention);
-  return *this;
-}
-
-inline FixedCouponsT *FixedCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<FixedCouponsT>(new FixedCouponsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void FixedCoupons::UnPackTo(FixedCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = notional(); _o->notional = _e; }
-  { auto _e = notionals(); if (_e) { _o->notionals.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->notionals[_i] = _e->Get(_i); } } else { _o->notionals.resize(0); } }
-  { auto _e = rate(); _o->rate = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = payment_convention(); _o->payment_convention = _e; }
-}
-
-inline ::flatbuffers::Offset<FixedCoupons> FixedCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateFixedCoupons(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FixedCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _notional = _o->notional;
-  auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
-  auto _rate = _o->rate;
-  auto _day_counter = _o->day_counter;
-  auto _payment_convention = _o->payment_convention;
-  return quantra::CreateFixedCoupons(
-      _fbb,
-      _schedule,
-      _notional,
-      _notionals,
-      _rate,
-      _day_counter,
-      _payment_convention);
-}
-
-inline IborCouponsT::IborCouponsT(const IborCouponsT &o)
-      : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        notional(o.notional),
-        notionals(o.notionals),
-        index((o.index) ? new quantra::IndexRefT(*o.index) : nullptr),
-        spread(o.spread),
-        day_counter(o.day_counter),
-        payment_convention(o.payment_convention),
-        fixing_days(o.fixing_days),
-        in_arrears(o.in_arrears) {
-}
-
-inline IborCouponsT &IborCouponsT::operator=(IborCouponsT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(schedule, o.schedule);
-  std::swap(notional, o.notional);
-  std::swap(notionals, o.notionals);
-  std::swap(index, o.index);
-  std::swap(spread, o.spread);
-  std::swap(day_counter, o.day_counter);
-  std::swap(payment_convention, o.payment_convention);
-  std::swap(fixing_days, o.fixing_days);
-  std::swap(in_arrears, o.in_arrears);
-  return *this;
-}
-
-inline IborCouponsT *IborCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<IborCouponsT>(new IborCouponsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void IborCoupons::UnPackTo(IborCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = notional(); _o->notional = _e; }
-  { auto _e = notionals(); if (_e) { _o->notionals.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->notionals[_i] = _e->Get(_i); } } else { _o->notionals.resize(0); } }
-  { auto _e = index(); if (_e) { if(_o->index) { _e->UnPackTo(_o->index.get(), _resolver); } else { _o->index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index) { _o->index.reset(); } }
-  { auto _e = spread(); _o->spread = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = payment_convention(); _o->payment_convention = _e; }
-  { auto _e = fixing_days(); _o->fixing_days = _e; }
-  { auto _e = in_arrears(); _o->in_arrears = _e; }
-}
-
-inline ::flatbuffers::Offset<IborCoupons> IborCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateIborCoupons(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<IborCoupons> CreateIborCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IborCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _notional = _o->notional;
-  auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
-  auto _index = _o->index ? CreateIndexRef(_fbb, _o->index.get(), _rehasher) : 0;
-  auto _spread = _o->spread;
-  auto _day_counter = _o->day_counter;
-  auto _payment_convention = _o->payment_convention;
-  auto _fixing_days = _o->fixing_days;
-  auto _in_arrears = _o->in_arrears;
-  return quantra::CreateIborCoupons(
-      _fbb,
-      _schedule,
-      _notional,
-      _notionals,
-      _index,
-      _spread,
-      _day_counter,
-      _payment_convention,
-      _fixing_days,
-      _in_arrears);
-}
-
-inline CmsPricerSpecT *CmsPricerSpec::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CmsPricerSpecT>(new CmsPricerSpecT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void CmsPricerSpec::UnPackTo(CmsPricerSpecT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = pricer_type(); _o->pricer_type = _e; }
-  { auto _e = yield_curve_model(); _o->yield_curve_model = _e; }
-  { auto _e = mean_reversion(); _o->mean_reversion = _e; }
-  { auto _e = hagan_lower_limit(); _o->hagan_lower_limit = _e; }
-  { auto _e = hagan_upper_limit(); _o->hagan_upper_limit = _e; }
-  { auto _e = hagan_precision(); _o->hagan_precision = _e; }
-  { auto _e = hagan_hard_upper_limit(); _o->hagan_hard_upper_limit = _e; }
-}
-
-inline ::flatbuffers::Offset<CmsPricerSpec> CmsPricerSpec::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCmsPricerSpec(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CmsPricerSpecT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _pricer_type = _o->pricer_type;
-  auto _yield_curve_model = _o->yield_curve_model;
-  auto _mean_reversion = _o->mean_reversion;
-  auto _hagan_lower_limit = _o->hagan_lower_limit;
-  auto _hagan_upper_limit = _o->hagan_upper_limit;
-  auto _hagan_precision = _o->hagan_precision;
-  auto _hagan_hard_upper_limit = _o->hagan_hard_upper_limit;
-  return quantra::CreateCmsPricerSpec(
-      _fbb,
-      _pricer_type,
-      _yield_curve_model,
-      _mean_reversion,
-      _hagan_lower_limit,
-      _hagan_upper_limit,
-      _hagan_precision,
-      _hagan_hard_upper_limit);
-}
-
-inline CmsCouponsT::CmsCouponsT(const CmsCouponsT &o)
-      : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
-        notional(o.notional),
-        swap_index_id(o.swap_index_id),
-        swap_tenor((o.swap_tenor) ? new quantra::PeriodT(*o.swap_tenor) : nullptr),
-        swaption_vol_id(o.swaption_vol_id),
-        fixing_days(o.fixing_days),
-        day_counter(o.day_counter),
-        payment_convention(o.payment_convention),
-        gear(o.gear),
-        spread(o.spread),
-        pricer((o.pricer) ? new quantra::CmsPricerSpecT(*o.pricer) : nullptr),
-        cap(o.cap),
-        floor(o.floor) {
-}
-
-inline CmsCouponsT &CmsCouponsT::operator=(CmsCouponsT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(schedule, o.schedule);
-  std::swap(notional, o.notional);
-  std::swap(swap_index_id, o.swap_index_id);
-  std::swap(swap_tenor, o.swap_tenor);
-  std::swap(swaption_vol_id, o.swaption_vol_id);
-  std::swap(fixing_days, o.fixing_days);
-  std::swap(day_counter, o.day_counter);
-  std::swap(payment_convention, o.payment_convention);
-  std::swap(gear, o.gear);
-  std::swap(spread, o.spread);
-  std::swap(pricer, o.pricer);
-  std::swap(cap, o.cap);
-  std::swap(floor, o.floor);
-  return *this;
-}
-
-inline CmsCouponsT *CmsCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<CmsCouponsT>(new CmsCouponsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void CmsCoupons::UnPackTo(CmsCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
-  { auto _e = notional(); _o->notional = _e; }
-  { auto _e = swap_index_id(); if (_e) _o->swap_index_id = _e->str(); }
-  { auto _e = swap_tenor(); if (_e) { if(_o->swap_tenor) { _e->UnPackTo(_o->swap_tenor.get(), _resolver); } else { _o->swap_tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->swap_tenor) { _o->swap_tenor.reset(); } }
-  { auto _e = swaption_vol_id(); if (_e) _o->swaption_vol_id = _e->str(); }
-  { auto _e = fixing_days(); _o->fixing_days = _e; }
-  { auto _e = day_counter(); _o->day_counter = _e; }
-  { auto _e = payment_convention(); _o->payment_convention = _e; }
-  { auto _e = gear(); _o->gear = _e; }
-  { auto _e = spread(); _o->spread = _e; }
-  { auto _e = pricer(); if (_e) { if(_o->pricer) { _e->UnPackTo(_o->pricer.get(), _resolver); } else { _o->pricer = std::unique_ptr<quantra::CmsPricerSpecT>(_e->UnPack(_resolver)); } } else if (_o->pricer) { _o->pricer.reset(); } }
-  { auto _e = cap(); _o->cap = _e; }
-  { auto _e = floor(); _o->floor = _e; }
-}
-
-inline ::flatbuffers::Offset<CmsCoupons> CmsCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateCmsCoupons(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CmsCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
-  auto _notional = _o->notional;
-  auto _swap_index_id = _fbb.CreateString(_o->swap_index_id);
-  auto _swap_tenor = _o->swap_tenor ? CreatePeriod(_fbb, _o->swap_tenor.get(), _rehasher) : 0;
-  auto _swaption_vol_id = _fbb.CreateString(_o->swaption_vol_id);
-  auto _fixing_days = _o->fixing_days;
-  auto _day_counter = _o->day_counter;
-  auto _payment_convention = _o->payment_convention;
-  auto _gear = _o->gear;
-  auto _spread = _o->spread;
-  auto _pricer = _o->pricer ? CreateCmsPricerSpec(_fbb, _o->pricer.get(), _rehasher) : 0;
-  auto _cap = _o->cap;
-  auto _floor = _o->floor;
-  return quantra::CreateCmsCoupons(
-      _fbb,
-      _schedule,
-      _notional,
-      _swap_index_id,
-      _swap_tenor,
-      _swaption_vol_id,
-      _fixing_days,
-      _day_counter,
-      _payment_convention,
-      _gear,
-      _spread,
-      _pricer,
-      _cap,
-      _floor);
-}
-
 inline VanillaSwapT::VanillaSwapT(const VanillaSwapT &o)
-      : swap_type(o.swap_type),
-        fixed_leg((o.fixed_leg) ? new quantra::FixedCouponsT(*o.fixed_leg) : nullptr),
-        floating_leg((o.floating_leg) ? new quantra::IborCouponsT(*o.floating_leg) : nullptr),
-        cms_leg((o.cms_leg) ? new quantra::CmsCouponsT(*o.cms_leg) : nullptr) {
+      : fixed_leg((o.fixed_leg) ? new quantra::SwapLegT(*o.fixed_leg) : nullptr),
+        floating_leg((o.floating_leg) ? new quantra::SwapLegT(*o.floating_leg) : nullptr) {
 }
 
 inline VanillaSwapT &VanillaSwapT::operator=(VanillaSwapT o) FLATBUFFERS_NOEXCEPT {
-  std::swap(swap_type, o.swap_type);
   std::swap(fixed_leg, o.fixed_leg);
   std::swap(floating_leg, o.floating_leg);
-  std::swap(cms_leg, o.cms_leg);
   return *this;
 }
 
@@ -1166,10 +126,8 @@ inline VanillaSwapT *VanillaSwap::UnPack(const ::flatbuffers::resolver_function_
 inline void VanillaSwap::UnPackTo(VanillaSwapT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = swap_type(); _o->swap_type = _e; }
-  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::FixedCouponsT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
-  { auto _e = floating_leg(); if (_e) { if(_o->floating_leg) { _e->UnPackTo(_o->floating_leg.get(), _resolver); } else { _o->floating_leg = std::unique_ptr<quantra::IborCouponsT>(_e->UnPack(_resolver)); } } else if (_o->floating_leg) { _o->floating_leg.reset(); } }
-  { auto _e = cms_leg(); if (_e) { if(_o->cms_leg) { _e->UnPackTo(_o->cms_leg.get(), _resolver); } else { _o->cms_leg = std::unique_ptr<quantra::CmsCouponsT>(_e->UnPack(_resolver)); } } else if (_o->cms_leg) { _o->cms_leg.reset(); } }
+  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapLegT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
+  { auto _e = floating_leg(); if (_e) { if(_o->floating_leg) { _e->UnPackTo(_o->floating_leg.get(), _resolver); } else { _o->floating_leg = std::unique_ptr<quantra::SwapLegT>(_e->UnPack(_resolver)); } } else if (_o->floating_leg) { _o->floating_leg.reset(); } }
 }
 
 inline ::flatbuffers::Offset<VanillaSwap> VanillaSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VanillaSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1180,16 +138,12 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(::flatbuffers::FlatB
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const VanillaSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _swap_type = _o->swap_type;
-  auto _fixed_leg = _o->fixed_leg ? CreateFixedCoupons(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
-  auto _floating_leg = _o->floating_leg ? CreateIborCoupons(_fbb, _o->floating_leg.get(), _rehasher) : 0;
-  auto _cms_leg = _o->cms_leg ? CreateCmsCoupons(_fbb, _o->cms_leg.get(), _rehasher) : 0;
+  auto _fixed_leg = _o->fixed_leg ? CreateSwapLeg(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
+  auto _floating_leg = _o->floating_leg ? CreateSwapLeg(_fbb, _o->floating_leg.get(), _rehasher) : 0;
   return quantra::CreateVanillaSwap(
       _fbb,
-      _swap_type,
       _fixed_leg,
-      _floating_leg,
-      _cms_leg);
+      _floating_leg);
 }
 
 inline const quantra::VanillaSwap *GetVanillaSwap(const void *buf) {

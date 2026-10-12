@@ -6,7 +6,8 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Cashflow for a swap leg.
+# One cash flow of a swap leg (`SwapLegResult.flows` and the zero-coupon /
+# inflation swap flow lists).
 class SwapLegFlow(object):
     __slots__ = ['_tab']
 
@@ -123,10 +124,10 @@ class SwapLegFlow(object):
         return 0.0
 
     # Kind of flow. Set on every flow of a `SwapLeg` result
-    # (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
-    # (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
-    # `present_value` and `kind` only). Absent on the other swap endpoints,
-    # whose flows are all coupons.
+    # (`SwapLegResult.flows`, every swap endpoint), whose lists mix coupons
+    # and notional exchanges (a NotionalExchange flow has `payment_date`,
+    # `amount`, `discount`, `present_value` and `kind` only). Absent on the
+    # zero-coupon and inflation swap endpoints, whose flows are all coupons.
     # SwapLegFlow
     def Kind(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))

@@ -2,52 +2,40 @@
 #define QUANTRA_BASIS_SWAP_EVALUATOR_H
 
 /**
- * BasisSwapEvaluator — pure QuantLib pricing core for basis swaps (two
- * floating IBOR legs on different tenors, one or both carrying a spread).
+ * BasisSwapEvaluator — pure QuantLib pricing core for basis swaps: two
+ * floating `SwapLeg`s (IBOR or overnight coupons) in one currency, each
+ * valued on its own discount curve by swap_leg_pricer.h (IborLeg with the
+ * zero-volatility Black pricer / OvernightLeg from swap_leg_builder.h).
  *
  * INVARIANT: this file (and its .cpp) must NEVER include any *_generated.h or
  * mention FlatBuffers/gRPC namespaces. Suite 0 (scripts/check_evaluator_boundary.sh)
  * enforces this with a literal grep. All wire-format conversion lives in
- * basis_swap_mapper.{h,cpp}. The evaluator reads market data exclusively from the
- * QL-typed registry fields (reg.rates.curves, reg.rates.indices).
+ * basis_swap_mapper.{h,cpp}.
+ *
+ * With s_i the leg signs (-1 Pay / +1 Receive), npvOwn_i and bpsOwn_i the
+ * legs' own-frame values:
+ *   legs[i].npv = s_i * npvOwn_i,   npv = legs[0].npv + legs[1].npv
+ *   fair_spread = spread_k - npv * 1e-4 / (s_k * bpsOwn_k)
+ * for the leg k that carries the request's spread (leg1 when only leg1's
+ * spread is non-zero, leg2 otherwise).
  */
 
 #include "pricing_context.h"
 #include "pricing_registry.h"
+#include "swap_leg_data.h"
+#include "swap_leg_pricer.h"
 
-#include <ql/instruments/vanillaswap.hpp>
-#include <ql/time/businessdayconvention.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/time/schedule.hpp>
-
-#include <memory>
-#include <string>
+#include <optional>
 #include <vector>
 
 namespace quantra {
 
-/// Plain floating-leg description (parsed by the mapper). Carries every QL
-/// IborLeg knob the legacy parser exposes.
-struct BasisSwapFloatingLegData {
-    QuantLib::Schedule schedule;
-    double notional = 0.0;
-    std::string indexId;
-    double spread = 0.0;
-    QuantLib::DayCounter dayCounter;
-    QuantLib::BusinessDayConvention paymentConvention = QuantLib::Following;
-    int fixingDays = 2;
-    bool inArrears = false;
-};
-
-/// One basis swap trade lifted out of the FB request by the mapper. The swap
-/// type follows the VanillaSwap convention: Payer = pay leg1 / receive leg2.
+/// One basis swap: the two legs in request order, lifted by the mapper (each
+/// IborCoupons or OvernightCoupons, one currency, opposite sides — all
+/// enforced by the mapper).
 struct BasisSwapTrade {
-    QuantLib::VanillaSwap::Type swapType = QuantLib::VanillaSwap::Payer;
-    std::string discountingCurveId;
-    std::string forwardingCurveLeg1Id;
-    std::string forwardingCurveLeg2Id;
-    BasisSwapFloatingLegData leg1;
-    BasisSwapFloatingLegData leg2;
+    SwapLegData leg1;
+    SwapLegData leg2;
 };
 
 struct BasisSwapInputs {
@@ -55,40 +43,15 @@ struct BasisSwapInputs {
     bool includeFlows = false;
 };
 
-/**
- * Plain cash-flow representation produced by the evaluator and consumed by the
- * mapper. Mirrors the SwapLegFlow FB table verbatim — the evaluator pre-computes
- * discount factor / present value / ISO date strings so the mapper never
- * touches QuantLib types.
- */
-struct BasisSwapFlowPlain {
-    bool isFloating = false;
-    std::string paymentDate;
-    std::string accrualStartDate;
-    std::string accrualEndDate;
-    double amount = 0.0;
-    double accrualYearFraction = 0.0;
-    double discount = 0.0;
-    double presentValue = 0.0;
-    double rate = 0.0;
-    // Floating-only fields. Left default-constructed for non-floating flows.
-    std::string fixingDate;
-    double indexFixing = 0.0;
-    double spread = 0.0;
-};
-
-/// Per-swap result. Mirrors the BasisSwapResponse FB table.
+/// Per-swap result. Mirrors the BasisSwapResponse wire table.
 struct BasisSwapPerSwap {
     double npv = 0.0;
-    double leg1Npv = 0.0;
-    double leg2Npv = 0.0;
-    double leg1Bps = 0.0;
-    double leg2Bps = 0.0;
-    double fairSpreadLeg1 = 0.0;
-    double fairSpreadLeg2 = 0.0;
+    /// Par spread of the leg carrying the request's spread; absent when that
+    /// leg's signed bps is zero.
+    std::optional<double> fairSpread;
+    /// leg1 then leg2.
+    std::vector<SwapLegPerLeg> legs;
     bool includeFlows = false;
-    std::vector<BasisSwapFlowPlain> leg1Flows;
-    std::vector<BasisSwapFlowPlain> leg2Flows;
 };
 
 struct BasisSwapResult {

@@ -1,8 +1,10 @@
 """Cross-currency swap: parity, pricing identities, flows and request contract.
 
 `POST /price-cross-currency-swap` prices two `SwapLeg`s in two currencies
-(FixedCoupons, IborCoupons or OvernightCoupons), each paid or received,
-discounted on its own curve with its own principal exchanges, converted to a
+(FixedCoupons, IborCoupons or OvernightCoupons; notional, schedule, day
+counter and payment conventions on the leg, the kind-specific fields under
+`coupons`), each paid or received, discounted on its own curve with its own
+principal exchanges, converted to a
 reporting currency at the as-of exchange rate X = S * DF_quote(t_s) /
 DF_base(t_s). QuantLib has no cross-currency swap instrument: the price is
 CashFlows.npv / bps on the legs:
@@ -37,7 +39,11 @@ a functional-catalog case.
   * fair_rate / fair_spread present exactly when the swap shape defines them;
   * the coupon table must match the index kind (IborCoupons on an overnight
     index names OvernightCoupons and vice versa); CmsCoupons is a 400;
-  * every validation is a 400 naming the field; unknown references are 404.
+  * `payment_calendar` / `payment_lag` are optional on a cross-currency leg
+    (absent = the schedule calendar / no lag), per-period `notionals` a 400;
+  * every validation is a 400 naming the field (`CrossCurrencySwap.leg1.
+    notional` for a shared field, `...leg2.coupons.averaging_method` for a
+    kind-specific one); unknown references are 404.
 """
 
 import copy
@@ -131,6 +137,9 @@ def _leg(request, i):
 
 
 def _coupons(leg):
+    """The kind-specific coupon table of a leg (`rate`; `index`, `spread`,
+    ...). The shared fields (notional, schedule, day_counter, payment_*) sit
+    on the leg itself: read `_leg(...)` for those."""
     return leg["coupons"]
 
 
@@ -143,8 +152,7 @@ def _money_tolerance(request):
     of the same helper set (agreeing to ~1e-14 on the discount factors), and
     the notional exchanges turn that into a few 1e-7 currency units on 1e7
     notionals; 1e-9 of the notional leaves a safe margin."""
-    return 1e-9 * max(_coupons(_leg(request, 1))["notional"],
-                      _coupons(_leg(request, 2))["notional"])
+    return 1e-9 * max(_leg(request, 1)["notional"], _leg(request, 2)["notional"])
 
 
 def _assert_400_naming(client, request, field):
@@ -505,28 +513,28 @@ def test_xccy_coupons_type_without_value_400(client, data_dir):
 
 
 def test_xccy_cms_coupons_400(client, data_dir):
-    """CmsCoupons is a member of the SwapCoupons union but not priced on this
-    endpoint in this version: a 400 saying so."""
-    cms = {"notional": N_EUR, "schedule": _coupons(_leg(load_json(data_dir / FIXED_USD), 1))["schedule"],
-           "swap_index_id": "EUR_SWAP_6M", "swap_tenor": {"n": 10, "unit": "Years"},
-           "swaption_vol_id": "VOL", "day_counter": "Actual360",
-           "payment_convention": "ModifiedFollowing"}
+    """CmsCoupons is a member of the SwapCoupons union but not accepted on a
+    cross-currency leg: a 400 naming the leg and the kinds it takes."""
+    cms = {"swap_index_id": "EUR_SWAP_6M", "swap_tenor": {"n": 10, "unit": "Years"},
+           "swaption_vol_id": "VOL"}
     request = _mutated(load_json(data_dir / FIXED_USD),
                        lambda r: _leg(r, 1).update(coupons_type="CmsCoupons", coupons=cms))
-    _assert_400_naming(client, request, "CmsCoupons is not supported on price-cross-currency-swap")
+    _assert_400_naming(
+        client, request,
+        "CrossCurrencySwap.leg1.coupons must be FixedCoupons, IborCoupons or OvernightCoupons "
+        "(got CmsCoupons)")
 
 
 def test_xccy_ibor_coupons_on_overnight_index_400(client, data_dir):
     """IborCoupons on SOFR: the index is overnight, so the leg must be
     OvernightCoupons (a daily-tenor IBOR coupon fixed in advance is not an
     OIS leg). The 400 names the table to use."""
-    ibor = {**_coupons(_leg(load_json(data_dir / FIXED_USD), 2))}
-    for k in ("payment_calendar", "payment_lag", "averaging_method", "lookback_days",
-              "lockout_days", "apply_observation_shift", "telescopic_value_dates"):
-        ibor.pop(k)
-    ibor["day_counter"] = "Actual360"
+    sofr = _coupons(_leg(load_json(data_dir / FIXED_USD), 2))
+    ibor = {"index": sofr["index"], "spread": sofr["spread"]}
+    # An IBOR leg reads the leg's day counter (the overnight fixture omits it).
     request = _mutated(load_json(data_dir / FIXED_USD),
-                       lambda r: _leg(r, 2).update(coupons_type="IborCoupons", coupons=ibor))
+                       lambda r: _leg(r, 2).update(coupons_type="IborCoupons", coupons=ibor,
+                                                   day_counter="Actual360"))
     status, text = _post(client, request)
     assert status == 400, text[:300]
     assert "CrossCurrencySwap.leg2.coupons is IborCoupons" in text and "OvernightCoupons" in text
@@ -536,9 +544,8 @@ def test_xccy_ibor_coupons_on_overnight_index_400(client, data_dir):
 def test_xccy_overnight_coupons_on_ibor_index_400(client, data_dir):
     """OvernightCoupons on Euribor 3M: not an overnight index, use IborCoupons."""
     base = load_json(data_dir / USD_FIXED_EURIBOR)
-    sofr_leg = _coupons(_leg(load_json(data_dir / FIXED_USD), 2))
-    on = {**sofr_leg, "notional": N_EUR, "schedule": _coupons(_leg(base, 2))["schedule"],
-          "index": {"id": "EUR_3M"}, "payment_calendar": "TARGET"}
+    sofr = _coupons(_leg(load_json(data_dir / FIXED_USD), 2))
+    on = {**sofr, "index": {"id": "EUR_3M"}}      # the OIS conventions on Euribor 3M
     request = _mutated(base, lambda r: _leg(r, 2).update(coupons_type="OvernightCoupons", coupons=on))
     status, text = _post(client, request)
     assert status == 400, text[:300]
@@ -564,45 +571,73 @@ def test_xccy_forwarding_curve_rejected_with_fixed_coupons_400(client, data_dir)
 
 @pytest.mark.parametrize("value", [0.0, -1_000_000.0])
 def test_xccy_nonpositive_notional_400(client, data_dir, value):
-    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _coupons(_leg(r, 1)).update(notional=value))
-    _assert_400_naming(client, request, "CrossCurrencySwap.leg1.coupons.notional")
-    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _coupons(_leg(r, 2)).update(notional=value))
-    _assert_400_naming(client, request, "CrossCurrencySwap.leg2.coupons.notional")
+    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _leg(r, 1).update(notional=value))
+    _assert_400_naming(client, request, "CrossCurrencySwap.leg1.notional")
+    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _leg(r, 2).update(notional=value))
+    _assert_400_naming(client, request, "CrossCurrencySwap.leg2.notional")
 
 
 def test_xccy_notional_absent_400(client, data_dir):
-    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _coupons(_leg(r, 1)).pop("notional"))
-    _assert_400_naming(client, request, "CrossCurrencySwap.leg1.coupons.notional is required")
+    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _leg(r, 1).pop("notional"))
+    _assert_400_naming(client, request, "CrossCurrencySwap.leg1.notional is required")
 
 
 @pytest.mark.parametrize("fixture,leg", [(FIXED_USD, 1), (USD_FIXED_EURIBOR, 2)])
 def test_xccy_per_period_notionals_rejected_400(client, data_dir, fixture, leg):
-    """FixedCoupons and IborCoupons carry an optional per-period `notionals`
-    vector for the vanilla swap; a SwapLeg rejects it in this version."""
+    """A `SwapLeg` carries an optional per-period `notionals` vector for the
+    vanilla swap; a cross-currency leg rejects it in this version, naming
+    the endpoint."""
     request = _mutated(load_json(data_dir / fixture),
-                       lambda r: _coupons(_leg(r, leg)).update(notionals=[N_EUR] * 5))
-    status, text = _post(client, request)
-    assert status == 400 and "notionals" in text, text[:300]
+                       lambda r: _leg(r, leg).update(notionals=[N_EUR] * 5))
+    _assert_400_naming(client, request,
+                       f"CrossCurrencySwap.leg{leg}.notionals (price-cross-currency-swap) "
+                       "does not support amortizing notionals yet")
 
 
 @pytest.mark.parametrize("fixture,leg,field", [
     (FIXED_USD, 1, "day_counter"), (FIXED_USD, 1, "payment_convention"),
     (USD_FIXED_EURIBOR, 2, "day_counter"), (USD_FIXED_EURIBOR, 2, "payment_convention"),
-    (FIXED_USD, 2, "payment_convention"), (FIXED_USD, 2, "payment_calendar"),
-    (FIXED_USD, 2, "payment_lag"), (FIXED_USD, 2, "averaging_method"),
-    (FIXED_USD, 2, "lookback_days"), (FIXED_USD, 2, "lockout_days"),
-    (FIXED_USD, 2, "apply_observation_shift")])
-def test_xccy_coupon_conventions_presence_required_400(client, data_dir, fixture, leg, field):
-    request = _mutated(load_json(data_dir / fixture), lambda r: _coupons(_leg(r, leg)).pop(field))
-    _assert_400_naming(client, request, f"CrossCurrencySwap.leg{leg}.coupons.{field}")
+    (FIXED_USD, 2, "payment_convention")])
+def test_xccy_shared_leg_fields_presence_required_400(client, data_dir, fixture, leg, field):
+    """The shared leg fields a coupon kind reads are presence-required and
+    named at the leg level (`CrossCurrencySwap.leg1.day_counter`)."""
+    request = _mutated(load_json(data_dir / fixture), lambda r: _leg(r, leg).pop(field))
+    _assert_400_naming(client, request, f"CrossCurrencySwap.leg{leg}.{field}")
+
+
+@pytest.mark.parametrize("field", ["averaging_method", "lookback_days", "lockout_days",
+                                   "apply_observation_shift"])
+def test_xccy_overnight_coupon_fields_presence_required_400(client, data_dir, field):
+    """The OIS conventions of OvernightCoupons are presence-required and
+    named under `coupons` (`CrossCurrencySwap.leg2.coupons.averaging_method`)."""
+    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _coupons(_leg(r, 2)).pop(field))
+    _assert_400_naming(client, request, f"CrossCurrencySwap.leg2.coupons.{field}")
+
+
+@pytest.mark.parametrize("fields", [("payment_calendar",), ("payment_lag",),
+                                    ("payment_calendar", "payment_lag")])
+def test_xccy_overnight_payment_calendar_and_lag_default_to_schedule_and_zero(
+        client, data_dir, fields):
+    """`payment_calendar` / `payment_lag` are optional on a cross-currency
+    leg (unlike price-ois-swap, which requires both on both legs): absent,
+    the coupons are paid on the schedule's calendar with no lag, so dropping
+    them from the SOFR leg (explicitly TARGET / 0 in the fixture, on a TARGET
+    schedule) prices to the same bytes."""
+    request = load_json(data_dir / FIXED_USD)
+    leg = _leg(request, 2)
+    assert leg["payment_calendar"] == leg["schedule"]["calendar"] and leg["payment_lag"] == 0
+    base = _price(client, request)
+    without = _price(client, _mutated(request, lambda r: [_leg(r, 2).pop(f) for f in fields]))
+    assert without == base
 
 
 def test_xccy_overnight_day_counter_is_ignored(client, data_dir):
-    """OvernightCoupons.day_counter is deprecated and not read: the coupons
-    take the index's day counter, as on price-ois-swap."""
+    """A leg's `day_counter` is accepted but not read with OvernightCoupons:
+    the coupons take the index's day counter, as on price-ois-swap."""
     request = load_json(data_dir / FIXED_USD)
+    assert "day_counter" not in _leg(request, 2)
     base = _price(client, request)
-    with_dc = _price(client, _mutated(request, lambda r: _coupons(_leg(r, 2)).update(day_counter="Actual365Fixed")))
+    with_dc = _price(client, _mutated(request, lambda r: _leg(r, 2).update(day_counter="Actual365Fixed")))
     assert with_dc == base
 
 
@@ -617,10 +652,16 @@ def test_xccy_ibor_coupon_values_400(client, data_dir, field, value, token):
     assert token in text or field in text
 
 
-@pytest.mark.parametrize("field", ["payment_lag", "lookback_days", "lockout_days"])
+@pytest.mark.parametrize("field", ["lookback_days", "lockout_days"])
 def test_xccy_overnight_negative_days_400(client, data_dir, field):
     request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _coupons(_leg(r, 2)).update({field: -1}))
     _assert_400_naming(client, request, f"CrossCurrencySwap.leg2.coupons.{field}")
+
+
+def test_xccy_negative_payment_lag_400(client, data_dir):
+    """`payment_lag` is a leg-level field: a negative one is named there."""
+    request = _mutated(load_json(data_dir / FIXED_USD), lambda r: _leg(r, 2).update(payment_lag=-1))
+    _assert_400_naming(client, request, "CrossCurrencySwap.leg2.payment_lag")
 
 
 def test_xccy_in_arrears_on_ibor_index_is_priced(client, data_dir):
@@ -635,7 +676,7 @@ def test_xccy_overnight_payment_lag_moves_the_payment_dates(client, data_dir):
     days after the period end (the OIS convention); the amounts are
     unchanged and the PVs move only through the discount factors."""
     request = _mutated(load_json(data_dir / FIXED_USD), lambda r: r.update(include_flows=True))
-    lagged = _mutated(request, lambda r: _coupons(_leg(r, 2)).update(payment_lag=2))
+    lagged = _mutated(request, lambda r: _leg(r, 2).update(payment_lag=2))
     plain = [f for f in client.price("cross_currency_swap", request)["swaps"][0]["legs"][1]["flows"]
              if f["kind"] == "Coupon"]
     moved = [f for f in client.price("cross_currency_swap", lagged)["swaps"][0]["legs"][1]["flows"]

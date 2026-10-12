@@ -1,4 +1,4 @@
-include "vanilla_swap_response.fbs";
+include "swap_leg_flow.fbs";
 
 namespace quantra;
 

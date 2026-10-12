@@ -13,7 +13,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 23,
              "Non-compatible flatbuffers version included");
 
-#include "vanilla_swap_response_generated.h"
+#include "swap_leg_flow_generated.h"
 
 namespace quantra {
 

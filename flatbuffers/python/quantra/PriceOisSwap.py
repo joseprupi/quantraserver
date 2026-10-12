@@ -6,7 +6,9 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Single OIS swap pricing context with curve references.
+# One overnight indexed swap to price. The legs name their own discounting
+# and forwarding curves (`SwapLeg`); every reference is by id into
+# `pricing`. The NPV is reported in the legs' currency.
 class PriceOisSwap(object):
     __slots__ = ['_tab']
 
@@ -25,6 +27,7 @@ class PriceOisSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # The swap. Required.
     # PriceOisSwap
     def OisSwap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -36,22 +39,8 @@ class PriceOisSwap(object):
             return obj
         return None
 
-    # PriceOisSwap
-    def DiscountingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
-    # PriceOisSwap
-    def ForwardingCurve(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def PriceOisSwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(1)
 
 def Start(builder):
     PriceOisSwapStart(builder)
@@ -61,18 +50,6 @@ def PriceOisSwapAddOisSwap(builder, oisSwap):
 
 def AddOisSwap(builder, oisSwap):
     PriceOisSwapAddOisSwap(builder, oisSwap)
-
-def PriceOisSwapAddDiscountingCurve(builder, discountingCurve):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(discountingCurve), 0)
-
-def AddDiscountingCurve(builder, discountingCurve):
-    PriceOisSwapAddDiscountingCurve(builder, discountingCurve)
-
-def PriceOisSwapAddForwardingCurve(builder, forwardingCurve):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(forwardingCurve), 0)
-
-def AddForwardingCurve(builder, forwardingCurve):
-    PriceOisSwapAddForwardingCurve(builder, forwardingCurve)
 
 def PriceOisSwapEnd(builder):
     return builder.EndObject()
@@ -90,8 +67,6 @@ class PriceOisSwapT(object):
     # PriceOisSwapT
     def __init__(self):
         self.oisSwap = None  # type: Optional[OisSwapT]
-        self.discountingCurve = None  # type: str
-        self.forwardingCurve = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -116,23 +91,13 @@ class PriceOisSwapT(object):
             return
         if priceOisSwap.OisSwap() is not None:
             self.oisSwap = OisSwapT.InitFromObj(priceOisSwap.OisSwap())
-        self.discountingCurve = priceOisSwap.DiscountingCurve()
-        self.forwardingCurve = priceOisSwap.ForwardingCurve()
 
     # PriceOisSwapT
     def Pack(self, builder):
         if self.oisSwap is not None:
             oisSwap = self.oisSwap.Pack(builder)
-        if self.discountingCurve is not None:
-            discountingCurve = builder.CreateString(self.discountingCurve)
-        if self.forwardingCurve is not None:
-            forwardingCurve = builder.CreateString(self.forwardingCurve)
         PriceOisSwapStart(builder)
         if self.oisSwap is not None:
             PriceOisSwapAddOisSwap(builder, oisSwap)
-        if self.discountingCurve is not None:
-            PriceOisSwapAddDiscountingCurve(builder, discountingCurve)
-        if self.forwardingCurve is not None:
-            PriceOisSwapAddForwardingCurve(builder, forwardingCurve)
         priceOisSwap = PriceOisSwapEnd(builder)
         return priceOisSwap
