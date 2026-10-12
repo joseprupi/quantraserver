@@ -476,18 +476,28 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
         }
 
         case quantra::Point_CrossCcyBasisHelper: {
-            // Not built yet (501 in the parser) but keyed deterministically so
-            // a future implementation never aliases an older entry.
             auto p = pw->point_as_CrossCcyBasisHelper();
             buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
             buf.writeU8(p->spread().has_value() ? 1 : 0);
             writeTenor(p->tenor());
+            // The spot's full content is keyed although a constant-notional
+            // bootstrap never reads its rate: the pair it names drives the
+            // index-currency validation and its lag is the settlement lag, so
+            // a different spot is a different helper. (A spot-rate-only change
+            // therefore changes the key while the curve stays the same; that
+            // is a harmless miss, never a wrong hit.)
             writeFxSpotRef(buf, p->fx_spot(), ctx);
+            // Index definitions enter through the IDX section; the curve refs
+            // pin which dependency plays which role (their content comes
+            // through DEP).
             writeIndexRef(buf, p->base_index());
+            writeCurveRef(buf, p->base_forwarding_curve());
             writeCurveRef(buf, p->base_discount_curve());
             writeIndexRef(buf, p->quote_index());
+            writeCurveRef(buf, p->quote_forwarding_curve());
             writeCurveRef(buf, p->quote_discount_curve());
             writeOptBool(p->spread_on_base_leg());
+            writeOptEnum(p->payment_frequency());
             writeOptInt(p->payment_lag());
             writeOptEnum(p->calendar());
             writeOptEnum(p->business_day_convention());

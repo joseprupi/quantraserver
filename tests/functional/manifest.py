@@ -2110,6 +2110,55 @@ CASES = [
                       "zero rates continuous"],
     },
     {
+        "id": "curves_eur_usd_collateral_full",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD: FX swaps + cross-currency basis",
+        "description": (
+            "The classic collateral-adjusted EUR discount curve: short end "
+            "from EUR/USD FX swap points (1W/1M/3M/6M/1Y), long end from "
+            "constant-notional EUR/USD basis swaps (2Y/3Y/5Y/10Y, ESTR vs "
+            "SOFR compounded quarterly, negative basis on the EUR leg) given "
+            "the EUR/USD spot, a EUR ESTR OIS curve (the EUR leg's "
+            "forwarding curve) and a USD SOFR OIS curve (the USD leg's "
+            "forwarding and discount curve), sampled for discount factors and "
+            "continuous zero rates at twelve tenors including off-pillar 18M, "
+            "4Y and 7Y points. The collateral-adjusted curve is listed before "
+            "both curves it depends on; the engine orders the bootstrap by "
+            "the references. Reference: QuantLib FxSwapRateHelper + "
+            "ConstNotionalCrossCurrencyBasisSwapRateHelper on the same inputs."
+        ),
+        "request": "curves/curves_eur_usd_collateral_full.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["CrossCcyBasisHelper", "FxSwapHelper", "overnight legs",
+                      "payment_frequency", "FX spot market data",
+                      "forwarding curve dependency", "collateral curve dependency",
+                      "discount factors", "zero rates continuous"],
+    },
+    {
+        "id": "curves_eur_usd_collateral_full_quote_id",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD, every quote by quote_id",
+        "description": (
+            "The same collateral-adjusted EUR curve with every FX swap point, "
+            "every basis spread and the EUR/USD spot carried in "
+            "pricing.quotes and referenced by quote_id (points and spreads as "
+            "Curve quotes, the spot as an Fx quote that the rate bump never "
+            "shifts). Must sample identically to the inline twin."
+        ),
+        "request": "curves/curves_eur_usd_collateral_full_quote_id.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["CrossCcyBasisHelper", "FxSwapHelper", "quote_id pillars",
+                      "Fx quote type", "discount factors", "zero rates continuous"],
+    },
+    {
         "id": "curves_usd_ois_sofr_paylag0_df_zero_long_end",
         "product": "bootstrap_curves",
         "family": "Curves",

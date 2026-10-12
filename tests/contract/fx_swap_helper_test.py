@@ -16,8 +16,9 @@ through pricing.quotes (points as Curve quotes, the spot as an Fx quote).
   * wire order does not matter: the FX curve is listed before its collateral
     curve and the bootstrapper still builds the collateral curve first;
   * every FxSpotSpec / FxSwapHelper validation is a 400 naming the field, an
-    unknown fx_spot / quote / collateral curve is a 404, and
-    CrossCcyBasisHelper is still a 501 with a clear message.
+    unknown fx_spot / quote / collateral curve is a 404, the reported pillar
+    dates are the QuantLib helpers' own, and TenorBasisSwapHelper is still a
+    501 with a clear message.
 """
 
 import copy
@@ -25,7 +26,7 @@ import json
 
 import pytest
 
-from ql_reference import bootstrap_curves_ql, load_json
+from ql_reference import bootstrap_curves_ql, curve_pillar_dates_ql, load_json
 
 FIXTURE = "curves/curves_eur_usd_collateral_fxswap_short_end.json"
 TWIN = "curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json"
@@ -74,8 +75,13 @@ def _mutated(request, mutate):
 @pytest.mark.parametrize("fixture", [FIXTURE, TWIN], ids=["inline", "quote_id"])
 def test_fx_implied_curve_matches_quantlib(client, data_dir, fixture):
     request = load_json(data_dir / fixture)
-    api = _series(client.price("bootstrap_curves", request))
+    response = client.price("bootstrap_curves", request)
+    api = _series(response)
     ql_values = bootstrap_curves_ql(request)
+    # The reported pillar dates are QuantLib's own FxSwapRateHelper pillars
+    # (spot T+2 on the joint calendar, then the tenor with the spot's
+    # convention), not a re-derivation on another calendar.
+    assert response["results"][0]["pillar_dates"] == curve_pillar_dates_ql(request)
     assert set(api) == set(ql_values) == {"DF", "ZERO"}
     worst = 0.0
     for measure, expected in ql_values.items():
@@ -267,25 +273,20 @@ def test_fx_spot_missing_entirely_is_404(client, data_dir):
     assert "FX spot not found: EURUSD_SPOT" in body
 
 
-def test_cross_currency_basis_helper_is_still_501(client, data_dir):
+def test_tenor_basis_swap_helper_is_still_501(client, data_dir):
+    """The only schema-ready-but-unbuilt pillar left; CrossCcyBasisHelper is
+    covered by cross_ccy_basis_helper_test.py."""
     request = load_json(data_dir / FIXTURE)
     _fx_curve(request)["points"].append({
-        "point_type": "CrossCcyBasisHelper",
+        "point_type": "TenorBasisSwapHelper",
         "point": {
-            "spread": -0.0015,
+            "spread": 0.0005,
             "tenor": {"n": 2, "unit": "Years"},
-            "fx_spot": "EURUSD_SPOT",
-            "base_index": {"id": "EUR_ESTR"},
-            "quote_index": {"id": "USD_SOFR"},
-            "quote_discount_curve": {"id": USD_CURVE},
-            "spread_on_base_leg": True,
-            "payment_lag": 0,
+            "index_short": {"id": "USD_SOFR"},
+            "index_long": {"id": "USD_SOFR"},
             "calendar": "TARGET",
-            "business_day_convention": "ModifiedFollowing",
-            "end_of_month": False,
-            "mtm_reset": False,
         },
     })
     status, body = _post(client, request)
     assert status == 501, body
-    assert "CrossCcyBasisHelper" in body and "not implemented" in body
+    assert "TenorBasisSwapHelper" in body and "not implemented" in body

@@ -557,17 +557,16 @@ TEST(FxSwapHelperContract, UnknownReferencesAre404) {
         std::string::npos);
 }
 
-TEST(FxSwapHelperContract, CrossCcyBasisHelperStillNotImplemented) {
+TEST(FxSwapHelperContract, TenorBasisSwapHelperStillNotImplemented) {
+    // CrossCcyBasisHelper is built now (cross_ccy_basis_helper_test.cpp); the
+    // tenor basis helper is the only schema-ready-but-unbuilt pillar left.
     flatbuffers::FlatBufferBuilder b;
     auto tenor = makePeriod(b, 5 * QuantLib::Years);
-    auto baseIdx = quantra::CreateIndexRefDirect(b, "EUR_3M");
-    auto quoteIdx = quantra::CreateIndexRefDirect(b, "USD_SOFR");
-    auto quoteDisc = quantra::CreateCurveRefDirect(b, "USD_COLLATERAL");
-    auto helper = quantra::CreateCrossCcyBasisHelperDirect(
-        b, -0.0015, nullptr, tenor, "EURUSD_SPOT", baseIdx, 0, quoteIdx, quoteDisc, true, 0,
-        quantra::enums::Calendar_TARGET, quantra::enums::BusinessDayConvention_ModifiedFollowing,
-        false, false);
-    b.Finish(quantra::CreatePointsWrapper(b, quantra::Point_CrossCcyBasisHelper, helper.Union()));
+    auto shortIdx = quantra::CreateIndexRefDirect(b, "EUR_3M");
+    auto longIdx = quantra::CreateIndexRefDirect(b, "EUR_6M");
+    auto helper = quantra::CreateTenorBasisSwapHelperDirect(
+        b, 0.0005, tenor, shortIdx, longIdx, quantra::enums::Calendar_TARGET);
+    b.Finish(quantra::CreatePointsWrapper(b, quantra::Point_TenorBasisSwapHelper, helper.Union()));
     const auto* wrapper = flatbuffers::GetRoot<quantra::PointsWrapper>(b.GetBufferPointer());
     FxHelperEnv env;
     TermStructurePointParser parser;

@@ -84,6 +84,13 @@ CASES = [
          "curves/curves_eur_usd_collateral_fxswap_short_end.json", None),
     Case("bootstrap_curves_fxswap_quote_id", "bootstrap_curves",
          "curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json", None),
+    # Full collateral-adjusted curve: FX swap short end + cross-currency
+    # basis long end, depending on two other curves (both forwarding curves
+    # and the collateral discount curve enter the key through DEP).
+    Case("bootstrap_curves_xccy", "bootstrap_curves",
+         "curves/curves_eur_usd_collateral_full.json", None),
+    Case("bootstrap_curves_xccy_quote_id", "bootstrap_curves",
+         "curves/curves_eur_usd_collateral_full_quote_id.json", None),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row
@@ -699,3 +706,91 @@ def test_calendar_overrides_cache_engaged(case, cache_client, data_dir,
     )
     print(f"[cache] {case.id}: {case.cache} cache engaged with overrides — "
           f"hits: {before} -> {after}")
+
+
+
+# ---------------------------------------------------------------------------
+# Cross-currency basis pillars
+# ---------------------------------------------------------------------------
+
+XCCY_CASE = next(c for c in CASES if c.id == "bootstrap_curves_xccy")
+XCCY_CURVE_ID = "EUR_USD_COLLATERAL"
+
+
+def _xccy_request(data_dir, basis_only=False, spot_rate=None, spread_2y=None):
+    request = load_json(data_dir / XCCY_CASE.filename)
+    curve = next(c for c in request["pricing"]["rates"]["curves"] if c["id"] == XCCY_CURVE_ID)
+    if basis_only:
+        curve["points"] = [p for p in curve["points"]
+                           if p["point_type"] == "CrossCcyBasisHelper"]
+        request["queries"][0]["grid"]["grid"]["tenors"] = [
+            t for t in request["queries"][0]["grid"]["grid"]["tenors"]
+            if t["unit"] == "Years" and t["n"] >= 2]
+    if spot_rate is not None:
+        request["pricing"]["fx"]["spots"][0]["rate"] = spot_rate
+    if spread_2y is not None:
+        next(p for p in curve["points"]
+             if p["point_type"] == "CrossCcyBasisHelper")["point"]["spread"] = spread_2y
+    return request
+
+
+def test_xccy_curve_cache_engaged(cache_client, data_dir, cache_log_path):
+    """The collateral-adjusted curve itself hits the cache on a repeated
+    request, so its transparency row cannot pass with the curve unkeyable."""
+    request = _xccy_request(data_dir)
+    before = _count_curve_hits(cache_log_path, XCCY_CURVE_ID)
+    cache_client.price(XCCY_CASE.product, request)
+    cache_client.price(XCCY_CASE.product, request)
+    after = _wait_for_hits(cache_log_path, XCCY_CURVE_ID, before)
+    assert after > before, (
+        f"No CurveCache L1 hit for curve={XCCY_CURVE_ID} logged in {cache_log_path} "
+        f"(hits before={before}, after={after})"
+    )
+
+
+def test_xccy_basis_spread_change_is_a_cache_miss(nocache_client, cache_client, data_dir):
+    """One basis spread moved: the cached curve must not be served, and the
+    cache-ON answer equals the cache-OFF answer for the new spread."""
+    plain = _xccy_request(data_dir)
+    moved = _xccy_request(data_dir, spread_2y=-0.0020)
+    off_plain = nocache_client.price(XCCY_CASE.product, plain)
+    off_moved = nocache_client.price(XCCY_CASE.product, moved)
+    assert _canonical(off_plain) != _canonical(off_moved)
+
+    cache_client.price(XCCY_CASE.product, plain)
+    assert _canonical(cache_client.price(XCCY_CASE.product, plain)) == _canonical(off_plain)
+    got = cache_client.price(XCCY_CASE.product, moved)
+    assert _canonical(got) == _canonical(off_moved), (
+        "cache-ON response for the moved basis differs from cache-OFF"
+    )
+    assert _canonical(cache_client.price(XCCY_CASE.product, plain)) == _canonical(off_plain)
+
+
+def test_xccy_spot_rate_change_misses_but_the_curve_is_unchanged(
+        nocache_client, cache_client, data_dir, cache_log_path):
+    """Constant notional: the spot rate does not enter a basis-only
+    bootstrap, so the cache-OFF curves for two spots are identical; the
+    spot's full content is nevertheless part of the key (the pair and lag it
+    carries are), so the second spot is a MISS (no L1 hit logged) that
+    rebuilds the same curve. Both facts are pinned here on purpose."""
+    plain = _xccy_request(data_dir, basis_only=True)
+    moved = _xccy_request(data_dir, basis_only=True, spot_rate=1.25)
+    off_plain = nocache_client.price(XCCY_CASE.product, plain)
+    off_moved = nocache_client.price(XCCY_CASE.product, moved)
+    assert _canonical(off_plain) == _canonical(off_moved), (
+        "a basis-only curve must not depend on the spot rate"
+    )
+
+    cache_client.price(XCCY_CASE.product, plain)            # populate
+    cache_client.price(XCCY_CASE.product, plain)            # hit
+    before = _count_curve_hits(cache_log_path, XCCY_CURVE_ID)
+    got = cache_client.price(XCCY_CASE.product, moved)      # different key: miss
+    assert _canonical(got) == _canonical(off_moved)
+    time.sleep(0.3)
+    after = _count_curve_hits(cache_log_path, XCCY_CURVE_ID)
+    assert after == before, (
+        f"the moved-spot request was served from the cache ({after - before} L1 hit(s)); "
+        f"the spot's content must be part of the curve's key"
+    )
+    # The old entry is still there and still correct.
+    assert _canonical(cache_client.price(XCCY_CASE.product, plain)) == _canonical(off_plain)

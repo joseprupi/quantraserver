@@ -21,6 +21,16 @@ public:
     FxSpot parse(const quantra::FxSpotSpec* spec, const QuoteRegistry* quotes) const;
 };
 
+/**
+ * Joint settlement calendar of an FxSpotSpec: one calendar is used as is,
+ * several are joined so that a holiday in any one is a holiday of the pair
+ * (QuantLib JointCalendar, JoinHolidays). An empty list is a 400 naming
+ * FxSpotSpec.settlement_calendars. Shared by the parser and by the
+ * bootstrap-curves mapper, which reproduces the helper's settlement dates.
+ */
+QuantLib::Calendar JointSettlementCalendar(
+    const flatbuffers::Vector<int8_t>* calendars, const std::string& spotId);
+
 } // namespace quantra
 
 #endif // QUANTRA_FX_SPOT_PARSER_H

@@ -206,9 +206,8 @@ To check the effect, call `/calendar-holidays`, `/calendar-advance` or
 ## FX spot market data
 
 FX spot rates live in `pricing.fx.spots[]` and are referenced by id, the same
-way curves and indices are: by FX-implied curve helpers today
-(`FxSwapHelper`; `CrossCcyBasisHelper` is schema-ready and returns `501`) and
-by the FX products as they ship.
+way curves and indices are: by the FX-implied curve helpers (`FxSwapHelper`,
+`CrossCcyBasisHelper`) and by the FX products as they ship.
 
 | Field | Meaning |
 | --- | --- |
@@ -342,6 +341,118 @@ A complete example, with a QuantLib reference it is checked against, is
 `examples/data/curves/curves_eur_usd_collateral_fxswap_short_end.json` (and
 its `_quote_id` twin, which carries the points and the spot through
 `pricing.quotes`).
+
+## Cross-currency basis helper
+
+`CrossCcyBasisHelper` is a curve pillar that bootstraps the discount curve of
+**one** currency of a pair from a constant-notional cross-currency basis swap
+(QuantLib `ConstNotionalCrossCurrencyBasisSwapRateHelper`): a base-currency
+floating leg against a quote-currency floating leg, notional 1 in each
+currency exchanged at the start and at the end, the basis spread added to one
+leg. It is the long end of a collateral-adjusted discount curve; `FxSwapHelper`
+pillars are its short end, and the two combine on one curve (see
+`examples/data/curves/curves_eur_usd_collateral_full.json`).
+
+| Field | Meaning |
+| --- | --- |
+| `spread` | Basis spread, decimal (`-0.0015` = -15 bp), added to the leg chosen by `spread_on_base_leg`. Exactly one of `spread` / `quote_id`. May be negative. |
+| `quote_id` | Entry of `pricing.quotes` (`quote_type: "Curve"`, it moves with rates) carrying the spread instead of `spread`. |
+| `tenor` | Swap tenor from the settlement date. Required. |
+| `fx_spot` | Id of the `FxSpotSpec`. Required. It names the pair (`base_index` must be in its `base_currency`, `quote_index` in its `quote_currency`) and supplies the settlement lag (`spot_days`). Its rate does not enter the bootstrap (constant notional, see below) and its calendars are not used: the schedule follows the helper's own `calendar`. |
+| `base_index`, `quote_index` | Forwarding indices of the two legs (`IndexDef` ids), IBOR or overnight. Required; each index's `currency` must equal the corresponding currency of the spot. |
+| `base_forwarding_curve`, `quote_forwarding_curve` | `{"id": ...}` of each index's forwarding curve. Required; other curves of `pricing.rates.curves`, built first, never the curve being bootstrapped. |
+| `base_discount_curve`, `quote_discount_curve` | `{"id": ...}` of a leg's discount curve. **Exactly one** is given: it is the collateral currency's discount curve (built first); the leg whose reference is absent is discounted with the curve being bootstrapped. |
+| `spread_on_base_leg` | `true`: the basis is on the base-currency leg; `false`: on the quote-currency leg. Required. |
+| `payment_frequency` | Coupon frequency of a compounded overnight leg. Required when either index is overnight (and must then equal the IBOR index's tenor if the other leg is IBOR); must be absent when both indices are IBOR, whose legs pay at their index tenor. |
+| `payment_lag` | Business days (helper calendar, Following) between each accrual end and its payment, also applied to the final notional exchange. Required; `>= 0`. |
+| `calendar`, `business_day_convention`, `end_of_month` | Swap schedule conventions. Required. |
+| `mtm_reset` | Required; must be `false` (resetting notionals are not supported in this version, `400`). |
+
+```json
+{
+  "point_type": "CrossCcyBasisHelper",
+  "point": {
+    "spread": -0.0017,
+    "tenor": {"n": 5, "unit": "Years"},
+    "fx_spot": "EURUSD_SPOT",
+    "base_index": {"id": "EUR_ESTR"},
+    "base_forwarding_curve": {"id": "EUR_ESTR_OIS"},
+    "quote_index": {"id": "USD_SOFR"},
+    "quote_forwarding_curve": {"id": "USD_SOFR_OIS"},
+    "quote_discount_curve": {"id": "USD_SOFR_OIS"},
+    "spread_on_base_leg": true,
+    "payment_frequency": "Quarterly",
+    "payment_lag": 0,
+    "calendar": "TARGET",
+    "business_day_convention": "ModifiedFollowing",
+    "end_of_month": false,
+    "mtm_reset": false
+  }
+}
+```
+
+### Which curve is built
+
+The pillar above sits on the EUR curve for USD-collateralised trades: the USD
+leg (SOFR, projected and discounted off `USD_SOFR_OIS`) is the collateral
+side, the EUR leg (ESTR projected off `EUR_ESTR_OIS`) is discounted with the
+curve under construction, and the -17 bp basis is on the EUR leg. Giving
+`base_discount_curve` instead and leaving `quote_discount_curve` absent flips
+the pair: the same pillars then bootstrap a EUR-collateralised USD discount
+curve. In QuantLib's terms, `isFxBaseCurrencyCollateralCurrency` is true when
+`base_discount_curve` is the given one, and `isBasisOnFxBaseCurrencyLeg` is
+`spread_on_base_leg`.
+
+### Constant notional
+
+Both notionals stay fixed for the life of the swap, so the FX spot rate
+cancels from the par condition: changing `rate` on the spot leaves a curve
+built from basis pillars alone unchanged (a curve that also carries
+`FxSwapHelper` pillars does move through them). The spot is still required:
+it fixes which currency is which, and its `spot_days` is the swap's
+settlement lag. Resetting-notional swaps (`mtm_reset: true`), where the spot
+does matter, are not available yet.
+
+### Legs and indices
+
+An IBOR index pays one fixing per period at its own tenor. An overnight index
+(ESTR, SOFR, ...) pays a compounded coupon every `payment_frequency`; QuantLib
+needs that frequency explicitly, so it is required as soon as either index is
+overnight, and it must equal the IBOR tenor when the legs are mixed (a 3M IBOR
+leg against SOFR pays quarterly). With two IBOR indices there is nothing to
+choose and the field must be absent. The forwarding curves are always other
+curves of the request: QuantLib builds both legs from the indices as given, so
+a leg projected off the curve under construction has no forwards to read.
+`IndexDef.currency` is checked against the spot's currencies; an index in the
+wrong currency is a `400` naming `base_index` / `quote_index`.
+
+### Dependencies, pillar dates and the cache
+
+The three referenced curves are dependencies of the curve carrying the pillar
+and are bootstrapped first whatever the order of `pricing.rates.curves`; a
+reference to a curve that is not in the request is a `404`, a reference to the
+curve being bootstrapped itself is a `400`, a cycle is a `400`. The reported
+`pillar_dates` are the helpers' own: settlement `spot_days` business days
+after the valuation date on the helper calendar, the schedule end at
+settlement + `tenor` adjusted with the helper convention, shifted by the
+payment lag (the last payment date is the pillar). The curve's cache entry is
+keyed on the spread, every convention, the three curve references (through
+their own keys), both index definitions and the spot's full content; a spot
+change therefore misses even when the rebuilt curve is identical, while
+curves without FX pillars are unaffected by the spot.
+
+Rejected pillars (`400` naming the field): both or neither of `spread` /
+`quote_id`; both or neither of `base_discount_curve` / `quote_discount_curve`;
+an index whose currency is not the spot's corresponding currency; a missing
+`spread_on_base_leg`, `payment_lag` (or a negative one), `calendar`,
+`business_day_convention`, `end_of_month` or `mtm_reset`; `mtm_reset: true`;
+`payment_frequency` absent with an overnight index, present with two IBOR
+indices, not matching the IBOR tenor on mixed legs, or not periodic; a
+forwarding or discount curve equal to the curve being bootstrapped. Missing
+required strings and tables (`tenor`, `fx_spot`, the indices, the forwarding
+curves) are rejected by the JSON parser. An unknown `fx_spot`, `quote_id`,
+index or curve is a `404`. `TenorBasisSwapHelper` is the only remaining
+schema-ready pillar that returns `501`.
 
 ## Swaption greeks: units and definitions
 

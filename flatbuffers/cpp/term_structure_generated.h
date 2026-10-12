@@ -2762,10 +2762,13 @@ struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::PeriodT> tenor{};
   std::string fx_spot{};
   std::unique_ptr<quantra::IndexRefT> base_index{};
+  std::unique_ptr<quantra::CurveRefT> base_forwarding_curve{};
   std::unique_ptr<quantra::CurveRefT> base_discount_curve{};
   std::unique_ptr<quantra::IndexRefT> quote_index{};
+  std::unique_ptr<quantra::CurveRefT> quote_forwarding_curve{};
   std::unique_ptr<quantra::CurveRefT> quote_discount_curve{};
   ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
@@ -2778,12 +2781,28 @@ struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
 };
 
 /// Cross-currency basis swap helper (QuantLib
-/// ConstNotionalCrossCurrencyBasisSwapRateHelper). Schema-ready; the engine
-/// does not build it yet and rejects it with 501. Bootstraps the discount
-/// curve of one currency of the pair from a constant-notional cross-currency
-/// basis swap (base-currency float leg vs quote-currency float leg, notional
-/// exchanged at start and end) given the other currency's discount curve, the
-/// two forwarding indices and the spot.
+/// ConstNotionalCrossCurrencyBasisSwapRateHelper). Bootstraps the discount
+/// curve of ONE currency of the pair from a constant-notional cross-currency
+/// basis swap: a base-currency floating leg against a quote-currency floating
+/// leg, notional 1 in each currency exchanged at the start and at the end of
+/// the swap, the basis spread added to one of the two legs. The other
+/// currency's discount curve, both legs' forwarding curves and the two indices
+/// are given; the curve being bootstrapped is the discount curve of the leg
+/// whose *_discount_curve reference is absent (the classic use: a EUR curve
+/// for USD-collateralised trades, quote_discount_curve = the USD OIS curve,
+/// base_discount_curve absent).
+///
+/// Constant notional: both notionals stay fixed for the life of the swap, so
+/// the FX spot rate cancels from the par condition and never enters the
+/// bootstrap. The spot is still referenced (fx_spot) because it names the
+/// pair: the two indices must be in its base and quote currencies, and its
+/// spot lag is the swap's settlement lag.
+///
+/// Legs: an IBOR index pays at its own tenor (one fixing per period); an
+/// overnight index pays a compounded coupon every payment_frequency. The
+/// spread_on_base_leg flag, the collateral side and the basis sign follow
+/// QuantLib's convention for the pair (EUR/USD: collateral in USD, basis on
+/// the EUR leg, typically negative).
 struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CrossCcyBasisHelperT NativeTableType;
   typedef CrossCcyBasisHelperBuilder Builder;
@@ -2793,64 +2812,105 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
     VT_TENOR = 8,
     VT_FX_SPOT = 10,
     VT_BASE_INDEX = 12,
-    VT_BASE_DISCOUNT_CURVE = 14,
-    VT_QUOTE_INDEX = 16,
-    VT_QUOTE_DISCOUNT_CURVE = 18,
-    VT_SPREAD_ON_BASE_LEG = 20,
-    VT_PAYMENT_LAG = 22,
-    VT_CALENDAR = 24,
-    VT_BUSINESS_DAY_CONVENTION = 26,
-    VT_END_OF_MONTH = 28,
-    VT_MTM_RESET = 30
+    VT_BASE_FORWARDING_CURVE = 14,
+    VT_BASE_DISCOUNT_CURVE = 16,
+    VT_QUOTE_INDEX = 18,
+    VT_QUOTE_FORWARDING_CURVE = 20,
+    VT_QUOTE_DISCOUNT_CURVE = 22,
+    VT_SPREAD_ON_BASE_LEG = 24,
+    VT_PAYMENT_FREQUENCY = 26,
+    VT_PAYMENT_LAG = 28,
+    VT_CALENDAR = 30,
+    VT_BUSINESS_DAY_CONVENTION = 32,
+    VT_END_OF_MONTH = 34,
+    VT_MTM_RESET = 36
   };
-  /// Basis spread (decimal, 0.001 = 10 bp) added to the leg selected by
+  /// Basis spread (decimal, -0.0015 = -15 bp) added to the leg selected by
   /// spread_on_base_leg. Exactly one of spread or quote_id must be present.
   /// May be negative.
   ::flatbuffers::Optional<double> spread() const {
     return GetOptional<double, double>(VT_SPREAD);
   }
-  /// Reference to a shared quote in pricing.quotes (quote_type = Curve)
-  /// instead of an inline spread.
+  /// Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+  /// basis moves with rates, so it takes part in the curve bump) instead of
+  /// an inline spread.
   const ::flatbuffers::String *quote_id() const {
     return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
   }
-  /// Swap tenor from the spot date. Required.
+  /// Swap tenor from the settlement (spot) date. Required.
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Id of the FxSpotSpec in pricing.fx.spots. Required; its base and quote
-  /// currencies are the two leg currencies.
+  /// Id of the FxSpotSpec in pricing.fx.spots. Required. The spot names the
+  /// pair (base_index must be in its base_currency, quote_index in its
+  /// quote_currency) and supplies the settlement lag (spot_days, QuantLib
+  /// fixingDays). Its rate does not enter a constant-notional bootstrap; its
+  /// settlement calendars and convention are not used either: the swap
+  /// schedule follows this helper's own calendar / business_day_convention
+  /// / end_of_month.
   const ::flatbuffers::String *fx_spot() const {
     return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT);
   }
-  /// Forwarding index of the base-currency leg (IndexDef id). Required.
+  /// Forwarding index of the base-currency leg (IndexDef id). Required; its
+  /// IndexDef.currency must equal the spot's base_currency. IBOR or
+  /// overnight (see payment_frequency).
   const quantra::IndexRef *base_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_BASE_INDEX);
   }
+  /// Forwarding curve of base_index, by id. Required; must name another
+  /// curve of pricing.rates.curves (bootstrapped first), never the curve
+  /// being bootstrapped: the leg's forwards are projected off this curve
+  /// while the curve under construction only discounts.
+  const quantra::CurveRef *base_forwarding_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_BASE_FORWARDING_CURVE);
+  }
   /// Discount curve of the base-currency leg, by id. Exactly one of
-  /// base_discount_curve / quote_discount_curve is given; the absent one is
-  /// the curve being bootstrapped.
+  /// base_discount_curve / quote_discount_curve is given: the given one is
+  /// the collateral currency's discount curve (bootstrapped first), the
+  /// absent one is the curve being bootstrapped.
   const quantra::CurveRef *base_discount_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_BASE_DISCOUNT_CURVE);
   }
-  /// Forwarding index of the quote-currency leg (IndexDef id). Required.
+  /// Forwarding index of the quote-currency leg (IndexDef id). Required; its
+  /// IndexDef.currency must equal the spot's quote_currency. IBOR or
+  /// overnight (see payment_frequency).
   const quantra::IndexRef *quote_index() const {
     return GetPointer<const quantra::IndexRef *>(VT_QUOTE_INDEX);
   }
-  /// Discount curve of the quote-currency leg, by id. See base_discount_curve.
+  /// Forwarding curve of quote_index, by id. Required; same rules as
+  /// base_forwarding_curve. It may be the same curve as the quote leg's
+  /// discount curve (a single USD OIS curve both projects and discounts).
+  const quantra::CurveRef *quote_forwarding_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_QUOTE_FORWARDING_CURVE);
+  }
+  /// Discount curve of the quote-currency leg, by id. See
+  /// base_discount_curve.
   const quantra::CurveRef *quote_discount_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_QUOTE_DISCOUNT_CURVE);
   }
-  /// true: the basis spread is paid on the base-currency leg; false: on the
-  /// quote-currency leg. Required.
+  /// true: the basis spread is added to the base-currency leg; false: to
+  /// the quote-currency leg. Required.
   ::flatbuffers::Optional<bool> spread_on_base_leg() const {
     return GetOptional<uint8_t, bool>(VT_SPREAD_ON_BASE_LEG);
   }
-  /// Payment lag in business days on both legs. Required; must be >= 0.
+  /// Coupon frequency of a compounded overnight leg. Required when
+  /// base_index or quote_index is an overnight index (QuantLib builds the
+  /// overnight leg as compounded coupons on this schedule); when the other
+  /// leg is an IBOR index the value must equal that index's tenor. Must be
+  /// absent when both indices are IBOR: each leg then pays at its index
+  /// tenor and there is nothing to choose.
+  ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_PAYMENT_FREQUENCY);
+  }
+  /// Payment lag in business days (helper calendar, Following) applied to
+  /// every coupon and to the final notional exchange of both legs. Required;
+  /// must be >= 0. The pillar date of the helper is the last payment date,
+  /// so a non-zero lag moves it.
   ::flatbuffers::Optional<int32_t> payment_lag() const {
     return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
-  /// Calendar of the swap schedule. Required.
+  /// Calendar of the swap schedule (settlement date = valuation date +
+  /// spot_days on it, coupon dates, payment lag). Required.
   ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
     return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
   }
@@ -2862,8 +2922,10 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
   ::flatbuffers::Optional<bool> end_of_month() const {
     return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
   }
-  /// Mark-to-market notional resets on the quote leg. Required; must be
-  /// false in this version (resetting notionals are not supported yet).
+  /// Mark-to-market (resetting) notionals. Required; must be false in this
+  /// version: a resetting-notional swap (QuantLib
+  /// MtMCrossCurrencyBasisSwapRateHelper) is not supported yet and is
+  /// rejected with 400.
   ::flatbuffers::Optional<bool> mtm_reset() const {
     return GetOptional<uint8_t, bool>(VT_MTM_RESET);
   }
@@ -2878,13 +2940,18 @@ struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Tabl
            verifier.VerifyString(fx_spot()) &&
            VerifyOffsetRequired(verifier, VT_BASE_INDEX) &&
            verifier.VerifyTable(base_index()) &&
+           VerifyOffsetRequired(verifier, VT_BASE_FORWARDING_CURVE) &&
+           verifier.VerifyTable(base_forwarding_curve()) &&
            VerifyOffset(verifier, VT_BASE_DISCOUNT_CURVE) &&
            verifier.VerifyTable(base_discount_curve()) &&
            VerifyOffsetRequired(verifier, VT_QUOTE_INDEX) &&
            verifier.VerifyTable(quote_index()) &&
+           VerifyOffsetRequired(verifier, VT_QUOTE_FORWARDING_CURVE) &&
+           verifier.VerifyTable(quote_forwarding_curve()) &&
            VerifyOffset(verifier, VT_QUOTE_DISCOUNT_CURVE) &&
            verifier.VerifyTable(quote_discount_curve()) &&
            VerifyField<uint8_t>(verifier, VT_SPREAD_ON_BASE_LEG, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_FREQUENCY, 1) &&
            VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
            VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
            VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
@@ -2916,17 +2983,26 @@ struct CrossCcyBasisHelperBuilder {
   void add_base_index(::flatbuffers::Offset<quantra::IndexRef> base_index) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_INDEX, base_index);
   }
+  void add_base_forwarding_curve(::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_FORWARDING_CURVE, base_forwarding_curve);
+  }
   void add_base_discount_curve(::flatbuffers::Offset<quantra::CurveRef> base_discount_curve) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_DISCOUNT_CURVE, base_discount_curve);
   }
   void add_quote_index(::flatbuffers::Offset<quantra::IndexRef> quote_index) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_INDEX, quote_index);
   }
+  void add_quote_forwarding_curve(::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_FORWARDING_CURVE, quote_forwarding_curve);
+  }
   void add_quote_discount_curve(::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_DISCOUNT_CURVE, quote_discount_curve);
   }
   void add_spread_on_base_leg(bool spread_on_base_leg) {
     fbb_.AddElement<uint8_t>(CrossCcyBasisHelper::VT_SPREAD_ON_BASE_LEG, static_cast<uint8_t>(spread_on_base_leg));
+  }
+  void add_payment_frequency(quantra::enums::Frequency payment_frequency) {
+    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_PAYMENT_FREQUENCY, static_cast<int8_t>(payment_frequency));
   }
   void add_payment_lag(int32_t payment_lag) {
     fbb_.AddElement<int32_t>(CrossCcyBasisHelper::VT_PAYMENT_LAG, payment_lag);
@@ -2953,7 +3029,9 @@ struct CrossCcyBasisHelperBuilder {
     fbb_.Required(o, CrossCcyBasisHelper::VT_TENOR);
     fbb_.Required(o, CrossCcyBasisHelper::VT_FX_SPOT);
     fbb_.Required(o, CrossCcyBasisHelper::VT_BASE_INDEX);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_BASE_FORWARDING_CURVE);
     fbb_.Required(o, CrossCcyBasisHelper::VT_QUOTE_INDEX);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_QUOTE_FORWARDING_CURVE);
     return o;
   }
 };
@@ -2965,10 +3043,13 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     ::flatbuffers::Offset<::flatbuffers::String> fx_spot = 0,
     ::flatbuffers::Offset<quantra::IndexRef> base_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve = 0,
     ::flatbuffers::Offset<quantra::CurveRef> base_discount_curve = 0,
     ::flatbuffers::Offset<quantra::IndexRef> quote_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve = 0,
     ::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve = 0,
     ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
@@ -2978,8 +3059,10 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
   if(spread) { builder_.add_spread(*spread); }
   if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
   builder_.add_quote_discount_curve(quote_discount_curve);
+  builder_.add_quote_forwarding_curve(quote_forwarding_curve);
   builder_.add_quote_index(quote_index);
   builder_.add_base_discount_curve(base_discount_curve);
+  builder_.add_base_forwarding_curve(base_forwarding_curve);
   builder_.add_base_index(base_index);
   builder_.add_fx_spot(fx_spot);
   builder_.add_tenor(tenor);
@@ -2988,6 +3071,7 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
   if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
   if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
   if(calendar) { builder_.add_calendar(*calendar); }
+  if(payment_frequency) { builder_.add_payment_frequency(*payment_frequency); }
   if(spread_on_base_leg) { builder_.add_spread_on_base_leg(*spread_on_base_leg); }
   return builder_.Finish();
 }
@@ -2999,10 +3083,13 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirec
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
     const char *fx_spot = nullptr,
     ::flatbuffers::Offset<quantra::IndexRef> base_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve = 0,
     ::flatbuffers::Offset<quantra::CurveRef> base_discount_curve = 0,
     ::flatbuffers::Offset<quantra::IndexRef> quote_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve = 0,
     ::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve = 0,
     ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
@@ -3017,10 +3104,13 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirec
       tenor,
       fx_spot__,
       base_index,
+      base_forwarding_curve,
       base_discount_curve,
       quote_index,
+      quote_forwarding_curve,
       quote_discount_curve,
       spread_on_base_leg,
+      payment_frequency,
       payment_lag,
       calendar,
       business_day_convention,
@@ -4251,10 +4341,13 @@ inline CrossCcyBasisHelperT::CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o)
         tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
         fx_spot(o.fx_spot),
         base_index((o.base_index) ? new quantra::IndexRefT(*o.base_index) : nullptr),
+        base_forwarding_curve((o.base_forwarding_curve) ? new quantra::CurveRefT(*o.base_forwarding_curve) : nullptr),
         base_discount_curve((o.base_discount_curve) ? new quantra::CurveRefT(*o.base_discount_curve) : nullptr),
         quote_index((o.quote_index) ? new quantra::IndexRefT(*o.quote_index) : nullptr),
+        quote_forwarding_curve((o.quote_forwarding_curve) ? new quantra::CurveRefT(*o.quote_forwarding_curve) : nullptr),
         quote_discount_curve((o.quote_discount_curve) ? new quantra::CurveRefT(*o.quote_discount_curve) : nullptr),
         spread_on_base_leg(o.spread_on_base_leg),
+        payment_frequency(o.payment_frequency),
         payment_lag(o.payment_lag),
         calendar(o.calendar),
         business_day_convention(o.business_day_convention),
@@ -4268,10 +4361,13 @@ inline CrossCcyBasisHelperT &CrossCcyBasisHelperT::operator=(CrossCcyBasisHelper
   std::swap(tenor, o.tenor);
   std::swap(fx_spot, o.fx_spot);
   std::swap(base_index, o.base_index);
+  std::swap(base_forwarding_curve, o.base_forwarding_curve);
   std::swap(base_discount_curve, o.base_discount_curve);
   std::swap(quote_index, o.quote_index);
+  std::swap(quote_forwarding_curve, o.quote_forwarding_curve);
   std::swap(quote_discount_curve, o.quote_discount_curve);
   std::swap(spread_on_base_leg, o.spread_on_base_leg);
+  std::swap(payment_frequency, o.payment_frequency);
   std::swap(payment_lag, o.payment_lag);
   std::swap(calendar, o.calendar);
   std::swap(business_day_convention, o.business_day_convention);
@@ -4294,10 +4390,13 @@ inline void CrossCcyBasisHelper::UnPackTo(CrossCcyBasisHelperT *_o, const ::flat
   { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
   { auto _e = fx_spot(); if (_e) _o->fx_spot = _e->str(); }
   { auto _e = base_index(); if (_e) { if(_o->base_index) { _e->UnPackTo(_o->base_index.get(), _resolver); } else { _o->base_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->base_index) { _o->base_index.reset(); } }
+  { auto _e = base_forwarding_curve(); if (_e) { if(_o->base_forwarding_curve) { _e->UnPackTo(_o->base_forwarding_curve.get(), _resolver); } else { _o->base_forwarding_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->base_forwarding_curve) { _o->base_forwarding_curve.reset(); } }
   { auto _e = base_discount_curve(); if (_e) { if(_o->base_discount_curve) { _e->UnPackTo(_o->base_discount_curve.get(), _resolver); } else { _o->base_discount_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->base_discount_curve) { _o->base_discount_curve.reset(); } }
   { auto _e = quote_index(); if (_e) { if(_o->quote_index) { _e->UnPackTo(_o->quote_index.get(), _resolver); } else { _o->quote_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_index) { _o->quote_index.reset(); } }
+  { auto _e = quote_forwarding_curve(); if (_e) { if(_o->quote_forwarding_curve) { _e->UnPackTo(_o->quote_forwarding_curve.get(), _resolver); } else { _o->quote_forwarding_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_forwarding_curve) { _o->quote_forwarding_curve.reset(); } }
   { auto _e = quote_discount_curve(); if (_e) { if(_o->quote_discount_curve) { _e->UnPackTo(_o->quote_discount_curve.get(), _resolver); } else { _o->quote_discount_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_discount_curve) { _o->quote_discount_curve.reset(); } }
   { auto _e = spread_on_base_leg(); _o->spread_on_base_leg = _e; }
+  { auto _e = payment_frequency(); _o->payment_frequency = _e; }
   { auto _e = payment_lag(); _o->payment_lag = _e; }
   { auto _e = calendar(); _o->calendar = _e; }
   { auto _e = business_day_convention(); _o->business_day_convention = _e; }
@@ -4318,10 +4417,13 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
   auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
   auto _fx_spot = _fbb.CreateString(_o->fx_spot);
   auto _base_index = _o->base_index ? CreateIndexRef(_fbb, _o->base_index.get(), _rehasher) : 0;
+  auto _base_forwarding_curve = _o->base_forwarding_curve ? CreateCurveRef(_fbb, _o->base_forwarding_curve.get(), _rehasher) : 0;
   auto _base_discount_curve = _o->base_discount_curve ? CreateCurveRef(_fbb, _o->base_discount_curve.get(), _rehasher) : 0;
   auto _quote_index = _o->quote_index ? CreateIndexRef(_fbb, _o->quote_index.get(), _rehasher) : 0;
+  auto _quote_forwarding_curve = _o->quote_forwarding_curve ? CreateCurveRef(_fbb, _o->quote_forwarding_curve.get(), _rehasher) : 0;
   auto _quote_discount_curve = _o->quote_discount_curve ? CreateCurveRef(_fbb, _o->quote_discount_curve.get(), _rehasher) : 0;
   auto _spread_on_base_leg = _o->spread_on_base_leg;
+  auto _payment_frequency = _o->payment_frequency;
   auto _payment_lag = _o->payment_lag;
   auto _calendar = _o->calendar;
   auto _business_day_convention = _o->business_day_convention;
@@ -4334,10 +4436,13 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
       _tenor,
       _fx_spot,
       _base_index,
+      _base_forwarding_curve,
       _base_discount_curve,
       _quote_index,
+      _quote_forwarding_curve,
       _quote_discount_curve,
       _spread_on_base_leg,
+      _payment_frequency,
       _payment_lag,
       _calendar,
       _business_day_convention,

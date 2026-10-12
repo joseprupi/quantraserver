@@ -107,11 +107,12 @@ void CurveBootstrapper::collectDeps(
             auto h = static_cast<const quantra::TenorBasisSwapHelper*>(wrapper->point());
             addAllDeps(deps, curveId, h->deps());
         }
-        // FX helpers: the exogenous discount curve of the collateral (given)
-        // currency is an explicit reference on the helper, so the curve built
-        // from FX pillars always comes after it. An unknown reference is a 404
+        // FX helpers: the exogenous curves (the collateral currency's discount
+        // curve; for the basis helper also both forwarding curves) are
+        // explicit references on the helper, so the curve built from FX
+        // pillars always comes after them. An unknown reference is a 404
         // (dependency not provided); a reference back to the curve itself is
-        // a 400 (checked below for the implemented helper).
+        // a 400.
         else if (ptype == quantra::Point_FxSwapHelper) {
             auto h = static_cast<const quantra::FxSwapHelper*>(wrapper->point());
             // The collateral curve is by construction a different curve (the
@@ -128,8 +129,36 @@ void CurveBootstrapper::collectDeps(
             addDepFromRef(deps, curveId, h->collateral_curve());
         } else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto h = static_cast<const quantra::CrossCcyBasisHelper*>(wrapper->point());
+            // Exactly one discount curve is given (the collateral side); the
+            // absent one is the curve being bootstrapped. Both forwarding
+            // curves are exogenous: QuantLib builds the two floating legs
+            // from the indices as given, so a leg projected off the curve
+            // under construction would read an empty handle at bootstrap.
+            auto hasRef = [](const quantra::CurveRef* ref) {
+                return ref && ref->id() && !ref->id()->str().empty();
+            };
+            if (hasRef(h->base_discount_curve()) == hasRef(h->quote_discount_curve())) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "CrossCcyBasisHelper requires exactly one of base_discount_curve or "
+                    "quote_discount_curve: the given one is the collateral currency's discount "
+                    "curve, the absent one is the curve being bootstrapped");
+            }
+            auto rejectSelf = [&](const quantra::CurveRef* ref, const char* field) {
+                if (hasRef(ref) && ref->id()->str() == curveId) {
+                    QUANTRA_INVALID_ARGUMENT(
+                        std::string("CrossCcyBasisHelper.") + field + " '" + curveId +
+                        "' is the curve being bootstrapped; it must name another curve of "
+                        "pricing.rates.curves");
+                }
+            };
+            rejectSelf(h->base_discount_curve(), "base_discount_curve");
+            rejectSelf(h->quote_discount_curve(), "quote_discount_curve");
+            rejectSelf(h->base_forwarding_curve(), "base_forwarding_curve");
+            rejectSelf(h->quote_forwarding_curve(), "quote_forwarding_curve");
             addDepFromRef(deps, curveId, h->base_discount_curve());
             addDepFromRef(deps, curveId, h->quote_discount_curve());
+            addDepFromRef(deps, curveId, h->base_forwarding_curve());
+            addDepFromRef(deps, curveId, h->quote_forwarding_curve());
         }
     }
 }

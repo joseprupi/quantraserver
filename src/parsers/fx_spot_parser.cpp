@@ -99,12 +99,21 @@ FxSpot FxSpotParser::parse(const quantra::FxSpotSpec* spec, const QuoteRegistry*
 
     spot.spotDays = requireNonNegativeInt(spec->spot_days(), "FxSpotSpec.spot_days");
 
-    // --- Settlement calendars: at least one; joined so a holiday in any one
-    // is a holiday of the pair (QuantLib JointCalendar, JoinHolidays).
-    const auto* calendars = spec->settlement_calendars();
+    spot.settlementCalendar = JointSettlementCalendar(spec->settlement_calendars(), spot.id);
+
+    spot.businessDayConvention = ConventionToQL(
+        requireEnum(spec->business_day_convention(), "FxSpotSpec.business_day_convention"));
+
+    return spot;
+}
+
+QuantLib::Calendar JointSettlementCalendar(
+    const flatbuffers::Vector<int8_t>* calendars, const std::string& spotId) {
+    // At least one; joined so a holiday in any one is a holiday of the pair
+    // (QuantLib JointCalendar, JoinHolidays).
     if (!calendars || calendars->size() == 0) {
         QUANTRA_INVALID_ARGUMENT(
-            "FxSpotSpec.settlement_calendars must list at least one calendar (spot '" + spot.id +
+            "FxSpotSpec.settlement_calendars must list at least one calendar (spot '" + spotId +
             "')");
     }
     std::vector<QuantLib::Calendar> joined;
@@ -112,15 +121,9 @@ FxSpot FxSpotParser::parse(const quantra::FxSpotSpec* spec, const QuoteRegistry*
     for (flatbuffers::uoffset_t i = 0; i < calendars->size(); ++i) {
         joined.push_back(CalendarToQL(static_cast<quantra::enums::Calendar>(calendars->Get(i))));
     }
-    spot.settlementCalendar =
-        joined.size() == 1
-            ? joined.front()
-            : QuantLib::Calendar(QuantLib::JointCalendar(joined, QuantLib::JoinHolidays));
-
-    spot.businessDayConvention = ConventionToQL(
-        requireEnum(spec->business_day_convention(), "FxSpotSpec.business_day_convention"));
-
-    return spot;
+    return joined.size() == 1
+               ? joined.front()
+               : QuantLib::Calendar(QuantLib::JointCalendar(joined, QuantLib::JoinHolidays));
 }
 
 } // namespace quantra

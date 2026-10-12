@@ -2,11 +2,15 @@
 
 #include "request_validation.h"
 
+#include <ql/experimental/termstructures/crosscurrencyratehelpers.hpp>
+#include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/makeois.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
+
+#include <sstream>
 
 using namespace QuantLib;
 
@@ -561,14 +565,171 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     }
 
     // ------------------------------------------------------------------
-    // Stubs for basis / XCCY
+    // Cross-currency basis swap helper (constant notional)
+    //
+    // QuantLib's ConstNotionalCrossCurrencyBasisSwapRateHelper builds two
+    // floating legs (notional 1 in each currency, exchanged at start and end)
+    // from the two indices AS GIVEN: their forwarding curves must be attached
+    // here, so both are explicit, exogenous references. The leg whose
+    // discount curve is absent is discounted with the curve being
+    // bootstrapped; the other leg with the given (collateral) curve. The spot
+    // supplies the settlement lag and names the pair; its rate cancels from
+    // a constant-notional par condition and is not passed to QuantLib.
+    // ------------------------------------------------------------------
+    else if (point_type == quantra::Point_CrossCcyBasisHelper) {
+        auto point = static_cast<const quantra::CrossCcyBasisHelper*>(data);
+
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double spreadValue;
+        if (point->spread().has_value() && !has_quote) {
+            spreadValue = requireFinite(point->spread(), "CrossCcyBasisHelper.spread");
+        } else if (has_quote && !point->spread().has_value()) {
+            spreadValue = 0.0; // unused: quote_id supplies the spread below
+        } else {
+            QUANTRA_INVALID_ARGUMENT(
+                "CrossCcyBasisHelper requires exactly one of spread or quote_id");
+        }
+        // The basis moves with the two rate curves: a curve quote, bumped
+        // like every other pillar.
+        auto basis =
+            resolveQuote(spreadValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+
+        const QuantLib::Period tenor = requirePeriod(point->tenor(), "CrossCcyBasisHelper.tenor");
+
+        if (!point->fx_spot() || point->fx_spot()->str().empty()) {
+            QUANTRA_INVALID_ARGUMENT("CrossCcyBasisHelper.fx_spot is required");
+        }
+        if (!fxSpots) {
+            QUANTRA_ERROR("FxSpotRegistry is required for CrossCcyBasisHelper");
+        }
+        const FxSpot& spot = fxSpots->get(point->fx_spot()->str());
+
+        if (!indices) {
+            QUANTRA_ERROR("IndexRegistry is required for CrossCcyBasisHelper");
+        }
+
+        // One leg: index (in the leg's currency) cloned onto its forwarding
+        // curve. Both registry index types derive from IborIndex; an
+        // OvernightIndex keeps its dynamic type through clone(), which is how
+        // QuantLib tells a compounded overnight leg from an IBOR leg.
+        auto resolveLeg = [&](const quantra::IndexRef* ref, const quantra::CurveRef* forwarding,
+                              const std::string& legCurrency, const char* indexField,
+                              const char* curveField, const char* currencyField) {
+            if (!ref || !ref->id() || ref->id()->str().empty()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    std::string("CrossCcyBasisHelper.") + indexField + ".id is required");
+            }
+            const std::string indexId = ref->id()->str();
+            auto bare = std::dynamic_pointer_cast<IborIndex>(indices->get(indexId));
+            if (!bare) {
+                QUANTRA_INVALID_ARGUMENT(
+                    std::string("CrossCcyBasisHelper.") + indexField + " '" + indexId +
+                    "' is not an IBOR or overnight index");
+            }
+            if (bare->currency().code() != legCurrency) {
+                QUANTRA_INVALID_ARGUMENT(
+                    std::string("CrossCcyBasisHelper.") + indexField + " '" + indexId + "' is in " +
+                    bare->currency().code() + " but the " + currencyField + " of FX spot '" +
+                    spot.id + "' is " + legCurrency);
+            }
+            if (!forwarding || !forwarding->id() || forwarding->id()->str().empty()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    std::string("CrossCcyBasisHelper.") + curveField + ".id is required");
+            }
+            Handle<YieldTermStructure> curve = resolveCurve(forwarding, curves);
+            return bare->clone(curve);
+        };
+        std::shared_ptr<IborIndex> baseIdx = resolveLeg(
+            point->base_index(), point->base_forwarding_curve(), spot.baseCurrency, "base_index",
+            "base_forwarding_curve", "base_currency");
+        std::shared_ptr<IborIndex> quoteIdx = resolveLeg(
+            point->quote_index(), point->quote_forwarding_curve(), spot.quoteCurrency,
+            "quote_index", "quote_forwarding_curve", "quote_currency");
+
+        // Exactly one discount curve is given: the collateral side. The other
+        // leg is discounted with the curve being bootstrapped.
+        auto hasRef = [](const quantra::CurveRef* ref) {
+            return ref && ref->id() && !ref->id()->str().empty();
+        };
+        const bool baseGiven = hasRef(point->base_discount_curve());
+        const bool quoteGiven = hasRef(point->quote_discount_curve());
+        if (baseGiven == quoteGiven) {
+            QUANTRA_INVALID_ARGUMENT(
+                "CrossCcyBasisHelper requires exactly one of base_discount_curve or "
+                "quote_discount_curve: the given one is the collateral currency's discount "
+                "curve, the absent one is the curve being bootstrapped");
+        }
+        Handle<YieldTermStructure> collateral = resolveCurve(
+            baseGiven ? point->base_discount_curve() : point->quote_discount_curve(), curves);
+        const bool baseIsCollateral = baseGiven;
+
+        const bool spreadOnBase =
+            requireBool(point->spread_on_base_leg(), "CrossCcyBasisHelper.spread_on_base_leg");
+
+        // Payment frequency: QuantLib needs an explicit coupon schedule for a
+        // compounded overnight leg and pays an IBOR leg at the index tenor.
+        const bool baseOvernight = std::dynamic_pointer_cast<OvernightIndex>(baseIdx) != nullptr;
+        const bool quoteOvernight = std::dynamic_pointer_cast<OvernightIndex>(quoteIdx) != nullptr;
+        Frequency paymentFrequency = NoFrequency;
+        if (baseOvernight || quoteOvernight) {
+            if (!point->payment_frequency().has_value()) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "CrossCcyBasisHelper.payment_frequency is required when base_index or "
+                    "quote_index is an overnight index (coupon frequency of the compounded "
+                    "overnight leg)");
+            }
+            paymentFrequency = FrequencyToQL(point->payment_frequency().value());
+            if (paymentFrequency == NoFrequency || paymentFrequency == Once ||
+                paymentFrequency == OtherFrequency) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "CrossCcyBasisHelper.payment_frequency must be a periodic frequency "
+                    "(Annual, Semiannual, Quarterly, Monthly, ...)");
+            }
+            auto checkIborTenor = [&](const std::shared_ptr<IborIndex>& ibor, bool overnight,
+                                      const char* field) {
+                if (overnight) return;
+                if (QuantLib::Period(paymentFrequency) != ibor->tenor()) {
+                    std::ostringstream os;
+                    os << "CrossCcyBasisHelper.payment_frequency " << paymentFrequency
+                       << " does not match the tenor " << ibor->tenor() << " of " << field << " '"
+                       << ibor->familyName() << "': an IBOR leg pays at its index tenor";
+                    QUANTRA_INVALID_ARGUMENT(os.str());
+                }
+            };
+            checkIborTenor(baseIdx, baseOvernight, "base_index");
+            checkIborTenor(quoteIdx, quoteOvernight, "quote_index");
+        } else if (point->payment_frequency().has_value()) {
+            QUANTRA_INVALID_ARGUMENT(
+                "CrossCcyBasisHelper.payment_frequency must be absent when both indices are "
+                "IBOR: each leg pays at its index tenor");
+        }
+
+        const int paymentLag =
+            requireNonNegativeInt(point->payment_lag(), "CrossCcyBasisHelper.payment_lag");
+        const QuantLib::Calendar calendar =
+            CalendarToQL(requireEnum(point->calendar(), "CrossCcyBasisHelper.calendar"));
+        const BusinessDayConvention convention = ConventionToQL(requireEnum(
+            point->business_day_convention(), "CrossCcyBasisHelper.business_day_convention"));
+        const bool endOfMonth =
+            requireBool(point->end_of_month(), "CrossCcyBasisHelper.end_of_month");
+
+        if (requireBool(point->mtm_reset(), "CrossCcyBasisHelper.mtm_reset")) {
+            QUANTRA_INVALID_ARGUMENT(
+                "CrossCcyBasisHelper.mtm_reset = true is not supported in this version "
+                "(resetting-notional cross-currency swaps); use false");
+        }
+
+        return std::make_shared<ConstNotionalCrossCurrencyBasisSwapRateHelper>(
+            basis, tenor, static_cast<Natural>(spot.spotDays), calendar, convention, endOfMonth,
+            baseIdx, quoteIdx, collateral, baseIsCollateral, spreadOnBase, paymentFrequency,
+            paymentLag);
+    }
+
+    // ------------------------------------------------------------------
+    // Stub: tenor basis (schema-ready, not built)
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_TenorBasisSwapHelper) {
         QUANTRA_NOT_IMPLEMENTED("TenorBasisSwapHelper: schema-ready but not implemented.");
-    } else if (point_type == quantra::Point_CrossCcyBasisHelper) {
-        QUANTRA_NOT_IMPLEMENTED(
-            "CrossCcyBasisHelper: schema-ready but not implemented yet (cross-currency basis "
-            "bootstrapping is planned; use FxSwapHelper pillars for the FX-implied short end).");
     }
 
     QUANTRA_INVALID_ARGUMENT("Unknown point type: " + std::to_string(point_type));

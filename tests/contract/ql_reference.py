@@ -815,6 +815,65 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 helpers.append(helper)
                 seen_pillars.add(pillar)
 
+        elif point_type == "CrossCcyBasisHelper":
+            # Mirrors src/parsers/term_structure_point_parser.cpp: the spot
+            # names the pair and supplies the settlement lag (fixingDays) but
+            # its rate never enters a constant-notional bootstrap; both legs'
+            # forwarding curves and the collateral side's discount curve are
+            # other curves of the request (built here recursively, ordered on
+            # the server by the references); the leg whose discount curve is
+            # absent is discounted with the curve being bootstrapped. The
+            # basis is a curve quote (quote_id -> Curve type). An overnight
+            # index needs payment_frequency; two IBOR indices pay at their
+            # tenors (QuantLib NoFrequency).
+            req_pricing = (request_data or {}).get("pricing", {})
+            spot = build_fx_spot(req_pricing, point["fx_spot"], request_data)
+            view_curves = _reference_pricing_view(request_data)["curves"]
+
+            def curve_by_id(cid):
+                cj = next(c for c in view_curves if c["id"] == cid)
+                return build_curve_from_json(cj, eval_date, request_data)
+
+            base_fwd = curve_by_id(point["base_forwarding_curve"]["id"])
+            quote_fwd = curve_by_id(point["quote_forwarding_curve"]["id"])
+            base_idx = resolve_index_from_id(point["base_index"]["id"], request_data, base_fwd)
+            quote_idx = resolve_index_from_id(point["quote_index"]["id"], request_data, quote_fwd)
+            base_given = "base_discount_curve" in point
+            quote_given = "quote_discount_curve" in point
+            if base_given == quote_given:
+                raise ValueError("CrossCcyBasisHelper requires exactly one of "
+                                 "base_discount_curve or quote_discount_curve")
+            collateral = curve_by_id((point["base_discount_curve"] if base_given
+                                      else point["quote_discount_curve"])["id"])
+            if point.get("quote_id"):
+                if quote_types.get(point["quote_id"], "Curve") != "Curve":
+                    raise ValueError(f"Quote id '{point['quote_id']}' has wrong type for curve")
+                spread_value = quote_values[point["quote_id"]]
+            else:
+                spread_value = point["spread"]
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            frequency = (get_frequency(point["payment_frequency"])
+                         if "payment_frequency" in point else ql.NoFrequency)
+            helper = ql.ConstNotionalCrossCurrencyBasisSwapRateHelper(
+                ql.QuoteHandle(ql.SimpleQuote(spread_value)),
+                ql.Period(tenor_num, get_time_unit(tenor_unit_s)),
+                spot["spot_days"],
+                get_calendar(point["calendar"]),
+                get_convention(point["business_day_convention"]),
+                bool(point["end_of_month"]),
+                base_idx,
+                quote_idx,
+                collateral,
+                base_given,
+                bool(point["spread_on_base_leg"]),
+                frequency,
+                int(point["payment_lag"]),
+            )
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+
         elif point_type == "BondHelper":
             # Build bond schedule
             sch = point["schedule"]
@@ -856,7 +915,34 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
     
     curve = ql.PiecewiseLogLinearDiscount(eval_date, helpers, get_day_counter(curve_json.get("day_counter", "Actual365Fixed")))
     curve.enableExtrapolation()
+    # Remember the helpers' own pillar dates (the server reports them as
+    # pillar_dates); see curve_pillar_dates_ql.
+    if curve_json.get("id"):
+        _LAST_HELPER_PILLARS[curve_json["id"]] = sorted(seen_pillars)
     return ql.YieldTermStructureHandle(curve)
+
+
+# curve id -> pillar dates of the helpers of the last build_curve_from_json
+# call for that curve (the reference twin of the server's pillar_dates).
+_LAST_HELPER_PILLARS: Dict[str, list] = {}
+
+
+def curve_pillar_dates_ql(request: dict) -> list:
+    """Reference for the `pillar_dates` of a /bootstrap-curves result: the
+    curve's reference date followed by each QuantLib helper's pillarDate()
+    (what the server reports, sorted, as ISO strings). The curve is built
+    with build_curve_from_json so the dates are the helpers' own, not a
+    re-derivation."""
+    pricing = _reference_pricing_view(request)
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+    query = request["queries"][0]
+    curve_json = next(c for c in pricing["curves"] if c["id"] == query["curve_id"])
+    build_curve_from_json(curve_json, as_of, request)
+    ref = (parse_date(curve_json["reference_date"]) if curve_json.get("reference_date")
+           else as_of)
+    dates = sorted({ref, *_LAST_HELPER_PILLARS[curve_json["id"]]})
+    return [_iso_date(d) for d in dates]
 
 
 # =============================================================================

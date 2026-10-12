@@ -711,26 +711,21 @@ def _ec_body_valid_json_without(*absent_keys):
 
 def _ec_unimplemented_curve_point():
     # Replace the first curve's first point with a schema-ready-but-unbuilt
-    # helper (CrossCcyBasisHelper). The point parses into a valid FlatBuffer
+    # helper (TenorBasisSwapHelper). The point parses into a valid FlatBuffer
     # (every required field present), then the term-structure point parser
     # throws QuantraNotImplemented when the curve is built during pricing ->
-    # gRPC UNIMPLEMENTED -> HTTP 501. No discount-curve reference is given so
-    # the dependency ordering has nothing to resolve before the throw.
+    # gRPC UNIMPLEMENTED -> HTTP 501. No deps are given so the dependency
+    # ordering has nothing to resolve before the throw, and the indices it
+    # names exist in the request so no 404 can mask the 501.
     def f(req):
         req["pricing"]["rates"]["curves"][0]["points"][0] = {
-            "point_type": "CrossCcyBasisHelper",
+            "point_type": "TenorBasisSwapHelper",
             "point": {
-                "spread": -0.001,
+                "spread": 0.0005,
                 "tenor": {"n": 2, "unit": "Years"},
-                "fx_spot": "EURUSD_SPOT",
-                "base_index": {"id": "EUR_6M"},
-                "quote_index": {"id": "USD_SOFR"},
-                "spread_on_base_leg": True,
-                "payment_lag": 0,
+                "index_short": {"id": "EUR_6M"},
+                "index_long": {"id": "EUR_6M"},
                 "calendar": "TARGET",
-                "business_day_convention": "ModifiedFollowing",
-                "end_of_month": False,
-                "mtm_reset": False,
             },
         }
         return req
