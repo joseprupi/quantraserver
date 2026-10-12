@@ -122,8 +122,20 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
+    # Kind of flow. Set on every flow of a `SwapLeg` result
+    # (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
+    # (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
+    # `present_value` and `kind` only). Absent on the other swap endpoints,
+    # whose flows are all coupons.
+    # SwapLegFlow
+    def Kind(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
 def SwapLegFlowStart(builder):
-    builder.StartObject(13)
+    builder.StartObject(14)
 
 def Start(builder):
     SwapLegFlowStart(builder)
@@ -206,6 +218,12 @@ def SwapLegFlowAddRate(builder, rate):
 def AddRate(builder, rate):
     SwapLegFlowAddRate(builder, rate)
 
+def SwapLegFlowAddKind(builder, kind):
+    builder.PrependInt8Slot(13, kind, None)
+
+def AddKind(builder, kind):
+    SwapLegFlowAddKind(builder, kind)
+
 def SwapLegFlowEnd(builder):
     return builder.EndObject()
 
@@ -230,6 +248,7 @@ class SwapLegFlowT(object):
         self.cmsSwapRate = None  # type: Optional[float]
         self.spread = 0.0  # type: float
         self.rate = 0.0  # type: float
+        self.kind = None  # type: Optional[int]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -265,6 +284,7 @@ class SwapLegFlowT(object):
         self.cmsSwapRate = swapLegFlow.CmsSwapRate()
         self.spread = swapLegFlow.Spread()
         self.rate = swapLegFlow.Rate()
+        self.kind = swapLegFlow.Kind()
 
     # SwapLegFlowT
     def Pack(self, builder):
@@ -294,5 +314,6 @@ class SwapLegFlowT(object):
         SwapLegFlowAddCmsSwapRate(builder, self.cmsSwapRate)
         SwapLegFlowAddSpread(builder, self.spread)
         SwapLegFlowAddRate(builder, self.rate)
+        SwapLegFlowAddKind(builder, self.kind)
         swapLegFlow = SwapLegFlowEnd(builder)
         return swapLegFlow

@@ -1,0 +1,92 @@
+include "enums.fbs";
+include "vanilla_swap.fbs";
+include "ois_swap.fbs";
+include "vanilla_swap_response.fbs";
+
+namespace quantra;
+
+/// The coupons of one swap leg: exactly one of the coupon tables the swap
+/// endpoints share. In JSON a union is written as two fields, the tag and the
+/// value: `"coupons_type": "FixedCoupons", "coupons": { ... }` (the tag must
+/// precede the value).
+///   FixedCoupons     fixed rate (`rate`): `price-vanilla-swap`'s fixed_leg.
+///   IborCoupons      one IBOR fixing per period (+ `spread`); the index must
+///                    be an IBOR index (an overnight index is a 400 naming
+///                    OvernightCoupons).
+///   OvernightCoupons daily overnight fixings compounded / averaged over each
+///                    period with payment lag, lookback, lockout and
+///                    observation shift (`price-ois-swap`'s overnight_leg,
+///                    built by the same code); the index must be an overnight
+///                    index (an IBOR index is a 400 naming IborCoupons).
+///   CmsCoupons       constant-maturity swap-rate coupons; not supported on
+///                    `price-cross-currency-swap` in this version (400).
+union SwapCoupons { FixedCoupons, IborCoupons, OvernightCoupons, CmsCoupons }
+
+/// One leg of a swap: a coupon stream in one currency, discounted on its own
+/// curve, with its own principal exchanges, paid or received by the party
+/// whose NPV is reported. This is the leg model of `price-cross-currency-swap`
+/// (0.9.0) and, from 0.10.0, of every swap endpoint.
+///
+/// Principal exchanges follow the leg: the party that RECEIVES the leg's
+/// coupons PAYS the leg's notional on the schedule's start date (initial
+/// exchange) and RECEIVES it with the last coupon (final exchange). In the
+/// leg's own frame the flows are therefore coupons +, initial exchange
+/// -notional, final exchange +notional; `pay_receive` then applies the side:
+/// the payer of the coupons receives the initial exchange and pays the final
+/// one.
+table SwapLeg {
+    /// Whether the reported party pays (`Pay`) or receives (`Receive`) this
+    /// leg's coupons. Presence-required; the two legs of a swap must take
+    /// opposite values (400 otherwise).
+    pay_receive:enums.PayReceive = null;
+    /// ISO 4217 code of the leg's currency (three uppercase letters). A
+    /// floating leg's index must carry the same `IndexDef.currency` (400
+    /// otherwise). Required.
+    currency:string (required);
+    /// The coupons (see `SwapCoupons`). Required; the tag `coupons_type` is
+    /// required with it. Constant `notional` only: a per-period `notionals`
+    /// vector is rejected (400) in this version.
+    coupons:SwapCoupons (required);
+    /// Id of the curve in `pricing.rates.curves` that discounts every flow of
+    /// this leg (coupons and exchanges). For a collateralised cross-currency
+    /// trade, the currency's collateral-adjusted curve. Required.
+    discounting_curve:string (required);
+    /// Id of the curve in `pricing.rates.curves` the floating index projects
+    /// off. Required with `IborCoupons` / `OvernightCoupons` (400 when
+    /// missing), rejected with `FixedCoupons` (400 when present: a fixed leg
+    /// projects nothing).
+    forwarding_curve:string;
+    /// Whether the leg's notional is exchanged on its schedule's start date
+    /// (paid by the receiver of the leg's coupons). Presence-required on every
+    /// leg (`false` on both legs of an ordinary single-currency swap).
+    initial_exchange:bool = null;
+    /// Whether the leg's notional is exchanged on the last coupon's payment
+    /// date (received by the receiver of the leg's coupons).
+    /// Presence-required on every leg.
+    final_exchange:bool = null;
+}
+
+/// Result of one swap leg (`legs` of a swap response, request order).
+table SwapLegResult {
+    /// Present value of the leg (coupons and exchanges) in the leg's own
+    /// currency, signed from the reported party's view: the leg's own-frame
+    /// value (as the receiver of its coupons sees it) times -1 when the party
+    /// pays the leg (`Pay`) and +1 when it receives it (`Receive`). A paid leg
+    /// is therefore negative only when it is worth paying for: paying a 2.55%
+    /// fixed leg (with its exchanges) on a 3% curve is in the payer's favour
+    /// and positive.
+    npv:double;
+    /// `npv` converted to the swap's reporting currency at the as-of exchange
+    /// rate (unchanged when the leg is in the reporting currency).
+    npv_reporting:double;
+    /// Future flows of the leg in payment order (`include_flows` only), in
+    /// the leg's own frame: coupon amounts positive, the initial exchange
+    /// -notional, the final exchange +notional; `kind` tells them apart. The
+    /// sum of their `present_value`s is `npv / s` (s = -1 for `Pay`, +1 for
+    /// `Receive`). For an overnight coupon `rate` is the compounded rate (plus
+    /// spread) and `index_fixing` the fixing on the coupon's first fixing
+    /// date, as on `price-ois-swap`.
+    flows:[SwapLegFlow];
+}
+
+root_type SwapLeg;

@@ -34,7 +34,7 @@ QuantLib::GFunctionFactory::YieldCurveModel toYieldCurveModel(
 } // namespace
 
 QuantLib::Leg CmsLegParser::parse(
-    const quantra::SwapCmsLeg* leg,
+    const quantra::CmsCoupons* leg,
     const quantra::IndexRegistry& indices,
     const quantra::SwapIndexRegistry& swapIndices,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& forwardingCurve,
@@ -102,7 +102,7 @@ QuantLib::Leg CmsLegParser::parse(
 }
 
 CmsPricerBuildResult CmsLegParser::makeCouponPricer(
-    const quantra::SwapCmsLeg* leg,
+    const quantra::CmsCoupons* leg,
     const quantra::SwaptionVolEntry& volEntry,
     const QuantLib::Handle<QuantLib::YieldTermStructure>& discountCurve) const {
     if (!leg || !leg->swaption_vol_id()) {

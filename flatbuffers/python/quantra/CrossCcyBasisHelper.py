@@ -6,7 +6,29 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Cross-currency basis swap helper.
+# Cross-currency basis swap helper (QuantLib
+# ConstNotionalCrossCurrencyBasisSwapRateHelper). Bootstraps the discount
+# curve of ONE currency of the pair from a constant-notional cross-currency
+# basis swap: a base-currency floating leg against a quote-currency floating
+# leg, notional 1 in each currency exchanged at the start and at the end of
+# the swap, the basis spread added to one of the two legs. The other
+# currency's discount curve, both legs' forwarding curves and the two indices
+# are given; the curve being bootstrapped is the discount curve of the leg
+# whose *_discount_curve reference is absent (the classic use: a EUR curve
+# for USD-collateralised trades, quote_discount_curve = the USD OIS curve,
+# base_discount_curve absent).
+#
+# Constant notional: both notionals stay fixed for the life of the swap, so
+# the FX spot rate cancels from the par condition and never enters the
+# bootstrap. The spot is still referenced (fx_spot) because it names the
+# pair: the two indices must be in its base and quote currencies, and its
+# spot lag is the swap's settlement lag.
+#
+# Legs: an IBOR index pays at its own tenor (one fixing per period); an
+# overnight index pays a compounded coupon every payment_frequency. The
+# spread_on_base_leg flag, the collateral side and the basis sign follow
+# QuantLib's convention for the pair (EUR/USD: collateral in USD, basis on
+# the EUR leg, typically negative).
 class CrossCcyBasisHelper(object):
     __slots__ = ['_tab']
 
@@ -25,7 +47,9 @@ class CrossCcyBasisHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Cross-currency basis spread. One of spread or quote_id must be provided.
+    # Basis spread (decimal, -0.0015 = -15 bp) added to the leg selected by
+    # spread_on_base_leg. Exactly one of spread or quote_id must be present.
+    # May be negative.
     # CrossCcyBasisHelper
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,9 +57,20 @@ class CrossCcyBasisHelper(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+    # basis moves with rates, so it takes part in the curve bump) instead of
+    # an inline spread.
+    # CrossCcyBasisHelper
+    def QuoteId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Swap tenor from the settlement (spot) date. Required.
     # CrossCcyBasisHelper
     def Tenor(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.Period import Period
@@ -44,10 +79,26 @@ class CrossCcyBasisHelper(object):
             return obj
         return None
 
-    # Domestic leg index.
+    # Id of the FxSpotSpec in pricing.fx.spots. Required. The spot names the
+    # pair (base_index must be in its base_currency, quote_index in its
+    # quote_currency) and supplies the settlement lag (spot_days, QuantLib
+    # fixingDays). Its rate does not enter a constant-notional bootstrap; its
+    # settlement calendars and convention are not used either: the swap
+    # schedule follows this helper's own calendar / business_day_convention
+    # / end_of_month.
     # CrossCcyBasisHelper
-    def IndexDomestic(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+    def FxSpot(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Forwarding index of the base-currency leg (IndexDef id). Required; its
+    # IndexDef.currency must equal the spot's base_currency. IBOR or
+    # overnight (see payment_frequency).
+    # CrossCcyBasisHelper
+    def BaseIndex(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.IndexRef import IndexRef
@@ -56,10 +107,41 @@ class CrossCcyBasisHelper(object):
             return obj
         return None
 
-    # Foreign leg index.
+    # Forwarding curve of base_index, by id. Required; must name another
+    # curve of pricing.rates.curves (bootstrapped first), never the curve
+    # being bootstrapped: the leg's forwards are projected off this curve
+    # while the curve under construction only discounts.
     # CrossCcyBasisHelper
-    def IndexForeign(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+    def BaseForwardingCurve(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CurveRef import CurveRef
+            obj = CurveRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Discount curve of the base-currency leg, by id. Exactly one of
+    # base_discount_curve / quote_discount_curve is given: the given one is
+    # the collateral currency's discount curve (bootstrapped first), the
+    # absent one is the curve being bootstrapped.
+    # CrossCcyBasisHelper
+    def BaseDiscountCurve(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = CurveRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Forwarding index of the quote-currency leg (IndexDef id). Required; its
+    # IndexDef.currency must equal the spot's quote_currency. IBOR or
+    # overnight (see payment_frequency).
+    # CrossCcyBasisHelper
+    def QuoteIndex(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             obj = IndexRef()
@@ -67,26 +149,102 @@ class CrossCcyBasisHelper(object):
             return obj
         return None
 
+    # Forwarding curve of quote_index, by id. Required; same rules as
+    # base_forwarding_curve. It may be the same curve as the quote leg's
+    # discount curve (a single USD OIS curve both projects and discounts).
     # CrossCcyBasisHelper
-    def Deps(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+    def QuoteForwardingCurve(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.HelperDependencies import HelperDependencies
-            obj = HelperDependencies()
+            obj = CurveRef()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
+    # Discount curve of the quote-currency leg, by id. See
+    # base_discount_curve.
     # CrossCcyBasisHelper
-    def QuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
+    def QuoteDiscountCurve(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
-            return self._tab.String(o + self._tab.Pos)
+            x = self._tab.Indirect(o + self._tab.Pos)
+            obj = CurveRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # true: the basis spread is added to the base-currency leg; false: to
+    # the quote-currency leg. Required.
+    # CrossCcyBasisHelper
+    def SpreadOnBaseLeg(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
+    # Coupon frequency of a compounded overnight leg. Required when
+    # base_index or quote_index is an overnight index (QuantLib builds the
+    # overnight leg as compounded coupons on this schedule); when the other
+    # leg is an IBOR index the value must equal that index's tenor. Must be
+    # absent when both indices are IBOR: each leg then pays at its index
+    # tenor and there is nothing to choose.
+    # CrossCcyBasisHelper
+    def PaymentFrequency(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Payment lag in business days (helper calendar, Following) applied to
+    # every coupon and to the final notional exchange of both legs. Required;
+    # must be >= 0. The pillar date of the helper is the last payment date,
+    # so a non-zero lag moves it.
+    # CrossCcyBasisHelper
+    def PaymentLag(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return None
+
+    # Calendar of the swap schedule (settlement date = valuation date +
+    # spot_days on it, coupon dates, payment lag). Required.
+    # CrossCcyBasisHelper
+    def Calendar(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # Business-day convention of the swap schedule. Required.
+    # CrossCcyBasisHelper
+    def BusinessDayConvention(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(32))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+        return None
+
+    # End-of-month rule of the swap schedule. Required.
+    # CrossCcyBasisHelper
+    def EndOfMonth(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(34))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return None
+
+    # Mark-to-market (resetting) notionals. Required; must be false in this
+    # version: a resetting-notional swap (QuantLib
+    # MtMCrossCurrencyBasisSwapRateHelper) is not supported yet and is
+    # rejected with 400.
+    # CrossCcyBasisHelper
+    def MtmReset(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(36))
+        if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return None
 
 def CrossCcyBasisHelperStart(builder):
-    builder.StartObject(6)
+    builder.StartObject(17)
 
 def Start(builder):
     CrossCcyBasisHelperStart(builder)
@@ -97,35 +255,101 @@ def CrossCcyBasisHelperAddSpread(builder, spread):
 def AddSpread(builder, spread):
     CrossCcyBasisHelperAddSpread(builder, spread)
 
+def CrossCcyBasisHelperAddQuoteId(builder, quoteId):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+
+def AddQuoteId(builder, quoteId):
+    CrossCcyBasisHelperAddQuoteId(builder, quoteId)
+
 def CrossCcyBasisHelperAddTenor(builder, tenor):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
 def AddTenor(builder, tenor):
     CrossCcyBasisHelperAddTenor(builder, tenor)
 
-def CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(indexDomestic), 0)
+def CrossCcyBasisHelperAddFxSpot(builder, fxSpot):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(fxSpot), 0)
 
-def AddIndexDomestic(builder, indexDomestic):
-    CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
+def AddFxSpot(builder, fxSpot):
+    CrossCcyBasisHelperAddFxSpot(builder, fxSpot)
 
-def CrossCcyBasisHelperAddIndexForeign(builder, indexForeign):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(indexForeign), 0)
+def CrossCcyBasisHelperAddBaseIndex(builder, baseIndex):
+    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(baseIndex), 0)
 
-def AddIndexForeign(builder, indexForeign):
-    CrossCcyBasisHelperAddIndexForeign(builder, indexForeign)
+def AddBaseIndex(builder, baseIndex):
+    CrossCcyBasisHelperAddBaseIndex(builder, baseIndex)
 
-def CrossCcyBasisHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+def CrossCcyBasisHelperAddBaseForwardingCurve(builder, baseForwardingCurve):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(baseForwardingCurve), 0)
 
-def AddDeps(builder, deps):
-    CrossCcyBasisHelperAddDeps(builder, deps)
+def AddBaseForwardingCurve(builder, baseForwardingCurve):
+    CrossCcyBasisHelperAddBaseForwardingCurve(builder, baseForwardingCurve)
 
-def CrossCcyBasisHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+def CrossCcyBasisHelperAddBaseDiscountCurve(builder, baseDiscountCurve):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(baseDiscountCurve), 0)
 
-def AddQuoteId(builder, quoteId):
-    CrossCcyBasisHelperAddQuoteId(builder, quoteId)
+def AddBaseDiscountCurve(builder, baseDiscountCurve):
+    CrossCcyBasisHelperAddBaseDiscountCurve(builder, baseDiscountCurve)
+
+def CrossCcyBasisHelperAddQuoteIndex(builder, quoteIndex):
+    builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(quoteIndex), 0)
+
+def AddQuoteIndex(builder, quoteIndex):
+    CrossCcyBasisHelperAddQuoteIndex(builder, quoteIndex)
+
+def CrossCcyBasisHelperAddQuoteForwardingCurve(builder, quoteForwardingCurve):
+    builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(quoteForwardingCurve), 0)
+
+def AddQuoteForwardingCurve(builder, quoteForwardingCurve):
+    CrossCcyBasisHelperAddQuoteForwardingCurve(builder, quoteForwardingCurve)
+
+def CrossCcyBasisHelperAddQuoteDiscountCurve(builder, quoteDiscountCurve):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(quoteDiscountCurve), 0)
+
+def AddQuoteDiscountCurve(builder, quoteDiscountCurve):
+    CrossCcyBasisHelperAddQuoteDiscountCurve(builder, quoteDiscountCurve)
+
+def CrossCcyBasisHelperAddSpreadOnBaseLeg(builder, spreadOnBaseLeg):
+    builder.PrependBoolSlot(10, spreadOnBaseLeg, None)
+
+def AddSpreadOnBaseLeg(builder, spreadOnBaseLeg):
+    CrossCcyBasisHelperAddSpreadOnBaseLeg(builder, spreadOnBaseLeg)
+
+def CrossCcyBasisHelperAddPaymentFrequency(builder, paymentFrequency):
+    builder.PrependInt8Slot(11, paymentFrequency, None)
+
+def AddPaymentFrequency(builder, paymentFrequency):
+    CrossCcyBasisHelperAddPaymentFrequency(builder, paymentFrequency)
+
+def CrossCcyBasisHelperAddPaymentLag(builder, paymentLag):
+    builder.PrependInt32Slot(12, paymentLag, None)
+
+def AddPaymentLag(builder, paymentLag):
+    CrossCcyBasisHelperAddPaymentLag(builder, paymentLag)
+
+def CrossCcyBasisHelperAddCalendar(builder, calendar):
+    builder.PrependInt8Slot(13, calendar, None)
+
+def AddCalendar(builder, calendar):
+    CrossCcyBasisHelperAddCalendar(builder, calendar)
+
+def CrossCcyBasisHelperAddBusinessDayConvention(builder, businessDayConvention):
+    builder.PrependInt8Slot(14, businessDayConvention, None)
+
+def AddBusinessDayConvention(builder, businessDayConvention):
+    CrossCcyBasisHelperAddBusinessDayConvention(builder, businessDayConvention)
+
+def CrossCcyBasisHelperAddEndOfMonth(builder, endOfMonth):
+    builder.PrependBoolSlot(15, endOfMonth, None)
+
+def AddEndOfMonth(builder, endOfMonth):
+    CrossCcyBasisHelperAddEndOfMonth(builder, endOfMonth)
+
+def CrossCcyBasisHelperAddMtmReset(builder, mtmReset):
+    builder.PrependBoolSlot(16, mtmReset, None)
+
+def AddMtmReset(builder, mtmReset):
+    CrossCcyBasisHelperAddMtmReset(builder, mtmReset)
 
 def CrossCcyBasisHelperEnd(builder):
     return builder.EndObject()
@@ -143,11 +367,22 @@ class CrossCcyBasisHelperT(object):
     # CrossCcyBasisHelperT
     def __init__(self):
         self.spread = None  # type: Optional[float]
-        self.tenor = None  # type: Optional[PeriodT]
-        self.indexDomestic = None  # type: Optional[IndexRefT]
-        self.indexForeign = None  # type: Optional[IndexRefT]
-        self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
+        self.tenor = None  # type: Optional[PeriodT]
+        self.fxSpot = None  # type: str
+        self.baseIndex = None  # type: Optional[IndexRefT]
+        self.baseForwardingCurve = None  # type: Optional[CurveRefT]
+        self.baseDiscountCurve = None  # type: Optional[CurveRefT]
+        self.quoteIndex = None  # type: Optional[IndexRefT]
+        self.quoteForwardingCurve = None  # type: Optional[CurveRefT]
+        self.quoteDiscountCurve = None  # type: Optional[CurveRefT]
+        self.spreadOnBaseLeg = None  # type: Optional[bool]
+        self.paymentFrequency = None  # type: Optional[int]
+        self.paymentLag = None  # type: Optional[int]
+        self.calendar = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
+        self.endOfMonth = None  # type: Optional[bool]
+        self.mtmReset = None  # type: Optional[bool]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -171,39 +406,76 @@ class CrossCcyBasisHelperT(object):
         if crossCcyBasisHelper is None:
             return
         self.spread = crossCcyBasisHelper.Spread()
+        self.quoteId = crossCcyBasisHelper.QuoteId()
         if crossCcyBasisHelper.Tenor() is not None:
             self.tenor = PeriodT.InitFromObj(crossCcyBasisHelper.Tenor())
-        if crossCcyBasisHelper.IndexDomestic() is not None:
-            self.indexDomestic = IndexRefT.InitFromObj(crossCcyBasisHelper.IndexDomestic())
-        if crossCcyBasisHelper.IndexForeign() is not None:
-            self.indexForeign = IndexRefT.InitFromObj(crossCcyBasisHelper.IndexForeign())
-        if crossCcyBasisHelper.Deps() is not None:
-            self.deps = HelperDependenciesT.InitFromObj(crossCcyBasisHelper.Deps())
-        self.quoteId = crossCcyBasisHelper.QuoteId()
+        self.fxSpot = crossCcyBasisHelper.FxSpot()
+        if crossCcyBasisHelper.BaseIndex() is not None:
+            self.baseIndex = IndexRefT.InitFromObj(crossCcyBasisHelper.BaseIndex())
+        if crossCcyBasisHelper.BaseForwardingCurve() is not None:
+            self.baseForwardingCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.BaseForwardingCurve())
+        if crossCcyBasisHelper.BaseDiscountCurve() is not None:
+            self.baseDiscountCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.BaseDiscountCurve())
+        if crossCcyBasisHelper.QuoteIndex() is not None:
+            self.quoteIndex = IndexRefT.InitFromObj(crossCcyBasisHelper.QuoteIndex())
+        if crossCcyBasisHelper.QuoteForwardingCurve() is not None:
+            self.quoteForwardingCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.QuoteForwardingCurve())
+        if crossCcyBasisHelper.QuoteDiscountCurve() is not None:
+            self.quoteDiscountCurve = CurveRefT.InitFromObj(crossCcyBasisHelper.QuoteDiscountCurve())
+        self.spreadOnBaseLeg = crossCcyBasisHelper.SpreadOnBaseLeg()
+        self.paymentFrequency = crossCcyBasisHelper.PaymentFrequency()
+        self.paymentLag = crossCcyBasisHelper.PaymentLag()
+        self.calendar = crossCcyBasisHelper.Calendar()
+        self.businessDayConvention = crossCcyBasisHelper.BusinessDayConvention()
+        self.endOfMonth = crossCcyBasisHelper.EndOfMonth()
+        self.mtmReset = crossCcyBasisHelper.MtmReset()
 
     # CrossCcyBasisHelperT
     def Pack(self, builder):
-        if self.tenor is not None:
-            tenor = self.tenor.Pack(builder)
-        if self.indexDomestic is not None:
-            indexDomestic = self.indexDomestic.Pack(builder)
-        if self.indexForeign is not None:
-            indexForeign = self.indexForeign.Pack(builder)
-        if self.deps is not None:
-            deps = self.deps.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
+        if self.fxSpot is not None:
+            fxSpot = builder.CreateString(self.fxSpot)
+        if self.baseIndex is not None:
+            baseIndex = self.baseIndex.Pack(builder)
+        if self.baseForwardingCurve is not None:
+            baseForwardingCurve = self.baseForwardingCurve.Pack(builder)
+        if self.baseDiscountCurve is not None:
+            baseDiscountCurve = self.baseDiscountCurve.Pack(builder)
+        if self.quoteIndex is not None:
+            quoteIndex = self.quoteIndex.Pack(builder)
+        if self.quoteForwardingCurve is not None:
+            quoteForwardingCurve = self.quoteForwardingCurve.Pack(builder)
+        if self.quoteDiscountCurve is not None:
+            quoteDiscountCurve = self.quoteDiscountCurve.Pack(builder)
         CrossCcyBasisHelperStart(builder)
         CrossCcyBasisHelperAddSpread(builder, self.spread)
-        if self.tenor is not None:
-            CrossCcyBasisHelperAddTenor(builder, tenor)
-        if self.indexDomestic is not None:
-            CrossCcyBasisHelperAddIndexDomestic(builder, indexDomestic)
-        if self.indexForeign is not None:
-            CrossCcyBasisHelperAddIndexForeign(builder, indexForeign)
-        if self.deps is not None:
-            CrossCcyBasisHelperAddDeps(builder, deps)
         if self.quoteId is not None:
             CrossCcyBasisHelperAddQuoteId(builder, quoteId)
+        if self.tenor is not None:
+            CrossCcyBasisHelperAddTenor(builder, tenor)
+        if self.fxSpot is not None:
+            CrossCcyBasisHelperAddFxSpot(builder, fxSpot)
+        if self.baseIndex is not None:
+            CrossCcyBasisHelperAddBaseIndex(builder, baseIndex)
+        if self.baseForwardingCurve is not None:
+            CrossCcyBasisHelperAddBaseForwardingCurve(builder, baseForwardingCurve)
+        if self.baseDiscountCurve is not None:
+            CrossCcyBasisHelperAddBaseDiscountCurve(builder, baseDiscountCurve)
+        if self.quoteIndex is not None:
+            CrossCcyBasisHelperAddQuoteIndex(builder, quoteIndex)
+        if self.quoteForwardingCurve is not None:
+            CrossCcyBasisHelperAddQuoteForwardingCurve(builder, quoteForwardingCurve)
+        if self.quoteDiscountCurve is not None:
+            CrossCcyBasisHelperAddQuoteDiscountCurve(builder, quoteDiscountCurve)
+        CrossCcyBasisHelperAddSpreadOnBaseLeg(builder, self.spreadOnBaseLeg)
+        CrossCcyBasisHelperAddPaymentFrequency(builder, self.paymentFrequency)
+        CrossCcyBasisHelperAddPaymentLag(builder, self.paymentLag)
+        CrossCcyBasisHelperAddCalendar(builder, self.calendar)
+        CrossCcyBasisHelperAddBusinessDayConvention(builder, self.businessDayConvention)
+        CrossCcyBasisHelperAddEndOfMonth(builder, self.endOfMonth)
+        CrossCcyBasisHelperAddMtmReset(builder, self.mtmReset)
         crossCcyBasisHelper = CrossCcyBasisHelperEnd(builder)
         return crossCcyBasisHelper

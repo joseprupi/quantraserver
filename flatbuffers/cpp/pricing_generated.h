@@ -18,6 +18,7 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 #include "credit_curve_generated.h"
 #include "enums_generated.h"
 #include "equity_option_generated.h"
+#include "fx_generated.h"
 #include "index_generated.h"
 #include "inflation_generated.h"
 #include "model_generated.h"
@@ -596,6 +597,7 @@ struct PricingT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::InflationMarketDataT> inflation{};
   std::unique_ptr<quantra::PricingOptionsT> options{};
   std::vector<std::unique_ptr<quantra::CalendarOverrideT>> calendar_overrides{};
+  std::unique_ptr<quantra::FxMarketDataT> fx{};
   PricingT() = default;
   PricingT(const PricingT &o);
   PricingT(PricingT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -616,7 +618,8 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_EQUITY = 16,
     VT_INFLATION = 18,
     VT_OPTIONS = 20,
-    VT_CALENDAR_OVERRIDES = 22
+    VT_CALENDAR_OVERRIDES = 22,
+    VT_FX = 24
   };
   /// Valuation date (YYYY-MM-DD). Used by: ALL.
   const ::flatbuffers::String *as_of_date() const {
@@ -653,6 +656,11 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>> *>(VT_CALENDAR_OVERRIDES);
   }
+  /// FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,
+  /// CrossCcyBasisHelper) and FX products. Optional.
+  const quantra::FxMarketData *fx() const {
+    return GetPointer<const quantra::FxMarketData *>(VT_FX);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_AS_OF_DATE) &&
@@ -677,6 +685,8 @@ struct Pricing FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_CALENDAR_OVERRIDES) &&
            verifier.VerifyVector(calendar_overrides()) &&
            verifier.VerifyVectorOfTables(calendar_overrides()) &&
+           VerifyOffset(verifier, VT_FX) &&
+           verifier.VerifyTable(fx()) &&
            verifier.EndTable();
   }
   PricingT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -718,6 +728,9 @@ struct PricingBuilder {
   void add_calendar_overrides(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides) {
     fbb_.AddOffset(Pricing::VT_CALENDAR_OVERRIDES, calendar_overrides);
   }
+  void add_fx(::flatbuffers::Offset<quantra::FxMarketData> fx) {
+    fbb_.AddOffset(Pricing::VT_FX, fx);
+  }
   explicit PricingBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -741,8 +754,10 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(
     ::flatbuffers::Offset<quantra::EquityMarketData> equity = 0,
     ::flatbuffers::Offset<quantra::InflationMarketData> inflation = 0,
     ::flatbuffers::Offset<quantra::PricingOptions> options = 0,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<quantra::CalendarOverride>>> calendar_overrides = 0,
+    ::flatbuffers::Offset<quantra::FxMarketData> fx = 0) {
   PricingBuilder builder_(_fbb);
+  builder_.add_fx(fx);
   builder_.add_calendar_overrides(calendar_overrides);
   builder_.add_options(options);
   builder_.add_inflation(inflation);
@@ -767,7 +782,8 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
     ::flatbuffers::Offset<quantra::EquityMarketData> equity = 0,
     ::flatbuffers::Offset<quantra::InflationMarketData> inflation = 0,
     ::flatbuffers::Offset<quantra::PricingOptions> options = 0,
-    const std::vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides = nullptr) {
+    const std::vector<::flatbuffers::Offset<quantra::CalendarOverride>> *calendar_overrides = nullptr,
+    ::flatbuffers::Offset<quantra::FxMarketData> fx = 0) {
   auto as_of_date__ = as_of_date ? _fbb.CreateString(as_of_date) : 0;
   auto settlement_date__ = settlement_date ? _fbb.CreateString(settlement_date) : 0;
   auto quotes__ = quotes ? _fbb.CreateVector<::flatbuffers::Offset<quantra::QuoteSpec>>(*quotes) : 0;
@@ -783,7 +799,8 @@ inline ::flatbuffers::Offset<Pricing> CreatePricingDirect(
       equity,
       inflation,
       options,
-      calendar_overrides__);
+      calendar_overrides__,
+      fx);
 }
 
 ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBuilder &_fbb, const PricingT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1041,7 +1058,8 @@ inline PricingT::PricingT(const PricingT &o)
         volatility((o.volatility) ? new quantra::VolatilityMarketDataT(*o.volatility) : nullptr),
         equity((o.equity) ? new quantra::EquityMarketDataT(*o.equity) : nullptr),
         inflation((o.inflation) ? new quantra::InflationMarketDataT(*o.inflation) : nullptr),
-        options((o.options) ? new quantra::PricingOptionsT(*o.options) : nullptr) {
+        options((o.options) ? new quantra::PricingOptionsT(*o.options) : nullptr),
+        fx((o.fx) ? new quantra::FxMarketDataT(*o.fx) : nullptr) {
   quotes.reserve(o.quotes.size());
   for (const auto &quotes_ : o.quotes) { quotes.emplace_back((quotes_) ? new quantra::QuoteSpecT(*quotes_) : nullptr); }
   calendar_overrides.reserve(o.calendar_overrides.size());
@@ -1059,6 +1077,7 @@ inline PricingT &PricingT::operator=(PricingT o) FLATBUFFERS_NOEXCEPT {
   std::swap(inflation, o.inflation);
   std::swap(options, o.options);
   std::swap(calendar_overrides, o.calendar_overrides);
+  std::swap(fx, o.fx);
   return *this;
 }
 
@@ -1081,6 +1100,7 @@ inline void Pricing::UnPackTo(PricingT *_o, const ::flatbuffers::resolver_functi
   { auto _e = inflation(); if (_e) { if(_o->inflation) { _e->UnPackTo(_o->inflation.get(), _resolver); } else { _o->inflation = std::unique_ptr<quantra::InflationMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->inflation) { _o->inflation.reset(); } }
   { auto _e = options(); if (_e) { if(_o->options) { _e->UnPackTo(_o->options.get(), _resolver); } else { _o->options = std::unique_ptr<quantra::PricingOptionsT>(_e->UnPack(_resolver)); } } else if (_o->options) { _o->options.reset(); } }
   { auto _e = calendar_overrides(); if (_e) { _o->calendar_overrides.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->calendar_overrides[_i]) { _e->Get(_i)->UnPackTo(_o->calendar_overrides[_i].get(), _resolver); } else { _o->calendar_overrides[_i] = std::unique_ptr<quantra::CalendarOverrideT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->calendar_overrides.resize(0); } }
+  { auto _e = fx(); if (_e) { if(_o->fx) { _e->UnPackTo(_o->fx.get(), _resolver); } else { _o->fx = std::unique_ptr<quantra::FxMarketDataT>(_e->UnPack(_resolver)); } } else if (_o->fx) { _o->fx.reset(); } }
 }
 
 inline ::flatbuffers::Offset<Pricing> Pricing::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const PricingT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1101,6 +1121,7 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
   auto _inflation = _o->inflation ? CreateInflationMarketData(_fbb, _o->inflation.get(), _rehasher) : 0;
   auto _options = _o->options ? CreatePricingOptions(_fbb, _o->options.get(), _rehasher) : 0;
   auto _calendar_overrides = _o->calendar_overrides.size() ? _fbb.CreateVector<::flatbuffers::Offset<quantra::CalendarOverride>> (_o->calendar_overrides.size(), [](size_t i, _VectorArgs *__va) { return CreateCalendarOverride(*__va->__fbb, __va->__o->calendar_overrides[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _fx = _o->fx ? CreateFxMarketData(_fbb, _o->fx.get(), _rehasher) : 0;
   return quantra::CreatePricing(
       _fbb,
       _as_of_date,
@@ -1112,7 +1133,8 @@ inline ::flatbuffers::Offset<Pricing> CreatePricing(::flatbuffers::FlatBufferBui
       _equity,
       _inflation,
       _options,
-      _calendar_overrides);
+      _calendar_overrides,
+      _fx);
 }
 
 }  // namespace quantra

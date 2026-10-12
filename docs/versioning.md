@@ -26,6 +26,107 @@ first release that promises wire stability.
 3. Create tag `vX.Y.Z`
 4. Publish release notes
 
+## Version 0.9.0 (October 2026) — multi-currency market, FX forwards and cross-currency swaps
+
+`v0.9.0` is a backward-compatible MINOR release: every request that worked on
+0.8.x works unchanged and returns the same numbers. It adds FX market data,
+two FX-implied curve helpers and two products.
+
+### Added
+
+- **FX spot market data.** `pricing.fx.spots[]` (`FxSpotSpec`): a currency
+  pair as two ISO codes (`base_currency`, `quote_currency`), the spot `rate`
+  (or a `quote_id` naming a quote with the new `quote_type` `Fx`), the spot lag
+  (`spot_days`), the settlement calendars (joined) and a business-day
+  convention. The rate is the market spot for delivery on the spot date; where
+  the engine needs an as-of rate it uses `S · DF_quote(spot) / DF_base(spot)`
+  from the two discount curves. Spot lag and calendars are per-pair facts the
+  request states; the engine keeps no convention table.
+- **FX swap helper** (`FxSwapHelper`, QuantLib `FxSwapRateHelper`): bootstraps
+  the discount curve of the non-collateral currency of a pair from FX forward
+  points, given the spot and the collateral currency's discount curve.
+- **Cross-currency basis helper** (`CrossCcyBasisHelper`, QuantLib
+  `ConstNotionalCrossCurrencyBasisSwapRateHelper`): extends the same curve
+  from constant-notional basis swaps between two floating legs (IBOR or
+  overnight), with explicit forwarding and discount curves per leg.
+  Together the two helpers build the classic collateral-adjusted curve
+  (FX swaps to 1Y, basis swaps beyond); both take part in the curve
+  dependency ordering and in the curve cache key.
+- **FX forward** (`POST /price-fx-forward`): NPV in a chosen reporting
+  currency (base or quote), fair forward rate, forward points, per-currency
+  leg PVs, spot and adjusted maturity dates. Spot-date and maturity rules are
+  QuantLib's FX-swap-helper rules, so a forward struck on an FX swap pillar
+  reprices spot + points.
+- **Cross-currency swap** (`POST /price-cross-currency-swap`): two legs in
+  two currencies, each discounted on its own curve, with explicit
+  `initial_exchange` / `final_exchange` flags, converted to the reporting
+  currency at the as-of rate. Returns the total NPV, each leg's NPV in its
+  own currency and in the reporting currency (`legs[]`, signed from the
+  reported party's view), `fair_rate` (exactly one fixed leg) or
+  `fair_spread` (no fixed leg), the spot used, the as-of rate and, with
+  `include_flows`, each leg's flows tagged `Coupon` or `NotionalExchange`
+  (new `SwapLegFlow.kind`, absent on the other swap endpoints).
+- **`SwapLeg`, the shared swap-leg table** (`swap_leg.fbs`): `pay_receive`
+  (new `PayReceive` enum, per leg, replacing a swap-level side), `currency`,
+  `coupons` (union `SwapCoupons` of `FixedCoupons`, `IborCoupons`,
+  `OvernightCoupons`, `CmsCoupons`; written in JSON as `coupons_type` +
+  `coupons`), `discounting_curve`, `forwarding_curve`, `initial_exchange`,
+  `final_exchange`; `SwapLegResult` (`npv`, `npv_reporting`, `flows`). The
+  cross-currency swap is its first user; from 0.10.0 the vanilla, OIS and
+  basis swaps keep their endpoints and take `SwapLeg` legs too. An
+  `OvernightCoupons` leg is built by the same code as `price-ois-swap`'s
+  overnight leg; `IborCoupons` on an overnight index (and the reverse) is a
+  `400` naming the table to use; `CmsCoupons` is a `400` on the
+  cross-currency swap in this version.
+- `FxDirection`, `SwapFlowKind` and `PayReceive` enums; `fx_forward.fbs`,
+  `swap_leg.fbs`, `cross_currency_swap.fbs` and their request/response
+  schemas; Python client `price_fx_forwards` / `price_cross_currency_swaps`
+  (exports `SwapLegT`, `SwapCoupons`, `PayReceive`, `OvernightCouponsT`,
+  `RateAveragingType`); OpenAPI "FX" tag.
+
+### Changed
+
+- `FxSwapHelper` and `CrossCcyBasisHelper` tables are redefined. Both were
+  schema-only and returned `501` with any payload, so no working request is
+  affected. `HelperDependencies.projection_curve_2` and
+  `HelperDependencies.fx_spot_quote_id`, which no helper ever read, are
+  removed (last two slots; earlier fields keep their positions).
+- **Coupon tables renamed** (generated class names only; every field name,
+  the JSON and the binary wire of the existing endpoints are unchanged):
+  `SwapFixedLeg` -> `FixedCoupons`, `SwapFloatingLeg` -> `IborCoupons`,
+  `OisFloatingLeg` -> `OvernightCoupons`, `SwapCmsLeg` -> `CmsCoupons`. C++
+  and Python object-API users rename the types (`FixedCouponsT`,
+  `IborCouponsBuilder`, ...); JSON users change nothing. Error messages of
+  the existing endpoints keep their wording.
+- The vanilla, OIS, basis and cross-currency swap evaluators share one
+  swap-leg builder (the OIS legs are now built through it and priced as a
+  generic `Swap`, exactly QuantLib's `OvernightIndexedSwap` chain). Results
+  of the existing endpoints are unchanged (pinned by the parity suites and
+  a byte-for-byte comparison of every catalog case); a basis-swap IBOR leg
+  marked `in_arrears` now carries the explicit zero-volatility coupon pricer,
+  which is a no-op for in-advance coupons.
+
+### Rejections added (all `400` naming the field, `404` for unknown ids)
+
+See `docs/http-api.md` sections "FX spot market data", "FX swap helper",
+"Cross-currency basis helper", "FX forward" and "Cross-currency swap" for the
+complete lists: malformed pairs and currencies, `rate`/`quote_id` or
+`spread`/`quote_id` both or neither, non-`Fx` quote behind a spot, missing
+spot lag / calendars / convention, collateral currency outside the pair,
+both or neither discount curve on a basis helper, mark-to-market reset
+requested, a forward or swap whose currencies do not match the spot (no
+implicit pair inversion), a reporting currency outside the pair, two legs in
+one currency, both legs on the same side, a coupon table that does not match
+its index kind, `CmsCoupons`, per-period notionals.
+
+### Still not supported (planned)
+
+Mark-to-market resetting cross-currency swaps, FX sensitivities (spot delta,
+curve rebump) for the two products, FX options, reporting in a third
+currency, `TenorBasisSwapHelper` (still `501`).
+
+---
+
 ## Version 0.8.2 (October 2026) — rebump greeks bump curves once
 
 `v0.8.2` is a patch release: no schema change, no change to any plain pricing

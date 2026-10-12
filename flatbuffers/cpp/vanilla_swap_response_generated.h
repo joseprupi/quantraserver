@@ -49,6 +49,7 @@ struct SwapLegFlowT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt;
   double spread = 0.0;
   double rate = 0.0;
+  ::flatbuffers::Optional<quantra::enums::SwapFlowKind> kind = ::flatbuffers::nullopt;
 };
 
 /// Cashflow for a swap leg.
@@ -68,7 +69,8 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     VT_INDEX_FIXING = 22,
     VT_CMS_SWAP_RATE = 24,
     VT_SPREAD = 26,
-    VT_RATE = 28
+    VT_RATE = 28,
+    VT_KIND = 30
   };
   const ::flatbuffers::String *payment_date() const {
     return GetPointer<const ::flatbuffers::String *>(VT_PAYMENT_DATE);
@@ -115,6 +117,14 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
+  /// Kind of flow. Set on every flow of a `SwapLeg` result
+  /// (`SwapLegResult.flows`), whose lists mix coupons and notional exchanges
+  /// (a NotionalExchange flow has `payment_date`, `amount`, `discount`,
+  /// `present_value` and `kind` only). Absent on the other swap endpoints,
+  /// whose flows are all coupons.
+  ::flatbuffers::Optional<quantra::enums::SwapFlowKind> kind() const {
+    return GetOptional<int8_t, quantra::enums::SwapFlowKind>(VT_KIND);
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_PAYMENT_DATE) &&
@@ -134,6 +144,7 @@ struct SwapLegFlow FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_CMS_SWAP_RATE, 8) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
            VerifyField<double>(verifier, VT_RATE, 8) &&
+           VerifyField<int8_t>(verifier, VT_KIND, 1) &&
            verifier.EndTable();
   }
   SwapLegFlowT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -184,6 +195,9 @@ struct SwapLegFlowBuilder {
   void add_rate(double rate) {
     fbb_.AddElement<double>(SwapLegFlow::VT_RATE, rate, 0.0);
   }
+  void add_kind(quantra::enums::SwapFlowKind kind) {
+    fbb_.AddElement<int8_t>(SwapLegFlow::VT_KIND, static_cast<int8_t>(kind));
+  }
   explicit SwapLegFlowBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -209,7 +223,8 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(
     double index_fixing = 0.0,
     ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt,
     double spread = 0.0,
-    double rate = 0.0) {
+    double rate = 0.0,
+    ::flatbuffers::Optional<quantra::enums::SwapFlowKind> kind = ::flatbuffers::nullopt) {
   SwapLegFlowBuilder builder_(_fbb);
   builder_.add_rate(rate);
   builder_.add_spread(spread);
@@ -224,6 +239,7 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(
   builder_.add_accrual_end_date(accrual_end_date);
   builder_.add_accrual_start_date(accrual_start_date);
   builder_.add_payment_date(payment_date);
+  if(kind) { builder_.add_kind(*kind); }
   return builder_.Finish();
 }
 
@@ -241,7 +257,8 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlowDirect(
     double index_fixing = 0.0,
     ::flatbuffers::Optional<double> cms_swap_rate = ::flatbuffers::nullopt,
     double spread = 0.0,
-    double rate = 0.0) {
+    double rate = 0.0,
+    ::flatbuffers::Optional<quantra::enums::SwapFlowKind> kind = ::flatbuffers::nullopt) {
   auto payment_date__ = payment_date ? _fbb.CreateString(payment_date) : 0;
   auto accrual_start_date__ = accrual_start_date ? _fbb.CreateString(accrual_start_date) : 0;
   auto accrual_end_date__ = accrual_end_date ? _fbb.CreateString(accrual_end_date) : 0;
@@ -260,7 +277,8 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlowDirect(
       index_fixing,
       cms_swap_rate,
       spread,
-      rate);
+      rate,
+      kind);
 }
 
 ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(::flatbuffers::FlatBufferBuilder &_fbb, const SwapLegFlowT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -724,6 +742,7 @@ inline void SwapLegFlow::UnPackTo(SwapLegFlowT *_o, const ::flatbuffers::resolve
   { auto _e = cms_swap_rate(); _o->cms_swap_rate = _e; }
   { auto _e = spread(); _o->spread = _e; }
   { auto _e = rate(); _o->rate = _e; }
+  { auto _e = kind(); _o->kind = _e; }
 }
 
 inline ::flatbuffers::Offset<SwapLegFlow> SwapLegFlow::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapLegFlowT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -747,6 +766,7 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(::flatbuffers::FlatB
   auto _cms_swap_rate = _o->cms_swap_rate;
   auto _spread = _o->spread;
   auto _rate = _o->rate;
+  auto _kind = _o->kind;
   return quantra::CreateSwapLegFlow(
       _fbb,
       _payment_date,
@@ -761,7 +781,8 @@ inline ::flatbuffers::Offset<SwapLegFlow> CreateSwapLegFlow(::flatbuffers::FlatB
       _index_fixing,
       _cms_swap_rate,
       _spread,
-      _rate);
+      _rate,
+      _kind);
 }
 
 inline SwapLegResponseT::SwapLegResponseT(const SwapLegResponseT &o)

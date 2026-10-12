@@ -1,0 +1,35 @@
+include "common.fbs";
+include "pricing.fbs";
+include "cross_currency_swap.fbs";
+
+namespace quantra;
+
+/// One cross-currency swap together with the FX spot that converts between
+/// its two currencies and the currency its total NPV is reported in. The
+/// legs name their own discounting and forwarding curves (`SwapLeg`); every
+/// reference is by id into `pricing`.
+table PriceCrossCurrencySwap {
+    /// The swap. Required.
+    cross_currency_swap:CrossCurrencySwap (required);
+    /// Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base and quote
+    /// currencies must be the two leg currencies, in either order (either leg
+    /// may be the base-currency leg; the pair is never inverted). The spot
+    /// and the two legs' discounting curves give the as-of exchange rate
+    /// X = S * DF_quote(t_s) / DF_base(t_s). Required.
+    fx_spot:string (required);
+    /// Currency of the reported `npv`: `leg1.currency` or `leg2.currency`
+    /// (400 for any other value; reporting in a third currency is not
+    /// supported). Required.
+    reporting_currency:string (required);
+}
+
+/// Request to price one or more cross-currency swaps against one market.
+table PriceCrossCurrencySwapRequest {
+    pricing:Pricing;
+    swaps:[PriceCrossCurrencySwap];
+    /// When true every response row lists each leg's future flows (coupons
+    /// and notional exchanges) in payment order.
+    include_flows:bool = false;
+}
+
+root_type PriceCrossCurrencySwapRequest;

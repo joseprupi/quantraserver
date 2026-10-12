@@ -81,21 +81,89 @@ void CurveKeyBuilder::writeDeps(CanonicalBuffer& buf, const quantra::HelperDepen
     } else {
         buf.writeU8(0);
     }
-
-    if (deps->projection_curve_2() && deps->projection_curve_2()->id()) {
-        buf.writeU8(1);
-        buf.writeFbString(deps->projection_curve_2()->id());
-    } else {
-        buf.writeU8(0);
-    }
-
-    buf.writeFbString(deps->fx_spot_quote_id());
 }
 
 void CurveKeyBuilder::writeIndexRef(CanonicalBuffer& buf, const quantra::IndexRef* ref) {
     if (ref && ref->id()) {
         buf.writeU8(1);
         buf.writeFbString(ref->id());
+    } else {
+        buf.writeU8(0);
+    }
+}
+
+void CurveKeyBuilder::writeCurveRef(CanonicalBuffer& buf, const quantra::CurveRef* ref) {
+    // The referenced curve's own content enters the key through the DEP
+    // section (its key, chained by the bootstrapper); the id here pins WHICH
+    // dependency plays this role on the helper.
+    if (ref && ref->id()) {
+        buf.writeU8(1);
+        buf.writeFbString(ref->id());
+    } else {
+        buf.writeU8(0);
+    }
+}
+
+void CurveKeyBuilder::writeFxSpotRef(
+    CanonicalBuffer& buf, const flatbuffers::String* spotId, const KeyContext& ctx) {
+    if (!spotId || spotId->size() == 0) {
+        buf.writeU8(0);
+        return;
+    }
+    const std::string id = spotId->str();
+    auto it = ctx.fxSpots.find(id);
+    if (it == ctx.fxSpots.end()) {
+        // The parser rejects exactly this (unknown fx_spot -> 404). Keying the
+        // helper without the spot would let a warm cache answer a request the
+        // parser errors on; fail closed, the bootstrapper skips caching.
+        QUANTRA_ERROR(
+            "curve cache key: fx spot id '" + id +
+            "' has no definition — curve must not be cached");
+    }
+    const auto* spot = it->second;
+    buf.writeU8(1);
+    buf.writeFbString(spot->id());
+    buf.writeFbString(spot->base_currency());
+    buf.writeFbString(spot->quote_currency());
+    // Rate: the resolved value (inline or the Fx quote) plus presence bytes so
+    // the two spellings of the same market key identically only when the
+    // number is the same, and a quote_id that does not resolve fails closed.
+    double rate = spot->rate().value_or(0.0);
+    const bool hasQuote = spot->quote_id() && spot->quote_id()->size() > 0;
+    if (hasQuote) {
+        auto q = ctx.fxQuoteValues.find(spot->quote_id()->str());
+        if (q == ctx.fxQuoteValues.end()) {
+            QUANTRA_ERROR(
+                "curve cache key: fx spot '" + id + "' quote id '" + spot->quote_id()->str() +
+                "' does not resolve to an Fx quote — curve must not be cached");
+        }
+        rate = q->second;
+    }
+    buf.writeDouble(rate);
+    buf.writeU8(spot->rate().has_value() ? 1 : 0);
+    buf.writeU8(hasQuote ? 1 : 0);
+    if (spot->spot_days().has_value()) {
+        buf.writeU8(1);
+        buf.writeI32(spot->spot_days().value());
+    } else {
+        buf.writeU8(0);
+    }
+    if (spot->settlement_calendars()) {
+        // Order-independent: the joint calendar is the same whichever order
+        // the calendars are listed in.
+        std::vector<int8_t> cals(
+            spot->settlement_calendars()->begin(), spot->settlement_calendars()->end());
+        std::sort(cals.begin(), cals.end());
+        buf.writeU32(static_cast<uint32_t>(cals.size()));
+        for (const int8_t c : cals) {
+            buf.writeU8(static_cast<uint8_t>(c));
+        }
+    } else {
+        buf.writeU32(0);
+    }
+    if (spot->business_day_convention().has_value()) {
+        buf.writeU8(1);
+        buf.writeU8(static_cast<uint8_t>(spot->business_day_convention().value()));
     } else {
         buf.writeU8(0);
     }
@@ -398,10 +466,12 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
             buf.writeDouble(resolveQuoteValue(p->fx_points().value_or(0.0), p->quote_id(), ctx));
             buf.writeU8(p->fx_points().has_value() ? 1 : 0);
             writeTenor(p->tenor());
-            writeOptInt(p->spot_days());
-            writeOptEnum(p->calendar_domestic());
-            writeOptEnum(p->calendar_foreign());
-            writeDeps(buf, p->deps());
+            // The spot's full content (rate, pair, lag, calendars, convention)
+            // is part of the helper: a spot change must miss.
+            writeFxSpotRef(buf, p->fx_spot(), ctx);
+            writeOptBool(p->end_of_month());
+            buf.writeFbString(p->collateral_currency());
+            writeCurveRef(buf, p->collateral_curve());
             break;
         }
 
@@ -410,9 +480,29 @@ std::vector<uint8_t> CurveKeyBuilder::serializePoint(
             buf.writeDouble(resolveQuoteValue(p->spread().value_or(0.0), p->quote_id(), ctx));
             buf.writeU8(p->spread().has_value() ? 1 : 0);
             writeTenor(p->tenor());
-            writeIndexRef(buf, p->index_domestic());
-            writeIndexRef(buf, p->index_foreign());
-            writeDeps(buf, p->deps());
+            // The spot's full content is keyed although a constant-notional
+            // bootstrap never reads its rate: the pair it names drives the
+            // index-currency validation and its lag is the settlement lag, so
+            // a different spot is a different helper. (A spot-rate-only change
+            // therefore changes the key while the curve stays the same; that
+            // is a harmless miss, never a wrong hit.)
+            writeFxSpotRef(buf, p->fx_spot(), ctx);
+            // Index definitions enter through the IDX section; the curve refs
+            // pin which dependency plays which role (their content comes
+            // through DEP).
+            writeIndexRef(buf, p->base_index());
+            writeCurveRef(buf, p->base_forwarding_curve());
+            writeCurveRef(buf, p->base_discount_curve());
+            writeIndexRef(buf, p->quote_index());
+            writeCurveRef(buf, p->quote_forwarding_curve());
+            writeCurveRef(buf, p->quote_discount_curve());
+            writeOptBool(p->spread_on_base_leg());
+            writeOptEnum(p->payment_frequency());
+            writeOptInt(p->payment_lag());
+            writeOptEnum(p->calendar());
+            writeOptEnum(p->business_day_convention());
+            writeOptBool(p->end_of_month());
+            writeOptBool(p->mtm_reset());
             break;
         }
 
@@ -469,10 +559,10 @@ void CurveKeyBuilder::writeReferencedIndices(
                 referencedIds.insert(p->index_long()->id()->str());
         } else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto p = pw->point_as_CrossCcyBasisHelper();
-            if (p->index_domestic() && p->index_domestic()->id())
-                referencedIds.insert(p->index_domestic()->id()->str());
-            if (p->index_foreign() && p->index_foreign()->id())
-                referencedIds.insert(p->index_foreign()->id()->str());
+            if (p->base_index() && p->base_index()->id())
+                referencedIds.insert(p->base_index()->id()->str());
+            if (p->quote_index() && p->quote_index()->id())
+                referencedIds.insert(p->quote_index()->id()->str());
         }
     }
 

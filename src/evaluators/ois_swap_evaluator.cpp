@@ -2,6 +2,7 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "swap_leg_builder.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/coupon.hpp>
@@ -9,8 +10,8 @@
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/swap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
-#include <ql/utilities/null.hpp>
 
 #include <iostream>
 #include <limits>
@@ -86,43 +87,60 @@ OisSwapPerSwap priceTrade(
         QuantLib::Handle<QuantLib::YieldTermStructure>(fwdHandle.currentLink()));
 
     if (trade.fixed.notional != trade.overnight.notional) {
-        // Mismatched notionals are not an error: the fixed leg's notional wins.
+        // Mismatched notionals are not an error: the fixed leg's notional wins
+        // on both legs (QuantLib::OvernightIndexedSwap takes one nominal).
         std::cout << "Warning: Fixed and overnight notionals differ. Using fixed notional."
                   << std::endl;
     }
 
-    // 0 = no lookback: QuantLib's off-state is Null<Natural>, not a zero-day
-    // lookback (a literal 0 would force the fixing delay to 0 even when the
-    // index carries a non-zero intrinsic fixing delay).
-    QuantLib::Natural lookbackDays =
-        trade.overnight.lookbackDays <= 0
-            ? QuantLib::Null<QuantLib::Natural>()
-            : static_cast<QuantLib::Natural>(trade.overnight.lookbackDays);
-    QuantLib::Natural lockoutDays = static_cast<QuantLib::Natural>(trade.overnight.lockoutDays);
+    // Both legs come from the shared builder (swap_leg_builder.h), with the
+    // chains QuantLib::OvernightIndexedSwap uses: the fixed leg pays with the
+    // overnight leg's payment lag / calendar / convention, the overnight leg
+    // carries the averaging, lookback, lockout and observation-shift
+    // conventions. `price-swap` builds an OIS leg through the same function,
+    // which is what makes the two endpoints agree bit-for-bit.
+    QuantLib::Leg fixedLeg = BuildFixedRateLeg(
+        FixedRateLegSpec{
+            trade.fixed.schedule, std::vector<double>{trade.fixed.notional}, trade.fixed.rate,
+            trade.fixed.dayCounter, trade.overnight.paymentConvention,
+            trade.overnight.paymentCalendar, trade.overnight.paymentLag});
+    QuantLib::Leg overnightLeg = BuildOvernightLeg(
+        OvernightLegSpec{
+            trade.overnight.schedule, std::vector<double>{trade.fixed.notional},
+            trade.overnight.spread, trade.overnight.paymentConvention,
+            trade.overnight.paymentCalendar, trade.overnight.paymentLag,
+            trade.overnight.averagingMethod, trade.overnight.lookbackDays,
+            trade.overnight.lockoutDays, trade.overnight.applyObservationShift,
+            trade.overnight.telescopicValueDates},
+        overnightIndex);
 
-    auto swap = std::make_shared<QuantLib::OvernightIndexedSwap>(
-        trade.swapType, trade.fixed.notional, trade.fixed.schedule, trade.fixed.rate,
-        trade.fixed.dayCounter, trade.overnight.schedule, overnightIndex, trade.overnight.spread,
-        trade.overnight.paymentLag, trade.overnight.paymentConvention,
-        trade.overnight.paymentCalendar, trade.overnight.telescopicValueDates,
-        trade.overnight.averagingMethod, lookbackDays, lockoutDays,
-        trade.overnight.applyObservationShift);
+    // Payer = pays the fixed leg. Priced as a generic QuantLib::Swap on the
+    // DiscountingSwapEngine, exactly as OvernightIndexedSwap (a Swap) is.
+    const bool payerFixed = (trade.swapType == QuantLib::OvernightIndexedSwap::Payer);
+    std::vector<QuantLib::Leg> legs{fixedLeg, overnightLeg};
+    std::vector<bool> payer{payerFixed, !payerFixed};
+    auto swap = std::make_shared<QuantLib::Swap>(legs, payer);
     swap->setPricingEngine(std::make_shared<QuantLib::DiscountingSwapEngine>(discHandle));
 
     OisSwapPerSwap out;
     out.npv = swap->NPV();
-    out.fairRate = swap->fairRate();
-    out.fairSpread = swap->fairSpread();
-    out.fixedLegBps = swap->fixedLegBPS();
-    out.overnightLegBps = swap->overnightLegBPS();
-    out.fixedLegNpv = swap->fixedLegNPV();
-    out.overnightLegNpv = swap->overnightLegNPV();
+    out.fixedLegBps = swap->legBPS(0);
+    out.overnightLegBps = swap->legBPS(1);
+    out.fixedLegNpv = swap->legNPV(0);
+    out.overnightLegNpv = swap->legNPV(1);
+    // OvernightIndexedSwap's own formulas (basisPoint = 1e-4), the leg BPS
+    // already carrying the payer sign:
+    //   fairRate   = fixedRate - NPV / (fixedLegBPS / basisPoint)
+    //   fairSpread = spread    - NPV / (overnightLegBPS / basisPoint)
+    constexpr double basisPoint = 1.0e-4;
+    out.fairRate = trade.fixed.rate - out.npv / (out.fixedLegBps / basisPoint);
+    out.fairSpread = trade.overnight.spread - out.npv / (out.overnightLegBps / basisPoint);
     out.includeFlows = includeFlows;
 
     if (includeFlows) {
         auto discountCurve = discHandle.currentLink();
-        extractFlows(swap->fixedLeg(), *discountCurve, ctx.asOf, out.fixedFlows);
-        extractFlows(swap->overnightLeg(), *discountCurve, ctx.asOf, out.overnightFlows);
+        extractFlows(fixedLeg, *discountCurve, ctx.asOf, out.fixedFlows);
+        extractFlows(overnightLeg, *discountCurve, ctx.asOf, out.overnightFlows);
     }
     return out;
 }

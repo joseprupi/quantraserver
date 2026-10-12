@@ -19,44 +19,48 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
 
 namespace quantra {
 
-struct SwapFixedLeg;
-struct SwapFixedLegBuilder;
-struct SwapFixedLegT;
+struct FixedCoupons;
+struct FixedCouponsBuilder;
+struct FixedCouponsT;
 
-struct SwapFloatingLeg;
-struct SwapFloatingLegBuilder;
-struct SwapFloatingLegT;
+struct IborCoupons;
+struct IborCouponsBuilder;
+struct IborCouponsT;
 
 struct CmsPricerSpec;
 struct CmsPricerSpecBuilder;
 struct CmsPricerSpecT;
 
-struct SwapCmsLeg;
-struct SwapCmsLegBuilder;
-struct SwapCmsLegT;
+struct CmsCoupons;
+struct CmsCouponsBuilder;
+struct CmsCouponsT;
 
 struct VanillaSwap;
 struct VanillaSwapBuilder;
 struct VanillaSwapT;
 
-struct SwapFixedLegT : public ::flatbuffers::NativeTable {
-  typedef SwapFixedLeg TableType;
+struct FixedCouponsT : public ::flatbuffers::NativeTable {
+  typedef FixedCoupons TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::vector<double> notionals{};
   double rate = 0.0;
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
-  SwapFixedLegT() = default;
-  SwapFixedLegT(const SwapFixedLegT &o);
-  SwapFixedLegT(SwapFixedLegT&&) FLATBUFFERS_NOEXCEPT = default;
-  SwapFixedLegT &operator=(SwapFixedLegT o) FLATBUFFERS_NOEXCEPT;
+  FixedCouponsT() = default;
+  FixedCouponsT(const FixedCouponsT &o);
+  FixedCouponsT(FixedCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
+  FixedCouponsT &operator=(FixedCouponsT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Fixed leg of a swap.
-struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef SwapFixedLegT NativeTableType;
-  typedef SwapFixedLegBuilder Builder;
+/// Fixed-rate coupons of a swap leg: `notional x rate x accrual` per period of
+/// `schedule`, paid on the period end adjusted with `payment_convention`.
+/// Used as `VanillaSwap.fixed_leg`, `OisSwap.fixed_leg` and as the
+/// `FixedCoupons` member of `SwapLeg.coupons`. (Named `SwapFixedLeg` before
+/// 0.9.0; the field names are unchanged.)
+struct FixedCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef FixedCouponsT NativeTableType;
+  typedef FixedCouponsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCHEDULE = 4,
     VT_NOTIONAL = 6,
@@ -77,16 +81,23 @@ struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Optional per-period notionals, one entry per coupon period in schedule
   /// order. Present => amortizing/step-up leg (overrides `notional`); absent
   /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-  /// path; other readers (OIS, swaption underlying) reject a present value.
+  /// path; other readers (OIS, swaption underlying, `SwapLeg`) reject a
+  /// present value.
   const ::flatbuffers::Vector<double> *notionals() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
   }
+  /// Annual coupon rate as a decimal (0.032 = 3.20%). May be negative.
   double rate() const {
     return GetField<double>(VT_RATE, 0.0);
   }
+  /// Accrual day count of the coupons. Presence-required.
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
+  /// Business-day convention applied to the payment dates. Presence-required.
+  /// Not read by `price-vanilla-swap`, whose QuantLib::VanillaSwap adjusts
+  /// both legs with the floating schedule's convention; read by every other
+  /// reader.
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
@@ -102,45 +113,45 @@ struct SwapFixedLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_PAYMENT_CONVENTION, 1) &&
            verifier.EndTable();
   }
-  SwapFixedLegT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SwapFixedLegT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<SwapFixedLeg> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFixedLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  FixedCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(FixedCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<FixedCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct SwapFixedLegBuilder {
-  typedef SwapFixedLeg Table;
+struct FixedCouponsBuilder {
+  typedef FixedCoupons Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(SwapFixedLeg::VT_SCHEDULE, schedule);
+    fbb_.AddOffset(FixedCoupons::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapFixedLeg::VT_NOTIONAL, notional);
+    fbb_.AddElement<double>(FixedCoupons::VT_NOTIONAL, notional);
   }
   void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
-    fbb_.AddOffset(SwapFixedLeg::VT_NOTIONALS, notionals);
+    fbb_.AddOffset(FixedCoupons::VT_NOTIONALS, notionals);
   }
   void add_rate(double rate) {
-    fbb_.AddElement<double>(SwapFixedLeg::VT_RATE, rate, 0.0);
+    fbb_.AddElement<double>(FixedCoupons::VT_RATE, rate, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+    fbb_.AddElement<int8_t>(FixedCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapFixedLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+    fbb_.AddElement<int8_t>(FixedCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
-  explicit SwapFixedLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit FixedCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<SwapFixedLeg> Finish() {
+  ::flatbuffers::Offset<FixedCoupons> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<SwapFixedLeg>(end);
+    auto o = ::flatbuffers::Offset<FixedCoupons>(end);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
+inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -148,7 +159,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
     double rate = 0.0,
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
-  SwapFixedLegBuilder builder_(_fbb);
+  FixedCouponsBuilder builder_(_fbb);
   builder_.add_rate(rate);
   if(notional) { builder_.add_notional(*notional); }
   builder_.add_notionals(notionals);
@@ -158,7 +169,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(
   return builder_.Finish();
 }
 
-inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLegDirect(
+inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCouponsDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -167,7 +178,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLegDirect(
     ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt) {
   auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
-  return quantra::CreateSwapFixedLeg(
+  return quantra::CreateFixedCoupons(
       _fbb,
       schedule,
       notional,
@@ -177,10 +188,10 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLegDirect(
       payment_convention);
 }
 
-::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFixedLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct SwapFloatingLegT : public ::flatbuffers::NativeTable {
-  typedef SwapFloatingLeg TableType;
+struct IborCouponsT : public ::flatbuffers::NativeTable {
+  typedef IborCoupons TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::vector<double> notionals{};
@@ -190,16 +201,22 @@ struct SwapFloatingLegT : public ::flatbuffers::NativeTable {
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt;
   int32_t fixing_days = 2;
   bool in_arrears = false;
-  SwapFloatingLegT() = default;
-  SwapFloatingLegT(const SwapFloatingLegT &o);
-  SwapFloatingLegT(SwapFloatingLegT&&) FLATBUFFERS_NOEXCEPT = default;
-  SwapFloatingLegT &operator=(SwapFloatingLegT o) FLATBUFFERS_NOEXCEPT;
+  IborCouponsT() = default;
+  IborCouponsT(const IborCouponsT &o);
+  IborCouponsT(IborCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
+  IborCouponsT &operator=(IborCouponsT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Floating leg of a swap.
-struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef SwapFloatingLegT NativeTableType;
-  typedef SwapFloatingLegBuilder Builder;
+/// IBOR floating coupons of a swap leg: one fixing of `index` per period of
+/// `schedule` (`fixing_days` before the accrual start, or at the accrual end
+/// with `in_arrears`), coupon `notional x (fixing + spread) x accrual`. Used as
+/// `VanillaSwap.floating_leg`, both `BasisSwap` legs and as the `IborCoupons`
+/// member of `SwapLeg.coupons`, where the index must be an IBOR index (an
+/// overnight index is a 400 naming `OvernightCoupons`). (Named
+/// `SwapFloatingLeg` before 0.9.0; the field names are unchanged.)
+struct IborCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef IborCouponsT NativeTableType;
+  typedef IborCouponsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCHEDULE = 4,
     VT_NOTIONAL = 6,
@@ -223,8 +240,8 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   /// Optional per-period notionals, one entry per coupon period in schedule
   /// order. Present => amortizing/step-up leg (overrides `notional`); absent
   /// => constant `notional`. Honored only on the vanilla fixed-vs-IBOR swap
-  /// path; other readers (basis swap, swaption underlying) reject a present
-  /// value.
+  /// path; other readers (basis swap, swaption underlying, `SwapLeg`)
+  /// reject a present value.
   const ::flatbuffers::Vector<double> *notionals() const {
     return GetPointer<const ::flatbuffers::Vector<double> *>(VT_NOTIONALS);
   }
@@ -232,18 +249,30 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const quantra::IndexRef *index() const {
     return GetPointer<const quantra::IndexRef *>(VT_INDEX);
   }
+  /// Additive spread over the index fixing, as a decimal (0.0005 = 5 bp).
+  /// Keeps a literal 0.0 default: zero is the market-standard value.
   double spread() const {
     return GetField<double>(VT_SPREAD, 0.0);
   }
+  /// Accrual day count of the coupons. Presence-required.
   ::flatbuffers::Optional<quantra::enums::DayCounter> day_counter() const {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_DAY_COUNTER);
   }
+  /// Business-day convention applied to the payment dates. Presence-required.
+  /// Not read by `price-vanilla-swap`'s constant-notional in-advance path
+  /// (QuantLib::VanillaSwap uses the floating schedule's convention).
   ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention() const {
     return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_PAYMENT_CONVENTION);
   }
+  /// Fixing lag in business days before each accrual start. Not read by
+  /// `price-vanilla-swap`'s constant-notional in-advance path, which fixes
+  /// on the index's own `fixing_days`; read everywhere else.
   int32_t fixing_days() const {
     return GetField<int32_t>(VT_FIXING_DAYS, 2);
   }
+  /// When true the coupon fixes at the end of its accrual period (no
+  /// convexity adjustment is priced: the zero-volatility pricer reads the
+  /// shifted fixing).
   bool in_arrears() const {
     return GetField<uint8_t>(VT_IN_ARREARS, 0) != 0;
   }
@@ -263,55 +292,55 @@ struct SwapFloatingLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<uint8_t>(verifier, VT_IN_ARREARS, 1) &&
            verifier.EndTable();
   }
-  SwapFloatingLegT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SwapFloatingLegT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<SwapFloatingLeg> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFloatingLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  IborCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(IborCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<IborCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct SwapFloatingLegBuilder {
-  typedef SwapFloatingLeg Table;
+struct IborCouponsBuilder {
+  typedef IborCoupons Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(SwapFloatingLeg::VT_SCHEDULE, schedule);
+    fbb_.AddOffset(IborCoupons::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapFloatingLeg::VT_NOTIONAL, notional);
+    fbb_.AddElement<double>(IborCoupons::VT_NOTIONAL, notional);
   }
   void add_notionals(::flatbuffers::Offset<::flatbuffers::Vector<double>> notionals) {
-    fbb_.AddOffset(SwapFloatingLeg::VT_NOTIONALS, notionals);
+    fbb_.AddOffset(IborCoupons::VT_NOTIONALS, notionals);
   }
   void add_index(::flatbuffers::Offset<quantra::IndexRef> index) {
-    fbb_.AddOffset(SwapFloatingLeg::VT_INDEX, index);
+    fbb_.AddOffset(IborCoupons::VT_INDEX, index);
   }
   void add_spread(double spread) {
-    fbb_.AddElement<double>(SwapFloatingLeg::VT_SPREAD, spread, 0.0);
+    fbb_.AddElement<double>(IborCoupons::VT_SPREAD, spread, 0.0);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+    fbb_.AddElement<int8_t>(IborCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapFloatingLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+    fbb_.AddElement<int8_t>(IborCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(SwapFloatingLeg::VT_FIXING_DAYS, fixing_days, 2);
+    fbb_.AddElement<int32_t>(IborCoupons::VT_FIXING_DAYS, fixing_days, 2);
   }
   void add_in_arrears(bool in_arrears) {
-    fbb_.AddElement<uint8_t>(SwapFloatingLeg::VT_IN_ARREARS, static_cast<uint8_t>(in_arrears), 0);
+    fbb_.AddElement<uint8_t>(IborCoupons::VT_IN_ARREARS, static_cast<uint8_t>(in_arrears), 0);
   }
-  explicit SwapFloatingLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit IborCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<SwapFloatingLeg> Finish() {
+  ::flatbuffers::Offset<IborCoupons> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<SwapFloatingLeg>(end);
-    fbb_.Required(o, SwapFloatingLeg::VT_INDEX);
+    auto o = ::flatbuffers::Offset<IborCoupons>(end);
+    fbb_.Required(o, IborCoupons::VT_INDEX);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
+inline ::flatbuffers::Offset<IborCoupons> CreateIborCoupons(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -322,7 +351,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
     ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> payment_convention = ::flatbuffers::nullopt,
     int32_t fixing_days = 2,
     bool in_arrears = false) {
-  SwapFloatingLegBuilder builder_(_fbb);
+  IborCouponsBuilder builder_(_fbb);
   builder_.add_spread(spread);
   if(notional) { builder_.add_notional(*notional); }
   builder_.add_fixing_days(fixing_days);
@@ -335,7 +364,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(
   return builder_.Finish();
 }
 
-inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLegDirect(
+inline ::flatbuffers::Offset<IborCoupons> CreateIborCouponsDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -347,7 +376,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLegDirect(
     int32_t fixing_days = 2,
     bool in_arrears = false) {
   auto notionals__ = notionals ? _fbb.CreateVector<double>(*notionals) : 0;
-  return quantra::CreateSwapFloatingLeg(
+  return quantra::CreateIborCoupons(
       _fbb,
       schedule,
       notional,
@@ -360,7 +389,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLegDirect(
       in_arrears);
 }
 
-::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFloatingLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<IborCoupons> CreateIborCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct CmsPricerSpecT : public ::flatbuffers::NativeTable {
   typedef CmsPricerSpec TableType;
@@ -490,8 +519,8 @@ inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(
 
 ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::FlatBufferBuilder &_fbb, const CmsPricerSpecT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct SwapCmsLegT : public ::flatbuffers::NativeTable {
-  typedef SwapCmsLeg TableType;
+struct CmsCouponsT : public ::flatbuffers::NativeTable {
+  typedef CmsCoupons TableType;
   std::unique_ptr<quantra::ScheduleT> schedule{};
   ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt;
   std::string swap_index_id{};
@@ -505,17 +534,20 @@ struct SwapCmsLegT : public ::flatbuffers::NativeTable {
   std::unique_ptr<quantra::CmsPricerSpecT> pricer{};
   ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt;
   ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt;
-  SwapCmsLegT() = default;
-  SwapCmsLegT(const SwapCmsLegT &o);
-  SwapCmsLegT(SwapCmsLegT&&) FLATBUFFERS_NOEXCEPT = default;
-  SwapCmsLegT &operator=(SwapCmsLegT o) FLATBUFFERS_NOEXCEPT;
+  CmsCouponsT() = default;
+  CmsCouponsT(const CmsCouponsT &o);
+  CmsCouponsT(CmsCouponsT&&) FLATBUFFERS_NOEXCEPT = default;
+  CmsCouponsT &operator=(CmsCouponsT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// CMS leg of a swap.
+/// CMS coupons of a swap leg.
 /// Coupon formula: notional * accrual * (gear * CMSRate + spread).
-struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef SwapCmsLegT NativeTableType;
-  typedef SwapCmsLegBuilder Builder;
+/// Used as `VanillaSwap.cms_leg`; the `CmsCoupons` member of `SwapLeg.coupons`
+/// is rejected by `price-cross-currency-swap` in this version. (Named
+/// `SwapCmsLeg` before 0.9.0; the field names are unchanged.)
+struct CmsCoupons FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef CmsCouponsT NativeTableType;
+  typedef CmsCouponsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCHEDULE = 4,
     VT_NOTIONAL = 6,
@@ -608,69 +640,69 @@ struct SwapCmsLeg FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyField<double>(verifier, VT_FLOOR, 8) &&
            verifier.EndTable();
   }
-  SwapCmsLegT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SwapCmsLegT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<SwapCmsLeg> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  CmsCouponsT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CmsCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static ::flatbuffers::Offset<CmsCoupons> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct SwapCmsLegBuilder {
-  typedef SwapCmsLeg Table;
+struct CmsCouponsBuilder {
+  typedef CmsCoupons Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
   void add_schedule(::flatbuffers::Offset<quantra::Schedule> schedule) {
-    fbb_.AddOffset(SwapCmsLeg::VT_SCHEDULE, schedule);
+    fbb_.AddOffset(CmsCoupons::VT_SCHEDULE, schedule);
   }
   void add_notional(double notional) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_NOTIONAL, notional);
+    fbb_.AddElement<double>(CmsCoupons::VT_NOTIONAL, notional);
   }
   void add_swap_index_id(::flatbuffers::Offset<::flatbuffers::String> swap_index_id) {
-    fbb_.AddOffset(SwapCmsLeg::VT_SWAP_INDEX_ID, swap_index_id);
+    fbb_.AddOffset(CmsCoupons::VT_SWAP_INDEX_ID, swap_index_id);
   }
   void add_swap_tenor(::flatbuffers::Offset<quantra::Period> swap_tenor) {
-    fbb_.AddOffset(SwapCmsLeg::VT_SWAP_TENOR, swap_tenor);
+    fbb_.AddOffset(CmsCoupons::VT_SWAP_TENOR, swap_tenor);
   }
   void add_swaption_vol_id(::flatbuffers::Offset<::flatbuffers::String> swaption_vol_id) {
-    fbb_.AddOffset(SwapCmsLeg::VT_SWAPTION_VOL_ID, swaption_vol_id);
+    fbb_.AddOffset(CmsCoupons::VT_SWAPTION_VOL_ID, swaption_vol_id);
   }
   void add_fixing_days(int32_t fixing_days) {
-    fbb_.AddElement<int32_t>(SwapCmsLeg::VT_FIXING_DAYS, fixing_days, -1);
+    fbb_.AddElement<int32_t>(CmsCoupons::VT_FIXING_DAYS, fixing_days, -1);
   }
   void add_day_counter(quantra::enums::DayCounter day_counter) {
-    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
+    fbb_.AddElement<int8_t>(CmsCoupons::VT_DAY_COUNTER, static_cast<int8_t>(day_counter));
   }
   void add_payment_convention(quantra::enums::BusinessDayConvention payment_convention) {
-    fbb_.AddElement<int8_t>(SwapCmsLeg::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
+    fbb_.AddElement<int8_t>(CmsCoupons::VT_PAYMENT_CONVENTION, static_cast<int8_t>(payment_convention));
   }
   void add_gear(double gear) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_GEAR, gear, 1.0);
+    fbb_.AddElement<double>(CmsCoupons::VT_GEAR, gear, 1.0);
   }
   void add_spread(double spread) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_SPREAD, spread, 0.0);
+    fbb_.AddElement<double>(CmsCoupons::VT_SPREAD, spread, 0.0);
   }
   void add_pricer(::flatbuffers::Offset<quantra::CmsPricerSpec> pricer) {
-    fbb_.AddOffset(SwapCmsLeg::VT_PRICER, pricer);
+    fbb_.AddOffset(CmsCoupons::VT_PRICER, pricer);
   }
   void add_cap(double cap) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_CAP, cap);
+    fbb_.AddElement<double>(CmsCoupons::VT_CAP, cap);
   }
   void add_floor(double floor) {
-    fbb_.AddElement<double>(SwapCmsLeg::VT_FLOOR, floor);
+    fbb_.AddElement<double>(CmsCoupons::VT_FLOOR, floor);
   }
-  explicit SwapCmsLegBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+  explicit CmsCouponsBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ::flatbuffers::Offset<SwapCmsLeg> Finish() {
+  ::flatbuffers::Offset<CmsCoupons> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = ::flatbuffers::Offset<SwapCmsLeg>(end);
-    fbb_.Required(o, SwapCmsLeg::VT_SWAP_INDEX_ID);
-    fbb_.Required(o, SwapCmsLeg::VT_SWAP_TENOR);
-    fbb_.Required(o, SwapCmsLeg::VT_SWAPTION_VOL_ID);
+    auto o = ::flatbuffers::Offset<CmsCoupons>(end);
+    fbb_.Required(o, CmsCoupons::VT_SWAP_INDEX_ID);
+    fbb_.Required(o, CmsCoupons::VT_SWAP_TENOR);
+    fbb_.Required(o, CmsCoupons::VT_SWAPTION_VOL_ID);
     return o;
   }
 };
 
-inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
+inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -685,7 +717,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
     ::flatbuffers::Offset<quantra::CmsPricerSpec> pricer = 0,
     ::flatbuffers::Optional<double> cap = ::flatbuffers::nullopt,
     ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
-  SwapCmsLegBuilder builder_(_fbb);
+  CmsCouponsBuilder builder_(_fbb);
   if(floor) { builder_.add_floor(*floor); }
   if(cap) { builder_.add_cap(*cap); }
   builder_.add_spread(spread);
@@ -702,7 +734,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(
   return builder_.Finish();
 }
 
-inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
+inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCouponsDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::Schedule> schedule = 0,
     ::flatbuffers::Optional<double> notional = ::flatbuffers::nullopt,
@@ -719,7 +751,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
     ::flatbuffers::Optional<double> floor = ::flatbuffers::nullopt) {
   auto swap_index_id__ = swap_index_id ? _fbb.CreateString(swap_index_id) : 0;
   auto swaption_vol_id__ = swaption_vol_id ? _fbb.CreateString(swaption_vol_id) : 0;
-  return quantra::CreateSwapCmsLeg(
+  return quantra::CreateCmsCoupons(
       _fbb,
       schedule,
       notional,
@@ -736,14 +768,14 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLegDirect(
       floor);
 }
 
-::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
+::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct VanillaSwapT : public ::flatbuffers::NativeTable {
   typedef VanillaSwap TableType;
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::SwapFixedLegT> fixed_leg{};
-  std::unique_ptr<quantra::SwapFloatingLegT> floating_leg{};
-  std::unique_ptr<quantra::SwapCmsLegT> cms_leg{};
+  std::unique_ptr<quantra::FixedCouponsT> fixed_leg{};
+  std::unique_ptr<quantra::IborCouponsT> floating_leg{};
+  std::unique_ptr<quantra::CmsCouponsT> cms_leg{};
   VanillaSwapT() = default;
   VanillaSwapT(const VanillaSwapT &o);
   VanillaSwapT(VanillaSwapT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -765,17 +797,17 @@ struct VanillaSwap FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   ::flatbuffers::Optional<quantra::enums::SwapType> swap_type() const {
     return GetOptional<int8_t, quantra::enums::SwapType>(VT_SWAP_TYPE);
   }
-  const quantra::SwapFixedLeg *fixed_leg() const {
-    return GetPointer<const quantra::SwapFixedLeg *>(VT_FIXED_LEG);
+  const quantra::FixedCoupons *fixed_leg() const {
+    return GetPointer<const quantra::FixedCoupons *>(VT_FIXED_LEG);
   }
   /// Standard IBOR floating leg path.
-  const quantra::SwapFloatingLeg *floating_leg() const {
-    return GetPointer<const quantra::SwapFloatingLeg *>(VT_FLOATING_LEG);
+  const quantra::IborCoupons *floating_leg() const {
+    return GetPointer<const quantra::IborCoupons *>(VT_FLOATING_LEG);
   }
   /// Optional CMS floating leg path.
   /// Exactly one of floating_leg or cms_leg must be provided.
-  const quantra::SwapCmsLeg *cms_leg() const {
-    return GetPointer<const quantra::SwapCmsLeg *>(VT_CMS_LEG);
+  const quantra::CmsCoupons *cms_leg() const {
+    return GetPointer<const quantra::CmsCoupons *>(VT_CMS_LEG);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -800,13 +832,13 @@ struct VanillaSwapBuilder {
   void add_swap_type(quantra::enums::SwapType swap_type) {
     fbb_.AddElement<int8_t>(VanillaSwap::VT_SWAP_TYPE, static_cast<int8_t>(swap_type));
   }
-  void add_fixed_leg(::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg) {
+  void add_fixed_leg(::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FIXED_LEG, fixed_leg);
   }
-  void add_floating_leg(::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg) {
+  void add_floating_leg(::flatbuffers::Offset<quantra::IborCoupons> floating_leg) {
     fbb_.AddOffset(VanillaSwap::VT_FLOATING_LEG, floating_leg);
   }
-  void add_cms_leg(::flatbuffers::Offset<quantra::SwapCmsLeg> cms_leg) {
+  void add_cms_leg(::flatbuffers::Offset<quantra::CmsCoupons> cms_leg) {
     fbb_.AddOffset(VanillaSwap::VT_CMS_LEG, cms_leg);
   }
   explicit VanillaSwapBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
@@ -823,9 +855,9 @@ struct VanillaSwapBuilder {
 inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<quantra::enums::SwapType> swap_type = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::SwapFixedLeg> fixed_leg = 0,
-    ::flatbuffers::Offset<quantra::SwapFloatingLeg> floating_leg = 0,
-    ::flatbuffers::Offset<quantra::SwapCmsLeg> cms_leg = 0) {
+    ::flatbuffers::Offset<quantra::FixedCoupons> fixed_leg = 0,
+    ::flatbuffers::Offset<quantra::IborCoupons> floating_leg = 0,
+    ::flatbuffers::Offset<quantra::CmsCoupons> cms_leg = 0) {
   VanillaSwapBuilder builder_(_fbb);
   builder_.add_cms_leg(cms_leg);
   builder_.add_floating_leg(floating_leg);
@@ -836,7 +868,7 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(
 
 ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(::flatbuffers::FlatBufferBuilder &_fbb, const VanillaSwapT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline SwapFixedLegT::SwapFixedLegT(const SwapFixedLegT &o)
+inline FixedCouponsT::FixedCouponsT(const FixedCouponsT &o)
       : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         notional(o.notional),
         notionals(o.notionals),
@@ -845,7 +877,7 @@ inline SwapFixedLegT::SwapFixedLegT(const SwapFixedLegT &o)
         payment_convention(o.payment_convention) {
 }
 
-inline SwapFixedLegT &SwapFixedLegT::operator=(SwapFixedLegT o) FLATBUFFERS_NOEXCEPT {
+inline FixedCouponsT &FixedCouponsT::operator=(FixedCouponsT o) FLATBUFFERS_NOEXCEPT {
   std::swap(schedule, o.schedule);
   std::swap(notional, o.notional);
   std::swap(notionals, o.notionals);
@@ -855,13 +887,13 @@ inline SwapFixedLegT &SwapFixedLegT::operator=(SwapFixedLegT o) FLATBUFFERS_NOEX
   return *this;
 }
 
-inline SwapFixedLegT *SwapFixedLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<SwapFixedLegT>(new SwapFixedLegT());
+inline FixedCouponsT *FixedCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<FixedCouponsT>(new FixedCouponsT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void SwapFixedLeg::UnPackTo(SwapFixedLegT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void FixedCoupons::UnPackTo(FixedCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
@@ -872,21 +904,21 @@ inline void SwapFixedLeg::UnPackTo(SwapFixedLegT *_o, const ::flatbuffers::resol
   { auto _e = payment_convention(); _o->payment_convention = _e; }
 }
 
-inline ::flatbuffers::Offset<SwapFixedLeg> SwapFixedLeg::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFixedLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateSwapFixedLeg(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<FixedCoupons> FixedCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateFixedCoupons(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFixedLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<FixedCoupons> CreateFixedCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const FixedCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapFixedLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FixedCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _notional = _o->notional;
   auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
   auto _rate = _o->rate;
   auto _day_counter = _o->day_counter;
   auto _payment_convention = _o->payment_convention;
-  return quantra::CreateSwapFixedLeg(
+  return quantra::CreateFixedCoupons(
       _fbb,
       _schedule,
       _notional,
@@ -896,7 +928,7 @@ inline ::flatbuffers::Offset<SwapFixedLeg> CreateSwapFixedLeg(::flatbuffers::Fla
       _payment_convention);
 }
 
-inline SwapFloatingLegT::SwapFloatingLegT(const SwapFloatingLegT &o)
+inline IborCouponsT::IborCouponsT(const IborCouponsT &o)
       : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         notional(o.notional),
         notionals(o.notionals),
@@ -908,7 +940,7 @@ inline SwapFloatingLegT::SwapFloatingLegT(const SwapFloatingLegT &o)
         in_arrears(o.in_arrears) {
 }
 
-inline SwapFloatingLegT &SwapFloatingLegT::operator=(SwapFloatingLegT o) FLATBUFFERS_NOEXCEPT {
+inline IborCouponsT &IborCouponsT::operator=(IborCouponsT o) FLATBUFFERS_NOEXCEPT {
   std::swap(schedule, o.schedule);
   std::swap(notional, o.notional);
   std::swap(notionals, o.notionals);
@@ -921,13 +953,13 @@ inline SwapFloatingLegT &SwapFloatingLegT::operator=(SwapFloatingLegT o) FLATBUF
   return *this;
 }
 
-inline SwapFloatingLegT *SwapFloatingLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<SwapFloatingLegT>(new SwapFloatingLegT());
+inline IborCouponsT *IborCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<IborCouponsT>(new IborCouponsT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void SwapFloatingLeg::UnPackTo(SwapFloatingLegT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void IborCoupons::UnPackTo(IborCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
@@ -941,14 +973,14 @@ inline void SwapFloatingLeg::UnPackTo(SwapFloatingLegT *_o, const ::flatbuffers:
   { auto _e = in_arrears(); _o->in_arrears = _e; }
 }
 
-inline ::flatbuffers::Offset<SwapFloatingLeg> SwapFloatingLeg::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFloatingLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateSwapFloatingLeg(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<IborCoupons> IborCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateIborCoupons(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapFloatingLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<IborCoupons> CreateIborCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const IborCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapFloatingLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const IborCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _notional = _o->notional;
   auto _notionals = _o->notionals.size() ? _fbb.CreateVector(_o->notionals) : 0;
@@ -958,7 +990,7 @@ inline ::flatbuffers::Offset<SwapFloatingLeg> CreateSwapFloatingLeg(::flatbuffer
   auto _payment_convention = _o->payment_convention;
   auto _fixing_days = _o->fixing_days;
   auto _in_arrears = _o->in_arrears;
-  return quantra::CreateSwapFloatingLeg(
+  return quantra::CreateIborCoupons(
       _fbb,
       _schedule,
       _notional,
@@ -1015,7 +1047,7 @@ inline ::flatbuffers::Offset<CmsPricerSpec> CreateCmsPricerSpec(::flatbuffers::F
       _hagan_hard_upper_limit);
 }
 
-inline SwapCmsLegT::SwapCmsLegT(const SwapCmsLegT &o)
+inline CmsCouponsT::CmsCouponsT(const CmsCouponsT &o)
       : schedule((o.schedule) ? new quantra::ScheduleT(*o.schedule) : nullptr),
         notional(o.notional),
         swap_index_id(o.swap_index_id),
@@ -1031,7 +1063,7 @@ inline SwapCmsLegT::SwapCmsLegT(const SwapCmsLegT &o)
         floor(o.floor) {
 }
 
-inline SwapCmsLegT &SwapCmsLegT::operator=(SwapCmsLegT o) FLATBUFFERS_NOEXCEPT {
+inline CmsCouponsT &CmsCouponsT::operator=(CmsCouponsT o) FLATBUFFERS_NOEXCEPT {
   std::swap(schedule, o.schedule);
   std::swap(notional, o.notional);
   std::swap(swap_index_id, o.swap_index_id);
@@ -1048,13 +1080,13 @@ inline SwapCmsLegT &SwapCmsLegT::operator=(SwapCmsLegT o) FLATBUFFERS_NOEXCEPT {
   return *this;
 }
 
-inline SwapCmsLegT *SwapCmsLeg::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<SwapCmsLegT>(new SwapCmsLegT());
+inline CmsCouponsT *CmsCoupons::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CmsCouponsT>(new CmsCouponsT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void SwapCmsLeg::UnPackTo(SwapCmsLegT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
+inline void CmsCoupons::UnPackTo(CmsCouponsT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = schedule(); if (_e) { if(_o->schedule) { _e->UnPackTo(_o->schedule.get(), _resolver); } else { _o->schedule = std::unique_ptr<quantra::ScheduleT>(_e->UnPack(_resolver)); } } else if (_o->schedule) { _o->schedule.reset(); } }
@@ -1072,14 +1104,14 @@ inline void SwapCmsLeg::UnPackTo(SwapCmsLegT *_o, const ::flatbuffers::resolver_
   { auto _e = floor(); _o->floor = _e; }
 }
 
-inline ::flatbuffers::Offset<SwapCmsLeg> SwapCmsLeg::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateSwapCmsLeg(_fbb, _o, _rehasher);
+inline ::flatbuffers::Offset<CmsCoupons> CmsCoupons::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCmsCoupons(_fbb, _o, _rehasher);
 }
 
-inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBufferBuilder &_fbb, const SwapCmsLegT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
+inline ::flatbuffers::Offset<CmsCoupons> CreateCmsCoupons(::flatbuffers::FlatBufferBuilder &_fbb, const CmsCouponsT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const SwapCmsLegT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CmsCouponsT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _schedule = _o->schedule ? CreateSchedule(_fbb, _o->schedule.get(), _rehasher) : 0;
   auto _notional = _o->notional;
   auto _swap_index_id = _fbb.CreateString(_o->swap_index_id);
@@ -1093,7 +1125,7 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBuf
   auto _pricer = _o->pricer ? CreateCmsPricerSpec(_fbb, _o->pricer.get(), _rehasher) : 0;
   auto _cap = _o->cap;
   auto _floor = _o->floor;
-  return quantra::CreateSwapCmsLeg(
+  return quantra::CreateCmsCoupons(
       _fbb,
       _schedule,
       _notional,
@@ -1112,9 +1144,9 @@ inline ::flatbuffers::Offset<SwapCmsLeg> CreateSwapCmsLeg(::flatbuffers::FlatBuf
 
 inline VanillaSwapT::VanillaSwapT(const VanillaSwapT &o)
       : swap_type(o.swap_type),
-        fixed_leg((o.fixed_leg) ? new quantra::SwapFixedLegT(*o.fixed_leg) : nullptr),
-        floating_leg((o.floating_leg) ? new quantra::SwapFloatingLegT(*o.floating_leg) : nullptr),
-        cms_leg((o.cms_leg) ? new quantra::SwapCmsLegT(*o.cms_leg) : nullptr) {
+        fixed_leg((o.fixed_leg) ? new quantra::FixedCouponsT(*o.fixed_leg) : nullptr),
+        floating_leg((o.floating_leg) ? new quantra::IborCouponsT(*o.floating_leg) : nullptr),
+        cms_leg((o.cms_leg) ? new quantra::CmsCouponsT(*o.cms_leg) : nullptr) {
 }
 
 inline VanillaSwapT &VanillaSwapT::operator=(VanillaSwapT o) FLATBUFFERS_NOEXCEPT {
@@ -1135,9 +1167,9 @@ inline void VanillaSwap::UnPackTo(VanillaSwapT *_o, const ::flatbuffers::resolve
   (void)_o;
   (void)_resolver;
   { auto _e = swap_type(); _o->swap_type = _e; }
-  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::SwapFixedLegT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
-  { auto _e = floating_leg(); if (_e) { if(_o->floating_leg) { _e->UnPackTo(_o->floating_leg.get(), _resolver); } else { _o->floating_leg = std::unique_ptr<quantra::SwapFloatingLegT>(_e->UnPack(_resolver)); } } else if (_o->floating_leg) { _o->floating_leg.reset(); } }
-  { auto _e = cms_leg(); if (_e) { if(_o->cms_leg) { _e->UnPackTo(_o->cms_leg.get(), _resolver); } else { _o->cms_leg = std::unique_ptr<quantra::SwapCmsLegT>(_e->UnPack(_resolver)); } } else if (_o->cms_leg) { _o->cms_leg.reset(); } }
+  { auto _e = fixed_leg(); if (_e) { if(_o->fixed_leg) { _e->UnPackTo(_o->fixed_leg.get(), _resolver); } else { _o->fixed_leg = std::unique_ptr<quantra::FixedCouponsT>(_e->UnPack(_resolver)); } } else if (_o->fixed_leg) { _o->fixed_leg.reset(); } }
+  { auto _e = floating_leg(); if (_e) { if(_o->floating_leg) { _e->UnPackTo(_o->floating_leg.get(), _resolver); } else { _o->floating_leg = std::unique_ptr<quantra::IborCouponsT>(_e->UnPack(_resolver)); } } else if (_o->floating_leg) { _o->floating_leg.reset(); } }
+  { auto _e = cms_leg(); if (_e) { if(_o->cms_leg) { _e->UnPackTo(_o->cms_leg.get(), _resolver); } else { _o->cms_leg = std::unique_ptr<quantra::CmsCouponsT>(_e->UnPack(_resolver)); } } else if (_o->cms_leg) { _o->cms_leg.reset(); } }
 }
 
 inline ::flatbuffers::Offset<VanillaSwap> VanillaSwap::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const VanillaSwapT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -1149,9 +1181,9 @@ inline ::flatbuffers::Offset<VanillaSwap> CreateVanillaSwap(::flatbuffers::FlatB
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const VanillaSwapT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _swap_type = _o->swap_type;
-  auto _fixed_leg = _o->fixed_leg ? CreateSwapFixedLeg(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
-  auto _floating_leg = _o->floating_leg ? CreateSwapFloatingLeg(_fbb, _o->floating_leg.get(), _rehasher) : 0;
-  auto _cms_leg = _o->cms_leg ? CreateSwapCmsLeg(_fbb, _o->cms_leg.get(), _rehasher) : 0;
+  auto _fixed_leg = _o->fixed_leg ? CreateFixedCoupons(_fbb, _o->fixed_leg.get(), _rehasher) : 0;
+  auto _floating_leg = _o->floating_leg ? CreateIborCoupons(_fbb, _o->floating_leg.get(), _rehasher) : 0;
+  auto _cms_leg = _o->cms_leg ? CreateCmsCoupons(_fbb, _o->cms_leg.get(), _rehasher) : 0;
   return quantra::CreateVanillaSwap(
       _fbb,
       _swap_type,

@@ -1,0 +1,36 @@
+include "common.fbs";
+include "pricing.fbs";
+include "fx_forward.fbs";
+
+namespace quantra;
+
+/// One FX forward together with the market data it is priced off: the FX
+/// spot (pair, spot rate, spot lag, settlement calendars) and one discount
+/// curve per currency. All references are by id into `pricing`.
+table PriceFxForward {
+    /// The forward. Required.
+    fx_forward:FxForward (required);
+    /// Id of the `FxSpotSpec` in `pricing.fx.spots`. Its base/quote currencies
+    /// must equal the forward's (same order; a pair quoted the other way round
+    /// is rejected rather than inverted). Required.
+    fx_spot:string (required);
+    /// Id of the curve in `pricing.rates.curves` that discounts the
+    /// base-currency cash flow (for a collateralised trade, the base
+    /// currency's collateral-adjusted discount curve). Required.
+    base_discounting_curve:string (required);
+    /// Id of the curve in `pricing.rates.curves` that discounts the
+    /// quote-currency cash flow. Required.
+    quote_discounting_curve:string (required);
+    /// Currency of the reported `npv`: `base_currency` or `quote_currency` of
+    /// the forward (400 for any other value; reporting in a third currency is
+    /// not supported). Required.
+    reporting_currency:string (required);
+}
+
+/// Request to price one or more FX forwards against one market.
+table PriceFxForwardRequest {
+    pricing:Pricing;
+    fx_forwards:[PriceFxForward];
+}
+
+root_type PriceFxForwardRequest;

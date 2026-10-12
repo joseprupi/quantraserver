@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "quantra_FxForwardResponse" : {
+      "type" : "object",
+      "description" : "FX forward pricing result. With S the spot rate, t_s the spot date, T the\nadjusted maturity, N the base notional, K the contract rate, sign = +1 for\nBuyBase / -1 for SellBase, and DF_b / DF_q the two discount curves:\nbase_leg_pv  = sign * N * DF_b(T)              (base currency)\nquote_leg_pv = -sign * N * K * DF_q(T)         (quote currency)\nX            = S * DF_q(t_s) / DF_b(t_s)       (as-of exchange rate, quote per base)\nnpv          = base_leg_pv * X + quote_leg_pv  (reporting = quote currency)\n= base_leg_pv + quote_leg_pv / X  (reporting = base currency)\nfair_forward_rate = X * DF_b(T) / DF_q(T)\n= S * [DF_b(T)/DF_b(t_s)] / [DF_q(T)/DF_q(t_s)]\nRepricing the forward at K = fair_forward_rate gives npv = 0. Every value is\nas of the evaluation date (the curves' reference date), like the NPV of\nevery other product.",
+      "properties" : {
+        "npv" : {
+                "type" : "number",
+                "description" : "Present value in `reporting_currency`, positive in favour of the party\nwhose `direction` was given."
+              },
+        "fair_forward_rate" : {
+                "type" : "number",
+                "description" : "Fair (zero-NPV) forward rate for the adjusted maturity, quote units per\nbase unit."
+              },
+        "forward_points" : {
+                "type" : "number",
+                "description" : "`fair_forward_rate - spot`, in price units of the pair (the forward\npoints at this maturity, as an FX swap screen quotes them)."
+              },
+        "base_leg_pv" : {
+                "type" : "number",
+                "description" : "Present value of the base-currency cash flow, in base currency\n(positive when the reported party receives it)."
+              },
+        "quote_leg_pv" : {
+                "type" : "number",
+                "description" : "Present value of the quote-currency cash flow, in quote currency\n(negative when the reported party pays it)."
+              },
+        "spot_date" : {
+                "type" : "string",
+                "description" : "Spot date used: the (adjusted) evaluation date advanced `spot_days`\nbusiness days on the spot's joint settlement calendar, ISO."
+              },
+        "maturity_date" : {
+                "type" : "string",
+                "description" : "Maturity date after adjustment with the spot's calendar and\nbusiness-day convention, ISO. The cash flows are discounted to it."
+              },
+        "fx_spot_used" : {
+                "type" : "number",
+                "description" : "The spot rate the forward was priced with (quote units per base unit,\nfor delivery on `spot_date`), resolved from `pricing.fx.spots` or the\nreferenced Fx quote."
+              }
+      },
+      "additionalProperties" : false
+    },
+    "quantra_PriceFxForwardResponse" : {
+      "type" : "object",
+      "description" : "Response wrapper for multiple FX forwards, in request order.",
+      "properties" : {
+        "fx_forwards" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FxForwardResponse"}
+              }
+      },
+      "required" : ["fx_forwards"],
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/quantra_PriceFxForwardResponse"
+}

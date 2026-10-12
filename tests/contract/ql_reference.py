@@ -189,6 +189,7 @@ def get_calendar(name: str):
         "UnitedStatesSettlement": ql.UnitedStates(ql.UnitedStates.Settlement),
         "UnitedStatesNYSE": ql.UnitedStates(ql.UnitedStates.NYSE),
         "UnitedStatesGovernmentBond": ql.UnitedStates(ql.UnitedStates.GovernmentBond),
+        "Japan": ql.Japan(),
     }
     return mapping.get(name, ql.TARGET())
 
@@ -523,6 +524,56 @@ def _build_forward_rate_curve(curve_json: dict, points: list, eval_date: ql.Date
     return ql.YieldTermStructureHandle(curve)
 
 
+def _joint_calendar(names: list):
+    """Mirror of the server's FxSpotSpec.settlement_calendars handling: one
+    calendar is used as is, several are joined so that a holiday in any one is
+    a holiday of the pair (QuantLib JointCalendar, JoinHolidays)."""
+    calendars = [get_calendar(n) for n in names]
+    if not calendars:
+        raise ValueError("FxSpotSpec.settlement_calendars must list at least one calendar")
+    joint = calendars[0]
+    for cal in calendars[1:]:
+        joint = ql.JointCalendar(joint, cal, ql.JoinHolidays)
+    return joint
+
+
+def build_fx_spot(pricing: dict, spot_id: str, request_data: dict = None) -> dict:
+    """Resolve an FxSpotSpec from pricing.fx.spots into the plain values the
+    engine derives from it (src/parsers/fx_spot_parser.cpp):
+
+      {"base": str, "quote": str, "rate": float, "spot_days": int,
+       "calendar": ql.Calendar (joint), "bdc": ql BusinessDayConvention}
+
+    `rate` is the spot for delivery on the spot date (quote units per base
+    unit); a quote_id resolves through pricing.quotes and must carry the Fx
+    quote type, exactly as on the server. `pricing` may be the raw nested
+    request pricing or the flat view."""
+    fx = (pricing or {}).get("fx") or {}
+    spec = next((s for s in fx.get("spots", []) if s.get("id") == spot_id), None)
+    if spec is None:
+        raise ValueError(f"FX spot not found: {spot_id}")
+    if "rate" in spec:
+        rate = float(spec["rate"])
+    else:
+        # pricing.quotes sits at the top of the pricing block in both the
+        # nested request and the flat reference view.
+        quotes = pricing.get("quotes", [])
+        q = next((q for q in quotes if q.get("id") == spec.get("quote_id")), None)
+        if q is None:
+            raise ValueError(f"FxSpotSpec.quote_id: unknown quote id {spec.get('quote_id')}")
+        if q.get("quote_type", "Curve") != "Fx":
+            raise ValueError(f"FxSpotSpec.quote_id: quote {q['id']} must have quote_type Fx")
+        rate = float(q["value"])
+    return {
+        "base": spec["base_currency"],
+        "quote": spec["quote_currency"],
+        "rate": rate,
+        "spot_days": int(spec["spot_days"]),
+        "calendar": _joint_calendar(spec["settlement_calendars"]),
+        "bdc": get_convention(spec["business_day_convention"]),
+    }
+
+
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     points = curve_json.get("points", [])
@@ -722,6 +773,108 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 helpers.append(helper)
                 seen_pillars.add(pillar)
         
+        elif point_type == "FxSwapHelper":
+            # Mirrors src/parsers/term_structure_point_parser.cpp: the spot
+            # supplies the pair, the spot rate, the lag (fixingDays), the joint
+            # settlement calendar and the convention; the collateral currency's
+            # discount curve is another curve of the same request, built here
+            # recursively (the server orders the bootstrap by that reference).
+            # Forward points are curve quotes (quote_id -> Curve type).
+            req_pricing = (request_data or {}).get("pricing", {})
+            spot = build_fx_spot(req_pricing, point["fx_spot"], request_data)
+            collateral_ccy = point["collateral_currency"]
+            if collateral_ccy == spot["base"]:
+                base_is_collateral = True
+            elif collateral_ccy == spot["quote"]:
+                base_is_collateral = False
+            else:
+                raise ValueError(
+                    f"FxSwapHelper.collateral_currency {collateral_ccy} is neither "
+                    f"currency of FX spot {point['fx_spot']}")
+            coll_id = point["collateral_curve"]["id"]
+            coll_json = next(c for c in _reference_pricing_view(request_data)["curves"]
+                             if c["id"] == coll_id)
+            collateral = build_curve_from_json(coll_json, eval_date, request_data)
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            points_value = (quote_values[point["quote_id"]] if point.get("quote_id")
+                            else point["fx_points"])
+            if point.get("quote_id") and quote_types.get(point["quote_id"], "Curve") != "Curve":
+                raise ValueError(f"Quote id '{point['quote_id']}' has wrong type for curve")
+            helper = ql.FxSwapRateHelper(
+                ql.QuoteHandle(ql.SimpleQuote(points_value)),
+                ql.QuoteHandle(ql.SimpleQuote(spot["rate"])),
+                ql.Period(tenor_num, get_time_unit(tenor_unit_s)),
+                spot["spot_days"],
+                spot["calendar"],
+                spot["bdc"],
+                bool(point["end_of_month"]),
+                base_is_collateral,
+                collateral,
+            )
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+
+        elif point_type == "CrossCcyBasisHelper":
+            # Mirrors src/parsers/term_structure_point_parser.cpp: the spot
+            # names the pair and supplies the settlement lag (fixingDays) but
+            # its rate never enters a constant-notional bootstrap; both legs'
+            # forwarding curves and the collateral side's discount curve are
+            # other curves of the request (built here recursively, ordered on
+            # the server by the references); the leg whose discount curve is
+            # absent is discounted with the curve being bootstrapped. The
+            # basis is a curve quote (quote_id -> Curve type). An overnight
+            # index needs payment_frequency; two IBOR indices pay at their
+            # tenors (QuantLib NoFrequency).
+            req_pricing = (request_data or {}).get("pricing", {})
+            spot = build_fx_spot(req_pricing, point["fx_spot"], request_data)
+            view_curves = _reference_pricing_view(request_data)["curves"]
+
+            def curve_by_id(cid):
+                cj = next(c for c in view_curves if c["id"] == cid)
+                return build_curve_from_json(cj, eval_date, request_data)
+
+            base_fwd = curve_by_id(point["base_forwarding_curve"]["id"])
+            quote_fwd = curve_by_id(point["quote_forwarding_curve"]["id"])
+            base_idx = resolve_index_from_id(point["base_index"]["id"], request_data, base_fwd)
+            quote_idx = resolve_index_from_id(point["quote_index"]["id"], request_data, quote_fwd)
+            base_given = "base_discount_curve" in point
+            quote_given = "quote_discount_curve" in point
+            if base_given == quote_given:
+                raise ValueError("CrossCcyBasisHelper requires exactly one of "
+                                 "base_discount_curve or quote_discount_curve")
+            collateral = curve_by_id((point["base_discount_curve"] if base_given
+                                      else point["quote_discount_curve"])["id"])
+            if point.get("quote_id"):
+                if quote_types.get(point["quote_id"], "Curve") != "Curve":
+                    raise ValueError(f"Quote id '{point['quote_id']}' has wrong type for curve")
+                spread_value = quote_values[point["quote_id"]]
+            else:
+                spread_value = point["spread"]
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            frequency = (get_frequency(point["payment_frequency"])
+                         if "payment_frequency" in point else ql.NoFrequency)
+            helper = ql.ConstNotionalCrossCurrencyBasisSwapRateHelper(
+                ql.QuoteHandle(ql.SimpleQuote(spread_value)),
+                ql.Period(tenor_num, get_time_unit(tenor_unit_s)),
+                spot["spot_days"],
+                get_calendar(point["calendar"]),
+                get_convention(point["business_day_convention"]),
+                bool(point["end_of_month"]),
+                base_idx,
+                quote_idx,
+                collateral,
+                base_given,
+                bool(point["spread_on_base_leg"]),
+                frequency,
+                int(point["payment_lag"]),
+            )
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+
         elif point_type == "BondHelper":
             # Build bond schedule
             sch = point["schedule"]
@@ -763,7 +916,34 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
     
     curve = ql.PiecewiseLogLinearDiscount(eval_date, helpers, get_day_counter(curve_json.get("day_counter", "Actual365Fixed")))
     curve.enableExtrapolation()
+    # Remember the helpers' own pillar dates (the server reports them as
+    # pillar_dates); see curve_pillar_dates_ql.
+    if curve_json.get("id"):
+        _LAST_HELPER_PILLARS[curve_json["id"]] = sorted(seen_pillars)
     return ql.YieldTermStructureHandle(curve)
+
+
+# curve id -> pillar dates of the helpers of the last build_curve_from_json
+# call for that curve (the reference twin of the server's pillar_dates).
+_LAST_HELPER_PILLARS: Dict[str, list] = {}
+
+
+def curve_pillar_dates_ql(request: dict) -> list:
+    """Reference for the `pillar_dates` of a /bootstrap-curves result: the
+    curve's reference date followed by each QuantLib helper's pillarDate()
+    (what the server reports, sorted, as ISO strings). The curve is built
+    with build_curve_from_json so the dates are the helpers' own, not a
+    re-derivation."""
+    pricing = _reference_pricing_view(request)
+    as_of = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = as_of
+    query = request["queries"][0]
+    curve_json = next(c for c in pricing["curves"] if c["id"] == query["curve_id"])
+    build_curve_from_json(curve_json, as_of, request)
+    ref = (parse_date(curve_json["reference_date"]) if curve_json.get("reference_date")
+           else as_of)
+    dates = sorted({ref, *_LAST_HELPER_PILLARS[curve_json["id"]]})
+    return [_iso_date(d) for d in dates]
 
 
 # =============================================================================
@@ -1815,6 +1995,292 @@ def price_fra_ql(request: dict) -> float:
         )
 
     return ql_fra.NPV()
+
+
+# =============================================================================
+# FX forward
+# =============================================================================
+
+def fx_spot_date_ql(spot: dict, eval_date: ql.Date) -> ql.Date:
+    """Spot date of a resolved FX spot (build_fx_spot): the evaluation date
+    adjusted on the joint settlement calendar, then advanced `spot_days`
+    business days — QuantLib FxSwapRateHelper::initializeDates, which the
+    server's FxSpotDate mirrors."""
+    cal = spot["calendar"]
+    return cal.advance(cal.adjust(eval_date), ql.Period(spot["spot_days"], ql.Days))
+
+
+def fx_as_of_exchange_rate_ql(spot_rate: float, spot_date: ql.Date, base_curve, quote_curve) -> float:
+    """As-of exchange rate X = S * DF_quote(spot) / DF_base(spot), quote units
+    per base unit at the curves' reference date (docs/http-api.md, FX spot
+    market data)."""
+    return spot_rate * quote_curve.discount(spot_date) / base_curve.discount(spot_date)
+
+
+def fx_forward_ql(request: dict, index: int = 0) -> dict:
+    """Price one FX forward of a PriceFxForwardRequest with the discount-factor
+    algebra of src/evaluators/fx_forward_evaluator.cpp, on QuantLib curves built
+    from the request:
+
+      base_leg_pv  = sign * N * DF_b(T)              (base ccy)
+      quote_leg_pv = -sign * N * K * DF_q(T)         (quote ccy)
+      X            = S * DF_q(t_s) / DF_b(t_s)
+      npv          = base_leg_pv * X + quote_leg_pv  (reporting = quote)
+                   = base_leg_pv + quote_leg_pv / X  (reporting = base)
+      fair         = X * DF_b(T) / DF_q(T)
+      forward_points = fair - S
+
+    t_s is the spot date (fx_spot_date_ql) and T the maturity adjusted with
+    the spot's joint calendar and convention. Returns every response field:
+    {npv, fair_forward_rate, forward_points, base_leg_pv, quote_leg_pv,
+    spot_date, maturity_date, fx_spot_used} plus "as_of_exchange_rate" (X,
+    not on the wire) for the reporting-currency identity test."""
+    pricing = _reference_pricing_view(request)
+    entry = request["fx_forwards"][index]
+    fwd = entry["fx_forward"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    spot = build_fx_spot(request["pricing"], entry["fx_spot"], request)
+    if (fwd["base_currency"], fwd["quote_currency"]) != (spot["base"], spot["quote"]):
+        raise ValueError("FxForward pair does not match the spot's pair")
+
+    def curve(curve_id):
+        curve_json = next(c for c in pricing["curves"] if c["id"] == curve_id)
+        return build_curve_from_json(curve_json, eval_date, request)
+
+    base_curve = curve(entry["base_discounting_curve"])
+    quote_curve = curve(entry["quote_discounting_curve"])
+
+    spot_date = fx_spot_date_ql(spot, eval_date)
+    maturity = spot["calendar"].adjust(parse_date(fwd["maturity_date"]), spot["bdc"])
+    if maturity <= spot_date:
+        raise ValueError("FxForward.maturity_date must fall after the spot date")
+
+    S = spot["rate"]
+    N = float(fwd["base_notional"])
+    K = float(fwd["forward_rate"])
+    sign = 1.0 if fwd["direction"] == "BuyBase" else -1.0
+
+    df_b = base_curve.discount(maturity)
+    df_q = quote_curve.discount(maturity)
+    base_leg_pv = sign * N * df_b
+    quote_leg_pv = -sign * N * K * df_q
+    X = fx_as_of_exchange_rate_ql(S, spot_date, base_curve, quote_curve)
+    fair = X * df_b / df_q
+
+    reporting = entry["reporting_currency"]
+    if reporting == fwd["quote_currency"]:
+        npv = base_leg_pv * X + quote_leg_pv
+    elif reporting == fwd["base_currency"]:
+        npv = base_leg_pv + quote_leg_pv / X
+    else:
+        raise ValueError("PriceFxForward.reporting_currency must be the base or quote currency")
+
+    return {
+        "npv": npv,
+        "fair_forward_rate": fair,
+        "forward_points": fair - S,
+        "base_leg_pv": base_leg_pv,
+        "quote_leg_pv": quote_leg_pv,
+        "spot_date": spot_date.ISO(),
+        "maturity_date": maturity.ISO(),
+        "fx_spot_used": S,
+        "as_of_exchange_rate": X,
+    }
+
+
+FX_FORWARD_COMPARED_FIELDS = ("npv", "fair_forward_rate", "forward_points",
+                              "base_leg_pv", "quote_leg_pv", "fx_spot_used")
+
+
+def price_fx_forward_ql(request: dict) -> dict:
+    """Functional-catalog reference for /price-fx-forward (compare="fields"):
+    every numeric response field of the first forward, keyed by its dotted
+    response path."""
+    values = fx_forward_ql(request, 0)
+    return {f"fx_forwards.0.{name}": values[name] for name in FX_FORWARD_COMPARED_FIELDS}
+
+
+# =============================================================================
+# Cross-currency swap
+# =============================================================================
+
+
+def _xccy_term_structure(curve):
+    """The QuantLib term structure behind a handle (CashFlows.npv / bps take
+    the structure itself)."""
+    return curve.currentLink() if hasattr(curve, "currentLink") else curve
+
+
+def _xccy_coupon_leg(leg: dict, request: dict, forward_curve):
+    """Coupon leg of one SwapLeg, built exactly as the server's shared leg
+    builder (src/evaluators/swap_leg_builder.cpp) builds it from the
+    `coupons_type` / `coupons` union: FixedRateLeg, IborLeg with the zero-vol
+    Black pricer, or OvernightLeg with the OIS conventions (payment lag and
+    calendar, averaging, lookback, lockout, observation shift) -- the chain
+    QuantLib's OvernightIndexedSwap uses, so the leg is price-ois-swap's.
+    Returns (ql.Leg, schedule, notional, rate_or_spread, is_fixed)."""
+    kind = leg["coupons_type"]
+    f = leg["coupons"]
+    schedule = _wire_schedule_from(f["schedule"])
+    notional = float(f["notional"])
+    if kind == "FixedCoupons":
+        dc = get_day_counter(f["day_counter"])
+        conv = get_convention(f["payment_convention"])
+        coupons = ql.FixedRateLeg(schedule, dc, [notional], [float(f["rate"])], conv)
+        return coupons, schedule, notional, float(f["rate"]), True
+    spread = float(f.get("spread", 0.0))
+    idx_def = find_index_def(f["index"]["id"], request)
+    if idx_def is None:
+        raise ValueError(f"Index not found: {f['index']['id']}")
+    conv = get_convention(f["payment_convention"])
+    if kind == "OvernightCoupons":
+        if idx_def.get("index_type") != "Overnight":
+            raise ValueError("OvernightCoupons needs an overnight index")
+        index = build_overnight_index(idx_def, forward_curve)
+        lookback = int(f.get("lookback_days", 0))
+        coupons = ql.OvernightLeg(
+            [notional], schedule, index, index.dayCounter(), conv, [1.0], [spread],
+            bool(f.get("telescopic_value_dates", False)),
+            get_rate_averaging(f.get("averaging_method", "Compound")),
+            get_calendar(f["payment_calendar"]), int(f.get("payment_lag", 0)),
+            QL_NULL_NATURAL if lookback <= 0 else lookback, int(f.get("lockout_days", 0)),
+            bool(f.get("apply_observation_shift", False)))
+        return coupons, schedule, notional, spread, False
+    if kind != "IborCoupons":
+        raise ValueError(f"unsupported coupons_type {kind}")
+    if idx_def.get("index_type") == "Overnight":
+        raise ValueError("IborCoupons needs an IBOR index")
+    dc = get_day_counter(f["day_counter"])
+    index = build_ibor_index(idx_def, forward_curve)
+    coupons = ql.IborLeg([notional], schedule, index, dc, conv,
+                         [int(f.get("fixing_days", 2))], [1.0], [spread], [], [],
+                         bool(f.get("in_arrears", False)))
+    vol = ql.ConstantOptionletVolatility(
+        0, index.fixingCalendar(), ql.ModifiedFollowing, 0.0, ql.Actual365Fixed())
+    pricer = ql.BlackIborCouponPricer()
+    pricer.setCapletVolatility(ql.OptionletVolatilityStructureHandle(vol))
+    ql.setCouponPricer(coupons, pricer)
+    return coupons, schedule, notional, spread, False
+
+
+def cross_currency_swap_ql(request: dict, index: int = 0) -> dict:
+    """Price one swap of a PriceCrossCurrencySwapRequest with the cash-flow
+    algebra of src/evaluators/cross_currency_swap_evaluator.cpp on QuantLib
+    curves built from the request. For leg i (coupons C_i, notional N_i,
+    discounting curve D_i, own frame = as received by the receiver of the
+    coupons, s_i = -1 for pay_receive Pay / +1 for Receive):
+
+      L_i   = C_i + [initial] SimpleCashFlow(-N_i, schedule start)
+                  + [final]   SimpleCashFlow(+N_i, last coupon payment date)
+      legs[i].npv = s_i * CashFlows.npv(L_i, D_i)
+      X     = S * DF_quote(t_s) / DF_base(t_s)        (fx_as_of_exchange_rate_ql)
+      npv   = legs[0].npv_reporting + legs[1].npv_reporting
+      A_i   = CashFlows.bps(C_i, D_i) / 1e-4
+      fair_rate   = r_f - NPV[fixed ccy]   / (s_f * A_f)   (exactly one fixed leg)
+      fair_spread = q_1 - NPV[legs[1] ccy] / (s_1 * A_1)   (no fixed leg)
+
+    Returns the scalar response fields ({npv, fair_rate?, fair_spread?,
+    fx_spot_used, fx_as_of_rate, spot_date}) and "legs": one dict per leg
+    ({npv, npv_reporting} as on the wire, plus "pv_own" -- the own-frame PV,
+    not on the wire -- and "flows": the (date, amount, discount) of every
+    future flow of the full leg, in leg order, for the flows test)."""
+    pricing = _reference_pricing_view(request)
+    entry = request["swaps"][index]
+    swap = entry["cross_currency_swap"]
+
+    eval_date = parse_date(pricing["as_of_date"])
+    ql.Settings.instance().evaluationDate = eval_date
+
+    spot = build_fx_spot(request["pricing"], entry["fx_spot"], request)
+
+    curves = {}
+
+    def curve(curve_id):
+        if curve_id not in curves:
+            curve_json = next(c for c in pricing["curves"] if c["id"] == curve_id)
+            curves[curve_id] = build_curve_from_json(curve_json, eval_date, request)
+        return curves[curve_id]
+
+    def build(leg):
+        disc = curve(leg["discounting_curve"])
+        fwd = curve(leg["forwarding_curve"]) if leg["coupons_type"] != "FixedCoupons" else None
+        coupons, schedule, notional, level, is_fixed = _xccy_coupon_leg(leg, request, fwd)
+        full = list(coupons)
+        if leg["initial_exchange"]:
+            full.append(ql.SimpleCashFlow(-notional, schedule.dates()[0]))
+        if leg["final_exchange"]:
+            full.append(ql.SimpleCashFlow(notional, coupons[-1].date()))
+        yts = _xccy_term_structure(disc)
+        pv_own = ql.CashFlows.npv(full, yts, False, eval_date, eval_date)
+        annuity = ql.CashFlows.bps(coupons, yts, False, eval_date, eval_date) / 1e-4
+        flows = [(cf.date().ISO(), cf.amount(), yts.discount(cf.date()))
+                 for cf in full if not cf.hasOccurred(eval_date)]
+        return {"ccy": leg["currency"], "disc": disc, "pv_own": pv_own, "annuity": annuity,
+                "level": level, "is_fixed": is_fixed, "flows": flows,
+                "sign": -1.0 if leg["pay_receive"] == "Pay" else 1.0}
+
+    legs = [build(swap["leg1"]), build(swap["leg2"])]
+    pair = {legs[0]["ccy"], legs[1]["ccy"]}
+    if pair != {spot["base"], spot["quote"]}:
+        raise ValueError("PriceCrossCurrencySwap.fx_spot does not quote the legs' pair")
+    base_leg, quote_leg = (legs[0], legs[1]) if legs[0]["ccy"] == spot["base"] else (legs[1], legs[0])
+
+    spot_date = fx_spot_date_ql(spot, eval_date)
+    S = spot["rate"]
+    X = fx_as_of_exchange_rate_ql(S, spot_date, base_leg["disc"], quote_leg["disc"])
+
+    def convert(amount, from_ccy, to_ccy):
+        if from_ccy == to_ccy:
+            return amount
+        return amount * X if from_ccy == spot["base"] else amount / X
+
+    reporting = entry["reporting_currency"]
+    if reporting not in pair:
+        raise ValueError("PriceCrossCurrencySwap.reporting_currency must be a leg currency")
+    for leg in legs:
+        leg["npv"] = leg["sign"] * leg["pv_own"]
+        leg["npv_reporting"] = convert(leg["npv"], leg["ccy"], reporting)
+
+    def npv_in(ccy):
+        return sum(convert(leg["npv"], leg["ccy"], ccy) for leg in legs)
+
+    out = {
+        "npv": legs[0]["npv_reporting"] + legs[1]["npv_reporting"],
+        "legs": [{"npv": leg["npv"], "npv_reporting": leg["npv_reporting"],
+                  "pv_own": leg["pv_own"], "flows": leg["flows"]} for leg in legs],
+        "fx_spot_used": S,
+        "fx_as_of_rate": X,
+        "spot_date": spot_date.ISO(),
+    }
+    if legs[0]["is_fixed"] != legs[1]["is_fixed"]:
+        f = legs[0] if legs[0]["is_fixed"] else legs[1]
+        out["fair_rate"] = f["level"] - npv_in(f["ccy"]) / (f["sign"] * f["annuity"])
+    elif not legs[0]["is_fixed"] and not legs[1]["is_fixed"]:
+        q = legs[1]
+        out["fair_spread"] = q["level"] - npv_in(q["ccy"]) / (q["sign"] * q["annuity"])
+    return out
+
+
+CROSS_CURRENCY_SWAP_COMPARED_FIELDS = ("npv", "fair_rate", "fair_spread", "fx_spot_used",
+                                       "fx_as_of_rate")
+
+
+def price_cross_currency_swap_ql(request: dict) -> dict:
+    """Functional-catalog reference for /price-cross-currency-swap
+    (compare="fields"): every numeric response field of the first swap
+    (fair_rate / fair_spread when the swap shape defines them) and both legs'
+    NPVs in their own and in the reporting currency, keyed by their dotted
+    response paths (the framework indexes lists: swaps.0.legs.1.npv)."""
+    values = cross_currency_swap_ql(request, 0)
+    out = {f"swaps.0.{name}": values[name]
+           for name in CROSS_CURRENCY_SWAP_COMPARED_FIELDS if name in values}
+    for i, leg in enumerate(values["legs"]):
+        out[f"swaps.0.legs.{i}.npv"] = leg["npv"]
+        out[f"swaps.0.legs.{i}.npv_reporting"] = leg["npv_reporting"]
+    return out
 
 
 def price_cap_floor_ql(request: dict) -> float:

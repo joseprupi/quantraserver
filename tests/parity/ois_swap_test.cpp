@@ -66,7 +66,7 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     fsb.add_end_of_month(false);
     auto fixedSchOff = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSchOff);
     flb.add_rate(fixedRate);
@@ -88,7 +88,7 @@ TEST_F(QuantraComparisonTest, OisSwap_NPVMatches) {
     auto onSchOff = osb.Finish();
 
     auto sofrRef = buildIndexRef(b, "USD_SOFR");
-    quantra::OisFloatingLegBuilder ob(b);
+    quantra::OvernightCouponsBuilder ob(b);
     ob.add_notional(notional);
     ob.add_schedule(onSchOff);
     ob.add_index(sofrRef);
@@ -184,7 +184,7 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     fsb.add_end_of_month(false);
     auto fixedSchOff = fsb.Finish();
 
-    quantra::SwapFixedLegBuilder flb(b);
+    quantra::FixedCouponsBuilder flb(b);
     flb.add_notional(notional);
     flb.add_schedule(fixedSchOff);
     flb.add_rate(fixedRate);
@@ -206,7 +206,7 @@ TEST_F(QuantraComparisonTest, OisSwap_Receiver_Semiannual_SpreadLag) {
     auto onSchOff = osb.Finish();
 
     auto sofrRef = buildIndexRef(b, "USD_SOFR");
-    quantra::OisFloatingLegBuilder ob(b);
+    quantra::OvernightCouponsBuilder ob(b);
     ob.add_notional(notional);
     ob.add_schedule(onSchOff);
     ob.add_index(sofrRef);

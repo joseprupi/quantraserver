@@ -37,7 +37,11 @@ class HelperDependencies(object):
             return obj
         return None
 
-    # Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+    # Exogenous projection/forwarding curve. Reserved for
+    # TenorBasisSwapHelper (not implemented yet); rejected on SwapHelper,
+    # OISHelper and DatedOISHelper, whose projection curve is always the
+    # curve being bootstrapped. The FX helpers carry their own explicit
+    # curve references instead.
     # HelperDependencies
     def ProjectionCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
@@ -48,27 +52,8 @@ class HelperDependencies(object):
             return obj
         return None
 
-    # Second projection curve for basis/XCCY helpers.
-    # HelperDependencies
-    def ProjectionCurve2(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            obj = CurveRef()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # FX spot quote reference for FX-implied curve helpers.
-    # HelperDependencies
-    def FxSpotQuoteId(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.String(o + self._tab.Pos)
-        return None
-
 def HelperDependenciesStart(builder):
-    builder.StartObject(4)
+    builder.StartObject(2)
 
 def Start(builder):
     HelperDependenciesStart(builder)
@@ -84,18 +69,6 @@ def HelperDependenciesAddProjectionCurve(builder, projectionCurve):
 
 def AddProjectionCurve(builder, projectionCurve):
     HelperDependenciesAddProjectionCurve(builder, projectionCurve)
-
-def HelperDependenciesAddProjectionCurve2(builder, projectionCurve2):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(projectionCurve2), 0)
-
-def AddProjectionCurve2(builder, projectionCurve2):
-    HelperDependenciesAddProjectionCurve2(builder, projectionCurve2)
-
-def HelperDependenciesAddFxSpotQuoteId(builder, fxSpotQuoteId):
-    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(fxSpotQuoteId), 0)
-
-def AddFxSpotQuoteId(builder, fxSpotQuoteId):
-    HelperDependenciesAddFxSpotQuoteId(builder, fxSpotQuoteId)
 
 def HelperDependenciesEnd(builder):
     return builder.EndObject()
@@ -114,8 +87,6 @@ class HelperDependenciesT(object):
     def __init__(self):
         self.discountCurve = None  # type: Optional[CurveRefT]
         self.projectionCurve = None  # type: Optional[CurveRefT]
-        self.projectionCurve2 = None  # type: Optional[CurveRefT]
-        self.fxSpotQuoteId = None  # type: str
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -142,9 +113,6 @@ class HelperDependenciesT(object):
             self.discountCurve = CurveRefT.InitFromObj(helperDependencies.DiscountCurve())
         if helperDependencies.ProjectionCurve() is not None:
             self.projectionCurve = CurveRefT.InitFromObj(helperDependencies.ProjectionCurve())
-        if helperDependencies.ProjectionCurve2() is not None:
-            self.projectionCurve2 = CurveRefT.InitFromObj(helperDependencies.ProjectionCurve2())
-        self.fxSpotQuoteId = helperDependencies.FxSpotQuoteId()
 
     # HelperDependenciesT
     def Pack(self, builder):
@@ -152,18 +120,10 @@ class HelperDependenciesT(object):
             discountCurve = self.discountCurve.Pack(builder)
         if self.projectionCurve is not None:
             projectionCurve = self.projectionCurve.Pack(builder)
-        if self.projectionCurve2 is not None:
-            projectionCurve2 = self.projectionCurve2.Pack(builder)
-        if self.fxSpotQuoteId is not None:
-            fxSpotQuoteId = builder.CreateString(self.fxSpotQuoteId)
         HelperDependenciesStart(builder)
         if self.discountCurve is not None:
             HelperDependenciesAddDiscountCurve(builder, discountCurve)
         if self.projectionCurve is not None:
             HelperDependenciesAddProjectionCurve(builder, projectionCurve)
-        if self.projectionCurve2 is not None:
-            HelperDependenciesAddProjectionCurve2(builder, projectionCurve2)
-        if self.fxSpotQuoteId is not None:
-            HelperDependenciesAddFxSpotQuoteId(builder, fxSpotQuoteId)
         helperDependencies = HelperDependenciesEnd(builder)
         return helperDependencies

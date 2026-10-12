@@ -354,7 +354,7 @@ SwaptionInputs SwaptionMapper::toInputs(const quantra::PriceSwaptionRequest* req
             CurveBootstrapper bootstrapper;
             out.curves = bootstrapper.bootstrapAll(
                 pricing->rates()->curves(), pricing->quotes(), pricing->rates()->indices(),
-                curveBump);
+                curveBump, RequestBudget::unlimited(), pricing->fx());
             IndexRegistryBuilder indexBuilder;
             out.indices = indexBuilder.build(pricing->rates()->indices());
             return out;

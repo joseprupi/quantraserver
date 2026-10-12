@@ -39,8 +39,8 @@ class BasisSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.SwapFloatingLeg import SwapFloatingLeg
-            obj = SwapFloatingLeg()
+            from quantra.IborCoupons import IborCoupons
+            obj = IborCoupons()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -50,7 +50,7 @@ class BasisSwap(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            obj = SwapFloatingLeg()
+            obj = IborCoupons()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -95,8 +95,8 @@ class BasisSwapT(object):
     # BasisSwapT
     def __init__(self):
         self.swapType = None  # type: Optional[int]
-        self.leg1 = None  # type: Optional[SwapFloatingLegT]
-        self.leg2 = None  # type: Optional[SwapFloatingLegT]
+        self.leg1 = None  # type: Optional[IborCouponsT]
+        self.leg2 = None  # type: Optional[IborCouponsT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -121,9 +121,9 @@ class BasisSwapT(object):
             return
         self.swapType = basisSwap.SwapType()
         if basisSwap.Leg1() is not None:
-            self.leg1 = SwapFloatingLegT.InitFromObj(basisSwap.Leg1())
+            self.leg1 = IborCouponsT.InitFromObj(basisSwap.Leg1())
         if basisSwap.Leg2() is not None:
-            self.leg2 = SwapFloatingLegT.InitFromObj(basisSwap.Leg2())
+            self.leg2 = IborCouponsT.InitFromObj(basisSwap.Leg2())
 
     # BasisSwapT
     def Pack(self, builder):

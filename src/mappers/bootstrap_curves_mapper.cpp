@@ -3,6 +3,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "fx_spot_parser.h"
 #include "grid_utils.h"
 #include "request_validation.h"
 
@@ -66,8 +67,86 @@ QuantLib::Date resolveCurveReferenceDate(
     return asOfDate;
 }
 
+/// Settlement conventions of an FxSpotSpec, as the FX helpers consume them.
+struct FxSettlement {
+    int spotDays = 0;
+    QuantLib::Calendar calendar;
+    QuantLib::BusinessDayConvention convention = QuantLib::Following;
+};
+
+/// The spot named by a helper, from pricing.fx.spots. An unknown id is the
+/// same 404 the bootstrap raises (the per-query fold reports it; the
+/// transport-level error from the bootstrap wins).
+FxSettlement fxSettlementOf(const quantra::FxMarketData* fx, const flatbuffers::String* spotId) {
+    const std::string id = spotId ? spotId->str() : std::string{};
+    const quantra::FxSpotSpec* spec = nullptr;
+    if (fx && fx->spots()) {
+        for (flatbuffers::uoffset_t i = 0; i < fx->spots()->size(); ++i) {
+            const auto* s = fx->spots()->Get(i);
+            if (s && s->id() && s->id()->str() == id) {
+                spec = s;
+                break;
+            }
+        }
+    }
+    if (!spec) QUANTRA_NOT_FOUND("FX spot not found: " + id);
+    FxSettlement out;
+    out.spotDays = requireNonNegativeInt(spec->spot_days(), "FxSpotSpec.spot_days");
+    out.calendar = JointSettlementCalendar(spec->settlement_calendars(), id);
+    out.convention = ConventionToQL(
+        requireEnum(spec->business_day_convention(), "FxSpotSpec.business_day_convention"));
+    return out;
+}
+
+/// Pillar of an FxSwapHelper: QuantLib's FxSwapRateHelper settles spot_days
+/// after the (adjusted) evaluation date on the spot's joint calendar and
+/// advances the tenor with the spot's convention and the helper's
+/// end-of-month rule. The global evaluation date, not the curve's reference
+/// date, is what the helper uses.
+QuantLib::Date fxSwapPillarDate(
+    const QuantLib::Date& asOfDate,
+    const FxSettlement& spot,
+    const QuantLib::Period& tenor,
+    bool endOfMonth) {
+    const QuantLib::Date start =
+        spot.calendar.advance(spot.calendar.adjust(asOfDate), spot.spotDays * QuantLib::Days);
+    return spot.calendar.advance(start, tenor, spot.convention, endOfMonth);
+}
+
+/// Pillar of a CrossCcyBasisHelper: the swap settles spot_days after the
+/// evaluation date on the HELPER's calendar, the schedule ends at settlement
+/// + tenor adjusted with the helper's convention (an end-of-month schedule
+/// adjusts only the intermediate dates, except under Unadjusted), and the
+/// pillar is the last payment date: the schedule end shifted by the payment
+/// lag with QuantLib's floating-leg default (Following on the schedule
+/// calendar). This is the date QuantLib's helper reports as pillarDate().
+QuantLib::Date crossCcyPillarDate(
+    const QuantLib::Date& asOfDate,
+    int spotDays,
+    const QuantLib::Calendar& calendar,
+    QuantLib::BusinessDayConvention convention,
+    bool endOfMonth,
+    const QuantLib::Period& tenor,
+    int paymentLag) {
+    const QuantLib::Date settlement =
+        calendar.advance(calendar.adjust(asOfDate), spotDays * QuantLib::Days, convention);
+    const QuantLib::Date termination = settlement + tenor;
+    QuantLib::Date end;
+    if (convention == QuantLib::Unadjusted) {
+        end = (endOfMonth && calendar.isEndOfMonth(termination))
+                  ? QuantLib::Date::endOfMonth(termination)
+                  : termination;
+    } else {
+        end = calendar.adjust(termination, convention);
+    }
+    return calendar.advance(end, paymentLag * QuantLib::Days, QuantLib::Following);
+}
+
 std::vector<QuantLib::Date> extractPillarDates(
-    const quantra::TermStructure* ts, const QuantLib::Date& referenceDate) {
+    const quantra::TermStructure* ts,
+    const QuantLib::Date& referenceDate,
+    const QuantLib::Date& asOfDate,
+    const quantra::FxMarketData* fx) {
     std::set<QuantLib::Date> dateSet;
     dateSet.insert(referenceDate);
     if (!ts->points()) {
@@ -118,12 +197,22 @@ std::vector<QuantLib::Date> extractPillarDates(
         } else if (auto basis = point->point_as_TenorBasisSwapHelper()) {
             QuantLib::Period tenor = requirePeriod(basis->tenor(), "TenorBasisSwapHelper.tenor");
             maturityDate = calendar.advance(referenceDate, tenor);
-        } else if (auto fx = point->point_as_FxSwapHelper()) {
-            QuantLib::Period tenor = requirePeriod(fx->tenor(), "FxSwapHelper.tenor");
-            maturityDate = calendar.advance(referenceDate, tenor);
+        } else if (auto fxh = point->point_as_FxSwapHelper()) {
+            const QuantLib::Period tenor = requirePeriod(fxh->tenor(), "FxSwapHelper.tenor");
+            maturityDate = fxSwapPillarDate(
+                asOfDate, fxSettlementOf(fx, fxh->fx_spot()), tenor,
+                requireBool(fxh->end_of_month(), "FxSwapHelper.end_of_month"));
         } else if (auto xccy = point->point_as_CrossCcyBasisHelper()) {
-            QuantLib::Period tenor = requirePeriod(xccy->tenor(), "CrossCcyBasisHelper.tenor");
-            maturityDate = calendar.advance(referenceDate, tenor);
+            const QuantLib::Period tenor =
+                requirePeriod(xccy->tenor(), "CrossCcyBasisHelper.tenor");
+            maturityDate = crossCcyPillarDate(
+                asOfDate, fxSettlementOf(fx, xccy->fx_spot()).spotDays,
+                CalendarToQL(requireEnum(xccy->calendar(), "CrossCcyBasisHelper.calendar")),
+                ConventionToQL(requireEnum(
+                    xccy->business_day_convention(),
+                    "CrossCcyBasisHelper.business_day_convention")),
+                requireBool(xccy->end_of_month(), "CrossCcyBasisHelper.end_of_month"), tenor,
+                requireNonNegativeInt(xccy->payment_lag(), "CrossCcyBasisHelper.payment_lag"));
         }
         if (maturityDate != QuantLib::Date()) {
             dateSet.insert(maturityDate);
@@ -189,7 +278,8 @@ CurveSampleMeasure fromFbMeasure(quantra::CurveMeasure m, const std::string& cur
 BootstrapCurvesQuery extractQuery(
     const quantra::CurveQuerySpec* query,
     const quantra::TermStructure* tsSpec,
-    const QuantLib::Date& asOfDate) {
+    const QuantLib::Date& asOfDate,
+    const quantra::FxMarketData* fx) {
     if (query == nullptr) {
         QUANTRA_INVALID_ARGUMENT("CurveQuerySpec is null");
     }
@@ -234,7 +324,7 @@ BootstrapCurvesQuery extractQuery(
         QUANTRA_INVALID_ARGUMENT("DateGridSpec.grid is required for curve_id: " + curveId);
     }
 
-    out.pillarDates = extractPillarDates(tsSpec, referenceDate);
+    out.pillarDates = extractPillarDates(tsSpec, referenceDate, asOfDate, fx);
 
     out.measures.reserve(query->measures()->size());
     for (flatbuffers::uoffset_t m = 0; m < query->measures()->size(); ++m) {
@@ -274,7 +364,7 @@ BootstrapCurvesInputs BootstrapCurvesMapper::toInputs(
         BootstrapCurvesQuery q;
         try {
             const auto* tsSpec = findCurveSpecById(curves, curveId);
-            q = extractQuery(qspec, tsSpec, asOfDate);
+            q = extractQuery(qspec, tsSpec, asOfDate, req->pricing()->fx());
         } catch (const std::exception& e) {
             q.curveId = curveId;
             q.prebuiltError = e.what();

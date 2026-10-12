@@ -12,11 +12,14 @@ enum QuoteKind : byte {
     FxPoints = 5
 }
 
-/// High-level quote type (usage).
+/// High-level quote type (usage). Curve quotes are the only ones shifted by
+/// the rate bump-and-reprice machinery (swaption_pricing_rebump); an FX spot
+/// referenced from FxSpotSpec.quote_id must therefore carry the Fx type.
 enum QuoteType : byte {
     Curve = 0,
     Volatility = 1,
-    Credit = 2
+    Credit = 2,
+    Fx = 3
 }
 
 /// Market quote (spot price, FX rate, etc.). Used by Pricing.quotes[] and helper quote_id references.

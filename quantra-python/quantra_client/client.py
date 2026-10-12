@@ -32,6 +32,8 @@ from quantra.PriceFixedRateBondRequest import PriceFixedRateBondRequestT
 from quantra.PriceFloatingRateBondRequest import PriceFloatingRateBondRequestT
 from quantra.PriceVanillaSwapRequest import PriceVanillaSwapRequestT
 from quantra.PriceFRARequest import PriceFRARequestT
+from quantra.PriceFxForwardRequest import PriceFxForwardRequestT
+from quantra.PriceCrossCurrencySwapRequest import PriceCrossCurrencySwapRequestT
 from quantra.PriceCapFloorRequest import PriceCapFloorRequestT
 from quantra.PriceSwaptionRequest import PriceSwaptionRequestT
 from quantra.PriceCDSRequest import PriceCDSRequestT
@@ -52,6 +54,8 @@ from quantra.PriceFixedRateBondResponse import PriceFixedRateBondResponse
 from quantra.PriceFloatingRateBondResponse import PriceFloatingRateBondResponse
 from quantra.PriceVanillaSwapResponse import PriceVanillaSwapResponse
 from quantra.PriceFRAResponse import PriceFRAResponse
+from quantra.PriceFxForwardResponse import PriceFxForwardResponse
+from quantra.PriceCrossCurrencySwapResponse import PriceCrossCurrencySwapResponse
 from quantra.PriceCapFloorResponse import PriceCapFloorResponse
 from quantra.PriceSwaptionResponse import PriceSwaptionResponse
 from quantra.PriceCDSResponse import PriceCDSResponse
@@ -80,6 +84,8 @@ class Client:
         'floating_rate_bond': '/quantra.QuantraServer/PriceFloatingRateBond',
         'vanilla_swap': '/quantra.QuantraServer/PriceVanillaSwap',
         'fra': '/quantra.QuantraServer/PriceFRA',
+        'fx_forward': '/quantra.QuantraServer/PriceFxForward',
+        'cross_currency_swap': '/quantra.QuantraServer/PriceCrossCurrencySwap',
         'cap_floor': '/quantra.QuantraServer/PriceCapFloor',
         'swaption': '/quantra.QuantraServer/PriceSwaption',
         'cds': '/quantra.QuantraServer/PriceCDS',
@@ -176,6 +182,32 @@ class Client:
             'fra',
             request,
             PriceFRAResponse
+        )
+    
+    def price_fx_forwards(
+        self,
+        request: PriceFxForwardRequestT
+    ) -> PriceFxForwardResponse:
+        """Price outright FX forwards (FX spot in pricing.fx + one discount
+        curve per currency)."""
+        return self._call(
+            'fx_forward',
+            request,
+            PriceFxForwardResponse
+        )
+    
+    def price_cross_currency_swaps(
+        self,
+        request: PriceCrossCurrencySwapRequestT
+    ) -> PriceCrossCurrencySwapResponse:
+        """Price cross-currency swaps: two SwapLeg entries (FixedCoupons /
+        IborCoupons / OvernightCoupons), each paid or received, in two
+        currencies with principal exchanges; FX spot in pricing.fx, one
+        discounting curve per leg."""
+        return self._call(
+            'cross_currency_swap',
+            request,
+            PriceCrossCurrencySwapResponse
         )
     
     def price_cap_floors(
@@ -332,13 +364,26 @@ from quantra.PriceFloatingRateBond import PriceFloatingRateBondT
 
 # Swaps
 from quantra.VanillaSwap import VanillaSwapT
-from quantra.SwapFixedLeg import SwapFixedLegT
-from quantra.SwapFloatingLeg import SwapFloatingLegT
+from quantra.FixedCoupons import FixedCouponsT
+from quantra.IborCoupons import IborCouponsT
 from quantra.PriceVanillaSwap import PriceVanillaSwapT
 
 # FRA
 from quantra.FRA import FRAT
 from quantra.PriceFRA import PriceFRAT
+
+# FX market data and FX forward
+from quantra.FxSpotSpec import FxSpotSpecT
+from quantra.FxMarketData import FxMarketDataT
+from quantra.FxForward import FxForwardT
+from quantra.PriceFxForward import PriceFxForwardT
+
+# Cross-currency swap (SwapLeg model)
+from quantra.OvernightCoupons import OvernightCouponsT
+from quantra.SwapCoupons import SwapCoupons
+from quantra.SwapLeg import SwapLegT
+from quantra.CrossCurrencySwap import CrossCurrencySwapT
+from quantra.PriceCrossCurrencySwap import PriceCrossCurrencySwapT
 
 # Cap/Floor
 from quantra.CapFloor import CapFloorT
@@ -366,8 +411,12 @@ from quantra.enums.DateGenerationRule import DateGenerationRule
 from quantra.enums.Interpolator import Interpolator
 from quantra.enums.BootstrapTrait import BootstrapTrait
 from quantra.enums.Compounding import Compounding
+from quantra.enums.RateAveragingType import RateAveragingType
 from quantra.enums.SwapType import SwapType
+from quantra.enums.PayReceive import PayReceive
 from quantra.enums.FRAType import FRAType
+from quantra.enums.FxDirection import FxDirection
+from quantra.enums.SwapFlowKind import SwapFlowKind
 from quantra.enums.CapFloorType import CapFloorType
 from quantra.enums.ExerciseType import ExerciseType
 from quantra.enums.SettlementType import SettlementType
@@ -390,6 +439,8 @@ __all__ = [
     'PriceFloatingRateBondRequestT',
     'PriceVanillaSwapRequestT',
     'PriceFRARequestT',
+    'PriceFxForwardRequestT',
+    'PriceCrossCurrencySwapRequestT',
     'PriceCapFloorRequestT',
     'PriceSwaptionRequestT',
     'PriceCDSRequestT',
@@ -401,6 +452,8 @@ __all__ = [
     'PriceFloatingRateBondResponse',
     'PriceVanillaSwapResponse',
     'PriceFRAResponse',
+    'PriceFxForwardResponse',
+    'PriceCrossCurrencySwapResponse',
     'PriceCapFloorResponse',
     'PriceSwaptionResponse',
     'PriceCDSResponse',
@@ -463,11 +516,20 @@ __all__ = [
     'FloatingRateBondT',
     'PriceFloatingRateBondT',
     'VanillaSwapT',
-    'SwapFixedLegT',
-    'SwapFloatingLegT',
+    'FixedCouponsT',
+    'IborCouponsT',
     'PriceVanillaSwapT',
     'FRAT',
     'PriceFRAT',
+    'FxSpotSpecT',
+    'FxMarketDataT',
+    'FxForwardT',
+    'PriceFxForwardT',
+    'OvernightCouponsT',
+    'SwapCoupons',
+    'SwapLegT',
+    'CrossCurrencySwapT',
+    'PriceCrossCurrencySwapT',
     'CapFloorT',
     'PriceCapFloorT',
     'SwaptionT',
@@ -489,8 +551,12 @@ __all__ = [
     'Interpolator',
     'BootstrapTrait',
     'Compounding',
+    'RateAveragingType',
     'SwapType',
+    'PayReceive',
     'FRAType',
+    'FxDirection',
+    'SwapFlowKind',
     'CapFloorType',
     'ExerciseType',
     'SettlementType',

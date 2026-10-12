@@ -200,6 +200,14 @@ enum SwapType : byte {
     Receiver = 1
 }
 
+/// Side of one swap leg from the reported party's view (`SwapLeg.pay_receive`):
+/// `Pay` = the party pays the leg's coupons (and, with the exchanges on, receives
+/// the initial notional and pays the final one), `Receive` the opposite.
+enum PayReceive : byte {
+    Pay = 0,
+    Receive = 1
+}
+
 /// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : byte {
     Long = 0,
@@ -376,4 +384,23 @@ enum EquityBarrierType : byte {
 enum EquityBarrierMonitoring : byte {
     Continuous = 0,
     Discrete = 1
+}
+
+/// Direction of the base-currency notional of an FX forward, seen from the
+/// party whose NPV is reported. BuyBase: that party receives the base-currency
+/// notional at maturity and pays base_notional x forward_rate units of the
+/// quote currency. SellBase: the opposite. A positive NPV is in favour of that
+/// party.
+enum FxDirection : byte {
+    BuyBase = 0,
+    SellBase = 1
+}
+
+/// Kind of a swap-leg cash flow. Coupon: an interest payment (fixed or
+/// floating). NotionalExchange: a principal flow of a cross-currency swap
+/// (the initial exchange at the leg's start date, the final one with the last
+/// coupon); it carries no accrual or rate fields.
+enum SwapFlowKind : byte {
+    Coupon = 0,
+    NotionalExchange = 1
 }

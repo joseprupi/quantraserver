@@ -474,8 +474,6 @@ struct HelperDependenciesT : public ::flatbuffers::NativeTable {
   typedef HelperDependencies TableType;
   std::unique_ptr<quantra::CurveRefT> discount_curve{};
   std::unique_ptr<quantra::CurveRefT> projection_curve{};
-  std::unique_ptr<quantra::CurveRefT> projection_curve_2{};
-  std::string fx_spot_quote_id{};
   HelperDependenciesT() = default;
   HelperDependenciesT(const HelperDependenciesT &o);
   HelperDependenciesT(HelperDependenciesT&&) FLATBUFFERS_NOEXCEPT = default;
@@ -488,25 +486,19 @@ struct HelperDependencies FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
   typedef HelperDependenciesBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DISCOUNT_CURVE = 4,
-    VT_PROJECTION_CURVE = 6,
-    VT_PROJECTION_CURVE_2 = 8,
-    VT_FX_SPOT_QUOTE_ID = 10
+    VT_PROJECTION_CURVE = 6
   };
   /// Exogenous discount curve for dual-curve bootstrapping.
   const quantra::CurveRef *discount_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_DISCOUNT_CURVE);
   }
-  /// Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+  /// Exogenous projection/forwarding curve. Reserved for
+  /// TenorBasisSwapHelper (not implemented yet); rejected on SwapHelper,
+  /// OISHelper and DatedOISHelper, whose projection curve is always the
+  /// curve being bootstrapped. The FX helpers carry their own explicit
+  /// curve references instead.
   const quantra::CurveRef *projection_curve() const {
     return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE);
-  }
-  /// Second projection curve for basis/XCCY helpers.
-  const quantra::CurveRef *projection_curve_2() const {
-    return GetPointer<const quantra::CurveRef *>(VT_PROJECTION_CURVE_2);
-  }
-  /// FX spot quote reference for FX-implied curve helpers.
-  const ::flatbuffers::String *fx_spot_quote_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT_QUOTE_ID);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -514,10 +506,6 @@ struct HelperDependencies FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table
            verifier.VerifyTable(discount_curve()) &&
            VerifyOffset(verifier, VT_PROJECTION_CURVE) &&
            verifier.VerifyTable(projection_curve()) &&
-           VerifyOffset(verifier, VT_PROJECTION_CURVE_2) &&
-           verifier.VerifyTable(projection_curve_2()) &&
-           VerifyOffset(verifier, VT_FX_SPOT_QUOTE_ID) &&
-           verifier.VerifyString(fx_spot_quote_id()) &&
            verifier.EndTable();
   }
   HelperDependenciesT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -535,12 +523,6 @@ struct HelperDependenciesBuilder {
   void add_projection_curve(::flatbuffers::Offset<quantra::CurveRef> projection_curve) {
     fbb_.AddOffset(HelperDependencies::VT_PROJECTION_CURVE, projection_curve);
   }
-  void add_projection_curve_2(::flatbuffers::Offset<quantra::CurveRef> projection_curve_2) {
-    fbb_.AddOffset(HelperDependencies::VT_PROJECTION_CURVE_2, projection_curve_2);
-  }
-  void add_fx_spot_quote_id(::flatbuffers::Offset<::flatbuffers::String> fx_spot_quote_id) {
-    fbb_.AddOffset(HelperDependencies::VT_FX_SPOT_QUOTE_ID, fx_spot_quote_id);
-  }
   explicit HelperDependenciesBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -555,30 +537,11 @@ struct HelperDependenciesBuilder {
 inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<quantra::CurveRef> discount_curve = 0,
-    ::flatbuffers::Offset<quantra::CurveRef> projection_curve = 0,
-    ::flatbuffers::Offset<quantra::CurveRef> projection_curve_2 = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> fx_spot_quote_id = 0) {
+    ::flatbuffers::Offset<quantra::CurveRef> projection_curve = 0) {
   HelperDependenciesBuilder builder_(_fbb);
-  builder_.add_fx_spot_quote_id(fx_spot_quote_id);
-  builder_.add_projection_curve_2(projection_curve_2);
   builder_.add_projection_curve(projection_curve);
   builder_.add_discount_curve(discount_curve);
   return builder_.Finish();
-}
-
-inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependenciesDirect(
-    ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<quantra::CurveRef> discount_curve = 0,
-    ::flatbuffers::Offset<quantra::CurveRef> projection_curve = 0,
-    ::flatbuffers::Offset<quantra::CurveRef> projection_curve_2 = 0,
-    const char *fx_spot_quote_id = nullptr) {
-  auto fx_spot_quote_id__ = fx_spot_quote_id ? _fbb.CreateString(fx_spot_quote_id) : 0;
-  return quantra::CreateHelperDependencies(
-      _fbb,
-      discount_curve,
-      projection_curve,
-      projection_curve_2,
-      fx_spot_quote_id__);
 }
 
 ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(::flatbuffers::FlatBufferBuilder &_fbb, const HelperDependenciesT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1556,29 +1519,29 @@ struct OISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Payment lag in business days between accrual end and payment. Required;
-  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
   ::flatbuffers::Optional<int32_t> payment_lag() const {
     return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
   /// Compound or Simple averaging of the overnight fixings. Required.
-  /// Name mirrors OisFloatingLeg.averaging_method.
+  /// Name mirrors OvernightCoupons.averaging_method.
   ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
     return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
   }
   /// Fixing lookback in business days. Required; must be >= 0; 0 = no
   /// lookback (the index's own fixing delay applies — QuantLib encodes this
   /// as Null, not as a zero-day lookback). Name mirrors
-  /// OisFloatingLeg.lookback_days.
+  /// OvernightCoupons.lookback_days.
   ::flatbuffers::Optional<int32_t> lookback_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
   }
   /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
   ::flatbuffers::Optional<int32_t> lockout_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
   }
   /// Whether the observation-shift convention applies to the lookback.
-  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
   ::flatbuffers::Optional<bool> apply_observation_shift() const {
     return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
@@ -1842,29 +1805,29 @@ struct DatedOISHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return GetOptional<int8_t, quantra::enums::DayCounter>(VT_FIXED_LEG_DAY_COUNTER);
   }
   /// Payment lag in business days between accrual end and payment. Required;
-  /// must be >= 0. Name mirrors OisFloatingLeg.payment_lag.
+  /// must be >= 0. Name mirrors OvernightCoupons.payment_lag.
   ::flatbuffers::Optional<int32_t> payment_lag() const {
     return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
   }
   /// Compound or Simple averaging of the overnight fixings. Required.
-  /// Name mirrors OisFloatingLeg.averaging_method.
+  /// Name mirrors OvernightCoupons.averaging_method.
   ::flatbuffers::Optional<quantra::enums::RateAveragingType> averaging_method() const {
     return GetOptional<int8_t, quantra::enums::RateAveragingType>(VT_AVERAGING_METHOD);
   }
   /// Fixing lookback in business days. Required; must be >= 0; 0 = no
   /// lookback (the index's own fixing delay applies — QuantLib encodes this
   /// as Null, not as a zero-day lookback). Name mirrors
-  /// OisFloatingLeg.lookback_days.
+  /// OvernightCoupons.lookback_days.
   ::flatbuffers::Optional<int32_t> lookback_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOOKBACK_DAYS);
   }
   /// Lockout (rate-cutoff) days at period end. Required; must be >= 0;
-  /// 0 = no lockout. Name mirrors OisFloatingLeg.lockout_days.
+  /// 0 = no lockout. Name mirrors OvernightCoupons.lockout_days.
   ::flatbuffers::Optional<int32_t> lockout_days() const {
     return GetOptional<int32_t, int32_t>(VT_LOCKOUT_DAYS);
   }
   /// Whether the observation-shift convention applies to the lookback.
-  /// Required. Name mirrors OisFloatingLeg.apply_observation_shift.
+  /// Required. Name mirrors OvernightCoupons.apply_observation_shift.
   ::flatbuffers::Optional<bool> apply_observation_shift() const {
     return GetOptional<uint8_t, bool>(VT_APPLY_OBSERVATION_SHIFT);
   }
@@ -2616,65 +2579,90 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelperDir
 struct FxSwapHelperT : public ::flatbuffers::NativeTable {
   typedef FxSwapHelper TableType;
   ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::PeriodT> tenor{};
-  ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt;
-  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  std::string fx_spot{};
+  ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt;
+  std::string collateral_currency{};
+  std::unique_ptr<quantra::CurveRefT> collateral_curve{};
   FxSwapHelperT() = default;
   FxSwapHelperT(const FxSwapHelperT &o);
   FxSwapHelperT(FxSwapHelperT&&) FLATBUFFERS_NOEXCEPT = default;
   FxSwapHelperT &operator=(FxSwapHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// FX swap helper.
+/// FX swap helper (QuantLib FxSwapRateHelper). Bootstraps the discount curve
+/// of the NON-collateral currency of the pair from FX swap points, given the
+/// spot and the discount curve of the collateral currency: the implied
+/// forward S + points must reprice to S * DF_collateral(T) / DF_other(T) from
+/// the spot date. The curve being bootstrapped is always the other
+/// currency's discount curve; the collateral curve is an exogenous curve the
+/// bootstrapper builds first (dependency ordering), so the two may never be
+/// the same curve.
 struct FxSwapHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef FxSwapHelperT NativeTableType;
   typedef FxSwapHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_FX_POINTS = 4,
-    VT_TENOR = 6,
-    VT_SPOT_DAYS = 8,
-    VT_CALENDAR_DOMESTIC = 10,
-    VT_CALENDAR_FOREIGN = 12,
-    VT_DEPS = 14,
-    VT_QUOTE_ID = 16
+    VT_QUOTE_ID = 6,
+    VT_TENOR = 8,
+    VT_FX_SPOT = 10,
+    VT_END_OF_MONTH = 12,
+    VT_COLLATERAL_CURRENCY = 14,
+    VT_COLLATERAL_CURVE = 16
   };
-  /// FX forward points. One of fx_points or quote_id must be provided.
+  /// FX forward points in price units of the pair (forward = spot + points;
+  /// e.g. 0.0025 for 25 pips on EUR/USD). Exactly one of fx_points or
+  /// quote_id must be present. May be negative.
   ::flatbuffers::Optional<double> fx_points() const {
     return GetOptional<double, double>(VT_FX_POINTS);
   }
+  /// Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+  /// points move with rates, so they take part in the curve bump) instead of
+  /// an inline fx_points value.
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
+  /// Forward tenor from the spot date (1W, 1M, 3M, ...). Required.
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  ::flatbuffers::Optional<int32_t> spot_days() const {
-    return GetOptional<int32_t, int32_t>(VT_SPOT_DAYS);
+  /// Id of the FxSpotSpec in pricing.fx.spots. Required. The spot supplies
+  /// the pair, the spot rate, the spot lag (QuantLib fixingDays), the joint
+  /// settlement calendar and the business-day convention of the helper.
+  const ::flatbuffers::String *fx_spot() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT);
   }
-  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic() const {
-    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR_DOMESTIC);
+  /// End-of-month rule for the forward date. Required.
+  ::flatbuffers::Optional<bool> end_of_month() const {
+    return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
   }
-  ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign() const {
-    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR_FOREIGN);
+  /// ISO code of the collateral currency: the currency whose discount curve
+  /// is given (collateral_curve). Required; must equal the spot's
+  /// base_currency or quote_currency. The curve being bootstrapped is then
+  /// the discount curve of the other currency of the pair.
+  const ::flatbuffers::String *collateral_currency() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_COLLATERAL_CURRENCY);
   }
-  const quantra::HelperDependencies *deps() const {
-    return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
-  }
-  const ::flatbuffers::String *quote_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  /// Discount curve of the collateral currency, by id. Required; must name
+  /// another curve of pricing.rates.curves, which is bootstrapped first.
+  const quantra::CurveRef *collateral_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_COLLATERAL_CURVE);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_FX_POINTS, 8) &&
-           VerifyOffset(verifier, VT_TENOR) &&
-           verifier.VerifyTable(tenor()) &&
-           VerifyField<int32_t>(verifier, VT_SPOT_DAYS, 4) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR_DOMESTIC, 1) &&
-           VerifyField<int8_t>(verifier, VT_CALENDAR_FOREIGN, 1) &&
-           VerifyOffset(verifier, VT_DEPS) &&
-           verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
            verifier.VerifyString(quote_id()) &&
+           VerifyOffsetRequired(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyOffsetRequired(verifier, VT_FX_SPOT) &&
+           verifier.VerifyString(fx_spot()) &&
+           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
+           VerifyOffsetRequired(verifier, VT_COLLATERAL_CURRENCY) &&
+           verifier.VerifyString(collateral_currency()) &&
+           VerifyOffsetRequired(verifier, VT_COLLATERAL_CURVE) &&
+           verifier.VerifyTable(collateral_curve()) &&
            verifier.EndTable();
   }
   FxSwapHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2689,23 +2677,23 @@ struct FxSwapHelperBuilder {
   void add_fx_points(double fx_points) {
     fbb_.AddElement<double>(FxSwapHelper::VT_FX_POINTS, fx_points);
   }
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(FxSwapHelper::VT_QUOTE_ID, quote_id);
+  }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(FxSwapHelper::VT_TENOR, tenor);
   }
-  void add_spot_days(int32_t spot_days) {
-    fbb_.AddElement<int32_t>(FxSwapHelper::VT_SPOT_DAYS, spot_days);
+  void add_fx_spot(::flatbuffers::Offset<::flatbuffers::String> fx_spot) {
+    fbb_.AddOffset(FxSwapHelper::VT_FX_SPOT, fx_spot);
   }
-  void add_calendar_domestic(quantra::enums::Calendar calendar_domestic) {
-    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_DOMESTIC, static_cast<int8_t>(calendar_domestic));
+  void add_end_of_month(bool end_of_month) {
+    fbb_.AddElement<uint8_t>(FxSwapHelper::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month));
   }
-  void add_calendar_foreign(quantra::enums::Calendar calendar_foreign) {
-    fbb_.AddElement<int8_t>(FxSwapHelper::VT_CALENDAR_FOREIGN, static_cast<int8_t>(calendar_foreign));
+  void add_collateral_currency(::flatbuffers::Offset<::flatbuffers::String> collateral_currency) {
+    fbb_.AddOffset(FxSwapHelper::VT_COLLATERAL_CURRENCY, collateral_currency);
   }
-  void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
-    fbb_.AddOffset(FxSwapHelper::VT_DEPS, deps);
-  }
-  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
-    fbb_.AddOffset(FxSwapHelper::VT_QUOTE_ID, quote_id);
+  void add_collateral_curve(::flatbuffers::Offset<quantra::CurveRef> collateral_curve) {
+    fbb_.AddOffset(FxSwapHelper::VT_COLLATERAL_CURVE, collateral_curve);
   }
   explicit FxSwapHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -2714,6 +2702,10 @@ struct FxSwapHelperBuilder {
   ::flatbuffers::Offset<FxSwapHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<FxSwapHelper>(end);
+    fbb_.Required(o, FxSwapHelper::VT_TENOR);
+    fbb_.Required(o, FxSwapHelper::VT_FX_SPOT);
+    fbb_.Required(o, FxSwapHelper::VT_COLLATERAL_CURRENCY);
+    fbb_.Required(o, FxSwapHelper::VT_COLLATERAL_CURVE);
     return o;
   }
 };
@@ -2721,42 +2713,44 @@ struct FxSwapHelperBuilder {
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> fx_spot = 0,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> collateral_currency = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> collateral_curve = 0) {
   FxSwapHelperBuilder builder_(_fbb);
   if(fx_points) { builder_.add_fx_points(*fx_points); }
-  builder_.add_quote_id(quote_id);
-  builder_.add_deps(deps);
-  if(spot_days) { builder_.add_spot_days(*spot_days); }
+  builder_.add_collateral_curve(collateral_curve);
+  builder_.add_collateral_currency(collateral_currency);
+  builder_.add_fx_spot(fx_spot);
   builder_.add_tenor(tenor);
-  if(calendar_foreign) { builder_.add_calendar_foreign(*calendar_foreign); }
-  if(calendar_domestic) { builder_.add_calendar_domestic(*calendar_domestic); }
+  builder_.add_quote_id(quote_id);
+  if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> fx_points = ::flatbuffers::nullopt,
+    const char *quote_id = nullptr,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    ::flatbuffers::Optional<int32_t> spot_days = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_domestic = ::flatbuffers::nullopt,
-    ::flatbuffers::Optional<quantra::enums::Calendar> calendar_foreign = ::flatbuffers::nullopt,
-    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
-    const char *quote_id = nullptr) {
+    const char *fx_spot = nullptr,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
+    const char *collateral_currency = nullptr,
+    ::flatbuffers::Offset<quantra::CurveRef> collateral_curve = 0) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
+  auto fx_spot__ = fx_spot ? _fbb.CreateString(fx_spot) : 0;
+  auto collateral_currency__ = collateral_currency ? _fbb.CreateString(collateral_currency) : 0;
   return quantra::CreateFxSwapHelper(
       _fbb,
       fx_points,
+      quote_id__,
       tenor,
-      spot_days,
-      calendar_domestic,
-      calendar_foreign,
-      deps,
-      quote_id__);
+      fx_spot__,
+      end_of_month,
+      collateral_currency__,
+      collateral_curve);
 }
 
 ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(::flatbuffers::FlatBufferBuilder &_fbb, const FxSwapHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2764,63 +2758,205 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelperDirect(
 struct CrossCcyBasisHelperT : public ::flatbuffers::NativeTable {
   typedef CrossCcyBasisHelper TableType;
   ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt;
-  std::unique_ptr<quantra::PeriodT> tenor{};
-  std::unique_ptr<quantra::IndexRefT> index_domestic{};
-  std::unique_ptr<quantra::IndexRefT> index_foreign{};
-  std::unique_ptr<quantra::HelperDependenciesT> deps{};
   std::string quote_id{};
+  std::unique_ptr<quantra::PeriodT> tenor{};
+  std::string fx_spot{};
+  std::unique_ptr<quantra::IndexRefT> base_index{};
+  std::unique_ptr<quantra::CurveRefT> base_forwarding_curve{};
+  std::unique_ptr<quantra::CurveRefT> base_discount_curve{};
+  std::unique_ptr<quantra::IndexRefT> quote_index{};
+  std::unique_ptr<quantra::CurveRefT> quote_forwarding_curve{};
+  std::unique_ptr<quantra::CurveRefT> quote_discount_curve{};
+  ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt;
+  ::flatbuffers::Optional<bool> mtm_reset = ::flatbuffers::nullopt;
   CrossCcyBasisHelperT() = default;
   CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o);
   CrossCcyBasisHelperT(CrossCcyBasisHelperT&&) FLATBUFFERS_NOEXCEPT = default;
   CrossCcyBasisHelperT &operator=(CrossCcyBasisHelperT o) FLATBUFFERS_NOEXCEPT;
 };
 
-/// Cross-currency basis swap helper.
+/// Cross-currency basis swap helper (QuantLib
+/// ConstNotionalCrossCurrencyBasisSwapRateHelper). Bootstraps the discount
+/// curve of ONE currency of the pair from a constant-notional cross-currency
+/// basis swap: a base-currency floating leg against a quote-currency floating
+/// leg, notional 1 in each currency exchanged at the start and at the end of
+/// the swap, the basis spread added to one of the two legs. The other
+/// currency's discount curve, both legs' forwarding curves and the two indices
+/// are given; the curve being bootstrapped is the discount curve of the leg
+/// whose *_discount_curve reference is absent (the classic use: a EUR curve
+/// for USD-collateralised trades, quote_discount_curve = the USD OIS curve,
+/// base_discount_curve absent).
+///
+/// Constant notional: both notionals stay fixed for the life of the swap, so
+/// the FX spot rate cancels from the par condition and never enters the
+/// bootstrap. The spot is still referenced (fx_spot) because it names the
+/// pair: the two indices must be in its base and quote currencies, and its
+/// spot lag is the swap's settlement lag.
+///
+/// Legs: an IBOR index pays at its own tenor (one fixing per period); an
+/// overnight index pays a compounded coupon every payment_frequency. The
+/// spread_on_base_leg flag, the collateral side and the basis sign follow
+/// QuantLib's convention for the pair (EUR/USD: collateral in USD, basis on
+/// the EUR leg, typically negative).
 struct CrossCcyBasisHelper FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef CrossCcyBasisHelperT NativeTableType;
   typedef CrossCcyBasisHelperBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SPREAD = 4,
-    VT_TENOR = 6,
-    VT_INDEX_DOMESTIC = 8,
-    VT_INDEX_FOREIGN = 10,
-    VT_DEPS = 12,
-    VT_QUOTE_ID = 14
+    VT_QUOTE_ID = 6,
+    VT_TENOR = 8,
+    VT_FX_SPOT = 10,
+    VT_BASE_INDEX = 12,
+    VT_BASE_FORWARDING_CURVE = 14,
+    VT_BASE_DISCOUNT_CURVE = 16,
+    VT_QUOTE_INDEX = 18,
+    VT_QUOTE_FORWARDING_CURVE = 20,
+    VT_QUOTE_DISCOUNT_CURVE = 22,
+    VT_SPREAD_ON_BASE_LEG = 24,
+    VT_PAYMENT_FREQUENCY = 26,
+    VT_PAYMENT_LAG = 28,
+    VT_CALENDAR = 30,
+    VT_BUSINESS_DAY_CONVENTION = 32,
+    VT_END_OF_MONTH = 34,
+    VT_MTM_RESET = 36
   };
-  /// Cross-currency basis spread. One of spread or quote_id must be provided.
+  /// Basis spread (decimal, -0.0015 = -15 bp) added to the leg selected by
+  /// spread_on_base_leg. Exactly one of spread or quote_id must be present.
+  /// May be negative.
   ::flatbuffers::Optional<double> spread() const {
     return GetOptional<double, double>(VT_SPREAD);
   }
+  /// Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+  /// basis moves with rates, so it takes part in the curve bump) instead of
+  /// an inline spread.
+  const ::flatbuffers::String *quote_id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  }
+  /// Swap tenor from the settlement (spot) date. Required.
   const quantra::Period *tenor() const {
     return GetPointer<const quantra::Period *>(VT_TENOR);
   }
-  /// Domestic leg index.
-  const quantra::IndexRef *index_domestic() const {
-    return GetPointer<const quantra::IndexRef *>(VT_INDEX_DOMESTIC);
+  /// Id of the FxSpotSpec in pricing.fx.spots. Required. The spot names the
+  /// pair (base_index must be in its base_currency, quote_index in its
+  /// quote_currency) and supplies the settlement lag (spot_days, QuantLib
+  /// fixingDays). Its rate does not enter a constant-notional bootstrap; its
+  /// settlement calendars and convention are not used either: the swap
+  /// schedule follows this helper's own calendar / business_day_convention
+  /// / end_of_month.
+  const ::flatbuffers::String *fx_spot() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_FX_SPOT);
   }
-  /// Foreign leg index.
-  const quantra::IndexRef *index_foreign() const {
-    return GetPointer<const quantra::IndexRef *>(VT_INDEX_FOREIGN);
+  /// Forwarding index of the base-currency leg (IndexDef id). Required; its
+  /// IndexDef.currency must equal the spot's base_currency. IBOR or
+  /// overnight (see payment_frequency).
+  const quantra::IndexRef *base_index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_BASE_INDEX);
   }
-  const quantra::HelperDependencies *deps() const {
-    return GetPointer<const quantra::HelperDependencies *>(VT_DEPS);
+  /// Forwarding curve of base_index, by id. Required; must name another
+  /// curve of pricing.rates.curves (bootstrapped first), never the curve
+  /// being bootstrapped: the leg's forwards are projected off this curve
+  /// while the curve under construction only discounts.
+  const quantra::CurveRef *base_forwarding_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_BASE_FORWARDING_CURVE);
   }
-  const ::flatbuffers::String *quote_id() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_QUOTE_ID);
+  /// Discount curve of the base-currency leg, by id. Exactly one of
+  /// base_discount_curve / quote_discount_curve is given: the given one is
+  /// the collateral currency's discount curve (bootstrapped first), the
+  /// absent one is the curve being bootstrapped.
+  const quantra::CurveRef *base_discount_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_BASE_DISCOUNT_CURVE);
+  }
+  /// Forwarding index of the quote-currency leg (IndexDef id). Required; its
+  /// IndexDef.currency must equal the spot's quote_currency. IBOR or
+  /// overnight (see payment_frequency).
+  const quantra::IndexRef *quote_index() const {
+    return GetPointer<const quantra::IndexRef *>(VT_QUOTE_INDEX);
+  }
+  /// Forwarding curve of quote_index, by id. Required; same rules as
+  /// base_forwarding_curve. It may be the same curve as the quote leg's
+  /// discount curve (a single USD OIS curve both projects and discounts).
+  const quantra::CurveRef *quote_forwarding_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_QUOTE_FORWARDING_CURVE);
+  }
+  /// Discount curve of the quote-currency leg, by id. See
+  /// base_discount_curve.
+  const quantra::CurveRef *quote_discount_curve() const {
+    return GetPointer<const quantra::CurveRef *>(VT_QUOTE_DISCOUNT_CURVE);
+  }
+  /// true: the basis spread is added to the base-currency leg; false: to
+  /// the quote-currency leg. Required.
+  ::flatbuffers::Optional<bool> spread_on_base_leg() const {
+    return GetOptional<uint8_t, bool>(VT_SPREAD_ON_BASE_LEG);
+  }
+  /// Coupon frequency of a compounded overnight leg. Required when
+  /// base_index or quote_index is an overnight index (QuantLib builds the
+  /// overnight leg as compounded coupons on this schedule); when the other
+  /// leg is an IBOR index the value must equal that index's tenor. Must be
+  /// absent when both indices are IBOR: each leg then pays at its index
+  /// tenor and there is nothing to choose.
+  ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency() const {
+    return GetOptional<int8_t, quantra::enums::Frequency>(VT_PAYMENT_FREQUENCY);
+  }
+  /// Payment lag in business days (helper calendar, Following) applied to
+  /// every coupon and to the final notional exchange of both legs. Required;
+  /// must be >= 0. The pillar date of the helper is the last payment date,
+  /// so a non-zero lag moves it.
+  ::flatbuffers::Optional<int32_t> payment_lag() const {
+    return GetOptional<int32_t, int32_t>(VT_PAYMENT_LAG);
+  }
+  /// Calendar of the swap schedule (settlement date = valuation date +
+  /// spot_days on it, coupon dates, payment lag). Required.
+  ::flatbuffers::Optional<quantra::enums::Calendar> calendar() const {
+    return GetOptional<int8_t, quantra::enums::Calendar>(VT_CALENDAR);
+  }
+  /// Business-day convention of the swap schedule. Required.
+  ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention() const {
+    return GetOptional<int8_t, quantra::enums::BusinessDayConvention>(VT_BUSINESS_DAY_CONVENTION);
+  }
+  /// End-of-month rule of the swap schedule. Required.
+  ::flatbuffers::Optional<bool> end_of_month() const {
+    return GetOptional<uint8_t, bool>(VT_END_OF_MONTH);
+  }
+  /// Mark-to-market (resetting) notionals. Required; must be false in this
+  /// version: a resetting-notional swap (QuantLib
+  /// MtMCrossCurrencyBasisSwapRateHelper) is not supported yet and is
+  /// rejected with 400.
+  ::flatbuffers::Optional<bool> mtm_reset() const {
+    return GetOptional<uint8_t, bool>(VT_MTM_RESET);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<double>(verifier, VT_SPREAD, 8) &&
-           VerifyOffset(verifier, VT_TENOR) &&
-           verifier.VerifyTable(tenor()) &&
-           VerifyOffsetRequired(verifier, VT_INDEX_DOMESTIC) &&
-           verifier.VerifyTable(index_domestic()) &&
-           VerifyOffsetRequired(verifier, VT_INDEX_FOREIGN) &&
-           verifier.VerifyTable(index_foreign()) &&
-           VerifyOffset(verifier, VT_DEPS) &&
-           verifier.VerifyTable(deps()) &&
            VerifyOffset(verifier, VT_QUOTE_ID) &&
            verifier.VerifyString(quote_id()) &&
+           VerifyOffsetRequired(verifier, VT_TENOR) &&
+           verifier.VerifyTable(tenor()) &&
+           VerifyOffsetRequired(verifier, VT_FX_SPOT) &&
+           verifier.VerifyString(fx_spot()) &&
+           VerifyOffsetRequired(verifier, VT_BASE_INDEX) &&
+           verifier.VerifyTable(base_index()) &&
+           VerifyOffsetRequired(verifier, VT_BASE_FORWARDING_CURVE) &&
+           verifier.VerifyTable(base_forwarding_curve()) &&
+           VerifyOffset(verifier, VT_BASE_DISCOUNT_CURVE) &&
+           verifier.VerifyTable(base_discount_curve()) &&
+           VerifyOffsetRequired(verifier, VT_QUOTE_INDEX) &&
+           verifier.VerifyTable(quote_index()) &&
+           VerifyOffsetRequired(verifier, VT_QUOTE_FORWARDING_CURVE) &&
+           verifier.VerifyTable(quote_forwarding_curve()) &&
+           VerifyOffset(verifier, VT_QUOTE_DISCOUNT_CURVE) &&
+           verifier.VerifyTable(quote_discount_curve()) &&
+           VerifyField<uint8_t>(verifier, VT_SPREAD_ON_BASE_LEG, 1) &&
+           VerifyField<int8_t>(verifier, VT_PAYMENT_FREQUENCY, 1) &&
+           VerifyField<int32_t>(verifier, VT_PAYMENT_LAG, 4) &&
+           VerifyField<int8_t>(verifier, VT_CALENDAR, 1) &&
+           VerifyField<int8_t>(verifier, VT_BUSINESS_DAY_CONVENTION, 1) &&
+           VerifyField<uint8_t>(verifier, VT_END_OF_MONTH, 1) &&
+           VerifyField<uint8_t>(verifier, VT_MTM_RESET, 1) &&
            verifier.EndTable();
   }
   CrossCcyBasisHelperT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -2835,20 +2971,53 @@ struct CrossCcyBasisHelperBuilder {
   void add_spread(double spread) {
     fbb_.AddElement<double>(CrossCcyBasisHelper::VT_SPREAD, spread);
   }
+  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_ID, quote_id);
+  }
   void add_tenor(::flatbuffers::Offset<quantra::Period> tenor) {
     fbb_.AddOffset(CrossCcyBasisHelper::VT_TENOR, tenor);
   }
-  void add_index_domestic(::flatbuffers::Offset<quantra::IndexRef> index_domestic) {
-    fbb_.AddOffset(CrossCcyBasisHelper::VT_INDEX_DOMESTIC, index_domestic);
+  void add_fx_spot(::flatbuffers::Offset<::flatbuffers::String> fx_spot) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_FX_SPOT, fx_spot);
   }
-  void add_index_foreign(::flatbuffers::Offset<quantra::IndexRef> index_foreign) {
-    fbb_.AddOffset(CrossCcyBasisHelper::VT_INDEX_FOREIGN, index_foreign);
+  void add_base_index(::flatbuffers::Offset<quantra::IndexRef> base_index) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_INDEX, base_index);
   }
-  void add_deps(::flatbuffers::Offset<quantra::HelperDependencies> deps) {
-    fbb_.AddOffset(CrossCcyBasisHelper::VT_DEPS, deps);
+  void add_base_forwarding_curve(::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_FORWARDING_CURVE, base_forwarding_curve);
   }
-  void add_quote_id(::flatbuffers::Offset<::flatbuffers::String> quote_id) {
-    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_ID, quote_id);
+  void add_base_discount_curve(::flatbuffers::Offset<quantra::CurveRef> base_discount_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_BASE_DISCOUNT_CURVE, base_discount_curve);
+  }
+  void add_quote_index(::flatbuffers::Offset<quantra::IndexRef> quote_index) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_INDEX, quote_index);
+  }
+  void add_quote_forwarding_curve(::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_FORWARDING_CURVE, quote_forwarding_curve);
+  }
+  void add_quote_discount_curve(::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve) {
+    fbb_.AddOffset(CrossCcyBasisHelper::VT_QUOTE_DISCOUNT_CURVE, quote_discount_curve);
+  }
+  void add_spread_on_base_leg(bool spread_on_base_leg) {
+    fbb_.AddElement<uint8_t>(CrossCcyBasisHelper::VT_SPREAD_ON_BASE_LEG, static_cast<uint8_t>(spread_on_base_leg));
+  }
+  void add_payment_frequency(quantra::enums::Frequency payment_frequency) {
+    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_PAYMENT_FREQUENCY, static_cast<int8_t>(payment_frequency));
+  }
+  void add_payment_lag(int32_t payment_lag) {
+    fbb_.AddElement<int32_t>(CrossCcyBasisHelper::VT_PAYMENT_LAG, payment_lag);
+  }
+  void add_calendar(quantra::enums::Calendar calendar) {
+    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_CALENDAR, static_cast<int8_t>(calendar));
+  }
+  void add_business_day_convention(quantra::enums::BusinessDayConvention business_day_convention) {
+    fbb_.AddElement<int8_t>(CrossCcyBasisHelper::VT_BUSINESS_DAY_CONVENTION, static_cast<int8_t>(business_day_convention));
+  }
+  void add_end_of_month(bool end_of_month) {
+    fbb_.AddElement<uint8_t>(CrossCcyBasisHelper::VT_END_OF_MONTH, static_cast<uint8_t>(end_of_month));
+  }
+  void add_mtm_reset(bool mtm_reset) {
+    fbb_.AddElement<uint8_t>(CrossCcyBasisHelper::VT_MTM_RESET, static_cast<uint8_t>(mtm_reset));
   }
   explicit CrossCcyBasisHelperBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -2857,8 +3026,12 @@ struct CrossCcyBasisHelperBuilder {
   ::flatbuffers::Offset<CrossCcyBasisHelper> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = ::flatbuffers::Offset<CrossCcyBasisHelper>(end);
-    fbb_.Required(o, CrossCcyBasisHelper::VT_INDEX_DOMESTIC);
-    fbb_.Required(o, CrossCcyBasisHelper::VT_INDEX_FOREIGN);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_TENOR);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_FX_SPOT);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_BASE_INDEX);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_BASE_FORWARDING_CURVE);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_QUOTE_INDEX);
+    fbb_.Required(o, CrossCcyBasisHelper::VT_QUOTE_FORWARDING_CURVE);
     return o;
   }
 };
@@ -2866,38 +3039,83 @@ struct CrossCcyBasisHelperBuilder {
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
+    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
-    ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
-    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> quote_id = 0) {
+    ::flatbuffers::Offset<::flatbuffers::String> fx_spot = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> base_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_discount_curve = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> quote_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve = 0,
+    ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> mtm_reset = ::flatbuffers::nullopt) {
   CrossCcyBasisHelperBuilder builder_(_fbb);
   if(spread) { builder_.add_spread(*spread); }
-  builder_.add_quote_id(quote_id);
-  builder_.add_deps(deps);
-  builder_.add_index_foreign(index_foreign);
-  builder_.add_index_domestic(index_domestic);
+  if(payment_lag) { builder_.add_payment_lag(*payment_lag); }
+  builder_.add_quote_discount_curve(quote_discount_curve);
+  builder_.add_quote_forwarding_curve(quote_forwarding_curve);
+  builder_.add_quote_index(quote_index);
+  builder_.add_base_discount_curve(base_discount_curve);
+  builder_.add_base_forwarding_curve(base_forwarding_curve);
+  builder_.add_base_index(base_index);
+  builder_.add_fx_spot(fx_spot);
   builder_.add_tenor(tenor);
+  builder_.add_quote_id(quote_id);
+  if(mtm_reset) { builder_.add_mtm_reset(*mtm_reset); }
+  if(end_of_month) { builder_.add_end_of_month(*end_of_month); }
+  if(business_day_convention) { builder_.add_business_day_convention(*business_day_convention); }
+  if(calendar) { builder_.add_calendar(*calendar); }
+  if(payment_frequency) { builder_.add_payment_frequency(*payment_frequency); }
+  if(spread_on_base_leg) { builder_.add_spread_on_base_leg(*spread_on_base_leg); }
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelperDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Optional<double> spread = ::flatbuffers::nullopt,
+    const char *quote_id = nullptr,
     ::flatbuffers::Offset<quantra::Period> tenor = 0,
-    ::flatbuffers::Offset<quantra::IndexRef> index_domestic = 0,
-    ::flatbuffers::Offset<quantra::IndexRef> index_foreign = 0,
-    ::flatbuffers::Offset<quantra::HelperDependencies> deps = 0,
-    const char *quote_id = nullptr) {
+    const char *fx_spot = nullptr,
+    ::flatbuffers::Offset<quantra::IndexRef> base_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_forwarding_curve = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> base_discount_curve = 0,
+    ::flatbuffers::Offset<quantra::IndexRef> quote_index = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_forwarding_curve = 0,
+    ::flatbuffers::Offset<quantra::CurveRef> quote_discount_curve = 0,
+    ::flatbuffers::Optional<bool> spread_on_base_leg = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Frequency> payment_frequency = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<int32_t> payment_lag = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::Calendar> calendar = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<quantra::enums::BusinessDayConvention> business_day_convention = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> end_of_month = ::flatbuffers::nullopt,
+    ::flatbuffers::Optional<bool> mtm_reset = ::flatbuffers::nullopt) {
   auto quote_id__ = quote_id ? _fbb.CreateString(quote_id) : 0;
+  auto fx_spot__ = fx_spot ? _fbb.CreateString(fx_spot) : 0;
   return quantra::CreateCrossCcyBasisHelper(
       _fbb,
       spread,
+      quote_id__,
       tenor,
-      index_domestic,
-      index_foreign,
-      deps,
-      quote_id__);
+      fx_spot__,
+      base_index,
+      base_forwarding_curve,
+      base_discount_curve,
+      quote_index,
+      quote_forwarding_curve,
+      quote_discount_curve,
+      spread_on_base_leg,
+      payment_frequency,
+      payment_lag,
+      calendar,
+      business_day_convention,
+      end_of_month,
+      mtm_reset);
 }
 
 ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::flatbuffers::FlatBufferBuilder &_fbb, const CrossCcyBasisHelperT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -3227,16 +3445,12 @@ inline ::flatbuffers::Offset<CurveRef> CreateCurveRef(::flatbuffers::FlatBufferB
 
 inline HelperDependenciesT::HelperDependenciesT(const HelperDependenciesT &o)
       : discount_curve((o.discount_curve) ? new quantra::CurveRefT(*o.discount_curve) : nullptr),
-        projection_curve((o.projection_curve) ? new quantra::CurveRefT(*o.projection_curve) : nullptr),
-        projection_curve_2((o.projection_curve_2) ? new quantra::CurveRefT(*o.projection_curve_2) : nullptr),
-        fx_spot_quote_id(o.fx_spot_quote_id) {
+        projection_curve((o.projection_curve) ? new quantra::CurveRefT(*o.projection_curve) : nullptr) {
 }
 
 inline HelperDependenciesT &HelperDependenciesT::operator=(HelperDependenciesT o) FLATBUFFERS_NOEXCEPT {
   std::swap(discount_curve, o.discount_curve);
   std::swap(projection_curve, o.projection_curve);
-  std::swap(projection_curve_2, o.projection_curve_2);
-  std::swap(fx_spot_quote_id, o.fx_spot_quote_id);
   return *this;
 }
 
@@ -3251,8 +3465,6 @@ inline void HelperDependencies::UnPackTo(HelperDependenciesT *_o, const ::flatbu
   (void)_resolver;
   { auto _e = discount_curve(); if (_e) { if(_o->discount_curve) { _e->UnPackTo(_o->discount_curve.get(), _resolver); } else { _o->discount_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->discount_curve) { _o->discount_curve.reset(); } }
   { auto _e = projection_curve(); if (_e) { if(_o->projection_curve) { _e->UnPackTo(_o->projection_curve.get(), _resolver); } else { _o->projection_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->projection_curve) { _o->projection_curve.reset(); } }
-  { auto _e = projection_curve_2(); if (_e) { if(_o->projection_curve_2) { _e->UnPackTo(_o->projection_curve_2.get(), _resolver); } else { _o->projection_curve_2 = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->projection_curve_2) { _o->projection_curve_2.reset(); } }
-  { auto _e = fx_spot_quote_id(); if (_e) _o->fx_spot_quote_id = _e->str(); }
 }
 
 inline ::flatbuffers::Offset<HelperDependencies> HelperDependencies::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const HelperDependenciesT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -3265,14 +3477,10 @@ inline ::flatbuffers::Offset<HelperDependencies> CreateHelperDependencies(::flat
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const HelperDependenciesT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _discount_curve = _o->discount_curve ? CreateCurveRef(_fbb, _o->discount_curve.get(), _rehasher) : 0;
   auto _projection_curve = _o->projection_curve ? CreateCurveRef(_fbb, _o->projection_curve.get(), _rehasher) : 0;
-  auto _projection_curve_2 = _o->projection_curve_2 ? CreateCurveRef(_fbb, _o->projection_curve_2.get(), _rehasher) : 0;
-  auto _fx_spot_quote_id = _o->fx_spot_quote_id.empty() ? 0 : _fbb.CreateString(_o->fx_spot_quote_id);
   return quantra::CreateHelperDependencies(
       _fbb,
       _discount_curve,
-      _projection_curve,
-      _projection_curve_2,
-      _fx_spot_quote_id);
+      _projection_curve);
 }
 
 inline DepositHelperT::DepositHelperT(const DepositHelperT &o)
@@ -4064,22 +4272,22 @@ inline ::flatbuffers::Offset<TenorBasisSwapHelper> CreateTenorBasisSwapHelper(::
 
 inline FxSwapHelperT::FxSwapHelperT(const FxSwapHelperT &o)
       : fx_points(o.fx_points),
+        quote_id(o.quote_id),
         tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
-        spot_days(o.spot_days),
-        calendar_domestic(o.calendar_domestic),
-        calendar_foreign(o.calendar_foreign),
-        deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
-        quote_id(o.quote_id) {
+        fx_spot(o.fx_spot),
+        end_of_month(o.end_of_month),
+        collateral_currency(o.collateral_currency),
+        collateral_curve((o.collateral_curve) ? new quantra::CurveRefT(*o.collateral_curve) : nullptr) {
 }
 
 inline FxSwapHelperT &FxSwapHelperT::operator=(FxSwapHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(fx_points, o.fx_points);
-  std::swap(tenor, o.tenor);
-  std::swap(spot_days, o.spot_days);
-  std::swap(calendar_domestic, o.calendar_domestic);
-  std::swap(calendar_foreign, o.calendar_foreign);
-  std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
+  std::swap(tenor, o.tenor);
+  std::swap(fx_spot, o.fx_spot);
+  std::swap(end_of_month, o.end_of_month);
+  std::swap(collateral_currency, o.collateral_currency);
+  std::swap(collateral_curve, o.collateral_curve);
   return *this;
 }
 
@@ -4093,12 +4301,12 @@ inline void FxSwapHelper::UnPackTo(FxSwapHelperT *_o, const ::flatbuffers::resol
   (void)_o;
   (void)_resolver;
   { auto _e = fx_points(); _o->fx_points = _e; }
-  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
-  { auto _e = spot_days(); _o->spot_days = _e; }
-  { auto _e = calendar_domestic(); _o->calendar_domestic = _e; }
-  { auto _e = calendar_foreign(); _o->calendar_foreign = _e; }
-  { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = fx_spot(); if (_e) _o->fx_spot = _e->str(); }
+  { auto _e = end_of_month(); _o->end_of_month = _e; }
+  { auto _e = collateral_currency(); if (_e) _o->collateral_currency = _e->str(); }
+  { auto _e = collateral_curve(); if (_e) { if(_o->collateral_curve) { _e->UnPackTo(_o->collateral_curve.get(), _resolver); } else { _o->collateral_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->collateral_curve) { _o->collateral_curve.reset(); } }
 }
 
 inline ::flatbuffers::Offset<FxSwapHelper> FxSwapHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const FxSwapHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -4110,39 +4318,61 @@ inline ::flatbuffers::Offset<FxSwapHelper> CreateFxSwapHelper(::flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const FxSwapHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _fx_points = _o->fx_points;
-  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
-  auto _spot_days = _o->spot_days;
-  auto _calendar_domestic = _o->calendar_domestic;
-  auto _calendar_foreign = _o->calendar_foreign;
-  auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _fx_spot = _fbb.CreateString(_o->fx_spot);
+  auto _end_of_month = _o->end_of_month;
+  auto _collateral_currency = _fbb.CreateString(_o->collateral_currency);
+  auto _collateral_curve = _o->collateral_curve ? CreateCurveRef(_fbb, _o->collateral_curve.get(), _rehasher) : 0;
   return quantra::CreateFxSwapHelper(
       _fbb,
       _fx_points,
+      _quote_id,
       _tenor,
-      _spot_days,
-      _calendar_domestic,
-      _calendar_foreign,
-      _deps,
-      _quote_id);
+      _fx_spot,
+      _end_of_month,
+      _collateral_currency,
+      _collateral_curve);
 }
 
 inline CrossCcyBasisHelperT::CrossCcyBasisHelperT(const CrossCcyBasisHelperT &o)
       : spread(o.spread),
+        quote_id(o.quote_id),
         tenor((o.tenor) ? new quantra::PeriodT(*o.tenor) : nullptr),
-        index_domestic((o.index_domestic) ? new quantra::IndexRefT(*o.index_domestic) : nullptr),
-        index_foreign((o.index_foreign) ? new quantra::IndexRefT(*o.index_foreign) : nullptr),
-        deps((o.deps) ? new quantra::HelperDependenciesT(*o.deps) : nullptr),
-        quote_id(o.quote_id) {
+        fx_spot(o.fx_spot),
+        base_index((o.base_index) ? new quantra::IndexRefT(*o.base_index) : nullptr),
+        base_forwarding_curve((o.base_forwarding_curve) ? new quantra::CurveRefT(*o.base_forwarding_curve) : nullptr),
+        base_discount_curve((o.base_discount_curve) ? new quantra::CurveRefT(*o.base_discount_curve) : nullptr),
+        quote_index((o.quote_index) ? new quantra::IndexRefT(*o.quote_index) : nullptr),
+        quote_forwarding_curve((o.quote_forwarding_curve) ? new quantra::CurveRefT(*o.quote_forwarding_curve) : nullptr),
+        quote_discount_curve((o.quote_discount_curve) ? new quantra::CurveRefT(*o.quote_discount_curve) : nullptr),
+        spread_on_base_leg(o.spread_on_base_leg),
+        payment_frequency(o.payment_frequency),
+        payment_lag(o.payment_lag),
+        calendar(o.calendar),
+        business_day_convention(o.business_day_convention),
+        end_of_month(o.end_of_month),
+        mtm_reset(o.mtm_reset) {
 }
 
 inline CrossCcyBasisHelperT &CrossCcyBasisHelperT::operator=(CrossCcyBasisHelperT o) FLATBUFFERS_NOEXCEPT {
   std::swap(spread, o.spread);
-  std::swap(tenor, o.tenor);
-  std::swap(index_domestic, o.index_domestic);
-  std::swap(index_foreign, o.index_foreign);
-  std::swap(deps, o.deps);
   std::swap(quote_id, o.quote_id);
+  std::swap(tenor, o.tenor);
+  std::swap(fx_spot, o.fx_spot);
+  std::swap(base_index, o.base_index);
+  std::swap(base_forwarding_curve, o.base_forwarding_curve);
+  std::swap(base_discount_curve, o.base_discount_curve);
+  std::swap(quote_index, o.quote_index);
+  std::swap(quote_forwarding_curve, o.quote_forwarding_curve);
+  std::swap(quote_discount_curve, o.quote_discount_curve);
+  std::swap(spread_on_base_leg, o.spread_on_base_leg);
+  std::swap(payment_frequency, o.payment_frequency);
+  std::swap(payment_lag, o.payment_lag);
+  std::swap(calendar, o.calendar);
+  std::swap(business_day_convention, o.business_day_convention);
+  std::swap(end_of_month, o.end_of_month);
+  std::swap(mtm_reset, o.mtm_reset);
   return *this;
 }
 
@@ -4156,11 +4386,22 @@ inline void CrossCcyBasisHelper::UnPackTo(CrossCcyBasisHelperT *_o, const ::flat
   (void)_o;
   (void)_resolver;
   { auto _e = spread(); _o->spread = _e; }
-  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
-  { auto _e = index_domestic(); if (_e) { if(_o->index_domestic) { _e->UnPackTo(_o->index_domestic.get(), _resolver); } else { _o->index_domestic = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_domestic) { _o->index_domestic.reset(); } }
-  { auto _e = index_foreign(); if (_e) { if(_o->index_foreign) { _e->UnPackTo(_o->index_foreign.get(), _resolver); } else { _o->index_foreign = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->index_foreign) { _o->index_foreign.reset(); } }
-  { auto _e = deps(); if (_e) { if(_o->deps) { _e->UnPackTo(_o->deps.get(), _resolver); } else { _o->deps = std::unique_ptr<quantra::HelperDependenciesT>(_e->UnPack(_resolver)); } } else if (_o->deps) { _o->deps.reset(); } }
   { auto _e = quote_id(); if (_e) _o->quote_id = _e->str(); }
+  { auto _e = tenor(); if (_e) { if(_o->tenor) { _e->UnPackTo(_o->tenor.get(), _resolver); } else { _o->tenor = std::unique_ptr<quantra::PeriodT>(_e->UnPack(_resolver)); } } else if (_o->tenor) { _o->tenor.reset(); } }
+  { auto _e = fx_spot(); if (_e) _o->fx_spot = _e->str(); }
+  { auto _e = base_index(); if (_e) { if(_o->base_index) { _e->UnPackTo(_o->base_index.get(), _resolver); } else { _o->base_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->base_index) { _o->base_index.reset(); } }
+  { auto _e = base_forwarding_curve(); if (_e) { if(_o->base_forwarding_curve) { _e->UnPackTo(_o->base_forwarding_curve.get(), _resolver); } else { _o->base_forwarding_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->base_forwarding_curve) { _o->base_forwarding_curve.reset(); } }
+  { auto _e = base_discount_curve(); if (_e) { if(_o->base_discount_curve) { _e->UnPackTo(_o->base_discount_curve.get(), _resolver); } else { _o->base_discount_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->base_discount_curve) { _o->base_discount_curve.reset(); } }
+  { auto _e = quote_index(); if (_e) { if(_o->quote_index) { _e->UnPackTo(_o->quote_index.get(), _resolver); } else { _o->quote_index = std::unique_ptr<quantra::IndexRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_index) { _o->quote_index.reset(); } }
+  { auto _e = quote_forwarding_curve(); if (_e) { if(_o->quote_forwarding_curve) { _e->UnPackTo(_o->quote_forwarding_curve.get(), _resolver); } else { _o->quote_forwarding_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_forwarding_curve) { _o->quote_forwarding_curve.reset(); } }
+  { auto _e = quote_discount_curve(); if (_e) { if(_o->quote_discount_curve) { _e->UnPackTo(_o->quote_discount_curve.get(), _resolver); } else { _o->quote_discount_curve = std::unique_ptr<quantra::CurveRefT>(_e->UnPack(_resolver)); } } else if (_o->quote_discount_curve) { _o->quote_discount_curve.reset(); } }
+  { auto _e = spread_on_base_leg(); _o->spread_on_base_leg = _e; }
+  { auto _e = payment_frequency(); _o->payment_frequency = _e; }
+  { auto _e = payment_lag(); _o->payment_lag = _e; }
+  { auto _e = calendar(); _o->calendar = _e; }
+  { auto _e = business_day_convention(); _o->business_day_convention = _e; }
+  { auto _e = end_of_month(); _o->end_of_month = _e; }
+  { auto _e = mtm_reset(); _o->mtm_reset = _e; }
 }
 
 inline ::flatbuffers::Offset<CrossCcyBasisHelper> CrossCcyBasisHelper::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const CrossCcyBasisHelperT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
@@ -4172,19 +4413,41 @@ inline ::flatbuffers::Offset<CrossCcyBasisHelper> CreateCrossCcyBasisHelper(::fl
   (void)_o;
   struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const CrossCcyBasisHelperT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _spread = _o->spread;
-  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
-  auto _index_domestic = _o->index_domestic ? CreateIndexRef(_fbb, _o->index_domestic.get(), _rehasher) : 0;
-  auto _index_foreign = _o->index_foreign ? CreateIndexRef(_fbb, _o->index_foreign.get(), _rehasher) : 0;
-  auto _deps = _o->deps ? CreateHelperDependencies(_fbb, _o->deps.get(), _rehasher) : 0;
   auto _quote_id = _o->quote_id.empty() ? 0 : _fbb.CreateString(_o->quote_id);
+  auto _tenor = _o->tenor ? CreatePeriod(_fbb, _o->tenor.get(), _rehasher) : 0;
+  auto _fx_spot = _fbb.CreateString(_o->fx_spot);
+  auto _base_index = _o->base_index ? CreateIndexRef(_fbb, _o->base_index.get(), _rehasher) : 0;
+  auto _base_forwarding_curve = _o->base_forwarding_curve ? CreateCurveRef(_fbb, _o->base_forwarding_curve.get(), _rehasher) : 0;
+  auto _base_discount_curve = _o->base_discount_curve ? CreateCurveRef(_fbb, _o->base_discount_curve.get(), _rehasher) : 0;
+  auto _quote_index = _o->quote_index ? CreateIndexRef(_fbb, _o->quote_index.get(), _rehasher) : 0;
+  auto _quote_forwarding_curve = _o->quote_forwarding_curve ? CreateCurveRef(_fbb, _o->quote_forwarding_curve.get(), _rehasher) : 0;
+  auto _quote_discount_curve = _o->quote_discount_curve ? CreateCurveRef(_fbb, _o->quote_discount_curve.get(), _rehasher) : 0;
+  auto _spread_on_base_leg = _o->spread_on_base_leg;
+  auto _payment_frequency = _o->payment_frequency;
+  auto _payment_lag = _o->payment_lag;
+  auto _calendar = _o->calendar;
+  auto _business_day_convention = _o->business_day_convention;
+  auto _end_of_month = _o->end_of_month;
+  auto _mtm_reset = _o->mtm_reset;
   return quantra::CreateCrossCcyBasisHelper(
       _fbb,
       _spread,
+      _quote_id,
       _tenor,
-      _index_domestic,
-      _index_foreign,
-      _deps,
-      _quote_id);
+      _fx_spot,
+      _base_index,
+      _base_forwarding_curve,
+      _base_discount_curve,
+      _quote_index,
+      _quote_forwarding_curve,
+      _quote_discount_curve,
+      _spread_on_base_leg,
+      _payment_frequency,
+      _payment_lag,
+      _calendar,
+      _business_day_convention,
+      _end_of_month,
+      _mtm_reset);
 }
 
 inline PointsWrapperT *PointsWrapper::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {

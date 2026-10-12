@@ -5,6 +5,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "error.h"
+#include "fx_spot_registry.h"
 #include "index_registry.h"
 #include "quote_registry.h"
 #include "schedule_parser.h"
@@ -25,6 +26,7 @@ namespace quantra {
  * - QuoteRegistry:  shared quotes (quote_id references)
  * - CurveRegistry:  exogenous curves (deps.discount_curve references)
  * - IndexRegistry:  index definitions (float_index.id, overnight_index.id references)
+ * - FxSpotRegistry: FX spots (FxSwapHelper.fx_spot references)
  *
  * All index resolution goes through IndexRegistry. No enum-based fallbacks.
  */
@@ -39,6 +41,9 @@ public:
      * @param curves      Optional curve registry for exogenous curve deps
      * @param indices     Index registry for index_id resolution (REQUIRED for
      *                    SwapHelper, OISHelper, DatedOISHelper, basis helpers)
+     * @param bump        Parallel shift added to every inline curve quote
+     * @param fxSpots     FX spot registry for fx_spot resolution (REQUIRED for
+     *                    FxSwapHelper)
      * @return Built QuantLib RateHelper
      */
     std::shared_ptr<QuantLib::RateHelper> parse(
@@ -47,7 +52,8 @@ public:
         const QuoteRegistry* quotes = nullptr,
         const CurveRegistry* curves = nullptr,
         const IndexRegistry* indices = nullptr,
-        double bump = 0.0) const;
+        double bump = 0.0,
+        const FxSpotRegistry* fxSpots = nullptr) const;
 
 private:
     /// Resolve a pillar's quote: the registry handle when quoteId names a

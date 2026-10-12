@@ -73,6 +73,10 @@
       "type" : "string",
       "enum": ["Payer", "Receiver"]
     },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
     "quantra_enums_FRAType" : {
       "type" : "string",
       "enum": ["Long", "Short"]
@@ -172,6 +176,14 @@
     "quantra_enums_EquityBarrierMonitoring" : {
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
     },
     "quantra_Schedule" : {
       "type" : "object",

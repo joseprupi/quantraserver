@@ -711,15 +711,22 @@ def _ec_body_valid_json_without(*absent_keys):
 
 def _ec_unimplemented_curve_point():
     # Replace the first curve's first point with a schema-ready-but-unbuilt
-    # helper (FxSwapHelper). The point parses into a valid FlatBuffer, then the
-    # term-structure point parser throws QuantraNotImplemented when the curve is
-    # built during pricing -> gRPC UNIMPLEMENTED -> HTTP 501. FxSwapHelper is
-    # used because it has no FlatBuffer-required fields, so an empty payload is
-    # accepted by the JSON parser and the throw is reached deterministically.
+    # helper (TenorBasisSwapHelper). The point parses into a valid FlatBuffer
+    # (every required field present), then the term-structure point parser
+    # throws QuantraNotImplemented when the curve is built during pricing ->
+    # gRPC UNIMPLEMENTED -> HTTP 501. No deps are given so the dependency
+    # ordering has nothing to resolve before the throw, and the indices it
+    # names exist in the request so no 404 can mask the 501.
     def f(req):
         req["pricing"]["rates"]["curves"][0]["points"][0] = {
-            "point_type": "FxSwapHelper",
-            "point": {},
+            "point_type": "TenorBasisSwapHelper",
+            "point": {
+                "spread": 0.0005,
+                "tenor": {"n": 2, "unit": "Years"},
+                "index_short": {"id": "EUR_6M"},
+                "index_long": {"id": "EUR_6M"},
+                "calendar": "TARGET",
+            },
         }
         return req
     return f
@@ -1023,7 +1030,7 @@ SCENARIOS = [
     # fixing date, so an omitted value must be a named 400, never a silent
     # default; a negative day count would wrap into QuantLib's unsigned
     # Natural, so it is rejected explicitly. Locked on both the priced leg
-    # (OisFloatingLeg) and the curve helper (OISHelper).
+    # (OvernightCoupons) and the curve helper (OISHelper).
     ("ec:400 ois_swap leg missing payment_lag", "ois_swap",
      "ois_swap_request.json", 400,
      _ec_del_swap_leg_field("swaps", "ois_swap", "overnight_leg", "payment_lag"),
@@ -1255,7 +1262,7 @@ SCENARIOS = [
                            [1e7, 1e7, 1e7, 1e7, 0.0]),
      _ec_body_contains("SwapFixedLeg.notionals entries must be positive")),
     # ---- 400 INVALID_ARGUMENT: shared-table paths reject amortizing notionals ----
-    # SwapFixedLeg / SwapFloatingLeg are shared with the OIS, basis and
+    # FixedCoupons / IborCoupons are shared with the OIS, basis and
     # swaption-underlying paths, which do not support amortizing notionals yet.
     # A present notionals vector must be rejected, never silently ignored.
     ("ec:400 ois_swap fixed leg notionals rejected", "ois_swap",

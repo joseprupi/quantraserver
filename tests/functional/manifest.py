@@ -44,7 +44,10 @@ Field reference (all keys required unless noted):
               response must equal it exactly (order and length included).
               "fields": for calibration endpoints returning a flat result
               object — the reference returns {dotted.response.path: float or
-              [floats]} and each named field is compared within tolerance.
+              [floats]} and each named field is compared within tolerance;
+              a numeric path part indexes a list (fx_forwards.0.npv), so
+              per-instrument responses with several compared fields (the FX
+              forward's npv, fair forward, points and leg PVs) use it too.
 
 To add a case: drop the request JSON under examples/data/ (IR swaps live in
 examples/data/ir_swaps/, bonds in examples/data/bonds/, FRAs in
@@ -52,7 +55,9 @@ examples/data/fra/, caps/floors in examples/data/cap_floor/, swaptions in
 examples/data/swaption/, CDS in examples/data/cds/, curve sampling in
 examples/data/curves/, calendar utilities in examples/data/calendar/,
 inflation swaps in examples/data/inflation/, equity options in
-examples/data/equity/, vol sampling and calibration in examples/data/vol/),
+examples/data/equity/, FX forwards in examples/data/fx_forward/, cross-currency
+swaps in examples/data/cross_currency_swap/, vol sampling
+and calibration in examples/data/vol/),
 append a dict here, regenerate the catalog
 (python3 tests/functional/generate_catalog.py inside the test image) and run
 the gate. See tests/functional/README.md for the full walkthrough.
@@ -72,6 +77,20 @@ DEFAULT_TOLERANCE = 0.01
 # structures, values O(0.005-0.4)) sit on the same noise floor and use the
 # same tolerance.
 SERIES_TOLERANCE = 1e-9
+# FX forward cases compare every numeric response field (npv and leg PVs in
+# currency units up to ~1e9 for USD/JPY, the fair forward and points in price
+# units) against the same discount-factor algebra on the same QuantLib curves.
+# The two bootstraps agree to ~1e-14 relative on the discount factors, so the
+# amounts set the absolute tolerance; the rates are pinned at 1e-12 relative
+# in tests/contract/fx_forward_test.py.
+FX_FORWARD_TOLERANCE = 1e-4
+# Cross-currency swap cases compare every scalar response field (npv, both
+# legs' NPVs in their currencies and in the reporting currency, fair rate /
+# spread, spot and as-of rate) with the
+# reference's leg cash-flow algebra on the same curves; the strict per-field
+# tolerances (1e-9 of the notional, 1e-11 on rates) are in
+# tests/contract/cross_currency_swap_test.py.
+CROSS_CURRENCY_SWAP_TOLERANCE = 1e-4
 
 # Tolerance for calibration-output fields (Hull-White a/sigma, SABR
 # alpha/beta/rho/nu, fit RMSEs — all O(0.001-1.0)). Both sides run the same
@@ -2065,6 +2084,100 @@ CASES = [
                       "zero rates continuous"],
     },
     {
+        "id": "curves_eur_usd_collateral_fxswap_short_end",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD, from FX swap points",
+        "description": (
+            "A USD-collateralised EUR discount curve bootstrapped from EUR/USD "
+            "FX swap points (1W/1M/3M/6M/1Y) given the EUR/USD spot (T+2 on the "
+            "joint TARGET + US settlement calendar) and a USD SOFR OIS "
+            "discount curve, sampled for discount factors and continuous zero "
+            "rates at six tenors including an off-pillar 9M point. The FX "
+            "curve is listed before its collateral curve on the wire; the "
+            "engine orders the bootstrap by the collateral_curve reference. "
+            "Reference: QuantLib FxSwapRateHelper on the same inputs."
+        ),
+        "request": "curves/curves_eur_usd_collateral_fxswap_short_end.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["FxSwapHelper", "FX spot market data", "joint calendar",
+                      "collateral curve dependency", "discount factors",
+                      "zero rates continuous"],
+    },
+    {
+        "id": "curves_eur_usd_collateral_fxswap_short_end_quote_id",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD, FX points and spot by quote_id",
+        "description": (
+            "The same USD-collateralised EUR curve with every FX swap point "
+            "and the EUR/USD spot carried in pricing.quotes and referenced by "
+            "quote_id (the points as Curve quotes, the spot as an Fx quote that "
+            "the rate bump never shifts). Must sample identically to the "
+            "inline twin."
+        ),
+        "request": "curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["FxSwapHelper", "quote_id pillars", "Fx quote type",
+                      "FX spot market data", "discount factors",
+                      "zero rates continuous"],
+    },
+    {
+        "id": "curves_eur_usd_collateral_full",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD: FX swaps + cross-currency basis",
+        "description": (
+            "The classic collateral-adjusted EUR discount curve: short end "
+            "from EUR/USD FX swap points (1W/1M/3M/6M/1Y), long end from "
+            "constant-notional EUR/USD basis swaps (2Y/3Y/5Y/10Y, ESTR vs "
+            "SOFR compounded quarterly, negative basis on the EUR leg) given "
+            "the EUR/USD spot, a EUR ESTR OIS curve (the EUR leg's "
+            "forwarding curve) and a USD SOFR OIS curve (the USD leg's "
+            "forwarding and discount curve), sampled for discount factors and "
+            "continuous zero rates at twelve tenors including off-pillar 18M, "
+            "4Y and 7Y points. The collateral-adjusted curve is listed before "
+            "both curves it depends on; the engine orders the bootstrap by "
+            "the references. Reference: QuantLib FxSwapRateHelper + "
+            "ConstNotionalCrossCurrencyBasisSwapRateHelper on the same inputs."
+        ),
+        "request": "curves/curves_eur_usd_collateral_full.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["CrossCcyBasisHelper", "FxSwapHelper", "overnight legs",
+                      "payment_frequency", "FX spot market data",
+                      "forwarding curve dependency", "collateral curve dependency",
+                      "discount factors", "zero rates continuous"],
+    },
+    {
+        "id": "curves_eur_usd_collateral_full_quote_id",
+        "product": "bootstrap_curves",
+        "family": "Curves",
+        "title": "EUR discount curve collateralised in USD, every quote by quote_id",
+        "description": (
+            "The same collateral-adjusted EUR curve with every FX swap point, "
+            "every basis spread and the EUR/USD spot carried in "
+            "pricing.quotes and referenced by quote_id (points and spreads as "
+            "Curve quotes, the spot as an Fx quote that the rate bump never "
+            "shifts). Must sample identically to the inline twin."
+        ),
+        "request": "curves/curves_eur_usd_collateral_full_quote_id.json",
+        "list_key": "results",
+        "ql_pricer": "bootstrap_curves_ql",
+        "tolerance": SERIES_TOLERANCE,
+        "compare": "series",
+        "exercises": ["CrossCcyBasisHelper", "FxSwapHelper", "quote_id pillars",
+                      "Fx quote type", "discount factors", "zero rates continuous"],
+    },
+    {
         "id": "curves_usd_ois_sofr_paylag0_df_zero_long_end",
         "product": "bootstrap_curves",
         "family": "Curves",
@@ -3973,5 +4086,253 @@ CASES = [
         "exercises": ["calendar_overrides", "added holiday",
                       "removed holiday", "OIS", "SOFR",
                       "UnitedStatesGovernmentBond"],
+    },
+    # ------------------------------------------------------------------
+    # FX forwards — outright forwards off an FX spot + two discount curves
+    # ------------------------------------------------------------------
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, buy 10m EUR at 1.0950, NPV in USD",
+        "description": (
+            "Baseline outright: buy EUR 10m six months forward at 1.0950 "
+            "against the EUR/USD spot 1.0850 (T+2 on the joint TARGET + US "
+            "settlement calendar, spot date 2025-01-17). The EUR leg is "
+            "discounted on the USD-collateralised EUR curve (FX swaps + "
+            "cross-currency basis) and the USD leg on USD SOFR OIS, so the "
+            "fair forward at the 6M pillar reprices the market point "
+            "1.0850 + 0.01310 = 1.09810; the contract rate sits below it and "
+            "the buyer of EUR is in the money. Compares npv, fair forward, "
+            "points and both leg PVs with the reference's discount-factor "
+            "algebra on the same curves."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "BuyBase", "EUR/USD", "reporting in quote ccy",
+                      "collateral-adjusted discounting", "fair forward at an FX swap pillar"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_sell_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, the same trade sold",
+        "description": (
+            "The sold side of the baseline: sell EUR 10m at 1.0950. Everything "
+            "else is identical, so npv and both leg PVs are the exact negatives "
+            "of the buy case while the fair forward and the forward points are "
+            "unchanged (they are market quantities, not positions)."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_sell_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "SellBase", "sign flip", "EUR/USD"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur_reported_in_eur",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, NPV reported in EUR",
+        "description": (
+            "The baseline buy with reporting_currency EUR: the USD leg is "
+            "converted at the as-of exchange rate X = S * DF_USD(spot) / "
+            "DF_EUR(spot) (the FxSwapRateHelper identity), so npv_EUR * X "
+            "equals the USD-reported npv. The leg PVs stay in their own "
+            "currencies."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur_reported_in_eur.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "reporting in base ccy", "as-of exchange rate"],
+    },
+    {
+        "id": "fx_forward_eurusd_1y_on_market",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 1Y forward struck on-market (spot + 1Y points)",
+        "description": (
+            "Buy EUR 10m one year forward at 1.11202 = spot 1.0850 + the 1Y "
+            "FX swap points 0.02702 the EUR curve was bootstrapped from. The "
+            "maturity is given as Saturday 2026-01-17 and rolls on the joint "
+            "calendar past the US holiday to 2026-01-20, the 1Y pillar date, "
+            "so the contract rate equals the fair forward and the NPV is zero "
+            "to bootstrap accuracy (an on-market forward)."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_1y_on_market.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "zero NPV at the fair forward",
+                      "maturity rolled on the joint calendar", "1Y FX swap pillar"],
+    },
+    {
+        "id": "fx_forward_eurusd_6m_buy_eur_spot_quote_id",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "EUR/USD 6M forward, spot through an Fx quote",
+        "description": (
+            "The baseline buy with the EUR/USD spot carried in pricing.quotes "
+            "as an Fx-type quote and referenced by quote_id from the "
+            "FxSpotSpec (the rate bump never shifts an Fx quote). Must price "
+            "identically to the inline spot."
+        ),
+        "request": "fx_forward/fx_forward_eurusd_6m_buy_eur_spot_quote_id.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "spot by quote_id", "Fx quote type"],
+    },
+    {
+        "id": "fx_forward_usdjpy_3m_sell_usd",
+        "product": "fx_forward",
+        "family": "FX",
+        "title": "USD/JPY 3M forward, sell 5m USD at 153.80, NPV in JPY",
+        "description": (
+            "A pair whose quote amounts are ~150x the base ones: sell USD 5m "
+            "three months forward at 153.80 against spot 155.00 (T+2 on the "
+            "joint US settlement + Japan calendar), USD leg on SOFR OIS, JPY "
+            "leg on a TONA OIS curve. JPY rates far below USD rates put the "
+            "fair forward below the spot (negative points); the seller of USD "
+            "at 153.80 is short against a lower fair forward."
+        ),
+        "request": "fx_forward/fx_forward_usdjpy_3m_sell_usd.json",
+        "ql_pricer": "price_fx_forward_ql",
+        "tolerance": FX_FORWARD_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["FX forward", "USD/JPY", "Japan calendar", "negative forward points",
+                      "SellBase", "TONA OIS discounting"],
+    },
+    # ------------------------------------------------------------------
+    # Cross-currency swaps — two legs in two currencies, principal exchanges
+    # ------------------------------------------------------------------
+    {
+        "id": "xccy_eur_fixed_vs_usd_sofr_5y_payer_usd",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "EUR/USD 5Y cross-currency swap, pay EUR 2.55% fixed vs USD SOFR, NPV in USD",
+        "description": (
+            "Baseline fixed/float: pay 2.55% annual 30/360 on 10m EUR, receive "
+            "SOFR compounded quarterly Act/360 on 10.85m USD (= 10m x spot "
+            "1.0850), both principal exchanges, 5Y from the spot date "
+            "2025-01-17. The EUR leg is discounted on the USD-collateralised "
+            "EUR curve (FX swaps + cross-currency basis), the USD leg on USD "
+            "SOFR OIS, and the EUR leg is converted at the as-of rate "
+            "X = S * DF_USD(spot) / DF_EUR(spot). The SOFR leg with its "
+            "exchanges is a par floater (NPV ~ 0); the fixed rate sits above "
+            "the fair rate (~2.107%), so the payer's NPV is negative. Compares "
+            "npv, both legs' NPVs in their currencies and in USD, the fair rate "
+            "and the as-of rate with the reference's cash-flow algebra. The legs "
+            "are SwapLeg entries: pay_receive, currency, coupons_type/coupons "
+            "(FixedCoupons / OvernightCoupons with the OIS conventions), "
+            "exchange flags and curves."
+        ),
+        "request": "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "SwapLeg", "FixedCoupons vs OvernightCoupons",
+                      "EUR/USD", "both principal exchanges", "fair rate",
+                      "reporting in quote ccy", "collateral-adjusted discounting"],
+    },
+    {
+        "id": "xccy_eur_fixed_vs_usd_sofr_5y_payer_eur",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "EUR/USD 5Y cross-currency swap, the baseline reported in EUR",
+        "description": (
+            "The baseline with reporting_currency EUR: the USD leg is converted "
+            "with 1/X, the leg NPVs in their own currencies are unchanged and "
+            "npv_EUR * X equals the USD-reported npv. Same fair rate."
+        ),
+        "request": "cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "reporting in base ccy", "as-of exchange rate"],
+    },
+    {
+        "id": "xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)",
+        "description": (
+            "The baseline with the fixed rate set to the reported fair_rate "
+            "(2.1068295710...%): the NPV is zero to rounding and the reported "
+            "fair rate is the contract rate. Shows the fair-rate definition "
+            "(the rate that zeroes the total NPV holding the SOFR leg and "
+            "every exchange fixed) through the API rather than by linear "
+            "extrapolation."
+        ),
+        "request": "cross_currency_swap/xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "zero NPV at the fair rate", "fair rate round trip"],
+    },
+    {
+        "id": "xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, both exchanges, NPV in USD",
+        "description": (
+            "Float/float: pay SOFR compounded quarterly on 10.85m USD, receive "
+            "ESTR compounded quarterly minus 15 bp on 10m EUR, both principal "
+            "exchanges, 5Y from the spot date. Leg conventions are those of "
+            "the collateral curve's 5Y CrossCcyBasisHelper (ESTR - 17 bp vs "
+            "SOFR), so the fair spread on the EUR leg reproduces the pillar's "
+            "-17 bp (to the helper's constant-notional convention, ~1e-8); "
+            "struck at -15 bp the EUR receiver is 2 bp better off and the NPV "
+            "is positive. Compares npv, leg NPVs, the fair spread and the "
+            "as-of rate."
+        ),
+        "request": "cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "float vs float", "compounded overnight both legs",
+                      "fair spread", "fair spread reprices the basis pillar", "negative spread"],
+    },
+    {
+        "id": "xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, final exchange only",
+        "description": (
+            "The float/float swap without the initial principal exchange on "
+            "either leg: each leg's NPV moves by exactly the PV of its initial "
+            "notional flow (N x DF(spot date)) and the fair spread leaves the "
+            "basis pillar. The twin of the both-exchanges case."
+        ),
+        "request": "cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "final exchange only", "exchange flags"],
+    },
+    {
+        "id": "xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur",
+        "product": "cross_currency_swap",
+        "family": "FX",
+        "title": "USD 4.10% fixed vs EUR Euribor 3M 5Y cross-currency swap, received, NPV in EUR",
+        "description": (
+            "The fixed leg in the spot's quote currency: receive 4.10% "
+            "semiannual 30/360 on 10.85m USD (discounted on USD SOFR OIS), pay "
+            "Euribor 3M quarterly Act/360 on 10m EUR (projected off the EUR "
+            "ESTR OIS curve for the example, discounted on the collateral "
+            "curve), both exchanges, reported in EUR: the USD leg is converted "
+            "with 1/X. An IBOR floating leg (one fixing per period, zero-vol "
+            "Black pricer) next to the compounded overnight legs of the other "
+            "cases; fair rate on the USD leg."
+        ),
+        "request": "cross_currency_swap/xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur.json",
+        "ql_pricer": "price_cross_currency_swap_ql",
+        "tolerance": CROSS_CURRENCY_SWAP_TOLERANCE,
+        "compare": "fields",
+        "exercises": ["cross-currency swap", "fixed leg in the quote currency", "IborCoupons",
+                      "fixed leg received", "reporting in base ccy", "fair rate"],
     },
 ]

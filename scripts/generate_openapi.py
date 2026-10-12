@@ -77,6 +77,8 @@ Quantra provides a high-performance JSON HTTP API for pricing financial instrume
 | Zero Coupon Swap | `/price-zero-coupon-swap` | Price zero-coupon fixed-vs-compounded-floating swaps |
 | Year-on-Year Inflation Cap/Floor | `/price-year-on-year-inflation-cap-floor` | Price year-on-year inflation caps, floors, and collars |
 | Callable Fixed Rate Bond | `/price-callable-fixed-rate-bond` | Price callable/puttable fixed-rate bonds on a Hull-White tree |
+| FX Forward | `/price-fx-forward` | Price outright FX forwards off an FX spot and two discount curves |
+| Cross-Currency Swap | `/price-cross-currency-swap` | Price cross-currency swaps (two SwapLeg entries in two currencies, fixed / IBOR / overnight coupons, principal exchanges) |
 | Status | `/status` | Runtime health and worker aggregation |
 | Meta | `/meta` | Service/version/build metadata |
 | Health | `/health` | Lightweight liveness check |
@@ -222,6 +224,16 @@ ENDPOINT_METADATA = {
         "summary": "Price Callable Fixed Rate Bond",
         "description": "Calculate NPV, clean/dirty price, and settlement date for callable (or puttable) fixed-rate bonds (QuantLib CallableFixedRateBond) priced on a TreeCallableFixedRateBondEngine over a Hull-White short-rate model referenced by id (the same model mechanism as swaptions, with explicit or calibrated parameters). Option-adjusted spread is a documented future extension.",
         "tags": ["Bonds"]
+    },
+    "cross_currency_swap": {
+        "summary": "Price Cross-Currency Swap",
+        "description": "Calculate the NPV in a reporting currency, each leg's NPV in its own currency and in the reporting currency, the fair fixed rate (exactly one fixed leg) or the fair spread on leg2 (no fixed leg), and optional per-leg flows (coupons and notional exchanges) for cross-currency swaps: two SwapLeg entries in two currencies, each paying or receiving fixed, IBOR or compounded/averaged overnight coupons (FixedCoupons / IborCoupons / OvernightCoupons), discounted on its own curve, with initial and/or final principal exchanges, converted at the as-of exchange rate implied by an FX spot (pricing.fx.spots) and the two discount curves. QuantLib leg cash-flow primitives only (the same leg builder as the single-currency swap endpoints); no currency is inferred from curve or index ids.",
+        "tags": ["FX"]
+    },
+    "fx_forward": {
+        "summary": "Price FX Forward",
+        "description": "Calculate NPV in a reporting currency, fair forward rate, forward points and per-currency leg present values for outright FX forwards, from an FX spot (pricing.fx.spots) and one discount curve per currency, using the same spot-date discount-factor algebra as QuantLib's FxSwapRateHelper. No currency is inferred from curve or index ids.",
+        "tags": ["FX"]
     }
 }
 
@@ -566,6 +578,7 @@ def generate_openapi() -> Dict[str, Any]:
             {"name": "Interest Rate Derivatives", "description": "Swaps, FRAs, caps/floors, swaptions"},
             {"name": "Credit Derivatives", "description": "Credit default swaps"},
             {"name": "Equity Derivatives", "description": "Equity option pricing"},
+            {"name": "FX", "description": "FX forwards and cross-currency swaps priced off FX spots and per-currency discount curves"},
             {"name": "Curves", "description": "Yield curve bootstrapping and rate extraction"},
             {"name": "Inflation", "description": "Inflation curve bootstrap and sampling"},
             {"name": "Volatility", "description": "Volatility surface creation and sampling"},

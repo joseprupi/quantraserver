@@ -14,7 +14,7 @@ namespace {
 /// Pull pricer params off the CMS leg. If the optional FB pricer table is
 /// missing, the defaults baked into VanillaSwapCmsPricerParams stand in (which
 /// match cms_leg_parser.makeCouponPricer's hand-coded defaults).
-VanillaSwapCmsPricerParams extractCmsPricerParams(const quantra::SwapCmsLeg* leg) {
+VanillaSwapCmsPricerParams extractCmsPricerParams(const quantra::CmsCoupons* leg) {
     VanillaSwapCmsPricerParams params;
     const auto* ps = leg->pricer();
     if (!ps) {

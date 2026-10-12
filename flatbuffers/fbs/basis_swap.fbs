@@ -8,8 +8,8 @@ table BasisSwap {
     /// Payer/receiver refer to leg1. Presence-required: an omitted type is a
     /// 400, never the alphabetical-0 default (Payer).
     swap_type:enums.SwapType = null;
-    leg1:SwapFloatingLeg;
-    leg2:SwapFloatingLeg;
+    leg1:IborCoupons;
+    leg2:IborCoupons;
 }
 
 root_type BasisSwap;

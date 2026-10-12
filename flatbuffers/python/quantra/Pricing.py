@@ -160,8 +160,21 @@ class Pricing(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         return o == 0
 
+    # FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,
+    # CrossCcyBasisHelper) and FX products. Optional.
+    # Pricing
+    def Fx(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.FxMarketData import FxMarketData
+            obj = FxMarketData()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def PricingStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(11)
 
 def Start(builder):
     PricingStart(builder)
@@ -238,6 +251,12 @@ def PricingStartCalendarOverridesVector(builder, numElems):
 def StartCalendarOverridesVector(builder, numElems):
     return PricingStartCalendarOverridesVector(builder, numElems)
 
+def PricingAddFx(builder, fx):
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(fx), 0)
+
+def AddFx(builder, fx):
+    PricingAddFx(builder, fx)
+
 def PricingEnd(builder):
     return builder.EndObject()
 
@@ -263,6 +282,7 @@ class PricingT(object):
         self.inflation = None  # type: Optional[InflationMarketDataT]
         self.options = None  # type: Optional[PricingOptionsT]
         self.calendarOverrides = None  # type: List[CalendarOverrideT]
+        self.fx = None  # type: Optional[FxMarketDataT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -315,6 +335,8 @@ class PricingT(object):
                 else:
                     calendarOverride_ = CalendarOverrideT.InitFromObj(pricing.CalendarOverrides(i))
                     self.calendarOverrides.append(calendarOverride_)
+        if pricing.Fx() is not None:
+            self.fx = FxMarketDataT.InitFromObj(pricing.Fx())
 
     # PricingT
     def Pack(self, builder):
@@ -350,6 +372,8 @@ class PricingT(object):
             for i in reversed(range(len(self.calendarOverrides))):
                 builder.PrependUOffsetTRelative(calendarOverrideslist[i])
             calendarOverrides = builder.EndVector()
+        if self.fx is not None:
+            fx = self.fx.Pack(builder)
         PricingStart(builder)
         if self.asOfDate is not None:
             PricingAddAsOfDate(builder, asOfDate)
@@ -371,5 +395,7 @@ class PricingT(object):
             PricingAddOptions(builder, options)
         if self.calendarOverrides is not None:
             PricingAddCalendarOverrides(builder, calendarOverrides)
+        if self.fx is not None:
+            PricingAddFx(builder, fx)
         pricing = PricingEnd(builder)
         return pricing

@@ -850,6 +850,39 @@ inline const char *EnumNameSwapType(SwapType e) {
   return EnumNamesSwapType()[index];
 }
 
+/// Side of one swap leg from the reported party's view (`SwapLeg.pay_receive`):
+/// `Pay` = the party pays the leg's coupons (and, with the exchanges on, receives
+/// the initial notional and pays the final one), `Receive` the opposite.
+enum PayReceive : int8_t {
+  PayReceive_Pay = 0,
+  PayReceive_Receive = 1,
+  PayReceive_MIN = PayReceive_Pay,
+  PayReceive_MAX = PayReceive_Receive
+};
+
+inline const PayReceive (&EnumValuesPayReceive())[2] {
+  static const PayReceive values[] = {
+    PayReceive_Pay,
+    PayReceive_Receive
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPayReceive() {
+  static const char * const names[3] = {
+    "Pay",
+    "Receive",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePayReceive(PayReceive e) {
+  if (::flatbuffers::IsOutRange(e, PayReceive_Pay, PayReceive_Receive)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPayReceive()[index];
+}
+
 /// FRA position: long (receive fixed, pay floating) or short (pay fixed, receive floating).
 enum FRAType : int8_t {
   FRAType_Long = 0,
@@ -1693,6 +1726,75 @@ inline const char *EnumNameEquityBarrierMonitoring(EquityBarrierMonitoring e) {
   if (::flatbuffers::IsOutRange(e, EquityBarrierMonitoring_Continuous, EquityBarrierMonitoring_Discrete)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEquityBarrierMonitoring()[index];
+}
+
+/// Direction of the base-currency notional of an FX forward, seen from the
+/// party whose NPV is reported. BuyBase: that party receives the base-currency
+/// notional at maturity and pays base_notional x forward_rate units of the
+/// quote currency. SellBase: the opposite. A positive NPV is in favour of that
+/// party.
+enum FxDirection : int8_t {
+  FxDirection_BuyBase = 0,
+  FxDirection_SellBase = 1,
+  FxDirection_MIN = FxDirection_BuyBase,
+  FxDirection_MAX = FxDirection_SellBase
+};
+
+inline const FxDirection (&EnumValuesFxDirection())[2] {
+  static const FxDirection values[] = {
+    FxDirection_BuyBase,
+    FxDirection_SellBase
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesFxDirection() {
+  static const char * const names[3] = {
+    "BuyBase",
+    "SellBase",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameFxDirection(FxDirection e) {
+  if (::flatbuffers::IsOutRange(e, FxDirection_BuyBase, FxDirection_SellBase)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesFxDirection()[index];
+}
+
+/// Kind of a swap-leg cash flow. Coupon: an interest payment (fixed or
+/// floating). NotionalExchange: a principal flow of a cross-currency swap
+/// (the initial exchange at the leg's start date, the final one with the last
+/// coupon); it carries no accrual or rate fields.
+enum SwapFlowKind : int8_t {
+  SwapFlowKind_Coupon = 0,
+  SwapFlowKind_NotionalExchange = 1,
+  SwapFlowKind_MIN = SwapFlowKind_Coupon,
+  SwapFlowKind_MAX = SwapFlowKind_NotionalExchange
+};
+
+inline const SwapFlowKind (&EnumValuesSwapFlowKind())[2] {
+  static const SwapFlowKind values[] = {
+    SwapFlowKind_Coupon,
+    SwapFlowKind_NotionalExchange
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSwapFlowKind() {
+  static const char * const names[3] = {
+    "Coupon",
+    "NotionalExchange",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSwapFlowKind(SwapFlowKind e) {
+  if (::flatbuffers::IsOutRange(e, SwapFlowKind_Coupon, SwapFlowKind_NotionalExchange)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSwapFlowKind()[index];
 }
 
 }  // namespace enums

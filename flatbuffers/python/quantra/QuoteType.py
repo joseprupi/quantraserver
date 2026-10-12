@@ -2,8 +2,11 @@
 
 # namespace: quantra
 
-# High-level quote type (usage).
+# High-level quote type (usage). Curve quotes are the only ones shifted by
+# the rate bump-and-reprice machinery (swaption_pricing_rebump); an FX spot
+# referenced from FxSpotSpec.quote_id must therefore carry the Fx type.
 class QuoteType(object):
     Curve = 0
     Volatility = 1
     Credit = 2
+    Fx = 3

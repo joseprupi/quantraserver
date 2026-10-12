@@ -73,6 +73,10 @@
       "type" : "string",
       "enum": ["Payer", "Receiver"]
     },
+    "quantra_enums_PayReceive" : {
+      "type" : "string",
+      "enum": ["Pay", "Receive"]
+    },
     "quantra_enums_FRAType" : {
       "type" : "string",
       "enum": ["Long", "Short"]
@@ -172,6 +176,14 @@
     "quantra_enums_EquityBarrierMonitoring" : {
       "type" : "string",
       "enum": ["Continuous", "Discrete"]
+    },
+    "quantra_enums_FxDirection" : {
+      "type" : "string",
+      "enum": ["BuyBase", "SellBase"]
+    },
+    "quantra_enums_SwapFlowKind" : {
+      "type" : "string",
+      "enum": ["Coupon", "NotionalExchange"]
     },
     "quantra_Flow" : {
       "type" : "string",
@@ -346,6 +358,10 @@
         "rate" : {
                 "type" : "number",
                 "description" : "Coupon rate: fixed-leg rate or effective floating coupon rate."
+              },
+        "kind" : {
+                "$ref" : "#/definitions/quantra_enums_SwapFlowKind",
+                "description" : "Kind of flow. Set on every flow of a `SwapLeg` result\n(`SwapLegResult.flows`), whose lists mix coupons and notional exchanges\n(a NotionalExchange flow has `payment_date`, `amount`, `discount`,\n`present_value` and `kind` only). Absent on the other swap endpoints,\nwhose flows are all coupons."
               }
       },
       "additionalProperties" : false

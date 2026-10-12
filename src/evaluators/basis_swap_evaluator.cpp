@@ -2,6 +2,7 @@
 
 #include "date_convert.h"
 #include "error.h"
+#include "swap_leg_builder.h"
 
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/coupon.hpp>
@@ -60,16 +61,15 @@ void extractFlows(
 }
 
 /// Build a QuantLib IborLeg from a plain BasisSwapFloatingLegData and an
-/// already-cloned IborIndex (with the desired forwarding curve attached).
+/// already-cloned IborIndex (with the desired forwarding curve attached),
+/// through the shared builder (swap_leg_builder.h).
 QuantLib::Leg buildIborLeg(
     const BasisSwapFloatingLegData& leg, const std::shared_ptr<QuantLib::IborIndex>& index) {
-    return QuantLib::IborLeg(leg.schedule, index)
-        .withNotionals(leg.notional)
-        .withPaymentDayCounter(leg.dayCounter)
-        .withPaymentAdjustment(leg.paymentConvention)
-        .withSpreads(leg.spread)
-        .withFixingDays(leg.fixingDays)
-        .inArrears(leg.inArrears);
+    return BuildIborLeg(
+        FloatingLegSpec{
+            leg.schedule, std::vector<double>{leg.notional}, leg.spread, leg.dayCounter,
+            leg.paymentConvention, leg.fixingDays, leg.inArrears},
+        index);
 }
 
 BasisSwapPerSwap priceTrade(

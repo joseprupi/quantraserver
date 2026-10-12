@@ -2,11 +2,13 @@
 #define QUANTRASERVER_CURVE_BOOTSTRAPPER_H
 
 #include "curve_registry.h"
+#include "fx_spot_registry.h"
 #include "index_registry.h"
 #include "index_registry_builder.h"
 #include "quote_registry.h"
 #include "request_budget.h"
 
+#include "fx_generated.h"
 #include "index_generated.h"
 #include "quotes_generated.h"
 #include "term_structure_generated.h"
@@ -40,7 +42,10 @@ struct BootstrappedCurves {
  * CurveBootstrapper
  *
  * Orchestrates multi-curve bootstrapping with dependency resolution.
- * Now accepts an IndexRegistry for resolving IndexRef in helpers.
+ * Builds its own quote, index and FX-spot registries from the wire data so
+ * the curve bump (rebump greeks) is applied exactly once, to curve quotes
+ * only; `fx` is the request's pricing.fx (FX spots referenced by
+ * FxSwapHelper pillars), optional.
  */
 class CurveBootstrapper {
 public:
@@ -49,7 +54,8 @@ public:
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes = nullptr,
         const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices = nullptr,
         double curveBump = 0.0,
-        const RequestBudget& budget = RequestBudget::unlimited()) const;
+        const RequestBudget& budget = RequestBudget::unlimited(),
+        const quantra::FxMarketData* fx = nullptr) const;
 
     static std::vector<std::string> topoSort(
         const std::unordered_map<std::string, std::vector<std::string>>& deps);

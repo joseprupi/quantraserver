@@ -314,6 +314,15 @@ QuantLib::Position::Type FRATypeToQL(const quantra::enums::FRAType fraType) {
     QUANTRA_ERROR("FRA type not found");
 }
 
+quantra::FxDirectionKind FxDirectionToDomain(const quantra::enums::FxDirection direction) {
+    switch (direction) {
+        case quantra::enums::FxDirection_BuyBase: return quantra::FxDirectionKind::BuyBase;
+        case quantra::enums::FxDirection_SellBase: return quantra::FxDirectionKind::SellBase;
+    }
+
+    QUANTRA_ERROR("FX direction not found");
+}
+
 QuantLib::CapFloor::Type CapFloorTypeToQL(const quantra::enums::CapFloorType capFloorType) {
     switch (capFloorType) {
         case quantra::enums::CapFloorType_Cap: return QuantLib::CapFloor::Cap;

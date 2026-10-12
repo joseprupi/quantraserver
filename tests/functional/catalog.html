@@ -742,6 +742,30 @@
 <td class="npv">DF/ZERO series, 10 points</td>
 </tr>
 <tr>
+<td><div class="title">EUR discount curve collateralised in USD, from FX swap points</div><div class="desc">A USD-collateralised EUR discount curve bootstrapped from EUR/USD FX swap points (1W/1M/3M/6M/1Y) given the EUR/USD spot (T+2 on the joint TARGET + US settlement calendar) and a USD SOFR OIS discount curve, sampled for discount factors and continuous zero rates at six tenors including an off-pillar 9M point. The FX curve is listed before its collateral curve on the wire; the engine orders the bootstrap by the collateral_curve reference. Reference: QuantLib FxSwapRateHelper on the same inputs.</div></td>
+<td><code>FxSwapHelper</code> <code>FX spot market data</code> <code>joint calendar</code> <code>collateral curve dependency</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_fxswap_short_end.json">curves_eur_usd_collateral_fxswap_short_end.json</a></td>
+<td class="npv">DF/ZERO series, 6 points</td>
+</tr>
+<tr>
+<td><div class="title">EUR discount curve collateralised in USD, FX points and spot by quote_id</div><div class="desc">The same USD-collateralised EUR curve with every FX swap point and the EUR/USD spot carried in pricing.quotes and referenced by quote_id (the points as Curve quotes, the spot as an Fx quote that the rate bump never shifts). Must sample identically to the inline twin.</div></td>
+<td><code>FxSwapHelper</code> <code>quote_id pillars</code> <code>Fx quote type</code> <code>FX spot market data</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json">curves_eur_usd_collateral_fxswap_short_end_quote_id.json</a></td>
+<td class="npv">DF/ZERO series, 6 points</td>
+</tr>
+<tr>
+<td><div class="title">EUR discount curve collateralised in USD: FX swaps + cross-currency basis</div><div class="desc">The classic collateral-adjusted EUR discount curve: short end from EUR/USD FX swap points (1W/1M/3M/6M/1Y), long end from constant-notional EUR/USD basis swaps (2Y/3Y/5Y/10Y, ESTR vs SOFR compounded quarterly, negative basis on the EUR leg) given the EUR/USD spot, a EUR ESTR OIS curve (the EUR leg&#x27;s forwarding curve) and a USD SOFR OIS curve (the USD leg&#x27;s forwarding and discount curve), sampled for discount factors and continuous zero rates at twelve tenors including off-pillar 18M, 4Y and 7Y points. The collateral-adjusted curve is listed before both curves it depends on; the engine orders the bootstrap by the references. Reference: QuantLib FxSwapRateHelper + ConstNotionalCrossCurrencyBasisSwapRateHelper on the same inputs.</div></td>
+<td><code>CrossCcyBasisHelper</code> <code>FxSwapHelper</code> <code>overnight legs</code> <code>payment_frequency</code> <code>FX spot market data</code> <code>forwarding curve dependency</code> <code>collateral curve dependency</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_full.json">curves_eur_usd_collateral_full.json</a></td>
+<td class="npv">DF/ZERO series, 12 points</td>
+</tr>
+<tr>
+<td><div class="title">EUR discount curve collateralised in USD, every quote by quote_id</div><div class="desc">The same collateral-adjusted EUR curve with every FX swap point, every basis spread and the EUR/USD spot carried in pricing.quotes and referenced by quote_id (points and spreads as Curve quotes, the spot as an Fx quote that the rate bump never shifts). Must sample identically to the inline twin.</div></td>
+<td><code>CrossCcyBasisHelper</code> <code>FxSwapHelper</code> <code>quote_id pillars</code> <code>Fx quote type</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_full_quote_id.json">curves_eur_usd_collateral_full_quote_id.json</a></td>
+<td class="npv">DF/ZERO series, 12 points</td>
+</tr>
+<tr>
 <td><div class="title">USD SOFR OIS curve with zero payment lag (divergence twin)</div><div class="desc">The identical SOFR OIS curve as the payment-lag-2 case but with payment_lag 0 on every helper. Each twin matches its own QuantLib reference at 1e-9, while the two curves differ from each other at the long end (measured: discount factors ~1.8e-7 apart at 30Y and ~1.8e-6 at 40Y, zero rates ~1.5e-8 at 30Y and ~1.5e-7 at 40Y) — the reproduction of the long-end discount-factor drift seen when the payment lag is ignored.</div></td>
 <td><code>OIS bootstrap</code> <code>SOFR</code> <code>payment_lag 0</code> <code>long-end divergence twin</code> <code>discount factors</code> <code>zero rates continuous</code></td>
 <td><a href="../../examples/data/curves/curves_usd_ois_sofr_paylag0_df_zero_long_end.json">curves_usd_ois_sofr_paylag0_df_zero_long_end.json</a></td>
@@ -1259,6 +1283,84 @@
 </tr>
 </tbody>
 </table>
-<footer>192 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<h2>FX</h2>
+<table>
+<thead><tr><th>Case</th><th>What it exercises</th><th>Request JSON</th><th>QuantLib value</th></tr></thead>
+<tbody>
+<tr>
+<td><div class="title">EUR/USD 6M forward, buy 10m EUR at 1.0950, NPV in USD</div><div class="desc">Baseline outright: buy EUR 10m six months forward at 1.0950 against the EUR/USD spot 1.0850 (T+2 on the joint TARGET + US settlement calendar, spot date 2025-01-17). The EUR leg is discounted on the USD-collateralised EUR curve (FX swaps + cross-currency basis) and the USD leg on USD SOFR OIS, so the fair forward at the 6M pillar reprices the market point 1.0850 + 0.01310 = 1.09810; the contract rate sits below it and the buyer of EUR is in the money. Compares npv, fair forward, points and both leg PVs with the reference&#x27;s discount-factor algebra on the same curves.</div></td>
+<td><code>FX forward</code> <code>BuyBase</code> <code>EUR/USD</code> <code>reporting in quote ccy</code> <code>collateral-adjusted discounting</code> <code>fair forward at an FX swap pillar</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur.json">fx_forward_eurusd_6m_buy_eur.json</a></td>
+<td class="npv">npv=30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, the same trade sold</div><div class="desc">The sold side of the baseline: sell EUR 10m at 1.0950. Everything else is identical, so npv and both leg PVs are the exact negatives of the buy case while the fair forward and the forward points are unchanged (they are market quantities, not positions).</div></td>
+<td><code>FX forward</code> <code>SellBase</code> <code>sign flip</code> <code>EUR/USD</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_sell_eur.json">fx_forward_eurusd_6m_sell_eur.json</a></td>
+<td class="npv">npv=-30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=-9.86131e+06, quote_leg_pv=1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, NPV reported in EUR</div><div class="desc">The baseline buy with reporting_currency EUR: the USD leg is converted at the as-of exchange rate X = S * DF_USD(spot) / DF_EUR(spot) (the FxSwapRateHelper identity), so npv_EUR * X equals the USD-reported npv. The leg PVs stay in their own currencies.</div></td>
+<td><code>FX forward</code> <code>reporting in base ccy</code> <code>as-of exchange rate</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur_reported_in_eur.json">fx_forward_eurusd_6m_buy_eur_reported_in_eur.json</a></td>
+<td class="npv">npv=27839.1, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 1Y forward struck on-market (spot + 1Y points)</div><div class="desc">Buy EUR 10m one year forward at 1.11202 = spot 1.0850 + the 1Y FX swap points 0.02702 the EUR curve was bootstrapped from. The maturity is given as Saturday 2026-01-17 and rolls on the joint calendar past the US holiday to 2026-01-20, the 1Y pillar date, so the contract rate equals the fair forward and the NPV is zero to bootstrap accuracy (an on-market forward).</div></td>
+<td><code>FX forward</code> <code>zero NPV at the fair forward</code> <code>maturity rolled on the joint calendar</code> <code>1Y FX swap pillar</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_1y_on_market.json">fx_forward_eurusd_1y_on_market.json</a></td>
+<td class="npv">npv=0, fair_forward_rate=1.11202, forward_points=0.02702, base_leg_pv=9.75386e+06, quote_leg_pv=-1.05815e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 6M forward, spot through an Fx quote</div><div class="desc">The baseline buy with the EUR/USD spot carried in pricing.quotes as an Fx-type quote and referenced by quote_id from the FxSpotSpec (the rate bump never shifts an Fx quote). Must price identically to the inline spot.</div></td>
+<td><code>FX forward</code> <code>spot by quote_id</code> <code>Fx quote type</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_eurusd_6m_buy_eur_spot_quote_id.json">fx_forward_eurusd_6m_buy_eur_spot_quote_id.json</a></td>
+<td class="npv">npv=30201.2, fair_forward_rate=1.0981, forward_points=0.0131, base_leg_pv=9.86131e+06, quote_leg_pv=-1.06679e+07, fx_spot_used=1.085</td>
+</tr>
+<tr>
+<td><div class="title">USD/JPY 3M forward, sell 5m USD at 153.80, NPV in JPY</div><div class="desc">A pair whose quote amounts are ~150x the base ones: sell USD 5m three months forward at 153.80 against spot 155.00 (T+2 on the joint US settlement + Japan calendar), USD leg on SOFR OIS, JPY leg on a TONA OIS curve. JPY rates far below USD rates put the fair forward below the spot (negative points); the seller of USD at 153.80 is short against a lower fair forward.</div></td>
+<td><code>FX forward</code> <code>USD/JPY</code> <code>Japan calendar</code> <code>negative forward points</code> <code>SellBase</code> <code>TONA OIS discounting</code></td>
+<td><a href="../../examples/data/fx_forward/fx_forward_usdjpy_3m_sell_usd.json">fx_forward_usdjpy_3m_sell_usd.json</a></td>
+<td class="npv">npv=3.18747e+06, fair_forward_rate=153.162, forward_points=-1.8383, base_leg_pv=-4.93316e+06, quote_leg_pv=7.68034e+08, fx_spot_used=155</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 5Y cross-currency swap, pay EUR 2.55% fixed vs USD SOFR, NPV in USD</div><div class="desc">Baseline fixed/float: pay 2.55% annual 30/360 on 10m EUR, receive SOFR compounded quarterly Act/360 on 10.85m USD (= 10m x spot 1.0850), both principal exchanges, 5Y from the spot date 2025-01-17. The EUR leg is discounted on the USD-collateralised EUR curve (FX swaps + cross-currency basis), the USD leg on USD SOFR OIS, and the EUR leg is converted at the as-of rate X = S * DF_USD(spot) / DF_EUR(spot). The SOFR leg with its exchanges is a par floater (NPV ~ 0); the fixed rate sits above the fair rate (~2.107%), so the payer&#x27;s NPV is negative. Compares npv, both legs&#x27; NPVs in their currencies and in USD, the fair rate and the as-of rate with the reference&#x27;s cash-flow algebra. The legs are SwapLeg entries: pay_receive, currency, coupons_type/coupons (FixedCoupons / OvernightCoupons with the OIS conventions), exchange flags and curves.</div></td>
+<td><code>cross-currency swap</code> <code>SwapLeg</code> <code>FixedCoupons vs OvernightCoupons</code> <code>EUR/USD</code> <code>both principal exchanges</code> <code>fair rate</code> <code>reporting in quote ccy</code> <code>collateral-adjusted discounting</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json">xccy_eur_fixed_vs_usd_sofr_5y_payer_usd.json</a></td>
+<td class="npv">npv=-225423, fair_rate=0.0210683, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-204770, npv_reporting=-222145, npv=-3277.96, npv_reporting=-3277.96</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 5Y cross-currency swap, the baseline reported in EUR</div><div class="desc">The baseline with reporting_currency EUR: the USD leg is converted with 1/X, the leg NPVs in their own currencies are unchanged and npv_EUR * X equals the USD-reported npv. Same fair rate.</div></td>
+<td><code>cross-currency swap</code> <code>reporting in base ccy</code> <code>as-of exchange rate</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json">xccy_eur_fixed_vs_usd_sofr_5y_payer_eur.json</a></td>
+<td class="npv">npv=-207792, fair_rate=0.0210683, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-204770, npv_reporting=-204770, npv=-3277.96, npv_reporting=-3021.58</td>
+</tr>
+<tr>
+<td><div class="title">EUR/USD 5Y cross-currency swap struck at its fair rate (NPV zero)</div><div class="desc">The baseline with the fixed rate set to the reported fair_rate (2.1068295710...%): the NPV is zero to rounding and the reported fair rate is the contract rate. Shows the fair-rate definition (the rate that zeroes the total NPV holding the SOFR leg and every exchange fixed) through the API rather than by linear extrapolation.</div></td>
+<td><code>cross-currency swap</code> <code>zero NPV at the fair rate</code> <code>fair rate round trip</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json">xccy_eur_fixed_at_fair_rate_vs_usd_sofr_5y.json</a></td>
+<td class="npv">npv=-5.19549e-09, fair_rate=0.0210683, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=3021.58, npv_reporting=3277.96, npv=-3277.96, npv_reporting=-3277.96</td>
+</tr>
+<tr>
+<td><div class="title">USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, both exchanges, NPV in USD</div><div class="desc">Float/float: pay SOFR compounded quarterly on 10.85m USD, receive ESTR compounded quarterly minus 15 bp on 10m EUR, both principal exchanges, 5Y from the spot date. Leg conventions are those of the collateral curve&#x27;s 5Y CrossCcyBasisHelper (ESTR - 17 bp vs SOFR), so the fair spread on the EUR leg reproduces the pillar&#x27;s -17 bp (to the helper&#x27;s constant-notional convention, ~1e-8); struck at -15 bp the EUR receiver is 2 bp better off and the NPV is positive. Compares npv, leg NPVs, the fair spread and the as-of rate.</div></td>
+<td><code>cross-currency swap</code> <code>float vs float</code> <code>compounded overnight both legs</code> <code>fair spread</code> <code>fair spread reprices the basis pillar</code> <code>negative spread</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json">xccy_usd_sofr_vs_eur_estr_minus15bp_5y_both_exchanges.json</a></td>
+<td class="npv">npv=10399.9, fair_spread=-0.00170001, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=3277.96, npv_reporting=3277.96, npv=6564.94, npv_reporting=7121.98</td>
+</tr>
+<tr>
+<td><div class="title">USD SOFR vs EUR ESTR - 15 bp 5Y basis swap, final exchange only</div><div class="desc">The float/float swap without the initial principal exchange on either leg: each leg&#x27;s NPV moves by exactly the PV of its initial notional flow (N x DF(spot date)) and the fair spread leaves the basis pillar. The twin of the both-exchanges case.</div></td>
+<td><code>cross-currency swap</code> <code>final exchange only</code> <code>exchange flags</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only.json">xccy_usd_sofr_vs_eur_estr_minus15bp_5y_final_exchange_only.json</a></td>
+<td class="npv">npv=10399.9, fair_spread=-0.00170001, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=-1.08435e+07, npv_reporting=-1.08435e+07, npv=1.0005e+07, npv_reporting=1.08539e+07</td>
+</tr>
+<tr>
+<td><div class="title">USD 4.10% fixed vs EUR Euribor 3M 5Y cross-currency swap, received, NPV in EUR</div><div class="desc">The fixed leg in the spot&#x27;s quote currency: receive 4.10% semiannual 30/360 on 10.85m USD (discounted on USD SOFR OIS), pay Euribor 3M quarterly Act/360 on 10m EUR (projected off the EUR ESTR OIS curve for the example, discounted on the collateral curve), both exchanges, reported in EUR: the USD leg is converted with 1/X. An IBOR floating leg (one fixing per period, zero-vol Black pricer) next to the compounded overnight legs of the other cases; fair rate on the USD leg.</div></td>
+<td><code>cross-currency swap</code> <code>fixed leg in the quote currency</code> <code>IborCoupons</code> <code>fixed leg received</code> <code>reporting in base ccy</code> <code>fair rate</code></td>
+<td><a href="../../examples/data/cross_currency_swap/xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur.json">xccy_usd_fixed_vs_eur_euribor3m_5y_receiver_eur.json</a></td>
+<td class="npv">npv=-41675.8, fair_rate=0.0419327, fx_spot_used=1.085, fx_as_of_rate=1.08485, npv=39906.1, npv_reporting=36784.9, npv=-78460.7, npv_reporting=-78460.7</td>
+</tr>
+</tbody>
+</table>
+<footer>208 cases across 14 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

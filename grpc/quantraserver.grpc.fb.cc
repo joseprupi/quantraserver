@@ -40,6 +40,8 @@ static const char* QuantraServer_method_names[] = {
   "/quantra.QuantraServer/PriceZeroCouponSwap",
   "/quantra.QuantraServer/PriceYearOnYearInflationCapFloor",
   "/quantra.QuantraServer/PriceCallableFixedRateBond",
+  "/quantra.QuantraServer/PriceFxForward",
+  "/quantra.QuantraServer/PriceCrossCurrencySwap",
   "/quantra.QuantraServer/Meta",
 };
 
@@ -73,7 +75,9 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_PriceZeroCouponSwap_(QuantraServer_method_names[21], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceYearOnYearInflationCapFloor_(QuantraServer_method_names[22], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_PriceCallableFixedRateBond_(QuantraServer_method_names[23], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_Meta_(QuantraServer_method_names[24], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceFxForward_(QuantraServer_method_names[24], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_PriceCrossCurrencySwap_(QuantraServer_method_names[25], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Meta_(QuantraServer_method_names[26], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
   
 ::grpc::Status QuantraServer::Stub::PriceFixedRateBond(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFixedRateBondRequest>& request, flatbuffers::grpc::Message<PriceFixedRateBondResponse>* response) {
@@ -364,6 +368,30 @@ QuantraServer::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCallableFixedRateBond_, context, request, false);
 }
 
+::grpc::Status QuantraServer::Stub::PriceFxForward(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, flatbuffers::grpc::Message<PriceFxForwardResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceFxForward_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>* QuantraServer::Stub::AsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceFxForwardResponse>>::Create(channel_.get(), cq, rpcmethod_PriceFxForward_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceFxForwardResponse>>* QuantraServer::Stub::PrepareAsyncPriceFxForwardRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceFxForwardRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceFxForwardResponse>>::Create(channel_.get(), cq, rpcmethod_PriceFxForward_, context, request, false);
+}
+
+::grpc::Status QuantraServer::Stub::PriceCrossCurrencySwap(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>& request, flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_PriceCrossCurrencySwap_, context, request, response);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>* QuantraServer::Stub::AsyncPriceCrossCurrencySwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCrossCurrencySwap_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>* QuantraServer::Stub::PrepareAsyncPriceCrossCurrencySwapRaw(::grpc::ClientContext* context, const flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderFactory< flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>::Create(channel_.get(), cq, rpcmethod_PriceCrossCurrencySwap_, context, request, false);
+}
+
 ::grpc::Status QuantraServer::Stub::Meta(::grpc::ClientContext* context, const flatbuffers::grpc::Message<MetaRequest>& request, flatbuffers::grpc::Message<MetaResponse>* response) {
   return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_Meta_, context, request, response);
 }
@@ -500,6 +528,16 @@ QuantraServer::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       QuantraServer_method_names[24],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceFxForwardRequest>, flatbuffers::grpc::Message<PriceFxForwardResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceFxForward), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[25],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>, flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>>(
+          std::mem_fn(&QuantraServer::Service::PriceCrossCurrencySwap), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      QuantraServer_method_names[26],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< QuantraServer::Service, flatbuffers::grpc::Message<MetaRequest>, flatbuffers::grpc::Message<MetaResponse>>(
           std::mem_fn(&QuantraServer::Service::Meta), this)));
 }
@@ -600,6 +638,14 @@ QuantraServer::Service::~Service() {
 }
 
 ::grpc::Status QuantraServer::Service::PriceCallableFixedRateBond(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCallableFixedRateBondRequest>* /*request*/, flatbuffers::grpc::Message<PriceCallableFixedRateBondResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceFxForward(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceFxForwardRequest>* /*request*/, flatbuffers::grpc::Message<PriceFxForwardResponse>* /*response*/) {
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status QuantraServer::Service::PriceCrossCurrencySwap(::grpc::ServerContext* /*context*/, const flatbuffers::grpc::Message<PriceCrossCurrencySwapRequest>* /*request*/, flatbuffers::grpc::Message<PriceCrossCurrencySwapResponse>* /*response*/) {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

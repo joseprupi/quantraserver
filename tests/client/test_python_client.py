@@ -28,6 +28,8 @@ from quantra_client.client import (
     PriceFixedRateBondRequestT,
     PriceVanillaSwapRequestT,
     PriceFRARequestT,
+    PriceFxForwardRequestT,
+    PriceCrossCurrencySwapRequestT,
     PriceCapFloorRequestT,
     PriceSwaptionRequestT,
     PriceCDSRequestT,
@@ -64,11 +66,22 @@ from quantra_client.client import (
     FixedRateBondT,
     PriceFixedRateBondT,
     VanillaSwapT,
-    SwapFixedLegT,
-    SwapFloatingLegT,
+    FixedCouponsT,
+    IborCouponsT,
     PriceVanillaSwapT,
     FRAT,
     PriceFRAT,
+    FxSpotSpecT,
+    FxMarketDataT,
+    FxForwardT,
+    PriceFxForwardT,
+    OvernightCouponsT,
+    SwapCoupons,
+    SwapLegT,
+    CrossCurrencySwapT,
+    PriceCrossCurrencySwapT,
+    PayReceive,
+    SwapFlowKind,
     CapFloorT,
     PriceCapFloorT,
     SwaptionT,
@@ -91,7 +104,9 @@ from quantra_client.client import (
     BootstrapTrait,
     Compounding,
     SwapType,
+    RateAveragingType,
     FRAType,
+    FxDirection,
     CapFloorType,
     ExerciseType,
     SettlementType,
@@ -129,38 +144,38 @@ def setup_quantlib():
     return build_quantlib_curve()
 
 
-def build_quantlib_curve():
-    """Build the same bootstrapped curve as C++ test."""
+def build_quantlib_curve(rate: float = FLAT_RATE):
+    """Build the same bootstrapped curve as C++ test (flat at `rate`)."""
     helpers = []
     
     # 3M deposit
     helpers.append(ql.DepositRateHelper(
-        FLAT_RATE, ql.Period(3, ql.Months), 2, ql.TARGET(),
+        rate, ql.Period(3, ql.Months), 2, ql.TARGET(),
         ql.ModifiedFollowing, True, ql.Actual365Fixed()
     ))
     
     # 6M deposit
     helpers.append(ql.DepositRateHelper(
-        FLAT_RATE, ql.Period(6, ql.Months), 2, ql.TARGET(),
+        rate, ql.Period(6, ql.Months), 2, ql.TARGET(),
         ql.ModifiedFollowing, True, ql.Actual365Fixed()
     ))
     
     # 1Y deposit
     helpers.append(ql.DepositRateHelper(
-        FLAT_RATE, ql.Period(1, ql.Years), 2, ql.TARGET(),
+        rate, ql.Period(1, ql.Years), 2, ql.TARGET(),
         ql.ModifiedFollowing, True, ql.Actual365Fixed()
     ))
     
     # 5Y swap
     euribor6m = ql.Euribor6M()
     helpers.append(ql.SwapRateHelper(
-        FLAT_RATE, ql.Period(5, ql.Years), ql.TARGET(), ql.Annual,
+        rate, ql.Period(5, ql.Years), ql.TARGET(), ql.Annual,
         ql.ModifiedFollowing, ql.Thirty360(ql.Thirty360.BondBasis), euribor6m
     ))
     
     # 10Y swap
     helpers.append(ql.SwapRateHelper(
-        FLAT_RATE, ql.Period(10, ql.Years), ql.TARGET(), ql.Annual,
+        rate, ql.Period(10, ql.Years), ql.TARGET(), ql.Annual,
         ql.ModifiedFollowing, ql.Thirty360(ql.Thirty360.BondBasis), euribor6m
     ))
     
@@ -173,8 +188,8 @@ def build_quantlib_curve():
 # Quantra Helpers
 # =============================================================================
 
-def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
-    """Build the same curve for Quantra."""
+def build_quantra_curve(curve_id: str = "discount", rate: float = FLAT_RATE) -> TermStructureT:
+    """Build the same curve for Quantra (flat at `rate`)."""
     ts = TermStructureT()
     ts.id = curve_id
     ts.dayCounter = DayCounter.Actual365Fixed
@@ -185,7 +200,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     
     # 3M deposit
     dep3m = DepositHelperT()
-    dep3m.rate = FLAT_RATE
+    dep3m.rate = rate
     dep3m.tenor = mk_period(3, TimeUnit.Months)
     dep3m.fixingDays = 2
     dep3m.calendar = Calendar.TARGET
@@ -198,7 +213,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     
     # 6M deposit
     dep6m = DepositHelperT()
-    dep6m.rate = FLAT_RATE
+    dep6m.rate = rate
     dep6m.tenor = mk_period(6, TimeUnit.Months)
     dep6m.fixingDays = 2
     dep6m.calendar = Calendar.TARGET
@@ -211,7 +226,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     
     # 1Y deposit
     dep1y = DepositHelperT()
-    dep1y.rate = FLAT_RATE
+    dep1y.rate = rate
     dep1y.tenor = mk_period(1, TimeUnit.Years)
     dep1y.fixingDays = 2
     dep1y.calendar = Calendar.TARGET
@@ -224,7 +239,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     
     # 5Y swap
     sw5y = SwapHelperT()
-    sw5y.rate = FLAT_RATE
+    sw5y.rate = rate
     sw5y.tenor = mk_period(5, TimeUnit.Years)
     sw5y.calendar = Calendar.TARGET
     sw5y.swFixedLegFrequency = Frequency.Annual
@@ -242,7 +257,7 @@ def build_quantra_curve(curve_id: str = "discount") -> TermStructureT:
     
     # 10Y swap
     sw10y = SwapHelperT()
-    sw10y.rate = FLAT_RATE
+    sw10y.rate = rate
     sw10y.tenor = mk_period(10, TimeUnit.Years)
     sw10y.calendar = Calendar.TARGET
     sw10y.swFixedLegFrequency = Frequency.Annual
@@ -308,8 +323,25 @@ def build_index_def_eur3m() -> IndexDefT:
     idef.currency = "EUR"
     return idef
 
+
+def build_index_def_sofr() -> IndexDefT:
+    """Build USD SOFR IndexDef (overnight conventions)."""
+    idef = IndexDefT()
+    idef.id = "USD_SOFR"
+    idef.name = "SOFR"
+    idef.indexType = IndexType.Overnight
+    idef.tenor = mk_period(0, TimeUnit.Days)
+    idef.fixingDays = 0
+    idef.calendar = Calendar.UnitedStatesGovernmentBond
+    idef.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+    idef.dayCounter = DayCounter.Actual360
+    idef.endOfMonth = True
+    idef.currency = "USD"
+    return idef
+
 def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list = None,
-                            indices: list = None, credit_curves: list = None) -> PricingT:
+                            indices: list = None, credit_curves: list = None,
+                            fx_spots: list = None) -> PricingT:
     """Build Pricing object for Quantra.
     
     Args:
@@ -318,6 +350,7 @@ def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list 
         models: List of ModelSpecT (for caps/floors/swaptions)
         indices: List of IndexDefT (index definitions referenced by helpers/instruments)
         credit_curves: List of CreditCurveSpecT (CDS credit curves)
+        fx_spots: List of FxSpotSpecT (FX spots referenced by FX products)
     """
     p = PricingT()
     p.asOfDate = EVAL_DATE_STR
@@ -336,6 +369,10 @@ def build_quantra_pricing(curves: list, vol_surfaces: list = None, models: list 
         volatility.models = models or []
         p.volatility = volatility
     p.equity = EquityMarketDataT()
+    if fx_spots:
+        fx = FxMarketDataT()
+        fx.spots = fx_spots
+        p.fx = fx
     options = PricingOptionsT()
     options.bondPricingDetails = True
     options.bondPricingFlows = False
@@ -576,7 +613,7 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     fixed_schedule_q.endOfMonth = False
     
-    fixed_leg = SwapFixedLegT()
+    fixed_leg = FixedCouponsT()
     fixed_leg.notional = notional
     fixed_leg.schedule = fixed_schedule_q
     fixed_leg.rate = fixed_rate
@@ -593,7 +630,7 @@ def test_vanilla_swap(client: Client, curve_handle: ql.YieldTermStructureHandle)
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     float_schedule_q.endOfMonth = False
     
-    float_leg = SwapFloatingLegT()
+    float_leg = IborCouponsT()
     float_leg.notional = notional
     float_leg.schedule = float_schedule_q
     float_leg.index = build_quantra_index_6m()
@@ -845,7 +882,7 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     fixed_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     fixed_schedule_q.endOfMonth = False
     
-    fixed_leg = SwapFixedLegT()
+    fixed_leg = FixedCouponsT()
     fixed_leg.notional = notional
     fixed_leg.schedule = fixed_schedule_q
     fixed_leg.rate = strike
@@ -862,7 +899,7 @@ def test_swaption(client: Client, curve_handle: ql.YieldTermStructureHandle):
     float_schedule_q.dateGenerationRule = DateGenerationRule.Forward
     float_schedule_q.endOfMonth = False
     
-    float_leg = SwapFloatingLegT()
+    float_leg = IborCouponsT()
     float_leg.notional = notional
     float_leg.schedule = float_schedule_q
     float_leg.index = build_quantra_index_6m()
@@ -1134,6 +1171,255 @@ def test_bootstrap_curves(client, curve_handle):
     return passed, ql_first or 0, q_first or 0
 
 
+def test_fx_forward(client: Client, curve_handle: ql.YieldTermStructureHandle):
+    """
+    Compare FX forward pricing: QuantLib discount-factor algebra vs Quantra
+
+    EUR/USD 6M, buy 10m EUR at 1.0900, spot 1.0850 T+2, EUR curve flat 3%,
+    USD curve flat 4.5%, NPV in USD. The reference is the identity the
+    engine documents (docs/http-api.md, FX forward):
+        X    = S * DF_usd(spot) / DF_eur(spot)
+        fair = X * DF_eur(T) / DF_usd(T)
+        npv  = N * DF_eur(T) * X - N * K * DF_usd(T)
+    """
+    print("\n" + "=" * 60)
+    print("FX Forward")
+    print("=" * 60)
+
+    notional = 10_000_000.0
+    strike = 1.0900
+    spot = 1.0850
+    usd_rate = 0.045
+
+    # --- QuantLib ---
+    eur_curve = curve_handle                      # flat 3% (the shared fixture)
+    usd_curve = build_quantlib_curve(usd_rate)    # flat 4.5%
+    cal = ql.JointCalendar(ql.TARGET(), ql.UnitedStates(ql.UnitedStates.Settlement), ql.JoinHolidays)
+    spot_date = cal.advance(cal.adjust(EVAL_DATE), ql.Period(2, ql.Days))
+    maturity = cal.adjust(ql.Date(17, ql.July, 2025), ql.ModifiedFollowing)
+    X = spot * usd_curve.discount(spot_date) / eur_curve.discount(spot_date)
+    ql_fair = X * eur_curve.discount(maturity) / usd_curve.discount(maturity)
+    ql_npv = notional * eur_curve.discount(maturity) * X - notional * strike * usd_curve.discount(maturity)
+
+    # --- Quantra ---
+    fx_spot = FxSpotSpecT()
+    fx_spot.id = "EURUSD_SPOT"
+    fx_spot.baseCurrency = "EUR"
+    fx_spot.quoteCurrency = "USD"
+    fx_spot.rate = spot
+    fx_spot.spotDays = 2
+    fx_spot.settlementCalendars = [Calendar.TARGET, Calendar.UnitedStatesSettlement]
+    fx_spot.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+
+    fwd = FxForwardT()
+    fwd.baseCurrency = "EUR"
+    fwd.quoteCurrency = "USD"
+    fwd.baseNotional = notional
+    fwd.forwardRate = strike
+    fwd.maturityDate = "2025-07-17"
+    fwd.direction = FxDirection.BuyBase
+
+    price_fwd = PriceFxForwardT()
+    price_fwd.fxForward = fwd
+    price_fwd.fxSpot = "EURUSD_SPOT"
+    price_fwd.baseDiscountingCurve = "discount"
+    price_fwd.quoteDiscountingCurve = "usd_discount"
+    price_fwd.reportingCurrency = "USD"
+
+    request = PriceFxForwardRequestT()
+    request.pricing = build_quantra_pricing(
+        [build_quantra_curve("discount"), build_quantra_curve("usd_discount", usd_rate)],
+        indices=[build_index_def_eur3m(), build_index_def_eur6m()],
+        fx_spots=[fx_spot])
+    request.fxForwards = [price_fwd]
+
+    response = client.price_fx_forwards(request)
+    result = response.FxForwards(0)
+    q_npv = result.Npv()
+    q_fair = result.FairForwardRate()
+
+    # --- Compare ---
+    npv_diff = abs(ql_npv - q_npv)
+    fair_diff = abs(ql_fair - q_fair)
+
+    print(f"  Spot date / maturity: {result.SpotDate().decode()} / {result.MaturityDate().decode()}")
+    print(f"  QuantLib NPV (USD): {ql_npv:>12.2f}")
+    print(f"  Quantra NPV (USD):  {q_npv:>12.2f}")
+    print(f"  NPV Difference:     {npv_diff:>12.6f}")
+    print(f"  QuantLib fair fwd:  {ql_fair:>12.6f}")
+    print(f"  Quantra fair fwd:   {q_fair:>12.6f}")
+    print(f"  Forward points:     {result.ForwardPoints():>12.6f}")
+
+    passed = (npv_diff < 1e-6 and fair_diff < 1e-12
+              and result.SpotDate().decode() == spot_date.ISO()
+              and result.MaturityDate().decode() == maturity.ISO())
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+
+    return passed, ql_npv, q_npv
+
+
+def test_cross_currency_swap(client: Client, curve_handle: ql.YieldTermStructureHandle):
+    """
+    Compare cross-currency swap pricing: QuantLib cash-flow algebra vs Quantra
+
+    Two SwapLeg entries: pay EUR 2.55% annual (30/360) on 10m EUR
+    (FixedCoupons), receive USD SOFR compounded quarterly on 10.85m USD
+    (OvernightCoupons, the OIS leg conventions), both principal exchanges,
+    5Y from 2025-01-17, EUR curve flat 3%, USD curve flat 4.5%, spot 1.0850
+    T+2, NPV in USD. The reference is the identity the engine documents
+    (docs/http-api.md, Cross-currency swap): each leg (coupons + exchanges)
+    NPV'd on its own curve with ql.CashFlows.npv, the EUR leg converted at
+    X = S * DF_usd(spot) / DF_eur(spot), and the fair rate from the fixed
+    leg's annuity.
+    """
+    print("\n" + "=" * 60)
+    print("Cross-Currency Swap")
+    print("=" * 60)
+
+    eur_notional = 10_000_000.0
+    spot = 1.0850
+    usd_notional = eur_notional * spot
+    fixed_rate = 0.0255
+    usd_rate = 0.045
+    start = ql.Date(17, ql.January, 2025)
+    end = ql.Date(17, ql.January, 2030)
+
+    # --- QuantLib ---
+    eur_curve = curve_handle                      # flat 3% (the shared fixture)
+    usd_curve = build_quantlib_curve(usd_rate)    # flat 4.5%
+    fixed_schedule = ql.Schedule(start, end, ql.Period(ql.Annual), ql.TARGET(),
+                                 ql.ModifiedFollowing, ql.ModifiedFollowing,
+                                 ql.DateGeneration.Forward, False)
+    float_schedule = ql.Schedule(start, end, ql.Period(ql.Quarterly), ql.TARGET(),
+                                 ql.ModifiedFollowing, ql.ModifiedFollowing,
+                                 ql.DateGeneration.Forward, False)
+    sofr = ql.OvernightIndex("SOFR", 0, ql.USDCurrency(),
+                             ql.UnitedStates(ql.UnitedStates.GovernmentBond), ql.Actual360(),
+                             usd_curve)
+    eur_coupons = ql.FixedRateLeg(fixed_schedule, ql.Thirty360(ql.Thirty360.BondBasis),
+                                  [eur_notional], [fixed_rate], ql.ModifiedFollowing)
+    usd_coupons = ql.OvernightLeg([usd_notional], float_schedule, sofr, sofr.dayCounter(),
+                                  ql.ModifiedFollowing, [1.0], [0.0], False,
+                                  ql.RateAveraging.Compound, ql.TARGET(), 0)
+    eur_leg = list(eur_coupons) + [ql.SimpleCashFlow(-eur_notional, start),
+                                   ql.SimpleCashFlow(eur_notional, eur_coupons[-1].date())]
+    usd_leg = list(usd_coupons) + [ql.SimpleCashFlow(-usd_notional, start),
+                                   ql.SimpleCashFlow(usd_notional, usd_coupons[-1].date())]
+    cal = ql.JointCalendar(ql.TARGET(), ql.UnitedStates(ql.UnitedStates.Settlement), ql.JoinHolidays)
+    spot_date = cal.advance(cal.adjust(EVAL_DATE), ql.Period(2, ql.Days))
+    X = spot * usd_curve.discount(spot_date) / eur_curve.discount(spot_date)
+    eur_pv = -ql.CashFlows.npv(eur_leg, eur_curve, False, EVAL_DATE, EVAL_DATE)   # paid
+    usd_pv = ql.CashFlows.npv(usd_leg, usd_curve, False, EVAL_DATE, EVAL_DATE)    # received
+    ql_npv = eur_pv * X + usd_pv
+    eur_annuity = ql.CashFlows.bps(eur_coupons, eur_curve, False, EVAL_DATE, EVAL_DATE) / 1e-4
+    ql_fair_rate = fixed_rate - (eur_pv + usd_pv / X) / (-1.0 * eur_annuity)
+
+    # --- Quantra ---
+    fx_spot = FxSpotSpecT()
+    fx_spot.id = "EURUSD_SPOT"
+    fx_spot.baseCurrency = "EUR"
+    fx_spot.quoteCurrency = "USD"
+    fx_spot.rate = spot
+    fx_spot.spotDays = 2
+    fx_spot.settlementCalendars = [Calendar.TARGET, Calendar.UnitedStatesSettlement]
+    fx_spot.businessDayConvention = BusinessDayConvention.ModifiedFollowing
+
+    def schedule(frequency):
+        sch = ScheduleT()
+        sch.effectiveDate = "2025-01-17"
+        sch.terminationDate = "2030-01-17"
+        sch.calendar = Calendar.TARGET
+        sch.frequency = frequency
+        sch.convention = BusinessDayConvention.ModifiedFollowing
+        sch.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
+        sch.dateGenerationRule = DateGenerationRule.Forward
+        sch.endOfMonth = False
+        return sch
+
+    fixed_coupons = FixedCouponsT()
+    fixed_coupons.notional = eur_notional
+    fixed_coupons.schedule = schedule(Frequency.Annual)
+    fixed_coupons.rate = fixed_rate
+    fixed_coupons.dayCounter = DayCounter.Thirty360
+    fixed_coupons.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    leg1 = SwapLegT()
+    leg1.payReceive = PayReceive.Pay
+    leg1.currency = "EUR"
+    leg1.couponsType = SwapCoupons.FixedCoupons
+    leg1.coupons = fixed_coupons
+    leg1.initialExchange = True
+    leg1.finalExchange = True
+    leg1.discountingCurve = "discount"
+
+    sofr_ref = IndexRefT()
+    sofr_ref.id = "USD_SOFR"
+    overnight_coupons = OvernightCouponsT()
+    overnight_coupons.notional = usd_notional
+    overnight_coupons.schedule = schedule(Frequency.Quarterly)
+    overnight_coupons.index = sofr_ref
+    overnight_coupons.spread = 0.0
+    overnight_coupons.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    overnight_coupons.paymentCalendar = Calendar.TARGET
+    overnight_coupons.paymentLag = 0
+    overnight_coupons.averagingMethod = RateAveragingType.Compound
+    overnight_coupons.lookbackDays = 0
+    overnight_coupons.lockoutDays = 0
+    overnight_coupons.applyObservationShift = False
+    leg2 = SwapLegT()
+    leg2.payReceive = PayReceive.Receive
+    leg2.currency = "USD"
+    leg2.couponsType = SwapCoupons.OvernightCoupons
+    leg2.coupons = overnight_coupons
+    leg2.initialExchange = True
+    leg2.finalExchange = True
+    leg2.discountingCurve = "usd_discount"
+    leg2.forwardingCurve = "usd_discount"
+
+    swap = CrossCurrencySwapT()
+    swap.leg1 = leg1
+    swap.leg2 = leg2
+    price_swap = PriceCrossCurrencySwapT()
+    price_swap.crossCurrencySwap = swap
+    price_swap.fxSpot = "EURUSD_SPOT"
+    price_swap.reportingCurrency = "USD"
+
+    request = PriceCrossCurrencySwapRequestT()
+    request.pricing = build_quantra_pricing(
+        [build_quantra_curve("discount"), build_quantra_curve("usd_discount", usd_rate)],
+        indices=[build_index_def_eur3m(), build_index_def_eur6m(), build_index_def_sofr()],
+        fx_spots=[fx_spot])
+    request.swaps = [price_swap]
+    request.includeFlows = True
+
+    response = client.price_cross_currency_swaps(request)
+    result = response.Swaps(0)
+    q_npv = result.Npv()
+    q_fair_rate = result.FairRate()
+    leg1_result = result.Legs(0)
+    flows = [leg1_result.Flows(i) for i in range(leg1_result.FlowsLength())]
+    exchanges = [f for f in flows if f.Kind() == SwapFlowKind.NotionalExchange]
+
+    # --- Compare ---
+    npv_diff = abs(ql_npv - q_npv)
+    rate_diff = abs(ql_fair_rate - q_fair_rate)
+
+    print(f"  Spot date:          {result.SpotDate().decode()}  X = {result.FxAsOfRate():.8f}")
+    print(f"  QuantLib NPV (USD): {ql_npv:>12.2f}")
+    print(f"  Quantra NPV (USD):  {q_npv:>12.2f}")
+    print(f"  NPV Difference:     {npv_diff:>12.6f}")
+    print(f"  QuantLib fair rate: {ql_fair_rate * 100:>11.6f}%")
+    print(f"  Quantra fair rate:  {q_fair_rate * 100:>11.6f}%")
+    print(f"  EUR leg flows:      {len(flows)} ({len(exchanges)} notional exchanges)")
+
+    passed = (npv_diff < 1e-6 and rate_diff < 1e-12
+              and result.SpotDate().decode() == spot_date.ISO()
+              and len(flows) == 7 and len(exchanges) == 2
+              and exchanges[0].Amount() == -eur_notional)
+    print(f"  Result:             {'✓ PASS' if passed else '✗ FAIL'}")
+
+    return passed, ql_npv, q_npv
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -1155,6 +1441,8 @@ def main():
         ("Fixed Rate Bond", lambda: test_fixed_rate_bond(client, curve_handle)),
         ("Vanilla Swap", lambda: test_vanilla_swap(client, curve_handle)),
         ("FRA", lambda: test_fra(client, curve_handle)),
+        ("FX Forward", lambda: test_fx_forward(client, curve_handle)),
+        ("Cross-Currency Swap", lambda: test_cross_currency_swap(client, curve_handle)),
         ("Cap", lambda: test_cap(client, curve_handle)),
         ("Swaption", lambda: test_swaption(client, curve_handle)),
         ("CDS", lambda: test_cds(client, curve_handle)),
