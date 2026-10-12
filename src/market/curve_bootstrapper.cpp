@@ -50,9 +50,9 @@ static void addDiscountOnlyDep(
     addDepFromRef(deps, curveId, hd->discount_curve());
 }
 
-/// Add all dependency edges (discount + projection + projection_2).
-/// Used for helpers that genuinely encode multi-curve projection relationships:
-/// TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+/// Add all dependency edges (discount + projection).
+/// Used for helpers that genuinely encode multi-curve projection relationships
+/// (TenorBasisSwapHelper).
 static void addAllDeps(
     std::unordered_map<std::string, std::vector<std::string>>& deps,
     const std::string& curveId,
@@ -60,7 +60,6 @@ static void addAllDeps(
     if (!hd) return;
     addDepFromRef(deps, curveId, hd->discount_curve());
     addDepFromRef(deps, curveId, hd->projection_curve());
-    addDepFromRef(deps, curveId, hd->projection_curve_2());
 }
 
 // =============================================================================
@@ -102,17 +101,35 @@ void CurveBootstrapper::collectDeps(
             auto h = static_cast<const quantra::DatedOISHelper*>(wrapper->point());
             addDiscountOnlyDep(deps, curveId, h->deps());
         }
-        // Basis/XCCY/FX helpers: full deps including projection curves.
+        // Basis helpers: full deps including projection curves.
         // These helpers genuinely use exogenous projection relationships.
         else if (ptype == quantra::Point_TenorBasisSwapHelper) {
             auto h = static_cast<const quantra::TenorBasisSwapHelper*>(wrapper->point());
             addAllDeps(deps, curveId, h->deps());
-        } else if (ptype == quantra::Point_FxSwapHelper) {
+        }
+        // FX helpers: the exogenous discount curve of the collateral (given)
+        // currency is an explicit reference on the helper, so the curve built
+        // from FX pillars always comes after it. An unknown reference is a 404
+        // (dependency not provided); a reference back to the curve itself is
+        // a 400 (checked below for the implemented helper).
+        else if (ptype == quantra::Point_FxSwapHelper) {
             auto h = static_cast<const quantra::FxSwapHelper*>(wrapper->point());
-            addAllDeps(deps, curveId, h->deps());
+            // The collateral curve is by construction a different curve (the
+            // helper builds the OTHER currency's discount curve). Naming the
+            // curve under construction would hand QuantLib an empty handle at
+            // bootstrap time; reject it here as a plain request error.
+            if (h->collateral_curve() && h->collateral_curve()->id() &&
+                h->collateral_curve()->id()->str() == curveId) {
+                QUANTRA_INVALID_ARGUMENT(
+                    "FxSwapHelper.collateral_curve '" + curveId +
+                    "' is the curve being bootstrapped; it must name the discount curve of "
+                    "the collateral currency (another curve)");
+            }
+            addDepFromRef(deps, curveId, h->collateral_curve());
         } else if (ptype == quantra::Point_CrossCcyBasisHelper) {
             auto h = static_cast<const quantra::CrossCcyBasisHelper*>(wrapper->point());
-            addAllDeps(deps, curveId, h->deps());
+            addDepFromRef(deps, curveId, h->base_discount_curve());
+            addDepFromRef(deps, curveId, h->quote_discount_curve());
         }
     }
 }
@@ -177,7 +194,8 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
     const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices,
     double curveBump,
-    const RequestBudget& budget) const {
+    const RequestBudget& budget,
+    const quantra::FxMarketData* fx) const {
     if (!curves || curves->size() == 0) {
         QUANTRA_INVALID_ARGUMENT("curves is required (at least one curve)");
     }
@@ -199,6 +217,13 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     // ---- 2. Build IndexRegistry ----
     IndexRegistryBuilder indexBuilder;
     IndexRegistry indexReg = indexBuilder.build(indices);
+
+    // ---- 2b. Build FxSpotRegistry (FX spots referenced by FxSwapHelper) ----
+    // Resolved against THIS quote registry so a spot given by quote_id
+    // observes the same quote the pillars do. Fx-typed quotes never receive
+    // the curve bump above, so a spot is identical under every rebump leg.
+    FxSpotRegistryBuilder fxBuilder;
+    FxSpotRegistry fxReg = fxBuilder.build(fx, quoteReg);
 
     // ---- 3. Index curves by id ----
     std::unordered_map<std::string, const quantra::TermStructure*> curveIndex;
@@ -241,7 +266,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
     KeyContext keyCtx;
     bool useCache = cache.enabled() && curveBump == 0.0;
     if (useCache) {
-        keyCtx = KeyContext::build(quotes, indices);
+        keyCtx = KeyContext::build(quotes, indices, fx);
     }
 
     for (const auto& id : order) {
@@ -305,7 +330,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
                 // Fail closed: this curve is simply not cached — no L1/L2 get
                 // or put, no depKeys entry. Bootstrap live; request succeeds.
                 cache.logEvent(id, "", "KEY_BUILD_FAILED_UNCACHED");
-                auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
+                auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump, &fxReg);
                 out.handles.at(id)->linkTo(curve);
                 continue;
             }
@@ -351,7 +376,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
 
             // --- Full bootstrap (cache miss) ---
             auto tBootStart = std::chrono::steady_clock::now();
-            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump, &fxReg);
             auto tBootEnd = std::chrono::steady_clock::now();
             double bootMs =
                 std::chrono::duration<double, std::milli>(tBootEnd - tBootStart).count();
@@ -414,7 +439,7 @@ BootstrappedCurves CurveBootstrapper::bootstrapAll(
             out.keys[id] = key;
         } else {
             // Cache disabled — original behavior
-            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump);
+            auto curve = tsParser.parse(ts, &quoteReg, &curveReg, &indexReg, curveBump, &fxReg);
             out.handles.at(id)->linkTo(curve);
         }
     }

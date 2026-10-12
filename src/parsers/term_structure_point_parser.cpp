@@ -58,7 +58,8 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
     const IndexRegistry* indices,
-    double bump) const {
+    double bump,
+    const FxSpotRegistry* fxSpots) const {
 
     // A union whose type byte names a helper but whose value offset is absent
     // survives FlatBuffers verification; the static_casts in each branch below
@@ -493,14 +494,81 @@ std::shared_ptr<RateHelper> TermStructurePointParser::parse(
     }
 
     // ------------------------------------------------------------------
-    // Stubs for basis / FX / XCCY
+    // FX swap helper (spot resolved from FxSpotRegistry, collateral curve
+    // from CurveRegistry)
+    //
+    // QuantLib's FxSwapRateHelper reprices the forward S + points off two
+    // discount curves: the collateral currency's curve (exogenous, given) and
+    // the curve being bootstrapped (the other currency's discount curve,
+    // attached by setTermStructure). The spot lag, the joint settlement
+    // calendar and the business-day convention are the spot's own: the pair's
+    // conventions live on FxSpotSpec once, not on every pillar.
+    // ------------------------------------------------------------------
+    else if (point_type == quantra::Point_FxSwapHelper) {
+        auto point = static_cast<const quantra::FxSwapHelper*>(data);
+
+        const bool has_quote = point->quote_id() && !point->quote_id()->str().empty();
+        double pointsValue;
+        if (point->fx_points().has_value() && !has_quote) {
+            pointsValue = requireFinite(point->fx_points(), "FxSwapHelper.fx_points");
+        } else if (has_quote && !point->fx_points().has_value()) {
+            pointsValue = 0.0; // unused: quote_id supplies the points below
+        } else {
+            QUANTRA_INVALID_ARGUMENT("FxSwapHelper requires exactly one of fx_points or quote_id");
+        }
+        // Forward points move with the two rate curves, so they are curve
+        // quotes and take the curve bump like every other pillar.
+        auto points =
+            resolveQuote(pointsValue, point->quote_id(), quotes, quantra::QuoteType_Curve, bump);
+
+        const QuantLib::Period tenor = requirePeriod(point->tenor(), "FxSwapHelper.tenor");
+
+        if (!point->fx_spot() || point->fx_spot()->str().empty()) {
+            QUANTRA_INVALID_ARGUMENT("FxSwapHelper.fx_spot is required");
+        }
+        if (!fxSpots) {
+            QUANTRA_ERROR("FxSpotRegistry is required for FxSwapHelper");
+        }
+        const FxSpot& spot = fxSpots->get(point->fx_spot()->str());
+
+        const bool endOfMonth = requireBool(point->end_of_month(), "FxSwapHelper.end_of_month");
+
+        if (!point->collateral_currency() || point->collateral_currency()->str().empty()) {
+            QUANTRA_INVALID_ARGUMENT("FxSwapHelper.collateral_currency is required");
+        }
+        const std::string collateralCcy = point->collateral_currency()->str();
+        bool baseIsCollateral;
+        if (collateralCcy == spot.baseCurrency) {
+            baseIsCollateral = true;
+        } else if (collateralCcy == spot.quoteCurrency) {
+            baseIsCollateral = false;
+        } else {
+            QUANTRA_INVALID_ARGUMENT(
+                "FxSwapHelper.collateral_currency '" + collateralCcy +
+                "' is neither currency of FX spot '" + spot.id + "' (" + spot.baseCurrency + "/" +
+                spot.quoteCurrency + ")");
+        }
+
+        if (!point->collateral_curve() || !point->collateral_curve()->id() ||
+            point->collateral_curve()->id()->str().empty()) {
+            QUANTRA_INVALID_ARGUMENT("FxSwapHelper.collateral_curve.id is required");
+        }
+        Handle<YieldTermStructure> collateral = resolveCurve(point->collateral_curve(), curves);
+
+        return std::make_shared<FxSwapRateHelper>(
+            points, spot.rate, tenor, static_cast<Natural>(spot.spotDays), spot.settlementCalendar,
+            spot.businessDayConvention, endOfMonth, baseIsCollateral, collateral);
+    }
+
+    // ------------------------------------------------------------------
+    // Stubs for basis / XCCY
     // ------------------------------------------------------------------
     else if (point_type == quantra::Point_TenorBasisSwapHelper) {
         QUANTRA_NOT_IMPLEMENTED("TenorBasisSwapHelper: schema-ready but not implemented.");
-    } else if (point_type == quantra::Point_FxSwapHelper) {
-        QUANTRA_NOT_IMPLEMENTED("FxSwapHelper: schema-ready but not implemented.");
     } else if (point_type == quantra::Point_CrossCcyBasisHelper) {
-        QUANTRA_NOT_IMPLEMENTED("CrossCcyBasisHelper: schema-ready but not implemented.");
+        QUANTRA_NOT_IMPLEMENTED(
+            "CrossCcyBasisHelper: schema-ready but not implemented yet (cross-currency basis "
+            "bootstrapping is planned; use FxSwapHelper pillars for the FX-implied short end).");
     }
 
     QUANTRA_INVALID_ARGUMENT("Unknown point type: " + std::to_string(point_type));

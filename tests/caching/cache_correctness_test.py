@@ -77,6 +77,13 @@ CASES = [
     # user's zero nodes and off the weekly resample grid) drift on a hit.
     Case("fixed_rate_bond_zerorate", "fixed_rate_bond",
          "fixed_rate_bond_zerorate_request.json", "bonds"),
+    # FX-implied curve: FxSwapHelper pillars on an FX spot + a collateral
+    # curve. The curve's key must carry the spot's full content (see the
+    # test_fx_spot_* cases below) and the collateral curve's own key.
+    Case("bootstrap_curves_fxswap", "bootstrap_curves",
+         "curves/curves_eur_usd_collateral_fxswap_short_end.json", None),
+    Case("bootstrap_curves_fxswap_quote_id", "bootstrap_curves",
+         "curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json", None),
 ]
 
 # The product whose log we probe to prove the cache engaged. Any cacheable row
@@ -350,6 +357,119 @@ def test_cache_engaged_zero_curve(cache_client, data_dir, cache_log_path):
     )
     print(f"[cache] zero curve engaged — L1 hits for {ZERO_CURVE_ID}: "
           f"{before} -> {after}")
+
+
+# ---------------------------------------------------------------------------
+# FX spot market data and the FX-implied curve
+# ---------------------------------------------------------------------------
+
+FX_CASE = next(c for c in CASES if c.id == "bootstrap_curves_fxswap")
+FX_CURVE_ID = "EUR_USD_COLLATERAL"
+FX_COLLATERAL_CURVE_ID = "USD_SOFR_OIS"
+
+
+def _count_curve_hits(log_path: Path, curve_id: str) -> int:
+    if not log_path.exists():
+        return 0
+    return sum(
+        1
+        for line in log_path.read_text(errors="replace").splitlines()
+        if "event=L1_HIT" in line and f"curve={curve_id} " in line
+    )
+
+
+def _wait_for_hits(log_path: Path, curve_id: str, before: int) -> int:
+    after = before
+    for _ in range(20):
+        after = _count_curve_hits(log_path, curve_id)
+        if after > before:
+            break
+        time.sleep(0.1)
+    return after
+
+
+def _fx_request(data_dir, spot_rate=None):
+    request = load_json(data_dir / FX_CASE.filename)
+    if spot_rate is not None:
+        request["pricing"]["fx"]["spots"][0]["rate"] = spot_rate
+    return request
+
+
+def test_fx_curve_cache_engaged(cache_client, data_dir, cache_log_path):
+    """The FX-implied curve itself must hit the cache on a repeated request
+    (an L1_HIT line naming its id), so the transparency row above cannot pass
+    trivially with the curve unkeyable (e.g. the spot failing the key build)."""
+    request = _fx_request(data_dir)
+    before = _count_curve_hits(cache_log_path, FX_CURVE_ID)
+    cache_client.price(FX_CASE.product, request)   # warm (may miss)
+    cache_client.price(FX_CASE.product, request)   # hit
+    after = _wait_for_hits(cache_log_path, FX_CURVE_ID, before)
+    assert after > before, (
+        f"No CurveCache L1 hit for curve={FX_CURVE_ID} logged in {cache_log_path} "
+        f"(hits before={before}, after={after}); the FX-implied curve did not "
+        f"engage the cache"
+    )
+
+
+def test_fx_spot_change_is_a_cache_miss(nocache_client, cache_client, data_dir):
+    """Same curves, same points, a different spot: the cached FX curve must
+    not be served. The spot is part of the curve's key, so the cache-ON
+    answer must equal the cache-OFF answer for the new spot."""
+    plain = _fx_request(data_dir)
+    moved = _fx_request(data_dir, spot_rate=1.0950)
+
+    off_plain = nocache_client.price(FX_CASE.product, plain)
+    off_moved = nocache_client.price(FX_CASE.product, moved)
+    assert _canonical(off_plain) != _canonical(off_moved), (
+        "moving the spot does not change the cache-OFF curve, so this case "
+        "cannot detect a stale entry"
+    )
+
+    cache_client.price(FX_CASE.product, plain)            # populate with the old spot
+    warm_plain = cache_client.price(FX_CASE.product, plain)
+    assert _canonical(warm_plain) == _canonical(off_plain)
+
+    got = cache_client.price(FX_CASE.product, moved)
+    assert _canonical(got) != _canonical(off_plain), (
+        "a request with a different FX spot was served the curve cached for "
+        "the old spot"
+    )
+    assert _canonical(got) == _canonical(off_moved), (
+        "cache-ON response for the moved spot differs from cache-OFF"
+    )
+
+    # And the moved-spot entry must not shadow the original one.
+    again = cache_client.price(FX_CASE.product, plain)
+    assert _canonical(again) == _canonical(off_plain)
+
+
+def test_fx_spot_does_not_invalidate_pure_rates_curves(cache_client, data_dir,
+                                                       cache_log_path):
+    """The USD collateral curve has no FX pillar, so moving the spot must
+    leave its cache entry alone: the request with the moved spot still hits
+    the collateral curve's entry while the FX curve misses."""
+    plain = _fx_request(data_dir)
+    moved = _fx_request(data_dir, spot_rate=1.0750)
+
+    cache_client.price(FX_CASE.product, plain)            # populate both curves
+    cache_client.price(FX_CASE.product, plain)            # both hit
+    before_coll = _count_curve_hits(cache_log_path, FX_COLLATERAL_CURVE_ID)
+    before_fx = _count_curve_hits(cache_log_path, FX_CURVE_ID)
+
+    cache_client.price(FX_CASE.product, moved)            # collateral hits, FX misses
+
+    after_coll = _wait_for_hits(cache_log_path, FX_COLLATERAL_CURVE_ID, before_coll)
+    assert after_coll > before_coll, (
+        f"the pure-rates collateral curve {FX_COLLATERAL_CURVE_ID} did not hit the "
+        f"cache after an FX spot change (hits {before_coll} -> {after_coll}); the "
+        f"spot must not take part in its key"
+    )
+    time.sleep(0.2)
+    after_fx = _count_curve_hits(cache_log_path, FX_CURVE_ID)
+    assert after_fx == before_fx, (
+        f"the FX-implied curve {FX_CURVE_ID} was served from the cache after the "
+        f"spot moved (hits {before_fx} -> {after_fx})"
+    )
 
 
 def _count_hw_calib_hits(log_path: Path) -> int:

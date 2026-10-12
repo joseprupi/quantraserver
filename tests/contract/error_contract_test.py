@@ -711,15 +711,27 @@ def _ec_body_valid_json_without(*absent_keys):
 
 def _ec_unimplemented_curve_point():
     # Replace the first curve's first point with a schema-ready-but-unbuilt
-    # helper (FxSwapHelper). The point parses into a valid FlatBuffer, then the
-    # term-structure point parser throws QuantraNotImplemented when the curve is
-    # built during pricing -> gRPC UNIMPLEMENTED -> HTTP 501. FxSwapHelper is
-    # used because it has no FlatBuffer-required fields, so an empty payload is
-    # accepted by the JSON parser and the throw is reached deterministically.
+    # helper (CrossCcyBasisHelper). The point parses into a valid FlatBuffer
+    # (every required field present), then the term-structure point parser
+    # throws QuantraNotImplemented when the curve is built during pricing ->
+    # gRPC UNIMPLEMENTED -> HTTP 501. No discount-curve reference is given so
+    # the dependency ordering has nothing to resolve before the throw.
     def f(req):
         req["pricing"]["rates"]["curves"][0]["points"][0] = {
-            "point_type": "FxSwapHelper",
-            "point": {},
+            "point_type": "CrossCcyBasisHelper",
+            "point": {
+                "spread": -0.001,
+                "tenor": {"n": 2, "unit": "Years"},
+                "fx_spot": "EURUSD_SPOT",
+                "base_index": {"id": "EUR_6M"},
+                "quote_index": {"id": "USD_SOFR"},
+                "spread_on_base_leg": True,
+                "payment_lag": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "end_of_month": False,
+                "mtm_reset": False,
+            },
         }
         return req
     return f

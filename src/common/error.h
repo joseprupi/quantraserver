@@ -59,7 +59,7 @@
 //   variant — it is a genuine feature gap. Examples: the OIS-shaped SABR
 //   calibrate path (schema-ready but the OIS-aware cube construction is deferred),
 //   runtime bumping of a SABR swaption vol surface, schema-ready-but-unbuilt term
-//   structure helpers (TenorBasisSwap/FxSwap/CrossCcyBasis), and an engine that
+//   structure helpers (TenorBasisSwap/CrossCcyBasis), and an engine that
 //   is unavailable in the linked QuantLib version. Maps to gRPC UNIMPLEMENTED
 //   (HTTP 501), which correctly tells the client the request was understood but
 //   the feature is not available, rather than that they sent something malformed.

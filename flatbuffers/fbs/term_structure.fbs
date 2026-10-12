@@ -14,12 +14,12 @@ table CurveRef {
 table HelperDependencies {
     /// Exogenous discount curve for dual-curve bootstrapping.
     discount_curve:CurveRef;
-    /// Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
+    /// Exogenous projection/forwarding curve. Reserved for
+    /// TenorBasisSwapHelper (not implemented yet); rejected on SwapHelper,
+    /// OISHelper and DatedOISHelper, whose projection curve is always the
+    /// curve being bootstrapped. The FX helpers carry their own explicit
+    /// curve references instead.
     projection_curve:CurveRef;
-    /// Second projection curve for basis/XCCY helpers.
-    projection_curve_2:CurveRef;
-    /// FX spot quote reference for FX-implied curve helpers.
-    fx_spot_quote_id:string;
 }
 
 /// Money market deposit helper.
@@ -266,29 +266,85 @@ table TenorBasisSwapHelper {
     quote_id:string;
 }
 
-/// FX swap helper.
+/// FX swap helper (QuantLib FxSwapRateHelper). Bootstraps the discount curve
+/// of the NON-collateral currency of the pair from FX swap points, given the
+/// spot and the discount curve of the collateral currency: the implied
+/// forward S + points must reprice to S * DF_collateral(T) / DF_other(T) from
+/// the spot date. The curve being bootstrapped is always the other
+/// currency's discount curve; the collateral curve is an exogenous curve the
+/// bootstrapper builds first (dependency ordering), so the two may never be
+/// the same curve.
 table FxSwapHelper {
-    /// FX forward points. One of fx_points or quote_id must be provided.
+    /// FX forward points in price units of the pair (forward = spot + points;
+    /// e.g. 0.0025 for 25 pips on EUR/USD). Exactly one of fx_points or
+    /// quote_id must be present. May be negative.
     fx_points:double = null;
-    tenor:Period;
-    spot_days:int = null;
-    calendar_domestic:enums.Calendar = null;
-    calendar_foreign:enums.Calendar = null;
-    deps:HelperDependencies;
+    /// Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+    /// points move with rates, so they take part in the curve bump) instead of
+    /// an inline fx_points value.
     quote_id:string;
+    /// Forward tenor from the spot date (1W, 1M, 3M, ...). Required.
+    tenor:Period (required);
+    /// Id of the FxSpotSpec in pricing.fx.spots. Required. The spot supplies
+    /// the pair, the spot rate, the spot lag (QuantLib fixingDays), the joint
+    /// settlement calendar and the business-day convention of the helper.
+    fx_spot:string (required);
+    /// End-of-month rule for the forward date. Required.
+    end_of_month:bool = null;
+    /// ISO code of the collateral currency: the currency whose discount curve
+    /// is given (collateral_curve). Required; must equal the spot's
+    /// base_currency or quote_currency. The curve being bootstrapped is then
+    /// the discount curve of the other currency of the pair.
+    collateral_currency:string (required);
+    /// Discount curve of the collateral currency, by id. Required; must name
+    /// another curve of pricing.rates.curves, which is bootstrapped first.
+    collateral_curve:CurveRef (required);
 }
 
-/// Cross-currency basis swap helper.
+/// Cross-currency basis swap helper (QuantLib
+/// ConstNotionalCrossCurrencyBasisSwapRateHelper). Schema-ready; the engine
+/// does not build it yet and rejects it with 501. Bootstraps the discount
+/// curve of one currency of the pair from a constant-notional cross-currency
+/// basis swap (base-currency float leg vs quote-currency float leg, notional
+/// exchanged at start and end) given the other currency's discount curve, the
+/// two forwarding indices and the spot.
 table CrossCcyBasisHelper {
-    /// Cross-currency basis spread. One of spread or quote_id must be provided.
+    /// Basis spread (decimal, 0.001 = 10 bp) added to the leg selected by
+    /// spread_on_base_leg. Exactly one of spread or quote_id must be present.
+    /// May be negative.
     spread:double = null;
-    tenor:Period;
-    /// Domestic leg index.
-    index_domestic:IndexRef (required);
-    /// Foreign leg index.
-    index_foreign:IndexRef (required);
-    deps:HelperDependencies;
+    /// Reference to a shared quote in pricing.quotes (quote_type = Curve)
+    /// instead of an inline spread.
     quote_id:string;
+    /// Swap tenor from the spot date. Required.
+    tenor:Period (required);
+    /// Id of the FxSpotSpec in pricing.fx.spots. Required; its base and quote
+    /// currencies are the two leg currencies.
+    fx_spot:string (required);
+    /// Forwarding index of the base-currency leg (IndexDef id). Required.
+    base_index:IndexRef (required);
+    /// Discount curve of the base-currency leg, by id. Exactly one of
+    /// base_discount_curve / quote_discount_curve is given; the absent one is
+    /// the curve being bootstrapped.
+    base_discount_curve:CurveRef;
+    /// Forwarding index of the quote-currency leg (IndexDef id). Required.
+    quote_index:IndexRef (required);
+    /// Discount curve of the quote-currency leg, by id. See base_discount_curve.
+    quote_discount_curve:CurveRef;
+    /// true: the basis spread is paid on the base-currency leg; false: on the
+    /// quote-currency leg. Required.
+    spread_on_base_leg:bool = null;
+    /// Payment lag in business days on both legs. Required; must be >= 0.
+    payment_lag:int = null;
+    /// Calendar of the swap schedule. Required.
+    calendar:enums.Calendar = null;
+    /// Business-day convention of the swap schedule. Required.
+    business_day_convention:enums.BusinessDayConvention = null;
+    /// End-of-month rule of the swap schedule. Required.
+    end_of_month:bool = null;
+    /// Mark-to-market notional resets on the quote leg. Required; must be
+    /// false in this version (resetting notionals are not supported yet).
+    mtm_reset:bool = null;
 }
 
 /// Union of all supported curve point types.

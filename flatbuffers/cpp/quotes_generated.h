@@ -64,36 +64,41 @@ inline const char *EnumNameQuoteKind(QuoteKind e) {
   return EnumNamesQuoteKind()[index];
 }
 
-/// High-level quote type (usage).
+/// High-level quote type (usage). Curve quotes are the only ones shifted by
+/// the rate bump-and-reprice machinery (swaption_pricing_rebump); an FX spot
+/// referenced from FxSpotSpec.quote_id must therefore carry the Fx type.
 enum QuoteType : int8_t {
   QuoteType_Curve = 0,
   QuoteType_Volatility = 1,
   QuoteType_Credit = 2,
+  QuoteType_Fx = 3,
   QuoteType_MIN = QuoteType_Curve,
-  QuoteType_MAX = QuoteType_Credit
+  QuoteType_MAX = QuoteType_Fx
 };
 
-inline const QuoteType (&EnumValuesQuoteType())[3] {
+inline const QuoteType (&EnumValuesQuoteType())[4] {
   static const QuoteType values[] = {
     QuoteType_Curve,
     QuoteType_Volatility,
-    QuoteType_Credit
+    QuoteType_Credit,
+    QuoteType_Fx
   };
   return values;
 }
 
 inline const char * const *EnumNamesQuoteType() {
-  static const char * const names[4] = {
+  static const char * const names[5] = {
     "Curve",
     "Volatility",
     "Credit",
+    "Fx",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameQuoteType(QuoteType e) {
-  if (::flatbuffers::IsOutRange(e, QuoteType_Curve, QuoteType_Credit)) return "";
+  if (::flatbuffers::IsOutRange(e, QuoteType_Curve, QuoteType_Fx)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesQuoteType()[index];
 }

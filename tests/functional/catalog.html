@@ -742,6 +742,18 @@
 <td class="npv">DF/ZERO series, 10 points</td>
 </tr>
 <tr>
+<td><div class="title">EUR discount curve collateralised in USD, from FX swap points</div><div class="desc">A USD-collateralised EUR discount curve bootstrapped from EUR/USD FX swap points (1W/1M/3M/6M/1Y) given the EUR/USD spot (T+2 on the joint TARGET + US settlement calendar) and a USD SOFR OIS discount curve, sampled for discount factors and continuous zero rates at six tenors including an off-pillar 9M point. The FX curve is listed before its collateral curve on the wire; the engine orders the bootstrap by the collateral_curve reference. Reference: QuantLib FxSwapRateHelper on the same inputs.</div></td>
+<td><code>FxSwapHelper</code> <code>FX spot market data</code> <code>joint calendar</code> <code>collateral curve dependency</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_fxswap_short_end.json">curves_eur_usd_collateral_fxswap_short_end.json</a></td>
+<td class="npv">DF/ZERO series, 6 points</td>
+</tr>
+<tr>
+<td><div class="title">EUR discount curve collateralised in USD, FX points and spot by quote_id</div><div class="desc">The same USD-collateralised EUR curve with every FX swap point and the EUR/USD spot carried in pricing.quotes and referenced by quote_id (the points as Curve quotes, the spot as an Fx quote that the rate bump never shifts). Must sample identically to the inline twin.</div></td>
+<td><code>FxSwapHelper</code> <code>quote_id pillars</code> <code>Fx quote type</code> <code>FX spot market data</code> <code>discount factors</code> <code>zero rates continuous</code></td>
+<td><a href="../../examples/data/curves/curves_eur_usd_collateral_fxswap_short_end_quote_id.json">curves_eur_usd_collateral_fxswap_short_end_quote_id.json</a></td>
+<td class="npv">DF/ZERO series, 6 points</td>
+</tr>
+<tr>
 <td><div class="title">USD SOFR OIS curve with zero payment lag (divergence twin)</div><div class="desc">The identical SOFR OIS curve as the payment-lag-2 case but with payment_lag 0 on every helper. Each twin matches its own QuantLib reference at 1e-9, while the two curves differ from each other at the long end (measured: discount factors ~1.8e-7 apart at 30Y and ~1.8e-6 at 40Y, zero rates ~1.5e-8 at 30Y and ~1.5e-7 at 40Y) — the reproduction of the long-end discount-factor drift seen when the payment lag is ignored.</div></td>
 <td><code>OIS bootstrap</code> <code>SOFR</code> <code>payment_lag 0</code> <code>long-end divergence twin</code> <code>discount factors</code> <code>zero rates continuous</code></td>
 <td><a href="../../examples/data/curves/curves_usd_ois_sofr_paylag0_df_zero_long_end.json">curves_usd_ois_sofr_paylag0_df_zero_long_end.json</a></td>
@@ -1259,6 +1271,6 @@
 </tr>
 </tbody>
 </table>
-<footer>192 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
+<footer>194 cases across 13 family(ies). NPV cells are the QuantLib reference values the server must reproduce within 0.01; series cells summarise curve- and vol-sampling cases whose every point is compared within 1e-9; calendar cells summarise date-utility cases whose dates must match exactly; calibration cells show the calibrated parameters compared field by field within 1e-7.</footer>
 </body>
 </html>

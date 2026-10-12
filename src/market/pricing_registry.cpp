@@ -10,6 +10,7 @@
 #include "date_convert.h"
 #include "enum_convert.h"
 #include "equity_underlying_registry.h"
+#include "fx_spot_registry.h"
 #include "index_registry_builder.h"
 #include "inflation_curve_parsers.h"
 #include "quote_registry.h"
@@ -77,6 +78,15 @@ PricingRegistry PricingRegistryBuilder::build(
         swapIndexBuilder.build(rates ? rates->swap_indices() : nullptr, reg.rates.indices);
 
     // ==========================================================================
+    // Parse FX domain (optional) — before the curves: FxSwapHelper pillars
+    // reference these spots, so an invalid spot is reported here, once, before
+    // any curve is built. The bootstrapper resolves the same wire spots again
+    // against its own (bump-aware) quote registry; validation is identical.
+    // ==========================================================================
+    FxSpotRegistryBuilder fxBuilder;
+    reg.fx.spots = fxBuilder.build(pricing->fx(), reg.quoteRegistry);
+
+    // ==========================================================================
     // Parse Curves (dependency-aware via CurveBootstrapper)
     // ==========================================================================
     if (!rates || !rates->curves()) {
@@ -85,7 +95,8 @@ PricingRegistry PricingRegistryBuilder::build(
 
     CurveBootstrapper bootstrapper;
     auto booted = bootstrapper.bootstrapAll(
-        rates->curves(), pricing->quotes(), rates ? rates->indices() : nullptr, 0.0, budget);
+        rates->curves(), pricing->quotes(), rates ? rates->indices() : nullptr, 0.0, budget,
+        pricing->fx());
 
     reg.rates.curveKeys = booted.keys;
     for (auto& kv : booted.handles) {

@@ -10,6 +10,7 @@ include "credit_curve.fbs";
 include "equity_option.fbs";
 include "inflation.fbs";
 include "calendar_override.fbs";
+include "fx.fbs";
 
 namespace quantra;
 
@@ -93,4 +94,8 @@ table Pricing {
     /// Per-request holiday overrides (optional). Applied to every use of the
     /// named calendars in this request. Used by: ALL.
     calendar_overrides:[CalendarOverride];
+
+    /// FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,
+    /// CrossCcyBasisHelper) and FX products. Optional.
+    fx:FxMarketData;
 }

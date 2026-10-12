@@ -3,6 +3,7 @@
 
 #include "quote_registry.h"
 
+#include "fx_generated.h"
 #include "index_generated.h"
 #include "quotes_generated.h"
 #include "term_structure_generated.h"
@@ -100,20 +101,31 @@ struct KeyContext {
     /// index_id → pointer to IndexDef (built from indices array)
     std::unordered_map<std::string, const quantra::IndexDef*> indexDefs;
 
+    /// quote_id → value of the Fx-typed quotes (an FxSpotSpec.quote_id must
+    /// name one of these; curve quotes are kept apart in quoteValues)
+    std::unordered_map<std::string, double> fxQuoteValues;
+
+    /// fx spot id → pointer to FxSpotSpec (built from pricing.fx.spots)
+    std::unordered_map<std::string, const quantra::FxSpotSpec*> fxSpots;
+
     /// Build from raw FlatBuffer arrays (call once per bootstrapAll)
     static KeyContext build(
         const flatbuffers::Vector<flatbuffers::Offset<quantra::QuoteSpec>>* quotes,
-        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices) {
+        const flatbuffers::Vector<flatbuffers::Offset<quantra::IndexDef>>* indices,
+        const quantra::FxMarketData* fx = nullptr) {
         KeyContext ctx;
         if (quotes) {
             for (flatbuffers::uoffset_t i = 0; i < quotes->size(); i++) {
                 auto q = quotes->Get(i);
-                if (q->id() && q->quote_type() == quantra::QuoteType_Curve) {
-                    // Presence-optional on the wire; the parser rejects an
-                    // absent value, so an invalid request never reaches a cache
-                    // hit. For a valid request the value is present and this
-                    // records the real resolved quote value.
+                if (!q->id()) continue;
+                // Presence-optional on the wire; the parser rejects an absent
+                // value, so an invalid request never reaches a cache hit. For
+                // a valid request the value is present and this records the
+                // real resolved quote value.
+                if (q->quote_type() == quantra::QuoteType_Curve) {
                     ctx.quoteValues[q->id()->str()] = q->value().value_or(0.0);
+                } else if (q->quote_type() == quantra::QuoteType_Fx) {
+                    ctx.fxQuoteValues[q->id()->str()] = q->value().value_or(0.0);
                 }
             }
         }
@@ -122,6 +134,14 @@ struct KeyContext {
                 auto def = indices->Get(i);
                 if (def->id()) {
                     ctx.indexDefs[def->id()->str()] = def;
+                }
+            }
+        }
+        if (fx && fx->spots()) {
+            for (flatbuffers::uoffset_t i = 0; i < fx->spots()->size(); i++) {
+                auto spot = fx->spots()->Get(i);
+                if (spot->id()) {
+                    ctx.fxSpots[spot->id()->str()] = spot;
                 }
             }
         }
@@ -142,6 +162,7 @@ struct KeyContext {
  *   FutureHelper futures_price/rate)
  * - Resolved quote values (not quote IDs)
  * - Index definitions referenced by helpers (full conventions)
+ * - FX spots referenced by FX helpers (full content: rate, pair, conventions)
  * - Dependency curve keys (for multi-curve bootstrap)
  *
  * v1 -> v2: optional-scalar presence became part of the point serialization
@@ -181,6 +202,14 @@ private:
     static void writeDeps(CanonicalBuffer& buf, const quantra::HelperDependencies* deps);
 
     static void writeIndexRef(CanonicalBuffer& buf, const quantra::IndexRef* ref);
+
+    static void writeCurveRef(CanonicalBuffer& buf, const quantra::CurveRef* ref);
+
+    /// Write the FULL content of the FX spot an FX helper references (rate,
+    /// pair, spot lag, calendars, convention). An id with no spot, or a spot
+    /// whose quote_id does not resolve to an Fx quote, throws (fail closed).
+    static void writeFxSpotRef(
+        CanonicalBuffer& buf, const flatbuffers::String* spotId, const KeyContext& ctx);
 
     static void writeSchedule(CanonicalBuffer& buf, const quantra::Schedule* sched);
 

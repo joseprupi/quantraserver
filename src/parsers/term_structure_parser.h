@@ -29,13 +29,14 @@ public:
     /// Legacy: parse with inline values only (no index resolution - deposits/bonds only)
     std::shared_ptr<QuantLib::YieldTermStructure> parse(const quantra::TermStructure* ts);
 
-    /// Full: parse with registries for quotes, curves, and indices
+    /// Full: parse with registries for quotes, curves, indices and FX spots
     std::shared_ptr<QuantLib::YieldTermStructure> parse(
         const quantra::TermStructure* ts,
         const QuoteRegistry* quotes,
         const CurveRegistry* curves,
         const IndexRegistry* indices,
-        double bump = 0.0);
+        double bump = 0.0,
+        const FxSpotRegistry* fxSpots = nullptr);
 
 private:
     std::shared_ptr<QuantLib::YieldTermStructure> buildCurve(

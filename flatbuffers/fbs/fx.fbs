@@ -1,0 +1,62 @@
+include "enums.fbs";
+
+namespace quantra;
+
+/// FX spot rate shared by curve helpers and FX products. Referenced by id,
+/// the same way curves and indices are.
+///
+/// The pair is given as two ISO currency codes, never as a six-letter string:
+/// one unit of `base_currency` costs `rate` units of `quote_currency`
+/// (EUR/USD 1.08 = base EUR, quote USD, rate 1.08).
+///
+/// `rate` is the market spot, i.e. the rate for delivery on the spot date
+/// (`spot_days` business days after the valuation date on the joint settlement
+/// calendar). The engine never turns it into an as-of rate implicitly; where an
+/// as-of conversion is needed it is computed from the spot and the two discount
+/// curves, X = S * DF_quote(spot) / DF_base(spot), the same algebra QuantLib's
+/// FxSwapRateHelper uses.
+///
+/// The spot lag and the settlement calendars are per-pair market conventions
+/// (T+2 for most pairs, T+1 for USD/CAD, USD/TRY, ...; both currencies'
+/// calendars, plus the USD calendar for crosses where the market settles
+/// through USD). They are stated by the user on every spot: the engine keeps
+/// no convention table and never infers them from the currency codes.
+table FxSpotSpec {
+    /// Identifier referenced by FxSwapHelper.fx_spot, CrossCcyBasisHelper.fx_spot
+    /// and the FX products (e.g. "EURUSD_SPOT"). Required; unique within
+    /// pricing.fx.spots.
+    id:string (required);
+    /// ISO 4217 code of the base currency (three uppercase letters). Required.
+    base_currency:string (required);
+    /// ISO 4217 code of the quote currency (three uppercase letters). Required;
+    /// must differ from base_currency.
+    quote_currency:string (required);
+    /// Spot rate: units of quote_currency per one unit of base_currency, for
+    /// delivery on the spot date. Exactly one of rate or quote_id must be
+    /// present. Must be finite and strictly positive.
+    rate:double = null;
+    /// Reference to a shared quote in pricing.quotes instead of an inline rate.
+    /// The quote must carry quote_type = Fx: curve quotes (quote_type = Curve)
+    /// are shifted by the rate bump-and-reprice machinery, and a spot rate
+    /// must never move with a parallel rate bump.
+    quote_id:string;
+    /// Spot lag in business days on the joint settlement calendar, from the
+    /// valuation date to the spot date. Required; must be >= 0 (2 for most
+    /// pairs, 1 for USD/CAD, USD/TRY and a few others, 0 for same-day).
+    spot_days:int = null;
+    /// Calendars whose holidays all count for spot and forward settlement; the
+    /// engine joins them (QuantLib JointCalendar, a holiday in any one is a
+    /// holiday of the pair). Required; at least one entry. Typically the two
+    /// currencies' calendars, plus the USD calendar for crosses when the
+    /// market convention says so.
+    settlement_calendars:[enums.Calendar] (required);
+    /// Business-day convention applied when a settlement date (spot or forward
+    /// maturity) falls on a holiday of the joint calendar. Required.
+    business_day_convention:enums.BusinessDayConvention = null;
+}
+
+/// FX market data grouped under the shared Pricing context.
+table FxMarketData {
+    /// Spot rates referenced by id from curve helpers and FX products.
+    spots:[FxSpotSpec];
+}

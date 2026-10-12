@@ -6,7 +6,14 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# FX swap helper.
+# FX swap helper (QuantLib FxSwapRateHelper). Bootstraps the discount curve
+# of the NON-collateral currency of the pair from FX swap points, given the
+# spot and the discount curve of the collateral currency: the implied
+# forward S + points must reprice to S * DF_collateral(T) / DF_other(T) from
+# the spot date. The curve being bootstrapped is always the other
+# currency's discount curve; the collateral curve is an exogenous curve the
+# bootstrapper builds first (dependency ordering), so the two may never be
+# the same curve.
 class FxSwapHelper(object):
     __slots__ = ['_tab']
 
@@ -25,7 +32,9 @@ class FxSwapHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # FX forward points. One of fx_points or quote_id must be provided.
+    # FX forward points in price units of the pair (forward = spot + points;
+    # e.g. 0.0025 for 25 pips on EUR/USD). Exactly one of fx_points or
+    # quote_id must be present. May be negative.
     # FxSwapHelper
     def FxPoints(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
@@ -33,9 +42,20 @@ class FxSwapHelper(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return None
 
+    # Reference to a shared quote in pricing.quotes (quote_type = Curve: the
+    # points move with rates, so they take part in the curve bump) instead of
+    # an inline fx_points value.
+    # FxSwapHelper
+    def QuoteId(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return None
+
+    # Forward tenor from the spot date (1W, 1M, 3M, ...). Required.
     # FxSwapHelper
     def Tenor(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from quantra.Period import Period
@@ -44,43 +64,46 @@ class FxSwapHelper(object):
             return obj
         return None
 
+    # Id of the FxSpotSpec in pricing.fx.spots. Required. The spot supplies
+    # the pair, the spot rate, the spot lag (QuantLib fixingDays), the joint
+    # settlement calendar and the business-day convention of the helper.
     # FxSwapHelper
-    def SpotDays(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
-        return None
-
-    # FxSwapHelper
-    def CalendarDomestic(self):
+    def FxSpot(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+            return self._tab.String(o + self._tab.Pos)
         return None
 
+    # End-of-month rule for the forward date. Required.
     # FxSwapHelper
-    def CalendarForeign(self):
+    def EndOfMonth(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return None
 
+    # ISO code of the collateral currency: the currency whose discount curve
+    # is given (collateral_curve). Required; must equal the spot's
+    # base_currency or quote_currency. The curve being bootstrapped is then
+    # the discount curve of the other currency of the pair.
     # FxSwapHelper
-    def Deps(self):
+    def CollateralCurrency(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra.HelperDependencies import HelperDependencies
-            obj = HelperDependencies()
-            obj.Init(self._tab.Bytes, x)
-            return obj
+            return self._tab.String(o + self._tab.Pos)
         return None
 
+    # Discount curve of the collateral currency, by id. Required; must name
+    # another curve of pricing.rates.curves, which is bootstrapped first.
     # FxSwapHelper
-    def QuoteId(self):
+    def CollateralCurve(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
-            return self._tab.String(o + self._tab.Pos)
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra.CurveRef import CurveRef
+            obj = CurveRef()
+            obj.Init(self._tab.Bytes, x)
+            return obj
         return None
 
 def FxSwapHelperStart(builder):
@@ -95,41 +118,41 @@ def FxSwapHelperAddFxPoints(builder, fxPoints):
 def AddFxPoints(builder, fxPoints):
     FxSwapHelperAddFxPoints(builder, fxPoints)
 
+def FxSwapHelperAddQuoteId(builder, quoteId):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
+
+def AddQuoteId(builder, quoteId):
+    FxSwapHelperAddQuoteId(builder, quoteId)
+
 def FxSwapHelperAddTenor(builder, tenor):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(tenor), 0)
 
 def AddTenor(builder, tenor):
     FxSwapHelperAddTenor(builder, tenor)
 
-def FxSwapHelperAddSpotDays(builder, spotDays):
-    builder.PrependInt32Slot(2, spotDays, None)
+def FxSwapHelperAddFxSpot(builder, fxSpot):
+    builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(fxSpot), 0)
 
-def AddSpotDays(builder, spotDays):
-    FxSwapHelperAddSpotDays(builder, spotDays)
+def AddFxSpot(builder, fxSpot):
+    FxSwapHelperAddFxSpot(builder, fxSpot)
 
-def FxSwapHelperAddCalendarDomestic(builder, calendarDomestic):
-    builder.PrependInt8Slot(3, calendarDomestic, None)
+def FxSwapHelperAddEndOfMonth(builder, endOfMonth):
+    builder.PrependBoolSlot(4, endOfMonth, None)
 
-def AddCalendarDomestic(builder, calendarDomestic):
-    FxSwapHelperAddCalendarDomestic(builder, calendarDomestic)
+def AddEndOfMonth(builder, endOfMonth):
+    FxSwapHelperAddEndOfMonth(builder, endOfMonth)
 
-def FxSwapHelperAddCalendarForeign(builder, calendarForeign):
-    builder.PrependInt8Slot(4, calendarForeign, None)
+def FxSwapHelperAddCollateralCurrency(builder, collateralCurrency):
+    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(collateralCurrency), 0)
 
-def AddCalendarForeign(builder, calendarForeign):
-    FxSwapHelperAddCalendarForeign(builder, calendarForeign)
+def AddCollateralCurrency(builder, collateralCurrency):
+    FxSwapHelperAddCollateralCurrency(builder, collateralCurrency)
 
-def FxSwapHelperAddDeps(builder, deps):
-    builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(deps), 0)
+def FxSwapHelperAddCollateralCurve(builder, collateralCurve):
+    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(collateralCurve), 0)
 
-def AddDeps(builder, deps):
-    FxSwapHelperAddDeps(builder, deps)
-
-def FxSwapHelperAddQuoteId(builder, quoteId):
-    builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(quoteId), 0)
-
-def AddQuoteId(builder, quoteId):
-    FxSwapHelperAddQuoteId(builder, quoteId)
+def AddCollateralCurve(builder, collateralCurve):
+    FxSwapHelperAddCollateralCurve(builder, collateralCurve)
 
 def FxSwapHelperEnd(builder):
     return builder.EndObject()
@@ -147,12 +170,12 @@ class FxSwapHelperT(object):
     # FxSwapHelperT
     def __init__(self):
         self.fxPoints = None  # type: Optional[float]
-        self.tenor = None  # type: Optional[PeriodT]
-        self.spotDays = None  # type: Optional[int]
-        self.calendarDomestic = None  # type: Optional[int]
-        self.calendarForeign = None  # type: Optional[int]
-        self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
+        self.tenor = None  # type: Optional[PeriodT]
+        self.fxSpot = None  # type: str
+        self.endOfMonth = None  # type: Optional[bool]
+        self.collateralCurrency = None  # type: str
+        self.collateralCurve = None  # type: Optional[CurveRefT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -176,33 +199,39 @@ class FxSwapHelperT(object):
         if fxSwapHelper is None:
             return
         self.fxPoints = fxSwapHelper.FxPoints()
+        self.quoteId = fxSwapHelper.QuoteId()
         if fxSwapHelper.Tenor() is not None:
             self.tenor = PeriodT.InitFromObj(fxSwapHelper.Tenor())
-        self.spotDays = fxSwapHelper.SpotDays()
-        self.calendarDomestic = fxSwapHelper.CalendarDomestic()
-        self.calendarForeign = fxSwapHelper.CalendarForeign()
-        if fxSwapHelper.Deps() is not None:
-            self.deps = HelperDependenciesT.InitFromObj(fxSwapHelper.Deps())
-        self.quoteId = fxSwapHelper.QuoteId()
+        self.fxSpot = fxSwapHelper.FxSpot()
+        self.endOfMonth = fxSwapHelper.EndOfMonth()
+        self.collateralCurrency = fxSwapHelper.CollateralCurrency()
+        if fxSwapHelper.CollateralCurve() is not None:
+            self.collateralCurve = CurveRefT.InitFromObj(fxSwapHelper.CollateralCurve())
 
     # FxSwapHelperT
     def Pack(self, builder):
-        if self.tenor is not None:
-            tenor = self.tenor.Pack(builder)
-        if self.deps is not None:
-            deps = self.deps.Pack(builder)
         if self.quoteId is not None:
             quoteId = builder.CreateString(self.quoteId)
+        if self.tenor is not None:
+            tenor = self.tenor.Pack(builder)
+        if self.fxSpot is not None:
+            fxSpot = builder.CreateString(self.fxSpot)
+        if self.collateralCurrency is not None:
+            collateralCurrency = builder.CreateString(self.collateralCurrency)
+        if self.collateralCurve is not None:
+            collateralCurve = self.collateralCurve.Pack(builder)
         FxSwapHelperStart(builder)
         FxSwapHelperAddFxPoints(builder, self.fxPoints)
-        if self.tenor is not None:
-            FxSwapHelperAddTenor(builder, tenor)
-        FxSwapHelperAddSpotDays(builder, self.spotDays)
-        FxSwapHelperAddCalendarDomestic(builder, self.calendarDomestic)
-        FxSwapHelperAddCalendarForeign(builder, self.calendarForeign)
-        if self.deps is not None:
-            FxSwapHelperAddDeps(builder, deps)
         if self.quoteId is not None:
             FxSwapHelperAddQuoteId(builder, quoteId)
+        if self.tenor is not None:
+            FxSwapHelperAddTenor(builder, tenor)
+        if self.fxSpot is not None:
+            FxSwapHelperAddFxSpot(builder, fxSpot)
+        FxSwapHelperAddEndOfMonth(builder, self.endOfMonth)
+        if self.collateralCurrency is not None:
+            FxSwapHelperAddCollateralCurrency(builder, collateralCurrency)
+        if self.collateralCurve is not None:
+            FxSwapHelperAddCollateralCurve(builder, collateralCurve)
         fxSwapHelper = FxSwapHelperEnd(builder)
         return fxSwapHelper

@@ -199,7 +199,7 @@
     },
     "quantra_QuoteType" : {
       "type" : "string",
-      "enum": ["Curve", "Volatility", "Credit"]
+      "enum": ["Curve", "Volatility", "Credit", "Fx"]
     },
     "quantra_ModelPayload" : {
       "type" : "string",
@@ -484,15 +484,7 @@
               },
         "projection_curve" : {
                 "$ref" : "#/definitions/quantra_CurveRef",
-                "description" : "Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper."
-              },
-        "projection_curve_2" : {
-                "$ref" : "#/definitions/quantra_CurveRef",
-                "description" : "Second projection curve for basis/XCCY helpers."
-              },
-        "fx_spot_quote_id" : {
-                "type" : "string",
-                "description" : "FX spot quote reference for FX-implied curve helpers."
+                "description" : "Exogenous projection/forwarding curve. Reserved for\nTenorBasisSwapHelper (not implemented yet); rejected on SwapHelper,\nOISHelper and DatedOISHelper, whose projection curve is always the\ncurve being bootstrapped. The FX helpers carry their own explicit\ncurve references instead."
               }
       },
       "additionalProperties" : false
@@ -935,60 +927,102 @@
     },
     "quantra_FxSwapHelper" : {
       "type" : "object",
-      "description" : "FX swap helper.",
+      "description" : "FX swap helper (QuantLib FxSwapRateHelper). Bootstraps the discount curve\nof the NON-collateral currency of the pair from FX swap points, given the\nspot and the discount curve of the collateral currency: the implied\nforward S + points must reprice to S * DF_collateral(T) / DF_other(T) from\nthe spot date. The curve being bootstrapped is always the other\ncurrency's discount curve; the collateral curve is an exogenous curve the\nbootstrapper builds first (dependency ordering), so the two may never be\nthe same curve.",
       "properties" : {
         "fx_points" : {
                 "type" : "number",
-                "description" : "FX forward points. One of fx_points or quote_id must be provided."
-              },
-        "tenor" : {
-                "$ref" : "#/definitions/quantra_Period"
-              },
-        "spot_days" : {
-                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647
-              },
-        "calendar_domestic" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "calendar_foreign" : {
-                "$ref" : "#/definitions/quantra_enums_Calendar"
-              },
-        "deps" : {
-                "$ref" : "#/definitions/quantra_HelperDependencies"
+                "description" : "FX forward points in price units of the pair (forward = spot + points;\ne.g. 0.0025 for 25 pips on EUR/USD). Exactly one of fx_points or\nquote_id must be present. May be negative."
               },
         "quote_id" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes (quote_type = Curve: the\npoints move with rates, so they take part in the curve bump) instead of\nan inline fx_points value."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Forward tenor from the spot date (1W, 1M, 3M, ...). Required."
+              },
+        "fx_spot" : {
+                "type" : "string",
+                "description" : "Id of the FxSpotSpec in pricing.fx.spots. Required. The spot supplies\nthe pair, the spot rate, the spot lag (QuantLib fixingDays), the joint\nsettlement calendar and the business-day convention of the helper."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End-of-month rule for the forward date. Required."
+              },
+        "collateral_currency" : {
+                "type" : "string",
+                "description" : "ISO code of the collateral currency: the currency whose discount curve\nis given (collateral_curve). Required; must equal the spot's\nbase_currency or quote_currency. The curve being bootstrapped is then\nthe discount curve of the other currency of the pair."
+              },
+        "collateral_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the collateral currency, by id. Required; must name\nanother curve of pricing.rates.curves, which is bootstrapped first."
               }
       },
+      "required" : ["tenor", "fx_spot", "collateral_currency", "collateral_curve"],
       "additionalProperties" : false
     },
     "quantra_CrossCcyBasisHelper" : {
       "type" : "object",
-      "description" : "Cross-currency basis swap helper.",
+      "description" : "Cross-currency basis swap helper (QuantLib\nConstNotionalCrossCurrencyBasisSwapRateHelper). Schema-ready; the engine\ndoes not build it yet and rejects it with 501. Bootstraps the discount\ncurve of one currency of the pair from a constant-notional cross-currency\nbasis swap (base-currency float leg vs quote-currency float leg, notional\nexchanged at start and end) given the other currency's discount curve, the\ntwo forwarding indices and the spot.",
       "properties" : {
         "spread" : {
                 "type" : "number",
-                "description" : "Cross-currency basis spread. One of spread or quote_id must be provided."
-              },
-        "tenor" : {
-                "$ref" : "#/definitions/quantra_Period"
-              },
-        "index_domestic" : {
-                "$ref" : "#/definitions/quantra_IndexRef",
-                "description" : "Domestic leg index."
-              },
-        "index_foreign" : {
-                "$ref" : "#/definitions/quantra_IndexRef",
-                "description" : "Foreign leg index."
-              },
-        "deps" : {
-                "$ref" : "#/definitions/quantra_HelperDependencies"
+                "description" : "Basis spread (decimal, 0.001 = 10 bp) added to the leg selected by\nspread_on_base_leg. Exactly one of spread or quote_id must be present.\nMay be negative."
               },
         "quote_id" : {
-                "type" : "string"
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes (quote_type = Curve)\ninstead of an inline spread."
+              },
+        "tenor" : {
+                "$ref" : "#/definitions/quantra_Period",
+                "description" : "Swap tenor from the spot date. Required."
+              },
+        "fx_spot" : {
+                "type" : "string",
+                "description" : "Id of the FxSpotSpec in pricing.fx.spots. Required; its base and quote\ncurrencies are the two leg currencies."
+              },
+        "base_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Forwarding index of the base-currency leg (IndexDef id). Required."
+              },
+        "base_discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the base-currency leg, by id. Exactly one of\nbase_discount_curve / quote_discount_curve is given; the absent one is\nthe curve being bootstrapped."
+              },
+        "quote_index" : {
+                "$ref" : "#/definitions/quantra_IndexRef",
+                "description" : "Forwarding index of the quote-currency leg (IndexDef id). Required."
+              },
+        "quote_discount_curve" : {
+                "$ref" : "#/definitions/quantra_CurveRef",
+                "description" : "Discount curve of the quote-currency leg, by id. See base_discount_curve."
+              },
+        "spread_on_base_leg" : {
+                "type" : "boolean",
+                "description" : "true: the basis spread is paid on the base-currency leg; false: on the\nquote-currency leg. Required."
+              },
+        "payment_lag" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Payment lag in business days on both legs. Required; must be >= 0."
+              },
+        "calendar" : {
+                "$ref" : "#/definitions/quantra_enums_Calendar",
+                "description" : "Calendar of the swap schedule. Required."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention of the swap schedule. Required."
+              },
+        "end_of_month" : {
+                "type" : "boolean",
+                "description" : "End-of-month rule of the swap schedule. Required."
+              },
+        "mtm_reset" : {
+                "type" : "boolean",
+                "description" : "Mark-to-market notional resets on the quote leg. Required; must be\nfalse in this version (resetting notionals are not supported yet)."
               }
       },
-      "required" : ["index_domestic", "index_foreign"],
+      "required" : ["tenor", "fx_spot", "base_index", "quote_index"],
       "additionalProperties" : false
     },
     "quantra_PointsWrapper" : {
@@ -2259,6 +2293,57 @@
       },
       "additionalProperties" : false
     },
+    "quantra_FxSpotSpec" : {
+      "type" : "object",
+      "description" : "FX spot rate shared by curve helpers and FX products. Referenced by id,\nthe same way curves and indices are.\n\nThe pair is given as two ISO currency codes, never as a six-letter string:\none unit of `base_currency` costs `rate` units of `quote_currency`\n(EUR/USD 1.08 = base EUR, quote USD, rate 1.08).\n\n`rate` is the market spot, i.e. the rate for delivery on the spot date\n(`spot_days` business days after the valuation date on the joint settlement\ncalendar). The engine never turns it into an as-of rate implicitly; where an\nas-of conversion is needed it is computed from the spot and the two discount\ncurves, X = S * DF_quote(spot) / DF_base(spot), the same algebra QuantLib's\nFxSwapRateHelper uses.\n\nThe spot lag and the settlement calendars are per-pair market conventions\n(T+2 for most pairs, T+1 for USD/CAD, USD/TRY, ...; both currencies'\ncalendars, plus the USD calendar for crosses where the market settles\nthrough USD). They are stated by the user on every spot: the engine keeps\nno convention table and never infers them from the currency codes.",
+      "properties" : {
+        "id" : {
+                "type" : "string",
+                "description" : "Identifier referenced by FxSwapHelper.fx_spot, CrossCcyBasisHelper.fx_spot\nand the FX products (e.g. \"EURUSD_SPOT\"). Required; unique within\npricing.fx.spots."
+              },
+        "base_currency" : {
+                "type" : "string",
+                "description" : "ISO 4217 code of the base currency (three uppercase letters). Required."
+              },
+        "quote_currency" : {
+                "type" : "string",
+                "description" : "ISO 4217 code of the quote currency (three uppercase letters). Required;\nmust differ from base_currency."
+              },
+        "rate" : {
+                "type" : "number",
+                "description" : "Spot rate: units of quote_currency per one unit of base_currency, for\ndelivery on the spot date. Exactly one of rate or quote_id must be\npresent. Must be finite and strictly positive."
+              },
+        "quote_id" : {
+                "type" : "string",
+                "description" : "Reference to a shared quote in pricing.quotes instead of an inline rate.\nThe quote must carry quote_type = Fx: curve quotes (quote_type = Curve)\nare shifted by the rate bump-and-reprice machinery, and a spot rate\nmust never move with a parallel rate bump."
+              },
+        "spot_days" : {
+                "type" : "integer", "minimum" : -2147483648, "maximum" : 2147483647,
+                "description" : "Spot lag in business days on the joint settlement calendar, from the\nvaluation date to the spot date. Required; must be >= 0 (2 for most\npairs, 1 for USD/CAD, USD/TRY and a few others, 0 for same-day)."
+              },
+        "settlement_calendars" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_enums_Calendar"},
+                "description" : "Calendars whose holidays all count for spot and forward settlement; the\nengine joins them (QuantLib JointCalendar, a holiday in any one is a\nholiday of the pair). Required; at least one entry. Typically the two\ncurrencies' calendars, plus the USD calendar for crosses when the\nmarket convention says so."
+              },
+        "business_day_convention" : {
+                "$ref" : "#/definitions/quantra_enums_BusinessDayConvention",
+                "description" : "Business-day convention applied when a settlement date (spot or forward\nmaturity) falls on a holiday of the joint calendar. Required."
+              }
+      },
+      "required" : ["id", "base_currency", "quote_currency", "settlement_calendars"],
+      "additionalProperties" : false
+    },
+    "quantra_FxMarketData" : {
+      "type" : "object",
+      "description" : "FX market data grouped under the shared Pricing context.",
+      "properties" : {
+        "spots" : {
+                "type" : "array", "items" : {"$ref" : "#/definitions/quantra_FxSpotSpec"},
+                "description" : "Spot rates referenced by id from curve helpers and FX products."
+              }
+      },
+      "additionalProperties" : false
+    },
     "quantra_RatesMarketData" : {
       "type" : "object",
       "description" : "Rates market data shared across interest-rate products.",
@@ -2393,6 +2478,10 @@
         "calendar_overrides" : {
                 "type" : "array", "items" : {"$ref" : "#/definitions/quantra_CalendarOverride"},
                 "description" : "Per-request holiday overrides (optional). Applied to every use of the\nnamed calendars in this request. Used by: ALL."
+              },
+        "fx" : {
+                "$ref" : "#/definitions/quantra_FxMarketData",
+                "description" : "FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,\nCrossCcyBasisHelper) and FX products. Optional."
               }
       },
       "required" : ["as_of_date"],

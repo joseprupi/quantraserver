@@ -203,6 +203,146 @@ report per-item errors inside a `200` response.
 To check the effect, call `/calendar-holidays`, `/calendar-advance` or
 `/calendar-business-days` with the same overrides.
 
+## FX spot market data
+
+FX spot rates live in `pricing.fx.spots[]` and are referenced by id, the same
+way curves and indices are: by FX-implied curve helpers today
+(`FxSwapHelper`; `CrossCcyBasisHelper` is schema-ready and returns `501`) and
+by the FX products as they ship.
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Identifier referenced by helpers and products. Required, unique within `pricing.fx.spots`. |
+| `base_currency` | ISO 4217 code (three uppercase letters). One unit of it costs `rate` units of `quote_currency`. Required. |
+| `quote_currency` | ISO 4217 code. Required; must differ from `base_currency`. |
+| `rate` | Spot rate, quote units per base unit, for delivery on the spot date. Exactly one of `rate` / `quote_id`; must be positive. |
+| `quote_id` | Entry of `pricing.quotes` carrying the rate instead of `rate`. That quote must have `quote_type: "Fx"` (see below). |
+| `spot_days` | Spot lag in business days on the joint settlement calendar. Required; `>= 0`. |
+| `settlement_calendars` | One or more calendars; a holiday in any of them is a holiday of the pair (QuantLib `JointCalendar`). Required, non-empty. |
+| `business_day_convention` | Adjustment for a settlement date that falls on a holiday of the joint calendar. Required. |
+
+```json
+{
+  "pricing": {
+    "as_of_date": "2025-01-15",
+    "fx": {
+      "spots": [
+        {
+          "id": "EURUSD_SPOT",
+          "base_currency": "EUR",
+          "quote_currency": "USD",
+          "rate": 1.0850,
+          "spot_days": 2,
+          "settlement_calendars": ["TARGET", "UnitedStatesSettlement"],
+          "business_day_convention": "ModifiedFollowing"
+        }
+      ]
+    }
+  }
+}
+```
+
+### Spot-date semantics
+
+`rate` is the market spot: the rate for delivery on the spot date, which is
+`spot_days` business days after `as_of_date` on the joint settlement calendar.
+The engine never turns it into a valuation-date rate implicitly. Where a
+conversion between the two currencies at the valuation date is needed, it is
+computed from the spot and the two discount curves,
+
+```
+X = S * DF_quote(spot_date) / DF_base(spot_date)
+```
+
+which is the same algebra QuantLib's `FxSwapRateHelper` uses to reprice a
+forward from the spot. Both discount curves are curves of the request, chosen
+explicitly by the helper or product that uses the spot; the engine never picks
+a curve or converts through a third currency.
+
+### The pair's conventions are yours
+
+The spot lag and the settlement calendars are per-pair market conventions
+(T+2 for most pairs, T+1 for USD/CAD, USD/TRY and a few others; both
+currencies' calendars, plus the USD calendar for crosses when the market
+settles through USD). The engine keeps no convention table and infers nothing
+from the currency codes: every spot states its own `spot_days` and
+`settlement_calendars`, and a request that leaves them out is rejected
+(`400` naming the field).
+
+### `quote_id` and the rate bump
+
+A spot given through `pricing.quotes` must use `"quote_type": "Fx"`. Quotes of
+type `Curve` are shifted by the bump-and-reprice machinery
+(`swaption_pricing_rebump`), and an FX spot must never move with a parallel
+rate bump; a spot that references a `Curve` quote is rejected (`400`). FX
+swap points, on the other hand, do move with rates and are ordinary `Curve`
+quotes.
+
+### Rejected requests
+
+Each is a `400` naming the field: a missing `id`; `base_currency` equal to
+`quote_currency`; a currency that is not three uppercase letters (a pair
+string such as `"EURUSD"` is not a currency); both or neither of `rate` /
+`quote_id`; a rate that is zero or negative; a `quote_id` whose quote is not
+of type `Fx`; a missing or negative `spot_days`; an empty
+`settlement_calendars`; a missing `business_day_convention`; the same `id`
+twice. An unknown `quote_id` is a `404`, as for every other quote reference.
+
+## FX swap helper
+
+`FxSwapHelper` is a curve pillar (`pricing.rates.curves[].points[]`) that
+bootstraps the discount curve of the **non-collateral** currency of a pair
+from an FX swap point, given the spot and the discount curve of the
+collateral currency (QuantLib `FxSwapRateHelper`). It is the standard way to
+build the short end of a collateral-adjusted discount curve, for example a
+EUR discount curve for USD-collateralised trades.
+
+| Field | Meaning |
+| --- | --- |
+| `fx_points` | Forward points in price units of the pair (forward = spot + points, e.g. `0.0025` for 25 pips on EUR/USD). Exactly one of `fx_points` / `quote_id`. May be negative. |
+| `quote_id` | Entry of `pricing.quotes` (`quote_type: "Curve"`) carrying the points instead of `fx_points`. |
+| `tenor` | Forward tenor from the spot date (`{"n": 3, "unit": "Months"}`). Required. |
+| `fx_spot` | Id of the `FxSpotSpec` in `pricing.fx.spots`. Required. The spot supplies the pair, the rate, the spot lag, the joint settlement calendar and the business-day convention of the pillar. |
+| `end_of_month` | End-of-month rule for the forward date. Required. |
+| `collateral_currency` | The currency whose discount curve is given. Required; must be `base_currency` or `quote_currency` of the spot. The curve being bootstrapped is the discount curve of the other currency. |
+| `collateral_curve` | `{"id": ...}` of the collateral currency's discount curve, another curve of `pricing.rates.curves`. Required. |
+
+```json
+{
+  "point_type": "FxSwapHelper",
+  "point": {
+    "fx_points": 0.00641,
+    "tenor": {"n": 3, "unit": "Months"},
+    "fx_spot": "EURUSD_SPOT",
+    "end_of_month": false,
+    "collateral_currency": "USD",
+    "collateral_curve": {"id": "USD_SOFR_OIS"}
+  }
+}
+```
+
+The pillar reprices `S + points = S * DF_collateral(T) / DF_other(T)` with
+both discount factors taken from the spot date. The collateral curve is a
+dependency of the curve carrying the pillar: it is bootstrapped first
+whatever the order of `pricing.rates.curves`, a reference to a curve that is
+not in the request is a `404`, a reference to the curve being bootstrapped
+itself is a `400`, and a cycle between curves is a `400`. The curve's cache
+entry is keyed on the spot's full content (rate, pair, lag, calendars,
+convention) as well as on the points and the collateral curve, so a change to
+the spot is never served from a cached curve, while curves without FX pillars
+are unaffected by the spot.
+
+Rejected pillars (`400` naming the field): both or neither of `fx_points` /
+`quote_id`; a missing `tenor`, `fx_spot`, `end_of_month`,
+`collateral_currency` or `collateral_curve`; a `collateral_currency` that is
+neither currency of the spot. An unknown `fx_spot`, `quote_id` or
+`collateral_curve` is a `404`.
+
+A complete example, with a QuantLib reference it is checked against, is
+`examples/data/curves/curves_eur_usd_collateral_fxswap_short_end.json` (and
+its `_quote_id` twin, which carries the points and the spot through
+`pricing.quotes`).
+
 ## Swaption greeks: units and definitions
 
 `POST /price-swaption` can return greeks under two request flags in

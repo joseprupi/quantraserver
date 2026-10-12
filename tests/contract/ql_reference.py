@@ -523,6 +523,56 @@ def _build_forward_rate_curve(curve_json: dict, points: list, eval_date: ql.Date
     return ql.YieldTermStructureHandle(curve)
 
 
+def _joint_calendar(names: list):
+    """Mirror of the server's FxSpotSpec.settlement_calendars handling: one
+    calendar is used as is, several are joined so that a holiday in any one is
+    a holiday of the pair (QuantLib JointCalendar, JoinHolidays)."""
+    calendars = [get_calendar(n) for n in names]
+    if not calendars:
+        raise ValueError("FxSpotSpec.settlement_calendars must list at least one calendar")
+    joint = calendars[0]
+    for cal in calendars[1:]:
+        joint = ql.JointCalendar(joint, cal, ql.JoinHolidays)
+    return joint
+
+
+def build_fx_spot(pricing: dict, spot_id: str, request_data: dict = None) -> dict:
+    """Resolve an FxSpotSpec from pricing.fx.spots into the plain values the
+    engine derives from it (src/parsers/fx_spot_parser.cpp):
+
+      {"base": str, "quote": str, "rate": float, "spot_days": int,
+       "calendar": ql.Calendar (joint), "bdc": ql BusinessDayConvention}
+
+    `rate` is the spot for delivery on the spot date (quote units per base
+    unit); a quote_id resolves through pricing.quotes and must carry the Fx
+    quote type, exactly as on the server. `pricing` may be the raw nested
+    request pricing or the flat view."""
+    fx = (pricing or {}).get("fx") or {}
+    spec = next((s for s in fx.get("spots", []) if s.get("id") == spot_id), None)
+    if spec is None:
+        raise ValueError(f"FX spot not found: {spot_id}")
+    if "rate" in spec:
+        rate = float(spec["rate"])
+    else:
+        # pricing.quotes sits at the top of the pricing block in both the
+        # nested request and the flat reference view.
+        quotes = pricing.get("quotes", [])
+        q = next((q for q in quotes if q.get("id") == spec.get("quote_id")), None)
+        if q is None:
+            raise ValueError(f"FxSpotSpec.quote_id: unknown quote id {spec.get('quote_id')}")
+        if q.get("quote_type", "Curve") != "Fx":
+            raise ValueError(f"FxSpotSpec.quote_id: quote {q['id']} must have quote_type Fx")
+        rate = float(q["value"])
+    return {
+        "base": spec["base_currency"],
+        "quote": spec["quote_currency"],
+        "rate": rate,
+        "spot_days": int(spec["spot_days"]),
+        "calendar": _joint_calendar(spec["settlement_calendars"]),
+        "bdc": get_convention(spec["business_day_convention"]),
+    }
+
+
 def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: dict = None) -> ql.YieldTermStructureHandle:
     """Build QuantLib curve from JSON curve definition."""
     points = curve_json.get("points", [])
@@ -722,6 +772,49 @@ def build_curve_from_json(curve_json: dict, eval_date: ql.Date, request_data: di
                 helpers.append(helper)
                 seen_pillars.add(pillar)
         
+        elif point_type == "FxSwapHelper":
+            # Mirrors src/parsers/term_structure_point_parser.cpp: the spot
+            # supplies the pair, the spot rate, the lag (fixingDays), the joint
+            # settlement calendar and the convention; the collateral currency's
+            # discount curve is another curve of the same request, built here
+            # recursively (the server orders the bootstrap by that reference).
+            # Forward points are curve quotes (quote_id -> Curve type).
+            req_pricing = (request_data or {}).get("pricing", {})
+            spot = build_fx_spot(req_pricing, point["fx_spot"], request_data)
+            collateral_ccy = point["collateral_currency"]
+            if collateral_ccy == spot["base"]:
+                base_is_collateral = True
+            elif collateral_ccy == spot["quote"]:
+                base_is_collateral = False
+            else:
+                raise ValueError(
+                    f"FxSwapHelper.collateral_currency {collateral_ccy} is neither "
+                    f"currency of FX spot {point['fx_spot']}")
+            coll_id = point["collateral_curve"]["id"]
+            coll_json = next(c for c in _reference_pricing_view(request_data)["curves"]
+                             if c["id"] == coll_id)
+            collateral = build_curve_from_json(coll_json, eval_date, request_data)
+            tenor_num, tenor_unit_s = _period_n_unit(point, "tenor", 0, "Days")
+            points_value = (quote_values[point["quote_id"]] if point.get("quote_id")
+                            else point["fx_points"])
+            if point.get("quote_id") and quote_types.get(point["quote_id"], "Curve") != "Curve":
+                raise ValueError(f"Quote id '{point['quote_id']}' has wrong type for curve")
+            helper = ql.FxSwapRateHelper(
+                ql.QuoteHandle(ql.SimpleQuote(points_value)),
+                ql.QuoteHandle(ql.SimpleQuote(spot["rate"])),
+                ql.Period(tenor_num, get_time_unit(tenor_unit_s)),
+                spot["spot_days"],
+                spot["calendar"],
+                spot["bdc"],
+                bool(point["end_of_month"]),
+                base_is_collateral,
+                collateral,
+            )
+            pillar = helper.pillarDate()
+            if pillar not in seen_pillars:
+                helpers.append(helper)
+                seen_pillars.add(pillar)
+
         elif point_type == "BondHelper":
             # Build bond schedule
             sch = point["schedule"]

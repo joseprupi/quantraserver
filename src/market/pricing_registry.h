@@ -4,6 +4,7 @@
 #include "coupon_pricer_domain.h"
 #include "credit_curve_domain.h"
 #include "equity_underlying_registry.h"
+#include "fx_spot_registry.h"
 #include "index_registry.h"
 #include "model_domain.h"
 #include "quote_registry.h"
@@ -88,6 +89,12 @@ struct EquityRegistry {
     std::unordered_map<std::string, EquityUnderlyingRuntime> equityUnderlyings;
 };
 
+struct FxRegistry {
+    /// Plain-domain FX spots keyed by id, populated from pricing.fx.spots via
+    /// FxSpotRegistryBuilder. Referenced by FX curve helpers and FX products.
+    FxSpotRegistry spots;
+};
+
 struct InflationRegistry {
     std::map<std::string, std::shared_ptr<QuantLib::InflationIndex>> inflationIndices;
     std::map<
@@ -119,6 +126,7 @@ struct PricingRegistry {
     CreditRegistry credit;
     VolatilityRegistry volatility;
     EquityRegistry equity;
+    FxRegistry fx;
     InflationRegistry inflation;
     PricingRequestOptions options;
 };

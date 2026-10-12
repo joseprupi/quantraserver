@@ -68,7 +68,8 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
     const QuoteRegistry* quotes,
     const CurveRegistry* curves,
     const IndexRegistry* indices,
-    double bump) {
+    double bump,
+    const FxSpotRegistry* fxSpots) {
     if (ts == nullptr) QUANTRA_INVALID_ARGUMENT("TermStructure not found");
 
     auto points = ts->points();
@@ -332,7 +333,8 @@ std::shared_ptr<YieldTermStructure> TermStructureParser::parse(
                 }
                 auto point = pw->point();
                 auto type = pw->point_type();
-                auto helper = pointParser.parse(type, point, quotes, curves, indices, bump);
+                auto helper =
+                    pointParser.parse(type, point, quotes, curves, indices, bump, fxSpots);
                 if (!helper)
                     QUANTRA_INVALID_ARGUMENT(
                         "Failed to parse term structure point at index " + std::to_string(i));
